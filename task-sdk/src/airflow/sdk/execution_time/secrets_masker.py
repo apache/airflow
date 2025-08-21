@@ -31,6 +31,10 @@ from functools import cache, cached_property
 from re import Pattern
 from typing import TYPE_CHECKING, Any, Protocol, TextIO, TypeAlias, TypeVar, overload
 
+# We have to import this here, as it is used in the type annotations at runtime even if it seems it is
+# not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
+from pydantic import JsonValue  # noqa: TC002
+
 from airflow import settings
 
 if TYPE_CHECKING:
@@ -102,20 +106,29 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
+def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
-    Mask a secret from appearing in the task logs.
+    Mask a secret from appearing in the logs.
 
-    If ``name`` is provided, then it will only be masked if the name matches
-    one of the configured "sensitive" names.
+    If ``name`` is provided, then it will only be masked if the name matches one of the configured "sensitive"
+    names.
 
-    If ``secret`` is a dict or a iterable (excluding str) then it will be
-    recursively walked and keys with sensitive names will be hidden.
+    If ``secret`` is a dict or a iterable (excluding str) then it will be recursively walked and keys with
+    sensitive names will be hidden.
+
+    If the secret value is too short (by default 5 characters or fewer, configurable via the
+    :ref:`[logging] min_length_masked_secret <config:logging__min_length_masked_secret>` setting) it will not
+    be masked
     """
-    # Filtering all log messages is not a free process, so we only do it when
-    # running tasks
     if not secret:
         return
+
+    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.comms import MaskSecret
+
+    if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+        # Tell the parent, the process which handles all logs writing and output, about the values to mask
+        comms.send(MaskSecret(value=secret, name=name))
 
     _secrets_masker().add_mask(secret, name)
 
@@ -533,7 +546,7 @@ class SecretsMasker(logging.Filter):
             else:
                 yield secret_or_secrets
 
-    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
+    def add_mask(self, secret: JsonValue, name: str | None = None):
         """Add a new secret to be masked to this filter instance."""
         if isinstance(secret, dict):
             for k, v in secret.items():

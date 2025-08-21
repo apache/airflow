@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from enum import Enum
 from functools import cached_property, lru_cache
 from multiprocessing import Process
 from time import sleep
@@ -43,7 +44,19 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import JobState
+
+
+class JobState(str, Enum):
+    """All possible states that a Job can be in."""
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 if TYPE_CHECKING:
     import datetime

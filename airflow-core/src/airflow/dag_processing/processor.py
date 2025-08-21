@@ -43,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetVariable,
+    MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
@@ -104,7 +105,8 @@ ToManager = Annotated[
     | PutVariable
     | DeleteVariable
     | GetPrevSuccessfulDagRun
-    | GetPreviousDagRun,
+    | GetPreviousDagRun
+    | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -427,6 +429,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
             resp = dagrun_result
             dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, MaskSecret):
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

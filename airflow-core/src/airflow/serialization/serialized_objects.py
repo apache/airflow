@@ -31,7 +31,7 @@ from collections.abc import Collection, Generator, Iterable, Iterator, Mapping, 
 from functools import cache, cached_property
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, Union, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
 
 import attrs
 import lazy_object_proxy
@@ -63,6 +63,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
@@ -93,7 +94,6 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
-from airflow.utils.operator_resources import Resources
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -105,11 +105,11 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG as SdkDag, BaseOperatorLink
     from airflow.serialization.json_schema import Validator
+    from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
     from airflow.typing_compat import Self
-    from airflow.utils.trigger_rule import TriggerRule
 
     HAS_KUBERNETES: bool
     try:
@@ -2281,7 +2281,7 @@ def _has_kubernetes() -> bool:
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
-MaybeSerializedDAG = Union[DAG, "LazyDeserializedDAG"]
+MaybeSerializedDAG: TypeAlias = "DAG | LazyDeserializedDAG"
 
 
 class LazyDeserializedDAG(pydantic.BaseModel):

@@ -47,6 +47,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
@@ -94,6 +95,11 @@ def clean_database():
 
 def create_trigger_in_db(session, trigger, operator=None):
     bundle_name = "testing"
+
+    testing_bundle = DagBundleModel(name=bundle_name)
+    session.merge(testing_bundle)
+    session.flush()
+
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
@@ -650,11 +656,13 @@ class CustomTrigger(BaseTrigger):
 
         from airflow.sdk import Variable
         from airflow.sdk.execution_time.xcom import XCom
+        from airflow.sdk.log import mask_secret
 
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)
 
         get_variable_value = await sync_to_async(Variable.get)("test_get_variable")
+        await sync_to_async(mask_secret)(get_variable_value)
         self.log.info("Loaded variable %s", get_variable_value)
 
         get_xcom_value = await sync_to_async(XCom.get_one)(
