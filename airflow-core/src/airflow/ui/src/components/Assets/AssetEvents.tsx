@@ -69,10 +69,10 @@ export const AssetEvents = ({
       { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
-  const runTypes = ["asset_triggered", "backfill", "manual", "scheduled"];
+  const runTypes = ["", "asset_triggered", "backfill", "manual", "scheduled"];
   const runTypeOptions = createListCollection({
     items: runTypes.map((type) => ({
-      label: translate(`common:runTypes.${type}`),
+      label: type === "" ? "\u00A0" : translate(`common:runTypes.${type}`),
       value: type,
     })),
   });
@@ -189,11 +189,11 @@ export const AssetEvents = ({
       <Select.Root
         borderWidth={0}
         collection={runTypeOptions}
-        defaultValue={[""]}
+        defaultValue={[runType]}
         onValueChange={(option) => handleFilterChange(RUN_TYPE)(option.value[0] as string)}
       >
         <Select.Trigger>
-          <Select.ValueText placeholder="Triggered Run Type" />
+          <Select.ValueText />
         </Select.Trigger>
 
         <Select.Content>
