@@ -29,6 +29,7 @@ services:
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/amazon/src
+      - ../../../empty:/opt/airflow/providers/apache/arrow/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/drill/src
