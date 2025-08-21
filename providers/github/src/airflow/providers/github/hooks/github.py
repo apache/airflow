@@ -21,9 +21,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from github import Github as GithubClient, GithubIntegration, Auth
+from github import Auth, Github as GithubClient
 
-from airflow.exceptions import AirflowException
 from airflow.providers.github.version_compat import BaseHook
 
 
@@ -57,25 +56,32 @@ class GithubHook(BaseHook):
         host = conn.host
         extras = conn.extra_dejson or {}
 
-        # Currently the only method of authenticating to GitHub in Airflow is via a token. This is not the
-        # only means available, but raising an exception to enforce this method for now.
-        # TODO: When/If other auth methods are implemented this exception should be removed/modified.
-        if not access_token:
-            if not extras:
-                raise AirflowException("An access token is required to authenticate to GitHub.")
+        if access_token:
+            auth: Auth.Auth = Auth.Token(access_token)
+        elif extras:
+            key_path = extras.get("key_path")
+            if key_path:
+                if not key_path.endswith(".pem"):
+                    raise RuntimeError("Unrecognised key file")
+                with open(key_path) as key_file:
+                    private_key = key_file.read()
 
-            private_key = extras.get("private_key", None)
-            app_id = extras.get("app_id", "")
-            installation_id = extras.get("installation_id", None)
+            app_id = extras.get("app_id")
+            installation_id = extras.get("installation_id")
+            if not isinstance(installation_id, int):
+                raise RuntimeError("The provided installation_id should be integer.")
+            if not isinstance(app_id, str) and not isinstance(app_id, int):
+                raise RuntimeError("The provided app_id should be integer or string.")
             token_permissions = extras.get("token_permissions", None)
-            auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
 
+            auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
+        else:
+            raise RuntimeError("No access token or authentication method provided.")
+
+        if not host:
             self.client = GithubClient(auth=auth)
         else:
-            if not host:
-                self.client = GithubClient(login_or_token=access_token)
-            else:
-                self.client = GithubClient(login_or_token=access_token, base_url=host)
+            self.client = GithubClient(auth=auth, base_url=host)
 
         return self.client
 

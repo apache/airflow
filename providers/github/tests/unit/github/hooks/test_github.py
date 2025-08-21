@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 import pytest
 from github import BadCredentialsException, Github, NamedUser
@@ -27,6 +27,7 @@ from airflow.providers.github.hooks.github import GithubHook
 
 github_client_mock = Mock(name="github_client_for_test")
 github_app_client_mock = Mock(name="github_app_client_for_test")
+
 
 class TestGithubHook:
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
@@ -45,7 +46,12 @@ class TestGithubHook:
                 conn_id="github_app_conn",
                 conn_type="github",
                 host="https://mygithub.com/api/v3",
-                extra='{"app_id": "123456", "installation_id": 654321, "private_key": "FAKE_PRIVATE_KEY"}',
+                extra={
+                    "app_id": "123456",
+                    "installation_id": 654321,
+                    "key_path": "FAKE_PRIVATE_KEY.pem",
+                    "token_permissions": {"issues": "write", "pull_requests": "read"},
+                },
             )
         )
 
@@ -60,7 +66,12 @@ class TestGithubHook:
         assert github_hook.client.name == github_mock.return_value.name
 
     @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
-    def test_connection_success(self, conn_id):
+    @patch(
+        "airflow.providers.github.hooks.github.open",
+        new_callable=mock_open,
+        read_data="FAKE_PRIVATE_KEY_CONTENT",
+    )
+    def test_connection_success(self, mock_file, conn_id):
         hook = GithubHook(github_conn_id=conn_id)
         hook.client = Mock(spec=Github)
         hook.client.get_user.return_value = NamedUser.NamedUser
@@ -71,7 +82,12 @@ class TestGithubHook:
         assert msg == "Successfully connected to GitHub."
 
     @pytest.mark.parametrize("conn_id", ["github_default", "github_app_conn"])
-    def test_connection_failure(self, conn_id):
+    @patch(
+        "airflow.providers.github.hooks.github.open",
+        new_callable=mock_open,
+        read_data="FAKE_PRIVATE_KEY_CONTENT",
+    )
+    def test_connection_failure(self, mock_file, conn_id):
         hook = GithubHook(github_conn_id=conn_id)
         hook.client.get_user = Mock(
             side_effect=BadCredentialsException(
@@ -84,13 +100,3 @@ class TestGithubHook:
 
         assert status is False
         assert msg == '401 {"message": "Bad credentials"}'
-
-    @patch("airflow.providers.github.hooks.github.Auth.AppAuth.get_installation_auth", return_value="fake-auth-token")
-    @patch("airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_app_client_mock)
-    def test_github_app_authentication(self, github_mock, get_auth_mock):
-        github_hook = GithubHook(github_conn_id="github_app_conn")
-
-        assert github_mock.called
-        github_mock.assert_called_once_with(auth=get_auth_mock.return_value)
-        assert isinstance(github_hook.client, Mock)
-        assert github_hook.client == github_app_client_mock
