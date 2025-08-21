@@ -41,6 +41,30 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2020, 8, 10)
 
 
+class TestWasbRemoteLogIO:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, create_runtime_ti):
+        from airflow.sdk import BaseOperator
+
+        # setup remote IO
+        self.base_log_folder = "local/airflow/logs"
+        self.wasb_log_folder = "wasb://container@account.blob.core.windows.net/remote/log/location"
+        self.wasb_container = "container"
+        self.wasb_remote_log_io = WasbRemoteLogIO(
+            remote_base=self.wasb_log_folder,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=True,
+            wasb_container=self.wasb_container,
+        )
+        # setup task instance
+        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
+
+    def test_stream(self):
+        """Test that the stream method raises NotImplementedError."""
+        with pytest.raises(NotImplementedError):
+            self.wasb_remote_log_io.stream("some/log/path", self.ti)
+
+
 class TestWasbTaskHandler:
     @pytest.fixture(autouse=True)
     def ti(self, create_task_instance, create_log_template):
