@@ -110,4 +110,4 @@ apache-airflow-providers-standard = {workspace = true}
 provider_info = "airflow.providers.arrow.get_provider_info:get_provider_info"
 
 [tool.flit.module]
-name = "airflow.providers.arrow"
+name = "airflow.providers.apache.arrow"
