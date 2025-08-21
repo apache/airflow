@@ -161,6 +161,7 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
+  "searchTasks": "Search tasks",
   "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",

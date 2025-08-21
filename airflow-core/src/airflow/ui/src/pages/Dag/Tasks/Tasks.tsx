@@ -39,13 +39,14 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
 
 export const Tasks = () => {
   const { dagId = "" } = useParams();
-  const { MAPPED, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
+  const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
   const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
   const selectedOperators = searchParams.getAll(OPERATOR);
   const selectedTriggerRules = searchParams.getAll(TRIGGER_RULE);
   const selectedRetries = searchParams.getAll(RETRIES);
   const selectedMapped = searchParams.get(MAPPED) ?? undefined;
+  const namePattern = searchParams.get(NAME_PATTERN) ?? undefined;
 
   const {
     data,
@@ -74,7 +75,8 @@ export const Tasks = () => {
         (operatorNames.length === 0 || operatorNames.includes(task.operator_name as string)) &&
         (triggerRuleNames.length === 0 || triggerRuleNames.includes(task.trigger_rule as string)) &&
         (retryValues.length === 0 || retryValues.includes(task.retries?.toString() as string)) &&
-        (mapped === undefined || task.is_mapped?.toString() === mapped),
+        (mapped === undefined || task.is_mapped?.toString() === mapped) &&
+        (namePattern === undefined || task.task_display_name?.toString().includes(namePattern)),
     );
 
   const filteredTasks = filterTasks({

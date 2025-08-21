@@ -21,13 +21,14 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskCollectionResponse } from "openapi/requests";
+import { SearchBar } from "src/components/SearchBar.tsx";
 import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
 import { AttrSelectFilter } from "src/pages/Dag/Tasks/AttrSelectFilter.tsx";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/AttrSelectFilterMulti.tsx";
 
 export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
-  const { MAPPED, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
+  const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedOperators = searchParams.getAll(OPERATOR);
@@ -59,10 +60,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
   };
 
   const onClearFilters = () => {
-    handleSelectedOperators(undefined);
-    handleSelectedTriggerRules(undefined);
-    handleSelectedRetries(undefined);
-    handleSelectedMapped(undefined);
+    setSearchParams();
   };
 
   const allOperatorNames: Array<string> = [
@@ -80,39 +78,58 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
     { key: "true", label: translate("mapped") },
     { key: "false", label: translate("notMapped") },
   ];
+  const taskNamePattern = searchParams.get(NAME_PATTERN) ?? "";
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN, value);
+    } else {
+      searchParams.delete(NAME_PATTERN);
+    }
+    setSearchParams(searchParams);
+  };
 
   return (
-    <HStack>
-      <AttrSelectFilterMulti
-        displayPrefix={undefined}
-        handleSelect={handleSelectedOperators}
-        placeholderText={translate("selectOperator")}
-        selectedValues={selectedOperators}
-        values={allOperatorNames}
-      />
-      <AttrSelectFilterMulti
-        displayPrefix={undefined}
-        handleSelect={handleSelectedTriggerRules}
-        placeholderText={translate("selectTriggerRules")}
-        selectedValues={selectedTriggerRules}
-        values={allTriggerRules}
-      />
-      <AttrSelectFilterMulti
-        displayPrefix={translate("retries")}
-        handleSelect={handleSelectedRetries}
-        placeholderText={translate("selectRetryValues")}
-        selectedValues={selectedRetries}
-        values={allRetryValues}
-      />
-      <AttrSelectFilter
-        handleSelect={handleSelectedMapped}
-        placeholderText={translate("selectMapped")}
-        selectedValue={selectedMapped}
-        values={allMappedValues}
-      />
-      <Box>
-        <ResetButton filterCount={2} onClearFilters={onClearFilters} />
-      </Box>
-    </HStack>
+    <>
+      <HStack>
+        <SearchBar
+          defaultValue={taskNamePattern}
+          hideAdvanced={true}
+          onChange={handleSearchChange}
+          placeHolder={translate("searchTasks")}
+        />
+      </HStack>
+      <HStack>
+        <AttrSelectFilterMulti
+          displayPrefix={undefined}
+          handleSelect={handleSelectedOperators}
+          placeholderText={translate("selectOperator")}
+          selectedValues={selectedOperators}
+          values={allOperatorNames}
+        />
+        <AttrSelectFilterMulti
+          displayPrefix={undefined}
+          handleSelect={handleSelectedTriggerRules}
+          placeholderText={translate("selectTriggerRules")}
+          selectedValues={selectedTriggerRules}
+          values={allTriggerRules}
+        />
+        <AttrSelectFilterMulti
+          displayPrefix={translate("retries")}
+          handleSelect={handleSelectedRetries}
+          placeholderText={translate("selectRetryValues")}
+          selectedValues={selectedRetries}
+          values={allRetryValues}
+        />
+        <AttrSelectFilter
+          handleSelect={handleSelectedMapped}
+          placeholderText={translate("selectMapped")}
+          selectedValue={selectedMapped}
+          values={allMappedValues}
+        />
+        <Box>
+          <ResetButton filterCount={2} onClearFilters={onClearFilters} />
+        </Box>
+      </HStack>
+    </>
   );
 };
