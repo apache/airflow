@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import re
-from collections.abc import Iterable, Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from functools import cached_property
 from typing import Any
@@ -52,6 +52,7 @@ def replace_placeholders(sql: str, placeholder: str) -> str:
         replacement = f"${counter[0]}"
         counter[0] += 1
         return replacement
+
     return re.sub(placeholder, replacer, sql)
 
 
@@ -203,7 +204,9 @@ class AdbcHook(DbApiHook):
         super()._run_command(cur, sql_statement, parameters)
 
     def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
-        sql_statement = super()._generate_insert_sql(table, values, target_fields=target_fields, replace=replace, **kwargs)
+        sql_statement = super()._generate_insert_sql(
+            table, values, target_fields=target_fields, replace=replace, **kwargs
+        )
         sql_statement = replace_placeholders(sql_statement, re.escape(self.dialect.placeholder))
 
         if self.log_sql:
@@ -214,10 +217,7 @@ class AdbcHook(DbApiHook):
     @classmethod
     def _to_record_batch(cls, rows, schema: Schema) -> RecordBatch:
         return RecordBatch.from_arrays(
-            [
-                array([row[index] for row in rows], type=field.type)
-                for index, field in enumerate(schema)
-            ],
+            [array([row[index] for row in rows], type=field.type) for index, field in enumerate(schema)],
             schema=schema,
         )
 
@@ -277,7 +277,7 @@ class AdbcHook(DbApiHook):
                 target_fields,  # values not needed — parameters will come from RecordBatch
                 target_fields,
                 replace,
-                **kwargs
+                **kwargs,
             )
 
             with closing(conn.cursor()) as cur:
