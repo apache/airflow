@@ -309,7 +309,10 @@ class TestUpdateHITLDetailEndpoint:
         sample_ti_url_identifier: str,
         query_param: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
+        response = unauthenticated_test_client.patch(
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
         assert response.status_code == 401
 
     @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
@@ -319,7 +322,10 @@ class TestUpdateHITLDetailEndpoint:
         sample_ti_url_identifier: str,
         query_param: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
+        response = unauthorized_test_client.patch(
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
         assert response.status_code == 403
 
     @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
