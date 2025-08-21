@@ -113,7 +113,6 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     ValidateInletsAndOutlets,
     VariableResult,
-    XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -1202,8 +1201,7 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=xcom_count)
+            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
