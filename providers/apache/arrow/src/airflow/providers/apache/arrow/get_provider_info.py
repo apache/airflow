@@ -37,9 +37,7 @@ def get_provider_info():
         "hooks": [
             {
                 "integration-name": "Apache Arrow",
-                "python-modules": [
-                    "airflow.providers.apache.arrow.hooks.abdc",
-                ],
+                "python-modules": ["airflow.providers.apache.arrow.hooks.adbc"],
             }
         ],
         "connection-types": [
