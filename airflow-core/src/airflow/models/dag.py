@@ -1905,6 +1905,8 @@ class DagModel(Base):
     timetable_summary = Column(Text, nullable=True)
     # Timetable description
     timetable_description = Column(String(1000), nullable=True)
+    # Timetable Type
+    timetable_type = Column(String(255), nullable=True)
     # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # DAG deadline information

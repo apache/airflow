@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select, text
+from sqlalchemy import Column, and_, case, func, not_, or_, select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -55,7 +55,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
@@ -459,17 +458,7 @@ class _TimetableTypesFilter(BaseParam[list[str]]):
         if not self.value:  # No filter provided
             return select
 
-        select = select.join(SerializedDagModel, SerializedDagModel.dag_id == DagModel.dag_id)
-
-        # JSON path for timetable type
-        json_path = "$.dag.timetable.__type"
-
-        conditions = [
-            text(f"json_extract(serialized_dag.data, '{json_path}') = :timetable_type_{i}").bindparams(
-                **{f"timetable_type_{i}": t_type}
-            )
-            for i, t_type in enumerate(self.value)
-        ]
+        conditions = [DagModel.timetable_type == t_type for t_type in self.value]
 
         return select.where(or_(*conditions))
 
