@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-21T13:29:32.644785
+# This constraints file was automatically generated on 2025-08-21T15:57:30.552629
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -623,7 +623,7 @@ sympy==1.14.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.36
+teradatasql==20.0.0.37
 teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
 text-unidecode==1.3
