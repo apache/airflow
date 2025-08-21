@@ -1669,6 +1669,7 @@ repos:
           ^airflow-core/src/airflow/logging/remote\.py$|
           ^airflow-core/src/airflow/models/asset\.py$|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
+          ^airflow-core/src/airflow/models/callback\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
           ^airflow-core/src/airflow/models/deadline\.py$|
