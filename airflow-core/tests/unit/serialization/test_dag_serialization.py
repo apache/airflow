@@ -1393,7 +1393,7 @@ class TestStringifiedDAGs:
         This test verifies that there are no new fields added to BaseOperator. And reminds that
         tests should be added for it.
         """
-        from airflow.utils.trigger_rule import TriggerRule
+        from airflow.task.trigger_rule import TriggerRule
 
         base_operator = BaseOperator(task_id="10")
         # Return the name of any annotated class property, or anything explicitly listed in serialized fields

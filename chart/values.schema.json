@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.3",
+            "default": "3.0.5",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.0.3",
+            "default": "3.0.5",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -687,7 +687,7 @@
             "type": "string",
             "x-docsSection": "Common",
             "default": "CeleryExecutor",
-            "pattern": "^(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.edge3.executors.EdgeExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor)(,(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.edge3.executors.EdgeExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor))*$"
+            "pattern": "^(([a-zA-Z_][a-zA-Z0-9_]*.)*[A-Z][a-zA-Z0-9]+Executor)(,(([a-zA-Z_][a-zA-Z0-9_]*.)*[A-Z][a-zA-Z0-9]+Executor))*$"
         },
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
