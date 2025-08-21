@@ -47,6 +47,7 @@
   },
   "dagWarnings": {
     "error_one": "1 hiba",
+    "error_other": "{{count}} hiba",
     "errorAndWarning": "1 hiba és {{warningText}}",
     "warning_one": "1 figyelmeztetés",
     "warning_other": "{{count}} figyelmeztetés"
@@ -62,6 +63,7 @@
     "runDuration": "Futás időtartama"
   },
   "fileUpload": {
+    "files_one": "1 fájl",
     "files_other": "{{count}} fájl"
   },
   "flexibleForm": {
