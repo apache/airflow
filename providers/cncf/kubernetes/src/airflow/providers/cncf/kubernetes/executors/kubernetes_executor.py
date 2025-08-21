@@ -375,8 +375,8 @@ class KubernetesExecutor(BaseExecutor):
                     retries = self.task_publish_retries[key]
                     # In case of exceeded quota errors, requeue the task as per the task_publish_max_retries
                     if (
-                        str(e.status) == "403"
-                        and "exceeded quota" in body["message"]
+                        (str(e.status) == "403" and "exceeded quota" in body["message"])
+                        or (str(e.status) == "409" and "object has been modified" in body["message"])
                         and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries)
                     ):
                         self.log.warning(
