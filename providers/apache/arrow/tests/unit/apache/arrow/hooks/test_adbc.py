@@ -22,7 +22,7 @@ from adbc_driver_manager import dbapi
 import pytest
 
 from airflow.models import Connection
-from providers.apache.arrow.src.airflow.providers.apache.arrow.hooks.adbc import AdbcHook
+from airflow.providers.apache.arrow.hooks.adbc import AdbcHook
 
 
 class TestAdbcHook:
