@@ -48,13 +48,13 @@ class TestDagBagSingleton:
         """Patch DagBag once before app is created, and reset counter."""
         self.dagbag_call_counter["count"] = 0
 
-        from airflow.models.dagbag import SchedulerDagBag as RealDagBag
+        from airflow.models.dagbag import DBDagBag as RealDagBag
 
         def factory(*args, **kwargs):
             self.dagbag_call_counter["count"] += 1
             return RealDagBag(*args, **kwargs)
 
-        with mock.patch("airflow.api_fastapi.common.dagbag.SchedulerDagBag", side_effect=factory):
+        with mock.patch("airflow.api_fastapi.common.dagbag.DBDagBag", side_effect=factory):
             purge_cached_app()
             yield
 

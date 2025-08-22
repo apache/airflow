@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 from argparse import ArgumentError
-from io import StringIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,8 +31,8 @@ class TestCliDeprecatedCommandsValue:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def test_should_display_value(self):
-        with pytest.raises(SystemExit) as ctx, contextlib.redirect_stderr(StringIO()) as temp_stderr:
+    def test_should_display_value(self, stderr_capture):
+        with pytest.raises(SystemExit) as ctx, stderr_capture as temp_stderr:
             config_command.get_value(self.parser.parse_args(["webserver"]))
 
         assert ctx.value.code == 2

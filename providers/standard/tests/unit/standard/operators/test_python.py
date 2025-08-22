@@ -63,10 +63,18 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
@@ -1672,7 +1680,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     ):
         custom_pycache_prefix = "custom/__pycache__"
         tempdir_name = "tmp"
-        venv_dir_temp_name = "venvrandom"
+        venv_dir_temp_name = "dummy12345/venvrandom"
         venv_path_tmp = f"/{tempdir_name}/{venv_dir_temp_name}"
         expected_cleanup_path = Path.cwd() / custom_pycache_prefix / tempdir_name / venv_dir_temp_name
 
@@ -1772,6 +1780,28 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             assert op._get_airflow_version_from_target_env() is None
             assert "Something went wrong" in caplog.text
             assert "returned non-zero exit status" in caplog.text
+
+    @mock.patch.object(ExternalPythonOperator, "_get_airflow_version_from_target_env")
+    def test_iter_serializable_context_keys_respects_expect_airflow_false(self, mock_get_airflow_version):
+        """Test that when expect_airflow=False, _get_airflow_version_from_target_env is not called."""
+
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=False
+        )
+
+        keys = set(op._iter_serializable_context_keys())
+
+        mock_get_airflow_version.assert_not_called()
+
+        # BASE keys should always be present
+        base_keys = set(op.BASE_SERIALIZABLE_CONTEXT_KEYS)
+        airflow_keys = set(op.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
+
+        assert base_keys <= keys
+        assert not (airflow_keys & keys), "Airflow keys should not be present when expect_airflow=False"
 
 
 class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):

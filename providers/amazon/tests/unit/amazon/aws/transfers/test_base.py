@@ -42,7 +42,7 @@ class TestAwsToAwsBaseOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         operator = AwsToAwsBaseOperator(
             task_id="dynamodb_to_s3_test_render",
             dag=self.dag,
@@ -53,8 +53,9 @@ class TestAwsToAwsBaseOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            bundle_name = "testing"
+            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
+            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(operator, run_id="something", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(

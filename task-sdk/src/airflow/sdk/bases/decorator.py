@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, T
 import attr
 import typing_extensions
 
-from airflow.sdk import timezone
+from airflow.sdk import TriggerRule, timezone
 from airflow.sdk.bases.operator import (
     BaseOperator,
     coerce_resources,
@@ -46,11 +46,13 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
+from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
+from airflow.sdk.definitions.mappedoperator import (
+    MappedOperator,
+    ensure_xcomarg_return_value,
+    prevent_duplicates,
+)
 from airflow.sdk.definitions.xcom_arg import XComArg
-from airflow.utils.context import KNOWN_CONTEXT_KEYS
-from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import (
@@ -560,12 +562,6 @@ class DecoratedMappedOperator(MappedOperator):
 
     def __hash__(self):
         return id(self)
-
-    def __attrs_post_init__(self):
-        # The magic super() doesn't work here, so we use the explicit form.
-        # Not using super(..., self) to work around pyupgrade bug.
-        super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
-        XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
     def _expand_mapped_kwargs(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.

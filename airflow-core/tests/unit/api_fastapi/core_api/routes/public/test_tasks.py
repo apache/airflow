@@ -20,14 +20,21 @@ from datetime import datetime
 
 import pytest
 
+from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.models.dag import DAG
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -63,13 +70,16 @@ class TestTaskEndpoint:
 
         task1 >> task2
         task4 >> task5
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
-        mapped_dag.sync_to_db()
-        SerializedDagModel.write_dag(mapped_dag, bundle_name="testing")
-        unscheduled_dag.sync_to_db()
-        SerializedDagModel.write_dag(unscheduled_dag, bundle_name="testing")
-        dag_bag = SchedulerDagBag()
+        session = settings.Session()
+        bundle_name = "testing"
+        dag_bundle = DagBundleModel(name=bundle_name)
+        session.merge(dag_bundle)
+        session.commit()
+        DAG.bulk_write_to_db(bundle_name, None, [dag, mapped_dag, unscheduled_dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(mapped_dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(unscheduled_dag, bundle_name=bundle_name)
+        dag_bag = DBDagBag()
 
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
@@ -78,6 +88,7 @@ class TestTaskEndpoint:
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
+        clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
     def setup(self, test_client) -> None:
@@ -236,11 +247,11 @@ class TestGetTask(TestTaskEndpoint):
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
             task1 >> task2
+        bundle_name = "testing"
+        DAG.bulk_write_to_db(bundle_name, None, [dag])
+        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
-
-        dag_bag = SchedulerDagBag()
+        dag_bag = DBDagBag()
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
         expected = {

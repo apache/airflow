@@ -197,6 +197,8 @@ def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
     from airflow.executors.workloads import BundleInfo
+    from airflow.task.trigger_rule import TriggerRule
+    from airflow.task.weight_rule import WeightRule
     from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {
@@ -206,6 +208,8 @@ def get_extra_schemas() -> dict[str, dict]:
         # as that has different payload requirements
         "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
         "TaskInstanceState": {"type": "string", "enum": list(TaskInstanceState)},
+        "WeightRule": {"type": "string", "enum": list(WeightRule)},
+        "TriggerRule": {"type": "string", "enum": list(TriggerRule)},
     }
 
 
@@ -224,6 +228,7 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
@@ -235,6 +240,9 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
 
             self._app = create_task_execution_api_app()
+
+            # Set up dag_bag in app state for dependency injection
+            self._app.state.dag_bag = create_dag_bag()
 
             async def always_allow(): ...
 

@@ -36,7 +36,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
@@ -103,7 +103,7 @@ class TestTaskInstanceEndpoint:
         with_ti_history=False,
     ):
         """Method to create task instances using kwargs and default arguments"""
-        dag = self.dagbag.get_latest_version_of_dag(dag_id, session)
+        dag = self.dagbag.get_latest_version_of_dag(dag_id, session=session)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:
@@ -608,7 +608,9 @@ class TestGetMappedTaskInstances:
     def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags=None):
         for dag_id, dag in (dags or {}).items():
             count = dag["success"] + dag["running"]
-            with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
+            with dag_maker(
+                session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True
+            ) as sdag:
                 task1 = BaseOperator(task_id="op1")
                 mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
 
@@ -653,10 +655,10 @@ class TestGetMappedTaskInstances:
             DagBundlesManager().sync_bundles_to_db()
             dagbag = DagBag(os.devnull, include_examples=False)
             dagbag.dags = {dag_id: dag_maker.dag}
-            dagbag.sync_to_db("dags-folder", None)
+            sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
 
-            TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+            TaskMap.expand_mapped_task(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):
@@ -731,7 +733,7 @@ class TestGetMappedTaskInstances:
             "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG mapped_tis not found"}
+        assert response.json() == {"detail": "The Dag with ID: `mapped_tis` was not found"}
 
     def test_should_respond_200(self, one_task_with_many_mapped_tis, test_client):
         response = test_client.get(
@@ -1168,7 +1170,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     def test_not_found(self, test_client):
         response = test_client.get("/dags/invalid/dagRuns/~/taskInstances")
         assert response.status_code == 404
-        assert response.json() == {"detail": "Dag with dag_id: `invalid` was not found"}
+        assert response.json() == {"detail": "The Dag with ID: `invalid` was not found"}
 
         response = test_client.get("/dags/~/dagRuns/invalid/taskInstances")
         assert response.status_code == 404
@@ -2874,7 +2876,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert "DAG non-existent-dag not found" in response.text
+        assert "The Dag with ID: `non-existent-dag` was not found" in response.text
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
@@ -3466,7 +3468,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG non-existent-dag not found"}
+        assert response.json() == {"detail": "The Dag with ID: `non-existent-dag` was not found"}
 
     def test_should_raise_404_for_non_existent_task_in_dag(self, test_client):
         response = test_client.patch(
@@ -4156,7 +4158,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG non-existent-dag not found"}
+        assert response.json() == {"detail": "The Dag with ID: `non-existent-dag` was not found"}
 
     def test_should_raise_404_for_non_existent_task_in_dag(self, test_client):
         response = test_client.patch(
@@ -4514,6 +4516,29 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         {
                             "action": "delete",
                             "entities": [
+                                {
+                                    "task_id": TASK_ID,
+                                    "map_index": -1,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [f"{TASK_ID}[-1]"],
+                        "errors": [],
+                    }
+                },
+                id="delete-with-entity-success",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
                                 "non_existent_task",
                             ],
                             "action_on_non_existence": "skip",
@@ -4535,6 +4560,30 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         {
                             "action": "delete",
                             "entities": [
+                                {
+                                    "task_id": "non_existent_task",
+                                    "map_index": -1,
+                                },
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+                id="delete-with-entity-skip",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
                                 "non_existent_task",
                             ],
                         }
@@ -4545,13 +4594,86 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: ['non_existent_task'] were not found",
+                                "error": "No task instances found for task_id: non_existent_task",
                                 "status_code": 404,
                             }
                         ],
                     }
                 },
                 id="delete-failure",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "task_id": "non_existent_task",
+                                    "map_index": -1,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The task instances with these task_ids: ['non_existent_task[-1]'] were not found",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+                id="delete-with-entity-failure",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 0},
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 1},
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 2},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {"task_id": TASK_ID, "map_index": None},
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="delete-all-map-indexes",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "state": State.SUCCESS},
+                    {"task_id": "another_task", "state": State.SUCCESS},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [TASK_ID, {"task_id": "another_task", "map_index": -1}],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": ["another_task[-1]", TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="mixed-string-and-object",
             ),
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.RUNNING}],
@@ -4786,7 +4908,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [TASK_ID],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: ['non_existent_task'] were not found",
+                                "error": "No task instances found for task_id: non_existent_task",
                                 "status_code": 404,
                             }
                         ],

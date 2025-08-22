@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+7.7.1
+.....
+
+Misc
+~~~~
+
+* ``Bump deltalake to 1.1.3 (#54108)``
+* ``Move imports to version_compat in databricks workflow plugin (#53883)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.7.0
 .....
 

@@ -33,6 +33,7 @@ from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
+from functools import lru_cache
 from http import HTTPStatus
 from socket import socket, socketpair
 from typing import (
@@ -94,6 +95,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     InactiveAssetsResult,
+    MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -111,7 +113,6 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     ValidateInletsAndOutlets,
     VariableResult,
-    XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -814,6 +815,82 @@ class WatchedSubprocess:
         return self._exit_code
 
 
+@lru_cache
+def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
+    """
+    Fetch and cache connection for remote logging.
+
+    Args:
+        conn_id: Connection ID to fetch
+        client: API client for making requests
+
+    Returns:
+        Connection object or None if not found
+    """
+    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
+    # SUPERVISOR_COMMS
+
+    # TODO: Store in the SecretsCache if its enabled - see #48858
+
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
+        try:
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
+        except Exception:
+            log.exception(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    conn = client.connections.get(conn_id)
+    if isinstance(conn, ConnectionResponse):
+        conn_result = ConnectionResult.from_conn_response(conn)
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+    return None
+
+
+@contextlib.contextmanager
+def _remote_logging_conn(client: Client):
+    """
+    Pre-fetch the needed remote logging connection with caching.
+
+    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
+    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
+    hook tries to get the connection it can find it easily from the env vars.
+
+    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
+    supervisor process when this is needed, so that doesn't exist yet.
+
+    This function uses @lru_cache for connection caching to avoid repeated API calls.
+    """
+    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
+
+    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
+        # Nothing to do
+        yield
+        return
+
+    # Use cached connection fetcher
+    conn = _get_remote_logging_conn(conn_id, client)
+
+    if conn:
+        key = f"AIRFLOW_CONN_{conn_id.upper()}"
+        old = os.getenv(key)
+        os.environ[key] = conn.get_uri()
+        try:
+            yield
+        finally:
+            if old is None:
+                del os.environ[key]
+            else:
+                os.environ[key] = old
+
+
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
     client: Client
@@ -930,7 +1007,8 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.process_log, self.ti)
+        with _remote_logging_conn(self.client):
+            upload_to_remote(self.process_log, self.ti)
 
     def _monitor_subprocess(self):
         """
@@ -1064,7 +1142,10 @@ class ActivitySubprocess(WatchedSubprocess):
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
-        log.debug("Received message from task runner", msg=msg)
+        if isinstance(msg, MaskSecret):
+            log.debug("Received message from task runner (body omitted)", msg=type(msg))
+        else:
+            log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, TaskState):
@@ -1120,8 +1201,7 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=xcom_count)
+            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
@@ -1262,8 +1342,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 defaults=msg.defaults,
                 params=msg.params,
                 multiple=msg.multiple,
+                respondents=msg.respondents,
             )
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        elif isinstance(msg, MaskSecret):
+            mask_secret(msg.value, msg.name)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1351,6 +1434,11 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     stdin: socket = attrs.field(init=False)
 
+    class _Client(Client):
+        def request(self, *args, **kwargs):
+            # Bypass the tenacity retries!
+            return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -1418,20 +1506,20 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        from airflow.sdk.api.client import Client
-
         api = in_process_api_server()
         if dag is not None:
             from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-            from airflow.jobs.scheduler_job_runner import SchedulerDagBag
+            from airflow.models.dagbag import DBDagBag
 
-            # This is needed since the Execution API server uses the SchedulerDagBag in its "state".
+            # This is needed since the Execution API server uses the DBDagBag in its "state".
             # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
-            dag_bag = SchedulerDagBag()
+            dag_bag = DBDagBag()
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
 
-        client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+        client = InProcessTestSupervisor._Client(
+            base_url=None, token="", dry_run=True, transport=api.transport
+        )
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client
@@ -1637,68 +1725,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
     return backends
-
-
-@contextlib.contextmanager
-def _remote_logging_conn(client: Client):
-    """
-    Pre-fetch the needed remote logging connection.
-
-    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
-    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
-    hook tries to get the connection it
-    can find it easily from the env vars
-
-    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
-    supervisor process when this is needed, so that doesn't exist yet.
-    """
-    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
-
-    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
-        # Nothing to do
-        yield
-        return
-
-    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
-    # SUPERVISOR_COMMS
-
-    # TODO: Store in the SecretsCache if its enabled - see #48858
-
-    def _get_conn() -> Connection | None:
-        backends = ensure_secrets_backend_loaded()
-        for secrets_backend in backends:
-            try:
-                conn = secrets_backend.get_connection(conn_id=conn_id)
-                if conn:
-                    return conn
-            except Exception:
-                log.exception(
-                    "Unable to retrieve connection from secrets backend (%s). "
-                    "Checking subsequent secrets backend.",
-                    type(secrets_backend).__name__,
-                )
-
-        conn = client.connections.get(conn_id)
-        if isinstance(conn, ConnectionResponse):
-            conn_result = ConnectionResult.from_conn_response(conn)
-            from airflow.sdk.definitions.connection import Connection
-
-            return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
-        return None
-
-    if conn := _get_conn():
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
-
-        os.environ[key] = conn.get_uri()
-
-        try:
-            yield
-        finally:
-            if old is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old
 
 
 def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:

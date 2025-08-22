@@ -26,29 +26,30 @@ from collections.abc import (
     Iterable,
     Iterator,
 )
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import methodtools
 
 from airflow.configuration import conf
+from airflow.sdk import TriggerRule, WeightRule
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.sdk.definitions.context import Context
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     import jinja2
 
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
 TaskStateChangeCallback = Callable[[Context], None]
+TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -119,6 +120,9 @@ class AbstractOperator(Templater, DAGNode):
     is_setup: bool = False
     is_teardown: bool = False
 
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
+
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
             "log",
@@ -148,10 +152,6 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def operator_name(self) -> str:
-        raise NotImplementedError()
-
-    @property
-    def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 
     _is_sensor: bool = False
@@ -211,6 +211,14 @@ class AbstractOperator(Templater, DAGNode):
                 f"'{self.task_id}' because it is not a teardown task."
             )
         self._on_failure_fail_dagrun = value
+
+    @property
+    def inherits_from_empty_operator(self):
+        """Used to determine if an Operator is inherited from EmptyOperator."""
+        # This looks like `isinstance(self, EmptyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
+        # of its subclasses (which don't inherit from anything but BaseOperator).
+        return getattr(self, "_is_empty", False)
 
     @property
     def inherits_from_skipmixin(self):
@@ -310,6 +318,14 @@ class AbstractOperator(Templater, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
+
+                if (
+                    self.start_from_trigger
+                    and self.start_trigger_args
+                    and self.start_trigger_args.trigger_kwargs
+                ):
+                    if attr_name in self.start_trigger_args.trigger_kwargs:
+                        self.start_trigger_args.trigger_kwargs[attr_name] = rendered_content
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """

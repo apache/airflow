@@ -315,6 +315,374 @@ func (_c *XcomsClient_Get_Call) RunAndReturn(run func(ctx context.Context, dagId
 	return _c
 }
 
+// GetMappedByIndex provides a mock function for the type XcomsClient
+func (_mock *XcomsClient) GetMappedByIndex(ctx context.Context, dagId string, runId string, taskId string, key string, offset int) (*api.XComSequenceIndexResponse, error) {
+	ret := _mock.Called(ctx, dagId, runId, taskId, key, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMappedByIndex")
+	}
+
+	var r0 *api.XComSequenceIndexResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int) (*api.XComSequenceIndexResponse, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int) *api.XComSequenceIndexResponse); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.XComSequenceIndexResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, int) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// XcomsClient_GetMappedByIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMappedByIndex'
+type XcomsClient_GetMappedByIndex_Call struct {
+	*mock.Call
+}
+
+// GetMappedByIndex is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - offset int
+func (_e *XcomsClient_Expecter) GetMappedByIndex(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, offset interface{}) *XcomsClient_GetMappedByIndex_Call {
+	return &XcomsClient_GetMappedByIndex_Call{Call: _e.mock.On("GetMappedByIndex", ctx, dagId, runId, taskId, key, offset)}
+}
+
+func (_c *XcomsClient_GetMappedByIndex_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, offset int)) *XcomsClient_GetMappedByIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedByIndex_Call) Return(v *api.XComSequenceIndexResponse, err error) *XcomsClient_GetMappedByIndex_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedByIndex_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, offset int) (*api.XComSequenceIndexResponse, error)) *XcomsClient_GetMappedByIndex_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMappedByIndexResponse provides a mock function for the type XcomsClient
+func (_mock *XcomsClient) GetMappedByIndexResponse(ctx context.Context, dagId string, runId string, taskId string, key string, offset int) (*resty.Response, error) {
+	ret := _mock.Called(ctx, dagId, runId, taskId, key, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMappedByIndexResponse")
+	}
+
+	var r0 *resty.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int) (*resty.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int) *resty.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resty.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, int) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// XcomsClient_GetMappedByIndexResponse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMappedByIndexResponse'
+type XcomsClient_GetMappedByIndexResponse_Call struct {
+	*mock.Call
+}
+
+// GetMappedByIndexResponse is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - offset int
+func (_e *XcomsClient_Expecter) GetMappedByIndexResponse(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, offset interface{}) *XcomsClient_GetMappedByIndexResponse_Call {
+	return &XcomsClient_GetMappedByIndexResponse_Call{Call: _e.mock.On("GetMappedByIndexResponse", ctx, dagId, runId, taskId, key, offset)}
+}
+
+func (_c *XcomsClient_GetMappedByIndexResponse_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, offset int)) *XcomsClient_GetMappedByIndexResponse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedByIndexResponse_Call) Return(response *resty.Response, err error) *XcomsClient_GetMappedByIndexResponse_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedByIndexResponse_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, offset int) (*resty.Response, error)) *XcomsClient_GetMappedByIndexResponse_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMappedBySlice provides a mock function for the type XcomsClient
+func (_mock *XcomsClient) GetMappedBySlice(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams) (*api.XComSequenceSliceResponse, error) {
+	ret := _mock.Called(ctx, dagId, runId, taskId, key, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMappedBySlice")
+	}
+
+	var r0 *api.XComSequenceSliceResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams) (*api.XComSequenceSliceResponse, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams) *api.XComSequenceSliceResponse); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.XComSequenceSliceResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// XcomsClient_GetMappedBySlice_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMappedBySlice'
+type XcomsClient_GetMappedBySlice_Call struct {
+	*mock.Call
+}
+
+// GetMappedBySlice is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.GetMappedXcomBySliceParams
+func (_e *XcomsClient_Expecter) GetMappedBySlice(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}) *XcomsClient_GetMappedBySlice_Call {
+	return &XcomsClient_GetMappedBySlice_Call{Call: _e.mock.On("GetMappedBySlice", ctx, dagId, runId, taskId, key, params)}
+}
+
+func (_c *XcomsClient_GetMappedBySlice_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams)) *XcomsClient_GetMappedBySlice_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.GetMappedXcomBySliceParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.GetMappedXcomBySliceParams)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedBySlice_Call) Return(v *api.XComSequenceSliceResponse, err error) *XcomsClient_GetMappedBySlice_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedBySlice_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams) (*api.XComSequenceSliceResponse, error)) *XcomsClient_GetMappedBySlice_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMappedBySliceResponse provides a mock function for the type XcomsClient
+func (_mock *XcomsClient) GetMappedBySliceResponse(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams) (*resty.Response, error) {
+	ret := _mock.Called(ctx, dagId, runId, taskId, key, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMappedBySliceResponse")
+	}
+
+	var r0 *resty.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams) (*resty.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams) *resty.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resty.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// XcomsClient_GetMappedBySliceResponse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMappedBySliceResponse'
+type XcomsClient_GetMappedBySliceResponse_Call struct {
+	*mock.Call
+}
+
+// GetMappedBySliceResponse is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.GetMappedXcomBySliceParams
+func (_e *XcomsClient_Expecter) GetMappedBySliceResponse(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}) *XcomsClient_GetMappedBySliceResponse_Call {
+	return &XcomsClient_GetMappedBySliceResponse_Call{Call: _e.mock.On("GetMappedBySliceResponse", ctx, dagId, runId, taskId, key, params)}
+}
+
+func (_c *XcomsClient_GetMappedBySliceResponse_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams)) *XcomsClient_GetMappedBySliceResponse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.GetMappedXcomBySliceParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.GetMappedXcomBySliceParams)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedBySliceResponse_Call) Return(response *resty.Response, err error) *XcomsClient_GetMappedBySliceResponse_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *XcomsClient_GetMappedBySliceResponse_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams) (*resty.Response, error)) *XcomsClient_GetMappedBySliceResponse_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetResponse provides a mock function for the type XcomsClient
 func (_mock *XcomsClient) GetResponse(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetXcomParams) (*resty.Response, error) {
 	ret := _mock.Called(ctx, dagId, runId, taskId, key, params)
@@ -592,7 +960,7 @@ func (_c *XcomsClient_HeadResponse_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // Set provides a mock function for the type XcomsClient
-func (_mock *XcomsClient) Set(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *api.JsonValue) (*interface{}, error) {
+func (_mock *XcomsClient) Set(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *interface{}) (*interface{}, error) {
 	ret := _mock.Called(ctx, dagId, runId, taskId, key, params, body)
 
 	if len(ret) == 0 {
@@ -601,17 +969,17 @@ func (_mock *XcomsClient) Set(ctx context.Context, dagId string, runId string, t
 
 	var r0 *interface{}
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *api.JsonValue) (*interface{}, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *interface{}) (*interface{}, error)); ok {
 		return returnFunc(ctx, dagId, runId, taskId, key, params, body)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *api.JsonValue) *interface{}); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *interface{}) *interface{}); ok {
 		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, body)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*interface{})
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.SetXcomParams, *api.JsonValue) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.SetXcomParams, *interface{}) error); ok {
 		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, body)
 	} else {
 		r1 = ret.Error(1)
@@ -631,12 +999,12 @@ type XcomsClient_Set_Call struct {
 //   - taskId string
 //   - key string
 //   - params *api.SetXcomParams
-//   - body *api.JsonValue
+//   - body *interface{}
 func (_e *XcomsClient_Expecter) Set(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, body interface{}) *XcomsClient_Set_Call {
 	return &XcomsClient_Set_Call{Call: _e.mock.On("Set", ctx, dagId, runId, taskId, key, params, body)}
 }
 
-func (_c *XcomsClient_Set_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *api.JsonValue)) *XcomsClient_Set_Call {
+func (_c *XcomsClient_Set_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *interface{})) *XcomsClient_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -662,9 +1030,9 @@ func (_c *XcomsClient_Set_Call) Run(run func(ctx context.Context, dagId string, 
 		if args[5] != nil {
 			arg5 = args[5].(*api.SetXcomParams)
 		}
-		var arg6 *api.JsonValue
+		var arg6 *interface{}
 		if args[6] != nil {
-			arg6 = args[6].(*api.JsonValue)
+			arg6 = args[6].(*interface{})
 		}
 		run(
 			arg0,
@@ -684,13 +1052,13 @@ func (_c *XcomsClient_Set_Call) Return(ifaceVal *interface{}, err error) *XcomsC
 	return _c
 }
 
-func (_c *XcomsClient_Set_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *api.JsonValue) (*interface{}, error)) *XcomsClient_Set_Call {
+func (_c *XcomsClient_Set_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *interface{}) (*interface{}, error)) *XcomsClient_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetResponse provides a mock function for the type XcomsClient
-func (_mock *XcomsClient) SetResponse(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *api.JsonValue) (*resty.Response, error) {
+func (_mock *XcomsClient) SetResponse(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *interface{}) (*resty.Response, error) {
 	ret := _mock.Called(ctx, dagId, runId, taskId, key, params, body)
 
 	if len(ret) == 0 {
@@ -699,17 +1067,17 @@ func (_mock *XcomsClient) SetResponse(ctx context.Context, dagId string, runId s
 
 	var r0 *resty.Response
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *api.JsonValue) (*resty.Response, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *interface{}) (*resty.Response, error)); ok {
 		return returnFunc(ctx, dagId, runId, taskId, key, params, body)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *api.JsonValue) *resty.Response); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, *interface{}) *resty.Response); ok {
 		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, body)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*resty.Response)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.SetXcomParams, *api.JsonValue) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.SetXcomParams, *interface{}) error); ok {
 		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, body)
 	} else {
 		r1 = ret.Error(1)
@@ -729,12 +1097,12 @@ type XcomsClient_SetResponse_Call struct {
 //   - taskId string
 //   - key string
 //   - params *api.SetXcomParams
-//   - body *api.JsonValue
+//   - body *interface{}
 func (_e *XcomsClient_Expecter) SetResponse(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, body interface{}) *XcomsClient_SetResponse_Call {
 	return &XcomsClient_SetResponse_Call{Call: _e.mock.On("SetResponse", ctx, dagId, runId, taskId, key, params, body)}
 }
 
-func (_c *XcomsClient_SetResponse_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *api.JsonValue)) *XcomsClient_SetResponse_Call {
+func (_c *XcomsClient_SetResponse_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *interface{})) *XcomsClient_SetResponse_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -760,9 +1128,9 @@ func (_c *XcomsClient_SetResponse_Call) Run(run func(ctx context.Context, dagId 
 		if args[5] != nil {
 			arg5 = args[5].(*api.SetXcomParams)
 		}
-		var arg6 *api.JsonValue
+		var arg6 *interface{}
 		if args[6] != nil {
-			arg6 = args[6].(*api.JsonValue)
+			arg6 = args[6].(*interface{})
 		}
 		run(
 			arg0,
@@ -782,7 +1150,7 @@ func (_c *XcomsClient_SetResponse_Call) Return(response *resty.Response, err err
 	return _c
 }
 
-func (_c *XcomsClient_SetResponse_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *api.JsonValue) (*resty.Response, error)) *XcomsClient_SetResponse_Call {
+func (_c *XcomsClient_SetResponse_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body *interface{}) (*resty.Response, error)) *XcomsClient_SetResponse_Call {
 	_c.Call.Return(run)
 	return _c
 }

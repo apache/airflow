@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import pkgutil
-import re
 from collections.abc import Callable
 from importlib import import_module
 from typing import TYPE_CHECKING
@@ -27,32 +26,13 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-def is_valid_dotpath(path: str) -> bool:
-    """
-    Check if a string follows valid dotpath format (ie: 'package.subpackage.module').
-
-    :param path: String to check
-    """
-    if not isinstance(path, str):
-        return False
-
-    # Pattern explanation:
-    # ^            - Start of string
-    # [a-zA-Z_]    - Must start with letter or underscore
-    # [a-zA-Z0-9_] - Following chars can be letters, numbers, or underscores
-    # (\.[a-zA-Z_][a-zA-Z0-9_]*)*  - Can be followed by dots and valid identifiers
-    # $            - End of string
-    pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$"
-
-    return bool(re.match(pattern, path))
-
-
 def import_string(dotted_path: str):
     """
     Import a dotted module path and return the attribute/class designated by the last name in the path.
 
     Raise ImportError if the import failed.
     """
+    # TODO: Add support for nested classes. Currently, it only works for top-level classes.
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)
     except ValueError:

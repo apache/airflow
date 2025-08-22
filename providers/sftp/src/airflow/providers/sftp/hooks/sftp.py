@@ -295,7 +295,7 @@ class SFTPHook(SSHHook):
             # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
             elif hasattr(local_full_path, "write"):
                 self.log.info("Using streaming download for %s", remote_full_path)
-                # We need to cast to pass pre-commit checks
+                # We need to cast to pass prek hook checks
                 stream_full_path = cast("IO[bytes]", local_full_path)
                 conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)
             elif isinstance(local_full_path, (str, bytes, os.PathLike)):
@@ -358,7 +358,11 @@ class SFTPHook(SSHHook):
                 self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
-        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 2
+        self,
+        remote_full_path: str,
+        local_full_path: str,
+        workers: int = os.cpu_count() or 2,
+        prefetch: bool = True,
     ) -> None:
         """
         Transfer the remote directory to a local location concurrently.
@@ -405,6 +409,7 @@ class SFTPHook(SSHHook):
                         conns[i],
                         local_file_chunks[i],
                         remote_file_chunks[i],
+                        prefetch,
                     )
                     for i in range(workers)
                 ]
@@ -713,19 +718,16 @@ class SFTPHookAsync(BaseHook):
             self.private_key = extra_options["private_key"]
 
         host_key = extra_options.get("host_key")
-        no_host_key_check = extra_options.get("no_host_key_check")
+        nhkc_raw = extra_options.get("no_host_key_check")
+        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
 
-        if no_host_key_check is not None:
-            no_host_key_check = str(no_host_key_check).lower() == "true"
-            if host_key is not None and no_host_key_check:
-                raise ValueError("Host key check was skipped, but `host_key` value was given")
-            if no_host_key_check:
-                self.log.warning(
-                    "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
-                )
-                self.known_hosts = "none"
+        if host_key is not None and no_host_key_check:
+            raise ValueError("Host key check was skipped, but `host_key` value was given")
 
-        if host_key is not None:
+        if no_host_key_check:
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            self.known_hosts = "none"
+        elif host_key is not None:
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self) -> asyncssh.SSHClientConnection:
