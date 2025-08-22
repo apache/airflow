@@ -31,6 +31,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import CreateTaskInstance, DagMaker
@@ -46,6 +47,7 @@ MOCK_CONTENT = "mock_content"
 MOCK_FILE_PATH = "mock_file_path"
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
 class TestOSSRemoteLogIO:
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_runtime_ti):
