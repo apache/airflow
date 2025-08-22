@@ -695,8 +695,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
                 return timetable.description
             elif hasattr(timetable, 'summary'):
                 return timetable.summary
-            else:
-                return str(timetable.__class__.__name__)
+            return str(timetable.__class__.__name__)
         
         # Handle dataset schedules
         if hasattr(schedule, '__iter__') and not isinstance(schedule, str):
