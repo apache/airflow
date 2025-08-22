@@ -1133,6 +1133,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 # the create_task_instances method
                 id="test multiple version numbers filter",
             ),
+            pytest.param(
+                [
+                    {"try_number": 0},
+                    {"try_number": 0},
+                    {"try_number": 1},
+                    {"try_number": 1},
+                    {"try_number": 1},
+                    {"try_number": 2},
+                ],
+                True,
+                ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"try_number": [0, 1]},
+                5,
+                id="test_try_number_filter",
+            ),
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
