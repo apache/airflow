@@ -279,7 +279,7 @@ class DistributionBuildType(Enum):
     AIRFLOW = "airflow"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
-    AIRFLOW_CTL = "airflow-ctl"
+    AIRFLOW_CTL = "airflowctl"
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -319,7 +319,7 @@ class DistributionPackageInfo(NamedTuple):
         elif build_type == DistributionBuildType.TASK_SDK:
             default_glob_patterns = ["apache_airflow_task_sdk"]
         elif build_type == DistributionBuildType.AIRFLOW_CTL:
-            default_glob_patterns = ["apache_airflow_ctl"]
+            default_glob_patterns = ["apache_airflowctl"]
         else:
             default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
@@ -584,7 +584,10 @@ def _prepare_non_core_distributions(
     distribution_path: Path,
     distribution_name: str,
     distribution_pretty_name: str,
+    full_distribution_pretty_name: str | None = None,
 ):
+    if full_distribution_pretty_name is not None:
+        distribution_pretty_name = full_distribution_pretty_name
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -684,7 +687,9 @@ def _prepare_non_core_distributions(
             _build_package_with_docker(
                 build_distribution_format=distribution_format,
             )
-    get_console().print(f"[success]Successfully prepared Airflow {distribution_pretty_name} packages")
+    get_console().print(
+        f"[success]Successfully prepared {f'Airflow {distribution_pretty_name}' if not full_distribution_pretty_name else full_distribution_pretty_name} packages"
+    )
 
 
 @release_management.command(
@@ -717,7 +722,7 @@ def prepare_task_sdk_distributions(
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
-    help="Prepare sdist/whl distributions of Airflow CTL.",
+    help="Prepare sdist/whl distributions of airflowctl.",
 )
 @option_distribution_format
 @option_version_suffix
@@ -738,8 +743,9 @@ def prepare_airflow_ctl_distributions(
         root_path=AIRFLOW_CTL_ROOT_PATH,
         init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
-        distribution_name="airflow-ctl",
-        distribution_pretty_name="CTL",
+        distribution_name="airflowctl",
+        distribution_pretty_name="",
+        full_distribution_pretty_name="airflowctl",
     )
 
 
