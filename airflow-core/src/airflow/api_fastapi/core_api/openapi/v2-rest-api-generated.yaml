@@ -11131,6 +11131,11 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
         queued_when:
           anyOf:
           - type: string
@@ -11181,6 +11186,7 @@ components:
       - queue
       - priority_weight
       - operator
+      - operator_name
       - queued_when
       - scheduled_when
       - pid
@@ -11280,6 +11286,11 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
         queued_when:
           anyOf:
           - type: string
@@ -11355,6 +11366,7 @@ components:
       - queue
       - priority_weight
       - operator
+      - operator_name
       - queued_when
       - scheduled_when
       - pid
