@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 from functools import cached_property
 
 import requests
@@ -87,14 +88,13 @@ class AirflowClient:
             json = {}
         return self._make_request(method="POST", endpoint=f"dags/{dag_id}/dagRuns", json=json)
 
-    def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=180, check_interval=5):
+    def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):
         start_time = time.time()
         while time.time() - start_time < timeout:
             response = self._make_request(
                 method="GET",
                 endpoint=f"dags/{dag_id}/dagRuns/{run_id}",
             )
-            print(response)
             state = response.get("state")
             if state in {"success", "failed"}:
                 return state
@@ -105,6 +105,18 @@ class AirflowClient:
         return self._make_request(
             method="GET",
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{key}?map_index={map_index}",
+        )
+
+    def trigger_dag_and_wait(self, dag_id: str, json=None):
+        """Trigger a DAG and wait for it to complete."""
+        self.un_pause_dag(dag_id)
+
+        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(timezone.utc).isoformat()})
+
+        # Wait for the DAG run to complete
+        return self.wait_for_dag_run(
+            dag_id=dag_id,
+            run_id=resp["dag_run_id"],
         )
 
 
