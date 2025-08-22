@@ -649,7 +649,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         raise SystemExit("DagRun failed")
 
 
-def _get_schedule_info(dag) -> str | None:
+def _get_schedule_info(dag: DAG) -> str | None:
     """Extract and format schedule information from a DAG."""
     try:
         # Try to get schedule from different possible attributes
