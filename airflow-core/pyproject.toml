@@ -281,5 +281,5 @@ apache-airflow-devel-common = { workspace = true }
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-timezones",
-    "apache-airflow-shared-secrets_masker",
+    "apache-airflow-shared-secrets-masker",
 ]

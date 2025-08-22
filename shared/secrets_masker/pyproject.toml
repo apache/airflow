@@ -16,7 +16,7 @@
 # under the License.
 
 [project]
-name = "apache-airflow-shared-secrets_masker"
+name = "apache-airflow-shared-secrets-masker"
 description = "Shared secrets masker code for Airflow distributions"
 version = "0.0"
 classifiers = [
