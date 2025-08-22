@@ -403,23 +403,23 @@ class TestCliDags:
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
-        
+
         # Check that output is in markdown format
         assert isinstance(markdown_output, str)
         assert len(markdown_output) > 0
-        
+
         # Should start with main header for multiple DAGs
         assert markdown_output.startswith("# DAG Documentation\n")
-        
+
         # Should contain DAG headers (## format for multiple DAGs)
         assert "## tutorial_dag" in markdown_output
-        
+
         # Should contain separators between DAGs
         assert "---" in markdown_output
-        
+
         # Should contain actual documentation content
         assert "tutorial_dag" in markdown_output
-        
+
         # Should not contain placeholder text for tutorial_dag
         # (since tutorial_dag should have real documentation)
         tutorial_section_start = markdown_output.find("## tutorial_dag")
@@ -438,20 +438,20 @@ class TestCliDags:
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
-        
+
         # Check markdown format for single DAG
         assert isinstance(markdown_output, str)
         assert len(markdown_output) > 0
-        
+
         # Should start with DAG name as main header (# format for single DAG)
         assert markdown_output.startswith("# tutorial_dag\n")
-        
+
         # Should not contain the main "DAG Documentation" header
         assert "# DAG Documentation" not in markdown_output
-        
+
         # Should contain actual documentation content
         assert len(markdown_output.split('\n')) > 2  # More than just header
-        
+
         # Should not contain placeholder for tutorial_dag
         assert "*No documentation available*" not in markdown_output
 
@@ -465,14 +465,14 @@ class TestCliDags:
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
-        
+
         # Check markdown format for DAG without documentation
         assert isinstance(markdown_output, str)
         assert len(markdown_output) > 0
-        
+
         # Should start with DAG name as header
         assert markdown_output.startswith("# example_complex\n")
-        
+
         # Should contain the placeholder text for no documentation
         assert "*No documentation available*" in markdown_output
 

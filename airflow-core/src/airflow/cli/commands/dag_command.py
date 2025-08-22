@@ -654,10 +654,10 @@ def _get_schedule_info(dag: DAG) -> str | None:
     try:
         # Try to get schedule from different possible attributes
         schedule = getattr(dag, 'schedule', None) or getattr(dag, 'schedule_interval', None)
-        
+
         if schedule is None:
             return "Manual (no schedule)"
-        
+
         # Handle different schedule types
         if isinstance(schedule, str):
             # Cron expressions or preset schedules
@@ -672,7 +672,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
                 '@annually': 'Annually (0 0 1 1 *)',
             }
             return preset_map.get(schedule, schedule, f"Cron: `{schedule}`")
-        
+
         # Handle timedelta objects
         if hasattr(schedule, 'total_seconds'):
             seconds = schedule.total_seconds()
@@ -686,7 +686,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
                 minutes = int(seconds // 60)
                 return f"Every {minutes} minute{'s' if minutes > 1 else ''}"
             return f"Every {int(seconds)} second{'s' if seconds > 1 else ''}"
-        
+
         # Handle timetable objects
         if getattr(dag, 'timetable', None):
             timetable = dag.timetable
@@ -696,7 +696,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
             elif hasattr(timetable, 'summary'):
                 return timetable.summary
             return str(timetable.__class__.__name__)
-        
+
         # Handle dataset schedules
         if hasattr(schedule, '__iter__') and not isinstance(schedule, str):
             # Likely a dataset schedule (list/set of datasets)
@@ -707,10 +707,10 @@ def _get_schedule_info(dag: DAG) -> str | None:
                     return f"Dataset-triggered: {', '.join(dataset_names)}"
             except TypeError:
                 pass
-        
+
         # Fallback to string representation
         return str(schedule)
-        
+
     except Exception:
         # If anything fails, return None to skip schedule info
         return None
@@ -740,24 +740,24 @@ def dag_docs(args) -> None:
 
     # Generate markdown output
     markdown_output: list[str] = []
-    
+
     if len(dags) > 1:
         markdown_output.append("# DAG Documentation\n")
-    
+
     for dag in dags:
         doc_md = getattr(dag, '__doc_md__', getattr(dag, 'doc_md', None))
-        
+
         # Add Dag header
         if len(dags) > 1:
             markdown_output.append(f"## {dag.dag_id}\n")
         else:
             markdown_output.append(f"# {dag.dag_id}\n")
-        
+
         # Add schedule information
         schedule_info = _get_schedule_info(dag)
         if schedule_info:
             markdown_output.append(f"**Schedule:** {schedule_info}\n\n")
-        
+
         # Add documentation content
         if doc_md:
             # Ensure proper spacing and formatting, dedent common whitespace
@@ -765,14 +765,14 @@ def dag_docs(args) -> None:
             markdown_output.append(f"{doc_content}\n\n")
         else:
             markdown_output.append("*No documentation available*\n\n")
-        
+
         # Add separator between Dags (except for the last one)
         if len(dags) > 1 and dag != dags[-1]:
             markdown_output.append("---\n")
-    
+
     # Output the markdown
     markdown_content = "".join(markdown_output)
-    
+
     if args.output_file:
         # Write to file
         with open(args.output_file, 'w', encoding='utf-8') as f:
