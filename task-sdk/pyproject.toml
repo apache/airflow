@@ -69,6 +69,7 @@ dependencies = [
     # End of shared timezones dependencies
     # Start of shared secrets_masker dependencies
     "colorlog>=6.8.2",
+    "pydantic>2.11.0",
     # End of shared secrets_masker dependencies
 ]
 
