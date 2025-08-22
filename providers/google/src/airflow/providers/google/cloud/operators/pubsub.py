@@ -409,13 +409,18 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        project_id = self.subscription_project_id or self.project_id or self.pubsub_hook.project_id
+        topic_project_id = self.project_id or self.pubsub_hook.project_id
+        subscription_project_id = self.subscription_project_id or topic_project_id
 
-        output_dataset = [
-            Dataset(namespace="pubsub", name=f"subscription:{project_id}:{self._resolved_subscription_name}")
-        ]
-
-        return OperatorLineage(outputs=output_dataset)
+        return OperatorLineage(
+            inputs=[Dataset(namespace="pubsub", name=f"topic:{topic_project_id}:{self.topic}")],
+            outputs=[
+                Dataset(
+                    namespace="pubsub",
+                    name=f"subscription:{subscription_project_id}:{self._resolved_subscription_name}",
+                )
+            ],
+        )
 
 
 class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
