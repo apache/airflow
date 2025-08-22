@@ -1781,6 +1781,28 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             assert "Something went wrong" in caplog.text
             assert "returned non-zero exit status" in caplog.text
 
+    @mock.patch.object(ExternalPythonOperator, "_get_airflow_version_from_target_env")
+    def test_iter_serializable_context_keys_respects_expect_airflow_false(self, mock_get_airflow_version):
+        """Test that when expect_airflow=False, _get_airflow_version_from_target_env is not called."""
+
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=False
+        )
+
+        keys = set(op._iter_serializable_context_keys())
+
+        mock_get_airflow_version.assert_not_called()
+
+        # BASE keys should always be present
+        base_keys = set(op.BASE_SERIALIZABLE_CONTEXT_KEYS)
+        airflow_keys = set(op.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
+
+        assert base_keys <= keys
+        assert not (airflow_keys & keys), "Airflow keys should not be present when expect_airflow=False"
+
 
 class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.fixture(autouse=True)

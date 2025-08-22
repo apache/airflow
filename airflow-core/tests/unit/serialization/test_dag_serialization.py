@@ -66,6 +66,7 @@ from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.operator_resources import Resources
@@ -83,7 +84,6 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
