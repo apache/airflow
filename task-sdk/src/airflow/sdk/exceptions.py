@@ -21,7 +21,6 @@ import enum
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.sdk import TriggerRule
 
 if TYPE_CHECKING:
