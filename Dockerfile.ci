@@ -1464,9 +1464,9 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.8.12
+ARG AIRFLOW_UV_VERSION=0.8.13
 # TODO(potiuk): automate with upgrade check (possibly)
-ARG AIRFLOW_PREK_VERSION="0.1.1"
+ARG AIRFLOW_PREK_VERSION="0.1.2"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
