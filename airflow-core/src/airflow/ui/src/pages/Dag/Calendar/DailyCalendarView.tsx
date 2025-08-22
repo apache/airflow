@@ -69,7 +69,7 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
     <Box mb={4}>
       <Box display="flex" mb={2}>
         <Box width="30px" />
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={0.5}>
           {dailyData.map((week, index) => (
             <Box key={`month-${week[0]?.date ?? index}`} position="relative" width="14px">
               {Boolean(week[0] && dayjs(week[0].date).date() <= 7) && (
@@ -82,7 +82,7 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
         </Box>
       </Box>
       <Box display="flex" gap={2}>
-        <Box display="flex" flexDirection="column" gap={1}>
+        <Box display="flex" flexDirection="column" gap={0.5}>
           {weekdays.map((day) => (
             <Box
               alignItems="center"
@@ -99,9 +99,9 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
             </Box>
           ))}
         </Box>
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={0.5}>
           {dailyData.map((week, weekIndex) => (
-            <Box display="flex" flexDirection="column" gap={1} key={`week-${week[0]?.date ?? weekIndex}`}>
+            <Box display="flex" flexDirection="column" gap={0.5} key={`week-${week[0]?.date ?? weekIndex}`}>
               {week.map((day) => {
                 const dayDate = dayjs(day.date);
                 const isInSelectedYear = dayDate.year() === selectedYear;

@@ -64,7 +64,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
       <Box mb={4}>
         <Box display="flex" mb={2}>
           <Box width="40px" />
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={0.5}>
             {hourlyData.days.map((day, index) => {
               const isFirstOfWeek = index % 7 === 0;
               const weekNumber = Math.floor(index / 7) + 1;
@@ -97,7 +97,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
         </Box>
         <Box display="flex" mb={1}>
           <Box width="40px" />
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={0.5}>
             {hourlyData.days.map((day, index) => {
               const dayOfWeek = dayjs(day.day).day();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -134,7 +134,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
       </Box>
 
       <Box display="flex" gap={2}>
-        <Box display="flex" flexDirection="column" gap={1}>
+        <Box display="flex" flexDirection="column" gap={0.5}>
           {Array.from({ length: 24 }, (_, hour) => (
             <Box
               alignItems="center"
@@ -151,9 +151,9 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
             </Box>
           ))}
         </Box>
-        <Box display="flex" flexDirection="column" gap={1}>
+        <Box display="flex" flexDirection="column" gap={0.5}>
           {Array.from({ length: 24 }, (_, hour) => (
-            <Box display="flex" gap={1} key={hour}>
+            <Box display="flex" gap={0.5} key={hour}>
               {hourlyData.days.map((day, index) => {
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 

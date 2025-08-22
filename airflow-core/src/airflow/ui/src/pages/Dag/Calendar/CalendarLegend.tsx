@@ -62,7 +62,7 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
             <Text color="fg.muted" fontSize="xs">
               {translate("calendar.legend.more")}
             </Text>
-            <VStack gap={1}>
+            <VStack gap={0.5}>
               {[...legendData].reverse().map(({ color, label }) => (
                 <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
                   <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
@@ -78,7 +78,7 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
             <Text color="fg.muted" fontSize="xs">
               {translate("calendar.legend.less")}
             </Text>
-            <HStack gap={1}>
+            <HStack gap={0.5}>
               {legendData.map(({ color, label }) => (
                 <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
                   <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
@@ -99,10 +99,10 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
               bg={{ _dark: "scheduled.600", _light: "scheduled.200" }}
               borderRadius="2px"
               boxShadow="sm"
-              height="18px"
-              width="18px"
+              height="14px"
+              width="14px"
             />
-            <Text color="fg.muted" fontSize="sm">
+            <Text color="fg.muted" fontSize="xs">
               {translate("common:states.planned")}
             </Text>
           </HStack>
