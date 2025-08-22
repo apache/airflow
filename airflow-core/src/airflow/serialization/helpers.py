@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow._shared.secrets_masker.secrets_masker import redact
+from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
 

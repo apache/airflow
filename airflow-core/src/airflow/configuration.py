@@ -860,7 +860,7 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow._shared.secrets_masker.secrets_masker import mask_secret as mask_secret_core
+        from airflow._shared.secrets_masker import mask_secret as mask_secret_core
         from airflow.sdk.log import mask_secret as mask_secret_sdk
 
         for section, key in self.sensitive_config_values:

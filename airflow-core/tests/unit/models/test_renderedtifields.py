@@ -376,7 +376,7 @@ class TestRenderedTaskInstanceFields:
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     def test_redact(self, dag_maker):
-        with mock.patch("airflow._shared.secrets_masker.secrets_masker.redact", autospec=True) as redact:
+        with mock.patch("airflow._shared.secrets_masker.redact", autospec=True) as redact:
             with dag_maker("test_ritf_redact", serialized=True):
                 task = BashOperator(
                     task_id="test",

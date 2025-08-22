@@ -280,7 +280,5 @@ def patched_secrets_masker():
     from airflow.sdk._shared.secrets_masker import SecretsMasker
 
     secrets_masker = SecretsMasker()
-    with patch(
-        "airflow.sdk._shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
-    ):
+    with patch("airflow.sdk._shared.secrets_masker._secrets_masker", return_value=secrets_masker):
         yield secrets_masker

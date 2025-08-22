@@ -30,7 +30,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
-from airflow._shared.secrets_masker.secrets_masker import mask_secret
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base

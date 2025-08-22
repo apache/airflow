@@ -372,7 +372,7 @@ def _configure_async_session() -> None:
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
-    from airflow._shared.secrets_masker.secrets_masker import mask_secret
+    from airflow._shared.secrets_masker import mask_secret
 
     if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException

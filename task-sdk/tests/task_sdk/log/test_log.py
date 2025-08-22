@@ -42,9 +42,7 @@ def test_json_rendering(captured_logs):
 
     secrets_masker = SecretsMasker()
 
-    with mock.patch(
-        "airflow.sdk._shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
-    ):
+    with mock.patch("airflow.sdk._shared.secrets_masker._secrets_masker", return_value=secrets_masker):
         logger.info(
             "A test message with a Pydantic class",
             pydantic_class=TaskInstance(

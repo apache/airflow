@@ -208,7 +208,7 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
     if AIRFLOW_V_3_1_PLUS:
-        target = "airflow._shared.secrets_masker.secrets_masker.redact"
+        target = "airflow._shared.secrets_masker.redact"
     elif AIRFLOW_V_3_0_PLUS:
         target = "airflow.sdk.execution_time.secrets_masker.redact"
     else:
