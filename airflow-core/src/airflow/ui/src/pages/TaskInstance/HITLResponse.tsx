@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetMappedTiHitlDetail } from "openapi/queries";
+import { useHumanInTheLoopServiceGetHitlDetail } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
@@ -27,14 +27,14 @@ import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
-  const { data: hitlDetail } = useHumanInTheLoopServiceGetMappedTiHitlDetail({
+  const { data: hitlDetail } = useHumanInTheLoopServiceGetHitlDetail({
     dagId: dagId ?? "~",
     dagRunId: runId ?? "~",
     mapIndex: Number(mapIndex ?? -1),
     taskId: taskId ?? "~",
   });
 
-  if (!hitlDetail) {
+  if (!hitlDetail?.task_instance) {
     return (
       <Box flexGrow={1}>
         <ProgressBar />
