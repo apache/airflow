@@ -782,15 +782,25 @@ class TaskInstancesBatchBody(BaseModel):
     task_ids: Annotated[list[str] | None, Field(title="Task Ids")] = None
     state: Annotated[list[TaskInstanceState | None] | None, Field(title="State")] = None
     run_after_gte: Annotated[datetime | None, Field(title="Run After Gte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
     run_after_lte: Annotated[datetime | None, Field(title="Run After Lte")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
     logical_date_gte: Annotated[datetime | None, Field(title="Logical Date Gte")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
     logical_date_lte: Annotated[datetime | None, Field(title="Logical Date Lte")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
     start_date_gte: Annotated[datetime | None, Field(title="Start Date Gte")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
     duration_gte: Annotated[float | None, Field(title="Duration Gte")] = None
+    duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
     duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
+    duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
     pool: Annotated[list[str] | None, Field(title="Pool")] = None
     queue: Annotated[list[str] | None, Field(title="Queue")] = None
     executor: Annotated[list[str] | None, Field(title="Executor")] = None
@@ -1348,13 +1358,21 @@ class DAGRunsBatchBody(BaseModel):
     dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
     states: Annotated[list[DagRunState | None] | None, Field(title="States")] = None
     run_after_gte: Annotated[datetime | None, Field(title="Run After Gte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
     run_after_lte: Annotated[datetime | None, Field(title="Run After Lte")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
     logical_date_gte: Annotated[datetime | None, Field(title="Logical Date Gte")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
     logical_date_lte: Annotated[datetime | None, Field(title="Logical Date Lte")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
     start_date_gte: Annotated[datetime | None, Field(title="Start Date Gte")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):
