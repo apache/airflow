@@ -725,7 +725,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
 def dag_docs(args) -> None:
     """Display Dag documentation (__doc_md__) at the command line."""
     if args.dag_id:
-        # Get specific DAG
+        # Get specific Dag
         dag = get_dag(args.subdir, args.dag_id)
         dags = [dag]
     else:
