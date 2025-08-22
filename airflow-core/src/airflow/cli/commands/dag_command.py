@@ -751,7 +751,7 @@ def dag_docs(args) -> None:
     for dag in dags:
         doc_md = getattr(dag, '__doc_md__', getattr(dag, 'doc_md', None))
         
-        # Add DAG header
+        # Add Dag header
         if len(dags) > 1:
             markdown_output.append(f"## {dag.dag_id}\n")
         else:
