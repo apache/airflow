@@ -1375,6 +1375,7 @@ class DAGWarningResponse(BaseModel):
     warning_type: DagWarningType
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagStatsResponse(BaseModel):
