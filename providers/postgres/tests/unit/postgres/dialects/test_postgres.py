@@ -32,7 +32,7 @@ class TestPostgresDialect:
             if "kcu." in sql:
                 return [("id",)]
             return [
-                {"name": "id", "identity": True},
+                {"name": "id", "identity": "YES"},
                 {"name": "name"},
                 {"name": "firstname"},
                 {"name": "age"},

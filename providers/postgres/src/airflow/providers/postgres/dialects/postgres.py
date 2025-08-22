@@ -66,9 +66,10 @@ class PostgresDialect(Dialect):
         return {
             "name": row[0],
             "type": row[1],
-            "nullable": row[2],
+            "nullable": row[2].casefold() == "yes",
             "default": row[3],
-            "identity": row[4],
+            "autoincrement": row[4].casefold() == "always",
+            "identity": row[5].casefold() == "yes",
         }
 
     @lru_cache(maxsize=None)
@@ -88,6 +89,7 @@ class PostgresDialect(Dialect):
                                data_type,
                                is_nullable,
                                column_default,
+                               is_generated,
                                is_identity
                         from information_schema.columns
                         where table_schema = %s
