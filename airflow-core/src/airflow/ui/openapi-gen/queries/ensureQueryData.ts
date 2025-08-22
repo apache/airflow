@@ -1088,18 +1088,36 @@ export const ensureUseXcomServiceGetXcomEntryData = (queryClient: QueryClient, {
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
+* @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.mapIndexFilter
+* @param data.logicalDateGte
+* @param data.logicalDateLte
+* @param data.runAfterGte
+* @param data.runAfterLte
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseXcomServiceGetXcomEntriesData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }: {
+export const ensureUseXcomServiceGetXcomEntriesData = (queryClient: QueryClient, { dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }: {
+  dagDisplayNamePattern?: string;
   dagId: string;
   dagRunId: string;
   limit?: number;
+  logicalDateGte?: string;
+  logicalDateLte?: string;
   mapIndex?: number;
+  mapIndexFilter?: number;
   offset?: number;
+  runAfterGte?: string;
+  runAfterLte?: string;
+  runIdPattern?: string;
   taskId: string;
+  taskIdPattern?: string;
   xcomKey?: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) });
+  xcomKeyPattern?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGte, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGte, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }) });
 /**
 * Get Tasks
 * Get tasks for DAG.
@@ -1199,31 +1217,16 @@ export const ensureUseDagVersionServiceGetDagVersionsData = (queryClient: QueryC
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @returns HITLDetail Successful Response
-* @throws ApiError
-*/
-export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, taskId }: {
-  dagId: string;
-  dagRunId: string;
-  taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) });
-/**
-* Get Mapped Ti Hitl Detail
-* Get a Human-in-the-loop detail of a specific task instance.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.taskId
 * @param data.mapIndex
 * @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex?: number;
   taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.

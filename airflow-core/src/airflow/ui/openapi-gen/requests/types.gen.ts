@@ -244,9 +244,9 @@ export type BulkDeleteAction_BulkTaskInstanceBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -256,9 +256,9 @@ export type BulkDeleteAction_ConnectionBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -268,9 +268,9 @@ export type BulkDeleteAction_PoolBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -280,9 +280,9 @@ export type BulkDeleteAction_VariableBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -795,6 +795,7 @@ export type DagStatsStateResponse = {
 export type DagTagResponse = {
     name: string;
     dag_id: string;
+    dag_display_name: string;
 };
 
 /**
@@ -925,6 +926,7 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
+    respondents?: Array<(string)> | null;
     user_id?: string | null;
     response_at?: string | null;
     chosen_options?: Array<(string)> | null;
@@ -2810,13 +2812,34 @@ export type UpdateXcomEntryData = {
 export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagDisplayNamePattern?: string | null;
     dagId: string;
     dagRunId: string;
     limit?: number;
+    logicalDateGte?: string | null;
+    logicalDateLte?: string | null;
     mapIndex?: number | null;
+    mapIndexFilter?: number | null;
     offset?: number;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     xcomKey?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    xcomKeyPattern?: string | null;
 };
 
 export type GetXcomEntriesResponse = XComCollectionResponse;
@@ -2916,6 +2939,7 @@ export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 export type UpdateHitlDetailData = {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     requestBody: UpdateHITLDetailPayload;
     taskId: string;
 };
@@ -2925,29 +2949,11 @@ export type UpdateHitlDetailResponse = HITLDetailResponse;
 export type GetHitlDetailData = {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
 };
 
 export type GetHitlDetailResponse = HITLDetail;
-
-export type UpdateMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-};
-
-export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
-
-export type GetMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    taskId: string;
-};
-
-export type GetMappedTiHitlDetailResponse = HITLDetail;
 
 export type GetHitlDetailsData = {
     /**
@@ -5976,62 +5982,6 @@ export type $OpenApiTs = {
         };
         get: {
             req: GetHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetail;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
-        patch: {
-            req: UpdateMappedTiHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-        get: {
-            req: GetMappedTiHitlDetailData;
             res: {
                 /**
                  * Successful Response

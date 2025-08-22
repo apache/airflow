@@ -4667,6 +4667,98 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: xcom_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Xcom Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: map_index_filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index Filter
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       responses:
         '200':
           description: Successful Response
@@ -7332,6 +7424,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       requestBody:
         required: true
         content:
@@ -7403,148 +7502,12 @@ paths:
         schema:
           type: string
           title: Task Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HITLDetail'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
-    patch:
-      tags:
-      - HumanInTheLoop
-      summary: Update Mapped Ti Hitl Detail
-      description: Update a Human-in-the-loop detail.
-      operationId: update_mapped_ti_hitl_detail
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Task Id
       - name: map_index
-        in: path
-        required: true
+        in: query
+        required: false
         schema:
           type: integer
-          title: Map Index
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateHITLDetailPayload'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HITLDetailResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-    get:
-      tags:
-      - HumanInTheLoop
-      summary: Get Mapped Ti Hitl Detail
-      description: Get a Human-in-the-loop detail of a specific task instance.
-      operationId: get_mapped_ti_hitl_detail
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Task Id
-      - name: map_index
-        in: path
-        required: true
-        schema:
-          type: integer
+          default: -1
           title: Map Index
       responses:
         '200':
@@ -8436,10 +8399,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8458,10 +8423,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8480,10 +8447,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8502,10 +8471,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -9923,10 +9894,14 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - name
       - dag_id
+      - dag_display_name
       title: DagTagResponse
       description: DAG Tag serializer for responses.
     DagVersionResponse:
@@ -10244,6 +10219,13 @@ components:
           additionalProperties: true
           type: object
           title: Params
+        respondents:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Respondents
         user_id:
           anyOf:
           - type: string

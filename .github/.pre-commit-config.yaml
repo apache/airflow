@@ -18,7 +18,7 @@
 default_stages: [manual]
 default_language_version:
   python: python311
-minimum_pre_commit_version: '3.2.0'
+minimum_prek_version: '0.0.26'
 repos:
   - repo: https://github.com/eclipse-csi/octopin
     rev: 21360742e352e87450f99e180fdfc2cf774a72a3
