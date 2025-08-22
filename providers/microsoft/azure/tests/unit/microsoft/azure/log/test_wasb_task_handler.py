@@ -28,6 +28,7 @@ from azure.common import AzureHttpError
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO, WasbTaskHandler
+from airflow.providers.microsoft.azure.version_compat import BaseOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -44,8 +45,6 @@ DEFAULT_DATE = datetime(2020, 8, 10)
 class TestWasbRemoteLogIO:
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_runtime_ti):
-        from airflow.sdk import BaseOperator
-
         # setup remote IO
         self.base_log_folder = "local/airflow/logs"
         self.wasb_log_folder = "wasb://container@account.blob.core.windows.net/remote/log/location"
