@@ -55,8 +55,8 @@ class PubsubPullTrigger(BaseTrigger):
 
     def __init__(
         self,
+        project_id: str,
         subscription: str,
-        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         max_messages: int = 100,
@@ -65,8 +65,8 @@ class PubsubPullTrigger(BaseTrigger):
         waiter_delay: int = 60,
     ):
         super().__init__()
-        self.subscription = subscription
         self.project_id = project_id
+        self.subscription = subscription
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.max_messages = max_messages
@@ -106,8 +106,10 @@ class PubsubPullTrigger(BaseTrigger):
 
                     yield TriggerEvent({"status": "success", "message": messages_json})
                     return
+
                 self.log.info("Sleeping for %s seconds.", self.poke_interval)
                 await asyncio.sleep(self.poke_interval)
+
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
             return
