@@ -1778,6 +1778,9 @@ components:
           - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         duration:
           type: integer
           title: Duration
@@ -1792,6 +1795,7 @@ components:
       - run_after
       - state
       - run_type
+      - dag_display_name
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.

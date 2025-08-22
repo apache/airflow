@@ -7102,6 +7102,10 @@ export const $GridRunsResponse = {
         run_type: {
             '$ref': '#/components/schemas/DagRunType'
         },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
+        },
         duration: {
             type: 'integer',
             title: 'Duration',
@@ -7109,7 +7113,7 @@ export const $GridRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'duration'],
+    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'dag_display_name', 'duration'],
     title: 'GridRunsResponse',
     description: 'Base Node serializer for responses.'
 } as const;

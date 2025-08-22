@@ -44,6 +44,10 @@ DAG_ID = "test_dag"
 DAG_ID_2 = "test_dag_2"
 DAG_ID_3 = "test_dag_3"
 DAG_ID_4 = "test_dag_4"
+DAG_DISPLAY_NAME = "test_dag_display_name"
+DAG_DISPLAY_NAME_2 = "test_dag_display_name_2"
+DAG_DISPLAY_NAME_3 = "test_dag_display_name_3"
+DAG_DISPLAY_NAME_4 = "test_dag_display_name_4"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
 TASK_ID_3 = "task3"
@@ -57,6 +61,7 @@ INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
     "dag_id": "test_dag",
+    "dag_display_name": "test_dag_display_name",
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
@@ -68,6 +73,7 @@ GRID_RUN_1 = {
 
 GRID_RUN_2 = {
     "dag_id": "test_dag",
+    "dag_display_name": "test_dag_display_name",
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
@@ -120,7 +126,7 @@ def setup(dag_maker, session=None):
     clear_db_serialized_dags()
 
     # DAG 1
-    with dag_maker(dag_id=DAG_ID, serialized=True, session=session) as dag:
+    with dag_maker(dag_id=DAG_ID, serialized=True, session=session, dag_display_name=DAG_DISPLAY_NAME) as dag:
         task = EmptyOperator(task_id=TASK_ID)
 
         @task_group
@@ -172,11 +178,13 @@ def setup(dag_maker, session=None):
                 ti.end_date = None
 
     # DAG 2
-    with dag_maker(dag_id=DAG_ID_2, serialized=True, session=session):
+    with dag_maker(dag_id=DAG_ID_2, serialized=True, session=session, dag_display_name=DAG_DISPLAY_NAME_2):
         EmptyOperator(task_id=TASK_ID_2)
 
     # DAG 3 for testing removed task
-    with dag_maker(dag_id=DAG_ID_3, serialized=True, session=session) as dag_3:
+    with dag_maker(
+        dag_id=DAG_ID_3, serialized=True, session=session, dag_display_name=DAG_DISPLAY_NAME_3
+    ) as dag_3:
         EmptyOperator(task_id=TASK_ID_3)
         EmptyOperator(task_id=TASK_ID_4)
         with TaskGroup(group_id=TASK_GROUP_ID):
@@ -195,7 +203,7 @@ def setup(dag_maker, session=None):
     )
 
     # Serialize DAG with only one task
-    with dag_maker(dag_id=DAG_ID_3, serialized=True, session=session):
+    with dag_maker(dag_id=DAG_ID_3, serialized=True, session=session, dag_display_name=DAG_DISPLAY_NAME_3):
         EmptyOperator(task_id=TASK_ID_3)
 
     run_4 = dag_maker.create_dagrun(
@@ -216,7 +224,9 @@ def setup(dag_maker, session=None):
         ti.end_date = None
 
     # DAG 4 for testing removed task
-    with dag_maker(dag_id=DAG_ID_4, serialized=True, session=session) as dag_4:
+    with dag_maker(
+        dag_id=DAG_ID_4, serialized=True, session=session, dag_display_name=DAG_DISPLAY_NAME_4
+    ) as dag_4:
         t1 = EmptyOperator(task_id="t1")
         t2 = EmptyOperator(task_id="t2")
         with TaskGroup(group_id=f"{TASK_GROUP_ID}-1") as tg1:
@@ -248,6 +258,7 @@ def setup(dag_maker, session=None):
         ti.end_date = end_date
         start_date = end_date
         end_date = start_date.add(seconds=2)
+
     session.commit()
 
 
@@ -474,6 +485,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == [
             {
                 "dag_id": "test_dag",
+                "dag_display_name": "test_dag_display_name",
                 "duration": 0,
                 "end_date": "2024-12-31T00:00:00Z",
                 "run_after": "2024-11-30T00:00:00Z",
@@ -484,6 +496,7 @@ class TestGetGridDataEndpoint:
             },
             {
                 "dag_id": "test_dag",
+                "dag_display_name": "test_dag_display_name",
                 "duration": 0,
                 "end_date": "2024-12-31T00:00:00Z",
                 "run_after": "2024-11-30T00:00:00Z",

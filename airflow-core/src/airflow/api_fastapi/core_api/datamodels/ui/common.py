@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Generic, Literal, TypeVar
 
-from pydantic import computed_field
+from pydantic import AliasPath, Field, computed_field
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -79,6 +79,7 @@ class GridRunsResponse(BaseModel):
     run_after: datetime
     state: TaskInstanceState | None
     run_type: DagRunType
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
     @computed_field
     def duration(self) -> int:

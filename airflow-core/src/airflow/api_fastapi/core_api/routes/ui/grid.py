@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -217,16 +218,7 @@ def get_grid_runs(
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-    ).where(DagRun.dag_id == dag_id)
+    base_query = select(DagRun).options(joinedload(DagRun.dag_model)).where(DagRun.dag_id == dag_id)
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
@@ -244,7 +236,7 @@ def get_grid_runs(
         filters=[run_after],
         limit=limit,
     )
-    return session.execute(dag_runs_select_filter)
+    return session.scalars(dag_runs_select_filter)
 
 
 @grid_router.get(
