@@ -109,7 +109,7 @@ More details:  :doc:`/installation/installing-from-pypi`
 **What are you expected to handle**
 
 * You are expected to install airflowctl.
-* You should running Airflow API server.
+* You should run the Airflow API server.
 * You need to setup monitoring of your system allowing you to observe resources and react to problems.
 
 **What Apache Airflow Community provides for that method**
