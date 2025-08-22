@@ -45,7 +45,6 @@
   "dag_zero": "لا يوجد أي Dag",
   "dagDetails": {
     "catchup": "إلحاق",
-    "concurrency": "تزامن",
     "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
     "description": "وصف",
