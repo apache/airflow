@@ -21,7 +21,7 @@ import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FiMinus, FiPlus, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -40,7 +40,6 @@ const spin = keyframes`
 export const Calendar = () => {
   const { dagId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
-  const [cellSize, setCellSize] = useLocalStorage("calendar-cell-size", 18);
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">("calendar-granularity", "daily");
 
@@ -192,33 +191,6 @@ export const Calendar = () => {
             </Button>
           </ButtonGroup>
         </HStack>
-
-        <HStack gap={2}>
-          <Text color="fg.muted" fontSize="sm">
-            {translate("calendar.cellSize")}:
-          </Text>
-          <IconButton
-            aria-label={translate("calendar.decreaseSize")}
-            disabled={cellSize <= 14}
-            onClick={() => setCellSize(Math.max(14, cellSize - 1))}
-            size="sm"
-            variant="ghost"
-          >
-            <FiMinus />
-          </IconButton>
-          <Text fontSize="sm" minWidth="40px" textAlign="center">
-            {cellSize}
-          </Text>
-          <IconButton
-            aria-label={translate("calendar.increaseSize")}
-            disabled={cellSize >= 24}
-            onClick={() => setCellSize(Math.min(24, cellSize + 1))}
-            size="sm"
-            variant="ghost"
-          >
-            <FiPlus />
-          </IconButton>
-        </HStack>
       </HStack>
 
       <Box position="relative">
@@ -252,18 +224,13 @@ export const Calendar = () => {
         ) : undefined}
         {granularity === "daily" ? (
           <>
-            <DailyCalendarView
-              cellSize={cellSize}
-              data={data?.dag_runs ?? []}
-              selectedYear={selectedDate.year()}
-            />
+            <DailyCalendarView data={data?.dag_runs ?? []} selectedYear={selectedDate.year()} />
             <CalendarLegend />
           </>
         ) : (
           <HStack align="start" gap={2}>
             <Box>
               <HourlyCalendarView
-                cellSize={cellSize}
                 data={data?.dag_runs ?? []}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}

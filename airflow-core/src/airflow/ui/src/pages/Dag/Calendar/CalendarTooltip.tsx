@@ -19,11 +19,10 @@
 import { useMemo } from "react";
 
 type Props = {
-  readonly cellSize: number;
   readonly content: string;
 };
 
-export const CalendarTooltip = ({ cellSize, content }: Props) => {
+export const CalendarTooltip = ({ content }: Props) => {
   const tooltipStyle = useMemo(
     () => ({
       backgroundColor: "var(--chakra-colors-gray-800)",
@@ -35,14 +34,14 @@ export const CalendarTooltip = ({ cellSize, content }: Props) => {
       padding: "8px",
       pointerEvents: "none" as const,
       position: "absolute" as const,
-      top: `${cellSize + 4}px`,
+      top: "22px",
       transform: "translateX(-50%)",
       transition: "opacity 0.2s, visibility 0.2s",
       visibility: "hidden" as const,
       whiteSpace: "nowrap" as const,
       zIndex: 1000,
     }),
-    [cellSize],
+    [],
   );
 
   const arrowStyle = useMemo(

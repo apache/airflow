@@ -49,13 +49,12 @@ import { useDelayedTooltip } from "./useDelayedTooltip";
 dayjs.extend(isSameOrBefore);
 
 type Props = {
-  readonly cellSize: number;
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly selectedMonth: number;
   readonly selectedYear: number;
 };
 
-export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear }: Props) => {
+export const HourlyCalendarView = ({ data, selectedMonth, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
@@ -75,7 +74,7 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                   key={day.day}
                   marginRight={index % 7 === 6 ? "8px" : "0"}
                   position="relative"
-                  width={`${cellSize}px`}
+                  width="18px"
                 >
                   {Boolean(isFirstOfWeek) && (
                     <Text
@@ -102,12 +101,11 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
             {hourlyData.days.map((day, index) => {
               const dayOfWeek = dayjs(day.day).day();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-              const fontSize = cellSize < 18 ? "2xs" : "xs";
-              const dayName =
-                cellSize < 18 ? dayjs(day.day).format("dd").charAt(0) : dayjs(day.day).format("dd");
+              const fontSize = "xs";
+              const dayName = dayjs(day.day).format("dd");
 
               return (
-                <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width={`${cellSize}px`}>
+                <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width="18px">
                   <Text
                     color={isWeekend ? "red.400" : "gray.600"}
                     fontSize={fontSize}
@@ -142,7 +140,7 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
               color="gray.500"
               display="flex"
               fontSize="xs"
-              height={`${cellSize}px`}
+              height="18px"
               justifyContent="flex-end"
               key={hour}
               pr={2}
@@ -172,11 +170,11 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                         bg={getCalendarCellColor([])}
                         borderRadius="2px"
                         cursor="pointer"
-                        height={`${cellSize}px`}
+                        height="18px"
                         marginRight={index % 7 === 6 ? "8px" : "0"}
-                        width={`${cellSize}px`}
+                        width="18px"
                       />
-                      <CalendarTooltip cellSize={cellSize} content={noRunsTooltip} />
+                      <CalendarTooltip content={noRunsTooltip} />
                     </Box>
                   );
                 }
@@ -197,11 +195,11 @@ export const HourlyCalendarView = ({ cellSize, data, selectedMonth, selectedYear
                       bg={getCalendarCellColor(hourData.runs)}
                       borderRadius="2px"
                       cursor="pointer"
-                      height={`${cellSize}px`}
+                      height="18px"
                       marginRight={index % 7 === 6 ? "8px" : "0"}
-                      width={`${cellSize}px`}
+                      width="18px"
                     />
-                    <CalendarTooltip cellSize={cellSize} content={tooltipContent} />
+                    <CalendarTooltip content={tooltipContent} />
                   </Box>
                 );
               })}

@@ -6,11 +6,8 @@
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
   "calendar": {
-    "cellSize": "Cell Size",
     "daily": "Daily",
-    "decreaseSize": "Decrease size",
     "hourly": "Hourly",
-    "increaseSize": "Increase size",
     "legend": {
       "successRateSpectrum": "Success Rate Spectrum",
       "tooltips": {

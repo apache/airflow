@@ -6,12 +6,9 @@
     "title": "依賴 (Dependencies) 阻礙任務排程"
   },
   "calendar": {
-    "cellSize": "格子大小",
     "daily": "每日",
-    "decreaseSize": "縮小尺寸",
     "error": "載入日曆資料時發生錯誤",
     "hourly": "每小時",
-    "increaseSize": "增大尺寸",
     "legend": {
       "successRateSpectrum": "成功率光譜",
       "tooltips": {
