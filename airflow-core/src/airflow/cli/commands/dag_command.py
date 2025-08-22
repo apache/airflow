@@ -688,7 +688,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
             return f"Every {int(seconds)} second{'s' if seconds > 1 else ''}"
         
         # Handle timetable objects
-        if hasattr(dag, 'timetable') and dag.timetable:
+        if getattr(dag, 'timetable', None):
             timetable = dag.timetable
             # Try to get a description from the timetable
             if hasattr(timetable, 'description'):
