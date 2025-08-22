@@ -780,7 +780,7 @@ def dag_docs(args) -> None:
         # Write to file
         with open(args.output_file, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
-        print(f"DAG documentation written to: {args.output_file}")
+        print(f"Dag documentation written to: {args.output_file}")
     else:
         # Print to stdout
         print(markdown_content)
