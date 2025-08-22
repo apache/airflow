@@ -30,7 +30,6 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import Connection
-from airflow.sdk.execution_time.comms import MaskSecret
 from airflow.sdk.execution_time.secrets_masker import (
     RedactedIO,
     SecretsMasker,
@@ -564,36 +563,6 @@ class TestMaskSecretAdapter:
 
         if should_be_masked:
             assert filt.replacer is not None
-
-    @pytest.mark.parametrize(
-        "object_to_mask",
-        [
-            {
-                "key_path": "/files/airflow-breeze-config/keys2/keys.json",
-                "scope": "https://www.googleapis.com/auth/cloud-platform",
-                "project": "project_id",
-                "num_retries": 6,
-            },
-            ["iter1", "iter2", {"key": "value"}],
-            "string",
-            {
-                "key1": "value1",
-            },
-        ],
-    )
-    def test_mask_secret_with_objects(self, object_to_mask):
-        mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
-        assert mask_secret_object.value == object_to_mask
-
-    def test_mask_secret_with_list(self):
-        example_dict = ["test"]
-        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
-        assert mask_secret_object.value == example_dict
-
-    def test_mask_secret_with_iterable(self):
-        example_dict = ["test"]
-        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
-        assert mask_secret_object.value == example_dict
 
 
 class TestStructuredVsUnstructuredMasking:
