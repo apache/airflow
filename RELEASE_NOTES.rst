@@ -46,6 +46,7 @@ Bug Fixes
 - UI: Automatically switch to the triggered DAG run in Graph/Grid view when manually triggering a DAG run (#54336)
 - UI: Fix "Maximum update depth exceeded" errors in Task Log Preview by filtering out empty log entries (#54628)
 - Fix custom logging configuration failures preventing triggerer and scheduler startup with simple module paths (#54686)
+- Fix MySQL UUID generation in task_instance migration (#54814)
 
 Miscellaneous
 """""""""""""
