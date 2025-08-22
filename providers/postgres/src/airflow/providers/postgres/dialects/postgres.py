@@ -45,7 +45,7 @@ class PostgresDialect(Dialect):
             row[0]
             for row in self.get_records(
                 """
-                  select kcu.column_name as column_name
+                  select kcu.column_name
                   from information_schema.table_constraints tco
                            join information_schema.key_column_usage kcu
                                 on kcu.constraint_name = tco.constraint_name
@@ -61,29 +61,41 @@ class PostgresDialect(Dialect):
         ]
         return pk_columns or None
 
+    @staticmethod
+    def _to_row(row):
+        return {
+            "name": row[0],
+            "type": row[1],
+            "nullable": row[2],
+            "default": row[3],
+            "identity": row[4],
+        }
+
     @lru_cache(maxsize=None)
     def get_column_names(
         self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
     ) -> list[str] | None:
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
+
         column_names = list(
-            row[0]
+            row["name"]
             for row in filter(
                 predicate,
-                self.get_records(
-                    """
+                map(self._to_row, self.get_records(
+                        """
                         select column_name,
                                data_type,
                                is_nullable,
                                column_default,
-                               ordinal_position
+                               is_identity
                         from information_schema.columns
                         where table_schema = %s
                           and table_name = %s
                         order by ordinal_position
                         """,
-                    (self.unescape_word(schema), self.unescape_word(table)),
+                        (self.unescape_word(schema), self.unescape_word(table)),
+                    )
                 ),
             )
         )
