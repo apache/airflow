@@ -436,6 +436,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                # TODO: call for help to figure out why this is needed
                 if var.value:
                     from airflow.sdk.log import mask_secret
 
