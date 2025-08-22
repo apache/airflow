@@ -104,6 +104,17 @@
     "any": "Dowolne",
     "or": "LUB"
   },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtruj według Daga",
+    "keyPlaceholder": "Filtruj według klucza XCom",
+    "logicalDateFromPlaceholder": "Data logiczna od",
+    "logicalDateToPlaceholder": "Data logiczna do",
+    "mapIndexPlaceholder": "Filtruj według indeksu mapowania",
+    "runAfterFromPlaceholder": "Uruchom po (od)",
+    "runAfterToPlaceholder": "Uruchom po (do)",
+    "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
+    "taskIdPlaceholder": "Filtruj według identyfikatora zadania"
+  },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -229,7 +240,7 @@
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskGroup": "Grupa zadań",
-  "taskId": "Identifikator Zadania",
+  "taskId": "Identyfikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",
     "executor": "Wykonawca",

@@ -32,7 +32,7 @@ from asgiref.sync import sync_to_async
 
 from airflow.sdk.execution_time.hitl import (
     get_hitl_detail_content_detail,
-    update_htil_detail_response,
+    update_hitl_detail_response,
 )
 from airflow.sdk.timezone import utcnow
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -107,7 +107,7 @@ class HITLTrigger(BaseTrigger):
                     )
                     return
 
-                await sync_to_async(update_htil_detail_response)(
+                await sync_to_async(update_hitl_detail_response)(
                     ti_id=self.ti_id,
                     chosen_options=self.defaults,
                     params_input=self.params,
