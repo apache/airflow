@@ -1175,9 +1175,9 @@ class CloudSQLDatabaseHook(BaseHook):
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
                 raise ValueError(f"The db_hook should be PostgresHook and is {type(self.db_hook)}")
-            conn = getattr(self.db_hook, "conn")
-            if conn and conn.notices:
-                for output in self.db_hook.conn.notices:
+            conn = getattr(self.db_hook, "conn", None)
+            if conn and hasattr(conn, "notices") and conn.notices:
+                for output in conn.notices:
                     self.log.info(output)
 
     def reserve_free_tcp_port(self) -> None:
