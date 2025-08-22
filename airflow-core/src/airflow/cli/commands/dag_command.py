@@ -743,7 +743,7 @@ def dag_docs(args) -> None:
         dags = sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id"))
 
     # Generate markdown output
-    markdown_output = []
+    markdown_output: list[str] = []
     
     if len(dags) > 1:
         markdown_output.append("# DAG Documentation\n")
