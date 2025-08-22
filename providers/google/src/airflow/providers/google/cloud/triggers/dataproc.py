@@ -30,17 +30,19 @@ from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class DataprocBaseTrigger(BaseTrigger):
@@ -119,29 +121,31 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             },
         )
 
-    @provide_session
-    def get_task_instance(self, session: Session) -> TaskInstance:
-        """
-        Get the task instance for the current task.
+    if not AIRFLOW_V_3_0_PLUS:
 
-        :param session: Sqlalchemy session
-        """
-        query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.task_instance.dag_id,
-            TaskInstance.task_id == self.task_instance.task_id,
-            TaskInstance.run_id == self.task_instance.run_id,
-            TaskInstance.map_index == self.task_instance.map_index,
-        )
-        task_instance = query.one_or_none()
-        if task_instance is None:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            """
+            Get the task instance for the current task.
+
+            :param session: Sqlalchemy session
+            """
+            query = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
             )
-        return task_instance
+            task_instance = query.one_or_none()
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
 
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -251,24 +255,26 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             },
         )
 
-    @provide_session
-    def get_task_instance(self, session: Session) -> TaskInstance:
-        query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.task_instance.dag_id,
-            TaskInstance.task_id == self.task_instance.task_id,
-            TaskInstance.run_id == self.task_instance.run_id,
-            TaskInstance.map_index == self.task_instance.map_index,
-        )
-        task_instance = query.one_or_none()
-        if task_instance is None:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            query = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
             )
-        return task_instance
+            task_instance = query.one_or_none()
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
 
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance

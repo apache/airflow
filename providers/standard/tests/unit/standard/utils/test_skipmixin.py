@@ -327,10 +327,21 @@ class TestSkipMixin:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
         else:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
-        error_message = (
-            r"'branch_task_ids' expected all task IDs are strings. "
-            r"Invalid tasks found: \{\(42, 'int'\)\}\."
-        )
+
+        if AIRFLOW_V_3_0_PLUS:
+            # Improved error message for Airflow 3.0+
+            error_message = (
+                r"Unable to branch to the specified tasks\. "
+                r"The branching function returned invalid 'branch_task_ids': \{\(42, 'int'\)\}\. "
+                r"Please check that your function returns an Iterable of valid task IDs that exist in your DAG\."
+            )
+        else:
+            # Old error message for Airflow 2.x
+            error_message = (
+                r"'branch_task_ids' expected all task IDs are strings\. "
+                r"Invalid tasks found: \{\(42, 'int'\)\}\."
+            )
+
         with pytest.raises(AirflowException, match=error_message):
             SkipMixin().skip_all_except(ti=ti1, branch_task_ids=["task", 42])
 

@@ -42,6 +42,8 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param api_endpoint: Optional. Custom API endpoint, e.g: private.googleapis.com.
+        This can be used to target private VPC or restricted access endpoints.
     """
 
     template_fields: Sequence[str] = (
@@ -55,17 +57,20 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         spreadsheet: dict[str, Any],
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        api_endpoint: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.spreadsheet = spreadsheet
         self.impersonation_chain = impersonation_chain
+        self.api_endpoint = api_endpoint
 
     def execute(self, context: Any) -> dict[str, Any]:
         hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            api_endpoint=self.api_endpoint,
         )
         spreadsheet = hook.create_spreadsheet(spreadsheet=self.spreadsheet)
         context["task_instance"].xcom_push(key="spreadsheet_id", value=spreadsheet["spreadsheetId"])

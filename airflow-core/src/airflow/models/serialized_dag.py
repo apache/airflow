@@ -321,7 +321,6 @@ class SerializedDagModel(Base):
         from airflow.sdk import DAG
 
         self.dag_id = dag.dag_id
-        dag_data = {}
         if isinstance(dag, DAG):
             dag_data = SerializedDAG.to_dict(dag)
         else:

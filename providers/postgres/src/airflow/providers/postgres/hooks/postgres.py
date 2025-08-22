@@ -21,7 +21,7 @@ import os
 from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
 import psycopg2
 import psycopg2.extensions
@@ -36,13 +36,32 @@ from airflow.exceptions import (
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
+USE_PSYCOPG3: bool
+try:
+    import psycopg as psycopg  # needed for patching in unit tests
+    import sqlalchemy
+    from packaging.version import Version
+
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
+
+    USE_PSYCOPG3 = is_sqla2  # implicitly includes `and bool(psycopg)` since the import above succeeded
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
+
+if USE_PSYCOPG3:
+    from psycopg.rows import dict_row, namedtuple_row
+    from psycopg.types.json import register_default_adapters
+
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
-    from psycopg2.extensions import connection
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+    if USE_PSYCOPG3:
+        from psycopg.errors import Diagnostic
 
     try:
         from airflow.sdk import Connection
@@ -50,6 +69,33 @@ if TYPE_CHECKING:
         from airflow.models.connection import Connection  # type: ignore[assignment]
 
 CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
+
+
+class CompatConnection(Protocol):
+    """Protocol for type hinting psycopg2 and psycopg3 connection objects."""
+
+    def cursor(self, *args, **kwargs) -> Any: ...
+    def commit(self) -> None: ...
+    def close(self) -> None: ...
+
+    # Context manager support
+    def __enter__(self) -> CompatConnection: ...
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
+
+    # Common properties
+    @property
+    def notices(self) -> list[Any]: ...
+
+    # psycopg3 specific (optional)
+    @property
+    def adapters(self) -> Any: ...
+
+    @property
+    def row_factory(self) -> Any: ...
+
+    # Optional method for psycopg3
+    def add_notice_handler(self, handler: Any) -> None: ...
 
 
 class PostgresHook(DbApiHook):
@@ -58,8 +104,8 @@ class PostgresHook(DbApiHook):
 
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
-    Also you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
-    psycopg2.extras for more details.
+    Also, you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
+    psycopg2.extras or psycopg.rows for more details.
 
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
@@ -93,6 +139,8 @@ class PostgresHook(DbApiHook):
 
     conn_name_attr = "postgres_conn_id"
     default_conn_name = "postgres_default"
+    default_client_log_level = "warning"
+    default_connector_version: int = 2
     conn_type = "postgres"
     hook_name = "Postgres"
     supports_autocommit = True
@@ -113,10 +161,14 @@ class PostgresHook(DbApiHook):
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.conn: connection = None
+        self.conn: CompatConnection | None = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
+
+    @staticmethod
+    def __cast_nullable(value, dst_type: type) -> Any:
+        return dst_type(value) if value is not None else None
 
     @property
     def sqlalchemy_url(self) -> URL:
@@ -125,12 +177,12 @@ class PostgresHook(DbApiHook):
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
         return URL.create(
-            drivername="postgresql",
-            username=conn.login,
-            password=conn.password,
-            host=conn.host,
-            port=conn.port,
-            database=self.database or conn.schema,
+            drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
+            username=self.__cast_nullable(conn.login, str),
+            password=self.__cast_nullable(conn.password, str),
+            host=self.__cast_nullable(conn.host, str),
+            port=self.__cast_nullable(conn.port, int),
+            database=self.__cast_nullable(self.database, str) or self.__cast_nullable(conn.schema, str),
             query=query,
         )
 
@@ -142,8 +194,24 @@ class PostgresHook(DbApiHook):
     def dialect(self) -> Dialect:
         return PostgresDialect(self)
 
+    def _notice_handler(self, notice: Diagnostic):
+        """Handle notices from the database and log them."""
+        self.log.info(str(notice.message_primary).strip())
+
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
+        if USE_PSYCOPG3:
+            if _cursor == "dictcursor":
+                return dict_row
+            if _cursor == "namedtuplecursor":
+                return namedtuple_row
+            if _cursor == "realdictcursor":
+                raise AirflowException(
+                    "realdictcursor is not supported with psycopg3. Use dictcursor instead."
+                )
+            valid_cursors = "dictcursor, namedtuplecursor"
+            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
+
         cursor_types = {
             "dictcursor": psycopg2.extras.DictCursor,
             "realdictcursor": psycopg2.extras.RealDictCursor,
@@ -154,33 +222,63 @@ class PostgresHook(DbApiHook):
         valid_cursors = ", ".join(cursor_types.keys())
         raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
-    def get_conn(self) -> connection:
+    def _generate_cursor_name(self):
+        """Generate a unique name for server-side cursor."""
+        import uuid
+
+        return f"airflow_cursor_{uuid.uuid4().hex}"
+
+    def get_conn(self) -> CompatConnection:
         """Establish a connection to a postgres database."""
         conn = deepcopy(self.connection)
 
-        # check for authentication via AWS IAM
         if conn.extra_dejson.get("iam", False):
-            conn.login, conn.password, conn.port = self.get_iam_token(conn)
+            login, password, port = self.get_iam_token(conn)
+            conn.login = cast("Any", login)
+            conn.password = cast("Any", password)
+            conn.port = cast("Any", port)
 
-        conn_args = {
+        conn_args: dict[str, Any] = {
             "host": conn.host,
             "user": conn.login,
             "password": conn.password,
             "dbname": self.database or conn.schema,
             "port": conn.port,
         }
-        raw_cursor = conn.extra_dejson.get("cursor", False)
-        if raw_cursor:
-            conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
 
         if self.options:
             conn_args["options"] = self.options
 
+        # Add extra connection arguments
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name not in self.ignored_extra_options:
                 conn_args[arg_name] = arg_val
 
-        self.conn = psycopg2.connect(**conn_args)
+        if USE_PSYCOPG3:
+            from psycopg.connection import Connection as pgConnection
+
+            raw_cursor = conn.extra_dejson.get("cursor")
+            if raw_cursor:
+                conn_args["row_factory"] = self._get_cursor(raw_cursor)
+
+            # Use Any type for the connection args to avoid type conflicts
+            connection = pgConnection.connect(**cast("Any", conn_args))
+            self.conn = cast("CompatConnection", connection)
+
+            # Register JSON handlers for both json and jsonb types
+            # This ensures JSON data is properly decoded from bytes to Python objects
+            register_default_adapters(connection)
+
+            # Add the notice handler AFTER the connection is established
+            if self.enable_log_db_messages and hasattr(self.conn, "add_notice_handler"):
+                self.conn.add_notice_handler(self._notice_handler)
+        else:  # psycopg2
+            raw_cursor = conn.extra_dejson.get("cursor", False)
+            if raw_cursor:
+                conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
+
+            self.conn = cast("CompatConnection", psycopg2.connect(**conn_args))
+
         return self.conn
 
     @overload
@@ -231,7 +329,9 @@ class PostgresHook(DbApiHook):
 
             engine = self.get_sqlalchemy_engine()
             with engine.connect() as conn:
-                return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+                if isinstance(sql, list):
+                    sql = "; ".join(sql)  # Or handle multiple queries differently
+                return cast("PandasDataFrame", psql.read_sql(sql, con=conn, params=parameters, **kwargs))
 
         elif df_type == "polars":
             return self._get_polars_df(sql, parameters, **kwargs)
@@ -241,7 +341,7 @@ class PostgresHook(DbApiHook):
 
     def copy_expert(self, sql: str, filename: str) -> None:
         """
-        Execute SQL using psycopg2's ``copy_expert`` method.
+        Execute SQL using psycopg's ``copy_expert`` method.
 
         Necessary to execute COPY command without access to a superuser.
 
@@ -252,14 +352,38 @@ class PostgresHook(DbApiHook):
         they have to check its existence by themselves.
         """
         self.log.info("Running copy expert: %s, filename: %s", sql, filename)
-        if not os.path.isfile(filename):
-            with open(filename, "w"):
-                pass
+        if USE_PSYCOPG3:
+            if " from stdin" in sql.lower():
+                # Handle COPY FROM STDIN: read from the file and write to the database.
+                if not os.path.isfile(filename):
+                    with open(filename, "w"):
+                        pass  # Create an empty file to prevent errors.
 
-        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            cur.copy_expert(sql, file)
-            file.truncate(file.tell())
-            conn.commit()
+                with open(filename, "rb") as file, self.get_conn() as conn, conn.cursor() as cur:
+                    with cur.copy(sql) as copy:
+                        while data := file.read(8192):
+                            copy.write(data)
+                    conn.commit()
+            else:
+                # Handle COPY TO STDOUT: read from the database and write to the file.
+                with open(filename, "wb") as file, self.get_conn() as conn, conn.cursor() as cur:
+                    with cur.copy(sql) as copy:
+                        for data in copy:
+                            file.write(data)
+                    conn.commit()
+        else:
+            if not os.path.isfile(filename):
+                with open(filename, "w"):
+                    pass
+
+            with (
+                open(filename, "r+") as file,
+                closing(self.get_conn()) as conn,
+                closing(conn.cursor()) as cur,
+            ):
+                cur.copy_expert(sql, file)
+                file.truncate(file.tell())
+                conn.commit()
 
     def get_uri(self) -> str:
         """
@@ -278,9 +402,9 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
+    def _serialize_cell_ppg2(cell: object, conn: CompatConnection | None = None) -> Any:
         """
-        Serialize a cell.
+        Serialize a cell using psycopg2.
 
         Psycopg2 adapts all arguments to the ``execute()`` method internally,
         hence we return the cell without any conversion.
@@ -296,6 +420,24 @@ class PostgresHook(DbApiHook):
         :return: The cell
         """
         return cell
+
+    @staticmethod
+    def _serialize_cell_ppg3(cell: object, conn: CompatConnection | None = None) -> Any:
+        """Serialize a cell using psycopg3."""
+        if isinstance(cell, (dict, list)):
+            try:
+                from psycopg.types.json import Json
+
+                return Json(cell)
+            except ImportError:
+                return cell
+        return cell
+
+    @staticmethod
+    def _serialize_cell(cell: object, conn: Any | None = None) -> Any:
+        if USE_PSYCOPG3:
+            return PostgresHook._serialize_cell_ppg3(cell, conn)
+        return PostgresHook._serialize_cell_ppg2(cell, conn)
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
@@ -420,11 +562,15 @@ class PostgresHook(DbApiHook):
         }
 
     def get_db_log_messages(self, conn) -> None:
-        """
-        Log all database messages sent to the client during the session.
+        """Log database messages."""
+        if not self.enable_log_db_messages:
+            return
 
-        :param conn: Connection object
-        """
-        if self.enable_log_db_messages:
-            for output in conn.notices:
-                self.log.info(output)
+        if USE_PSYCOPG3:
+            self.log.debug(
+                "With psycopg3, database notices are logged upon creation (via self._notice_handler)."
+            )
+            return
+
+        for output in conn.notices:
+            self.log.info(output)

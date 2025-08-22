@@ -414,6 +414,19 @@ class TestCliTasks:
                 )
             )
 
+    def test_task_render_for_multi_line_properties(self, dag_maker):
+        """
+        tasks render should render and displays templated fields for a given task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
+            )
+
+        output = stdout.getvalue()
+        # no indentation before property name
+        assert "# property: bash_command" in output.split("\n")
+
 
 def _set_state_and_try_num(ti, session):
     ti.state = TaskInstanceState.QUEUED

@@ -71,6 +71,7 @@ def upsert_hitl_detail(
             defaults=payload.defaults,
             multiple=payload.multiple,
             params=payload.params,
+            respondents=payload.respondents,
         )
         session.add(hitl_detail_model)
     elif hitl_detail_model.response_received:

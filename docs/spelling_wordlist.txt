@@ -1508,6 +1508,7 @@ repos
 repr
 req
 reqs
+requeue
 requeued
 Reserialize
 reserialize

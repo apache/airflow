@@ -86,8 +86,10 @@ dependencies = [
     "microsoft-kiota-serialization-text>=1.9.4",
     "microsoft-kiota-abstractions>=1.9.4,<2.0.0",
     "microsoft-kiota-authentication-azure>=1.9.4,<2.0.0",
-    "msal-extensions>=1.1.0",
-    "portalocker>=2.8.1",
+    # TODO: verify if we really need to have this as explicit dependency.
+    # It was added in https://github.com/apache/airflow/pull/47990/files
+    # maybe this should be set from upstream
+    "msal-extensions>=1.3.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

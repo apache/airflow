@@ -30,7 +30,7 @@ from fsspec.implementations.memory import MemoryFileSystem
 from airflow.sdk import Asset, ObjectStoragePath
 from airflow.sdk.io import attach
 from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
-from airflow.utils.module_loading import qualname
+from airflow.sdk.module_loading import qualname
 
 
 def test_init():

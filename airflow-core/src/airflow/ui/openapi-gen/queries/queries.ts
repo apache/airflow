@@ -1217,31 +1217,16 @@ export const useDagVersionServiceGetDagVersions = <TData = Common.DagVersionServ
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @returns HITLDetail Successful Response
-* @throws ApiError
-*/
-export const useHumanInTheLoopServiceGetHitlDetail = <TData = Common.HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, taskId }: {
-  dagId: string;
-  dagRunId: string;
-  taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) as TData, ...options });
-/**
-* Get Mapped Ti Hitl Detail
-* Get a Human-in-the-loop detail of a specific task instance.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.taskId
 * @param data.mapIndex
 * @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const useHumanInTheLoopServiceGetMappedTiHitlDetail = <TData = Common.HumanInTheLoopServiceGetMappedTiHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useHumanInTheLoopServiceGetHitlDetail = <TData = Common.HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
@@ -2100,45 +2085,23 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
 * @param data.dagRunId
 * @param data.taskId
 * @param data.requestBody
+* @param data.mapIndex
 * @returns HITLDetailResponse Successful Response
 * @throws ApiError
 */
 export const useHumanInTheLoopServiceUpdateHitlDetail = <TData = Common.HumanInTheLoopServiceUpdateHitlDetailMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   requestBody: UpdateHITLDetailPayload;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   requestBody: UpdateHITLDetailPayload;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, taskId }) => HumanInTheLoopService.updateHitlDetail({ dagId, dagRunId, requestBody, taskId }) as unknown as Promise<TData>, ...options });
-/**
-* Update Mapped Ti Hitl Detail
-* Update a Human-in-the-loop detail.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.taskId
-* @param data.mapIndex
-* @param data.requestBody
-* @returns HITLDetailResponse Successful Response
-* @throws ApiError
-*/
-export const useHumanInTheLoopServiceUpdateMappedTiHitlDetail = <TData = Common.HumanInTheLoopServiceUpdateMappedTiHitlDetailMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  requestBody: UpdateHITLDetailPayload;
-  taskId: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  requestBody: UpdateHITLDetailPayload;
-  taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => HumanInTheLoopService.updateMappedTiHitlDetail({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => HumanInTheLoopService.updateHitlDetail({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Asset Queued Events
 * Delete queued asset events for an asset.

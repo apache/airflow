@@ -745,6 +745,49 @@ def test_task_run_with_user_impersonation_default_user(
         assert "_AIRFLOW__STARTUP_MSG" not in os.environ
 
 
+def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_process(
+    mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    task = CustomOperator(task_id="impersonation_task", run_as_user="airflowuser")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="impersonation_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    mocked_parse(what, "basic_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+
+    mock_os_env = {
+        "KRB5CCNAME": "/tmp/airflow_krb5_ccache",
+        "_AIRFLOW__REEXECUTED_PROCESS": "1",
+        "_AIRFLOW__STARTUP_MSG": what.model_dump_json(),
+    }
+    with mock.patch.dict("os.environ", mock_os_env, clear=True):
+        startup()
+
+        assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+        assert "_AIRFLOW__STARTUP_MSG" in os.environ
+        assert "KRB5CCNAME" not in os.environ
+
+
 @pytest.mark.parametrize(
     ["command", "rendered_command"],
     [

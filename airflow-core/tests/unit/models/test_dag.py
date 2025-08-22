@@ -73,6 +73,7 @@ from airflow.sdk.definitions._internal.templater import NativeEnvironment, Sandb
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.task.trigger_rule import TriggerRule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -82,7 +83,6 @@ from airflow.timetables.simple import (
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -1396,43 +1396,6 @@ class TestDag:
             triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr.creating_job_id == job_id
-
-    def test_dag_add_task_checks_trigger_rule(self):
-        # A non fail stop dag should allow any trigger rule
-        from airflow.exceptions import FailFastDagInvalidTriggerRule
-        from airflow.utils.trigger_rule import TriggerRule
-
-        task_with_non_default_trigger_rule = EmptyOperator(
-            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
-        )
-        non_fail_fast_dag = DAG(
-            dag_id="test_dag_add_task_checks_trigger_rule",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            fail_fast=False,
-        )
-        non_fail_fast_dag.add_task(task_with_non_default_trigger_rule)
-
-        # a fail stop dag should allow default trigger rule
-        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
-
-        fail_fast_dag = DAG(
-            dag_id="test_dag_add_task_checks_trigger_rule",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            fail_fast=True,
-        )
-        task_with_default_trigger_rule = EmptyOperator(
-            task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
-        )
-        fail_fast_dag.add_task(task_with_default_trigger_rule)
-
-        # a fail stop dag should not allow a non-default trigger rule
-        task_with_non_default_trigger_rule = EmptyOperator(
-            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
-        )
-        with pytest.raises(FailFastDagInvalidTriggerRule):
-            fail_fast_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)

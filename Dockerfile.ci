@@ -589,7 +589,7 @@ function common::install_packaging_tools() {
     fi
     if  [[ ${AIRFLOW_PREK_VERSION=} == "" ]]; then
         echo
-        echo "${COLOR_BLUE}Installing latest preh, uv${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing latest prek, uv${COLOR_RESET}"
         echo
         uv tool install prek --with uv
         # make sure that the venv/user in .local exists
@@ -1464,9 +1464,9 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.8.11
+ARG AIRFLOW_UV_VERSION=0.8.12
 # TODO(potiuk): automate with upgrade check (possibly)
-ARG AIRFLOW_PREK_VERSION="0.0.26"
+ARG AIRFLOW_PREK_VERSION="0.1.1"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \

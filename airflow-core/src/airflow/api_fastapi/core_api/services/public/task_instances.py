@@ -261,21 +261,73 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self, action: BulkDeleteAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete task instances."""
-        to_delete_task_keys = set((task_id, -1) for task_id in action.entities)
-        _, matched_task_keys, not_found_task_keys = self.categorize_task_instances(to_delete_task_keys)
-        not_found_task_ids = [task_id for task_id, _ in not_found_task_keys]
+        delete_all_map_indexes: set[str] = set()
+        delete_specific_task_keys: set[tuple[str, int]] = set()
+
+        for entity in action.entities:
+            if isinstance(entity, str):
+                # String task ID - remove all task instances for this task
+                delete_all_map_indexes.add(entity)
+            else:
+                # BulkTaskInstanceBody object
+                if entity.map_index is None:
+                    delete_all_map_indexes.add(entity.task_id)
+                else:
+                    delete_specific_task_keys.add((entity.task_id, entity.map_index))
 
         try:
-            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
+            # Handle deletion of specific (task_id, map_index) pairs
+            if delete_specific_task_keys:
+                _, matched_task_keys, not_found_task_keys = self.categorize_task_instances(
+                    delete_specific_task_keys
                 )
+                not_found_task_ids = [f"{task_id}[{map_index}]" for task_id, map_index in not_found_task_keys]
 
-            for task_id, _ in matched_task_keys:
-                existing_task_instance = self.session.scalar(select(TI).where(TI.task_id == task_id).limit(1))
-                if existing_task_instance:
-                    self.session.delete(existing_task_instance)
+                if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
+                    )
+
+                for task_id, map_index in matched_task_keys:
+                    result = (
+                        self.session.execute(
+                            select(TI).where(
+                                TI.task_id == task_id,
+                                TI.dag_id == self.dag_id,
+                                TI.run_id == self.dag_run_id,
+                                TI.map_index == map_index,
+                            )
+                        )
+                        .scalars()
+                        .one_or_none()
+                    )
+
+                    if result:
+                        existing_task_instance = result
+                        self.session.delete(existing_task_instance)
+                        results.success.append(f"{task_id}[{map_index}]")
+
+            # Handle deletion of all map indexes for certain task_ids
+            for task_id in delete_all_map_indexes:
+                all_task_instances = self.session.scalars(
+                    select(TI).where(
+                        TI.task_id == task_id,
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.dag_run_id,
+                    )
+                ).all()
+
+                if not all_task_instances and action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"No task instances found for task_id: {task_id}",
+                    )
+
+                for ti in all_task_instances:
+                    self.session.delete(ti)
+
+                if all_task_instances:
                     results.success.append(task_id)
 
         except HTTPException as e:

@@ -97,6 +97,7 @@
     "keyPlaceholder": "依 XCom 鍵篩選",
     "logicalDateFromPlaceholder": "邏輯日期起始",
     "logicalDateToPlaceholder": "邏輯日期結束",
+    "mapIndexPlaceholder": "依映射索引篩選",
     "runAfterFromPlaceholder": "執行時間起始",
     "runAfterToPlaceholder": "執行時間結束",
     "runIdPlaceholder": "依執行 ID 篩選",
@@ -218,6 +219,7 @@
   },
   "task_one": "任務",
   "task_other": "任務",
+  "taskGroup": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",

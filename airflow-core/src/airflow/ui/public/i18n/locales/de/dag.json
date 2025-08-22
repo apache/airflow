@@ -65,6 +65,7 @@
   "panel": {
     "buttons": {
       "options": "Optionen",
+      "showGantt": "Gantt zeigen",
       "showGraph": "Graph zeigen",
       "showGrid": "Gitter zeigen"
     },

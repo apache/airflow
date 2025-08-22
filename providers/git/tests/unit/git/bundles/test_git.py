@@ -33,6 +33,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -653,13 +655,16 @@ class TestGitDagBundle:
 
                 assert "Repository path: %s not found" in str(exc_info.value)
 
-    @pytest.mark.db_test
-    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
+    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
         "conn_id, expected_hook_type",
         [("my_test_git", GitHook), ("something-else", type(None))],
     )
-    def test_repo_url_access_missing_connection_doesnt_error(self, conn_id, expected_hook_type):
+    def test_repo_url_access_missing_connection_doesnt_error(
+        self, conn_id, expected_hook_type, mock_supervisor_comms
+    ):
+        if expected_hook_type is type(None):
+            mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         bundle = GitDagBundle(
             name="testa",
             tracking_ref="main",

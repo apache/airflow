@@ -718,19 +718,16 @@ class SFTPHookAsync(BaseHook):
             self.private_key = extra_options["private_key"]
 
         host_key = extra_options.get("host_key")
-        no_host_key_check = extra_options.get("no_host_key_check")
+        nhkc_raw = extra_options.get("no_host_key_check")
+        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
 
-        if no_host_key_check is not None:
-            no_host_key_check = str(no_host_key_check).lower() == "true"
-            if host_key is not None and no_host_key_check:
-                raise ValueError("Host key check was skipped, but `host_key` value was given")
-            if no_host_key_check:
-                self.log.warning(
-                    "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
-                )
-                self.known_hosts = "none"
+        if host_key is not None and no_host_key_check:
+            raise ValueError("Host key check was skipped, but `host_key` value was given")
 
-        if host_key is not None:
+        if no_host_key_check:
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            self.known_hosts = "none"
+        elif host_key is not None:
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self) -> asyncssh.SSHClientConnection:

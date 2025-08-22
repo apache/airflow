@@ -1217,31 +1217,16 @@ export const ensureUseDagVersionServiceGetDagVersionsData = (queryClient: QueryC
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @returns HITLDetail Successful Response
-* @throws ApiError
-*/
-export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, taskId }: {
-  dagId: string;
-  dagRunId: string;
-  taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) });
-/**
-* Get Mapped Ti Hitl Detail
-* Get a Human-in-the-loop detail of a specific task instance.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.taskId
 * @param data.mapIndex
 * @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetMappedTiHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex?: number;
   taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.

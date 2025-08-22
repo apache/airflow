@@ -57,7 +57,7 @@ Limitations:
     Breeze container-based solution provides a reproducible environment that is
     consistent with other developers.
 
--   You are **STRONGLY** encouraged to also install and use `prek hooks <08_static_code_checks.rst#prekt-hooks>`_
+-   You are **STRONGLY** encouraged to also install and use `prek hooks <08_static_code_checks.rst#prek-hooks>`_
     for your local virtualenv development environment.
     Prek hooks can speed up your development cycle a lot.
 

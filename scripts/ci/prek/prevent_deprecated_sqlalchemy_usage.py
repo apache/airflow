@@ -26,7 +26,7 @@ from rich.console import Console
 console = Console(color_system="standard", width=200)
 
 
-def check_session_query(mod: ast.Module) -> int:
+def check_session_query(mod: ast.Module, file_path: str) -> int:
     errors = False
     for node in ast.walk(mod):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
@@ -36,7 +36,7 @@ def check_session_query(mod: ast.Module) -> int:
                 and node.func.value.id == "session"
             ):
                 console.print(
-                    f"\nUse of legacy `session.query` detected on line {node.lineno}. "
+                    f"\nUse of legacy `session.query` detected on line {node.lineno} in {file_path} "
                     f"\nSQLAlchemy 2.0 deprecates the `Query` object"
                     f"use the `select()` construct instead."
                 )
@@ -48,7 +48,7 @@ def main():
     for file in sys.argv[1:]:
         file_path = Path(file)
         ast_module = ast.parse(file_path.read_text(encoding="utf-8"), file)
-        errors = check_session_query(ast_module)
+        errors = check_session_query(ast_module, file_path)
         return 1 if errors else 0
 
 

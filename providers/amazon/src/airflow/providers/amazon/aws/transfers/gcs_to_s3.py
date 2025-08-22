@@ -31,6 +31,7 @@ from airflow.providers.amazon.version_compat import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -206,3 +207,14 @@ class GCSToS3Operator(BaseOperator):
             self.log.info("In sync, no files needed to be uploaded to S3")
 
         return gcs_files
+
+    def get_openlineage_facets_on_start(self) -> OperatorLineage:
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        bucket_name, s3_key = S3Hook.parse_s3_url(self.dest_s3_key)
+
+        return OperatorLineage(
+            inputs=[Dataset(namespace=f"gs://{self.gcs_bucket}", name=self.prefix or "/")],
+            outputs=[Dataset(namespace=f"s3://{bucket_name}", name=s3_key or "/")],
+        )

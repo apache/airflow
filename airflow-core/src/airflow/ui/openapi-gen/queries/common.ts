@@ -643,20 +643,12 @@ export const UseDagVersionServiceGetDagVersionsKeyFn = ({ bundleName, bundleVers
 export type HumanInTheLoopServiceGetHitlDetailDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetail>>;
 export type HumanInTheLoopServiceGetHitlDetailQueryResult<TData = HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailKey = "HumanInTheLoopServiceGetHitlDetail";
-export const UseHumanInTheLoopServiceGetHitlDetailKeyFn = ({ dagId, dagRunId, taskId }: {
+export const UseHumanInTheLoopServiceGetHitlDetailKeyFn = ({ dagId, dagRunId, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
-}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailKey, ...(queryKey ?? [{ dagId, dagRunId, taskId }])];
-export type HumanInTheLoopServiceGetMappedTiHitlDetailDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getMappedTiHitlDetail>>;
-export type HumanInTheLoopServiceGetMappedTiHitlDetailQueryResult<TData = HumanInTheLoopServiceGetMappedTiHitlDetailDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useHumanInTheLoopServiceGetMappedTiHitlDetailKey = "HumanInTheLoopServiceGetMappedTiHitlDetail";
-export const UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn = ({ dagId, dagRunId, mapIndex, taskId }: {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetMappedTiHitlDetailKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }])];
+}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }])];
 export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetails>>;
 export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
@@ -808,7 +800,6 @@ export type XcomServiceUpdateXcomEntryMutationResult = Awaited<ReturnType<typeof
 export type VariableServicePatchVariableMutationResult = Awaited<ReturnType<typeof VariableService.patchVariable>>;
 export type VariableServiceBulkVariablesMutationResult = Awaited<ReturnType<typeof VariableService.bulkVariables>>;
 export type HumanInTheLoopServiceUpdateHitlDetailMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.updateHitlDetail>>;
-export type HumanInTheLoopServiceUpdateMappedTiHitlDetailMutationResult = Awaited<ReturnType<typeof HumanInTheLoopService.updateMappedTiHitlDetail>>;
 export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>>;

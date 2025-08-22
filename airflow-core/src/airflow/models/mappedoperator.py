@@ -173,6 +173,10 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("doc_md")
 
     @property
+    def map_index_template(self) -> str | None:
+        return self.partial_kwargs.get("map_index_template")
+
+    @property
     def inherits_from_empty_operator(self) -> bool:
         """Implementing an empty Operator."""
         return self._is_empty
