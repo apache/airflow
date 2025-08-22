@@ -93,7 +93,7 @@
     "or": "또는"
   },
   "filters": {
-    "dagDisplayNamePlaceholder": "DAG로 필터링",
+    "dagDisplayNamePlaceholder": "Dag로 필터링",
     "keyPlaceholder": "XCom 키로 필터링",
     "logicalDateFromPlaceholder": "논리적 날짜 (시작)",
     "logicalDateToPlaceholder": "논리적 날짜 (종료)",
