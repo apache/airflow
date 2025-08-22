@@ -83,7 +83,9 @@ class PostgresDialect(Dialect):
             row["name"]
             for row in filter(
                 predicate,
-                map(self._to_row, self.get_records(
+                map(
+                    self._to_row,
+                    self.get_records(
                         """
                         select column_name,
                                data_type,
@@ -97,7 +99,7 @@ class PostgresDialect(Dialect):
                         order by ordinal_position
                         """,
                         (self.unescape_word(schema), self.unescape_word(table)),
-                    )
+                    ),
                 ),
             )
         )
