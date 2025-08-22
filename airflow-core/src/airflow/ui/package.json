@@ -43,6 +43,7 @@
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",
+    "react-datepicker": "^8.7.0",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.56.1",
     "react-hotkeys-hook": "^4.6.1",
