@@ -25,6 +25,7 @@ from unittest.mock import PropertyMock
 import pytest
 
 from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler
+from airflow.providers.alibaba.version_compat import BaseOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -48,8 +49,6 @@ MOCK_FILE_PATH = "mock_file_path"
 class TestOSSRemoteLogIO:
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_runtime_ti):
-        from airflow.sdk import BaseOperator
-
         # setup remote IO
         self.base_log_folder = "local/airflow/logs"
         self.oss_log_folder = f"oss://{MOCK_BUCKET_NAME}/airflow/logs"
