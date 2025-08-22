@@ -35,7 +35,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
   // Convert UTC value to local time for display
   const displayValue =
     Boolean(value) && dayjs(value).isValid()
-      ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm")
+      ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS")
       : "";
 
   return (
