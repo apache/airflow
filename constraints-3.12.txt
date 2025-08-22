@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-21T16:00:36.073815
+# This constraints file was automatically generated on 2025-08-22T00:25:58.294535
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -524,7 +524,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.100.2
+openai==1.101.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -795,7 +795,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.12
+uv==0.8.13
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
