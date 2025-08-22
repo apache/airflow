@@ -703,12 +703,9 @@ def _get_schedule_info(dag: DAG) -> str | None:
             try:
                 datasets = list(schedule)
                 if datasets:
-                    dataset_names = [str(ds) for ds in datasets[:3]]  # Show first 3
-                    if len(datasets) > 3:
-                        return f"Dataset-triggered: {', '.join(dataset_names)}, ..."
-                    else:
-                        return f"Dataset-triggered: {', '.join(dataset_names)}"
-            except (TypeError, AttributeError):
+                    dataset_names = [str(ds) for ds in datasets]
+                    return f"Dataset-triggered: {', '.join(dataset_names)}"
+            except TypeError:
                 pass
         
         # Fallback to string representation
