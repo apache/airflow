@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import re
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import closing
 from functools import cached_property
 from typing import Any
@@ -31,7 +31,7 @@ from more_itertools import chunked
 from pyarrow import RecordBatch, Schema, array, schema
 
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, T
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
@@ -78,38 +78,34 @@ class AdbcHook(DbApiHook):
         }
 
     @functools.lru_cache
-    def _driver_path(self) -> str | None:
+    def _driver_path(self) -> str:
         import pathlib
         import sys
 
         import importlib_resources
 
-        driver = self.driver
+        # Wheels bundle the shared library
+        root = importlib_resources.files(self.driver)
+        # The filename is always the same regardless of platform
+        entrypoint = root.joinpath(f"lib{self.driver}.so")
+        if entrypoint.is_file():
+            return str(entrypoint)
 
-        if driver:
-            # Wheels bundle the shared library
-            root = importlib_resources.files(driver)
-            # The filename is always the same regardless of platform
-            entrypoint = root.joinpath(f"lib{driver}.so")
+        # Search sys.prefix + '/lib' (Unix, Conda on Unix)
+        root = pathlib.Path(sys.prefix)
+        for filename in (f"lib{self.driver}.so", f"lib{self.driver}.dylib"):
+            entrypoint = root.joinpath("lib", filename)
             if entrypoint.is_file():
                 return str(entrypoint)
 
-            # Search sys.prefix + '/lib' (Unix, Conda on Unix)
-            root = pathlib.Path(sys.prefix)
-            for filename in (f"lib{driver}.so", f"lib{driver}.dylib"):
-                entrypoint = root.joinpath("lib", filename)
-                if entrypoint.is_file():
-                    return str(entrypoint)
+        # Conda on Windows
+        entrypoint = root.joinpath("bin", f"{self.driver}.dll")
+        if entrypoint.is_file():
+            return str(entrypoint)
 
-            # Conda on Windows
-            entrypoint = root.joinpath("bin", f"{driver}.dll")
-            if entrypoint.is_file():
-                return str(entrypoint)
-
-            # Let the driver manager fall back to (DY)LD_LIBRARY_PATH/PATH
-            # (It will insert 'lib', 'so', etc. as needed)
-            return driver
-        return None
+        # Let the driver manager fall back to (DY)LD_LIBRARY_PATH/PATH
+        # (It will insert 'lib', 'so', etc. as needed)
+        return self.driver
 
     @cached_property
     def uri(self) -> str:
