@@ -62,8 +62,9 @@ class SlackWebhookNotifier(BaseNotifier):
         timeout: int | None = None,
         attachments: list | None = None,
         retry_handlers: list[RetryHandler] | None = None,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.slack_webhook_conn_id = slack_webhook_conn_id
         self.text = text
         self.attachments = attachments
