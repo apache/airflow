@@ -659,6 +659,7 @@ def sync_bag_to_db(
         bundle_version,
         dags,
         import_errors,
+        None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
     )

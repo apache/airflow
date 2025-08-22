@@ -42,6 +42,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Column,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -1610,6 +1611,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         bundle_name: str,
         bundle_version: str | None,
         dags: Collection[MaybeSerializedDAG],
+        parse_duration: float | None = None,
         session: Session = NEW_SESSION,
     ):
         """
@@ -1629,7 +1631,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         )
 
         orm_dags = dag_op.add_dags(session=session)
-        dag_op.update_dags(orm_dags, session=session)
+        dag_op.update_dags(orm_dags, parse_duration, session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -1883,6 +1885,8 @@ class DagModel(Base):
     is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
+    # How long it took to parse this file
+    last_parse_duration = Column(Float)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)

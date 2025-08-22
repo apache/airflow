@@ -241,6 +241,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_paused": dag.get_is_paused() if hasattr(dag, "get_is_paused") else None,
         "is_stale": dag.get_is_stale() if hasattr(dag, "get_is_stale") else None,
         "last_parsed_time": None,
+        "last_parse_duration": None,
         "last_expired": None,
         "relative_fileloc": dag.relative_fileloc,
         "fileloc": dag.fileloc,

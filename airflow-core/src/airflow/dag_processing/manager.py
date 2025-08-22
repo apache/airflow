@@ -1138,7 +1138,7 @@ def process_parse_results(
     parsing_result: DagFileParsingResult | None,
     session: Session,
 ) -> DagFileStat:
-    """Take the parsing result and stats about the parser process and convert it into a DagFileState."""
+    """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
     stat = DagFileStat(
         last_finish_time=finish_time,
         last_duration=run_duration,
@@ -1164,6 +1164,7 @@ def process_parse_results(
             bundle_version=bundle_version,
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
+            parse_duration=run_duration,
             warnings=set(parsing_result.warnings or []),
             session=session,
         )
