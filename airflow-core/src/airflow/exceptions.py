@@ -21,27 +21,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from http import HTTPStatus
 from typing import TYPE_CHECKING, NamedTuple
 
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
+
 if TYPE_CHECKING:
     from airflow.models import DagRun
-    from airflow.utils.state import DagRunState
-
-
-class AirflowException(Exception):
-    """
-    Base class for all Airflow's errors.
-
-    Each custom exception should be derived from this class.
-    """
-
-    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
-
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
 class AirflowDagCycleException(AirflowException):
@@ -52,12 +38,6 @@ class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
     status_code = HTTPStatus.BAD_REQUEST
-
-
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
-
-    status_code = HTTPStatus.NOT_FOUND
 
 
 class AirflowConfigException(AirflowException):
@@ -82,13 +62,6 @@ class AirflowRescheduleException(AirflowException):
 
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
-
-
-# Important to inherit BaseException instead of AirflowException->Exception, since this Exception is used
-# to explicitly interrupt ongoing task. Code that does normal error-handling should not treat
-# such interrupt as an error that can be handled normally. (Compare with KeyboardInterrupt)
-class AirflowTaskTimeout(BaseException):
-    """Raise when the task execution times-out."""
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
@@ -250,44 +223,6 @@ class VariableNotUnique(AirflowException):
     """Raise when multiple values are found for the same variable name."""
 
 
-# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
-class DagRunTriggerException(AirflowException):
-    """
-    Signal by an operator to trigger a specific Dag Run of a dag.
-
-    Special exception raised to signal that the operator it was raised from wishes to trigger
-    a specific Dag Run of a dag. This is used in the ``TriggerDagRunOperator``.
-    """
-
-    def __init__(
-        self,
-        *,
-        trigger_dag_id: str,
-        dag_run_id: str,
-        conf: dict | None,
-        logical_date: datetime | None,
-        reset_dag_run: bool,
-        skip_when_already_exists: bool,
-        wait_for_completion: bool,
-        allowed_states: list[str | DagRunState],
-        failed_states: list[str | DagRunState],
-        poke_interval: int,
-        deferrable: bool,
-    ):
-        super().__init__()
-        self.trigger_dag_id = trigger_dag_id
-        self.dag_run_id = dag_run_id
-        self.conf = conf
-        self.logical_date = logical_date
-        self.reset_dag_run = reset_dag_run
-        self.skip_when_already_exists = skip_when_already_exists
-        self.wait_for_completion = wait_for_completion
-        self.allowed_states = allowed_states
-        self.failed_states = failed_states
-        self.poke_interval = poke_interval
-        self.deferrable = deferrable
-
-
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
 # These two exceptions are used internally by Kubernetes Executor but also by PodGenerator, so we need
 # to leave them here in case older version of cncf.kubernetes provider is used to run KubernetesPodOperator
@@ -373,6 +308,9 @@ _DEPRECATED_EXCEPTIONS = {
     "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
     "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
     "AirflowSensorTimeout": "airflow.sdk.exceptions.AirflowSensorTimeout",
+    "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
+    "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
+    "AirflowNotFoundException": "airflow.sdk.exceptions.AirflowNotFoundException",
 }
 
 
