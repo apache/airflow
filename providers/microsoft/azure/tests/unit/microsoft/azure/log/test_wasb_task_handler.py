@@ -42,6 +42,7 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2020, 8, 10)
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
 class TestWasbRemoteLogIO:
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_runtime_ti):
