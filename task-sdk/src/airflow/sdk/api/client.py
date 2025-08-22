@@ -78,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     TaskRescheduleStartDate,
     TICount,
     UpdateHITLDetail,
+    XComCountResponse,
 )
 
 if TYPE_CHECKING:
@@ -414,7 +415,7 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> int:
+    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> XComCountResponse:
         """Get the number of mapped XCom values."""
         resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
 
@@ -423,7 +424,7 @@ class XComOperations:
             "map_indexes "
         ):
             raise RuntimeError(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
-        return int(content_range[len("map_indexes ") :])
+        return XComCountResponse(len=int(content_range[len("map_indexes ") :]))
 
     def get(
         self,
