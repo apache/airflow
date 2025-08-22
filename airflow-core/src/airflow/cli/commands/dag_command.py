@@ -749,7 +749,7 @@ def dag_docs(args) -> None:
         markdown_output.append("# DAG Documentation\n")
     
     for dag in dags:
-        doc_md = getattr(dag, '__doc_md__', None) or getattr(dag, 'doc_md', None)
+        doc_md = getattr(dag, '__doc_md__', getattr(dag, 'doc_md', None))
         
         # Add DAG header
         if len(dags) > 1:
