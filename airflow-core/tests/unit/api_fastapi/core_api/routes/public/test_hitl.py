@@ -182,10 +182,6 @@ def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> lis
 
 expected_ti_not_found_error_msg = (
     f"The Task Instance with dag_id: `{DAG_ID}`,"
-    f" run_id: `test`, task_id: `{TASK_ID}` and map_index: `None` was not found"
-)
-expected_mapped_ti_not_found_error_msg = (
-    f"The Task Instance with dag_id: `{DAG_ID}`,"
     f" run_id: `test`, task_id: `{TASK_ID}` and map_index: `-1` was not found"
 )
 
@@ -261,15 +257,17 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
 
 
 class TestUpdateHITLDetailEndpoint:
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -281,16 +279,18 @@ class TestUpdateHITLDetailEndpoint:
             "response_at": "2025-07-03T00:00:00Z",
         }
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail_respondent")
     def test_should_respond_200_to_respondent_user(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ):
         """Test with an authorized user and the user is a respondent to the task."""
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -302,62 +302,79 @@ class TestUpdateHITLDetailEndpoint:
             "response_at": "2025-07-03T00:00:00Z",
         }
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_401(
         self,
         unauthenticated_test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
+        response = unauthenticated_test_client.patch(
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
         assert response.status_code == 401
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_403(
         self,
         unauthorized_test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
+        response = unauthorized_test_client.patch(
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
         assert response.status_code == 403
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail_non_respondent")
     def test_should_respond_403_to_non_respondent_user(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ):
         """Test with an authorized user but the user is not a respondent to the task."""
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 403
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_404_without_ti(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 404
         assert response.json() == {"detail": expected_ti_not_found_error_msg}
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_404_without_hitl_detail(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         expected_hitl_detail_not_found_error_msg: str,
+        query_param: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
         assert response.status_code == 404
         assert response.json() == {"detail": expected_hitl_detail_not_found_error_msg}
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_409(
@@ -365,9 +382,10 @@ class TestUpdateHITLDetailEndpoint:
         test_client: TestClient,
         sample_ti_url_identifier: str,
         sample_ti: TaskInstance,
+        query_param: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
 
@@ -381,7 +399,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == expected_response
 
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
         )
         assert response.status_code == 409
@@ -393,154 +411,16 @@ class TestUpdateHITLDetailEndpoint:
             )
         }
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_422_with_empty_option(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
         response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}",
-            json={"chosen_options": [], "params_input": {"input_1": 2}},
-        )
-
-        assert response.status_code == 422
-
-
-class TestUpdateMappedTIHITLDetail:
-    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_should_respond_200_with_existing_response(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
-        )
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "params_input": {"input_1": 2},
-            "chosen_options": ["Approve"],
-            "user_id": "test",
-            "response_at": "2025-07-03T00:00:00Z",
-        }
-
-    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail_respondent")
-    def test_should_respond_200_to_respondent_user(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ):
-        """Test with an authorized user and the user is a respondent to the task."""
-        response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
-        )
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "params_input": {"input_1": 2},
-            "chosen_options": ["Approve"],
-            "user_id": "test",
-            "response_at": "2025-07-03T00:00:00Z",
-        }
-
-    def test_should_respond_401(
-        self,
-        unauthenticated_test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 401
-
-    def test_should_respond_403(
-        self,
-        unauthorized_test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 403
-
-    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail_non_respondent")
-    def test_should_respond_403_to_non_respondent_user(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ):
-        """Test with an authorized user but the user is not a respondent to the task."""
-        response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
-        )
-        assert response.status_code == 403
-
-    def test_should_respond_404_without_ti(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 404
-        assert response.json() == {"detail": expected_mapped_ti_not_found_error_msg}
-
-    def test_should_respond_404_without_hitl_detail(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-        expected_hitl_detail_not_found_error_msg: str,
-    ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 404
-        assert response.json() == {"detail": expected_hitl_detail_not_found_error_msg}
-
-    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
-    @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_should_respond_409(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-        sample_ti: TaskInstance,
-    ) -> None:
-        response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
-        )
-
-        expected_response = {
-            "params_input": {"input_1": 2},
-            "chosen_options": ["Approve"],
-            "user_id": "test",
-            "response_at": "2025-07-03T00:00:00Z",
-        }
-        assert response.status_code == 200
-        assert response.json() == expected_response
-
-        response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}/-1",
-            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
-        )
-        assert response.status_code == 409
-        assert response.json() == {
-            "detail": (
-                "Human-in-the-loop detail has already been updated for Task Instance "
-                f"with id {sample_ti.id} "
-                "and is not allowed to write again."
-            )
-        }
-
-    @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_should_respond_422_with_empty_option(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = test_client.patch(
-            f"/hitlDetails/{sample_ti_url_identifier}/-1",
+            f"/hitlDetails/{sample_ti_url_identifier}{query_param}",
             json={"chosen_options": [], "params_input": {"input_1": 2}},
         )
 
@@ -548,97 +428,59 @@ class TestUpdateMappedTIHITLDetail:
 
 
 class TestGetHITLDetailEndpoint:
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         expected_sample_hitl_detail_dict: dict[str, Any],
+        query_param: str,
     ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
         assert response.status_code == 200
         assert response.json() == expected_sample_hitl_detail_dict
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_401(
         self,
         unauthenticated_test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
-        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
+        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
         assert response.status_code == 401
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_403(
         self,
         unauthorized_test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
-        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
+        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
         assert response.status_code == 403
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_404_without_ti(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
+        query_param: str,
     ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
         assert response.status_code == 404
         assert response.json() == {"detail": expected_ti_not_found_error_msg}
 
+    @pytest.mark.parametrize("query_param", ["", "?map_index=-1"])
     def test_should_respond_404_without_hitl_detail(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         expected_hitl_detail_not_found_error_msg: str,
+        query_param: str,
     ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}")
-        assert response.status_code == 404
-        assert response.json() == {"detail": expected_hitl_detail_not_found_error_msg}
-
-
-class TestGetMappedTIHITLDetail:
-    @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_should_respond_200_with_existing_response(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-        expected_sample_hitl_detail_dict: dict[str, Any],
-    ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 200
-        assert response.json() == expected_sample_hitl_detail_dict
-
-    def test_should_respond_401(
-        self,
-        unauthenticated_test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = unauthenticated_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 401
-
-    def test_should_respond_403(
-        self,
-        unauthorized_test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = unauthorized_test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 403
-
-    def test_should_respond_404_without_ti(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-    ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
-        assert response.status_code == 404
-        assert response.json() == {"detail": expected_mapped_ti_not_found_error_msg}
-
-    def test_should_respond_404_without_hitl_detail(
-        self,
-        test_client: TestClient,
-        sample_ti_url_identifier: str,
-        expected_hitl_detail_not_found_error_msg: str,
-    ) -> None:
-        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}/-1")
+        response = test_client.get(f"/hitlDetails/{sample_ti_url_identifier}{query_param}")
         assert response.status_code == 404
         assert response.json() == {"detail": expected_hitl_detail_not_found_error_msg}
 
