@@ -25,6 +25,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
+from airflow.providers.google.version_compat import BaseOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -37,8 +38,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 class TestGCSRemoteLogIO:
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_runtime_ti):
-        from airflow.sdk import BaseOperator
-
         # setup remote IO
         self.base_log_folder = "local/airflow/logs"
         self.gcs_log_folder = "gs://bucket/remote/log/location"
