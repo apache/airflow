@@ -48,7 +48,7 @@ class DagWarning(Base):
     message = Column(Text, nullable=False)
     timestamp = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
-    dag = relationship("DagModel", viewonly=True, lazy="selectin")
+    dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
 
     __tablename__ = "dag_warning"
     __table_args__ = (
