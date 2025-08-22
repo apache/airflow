@@ -235,5 +235,5 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-timezones",
-    "apache-airflow-shared-secrets_masker",
+    "apache-airflow-shared-secrets-masker",
 ]
