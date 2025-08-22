@@ -41,7 +41,9 @@ AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator, timezone
     from airflow.sdk.definitions.context import context_merge
+    from airflow.sdk.exceptions import AirflowSensorTimeout, TaskDeferred
 else:
+    from airflow.exceptions import AirflowSensorTimeout, TaskDeferred  # type: ignore[no-redef, attr-defined]
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
@@ -64,4 +66,6 @@ __all__ = [
     "PokeReturnValue",
     "context_merge",
     "timezone",
+    "AirflowSensorTimeout",
+    "TaskDeferred",
 ]
