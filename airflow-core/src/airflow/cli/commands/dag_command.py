@@ -650,7 +650,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 
 
 def _get_schedule_info(dag: DAG) -> str | None:
-    """Extract and format schedule information from a DAG."""
+    """Extract and format schedule information from a Dag."""
     try:
         # Try to get schedule from different possible attributes
         schedule = getattr(dag, 'schedule', None) or getattr(dag, 'schedule_interval', None)
