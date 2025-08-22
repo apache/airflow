@@ -1812,22 +1812,15 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
             if AIRFLOW_V_3_1_PLUS:
-                try:
-                    from airflow._shared.secrets_masker import (
-                        SecretsMasker as CoreSecretsMasker,
-                    )
+                from airflow._shared.secrets_masker import (
+                    SecretsMasker as CoreSecretsMasker,
+                )
+                from airflow.sdk._shared.secrets_masker import (
+                    SecretsMasker as SDKSecretsMasker,
+                )
 
-                    mp_ctx.setattr(CoreSecretsMasker, "_mask_secrets_in_logs", True)
-                except ImportError:
-                    pass
-                try:
-                    from airflow.sdk._shared.secrets_masker import (
-                        SecretsMasker as SDKSecretsMasker,
-                    )
-
-                    mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", True)
-                except ImportError:
-                    pass
+                mp_ctx.setattr(CoreSecretsMasker, "_mask_secrets_in_logs", True)
+                mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", True)
             else:
                 # Fallback for older versions
                 mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
@@ -1853,20 +1846,15 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     with pytest.MonkeyPatch.context() as mp_ctx:
         # NEW: Set class variable instead of settings
         if AIRFLOW_V_3_1_PLUS:
-            try:
-                from airflow._shared.secrets_masker import SecretsMasker
+            from airflow._shared.secrets_masker import (
+                SecretsMasker as CoreSecretsMasker,
+            )
+            from airflow.sdk._shared.secrets_masker import (
+                SecretsMasker as SDKSecretsMasker,
+            )
 
-                mp_ctx.setattr(SecretsMasker, "_mask_secrets_in_logs", False)
-            except ImportError:
-                pass
-            try:
-                from airflow.sdk._shared.secrets_masker import (
-                    SecretsMasker as SDKSecretsMasker,
-                )
-
-                mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", False)
-            except ImportError:
-                pass
+            mp_ctx.setattr(CoreSecretsMasker, "_mask_secrets_in_logs", True)
+            mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", True)
         else:
             # Fallback for older versions
             mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)

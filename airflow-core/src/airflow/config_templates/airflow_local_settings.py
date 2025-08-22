@@ -72,7 +72,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     },
     "filters": {
         "mask_secrets_core": {
-            "()": "airflow._shared.secrets_masker.secrets_masker._secrets_masker",
+            "()": "airflow._shared.secrets_masker._secrets_masker",
         },
     },
     "handlers": {
