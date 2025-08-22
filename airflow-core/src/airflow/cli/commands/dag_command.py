@@ -661,21 +661,17 @@ def _get_schedule_info(dag: DAG) -> str | None:
         # Handle different schedule types
         if isinstance(schedule, str):
             # Cron expressions or preset schedules
-            if schedule.startswith('@'):
-                # Preset schedules like @daily, @hourly
-                preset_map = {
-                    '@once': 'Once',
-                    '@hourly': 'Hourly (0 * * * *)',
-                    '@daily': 'Daily (0 0 * * *)',
-                    '@weekly': 'Weekly (0 0 * * 0)',
-                    '@monthly': 'Monthly (0 0 1 * *)',
-                    '@yearly': 'Yearly (0 0 1 1 *)',
-                    '@annually': 'Annually (0 0 1 1 *)',
-                }
-                return preset_map.get(schedule, schedule)
-            else:
-                # Cron expression
-                return f"Cron: `{schedule}`"
+            # Preset schedules like @daily, @hourly
+            preset_map = {
+                '@once': 'Once',
+                '@hourly': 'Hourly (0 * * * *)',
+                '@daily': 'Daily (0 0 * * *)',
+                '@weekly': 'Weekly (0 0 * * 0)',
+                '@monthly': 'Monthly (0 0 1 * *)',
+                '@yearly': 'Yearly (0 0 1 1 *)',
+                '@annually': 'Annually (0 0 1 1 *)',
+            }
+            return preset_map.get(schedule, schedule, f"Cron: `{schedule}`")
         
         # Handle timedelta objects
         if hasattr(schedule, 'total_seconds'):
