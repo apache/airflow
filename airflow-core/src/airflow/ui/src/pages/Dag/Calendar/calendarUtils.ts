@@ -87,7 +87,6 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
   return counts as RunCounts;
 };
 
-// Sequential color scheme for GitHub-style heatmap with dark/light mode support
 const TOTAL_COLOR_INTENSITIES = [
   { _dark: "gray.700", _light: "gray.100" }, // 0 runs
   { _dark: "green.300", _light: "green.200" }, // 1-5 runs
@@ -124,7 +123,7 @@ const getIntensityLevel = (count: number, mode: CalendarColorMode): number => {
 
     return 4;
   } else {
-    // failures mode
+    // failed runs mode
     if (count <= 2) {
       return 1;
     }

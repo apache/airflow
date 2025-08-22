@@ -42,7 +42,7 @@ export const Calendar = () => {
   const { t: translate } = useTranslation("dag");
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [granularity, setGranularity] = useLocalStorage<"daily" | "hourly">("calendar-granularity", "hourly");
-  const [colorMode, setColorMode] = useLocalStorage<"failed" | "total">("calendar-color-mode", "total");
+  const [viewMode, setViewMode] = useLocalStorage<"failed" | "total">("calendar-view-mode", "total");
 
   const currentDate = dayjs();
 
@@ -195,15 +195,15 @@ export const Calendar = () => {
           <ButtonGroup attached size="sm" variant="outline">
             <Button
               colorPalette="blue"
-              onClick={() => setColorMode("total")}
-              variant={colorMode === "total" ? "solid" : "outline"}
+              onClick={() => setViewMode("total")}
+              variant={viewMode === "total" ? "solid" : "outline"}
             >
               {translate("calendar.totalRuns")}
             </Button>
             <Button
               colorPalette="blue"
-              onClick={() => setColorMode("failed")}
-              variant={colorMode === "failed" ? "solid" : "outline"}
+              onClick={() => setViewMode("failed")}
+              variant={viewMode === "failed" ? "solid" : "outline"}
             >
               {translate("overview.buttons.failedRun_other")}
             </Button>
@@ -243,24 +243,24 @@ export const Calendar = () => {
         {granularity === "daily" ? (
           <>
             <DailyCalendarView
-              colorMode={colorMode}
+              colorMode={viewMode}
               data={data?.dag_runs ?? []}
               selectedYear={selectedDate.year()}
             />
-            <CalendarLegend colorMode={colorMode} />
+            <CalendarLegend colorMode={viewMode} />
           </>
         ) : (
           <HStack align="start" gap={2}>
             <Box>
               <HourlyCalendarView
-                colorMode={colorMode}
+                colorMode={viewMode}
                 data={data?.dag_runs ?? []}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>
-              <CalendarLegend colorMode={colorMode} vertical />
+              <CalendarLegend colorMode={viewMode} vertical />
             </Box>
           </HStack>
         )}
