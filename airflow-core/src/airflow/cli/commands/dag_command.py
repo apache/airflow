@@ -723,7 +723,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def dag_docs(args) -> None:
-    """Display DAG documentation (__doc_md__) at the command line."""
+    """Display Dag documentation (__doc_md__) at the command line."""
     if args.dag_id:
         # Get specific DAG
         dag = get_dag(args.subdir, args.dag_id)
