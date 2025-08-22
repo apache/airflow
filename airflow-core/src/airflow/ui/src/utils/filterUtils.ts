@@ -17,23 +17,11 @@
  * under the License.
  */
 
-export const getFilterCount = <T extends Record<string, unknown>>(
-  filters: T,
-  options?: {
-    excludeFields?: Array<keyof T>;
-  },
-): number => {
-  const { excludeFields = [] } = options ?? {};
-
-  return Object.entries(filters).reduce((count, [key, value]) => {
-    if (excludeFields.includes(key)) {
-      return count;
-    }
-
+export const getFilterCount = (filters: Record<string, unknown>): number =>
+  Object.values(filters).reduce((count: number, value) => {
     if (Array.isArray(value)) {
       return count + (value.length > 0 ? 1 : 0);
     }
 
     return count + (value !== null && value !== undefined ? 1 : 0);
   }, 0);
-};

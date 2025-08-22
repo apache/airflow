@@ -45,34 +45,6 @@ describe("getFilterCount", () => {
     expect(getFilterCount(filters)).toBe(2);
   });
 
-  it("excludes specified fields", () => {
-    const filters = {
-      debug: "also-excluded",
-      internal: "should-be-excluded",
-      name: "test",
-      nullValue: undefined,
-      status: "active",
-    };
-
-    expect(getFilterCount(filters, { excludeFields: ["internal", "debug"] })).toBe(2);
-  });
-
-  it("handles array fields and excludes together", () => {
-    const filters = {
-      emptyTags: [],
-      internal: "excluded",
-      nullValue: undefined,
-      status: "active",
-      tags: ["tag1", "tag2"],
-    };
-
-    expect(
-      getFilterCount(filters, {
-        excludeFields: ["internal"],
-      }),
-    ).toBe(2);
-  });
-
   it("returns 0 for empty filters", () => {
     expect(getFilterCount({})).toBe(0);
   });
@@ -130,9 +102,5 @@ it("handles complex filters pattern", () => {
     user: "admin",
   };
 
-  expect(
-    getFilterCount(filters, {
-      excludeFields: ["eventType", "mapIndex"],
-    }),
-  ).toBe(5);
+  expect(getFilterCount(filters)).toBe(6);
 });
