@@ -88,7 +88,7 @@ export const Calendar = () => {
     <Box p={6}>
       <ErrorAlert error={error} />
       <HStack justify="space-between" mb={6}>
-        <HStack gap={4}>
+        <HStack gap={4} mb={4}>
           {granularity === "daily" ? (
             <HStack gap={2}>
               <IconButton

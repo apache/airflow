@@ -41,10 +41,9 @@ import { useTranslation } from "react-i18next";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
-import { CalendarTooltip } from "./CalendarTooltip";
+import { CalendarCell } from "./CalendarCell";
 import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
 import type { CalendarColorMode } from "./types";
-import { useDelayedTooltip } from "./useDelayedTooltip";
 
 type Props = {
   readonly colorMode: CalendarColorMode;
@@ -55,7 +54,6 @@ type Props = {
 export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear);
-  const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
 
   const weekdays = [
     translate("calendar.weekdays.sunday"),
@@ -70,12 +68,12 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
   return (
     <Box mb={4}>
       <Box display="flex" mb={2}>
-        <Box width="50px" />
+        <Box width="30px" />
         <Box display="flex" gap={1}>
           {dailyData.map((week, index) => (
-            <Box key={`month-${week[0]?.date ?? index}`} position="relative" width="18px">
+            <Box key={`month-${week[0]?.date ?? index}`} position="relative" width="14px">
               {Boolean(week[0] && dayjs(week[0].date).date() <= 7) && (
-                <Text color="fg.muted" fontSize="xs" left="0" position="absolute" top="-20px">
+                <Text color="fg.muted" fontSize="2xs" left="0" position="absolute" top="-20px">
                   {dayjs(week[0]?.date).format("MMM")}
                 </Text>
               )}
@@ -90,12 +88,12 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
               alignItems="center"
               color="fg.muted"
               display="flex"
-              fontSize="xs"
-              height="18px"
+              fontSize="2xs"
+              height="14px"
               justifyContent="flex-end"
               key={day}
               pr={2}
-              width="40px"
+              width="20px"
             >
               {day}
             </Box>
@@ -109,26 +107,15 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {
-                  return <Box bg="transparent" height="18px" key={day.date} width="18px" />;
+                  return <Box bg="transparent" height="14px" key={day.date} width="14px" />;
                 }
 
                 return (
-                  <Box
+                  <CalendarCell
+                    backgroundColor={getCalendarCellColor(day.runs, colorMode)}
+                    content={createTooltipContent(day)}
                     key={day.date}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    position="relative"
-                  >
-                    <Box
-                      _hover={{ transform: "scale(1.1)" }}
-                      bg={getCalendarCellColor(day.runs, colorMode)}
-                      borderRadius="2px"
-                      cursor="pointer"
-                      height="18px"
-                      width="18px"
-                    />
-                    <CalendarTooltip content={createTooltipContent(day)} />
-                  </Box>
+                  />
                 );
               })}
             </Box>

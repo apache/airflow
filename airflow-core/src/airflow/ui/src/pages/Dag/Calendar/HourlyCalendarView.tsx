@@ -42,10 +42,9 @@ import { useTranslation } from "react-i18next";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
-import { CalendarTooltip } from "./CalendarTooltip";
+import { CalendarCell } from "./CalendarCell";
 import { createTooltipContent, generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
 import type { CalendarColorMode } from "./types";
-import { useDelayedTooltip } from "./useDelayedTooltip";
 
 dayjs.extend(isSameOrBefore);
 
@@ -59,7 +58,6 @@ type Props = {
 export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
-  const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
 
   return (
     <Box mb={4}>
@@ -76,12 +74,12 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                   key={day.day}
                   marginRight={index % 7 === 6 ? "8px" : "0"}
                   position="relative"
-                  width="18px"
+                  width="14px"
                 >
                   {Boolean(isFirstOfWeek) && (
                     <Text
                       color="fg.muted"
-                      fontSize="sm"
+                      fontSize="xs"
                       fontWeight="bold"
                       left="0"
                       position="absolute"
@@ -103,14 +101,15 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
             {hourlyData.days.map((day, index) => {
               const dayOfWeek = dayjs(day.day).day();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-              const fontSize = "xs";
-              const dayName = dayjs(day.day).format("dd");
+              const dateFontSize = "2xs";
+              const dayNameFontSize = "2xs";
+              const dayName = dayjs(day.day).format("dd").charAt(0);
 
               return (
-                <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width="18px">
+                <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width="14px">
                   <Text
                     color={isWeekend ? "red.400" : "gray.600"}
-                    fontSize={fontSize}
+                    fontSize={dateFontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
                     lineHeight="1"
                     textAlign="center"
@@ -119,7 +118,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                   </Text>
                   <Text
                     color={isWeekend ? "red.400" : "gray.500"}
-                    fontSize={fontSize}
+                    fontSize={dayNameFontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
                     lineHeight="1"
                     mt="1px"
@@ -142,7 +141,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
               color="gray.500"
               display="flex"
               fontSize="xs"
-              height="18px"
+              height="14px"
               justifyContent="flex-end"
               key={hour}
               pr={2}
@@ -162,22 +161,12 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                   const noRunsTooltip = `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
 
                   return (
-                    <Box
+                    <CalendarCell
+                      backgroundColor={getCalendarCellColor([], colorMode)}
+                      content={noRunsTooltip}
+                      index={index}
                       key={`${day.day}-${hour}`}
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                      position="relative"
-                    >
-                      <Box
-                        bg={getCalendarCellColor([], colorMode)}
-                        borderRadius="2px"
-                        cursor="pointer"
-                        height="18px"
-                        marginRight={index % 7 === 6 ? "8px" : "0"}
-                        width="18px"
-                      />
-                      <CalendarTooltip content={noRunsTooltip} />
-                    </Box>
+                    />
                   );
                 }
 
@@ -187,22 +176,12 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                     : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
 
                 return (
-                  <Box
+                  <CalendarCell
+                    backgroundColor={getCalendarCellColor(hourData.runs, colorMode)}
+                    content={tooltipContent}
+                    index={index}
                     key={`${day.day}-${hour}`}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    position="relative"
-                  >
-                    <Box
-                      bg={getCalendarCellColor(hourData.runs, colorMode)}
-                      borderRadius="2px"
-                      cursor="pointer"
-                      height="18px"
-                      marginRight={index % 7 === 6 ? "8px" : "0"}
-                      width="18px"
-                    />
-                    <CalendarTooltip content={tooltipContent} />
-                  </Box>
+                  />
                 );
               })}
             </Box>

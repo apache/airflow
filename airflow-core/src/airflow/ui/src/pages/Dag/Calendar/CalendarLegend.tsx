@@ -65,7 +65,7 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
             <VStack gap={1}>
               {[...legendData].reverse().map(({ color, label }) => (
                 <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="18px" width="18px" />
+                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
                 </Tooltip>
               ))}
             </VStack>
@@ -81,7 +81,7 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
             <HStack gap={1}>
               {legendData.map(({ color, label }) => (
                 <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="18px" width="18px" />
+                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
                 </Tooltip>
               ))}
             </HStack>
