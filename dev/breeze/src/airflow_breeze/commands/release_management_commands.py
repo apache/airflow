@@ -743,7 +743,7 @@ def prepare_airflow_ctl_distributions(
         root_path=AIRFLOW_CTL_ROOT_PATH,
         init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
-        distribution_name="airflowctl",
+        distribution_name="airflow-ctl",
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
     )

@@ -70,6 +70,7 @@ class TestPublishDocsToS3:
                 "apache-airflow",
                 "apache-airflow-providers-apache-cassandra",
                 "helm-chart",
+                "apache-airflow-ctl",
             ]
         )
 
