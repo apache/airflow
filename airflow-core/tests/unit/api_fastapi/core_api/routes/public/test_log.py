@@ -178,8 +178,8 @@ class TestTaskInstancesLog:
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert response.status_code == 200, response.json()
         resp_contnt = response.json()["content"]
-        assert expected_filename in resp_contnt[0]["sources"]
-        assert log_content in resp_contnt[2]["event"]
+        assert expected_filename in resp_contnt[2]["sources"]
+        assert log_content in resp_contnt[0]["event"]
 
         assert response.json()["continuation_token"] is None
         assert response.status_code == 200
