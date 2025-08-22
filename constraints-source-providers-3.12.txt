@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-22T07:44:42.077588
+# This constraints file was automatically generated on 2025-08-22T13:53:29.610655
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -165,7 +165,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
-databricks-sql-connector==4.0.5
+databricks-sql-connector==4.1.2
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -358,7 +358,7 @@ linkify-it-py==2.0.3
 litellm==1.75.9
 lockfile==0.12.2
 looker-sdk==25.10.0
-lxml==6.0.0
+lxml==6.0.1
 lz4==4.4.4
 markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
@@ -703,7 +703,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.7
+ydb==3.21.8
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0

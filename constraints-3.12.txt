@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-22T07:47:59.224116
+# This constraints file was automatically generated on 2025-08-22T13:56:52.390696
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -271,7 +271,7 @@ croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
 darabonba-core==1.0.3
-databricks-sql-connector==4.0.5
+databricks-sql-connector==4.1.2
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -430,14 +430,14 @@ krb5==0.7.1
 kubernetes==32.0.1
 kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
-lazy-object-proxy==1.11.0
+lazy-object-proxy==1.12.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
 litellm==1.75.9
 lockfile==0.12.2
 looker-sdk==25.10.0
-lxml==6.0.0
+lxml==6.0.1
 lz4==4.4.4
 markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
@@ -687,7 +687,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.7
+ydb==3.21.8
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
