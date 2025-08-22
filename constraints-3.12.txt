@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-22T12:20:29.490931
+# This constraints file was automatically generated on 2025-08-22T20:17:59.455793
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -196,7 +196,7 @@ apache-beam==2.67.0
 apispec==6.8.2
 apprise==1.9.4
 argcomplete==3.6.2
-arro3-core==0.5.1
+arro3-core==0.6.1
 asana==5.2.1
 asgiref==3.9.1
 asn1crypto==1.5.1
@@ -468,7 +468,7 @@ krb5==0.7.1
 kubernetes==32.0.1
 kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
-lazy-object-proxy==1.11.0
+lazy-object-proxy==1.12.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
@@ -506,7 +506,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.4
 mypy-boto3-appflow==1.40.0
-mypy-boto3-rds==1.40.3
+mypy-boto3-rds==1.40.16
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.0
 mypy==1.9.0
