@@ -42,7 +42,7 @@ class PostgresDialect(Dialect):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         pk_columns = [
-            row["column_name"]
+            row[0]
             for row in self.get_records(
                 """
                   select kcu.column_name as column_name
@@ -68,7 +68,7 @@ class PostgresDialect(Dialect):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         column_names = list(
-            row["column_name"]
+            row[0]
             for row in filter(
                 predicate,
                 self.get_records(
