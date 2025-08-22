@@ -32,10 +32,10 @@ class TestPostgresDialect:
             if "kcu." in sql:
                 return [("id",)]
             return [
-                {"name": "id", "identity": "YES"},
-                {"name": "name"},
-                {"name": "firstname"},
-                {"name": "age"},
+                ("id", None, "NO", None, "ALWAYS", "YES"),
+                ("name", None, "YES", None, "NEVER", "NO"),
+                ("firstname", None, "YES", None, "NEVER", "NO"),
+                ("age", None, "YES", None, "NEVER", "NO"),
             ]
 
         self.test_db_hook = MagicMock(placeholder="?", spec=DbApiHook)
