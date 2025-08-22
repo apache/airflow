@@ -729,7 +729,7 @@ def dag_docs(args) -> None:
         dag = get_dag(args.subdir, args.dag_id)
         dags = [dag]
     else:
-        # Get all DAGs
+        # Get all Dags
         dagbag = DagBag(process_subdir(args.subdir))
         if dagbag.import_errors:
             from rich import print as rich_print
