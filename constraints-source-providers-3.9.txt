@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-22T00:21:16.719306
+# This constraints file was automatically generated on 2025-08-22T12:17:29.025530
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -648,22 +648,22 @@ twine==6.1.0
 typer==0.16.1
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250809
-types-PyMySQL==1.1.0.20250711
-types-PyYAML==6.0.12.20250809
-types-aiofiles==24.1.0.20250809
+types-PyMySQL==1.1.0.20250822
+types-PyYAML==6.0.12.20250822
+types-aiofiles==24.1.0.20250822
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250809
+types-cffi==1.17.0.20250822
 types-croniter==6.0.0.20250809
-types-docutils==0.22.0.20250814
+types-docutils==0.22.0.20250822
 types-paramiko==3.5.0.20250801
-types-protobuf==6.30.2.20250809
+types-protobuf==6.30.2.20250822
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20250809
+types-python-dateutil==2.9.0.20250822
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250809
 types-redis==4.6.0.20241004
 types-requests==2.31.0.6
-types-setuptools==80.9.0.20250809
+types-setuptools==80.9.0.20250822
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
@@ -701,7 +701,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.7
+ydb==3.21.8
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
