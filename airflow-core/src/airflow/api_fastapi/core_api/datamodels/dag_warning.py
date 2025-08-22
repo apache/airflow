@@ -32,7 +32,7 @@ class DAGWarningResponse(BaseModel):
     warning_type: DagWarningType
     message: str
     timestamp: datetime
-    dag_display_name: str = Field(validation_alias=AliasPath("dag", "dag_display_name"))
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 
 class DAGWarningCollectionResponse(BaseModel):
