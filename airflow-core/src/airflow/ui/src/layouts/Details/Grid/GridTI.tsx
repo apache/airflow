@@ -38,29 +38,19 @@ type Props = {
   readonly taskId: string;
 };
 
-const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
-  });
-};
-
-const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-};
-
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const tooltipRef = useRef<HTMLElement | undefined>(undefined);
 
-  const onBadgeMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+  const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
+    });
+
     // Clear any existing timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -79,8 +69,13 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
     }, 200);
   };
 
-  const onBadgeMouseLeave = () => {
-    // Clear any existing timeout
+  const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "";
+    });
+
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
       debounceTimeoutRef.current = undefined;
@@ -103,12 +98,13 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       key={taskId}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      position="relative"
       px="2px"
       py={0}
       transition="background-color 0.2s"
-      zIndex={1}
     >
       <Link
+        id={`grid-${runId}-${taskId}`}
         onClick={onClick}
         replace
         to={{
@@ -117,65 +113,63 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
         }}
       >
         <Badge
+          alignItems="center"
           borderRadius={4}
           colorPalette={instance.state ?? "none"}
+          display="flex"
           height="14px"
+          justifyContent="center"
           minH={0}
-          onMouseEnter={onBadgeMouseEnter}
-          onMouseLeave={onBadgeMouseLeave}
           p={0}
-          position="relative"
           variant="solid"
           width="14px"
         >
-          <StateIcon
-            size={10}
-            state={instance.state}
-            style={{
-              marginLeft: "2px",
-            }}
-          />
-          <chakra.span
-            bg="bg.inverted"
-            borderRadius={2}
-            bottom={0}
-            color="fg.inverted"
-            id="tooltip"
-            p={2}
-            position="absolute"
-            right={5}
-            visibility="hidden"
-            zIndex="tooltip"
-          >
-            {translate("taskId")}: {taskId}
-            <br />
-            {translate("state")}: {instance.state}
-            {instance.min_start_date !== null && (
-              <>
-                <br />
-                {translate("startDate")}: <Time datetime={instance.min_start_date} />
-              </>
-            )}
-            {instance.max_end_date !== null && (
-              <>
-                <br />
-                {translate("endDate")}: <Time datetime={instance.max_end_date} />
-              </>
-            )}
-            {/* Tooltip arrow pointing to the badge */}
-            <chakra.div
-              bg="bg.inverted"
-              borderRadius={1}
-              bottom={1}
-              height={2}
-              position="absolute"
-              right="-3px"
-              transform="rotate(45deg)"
-              width={2}
-            />
-          </chakra.span>
+          <StateIcon size={10} state={instance.state} />
         </Badge>
       </Link>
+      <chakra.span
+        bg="bg.inverted"
+        borderRadius={2}
+        bottom={0}
+        color="fg.inverted"
+        fontSize="xs"
+        id="tooltip"
+        left={document.dir === "rtl" ? 5 : undefined}
+        p={1}
+        position="absolute"
+        right={document.dir === "ltr" ? 5 : undefined}
+        visibility="hidden"
+        whiteSpace="nowrap"
+        zIndex="tooltip"
+      >
+        {translate("taskId")}: {taskId}
+        <br />
+        {translate("state")}: {instance.state}
+        {instance.min_start_date !== null && (
+          <>
+            <br />
+            {translate("startDate")}: <Time datetime={instance.min_start_date} />
+          </>
+        )}
+        {instance.max_end_date !== null && (
+          <>
+            <br />
+            {translate("endDate")}: <Time datetime={instance.max_end_date} />
+          </>
+        )}
+        {/* Tooltip arrow pointing to the badge */}
+        <chakra.div
+          bg="bg.inverted"
+          borderRadius={1}
+          bottom={1}
+          height={2}
+          left={document.dir === "rtl" ? "-3px" : undefined}
+          position="absolute"
+          right={document.dir === "ltr" ? "-3px" : undefined}
+          transform="rotate(45deg)"
+          width={2}
+        />
+      </chakra.span>
     </Flex>
   );
 };

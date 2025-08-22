@@ -107,13 +107,12 @@ const buildPath = (params: {
 };
 
 export const useNavigation = ({
-  enabled = true,
-  onEscapePress,
   onToggleGroup,
   runs,
   tasks,
 }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
   const [mode, setMode] = useState<NavigationMode>("TI");
 
@@ -191,14 +190,20 @@ export const useNavigation = ({
         const path = buildPath({ dagId, mapIndex, mode, run, task });
 
         navigate(path, { replace: true });
+
+        const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
+
+        // Set the focus to the grid link to allow a user to continue tabbing through with the keyboard
+        if (grid) {
+          (grid as HTMLLinkElement).focus();
+        }
       }
     },
     [currentIndices, dagId, enabled, mapIndex, mode, runs, tasks, navigate],
   );
 
   useKeyboardNavigation({
-    enabled: enabled && Boolean(dagId),
-    onEscapePress,
+    enabled,
     onNavigate: handleNavigation,
     onToggleGroup: currentTask?.isGroup && onToggleGroup ? () => onToggleGroup(currentTask.id) : undefined,
   });
@@ -206,7 +211,6 @@ export const useNavigation = ({
   return {
     currentIndices,
     currentTask,
-    enabled: enabled && Boolean(dagId),
     handleNavigation,
     mode,
     setMode,
