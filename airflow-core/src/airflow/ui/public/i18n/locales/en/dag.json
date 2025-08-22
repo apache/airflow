@@ -9,12 +9,8 @@
     "daily": "Daily",
     "hourly": "Hourly",
     "legend": {
-      "successRateSpectrum": "Success Rate Spectrum",
-      "tooltips": {
-        "failed": "Less than {{percent}}% Success",
-        "success100": "{{percent}}% Success",
-        "successRate": "{{percent}}%+ Success Rate"
-      }
+      "less": "Less",
+      "more": "More"
     },
     "navigation": {
       "nextMonth": "Next month",
@@ -24,6 +20,7 @@
     },
     "noData": "No data available",
     "noRuns": "No runs",
+    "totalRuns": "Total Runs",
     "week": "Week {{weekNumber}}",
     "weekdays": {
       "friday": "Fri",

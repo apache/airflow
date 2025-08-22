@@ -43,14 +43,16 @@ import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
+import type { CalendarColorMode } from "./types";
 import { useDelayedTooltip } from "./useDelayedTooltip";
 
 type Props = {
+  readonly colorMode: CalendarColorMode;
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly selectedYear: number;
 };
 
-export const DailyCalendarView = ({ data, selectedYear }: Props) => {
+export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear);
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
@@ -119,7 +121,7 @@ export const DailyCalendarView = ({ data, selectedYear }: Props) => {
                   >
                     <Box
                       _hover={{ transform: "scale(1.1)" }}
-                      bg={getCalendarCellColor(day.runs)}
+                      bg={getCalendarCellColor(day.runs, colorMode)}
                       borderRadius="2px"
                       cursor="pointer"
                       height="18px"

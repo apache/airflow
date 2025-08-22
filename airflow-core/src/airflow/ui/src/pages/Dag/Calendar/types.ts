@@ -54,3 +54,5 @@ export type HourlyCalendarData = {
 };
 
 export type CalendarGranularity = "daily" | "hourly";
+
+export type CalendarColorMode = "failed" | "total";

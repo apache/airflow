@@ -44,17 +44,19 @@ import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import { createTooltipContent, generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
+import type { CalendarColorMode } from "./types";
 import { useDelayedTooltip } from "./useDelayedTooltip";
 
 dayjs.extend(isSameOrBefore);
 
 type Props = {
+  readonly colorMode: CalendarColorMode;
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly selectedMonth: number;
   readonly selectedYear: number;
 };
 
-export const HourlyCalendarView = ({ data, selectedMonth, selectedYear }: Props) => {
+export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
@@ -167,7 +169,7 @@ export const HourlyCalendarView = ({ data, selectedMonth, selectedYear }: Props)
                       position="relative"
                     >
                       <Box
-                        bg={getCalendarCellColor([])}
+                        bg={getCalendarCellColor([], colorMode)}
                         borderRadius="2px"
                         cursor="pointer"
                         height="18px"
@@ -192,7 +194,7 @@ export const HourlyCalendarView = ({ data, selectedMonth, selectedYear }: Props)
                     position="relative"
                   >
                     <Box
-                      bg={getCalendarCellColor(hourData.runs)}
+                      bg={getCalendarCellColor(hourData.runs, colorMode)}
                       borderRadius="2px"
                       cursor="pointer"
                       height="18px"

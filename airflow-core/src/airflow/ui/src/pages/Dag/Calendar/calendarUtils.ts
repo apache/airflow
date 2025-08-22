@@ -21,7 +21,13 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
-import type { RunCounts, DailyCalendarData, HourlyCalendarData, CalendarCellData } from "./types";
+import type {
+  RunCounts,
+  DailyCalendarData,
+  HourlyCalendarData,
+  CalendarCellData,
+  CalendarColorMode,
+} from "./types";
 
 dayjs.extend(isSameOrBefore);
 
@@ -81,50 +87,77 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
   return counts as RunCounts;
 };
 
-const PRIORITY_STATE_RULES = [
-  { color: "queued.600", condition: (counts: RunCounts) => counts.queued > 0 },
-  { color: "blue.400", condition: (counts: RunCounts) => counts.running > 0 },
-  {
-    color: { _dark: "scheduled.600", _light: "scheduled.200" },
-    condition: (counts: RunCounts) => counts.planned > 0,
-  },
+// Sequential color scheme for GitHub-style heatmap with dark/light mode support
+const TOTAL_COLOR_INTENSITIES = [
+  { _dark: "gray.700", _light: "gray.100" }, // 0 runs
+  { _dark: "green.300", _light: "green.200" }, // 1-5 runs
+  { _dark: "green.500", _light: "green.400" }, // 6-15 runs
+  { _dark: "green.700", _light: "green.600" }, // 16-25 runs
+  { _dark: "green.900", _light: "green.800" }, // 26+ runs
 ] as const;
 
-const SUCCESS_RATE_RULES = [
-  { color: "success.600", threshold: 1 },
-  { color: "success.500", threshold: 0.8 },
-  { color: "success.400", threshold: 0.6 },
-  { color: "up_for_retry.500", threshold: 0.4 },
-  { color: "upstream_failed.500", threshold: 0.2 },
+const FAILURE_COLOR_INTENSITIES = [
+  { _dark: "gray.700", _light: "gray.100" }, // 0 failures
+  { _dark: "red.300", _light: "red.200" }, // 1-2 failures
+  { _dark: "red.500", _light: "red.400" }, // 3-5 failures
+  { _dark: "red.700", _light: "red.600" }, // 6-10 failures
+  { _dark: "red.900", _light: "red.800" }, // 11+ failures
 ] as const;
+
+const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
+
+const getIntensityLevel = (count: number, mode: CalendarColorMode): number => {
+  if (count === 0) {
+    return 0;
+  }
+
+  if (mode === "total") {
+    if (count <= 5) {
+      return 1;
+    }
+    if (count <= 15) {
+      return 2;
+    }
+    if (count <= 25) {
+      return 3;
+    }
+
+    return 4;
+  } else {
+    // failures mode
+    if (count <= 2) {
+      return 1;
+    }
+    if (count <= 5) {
+      return 2;
+    }
+    if (count <= 10) {
+      return 3;
+    }
+
+    return 4;
+  }
+};
 
 export const getCalendarCellColor = (
   runs: Array<CalendarTimeRangeResponse>,
+  colorMode: CalendarColorMode = "total",
 ): string | { _dark: string; _light: string } => {
   if (runs.length === 0) {
-    return "bg.muted";
+    return { _dark: "gray.700", _light: "gray.100" };
   }
 
   const counts = calculateRunCounts(runs);
 
-  const priorityRule = PRIORITY_STATE_RULES.find((rule) => rule.condition(counts));
-
-  if (priorityRule) {
-    return priorityRule.color;
+  if (counts.planned > 0) {
+    return PLANNED_COLOR;
   }
 
-  const successRate = counts.success / counts.total;
-  const successRule = SUCCESS_RATE_RULES.find((rule) => successRate >= rule.threshold);
+  const targetCount = colorMode === "total" ? counts.total : counts.failed;
+  const intensityLevel = getIntensityLevel(targetCount, colorMode);
+  const colorScheme = colorMode === "total" ? TOTAL_COLOR_INTENSITIES : FAILURE_COLOR_INTENSITIES;
 
-  if (successRule) {
-    return successRule.color;
-  }
-
-  if (counts.failed > 0) {
-    return "failed.600";
-  }
-
-  return "gray.400";
+  return colorScheme[intensityLevel] ?? { _dark: "gray.700", _light: "gray.100" };
 };
 
 export const generateDailyCalendarData = (

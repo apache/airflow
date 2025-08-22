@@ -21,114 +21,91 @@ import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "src/components/ui";
 
+import type { CalendarColorMode } from "./types";
+
 type Props = {
+  readonly colorMode: CalendarColorMode;
   readonly vertical?: boolean;
 };
 
-const spectrumLegendData = [
-  {
-    color: "success.600",
-    size: { height: "20px", width: "32px" },
-    tooltipKey: "calendar.legend.tooltips.success100",
-  },
-  {
-    color: "success.500",
-    size: { height: "20px", width: "24px" },
-    tooltipKey: "calendar.legend.tooltips.successRate80",
-  },
-  {
-    color: "success.400",
-    size: { height: "20px", width: "24px" },
-    tooltipKey: "calendar.legend.tooltips.successRate60",
-  },
-  {
-    color: "up_for_retry.500",
-    size: { height: "20px", width: "24px" },
-    tooltipKey: "calendar.legend.tooltips.successRate40",
-  },
-  {
-    color: "upstream_failed.500",
-    size: { height: "20px", width: "24px" },
-    tooltipKey: "calendar.legend.tooltips.successRate20",
-  },
-  {
-    color: "failed.600",
-    size: { height: "20px", width: "32px" },
-    tooltipKey: "calendar.legend.tooltips.failed",
-  },
+const totalRunsLegendData = [
+  { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
+  { color: { _dark: "green.300", _light: "green.200" }, label: "1-5" },
+  { color: { _dark: "green.500", _light: "green.400" }, label: "6-15" },
+  { color: { _dark: "green.700", _light: "green.600" }, label: "16-25" },
+  { color: { _dark: "green.900", _light: "green.800" }, label: "26+" },
 ];
 
-const stateLegendData = [
-  { color: "blue.400", labelKey: "common:states.running" },
-  { color: { _dark: "scheduled.600", _light: "scheduled.200" }, labelKey: "common:states.planned" },
-  { color: "queued.600", labelKey: "common:states.queued" },
-  { color: { _dark: "gray.400", _light: "gray.100" }, labelKey: "common:states.no_status" },
+const failedRunsLegendData = [
+  { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
+  { color: { _dark: "red.300", _light: "red.200" }, label: "1-2" },
+  { color: { _dark: "red.500", _light: "red.400" }, label: "3-5" },
+  { color: { _dark: "red.700", _light: "red.600" }, label: "6-10" },
+  { color: { _dark: "red.900", _light: "red.800" }, label: "11+" },
 ];
 
-export const CalendarLegend = ({ vertical = false }: Props) => {
+export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
   const { t: translate } = useTranslation("dag");
+
+  const legendData = colorMode === "total" ? totalRunsLegendData : failedRunsLegendData;
+  const legendTitle =
+    colorMode === "total" ? translate("calendar.totalRuns") : translate("overview.buttons.failedRun_other");
 
   return (
     <Box>
       <Box mb={4}>
         <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-          {translate("calendar.legend.successRateSpectrum")}
+          {legendTitle}
         </Text>
         {vertical ? (
-          <Box>
-            <Text color="fg.muted" fontSize="xs" mb={2} textAlign="center">
-              {translate("common:states.success")}
+          <VStack align="center" gap={2}>
+            <Text color="fg.muted" fontSize="xs">
+              {translate("calendar.legend.more")}
             </Text>
-            <VStack
-              borderRadius="full"
-              boxShadow="sm"
-              gap={0}
-              mx="auto"
-              overflow="hidden"
-              width="fit-content"
-            >
-              {spectrumLegendData.map(({ color, size, tooltipKey }) => (
-                <Tooltip content={translate(tooltipKey)} key={tooltipKey}>
-                  <Box bg={color} cursor="pointer" height={size.width} width={size.height} />
+            <VStack gap={1}>
+              {[...legendData].reverse().map(({ color, label }) => (
+                <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
+                  <Box bg={color} borderRadius="2px" cursor="pointer" height="18px" width="18px" />
                 </Tooltip>
               ))}
             </VStack>
-            <Text color="fg.muted" fontSize="xs" mt={2} textAlign="center">
-              {translate("common:states.failed")}
-            </Text>
-          </Box>
-        ) : (
-          <HStack gap={3} justify="center">
             <Text color="fg.muted" fontSize="xs">
-              {translate("common:states.success")}
+              {translate("calendar.legend.less")}
             </Text>
-            <HStack borderRadius="full" boxShadow="sm" gap={0} overflow="hidden">
-              {spectrumLegendData.map(({ color, size, tooltipKey }) => (
-                <Tooltip content={translate(tooltipKey)} key={tooltipKey}>
-                  <Box bg={color} cursor="pointer" height={size.height} width={size.width} />
+          </VStack>
+        ) : (
+          <HStack align="center" gap={2} justify="center">
+            <Text color="fg.muted" fontSize="xs">
+              {translate("calendar.legend.less")}
+            </Text>
+            <HStack gap={1}>
+              {legendData.map(({ color, label }) => (
+                <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
+                  <Box bg={color} borderRadius="2px" cursor="pointer" height="18px" width="18px" />
                 </Tooltip>
               ))}
             </HStack>
             <Text color="fg.muted" fontSize="xs">
-              {translate("common:states.failed")}
+              {translate("calendar.legend.more")}
             </Text>
           </HStack>
         )}
       </Box>
 
       <Box>
-        <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-          {translate("common:state")}
-        </Text>
         <HStack gap={4} justify="center" wrap="wrap">
-          {stateLegendData.map(({ color, labelKey }) => (
-            <HStack gap={2} key={labelKey}>
-              <Box bg={color} borderRadius="full" boxShadow="sm" height="16px" width="16px" />
-              <Text color="fg.muted" fontSize="sm">
-                {translate(labelKey)}
-              </Text>
-            </HStack>
-          ))}
+          <HStack gap={2}>
+            <Box
+              bg={{ _dark: "scheduled.600", _light: "scheduled.200" }}
+              borderRadius="2px"
+              boxShadow="sm"
+              height="18px"
+              width="18px"
+            />
+            <Text color="fg.muted" fontSize="sm">
+              {translate("common:states.planned")}
+            </Text>
+          </HStack>
         </HStack>
       </Box>
     </Box>
