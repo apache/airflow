@@ -463,3 +463,28 @@ class TestPubSubPullOperator:
         )
         with pytest.raises(TaskDeferred) as _:
             ti.task.execute(mock.MagicMock())
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_get_openlineage_facets(self, mock_hook):
+        operator = PubSubPullOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+        )
+
+        generated_messages = self._generate_messages(5)
+        generated_dicts = self._generate_dicts(5)
+        mock_hook.return_value.pull.return_value = generated_messages
+
+        assert generated_dicts == operator.execute({})
+        mock_hook.return_value.pull.assert_called_once_with(
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
+        )
+
+        result = operator.get_openlineage_facets_on_complete(operator)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 0
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == "pubsub"
+        assert result.outputs[0].name == f"subscription:{TEST_PROJECT}:{TEST_SUBSCRIPTION}"
