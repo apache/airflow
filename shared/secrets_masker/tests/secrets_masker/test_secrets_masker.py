@@ -29,7 +29,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow_shared.secrets_masker import (
+from airflow_shared.secrets_masker.secrets_masker import (
     RedactedIO,
     SecretsMasker,
     get_sensitive_variables_fields,
@@ -329,7 +329,9 @@ class TestSecretsMasker:
     def test_redact_max_depth(self, val, expected, max_depth):
         secrets_masker = SecretsMasker()
         secrets_masker.add_mask("abcdef")
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
@@ -372,7 +374,9 @@ class TestSecretsMasker:
 
         val = ["mask_this", "and_this", "maybe_this_too"]
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
             got = redact(val)
             assert got == ["***"] * 3
 
@@ -450,7 +454,7 @@ class TestRedactedIO:
     def reset_secrets_masker(self):
         self.secrets_masker = SecretsMasker()
         with patch(
-            "airflow_shared.secrets_masker._secrets_masker",
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker",
             return_value=self.secrets_masker,
         ):
             mask_secret(p)
@@ -490,10 +494,10 @@ class TestMaskSecretAdapter:
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
         with patch(
-            "airflow_shared.secrets_masker._secrets_masker",
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker",
             return_value=self.secrets_masker,
         ):
-            with patch("airflow_shared.secrets_masker.re.escape", lambda x: x):
+            with patch("airflow_shared.secrets_masker.secrets_masker.re.escape", lambda x: x):
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
@@ -538,7 +542,7 @@ class TestMaskSecretAdapter:
 
         filt = SecretsMasker()
 
-        with patch("airflow_shared.secrets_masker.get_min_secret_length", return_value=5):
+        with patch("airflow_shared.secrets_masker.secrets_masker.get_min_secret_length", return_value=5):
             caplog.clear()
 
             filt.add_mask(secret)
@@ -574,8 +578,10 @@ class TestStructuredVsUnstructuredMasking:
             "connection": {"secret": short_api_key},
         }
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
-            with patch("airflow_shared.secrets_masker.get_min_secret_length", return_value=5):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
+            with patch("airflow_shared.secrets_masker.secrets_masker.get_min_secret_length", return_value=5):
                 redacted_data = redact(test_data)
 
                 assert redacted_data["password"] == "***"
@@ -589,8 +595,12 @@ class TestStructuredVsUnstructuredMasking:
         short_secret = "abc"
         long_secret = "abcdef"
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
-            with patch("airflow_shared.secrets_masker.get_min_secret_length", return_value=min_length):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
+            with patch(
+                "airflow_shared.secrets_masker.secrets_masker.get_min_secret_length", return_value=min_length
+            ):
                 secrets_masker.add_mask(short_secret)
                 secrets_masker.add_mask(long_secret)
 
@@ -620,9 +630,11 @@ class TestContainerTypesRedaction:
 
         secrets_masker = SecretsMasker()
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
             with patch(
-                "airflow_shared.secrets_masker._is_v1_env_var",
+                "airflow_shared.secrets_masker.secrets_masker._is_v1_env_var",
                 side_effect=lambda a: isinstance(a, MockV1EnvVar),
             ):
                 redacted_secret = redact(secret_env_var)
@@ -649,7 +661,9 @@ class TestContainerTypesRedaction:
         secrets_masker.add_mask("secret_token")
         secrets_masker.add_mask("password=secret")
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
             redacted_data = redact(nested_data)
 
             assert redacted_data["level1"]["normal_key"] == "normal_value"
@@ -670,7 +684,9 @@ class TestEdgeCases:
 
         secrets_masker = SecretsMasker()
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
             redacted_data = redact(circular_dict)
 
             assert redacted_data["key"] == "value"
@@ -737,7 +753,9 @@ class TestMixedDataScenarios:
             "nested": {"token": "tk", "info": "No secrets here"},
         }
 
-        with patch("airflow_shared.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
             redacted_data = redact(mixed_data)
 
             assert redacted_data["normal_field"] == "normal_value"
