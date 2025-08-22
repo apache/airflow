@@ -56,7 +56,7 @@ def upsert_hitl_detail(
     )
 
 
-def update_htil_detail_response(
+def update_hitl_detail_response(
     ti_id: UUID,
     chosen_options: list[str],
     params_input: dict[str, Any],

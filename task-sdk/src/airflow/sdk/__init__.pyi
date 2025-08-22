@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.sdk.api.datamodels._generated import WeightRule as WeightRule
+from airflow.sdk.api.datamodels._generated import TriggerRule as TriggerRule, WeightRule as WeightRule
 from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
@@ -79,6 +79,7 @@ __all__ = [
     "PokeReturnValue",
     "SecretCache",
     "TaskGroup",
+    "TriggerRule",
     "Variable",
     "XComArg",
     "WeightRule",

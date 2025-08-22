@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
+    from airflow.sdk import Context, TriggerRule
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
@@ -56,7 +56,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.trigger_rule import TriggerRule
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
@@ -2622,3 +2621,27 @@ def create_dag_without_db():
         return DAG(dag_id=dag_id, schedule=None, render_template_as_native_obj=True)
 
     return create_dag
+
+
+@pytest.fixture
+def mock_task_instance():
+    def _create_mock_task_instance(
+        task_id: str = "test_task",
+        dag_id: str = "test_dag",
+        run_id: str = "test_run",
+        try_number: int = 0,
+        state: str = "running",
+        max_tries: int = 0,
+    ):
+        from airflow.models import TaskInstance
+
+        mock_ti = mock.MagicMock(spec=TaskInstance)
+        mock_ti.task_id = task_id
+        mock_ti.dag_id = dag_id
+        mock_ti.run_id = run_id
+        mock_ti.try_number = try_number
+        mock_ti.state = state
+        mock_ti.max_tries = max_tries
+        return mock_ti
+
+    return _create_mock_task_instance
