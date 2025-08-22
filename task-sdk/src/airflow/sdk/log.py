@@ -24,13 +24,16 @@ import os
 import re
 import sys
 import warnings
-from collections.abc import Iterable
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import msgspec
 import structlog
+
+# We have to import this here, as it is used in the type annotations at runtime even if it seems it is
+# not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
+from pydantic import JsonValue  # noqa: TC002
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -570,7 +573,7 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     handler.upload(log_relative_path, ti)
 
 
-def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
+def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
     Mask a secret in both task process and supervisor process.
 
