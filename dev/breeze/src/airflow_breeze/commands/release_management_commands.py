@@ -279,7 +279,7 @@ class DistributionBuildType(Enum):
     AIRFLOW = "airflow"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
-    AIRFLOW_CTL = "airflowctl"
+    AIRFLOW_CTL = "airflow-ctl"
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -681,7 +681,7 @@ def _prepare_non_core_distributions(
         with apply_version_suffix_to_non_provider_pyproject_tomls(
             version_suffix=version_suffix,
             init_file_path=init_file_path,
-            pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
+            pyproject_toml_paths=[root_path / "pyproject.toml"],
         ) as pyproject_toml_paths:
             debug_pyproject_tomls(pyproject_toml_paths)
             _build_package_with_docker(
