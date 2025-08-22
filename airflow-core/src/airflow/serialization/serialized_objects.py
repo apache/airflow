@@ -1687,9 +1687,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         """Deserializes an operator from a JSON object."""
         op: SchedulerOperator
         if encoded_op.get("_is_mapped", False):
-            # Most of these will be loaded later, these are just some stand-ins.
-            op_data = {k: v for k, v in encoded_op.items() if k in cls.get_serialized_fields()}
-
             from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
 
             try:
@@ -1697,8 +1694,15 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             except KeyError:
                 operator_name = encoded_op["task_type"]
 
+            # Only store minimal class type information instead of full operator data
+            # This significantly reduces memory usage for mapped operators
+            operator_class_info = {
+                "task_type": encoded_op["task_type"],
+                "_operator_name": operator_name,
+            }
+
             op = SchedulerMappedOperator(
-                operator_class=op_data,
+                operator_class=operator_class_info,
                 task_id=encoded_op["task_id"],
                 operator_extra_links=BaseOperator.operator_extra_links,
                 template_ext=BaseOperator.template_ext,

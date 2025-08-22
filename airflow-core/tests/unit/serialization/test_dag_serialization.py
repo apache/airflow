@@ -800,9 +800,8 @@ class TestStringifiedDAGs:
             assert serialized_task.params.dump() == task.params.dump()
 
         if isinstance(task, MappedOperator):
-            # MappedOperator.operator_class holds a backup of the serialized
-            # data; checking its entirety basically duplicates this validation
-            # function, so we just do some sanity checks.
+            # MappedOperator.operator_class now stores only minimal type information
+            # for memory efficiency (task_type and _operator_name).
             serialized_task.operator_class["task_type"] == type(task).__name__
             if isinstance(serialized_task.operator_class, DecoratedOperator):
                 serialized_task.operator_class["_operator_name"] == task._operator_name
@@ -2519,16 +2518,10 @@ def test_operator_expand_serde():
     op = BaseSerialization.deserialize(serialized)
     assert isinstance(op, MappedOperator)
 
+    # operator_class now stores only minimal type information for memory efficiency
     assert op.operator_class == {
         "task_type": "BashOperator",
-        "start_trigger_args": None,
-        "start_from_trigger": False,
-        "task_id": "a",
-        "template_ext": [".sh", ".bash"],
-        "template_fields": ["bash_command", "env", "cwd"],
-        "template_fields_renderers": {"bash_command": "bash", "env": "json"},
-        "ui_color": "#f0ede4",
-        "ui_fgcolor": "#000",
+        "_operator_name": "BashOperator",
     }
     assert op.expand_input.value["bash_command"] == literal
     assert op.partial_kwargs["executor_config"] == {"dict": {"sub": "value"}}
