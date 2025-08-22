@@ -21,7 +21,7 @@ Prerequisites
 airflowctl is tested with:
 
 
-The minimum memory required we recommend airflowctl to run with is 4GB, but the actual requirements depend
+The minimum memory required we recommend airflowctl to run with is 200MB, but the actual requirements depend
 wildly on the deployment options you have.
 The Keyring backend needs to be installed separately into your operating system. This will enhance security. See :doc:`/security` for more information.
 
