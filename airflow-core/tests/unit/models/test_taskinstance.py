@@ -89,6 +89,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.config import conf_vars
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test]
@@ -1557,6 +1558,11 @@ class TestTaskInstance:
 
         expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op"
         assert ti.log_url == expected_url
+
+        # Test with base_url that doesn't end with a slash
+        with conf_vars({('api', 'base_url'): 'http://example.com'}):
+            expected_url = "http://example.com/dags/my_dag/runs/test/tasks/op"
+            assert ti.log_url == expected_url
 
         ti.map_index = 1
         ti.try_number = 2
