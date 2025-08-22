@@ -42,7 +42,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
             "handlers that are specifically designed for your database."
         )
     if cursor.description is not None:
-        return cursor.fetch_arrow_table().to_pylist()
+        return list(zip(*cursor.fetch_arrow_table().to_pydict().values()))
     return None
 
 
