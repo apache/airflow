@@ -770,7 +770,7 @@ def dag_docs(args) -> None:
         else:
             markdown_output.append("*No documentation available*\n\n")
         
-        # Add separator between DAGs (except for the last one)
+        # Add separator between Dags (except for the last one)
         if len(dags) > 1 and dag != dags[-1]:
             markdown_output.append("---\n")
     
