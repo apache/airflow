@@ -1819,8 +1819,8 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
                     SecretsMasker as SDKSecretsMasker,
                 )
 
-                mp_ctx.setattr(CoreSecretsMasker, "_mask_secrets_in_logs", True)
-                mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", True)
+                mp_ctx.setattr(CoreSecretsMasker, "mask_secrets_in_logs", True)
+                mp_ctx.setattr(SDKSecretsMasker, "mask_secrets_in_logs", True)
             else:
                 # Fallback for older versions
                 mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
@@ -1853,8 +1853,8 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
                 SecretsMasker as SDKSecretsMasker,
             )
 
-            mp_ctx.setattr(CoreSecretsMasker, "_mask_secrets_in_logs", True)
-            mp_ctx.setattr(SDKSecretsMasker, "_mask_secrets_in_logs", True)
+            mp_ctx.setattr(CoreSecretsMasker, "mask_secrets_in_logs", True)
+            mp_ctx.setattr(SDKSecretsMasker, "mask_secrets_in_logs", True)
         else:
             # Fallback for older versions
             mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
