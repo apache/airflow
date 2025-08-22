@@ -1286,6 +1286,7 @@ export type TaskInstanceHistoryResponse = {
     queue: string | null;
     priority_weight: number | null;
     operator: string | null;
+    operator_name: string | null;
     queued_when: string | null;
     scheduled_when: string | null;
     pid: number | null;
@@ -1320,6 +1321,7 @@ export type TaskInstanceResponse = {
     queue: string | null;
     priority_weight: number | null;
     operator: string | null;
+    operator_name: string | null;
     queued_when: string | null;
     scheduled_when: string | null;
     pid: number | null;

@@ -1551,6 +1551,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     queue: Annotated[str | None, Field(title="Queue")] = None
     priority_weight: Annotated[int | None, Field(title="Priority Weight")] = None
     operator: Annotated[str | None, Field(title="Operator")] = None
+    operator_name: Annotated[str | None, Field(title="Operator Name")] = None
     queued_when: Annotated[datetime | None, Field(title="Queued When")] = None
     scheduled_when: Annotated[datetime | None, Field(title="Scheduled When")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
@@ -1586,6 +1587,7 @@ class TaskInstanceResponse(BaseModel):
     queue: Annotated[str | None, Field(title="Queue")] = None
     priority_weight: Annotated[int | None, Field(title="Priority Weight")] = None
     operator: Annotated[str | None, Field(title="Operator")] = None
+    operator_name: Annotated[str | None, Field(title="Operator Name")] = None
     queued_when: Annotated[datetime | None, Field(title="Queued When")] = None
     scheduled_when: Annotated[datetime | None, Field(title="Scheduled When")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
