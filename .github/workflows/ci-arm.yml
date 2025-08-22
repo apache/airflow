@@ -50,6 +50,8 @@ jobs:
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
@@ -85,11 +87,6 @@ jobs:
       mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
-      needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
-      needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
-      needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
-      only-new-ui-files: ${{ steps.selective-checks.outputs.only-new-ui-files }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
@@ -101,18 +98,20 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
-      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
+      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
+      run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
-      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
+      run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
+      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+      run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
-      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
-      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
-      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
       skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
@@ -168,13 +167,14 @@ jobs:
       runners: ${{ needs.build-info.outputs.arm-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
-      needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
+      run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
       skip-prek-hooks: ${{needs.build-info.outputs.skip-prek-hooks}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
+      platform: "linux/arm64"
 
   build-ci-images:
     name: Build CI images
@@ -282,7 +282,7 @@ jobs:
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' &&
+      needs.build-info.outputs.run-helm-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
@@ -313,7 +313,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-postgres-providers:
     name: "Postgres tests: providers"
@@ -342,7 +342,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-sqlite-core:
     name: "Sqlite tests: core"
@@ -373,7 +373,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-sqlite-providers:
     name: "Sqlite tests: providers"
@@ -404,7 +404,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
 
   tests-non-db-core:
@@ -435,7 +435,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-non-db-providers:
     name: "Non-DB tests: providers"
@@ -465,7 +465,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   build-prod-images:
     name: Build PROD images
@@ -510,7 +510,7 @@ jobs:
       kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true')
+      needs.build-info.outputs.run-helm-tests == 'true')
 
   tests-go-sdk:
     name: "Go SDK tests"
@@ -520,10 +520,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    if: >
-      ( needs.build-info.outputs.run-go-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
+    if: needs.build-info.outputs.run-go-sdk-tests == 'true'
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -534,17 +531,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5.5.0
         with:
           go-version: 1.24
           cache-dependency-path: go-sdk/go.sum
-
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
-
       - name: Run Go tests
         working-directory: ./go-sdk
         run: go test -v ./...

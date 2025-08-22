@@ -24,7 +24,11 @@ from datetime import timedelta
 
 import pytest
 
-from airflow._shared.timezones.timezone import datetime
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
+
 from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.filesystem import FileSensor

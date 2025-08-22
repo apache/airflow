@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pytest
-
-from airflow.utils.weight_rule import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, WeightRule, db_safe_priority
-
-
-def test_db_safe_priority():
-    assert db_safe_priority(1) == 1
-    assert db_safe_priority(-1) == -1
-    assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
-    assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
+from dataclasses import dataclass
+from datetime import timedelta
+from typing import Any
 
 
-class TestWeightRule:
-    def test_valid_weight_rules(self):
-        assert WeightRule.is_valid(WeightRule.DOWNSTREAM)
-        assert WeightRule.is_valid(WeightRule.UPSTREAM)
-        assert WeightRule.is_valid(WeightRule.ABSOLUTE)
-        assert len(WeightRule.all_weight_rules()) == 3
+@dataclass
+class StartTriggerArgs:
+    """Arguments required for start task execution from triggerer."""
 
-        with pytest.raises(ValueError):
-            WeightRule("NOT_EXIST_WEIGHT_RULE")
+    trigger_cls: str
+    next_method: str
+    trigger_kwargs: dict[str, Any] | None = None
+    next_kwargs: dict[str, Any] | None = None
+    timeout: timedelta | None = None

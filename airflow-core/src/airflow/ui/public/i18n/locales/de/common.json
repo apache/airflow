@@ -92,6 +92,17 @@
     "any": "Jeder",
     "or": "ODER"
   },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Nach Dag filtern",
+    "keyPlaceholder": "Nach Task Kommunikation (XCom) Schlüssel filtern",
+    "logicalDateFromPlaceholder": "Logisches Datum Von",
+    "logicalDateToPlaceholder": "Logisches Datum Bis",
+    "mapIndexPlaceholder": "Nach Planungs-Index filtern",
+    "runAfterFromPlaceholder": "Gelaufen-nach von filtern",
+    "runAfterToPlaceholder": "Gelaufen-nach bis filtern",
+    "runIdPlaceholder": "Nach Lauf ID filtern",
+    "taskIdPlaceholder": "Nach Task ID filtern"
+  },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
