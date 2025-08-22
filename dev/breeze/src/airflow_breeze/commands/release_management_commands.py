@@ -319,7 +319,7 @@ class DistributionPackageInfo(NamedTuple):
         elif build_type == DistributionBuildType.TASK_SDK:
             default_glob_patterns = ["apache_airflow_task_sdk"]
         elif build_type == DistributionBuildType.AIRFLOW_CTL:
-            default_glob_patterns = ["apache_airflowctl"]
+            default_glob_patterns = ["apache_airflow-ctl"]
         else:
             default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
