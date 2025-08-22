@@ -17,14 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.github.sensors.github import GithubTagSensor
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
@@ -47,7 +51,12 @@ class TestGithubSensor:
                 conn_id="github_app_conn",
                 conn_type="github",
                 host="https://mygithub.com/api/v3",
-                extra='{"app_id": "123456", "installation_id": 654321, "private_key": "FAKE_PRIVATE_KEY"}',
+                extra={
+                    "app_id": "123456",
+                    "installation_id": 654321,
+                    "key_path": "FAKE_PRIVATE_KEY.pem",
+                    "token_permissions": {"issues": "write", "pull_requests": "read"},
+                },
             )
         )
 
@@ -62,7 +71,12 @@ class TestGithubSensor:
         autospec=True,
         return_value=github_client_mock,
     )
-    def test_github_tag_created(self, github_mock, conn_id):
+    @patch(
+        "airflow.providers.github.hooks.github.open",
+        new_callable=mock_open,
+        read_data="FAKE_PRIVATE_KEY_CONTENT",
+    )
+    def test_github_tag_created(self, mock_file, github_mock, conn_id):
         class MockTag:
             pass
 
