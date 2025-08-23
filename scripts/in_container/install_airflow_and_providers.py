@@ -19,14 +19,31 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from in_container_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_DIST_PATH, click, console, run_command
+from in_container_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_ROOT_PATH,
+    click,
+    console,
+    run_command,
+)
+
+MAIN_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
+MAIN_UI_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "ui" / "hash.txt"
+SIMPLE_AUTH_MANAGER_UI_DIRECTORY = (
+    AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
+)
+SIMPLE_AUTH_MANAGER_UI_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "ui" / "simple-auth-manager-hash.txt"
+INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
 
 def get_provider_name(package_name: str) -> str:
@@ -215,6 +232,7 @@ class InstallationSpec(NamedTuple):
     airflow_task_sdk_distribution: str | None
     airflow_ctl_distribution: str | None
     airflow_ctl_constraints_location: str | None
+    compile_ui_assets: bool | None
     provider_distributions: list[str]
     provider_constraints_location: str | None
     pre_release: bool = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
@@ -341,6 +359,7 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
+        compile_ui_assets = True
         console.print(f"\nInstalling airflow task-sdk from GitHub {use_airflow_version}\n")
         airflow_task_sdk_distribution = f"apache-airflow-task-sdk @ {vcs_url}#subdirectory=task-sdk"
         airflow_constraints_location = get_airflow_constraints_location(
@@ -427,6 +446,7 @@ def find_installation_spec(
         airflow_task_sdk_distribution=airflow_task_sdk_distribution,
         airflow_ctl_distribution=airflow_ctl_distribution,
         airflow_ctl_constraints_location=airflow_ctl_constraints_location,
+        compile_ui_assets=compile_ui_assets or None,
         provider_distributions=provider_distributions_list,
         provider_constraints_location=get_providers_constraints_location(
             providers_constraints_mode=providers_constraints_mode,
@@ -441,6 +461,87 @@ def find_installation_spec(
     )
     console.print("[bright_blue]Installation specification:[/]", installation_spec)
     return installation_spec
+
+
+def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
+    files = sorted(directory.rglob("*"))
+    if skip_path_regexp:
+        matcher = re.compile(skip_path_regexp)
+        files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
+    sha = hashlib.sha256()
+    for file in files:
+        if file.is_file() and not file.name.startswith("."):
+            sha.update(file.read_bytes())
+    return sha.hexdigest()
+
+
+def compile_ui_assets(installation_spec: InstallationSpec, ui_directory: Path, hash_file: Path):
+    if not installation_spec.compile_ui_assets:
+        console.print("[bright_blue]Skipping UI assets compilation")
+        return
+
+    # check if UI assets need to be recompiled
+    node_modules_directory = ui_directory / "node_modules"
+    dist_directory = ui_directory / "dist"
+    hash_file.parent.mkdir(exist_ok=True, parents=True)
+    if node_modules_directory.exists() and dist_directory.exists():
+        old_hash = hash_file.read_text() if hash_file.exists() else ""
+        new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
+        if new_hash == old_hash:
+            console.print(f"The UI directory '{ui_directory}' has not changed! Skip regeneration.")
+            return
+
+    # ensure dependencies for UI assets compilation
+    need_node = shutil.which("node") is None
+    need_yarn = shutil.which("yarn") is None
+    need_pnpm = shutil.which("pnpm") is None
+
+    if need_node:
+        console.print("[bright_blue]Installing Node.js directly from official setup script")
+        run_command(
+            [
+                "bash",
+                "-c",
+                "curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt-get install -y nodejs",
+            ],
+            github_actions=False,
+            shell=False,
+            check=True,
+        )
+    else:
+        console.print("[bright_blue]Node.js already installed")
+
+    if need_yarn or need_pnpm:
+        console.print("[bright_blue]Installing Yarn and PNPM globally via npm")
+        run_command(["npm", "install", "-g", "yarn", "pnpm"], github_actions=False, shell=False, check=True)
+    else:
+        console.print("[bright_blue]Yarn and PNPM already installed")
+
+    # install UI assets compilation dependencies
+    env = os.environ.copy()
+    env["FORCE_COLOR"] = "true"
+    for try_num in range(3):
+        console.print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
+        result = run_command(
+            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
+            cwd=os.fspath(ui_directory),
+            text=True,
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            break
+        if try_num == 2 or INTERNAL_SERVER_ERROR not in result.stderr + result.stdout:
+            console.print(result.stdout + "\n" + result.stderr)
+            sys.exit(1)
+
+    # compile UI assets
+    run_command(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
+    console.print("[bright_blue]UI assets compiled successfully")
+
+    # Write new hash to file
+    new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
+    hash_file.write_text(new_hash)
 
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
@@ -764,6 +865,10 @@ def _install_airflow_and_optionally_providers_together(
             run_command(base_install_cmd, github_actions=github_actions, check=True)
     else:
         run_command(base_install_cmd, github_actions=github_actions, check=True)
+
+    # compile ui assets
+    compile_ui_assets(installation_spec, MAIN_UI_DIRECTORY, MAIN_UI_HASH_FILE)
+    compile_ui_assets(installation_spec, SIMPLE_AUTH_MANAGER_UI_DIRECTORY, SIMPLE_AUTH_MANAGER_UI_HASH_FILE)
 
 
 def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, github_actions: bool):
