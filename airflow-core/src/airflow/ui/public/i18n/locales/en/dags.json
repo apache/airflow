@@ -10,6 +10,7 @@
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "dagIdPatternFilter": "Search by Dag Ids",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
@@ -20,7 +21,7 @@
       "all": "All",
       "paused": "Paused"
     },
-    "runIdPatternFilter": "Search Dag Runs",
+    "runIdPatternFilter": "Search by Dag Runs",
     "triggeringUserNameFilter": "Search by Triggering User"
   },
   "ownerLink": "Owner link for {{owner}}",
