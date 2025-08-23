@@ -37,14 +37,14 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install prek and uv
+    - name: Install uv and prek
       shell: bash
       env:
         UV_VERSION: ${{inputs.uv-version}}
         PREK_VERSION: ${{inputs.prek-version}}
         SKIP: ${{ inputs.skip-prek-hooks }}
       run: |
-        pip install uv==${UV_VERSION} || true
+        curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
         uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
     # We need to use tar file with archive to restore all the permissions and symlinks
