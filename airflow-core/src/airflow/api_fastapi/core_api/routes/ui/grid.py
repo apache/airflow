@@ -47,14 +47,14 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _merge_node_dicts,
 )
+from airflow.api_fastapi.core_api.services.ui.task_group import (
+    get_task_group_children_getter,
+    task_group_to_dict_grid,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.taskgroup import (
-    get_task_group_children_getter,
-    task_group_to_dict_grid,
-)
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
