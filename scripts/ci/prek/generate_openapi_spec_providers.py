@@ -30,7 +30,7 @@ from common_prek_utils import (
 initialize_breeze_prek(__name__, __file__)
 
 cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_generate_openapi_spec_fab.py"],
+    ["python3", "/opt/airflow/scripts/in_container/run_generate_openapi_spec_providers.py", sys.argv[1]],
     backend="postgres",
     skip_environment_initialization=False,
 )
