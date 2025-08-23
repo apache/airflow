@@ -107,11 +107,15 @@ jobs:
           retention-days: '7'
           if-no-files-found: 'error'
         if: always()
+      - name: Zip logs
+        run: |
+          cd ./airflow-e2e-tests && zip -r logs.zip logs
+        if: always()
       - name: "Upload logs"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: e2e-test-logs
-          path: './airflow-e2e-tests/logs/'
+          path: './airflow-e2e-tests/logs.zip'
           retention-days: '7'
           if-no-files-found: 'error'
         if: always()
