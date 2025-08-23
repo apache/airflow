@@ -104,6 +104,24 @@ jobs:
       - name: "Run shared secrets masker tests"
         run: uv run --group dev pytest --color=yes
         working-directory: ./shared/secrets_masker/
+  tests-shared-timezones:
+    timeout-minutes: 10
+    name: Shared timezone tests
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Prepare and cleanup runner"
+        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Run shared timezone tests"
+        run: uv run --group dev pytest --color=yes
+        working-directory: ./shared/timezones/
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
