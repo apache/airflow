@@ -71,20 +71,6 @@
 2. **सामान्य UI शब्द**: सामान्य interface शब्दों के लिए शुद्ध हिन्दी शब्द प्राथमिकता (जैसे "विन्यास" बजाय "कॉन्फ़िगरेशन")।
 3. **संदर्भ स्पष्टता**: जहां शुद्ध हिन्दी शब्द भ्रम पैदा कर सकते हैं, वहां transliteration का प्रयोग (जैसे "एसेट" बजाय "संपत्ति")।
 
-### सुधार के उदाहरण
-
-निम्नलिखित अनुवादों को बेहतर बनाया गया है:
-
-- **"की" → "कुंजी"**: Possessive particle की जगह actual key के लिए कुंजी का प्रयोग
-- **"कॉन्फ़िगरेशन" → "विन्यास"**: Transliteration की जगह शुद्ध हिन्दी शब्द
-- **"होम" → "मुख्य पृष्ठ"**: Home page के लिए वास्तविक हिन्दी शब्द
-- **"संपत्ति" → "एसेट"**: Financial property के साथ भ्रम से बचने के लिए
-- **"घटना" → "इवेंट"**: Technical context में "घटना" (incident) के बजाय "इवेंट" अधिक स्पष्ट
-- **"प्रदाता" → "प्रोवाइडर"**: Software packages के लिए business service provider के साथ भ्रम से बचने के लिए
-- **"चलने वाले" → "चल रहे"**: Present continuous के लिए अधिक प्राकृतिक हिन्दी
-- **"चर" → "वेरिएबल"**: Programming variables के लिए industry standard term, academic "चर" से बेहतर
-- **"दस्तावेज़" → "दस्तावेज"**: Standard Hindi spelling without nuqta, government/tech industry preference
-- **Documentation consistency**: README अब actual implementation को reflect करता है (डैग्स transliteration approach)
 
 ## विशेष नोट
 

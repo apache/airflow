@@ -31,7 +31,7 @@
     "edit": "कनेक्शन संपादित करें",
     "form": {
       "connectionIdRequired": "कनेक्शन ID आवश्यक है",
-      "connectionIdRequirement": "कनेक्शन ID में केवल स्थान नहीं हो सकते",
+      "connectionIdRequirement": "कनेक्शन ID में केवल अंतरिक्ष कुंजियाँ नहीं हो सकते",
       "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
       "extraFields": "अतिरिक्त फ़ील्ड",
       "extraFieldsJson": "अतिरिक्त फ़ील्ड JSON",
@@ -41,9 +41,9 @@
       "standardFields": "मानक फ़ील्ड"
     },
     "nothingFound": {
-      "description": "पर्यावरण वेरिएबल या सीक्रेट मैनेजर के माध्यम से परिभाषित कनेक्शन यहां सूचीबद्ध नहीं हैं।",
-      "documentationLink": "Airflow दस्तावेज में और जानें।",
-      "learnMore": "ये रनटाइम पर हल किए जाते हैं और UI में दृश्यमान नहीं हैं।",
+      "description": "एनवायरनमेंट वेरिएबल या सीक्रेट मैनेजर के माध्यम से परिभाषित कनेक्शन यहां सूचीबद्ध नहीं हैं।",
+      "documentationLink": "Airflow प्रलेखन में और जानें।",
+      "learnMore": "ये तभी लोड किए जाते हैं जब कोई टास्क्स, जो इन्हें उपयोग करता है, चलाया जाता है और इसलिए ये इस दृश्य में दिखाई नहीं देते।",
       "title": "कोई कनेक्शन नहीं मिला!"
     },
     "searchPlaceholder": "कनेक्शन खोजें",
@@ -122,9 +122,9 @@
     },
     "delete": {
       "deleteVariable_one": "1 वेरिएबल हटाएं",
-      "deleteVariable_other": "{{count}} वेरिएबल हटाएं",
+      "deleteVariable_other": "{{count}} वेरिएबल्स हटाएं",
       "firstConfirmMessage_one": "आप निम्नलिखित वेरिएबल को हटाने वाले हैं:",
-      "firstConfirmMessage_other": "आप निम्नलिखित वेरिएबल को हटाने वाले हैं:",
+      "firstConfirmMessage_other": "आप निम्नलिखित वेरिएबल्स को हटाने वाले हैं:",
       "title": "वेरिएबल हटाएं",
       "tooltip": "चयनित वेरिएबल हटाएं"
     },
@@ -162,6 +162,6 @@
     "noRowsMessage": "कोई वेरिएबल नहीं मिले",
     "searchPlaceholder": "कुंजियां खोजें",
     "variable_one": "वेरिएबल",
-    "variable_other": "वेरिएबल"
+    "variable_other": "वेरिएबल्स"
   }
 }

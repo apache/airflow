@@ -5,7 +5,7 @@
     "Plugins": "प्लगइन",
     "Pools": "पूल",
     "Providers": "प्रोवाइडर",
-    "Variables": "वेरिएबल"
+    "Variables": "वेरिएबल्स"
   },
   "asset_one": "एसेट",
   "asset_other": "एसेट्स",
@@ -29,15 +29,15 @@
     "dagRunTimeout": "डैग रन टाइमआउट",
     "defaultArgs": "डिफ़ॉल्ट तर्क",
     "description": "विवरण",
-    "documentation": "डैग दस्तावेज",
+    "documentation": "डैग प्रलेखन",
     "fileLocation": "फ़ाइल स्थान",
-    "hasTaskConcurrencyLimits": "कार्य समानांतरता सीमा है",
+    "hasTaskConcurrencyLimits": "टास्क समानांतरता सीमा है",
     "lastExpired": "अंतिम समाप्त",
     "lastParsed": "अंतिम पार्स",
     "latestDagVersion": "नवीनतम डैग संस्करण",
     "latestRun": "नवीनतम रन",
     "maxActiveRuns": "अधिकतम सक्रिय रन्स",
-    "maxActiveTasks": "अधिकतम सक्रिय कार्य",
+    "maxActiveTasks": "अधिकतम सक्रिय टास्क्स",
     "maxConsecutiveFailedDagRuns": "अधिकतम लगातार विफल डैग रन्स",
     "nextRun": "अगला रन",
     "owner": "स्वामी",
@@ -67,7 +67,7 @@
   "defaultToGridView": "ग्रिड व्यू को डिफ़ॉल्ट करें",
   "direction": "दिशा",
   "docs": {
-    "documentation": "दस्तावेज",
+    "documentation": "प्रलेखन",
     "githubRepo": "GitHub रेपो",
     "restApiReference": "REST API संदर्भ"
   },
@@ -120,7 +120,7 @@
     "assets": "एसेट्स",
     "browse": "ब्राउज़ करें",
     "dags": "डैग्स",
-    "docs": "दस्तावेज",
+    "docs": "प्रलेखन",
     "home": "मुख्य पृष्ठ",
     "legacyFabViews": "पुराने व्यू",
     "plugins": "प्लगइन",
@@ -212,7 +212,7 @@
     "to": "तक"
   },
   "task": {
-    "documentation": "टास्क दस्तावेज",
+    "documentation": "टास्क प्रलेखन",
     "lastInstance": "अंतिम इंस्टेंस",
     "operator": "ऑपरेटर",
     "triggerRule": "ट्रिगर नियम"
