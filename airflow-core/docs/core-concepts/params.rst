@@ -349,10 +349,7 @@ The following features are supported in the Trigger UI Form:
 - If you want to have params not being displayed, use the ``const`` attribute. These Params will be submitted but hidden in the Form.
   The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
-  If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
-- To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger``
-  and add query parameter to the URL in the form ``name=value``, for example ``/dags/example_params_ui_tutorial/trigger?required_field=some%20text``.
-  To pre-define the run id of the DAG run, use the URL parameter ``run_id``.
+  If you want to change values manually, the JSON configuration can be adjusted. Changes in the JSON will be reflected in the form fields.
 - Fields can be required or optional. Typed fields are required by default to ensure they pass JSON schema validation. To make typed fields optional, you must allow the "null" type.
 - Fields without a "section" will be rendered in the default area. Additional sections will be collapsed by default.
 

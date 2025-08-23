@@ -24,6 +24,65 @@
 
 .. towncrier release notes start
 
+
+Airflow 3.0.5 (2025-08-20)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- UI: Fix JSON field display in dark mode when using system OS theme detection (#54260)
+- Restore proper DAG callback execution context (#53684)
+- Restore ``get_previous_dagrun`` functionality for task context (#53655)
+- Fix scheduler crashes with ``DetachedInstanceError`` when processing executor events (#54334)
+- Fix ``DetachedInstanceError`` when accessing ``DagRun.created_dag_version`` (#54362)
+- Fix Task SDK to respect custom default queue configuration from config settings (#52786)
+- Fix: Cannot edit or delete pools with ``"/"`` in the name in the UI  (#54268)
+- Fix: Validate and handle invalid ``extra`` field in connections UI and API (#53963, #54034, #54235)
+- Fix: Apply DAG permission filter to dashboard (#54215)
+- Fix API validation error when DAG runs have bundle_version but no created_dag_version (#54010)
+- Fix task configuration defaults not being read from configuration settings (#52871)
+- Fix duplicate task group prefixes in task IDs when unmapping ``MappedOperators`` within ``TaskGroups`` (#53532)
+- Fix custom ``XCom`` backends not being used when ``BaseXCom.get_all()`` is called (#53814)
+- Fix ``xcom_pull`` ignoring ``include_prior_dates`` parameter when ``map_indexes`` is not specified (#53809)
+- Allow setting and deleting Variables and XComs from triggers (#53514)
+- Fix ``AttributeError`` when reading logs for previous task attempts with ``TaskInstanceHistory`` (#54114)
+- Skip database queries for spans and metrics when tracing/metrics are disabled (#54404)
+- UI: Fix Graph view edge rendering issues for nested task groups with excessive bends and misalignment (#54412)
+- Allow database downgrade from Airflow 3.x to 2.11 (#54399, #54508)
+- Reduce excessive warning logs when multiple deferred tasks are queued in triggerer (#54441)
+- Fix log retrieval failures for in-progress tasks by properly configuring JWT authentication (#54444)
+- Fix DAG import errors for invalid access control roles to persist consistently in UI (#54432)
+- Fix task failure callbacks missing ``end_date`` and ``duration`` by populating ``TaskInstance`` data before invoking callbacks (#54458)
+- Fix task retry overflow errors when calculating next retry datetime by capping delay to maximum configured value (#54460)
+- Add missing ordering to ``AssetEvent`` queries in scheduler to maintain consistent event processing order (#52231)
+- Fix XCom lookup failures in nested mapped task groups by correctly resolving ``map_index`` for upstream tasks (#54249)
+- UI: Fix task name indentation in Graph view for deeply nested task groups beyond 5 levels (#54419)
+- Run failure callbacks for task instances that get stuck in queued state and fail after requeue attempts (#54401)
+- Make secrets masking work when connections are loaded from secrets backends (#54574, #54612)
+
+Miscellaneous
+"""""""""""""
+
+- Set minimum version for ``common.messaging`` to ``1.0.3`` (#54176)
+- Add IP validation to example_dag_decorator DAG (#54208)
+
+Doc Only Changes
+""""""""""""""""
+
+- Fix doc redirects for operators moved to the standard provider (#54251)
+- Add FAQ entry about testing connections and "Canary" Dag (#54151)
+- Add note about ruff rules and preview flag (#53331)
+- Fix broken link in advanced logging config docs (#53460)
+- Update dag bundles docs; add s3, fix git classpath (#53473)
+- Fix example to use proper task context and logging instead of ``dag.log`` (#54463)
+- Improve documentation navigation by hiding Public Interface subsections from sidebar while preserving page links (#54465)
+
 Airflow 3.0.4 (2025-08-08)
 --------------------------
 

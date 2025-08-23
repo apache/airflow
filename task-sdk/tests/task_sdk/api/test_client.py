@@ -1289,6 +1289,7 @@ class TestHITLOperations:
         assert result.defaults == ["Approval"]
         assert result.params is None
         assert result.multiple is False
+        assert result.respondents is None
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))

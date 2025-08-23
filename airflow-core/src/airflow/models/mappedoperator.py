@@ -59,13 +59,11 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk import BaseOperatorLink, Context, StartTriggerArgs
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import StartTriggerArgs
-    from airflow.utils.operator_resources import Resources
-    from airflow.utils.trigger_rule import TriggerRule
 
     Operator: TypeAlias = "SerializedBaseOperator | MappedOperator"
 
@@ -171,6 +169,10 @@ class MappedOperator(DAGNode):
     @property
     def doc_md(self) -> str | None:
         return self.partial_kwargs.get("doc_md")
+
+    @property
+    def map_index_template(self) -> str | None:
+        return self.partial_kwargs.get("map_index_template")
 
     @property
     def inherits_from_empty_operator(self) -> bool:
