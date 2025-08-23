@@ -26,7 +26,7 @@ from sqlalchemy.orm import make_transient
 
 from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
 from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.session import create_session
 from airflow.version import version
 
@@ -197,6 +197,7 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
     render_k8s_pod_yaml.assert_called_once()
 
 
+@pytest.mark.enable_redact
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
 def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
@@ -204,14 +205,15 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     Test that k8s_pod_yaml is rendered correctly, stored in the Database,
     and are correctly fetched using RTIF.get_k8s_pod_yaml
     """
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
-    target = (
-        "airflow.sdk.execution_time.secrets_masker.redact"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.utils.log.secrets_masker.redact"
-    )
-    with mock.patch(target, autospec=True, side_effect=lambda d, _=None: d) as redact:
+    if AIRFLOW_V_3_1_PLUS:
+        target = "airflow._shared.secrets_masker.redact"
+    elif AIRFLOW_V_3_0_PLUS:
+        target = "airflow.sdk.execution_time.secrets_masker.redact"
+    else:
+        target = "airflow.utils.log.secrets_masker.redact"
+    with mock.patch(target, side_effect=lambda item, *args, **kwargs: item) as redact:
         with dag_maker("test_get_k8s_pod_yaml") as dag:
             task = BashOperator(task_id="test", bash_command="echo hi")
         dr = dag_maker.create_dagrun()
