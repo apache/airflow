@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-23T02:18:40.606751
+# This constraints file was automatically generated on 2025-08-23T19:45:40.450008
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.0
-Authlib==1.6.1
+Authlib==1.6.2
 Deprecated==1.2.18
 Events==0.5
 Flask==3.1.2
@@ -353,7 +353,7 @@ grpcio-status==1.74.0
 grpcio==1.74.0
 gssapi==1.9.0
 h11==0.16.0
-h2==4.2.0
+h2==4.3.0
 hdfs==2.7.3
 hf-xet==1.1.8
 hmsclient==0.1.1
@@ -471,7 +471,7 @@ pandas==2.2.3
 pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
-parso==0.8.4
+parso==0.8.5
 pathspec==0.12.1
 pbr==7.0.1
 pendulum==3.1.0
@@ -567,7 +567,7 @@ setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1
 shellingham==1.5.4
-simple-salesforce==1.12.8
+simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.36.0
 smbprotocol==1.15.0

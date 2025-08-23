@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-23T02:15:32.707681
+# This constraints file was automatically generated on 2025-08-23T19:42:31.396760
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -10,7 +10,7 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 APScheduler==3.11.0
-Authlib==1.6.1
+Authlib==1.6.2
 Deprecated==1.2.18
 Events==0.5
 Flask==3.1.2
@@ -144,7 +144,7 @@ colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.1
-coverage==7.10.4
+coverage==7.10.5
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -265,7 +265,7 @@ grpcio-status==1.71.2
 grpcio==1.74.0
 gssapi==1.9.0
 h11==0.16.0
-h2==4.2.0
+h2==4.3.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
@@ -414,7 +414,7 @@ pandas==2.2.3
 pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
-parso==0.8.4
+parso==0.8.5
 pathable==0.4.4
 pathspec==0.12.1
 pbr==7.0.1
@@ -545,7 +545,7 @@ setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1
 shellingham==1.5.4
-simple-salesforce==1.12.8
+simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.36.0
 smbprotocol==1.15.0
@@ -643,7 +643,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.12
+uv==0.8.13
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
