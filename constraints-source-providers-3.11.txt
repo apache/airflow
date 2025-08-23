@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-22T19:43:43.423846
+# This constraints file was automatically generated on 2025-08-23T02:15:45.719905
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -390,7 +390,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.4
 mypy-boto3-appflow==1.40.0
-mypy-boto3-rds==1.40.3
+mypy-boto3-rds==1.40.16
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.0
 mypy==1.17.1
