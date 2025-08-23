@@ -296,7 +296,7 @@ export const DagRuns = () => {
   return (
     <>
       <HStack paddingY="4px">
-        {dagId !== undefined && (
+        {!Boolean(dagId) && (
           <Box>
             <SearchBar
               defaultValue={filteredDagIdPattern ?? ""}
