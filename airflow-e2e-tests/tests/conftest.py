@@ -22,16 +22,18 @@ from datetime import datetime
 from shutil import copyfile, copytree
 
 import pytest
-from constants import AIRFLOW_ROOT_PATH, DOCKER_COMPOSE_HOST_PORT, DOCKER_IMAGE, E2E_DAGS_FOLDER
+from constants import AIRFLOW_ROOT_PATH, DOCKER_COMPOSE_HOST_PORT, DOCKER_IMAGE, E2E_DAGS_FOLDER, LOGS_FOLDER
 from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 console = Console(width=400, color_system="standard")
 compose_instance = None
+airflow_logs_path = None
 
 
 def spin_up_airflow_environment(tmp_path_factory):
     global compose_instance
+    global airflow_logs_path
     tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
 
     compose_file_path = (
@@ -46,6 +48,8 @@ def spin_up_airflow_environment(tmp_path_factory):
 
     for subdir in subfolders:
         (tmp_dir / subdir).mkdir()
+
+    airflow_logs_path = tmp_dir / "logs"
 
     console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
     copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
@@ -100,6 +104,8 @@ def pytest_runtest_makereport(item, call):
 def pytest_sessionfinish(session, exitstatus):
     """Generate report after all tests complete."""
     generate_test_report(test_results)
+    if airflow_logs_path is not None:
+        copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
     if compose_instance:
         compose_instance.stop()
