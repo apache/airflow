@@ -712,6 +712,7 @@ export type DAGWarningResponse = {
     warning_type: DagWarningType;
     message: string;
     timestamp: string;
+    dag_display_name: string;
 };
 
 /**
