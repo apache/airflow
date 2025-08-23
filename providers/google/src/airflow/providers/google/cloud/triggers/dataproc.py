@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowException
@@ -38,6 +39,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from sqlalchemy.orm.session import Session
 
 if not AIRFLOW_V_3_0_PLUS:
@@ -215,6 +217,167 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                     yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
             except Exception as e:
                 self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                raise e
+
+
+class DataprocSubmitJobTrigger(DataprocBaseTrigger):
+    """DataprocSubmitJobTrigger runs on the trigger worker to perform Build operation."""
+
+    def __init__(
+        self,
+        job: dict,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.job = job
+        self.request_id = request_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.job_id = None  # Initialize job_id to None
+
+    def _normalize_retry_value(self, retry_value):
+        """
+        Normalize retry value for serialization and API calls.
+
+        Since DEFAULT and Retry objects don't serialize well, we convert them to None.
+        """
+        if retry_value is DEFAULT or retry_value is None:
+            return None
+        # For other retry objects (like Retry instances), use None as fallback
+        # since they are complex objects that don't serialize well
+        return None
+
+    def serialize(self):
+        return (
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobTrigger",
+            {
+                "project_id": self.project_id,
+                "region": self.region,
+                "job": self.job,
+                "request_id": self.request_id,
+                "retry": self._normalize_retry_value(self.retry),
+                "timeout": self.timeout,
+                "metadata": self.metadata,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "polling_interval_seconds": self.polling_interval_seconds,
+                "cancel_on_kill": self.cancel_on_kill,
+            },
+        )
+
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_instance
+
+    async def get_task_state(self):
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.task_instance.dag_id,
+            task_ids=[self.task_instance.task_id],
+            run_ids=[self.task_instance.run_id],
+            map_index=self.task_instance.map_index,
+        )
+        try:
+            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+        except Exception:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_state
+
+    async def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        # Database query is needed to get the latest state of the task instance.
+        if AIRFLOW_V_3_0_PLUS:
+            task_state = await self.get_task_state()
+        else:
+            # Database query is needed to get the latest state of the task instance.
+            task_instance = self.get_task_instance()  # type: ignore[call-arg]
+            task_state = task_instance.state
+        return task_state != TaskInstanceState.DEFERRED
+
+    async def run(self):
+        try:
+            # Create a new Dataproc job
+            job = await self.get_async_hook().submit_job(
+                project_id=self.project_id,
+                region=self.region,
+                job=self.job,
+                request_id=self.request_id,
+                retry=self._normalize_retry_value(self.retry),
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.job_id = job.reference.job_id
+            while True:
+                job = await self.get_async_hook().get_job(
+                    project_id=self.project_id, region=self.region, job_id=self.job_id
+                )
+                state = job.status.state
+                self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
+                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                    break
+                await asyncio.sleep(self.polling_interval_seconds)
+            yield TriggerEvent({"job_id": self.job_id, "job_state": str(state), "job": str(job)})
+        except asyncio.CancelledError:
+            self.log.info("Task got cancelled.")
+            try:
+                if (
+                    hasattr(self, "job_id")
+                    and self.job_id
+                    and self.cancel_on_kill
+                    and await self.safe_to_cancel()
+                ):
+                    self.log.info(
+                        "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
+                        " in deferred state."
+                    )
+                    self.log.info("Cancelling the job: %s", self.job_id)
+                    self.get_sync_hook().cancel_job(
+                        job_id=self.job_id, project_id=self.project_id, region=self.region
+                    )
+                    self.log.info("Job: %s is cancelled", self.job_id)
+                    yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
+            except Exception as e:
+                if hasattr(self, "job_id") and self.job_id:
+                    self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                else:
+                    self.log.error("Failed to cancel the job (no job_id available) with error : %s", str(e))
                 raise e
 
 
