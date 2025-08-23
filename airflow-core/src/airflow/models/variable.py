@@ -146,7 +146,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -203,7 +203,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -301,7 +301,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead and use `Variable.set` as it is an upsert.",
+                "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -356,7 +356,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
