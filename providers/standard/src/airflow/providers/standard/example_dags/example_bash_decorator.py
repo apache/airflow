@@ -105,6 +105,7 @@ def example_bash_decorator():
         from shlex import join
 
         files = _get_files_in_cwd()
+        files = files if files else ["."]
         cmd = join(["stat", *files])
 
         return cmd
