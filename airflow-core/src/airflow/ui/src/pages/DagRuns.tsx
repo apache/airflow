@@ -48,7 +48,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
-  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_ID: DAG_ID_PARAM,
   END_DATE: END_DATE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
@@ -182,7 +182,7 @@ export const DagRuns = () => {
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
-  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredDagId = searchParams.get(DAG_ID_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
@@ -191,7 +191,7 @@ export const DagRuns = () => {
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
-      dagId: filteredDagIdPattern ?? "~",
+      dagId: filteredDagId ?? "~",
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
@@ -245,12 +245,12 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleDagIdPatternChange = useCallback(
+  const handleDagIdChange = useCallback(
     (value: string) => {
       if (value === "") {
-        searchParams.delete(DAG_ID_PATTERN_PARAM);
+        searchParams.delete(DAG_ID_PARAM);
       } else {
-        searchParams.set(DAG_ID_PATTERN_PARAM, value);
+        searchParams.set(DAG_ID_PARAM, value);
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -299,10 +299,10 @@ export const DagRuns = () => {
         {!Boolean(dagId) && (
           <Box>
             <SearchBar
-              defaultValue={filteredDagIdPattern ?? ""}
+              defaultValue={filteredDagId ?? ""}
               hideAdvanced
               hotkeyDisabled={false}
-              onChange={handleDagIdPatternChange}
+              onChange={handleDagIdChange}
               placeHolder={translate("dags:filters.dagIdPatternFilter")}
             />
           </Box>
