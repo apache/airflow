@@ -627,6 +627,26 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["on_skipped_callback"] = value or []
 
     @property
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.on_skipped_callback)
+
+    @property
     def run_as_user(self) -> str | None:
         return self.partial_kwargs.get("run_as_user")
 

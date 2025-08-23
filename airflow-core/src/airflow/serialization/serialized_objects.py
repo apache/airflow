@@ -52,7 +52,6 @@ from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, BaseOperator, XComArg
 from airflow.sdk.bases.trigger import StartTriggerArgs
-from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
@@ -1220,6 +1219,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     _is_empty: bool
     _needs_expansion: bool
     _task_display_name: str | None
+    _on_failure_fail_dagrun: bool = False
 
     dag: DAG | None = None
     task_group: TaskGroup | None = None
@@ -1254,12 +1254,12 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     max_retry_delay: datetime.timedelta | float | None = None
     multiple_outputs: bool = False
 
-    # TODO: Can be changed to () instead
-    on_execute_callback: Sequence = []
-    on_failure_callback: Sequence = []
-    on_retry_callback: Sequence = []
-    on_success_callback: Sequence = []
-    on_skipped_callback: Sequence = []
+    # Boolean flags for callback existence
+    has_on_execute_callback: bool = False
+    has_on_failure_callback: bool = False
+    has_on_retry_callback: bool = False
+    has_on_success_callback: bool = False
+    has_on_skipped_callback: bool = False
 
     operator_extra_links: Collection[BaseOperatorLink] = ()
 
@@ -1442,6 +1442,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
                     # TODO: Remove this hardcoded default
                     continue
                 if cls._is_excluded(v, k, op):
+                    continue
+
+                if k in [f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")]:
+                    if bool(v):
+                        serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
                 serialized_op["partial_kwargs"].update({k: cls.serialize(v)})
 
@@ -1764,6 +1769,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             if var is dag_date or var == dag_date:
                 return True
 
+        # If none of the exclusion conditions are met, don't exclude the field
+        return False
+
     @classmethod
     def _deserialize_operator_extra_links(
         cls, encoded_op_links: dict[str, str]
@@ -1884,12 +1892,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
                 "max_active_tis_per_dagrun",
                 "max_retry_delay",
                 "multiple_outputs",
-                "on_execute_callback",
-                "on_failure_callback",
-                "on_failure_fail_dagrun",
-                "on_retry_callback",
-                "on_skipped_callback",
-                "on_success_callback",
+                "has_on_execute_callback",
+                "has_on_failure_callback",
+                "has_on_retry_callback",
+                "has_on_skipped_callback",
+                "has_on_success_callback",
                 "outlets",
                 "owner",
                 "params",

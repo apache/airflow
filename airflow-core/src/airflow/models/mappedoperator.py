@@ -42,7 +42,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WEIGHT_RULE,
     NotMapped,
-    TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
@@ -242,24 +241,24 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("max_active_tis_per_dagrun")
 
     @property
-    def on_execute_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_execute_callback") or []
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_execute_callback", False))
 
     @property
-    def on_failure_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_failure_callback") or []
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_failure_callback", False))
 
     @property
-    def on_retry_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_retry_callback") or []
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_retry_callback", False))
 
     @property
-    def on_success_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_success_callback") or []
+    def has_on_success_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_success_callback", False))
 
     @property
-    def on_skipped_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_skipped_callback") or []
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_skipped_callback", False))
 
     @property
     def run_as_user(self) -> str | None:

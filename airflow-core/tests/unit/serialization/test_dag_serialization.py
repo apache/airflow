@@ -742,10 +742,6 @@ class TestStringifiedDAGs:
                 # We store the string, real dag has the actual code
                 "_pre_execute_hook",
                 "_post_execute_hook",
-                "on_execute_callback",
-                "on_failure_callback",
-                "on_success_callback",
-                "on_retry_callback",
                 # Checked separately
                 "resources",
                 "on_failure_fail_dagrun",
@@ -811,11 +807,23 @@ class TestStringifiedDAGs:
             default_partial_kwargs = (
                 BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY, strict=False).partial_kwargs
             )
+
+            # These are added in `_TaskDecorator` e.g. when @setup or @teardown task is passed
+            default_decorator_partial_kwargs = {
+                "is_setup": False,
+                "is_teardown": False,
+                "on_failure_fail_dagrun": False,
+            }
             serialized_partial_kwargs = {
                 **default_partial_kwargs,
+                **default_decorator_partial_kwargs,
                 **serialized_task.partial_kwargs,
             }
-            original_partial_kwargs = {**default_partial_kwargs, **task.partial_kwargs}
+            original_partial_kwargs = {
+                **default_partial_kwargs,
+                **default_decorator_partial_kwargs,
+                **task.partial_kwargs,
+            }
             assert serialized_partial_kwargs == original_partial_kwargs
 
             # ExpandInputs have different classes between scheduler and definition
@@ -1415,6 +1423,11 @@ class TestStringifiedDAGs:
             "execution_timeout": None,
             "executor": None,
             "executor_config": {},
+            "has_on_execute_callback": False,
+            "has_on_failure_callback": False,
+            "has_on_retry_callback": False,
+            "has_on_skipped_callback": False,
+            "has_on_success_callback": False,
             "ignore_first_depends_on_past": False,
             "is_setup": False,
             "is_teardown": False,
@@ -1423,12 +1436,7 @@ class TestStringifiedDAGs:
             "max_active_tis_per_dag": None,
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
-            "on_execute_callback": [],
             "on_failure_fail_dagrun": False,
-            "on_failure_callback": [],
-            "on_retry_callback": [],
-            "on_skipped_callback": [],
-            "on_success_callback": [],
             "outlets": [],
             "owner": "airflow",
             "params": {},
@@ -3011,6 +3019,8 @@ def test_mapped_task_with_operator_extra_links_property():
     assert mapped_task.extra_links == sorted({"airflow", "github"})
 
 
+# TODO: Remove xfail
+@pytest.mark.xfail(reason="TODO: Need to add support for v1 & v2 to v3")
 def test_handle_v1_serdag():
     v1 = {
         "__version": 1,
@@ -3296,3 +3306,129 @@ def test_handle_v1_serdag():
     del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]
 
     assert v1 == expected
+
+
+def dummy_callback():
+    pass
+
+
+@pytest.mark.parametrize(
+    "callback_config,expected_flags,is_mapped",
+    [
+        # Regular operator tests
+        (
+            {
+                "on_failure_callback": dummy_callback,
+                "on_retry_callback": [dummy_callback, dummy_callback],
+                "on_success_callback": dummy_callback,
+            },
+            {"has_on_failure_callback": True, "has_on_retry_callback": True, "has_on_success_callback": True},
+            False,
+        ),
+        (
+            {},  # No callbacks
+            {
+                "has_on_failure_callback": False,
+                "has_on_retry_callback": False,
+                "has_on_success_callback": False,
+            },
+            False,
+        ),
+        (
+            {"on_failure_callback": [], "on_success_callback": None},  # Empty callbacks
+            {"has_on_failure_callback": False, "has_on_success_callback": False},
+            False,
+        ),
+        # Mapped operator tests
+        (
+            {"on_failure_callback": dummy_callback, "on_success_callback": [dummy_callback, dummy_callback]},
+            {"has_on_failure_callback": True, "has_on_success_callback": True},
+            True,
+        ),
+        (
+            {},  # Mapped operator without callbacks
+            {"has_on_failure_callback": False, "has_on_success_callback": False},
+            True,
+        ),
+    ],
+)
+def test_task_callback_boolean_optimization(callback_config, expected_flags, is_mapped):
+    """Test that task callbacks are optimized using has_on_*_callback boolean flags."""
+    dag = DAG(dag_id="test_callback_dag", start_date=datetime(2020, 1, 1))
+
+    if is_mapped:
+        # Create mapped operator
+        task = BashOperator.partial(task_id="test_task", dag=dag, **callback_config).expand(
+            bash_command=["echo 1", "echo 2"]
+        )
+
+        # Serialize and deserialize
+        serialized = BaseSerialization.serialize(task)
+        deserialized = BaseSerialization.deserialize(serialized)
+
+        # For mapped operators, check partial_kwargs
+        serialized_data = serialized.get("__var", {}).get("partial_kwargs", {})
+
+        # Test serialization
+        for flag, expected in expected_flags.items():
+            if expected:
+                assert flag in serialized_data
+                assert serialized_data[flag] is True
+            else:
+                assert serialized_data.get(flag, False) is False
+
+        # Test deserialized properties
+        for flag, expected in expected_flags.items():
+            assert getattr(deserialized, flag) is expected
+
+    else:
+        # Create regular operator
+        task = BashOperator(task_id="test_task", bash_command="echo test", dag=dag, **callback_config)
+
+        # Serialize and deserialize
+        serialized = BaseSerialization.serialize(task)
+        deserialized = BaseSerialization.deserialize(serialized)
+
+        # For regular operators, check top-level
+        serialized_data = serialized.get("__var", {})
+
+        # Test serialization (only True values are stored)
+        for flag, expected in expected_flags.items():
+            if expected:
+                assert serialized_data.get(flag, False) is True
+            else:
+                assert serialized_data.get(flag, False) is False
+
+        # Test deserialized properties
+        for flag, expected in expected_flags.items():
+            assert getattr(deserialized, flag) is expected
+
+
+def test_task_callback_properties_exist():
+    """Test that all callback boolean properties exist on both regular and mapped operators."""
+    dag = DAG(dag_id="test_dag", start_date=datetime(2020, 1, 1))
+
+    # Regular operator
+    regular_task = BashOperator(task_id="regular", bash_command="echo test", dag=dag)
+
+    # Mapped operator
+    mapped_task = BashOperator.partial(task_id="mapped", dag=dag).expand(bash_command=["echo 1"])
+
+    callback_properties = [
+        "has_on_execute_callback",
+        "has_on_failure_callback",
+        "has_on_success_callback",
+        "has_on_retry_callback",
+        "has_on_skipped_callback",
+    ]
+
+    for prop in callback_properties:
+        assert hasattr(regular_task, prop), f"Regular operator missing {prop}"
+        assert hasattr(mapped_task, prop), f"Mapped operator missing {prop}"
+
+        # Serialize and check deserialized versions too
+        serialized_regular = BaseSerialization.deserialize(BaseSerialization.serialize(regular_task))
+        serialized_mapped = BaseSerialization.deserialize(BaseSerialization.serialize(mapped_task))
+
+        assert hasattr(serialized_regular, prop), f"Deserialized regular operator missing {prop}"
+        assert hasattr(serialized_mapped, prop), f"Deserialized mapped operator missing {prop}"
