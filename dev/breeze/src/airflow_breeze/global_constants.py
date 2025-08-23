@@ -212,6 +212,7 @@ REGULAR_DOC_PACKAGES = [
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+    "apache-airflow-ctl",
 ]
 
 DESTINATION_LOCATIONS = [
