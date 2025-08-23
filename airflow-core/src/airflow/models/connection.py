@@ -470,7 +470,7 @@ class Connection(Base, LoggingMixin):
 
             warnings.warn(
                 "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
+                "Please use `get` on Connection from sdk(`airflow.sdk.Connection`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
