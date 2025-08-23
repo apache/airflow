@@ -367,6 +367,9 @@ rbac:
   create: true
   createSCCRoleBinding: false
 
+# Google user ID allowed to launch Airflow GKE jobs
+jobLauncherUser: "REPLACE_WITH_GCP_USER_ID"
+
 # Airflow executor
 # One or multiple of: LocalExecutor, CeleryExecutor, KubernetesExecutor
 # For Airflow <3.0, LocalKubernetesExecutor and CeleryKubernetesExecutor are also supported.
