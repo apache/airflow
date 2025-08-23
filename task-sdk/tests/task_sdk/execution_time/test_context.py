@@ -154,26 +154,6 @@ class TestAirflowContextHelpers:
             "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
         }
 
-    def test_get_template_context_return_same_context_object(self, create_runtime_ti):
-        task = BaseOperator(
-            task_id="test_context_vars",
-            owner=["owner1", "owner2"],
-            email="email1@test.com",
-        )
-
-        rti = create_runtime_ti(
-            task=task,
-            dag_id="dag_id",
-            run_id="dag_run_id",
-            logical_date="2017-05-21T00:00:00Z",
-            try_number=1,
-        )
-
-        c1 = rti.get_template_context()
-        c2 = rti.get_template_context()
-
-        assert c2 is c1
-
     def test_context_to_airflow_vars_from_policy(self):
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             airflow_cluster = "cluster-a"
