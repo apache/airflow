@@ -30,12 +30,12 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.sdk import SecretCache
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -550,6 +550,18 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            from airflow.sdk import Connection as TaskSDKConnection
+
+            warnings.warn(
+                "Using Connection.from_json from `airflow.models` is deprecated."
+                "Please use `from airflow.sdk import Connection` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+            return TaskSDKConnection.from_json(value, conn_id=conn_id)  # type: ignore[return-value]
+
         kwargs = json.loads(value)
         extra = kwargs.pop("extra", None)
         if extra:

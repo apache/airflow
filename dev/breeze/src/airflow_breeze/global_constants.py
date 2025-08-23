@@ -124,7 +124,7 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -200,7 +200,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.9"
+UV_VERSION = "0.8.12"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -605,7 +605,7 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
 )
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 ALL_PYPROJECT_TOML_FILES = []
@@ -752,19 +752,19 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "python-version": "3.10",
         "airflow-version": "2.10.5",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "3.0.4",
         "remove-providers": "",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
 ]
 

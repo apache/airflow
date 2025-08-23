@@ -622,6 +622,7 @@ class KubernetesPodOperator(BaseOperator):
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
             if self.log_events_on_failure:
+                self._read_pod_container_states(pod, reraise=False)
                 self._read_pod_events(pod, reraise=False)
             raise
 
@@ -1029,6 +1030,7 @@ class KubernetesPodOperator(BaseOperator):
                 context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_result)
 
             if self.log_events_on_failure:
+                self._read_pod_container_states(pod, reraise=False)
                 self._read_pod_events(pod, reraise=False)
 
         self.process_pod_deletion(remote_pod, reraise=False)
@@ -1075,6 +1077,41 @@ class KubernetesPodOperator(BaseOperator):
                     self.log.info("Pod Event: %s - %s", event.reason, event.message)
                 else:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
+
+    def _read_pod_container_states(self, pod, *, reraise=True) -> None:
+        """Log detailed container states of pod for debugging."""
+        with _optionally_suppress(reraise=reraise):
+            remote_pod = self.pod_manager.read_pod(pod)
+            pod_phase = getattr(remote_pod.status, "phase", None)
+            pod_reason = getattr(remote_pod.status, "reason", None)
+            self.log.info("Pod phase: %s, reason: %s", pod_phase, pod_reason)
+
+            container_statuses = getattr(remote_pod.status, "container_statuses", [])
+            for status in container_statuses:
+                name = status.name
+                state = status.state
+                if state.terminated:
+                    level = self.log.error if state.terminated.exit_code != 0 else self.log.info
+                    level(
+                        "Container '%s': state='TERMINATED', reason='%s', exit_code=%s, message='%s'",
+                        name,
+                        state.terminated.reason,
+                        state.terminated.exit_code,
+                        state.terminated.message,
+                    )
+                elif state.waiting:
+                    self.log.warning(
+                        "Container '%s': state='WAITING', reason='%s', message='%s'",
+                        name,
+                        state.waiting.reason,
+                        state.waiting.message,
+                    )
+                elif state.running:
+                    self.log.info(
+                        "Container '%s': state='RUNNING', started_at=%s",
+                        name,
+                        state.running.started_at,
+                    )
 
     def is_istio_enabled(self, pod: V1Pod) -> bool:
         """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""

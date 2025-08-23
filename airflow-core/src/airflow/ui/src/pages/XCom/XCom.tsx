@@ -150,9 +150,7 @@ export const XCom = () => {
     xcomKeyPattern: filteredKey ?? undefined,
   };
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined, {
-    enabled: !isNaN(pagination.pageSize),
-  });
+  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
   return (
     <Box>
