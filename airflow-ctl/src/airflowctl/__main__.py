@@ -22,7 +22,6 @@
 from __future__ import annotations
 
 import argcomplete
-from memory_profiler import profile
 
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import safe_call_command
