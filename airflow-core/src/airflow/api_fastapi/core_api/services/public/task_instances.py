@@ -168,25 +168,29 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self.user = user
 
     def categorize_task_instances(
-        self, task_ids: set[tuple[str, int]]
+        self, task_keys: set[tuple[str, int]]
     ) -> tuple[dict[tuple[str, int], TI], set[tuple[str, int]], set[tuple[str, int]]]:
         """
         Categorize the given task_ids into matched_task_keys and not_found_task_keys based on existing task_ids.
 
-        :param task_ids: set of task_ids
+        :param task_keys: set of task_keys (tuple of task_id and map_index)
         :return: tuple of (task_instances_map, matched_task_keys, not_found_task_keys)
         """
         query = select(TI).where(
             TI.dag_id == self.dag_id,
             TI.run_id == self.dag_run_id,
-            TI.task_id.in_([task_id for task_id, _ in task_ids]),
+            TI.task_id.in_([task_id for task_id, _ in task_keys]),
         )
         task_instances = self.session.scalars(query).all()
         task_instances_map = {
             (ti.task_id, ti.map_index if ti.map_index is not None else -1): ti for ti in task_instances
         }
-        matched_task_keys = {(task_id, map_index) for (task_id, map_index) in task_instances_map.keys()}
-        not_found_task_keys = {(task_id, map_index) for task_id, map_index in task_ids} - matched_task_keys
+        matched_task_keys = {
+            (task_id, map_index)
+            for (task_id, map_index) in task_instances_map.keys()
+            if (task_id, map_index) in task_keys
+        }
+        not_found_task_keys = {(task_id, map_index) for task_id, map_index in task_keys} - matched_task_keys
         return task_instances_map, matched_task_keys, not_found_task_keys
 
     def handle_bulk_create(
