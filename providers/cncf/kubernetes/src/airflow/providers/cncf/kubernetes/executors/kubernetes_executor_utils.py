@@ -53,10 +53,6 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
 
-    # Use type aliases for the runtime types
-    KubernetesResultsType = KubernetesResults
-    KubernetesWatchType = KubernetesWatch
-
 
 class ResourceVersion(metaclass=Singleton):
     """Singleton for tracking resourceVersion from Kubernetes."""

@@ -38,7 +38,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
-    KubernetesWatchType,
+    KubernetesWatch,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
     AirflowKubernetesScheduler,
@@ -1493,7 +1493,7 @@ class TestKubernetesJobWatcher:
 
     def assert_watcher_queue_called_once_with_state(self, state):
         self.watcher.watcher_queue.put.assert_called_once_with(
-            KubernetesWatchType(
+            KubernetesWatch(
                 self.pod.metadata.name,
                 self.watcher.namespace,
                 state,
@@ -1730,7 +1730,7 @@ class TestKubernetesJobWatcher:
 
         self._run()
         self.watcher.watcher_queue.put.assert_called_once_with(
-            KubernetesWatchType(
+            KubernetesWatch(
                 self.pod.metadata.name,
                 self.watcher.namespace,
                 ADOPTED,

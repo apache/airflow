@@ -77,11 +77,6 @@ class KubernetesJob(NamedTuple):
     pod_template_file: str | None
 
 
-# Keep legacy type alias for backward compatibility
-KubernetesJobType = KubernetesJob
-KubernetesResultsType = KubernetesResults
-KubernetesWatchType = KubernetesWatch
-
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
