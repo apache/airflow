@@ -26,5 +26,5 @@ airflowctl facilitates the seamless deployment of CLI and API features together,
 
 airflowctl API Token has its own expiration time. The default is 1 hour. You can change it in the Airflow configuration file (airflow.cfg) by setting the ``jwt_cli_expiration_time`` parameter under the ``[api_auth]`` section. The value is in seconds. This will impact all users using ``airflowctl``.
 
-.. note::
-    For more information see :doc:`/howto/set-config`.
+For more information see `Setting Configuration
+Options <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html>`__.
