@@ -109,7 +109,9 @@ export class AssetService {
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.timestampGte
+     * @param data.timestampGt
      * @param data.timestampLte
+     * @param data.timestampLt
      * @returns AssetEventCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -127,7 +129,9 @@ export class AssetService {
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 timestamp_gte: data.timestampGte,
-                timestamp_lte: data.timestampLte
+                timestamp_gt: data.timestampGt,
+                timestamp_lte: data.timestampLte,
+                timestamp_lt: data.timestampLt
             },
             errors: {
                 401: 'Unauthorized',
@@ -971,15 +975,25 @@ export class DagRunService {
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.runType
      * @param data.state
      * @param data.orderBy
@@ -999,15 +1013,25 @@ export class DagRunService {
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 run_type: data.runType,
                 state: data.state,
                 order_by: data.orderBy,
@@ -1369,9 +1393,13 @@ export class DagService {
      * @param data.bundleName
      * @param data.bundleVersion
      * @param data.dagRunStartDateGte
+     * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
+     * @param data.dagRunStartDateLt
      * @param data.dagRunEndDateGte
+     * @param data.dagRunEndDateGt
      * @param data.dagRunEndDateLte
+     * @param data.dagRunEndDateLt
      * @param data.dagRunState
      * @param data.orderBy
      * @param data.isFavorite
@@ -1396,9 +1424,13 @@ export class DagService {
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
+                dag_run_start_date_gt: data.dagRunStartDateGt,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
+                dag_run_start_date_lt: data.dagRunStartDateLt,
                 dag_run_end_date_gte: data.dagRunEndDateGte,
+                dag_run_end_date_gt: data.dagRunEndDateGt,
                 dag_run_end_date_lte: data.dagRunEndDateLte,
+                dag_run_end_date_lt: data.dagRunEndDateLt,
                 dag_run_state: data.dagRunState,
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite
@@ -1965,17 +1997,29 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.durationGte
+     * @param data.durationGt
      * @param data.durationLte
+     * @param data.durationLt
      * @param data.state
      * @param data.pool
      * @param data.queue
@@ -1999,17 +2043,29 @@ export class TaskInstanceService {
             },
             query: {
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 state: data.state,
                 pool: data.pool,
                 queue: data.queue,
@@ -2232,17 +2288,29 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.durationGte
+     * @param data.durationGt
      * @param data.durationLte
+     * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
@@ -2267,17 +2335,29 @@ export class TaskInstanceService {
             query: {
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
                 state: data.state,
                 pool: data.pool,
@@ -2663,9 +2743,13 @@ export class JobService {
      * @param data The data for the request.
      * @param data.isAlive
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2683,9 +2767,13 @@ export class JobService {
             query: {
                 is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
@@ -3028,9 +3116,13 @@ export class XcomService {
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.mapIndexFilter
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3054,9 +3146,13 @@ export class XcomService {
                 task_id_pattern: data.taskIdPattern,
                 map_index_filter: data.mapIndexFilter,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3757,7 +3853,9 @@ export class GridService {
      * @param data.limit
      * @param data.orderBy
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -3773,7 +3871,9 @@ export class GridService {
                 limit: data.limit,
                 order_by: data.orderBy,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3792,7 +3892,9 @@ export class GridService {
      * @param data.limit
      * @param data.orderBy
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -3808,7 +3910,9 @@ export class GridService {
                 limit: data.limit,
                 order_by: data.orderBy,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3864,7 +3968,9 @@ export class CalendarService {
      * @param data.dagId
      * @param data.granularity
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @returns CalendarTimeRangeCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3878,7 +3984,9 @@ export class CalendarService {
             query: {
                 granularity: data.granularity,
                 logical_date_gte: data.logicalDateGte,
-                logical_date_lte: data.logicalDateLte
+                logical_date_gt: data.logicalDateGt,
+                logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt
             },
             errors: {
                 422: 'Validation Error'

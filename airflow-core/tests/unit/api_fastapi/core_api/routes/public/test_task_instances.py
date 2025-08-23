@@ -952,6 +952,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"start_date": DEFAULT_DATETIME_1},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/dags/example_python_operator/dagRuns/~/taskInstances",
+                {
+                    "start_date_gt": (DEFAULT_DATETIME_1 - dt.timedelta(hours=1)).isoformat(),
+                    "start_date_lt": DEFAULT_DATETIME_STR_2,
+                },
+                1,
+                id="test start date gt and lt filter",
+            ),
+            pytest.param(
+                [
                     {"end_date": DEFAULT_DATETIME_1},
                     {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
                     {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
@@ -961,6 +976,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"end_date_gte": DEFAULT_DATETIME_1, "end_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
                 id="test end date filter",
+            ),
+            pytest.param(
+                [
+                    {"end_date": DEFAULT_DATETIME_1},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/dags/example_python_operator/dagRuns/~/taskInstances?",
+                {
+                    "end_date_gt": DEFAULT_DATETIME_1,
+                    "end_date_lt": (DEFAULT_DATETIME_2 + dt.timedelta(hours=1)).isoformat(),
+                },
+                1,
+                id="test end date gt and lt filter",
             ),
             pytest.param(
                 [
@@ -985,6 +1015,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
                 id="test duration filter ~",
+            ),
+            pytest.param(
+                [
+                    {"duration": 100},
+                    {"duration": 150},
+                    {"duration": 200},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"duration_gt": 100, "duration_lt": 200},
+                1,
+                id="test duration gt and lt filter ~",
             ),
             pytest.param(
                 [

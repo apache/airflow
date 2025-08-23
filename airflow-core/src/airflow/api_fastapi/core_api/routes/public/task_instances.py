@@ -519,23 +519,48 @@ def get_task_instances_batch(
     dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
     task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
-        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        Range(
+            lower_bound_gte=body.run_after_gte,
+            lower_bound_gt=body.run_after_gt,
+            upper_bound_lte=body.run_after_lte,
+            upper_bound_lt=body.run_after_lt,
+        ),
         attribute=TI.run_after,
     )
     logical_date = RangeFilter(
-        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        Range(
+            lower_bound_gte=body.logical_date_gte,
+            lower_bound_gt=body.logical_date_gt,
+            upper_bound_lte=body.logical_date_lte,
+            upper_bound_lt=body.logical_date_lt,
+        ),
         attribute=TI.logical_date,
     )
     start_date = RangeFilter(
-        Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
+        Range(
+            lower_bound_gte=body.start_date_gte,
+            lower_bound_gt=body.start_date_gt,
+            upper_bound_lte=body.start_date_lte,
+            upper_bound_lt=body.start_date_lt,
+        ),
         attribute=TI.start_date,
     )
     end_date = RangeFilter(
-        Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
+        Range(
+            lower_bound_gte=body.end_date_gte,
+            lower_bound_gt=body.end_date_gt,
+            upper_bound_lte=body.end_date_lte,
+            upper_bound_lt=body.end_date_lt,
+        ),
         attribute=TI.end_date,
     )
     duration = RangeFilter(
-        Range(lower_bound=body.duration_gte, upper_bound=body.duration_lte),
+        Range(
+            lower_bound_gte=body.duration_gte,
+            lower_bound_gt=body.duration_gt,
+            upper_bound_lte=body.duration_lte,
+            upper_bound_lt=body.duration_lt,
+        ),
         attribute=TI.duration,
     )
     state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
