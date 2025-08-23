@@ -33,3 +33,6 @@ AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflo
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
 
 E2E_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "dags"
+
+# The logs folder where the Airflow logs will be copied to and uploaded to github artifacts
+LOGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "logs"
