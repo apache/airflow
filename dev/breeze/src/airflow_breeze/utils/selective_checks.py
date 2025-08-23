@@ -1512,3 +1512,7 @@ class SelectiveChecks:
     @cached_property
     def force_pip(self):
         return FORCE_PIP_LABEL in self._pr_labels
+
+    @cached_property
+    def shared_distributions_as_json(self):
+        return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])

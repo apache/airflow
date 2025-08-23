@@ -50,6 +50,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         False,
     ),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-test.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
