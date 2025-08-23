@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-23T13:03:10.333477
+# This constraints file was automatically generated on 2025-08-23T18:07:08.293847
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -278,7 +278,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.1
 connexion==2.14.2
-coverage==7.10.4
+coverage==7.10.5
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -561,7 +561,7 @@ pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
-parso==0.8.4
+parso==0.8.5
 pathable==0.4.4
 pathspec==0.12.1
 pbr==7.0.1
@@ -699,7 +699,7 @@ sentry-sdk==2.35.0
 setproctitle==1.3.6
 shapely==2.1.1
 shellingham==1.5.4
-simple-salesforce==1.12.8
+simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.36.0
 smart_open==7.3.0.post1
