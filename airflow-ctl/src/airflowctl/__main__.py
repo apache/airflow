@@ -27,7 +27,6 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import safe_call_command
 
 
-@profile
 def main():
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
