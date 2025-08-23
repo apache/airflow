@@ -49,6 +49,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-test.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
