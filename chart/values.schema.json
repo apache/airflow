@@ -4312,6 +4312,14 @@
                         "type": "string"
                     }
                 },
+                "restartPolicy": {
+                    "type": "string",
+                    "description": "Restart policy for the database migration job.",
+                    "enum": [
+                        "OnFailure",
+                        "Never"
+                    ]
+                },
                 "labels": {
                     "description": "Labels to add to the create user job objects and pods.",
                     "type": "object",
@@ -4652,6 +4660,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "restartPolicy": {
+                    "type": "string",
+                    "description": "Restart policy for the database migration job.",
+                    "enum": [
+                        "OnFailure",
+                        "Never"
+                    ]
                 },
                 "labels": {
                     "description": "Labels to add to the migrate database job objects and pods.",

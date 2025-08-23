@@ -89,6 +89,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.operator_resources import Resources
@@ -96,7 +97,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
-    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+    from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self
 
     TaskPreExecuteHook = Callable[[Context], None]
@@ -944,9 +945,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped: bool = False
-
-    start_trigger_args: StartTriggerArgs | None = None
-    start_from_trigger: bool = False
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (

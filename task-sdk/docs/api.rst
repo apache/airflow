@@ -72,6 +72,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseHook
 
+.. autoapiclass:: airflow.sdk.StartTriggerArgs
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection

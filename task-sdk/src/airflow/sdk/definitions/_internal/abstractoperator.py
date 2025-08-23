@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
@@ -118,6 +119,9 @@ class AbstractOperator(Templater, DAGNode):
     _on_failure_fail_dagrun = False
     is_setup: bool = False
     is_teardown: bool = False
+
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
@@ -314,6 +318,14 @@ class AbstractOperator(Templater, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
+
+                if (
+                    self.start_from_trigger
+                    and self.start_trigger_args
+                    and self.start_trigger_args.trigger_kwargs
+                ):
+                    if attr_name in self.start_trigger_args.trigger_kwargs:
+                        self.start_trigger_args.trigger_kwargs[attr_name] = rendered_content
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """

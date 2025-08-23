@@ -165,42 +165,36 @@ Optimizing DAG parsing delays during execution
 
 .. versionadded:: 2.4
 
-|experimental|
-
 Sometimes when you generate a lot of Dynamic dags from a single DAG file, it might cause unnecessary delays
 when the DAG file is parsed during task execution. The impact is a delay before a task starts.
 
 Why is this happening? You might not be aware but just before your task is executed,
 Airflow parses the Python file the DAG comes from.
 
-The Airflow Scheduler (or rather DAG File Processor) requires loading of a complete DAG file to process
+The Airflow DAG File Processor requires loading of a complete DAG file to process
 all metadata. However, task execution requires only a single DAG object to execute a task. Knowing this,
 we can skip the generation of unnecessary DAG objects when a task is executed, shortening the parsing time.
 This optimization is most effective when the number of generated dags is high.
 
-There is an experimental approach that you can take to optimize this behaviour. Note that it is not always
-possible to use (for example when generation of subsequent dags depends on the previous dags) or when
-there are some side-effects of your dags generation. Also the code snippet below is pretty complex and while
-we tested it and it works in most circumstances, there might be cases where detection of the currently
-parsed DAG will fail and it will revert to creating all the dags or fail. Use this solution with care and
-test it thoroughly.
+Note that it is not always possible to use (for example when generation of subsequent dags depends on the previous dags) or when
+there are some side-effects of your dags generation. Use this solution with care and test it thoroughly.
 
 A nice example of performance improvements you can gain is shown in the
 `Airflow's Magic Loop <https://medium.com/apache-airflow/airflows-magic-loop-ec424b05b629>`_ blog post
 that describes how parsing during task execution was reduced from 120 seconds to 200 ms. (The example was
-written before Airflow 2.4 so it uses undocumented behaviour of Airflow.)
+written before Airflow 2.4 so it uses undocumented behaviour of Airflow, not :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` shown below.)
 
-In Airflow 2.4 instead you can use :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` method
-to retrieve the current context in documented and predictable way.
+In Airflow 2.4+ instead you can use :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` method
+to retrieve the current context in a documented and predictable way.
 
 Upon iterating over the collection of things to generate dags for, you can use the context to determine
 whether you need to generate all DAG objects (when parsing in the DAG File processor), or to generate only
 a single DAG object (when executing the task).
 
-The :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` return the current parsing
-context. The context is of :py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
-in case only single DAG/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
-In case "full" parsing is needed (for example in DAG File Processor), ``dag_id`` and ``task_id``
+:py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` returns the current parsing
+context. The context is an :py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
+when only a single DAG/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
+When "full" parsing is needed (for example in DAG File Processor), ``dag_id`` and ``task_id``
 of the context are set to ``None``.
 
 

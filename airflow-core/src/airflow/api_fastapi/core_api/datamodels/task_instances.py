@@ -63,6 +63,7 @@ class TaskInstanceResponse(BaseModel):
     queue: str | None
     priority_weight: int | None
     operator: str | None
+    operator_name: str | None
     queued_dttm: datetime | None = Field(alias="queued_when")
     scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
@@ -149,6 +150,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     queue: str | None
     priority_weight: int | None
     operator: str | None
+    custom_operator_name: str | None = Field(alias="operator_name")
     queued_dttm: datetime | None = Field(alias="queued_when")
     scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None

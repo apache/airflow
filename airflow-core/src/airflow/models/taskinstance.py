@@ -564,7 +564,7 @@ class TaskInstance(Base, LoggingMixin):
             "executor": task.executor,
             "executor_config": task.executor_config,
             "operator": task.task_type,
-            "custom_operator_name": getattr(task, "custom_operator_name", None),
+            "custom_operator_name": getattr(task, "operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
@@ -749,7 +749,7 @@ class TaskInstance(Base, LoggingMixin):
         self.executor = task.executor
         self.executor_config = task.executor_config
         self.operator = task.task_type
-        self.custom_operator_name = getattr(task, "custom_operator_name", None)
+        self.custom_operator_name = getattr(task, "operator_name", None)
         # Re-apply cluster policy here so that task default do not overload previous data
         task_instance_mutation_hook(self)
 

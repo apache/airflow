@@ -686,11 +686,11 @@ def get_task_group_children_getter() -> Callable:
 
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    if isinstance(task := task_item_or_group, (AbstractOperator, SerializedBaseOperator)):
+    if isinstance(task := task_item_or_group, (AbstractOperator, SerializedBaseOperator, MappedOperator)):
         node_operator = {
             "id": task.task_id,
             "label": task.label,

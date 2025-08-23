@@ -560,10 +560,17 @@ class PodManager(LoggingMixin):
                     return val.add(seconds=2), e
             except HTTPError as e:
                 exception = e
-                self.log.exception(
-                    "Reading of logs interrupted for container %r; will retry.",
-                    container_name,
-                )
+                self._http_error_timestamps = getattr(self, "_http_error_timestamps", [])
+                self._http_error_timestamps = [
+                    t for t in self._http_error_timestamps if t > utcnow() - timedelta(seconds=60)
+                ]
+                self._http_error_timestamps.append(utcnow())
+                # Log only if more than 2 errors occurred in the last 60 seconds
+                if len(self._http_error_timestamps) > 2:
+                    self.log.exception(
+                        "Reading of logs interrupted for container %r; will retry.",
+                        container_name,
+                    )
             return last_captured_timestamp or since_time, exception
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to

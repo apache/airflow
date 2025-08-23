@@ -902,7 +902,16 @@ class AirflowConfigParser(ConfigParser):
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
-                return run_command(command)
+                try:
+                    cmd_output = run_command(command)
+                except AirflowConfigException as e:
+                    raise e
+                except Exception as e:
+                    raise AirflowConfigException(
+                        f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
+                        f" Please check the {fallback_key} value."
+                    ) from e
+                return cmd_output
         return None
 
     def _get_cmd_option_from_config_sources(

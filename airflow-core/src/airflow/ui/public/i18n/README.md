@@ -133,7 +133,8 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 ### 5.5. Adding or rephrasing terms
 
 - When new terms are added to the default locale, all translation owners SHOULD create a follow-up PR to comply with the changes in their assigned locale.
-- When existing terms are rephrased in the default language (key is the same but value changed), all translation owners SHOULD do the same as above, if the change in the intent or meaning affects the translation.
+- When existing terms are rephrased in the default language (key is the same but value changed), all translation owners SHOULD do the same as above.
+- As the change of the default language might be un-noticed by translators (translation keys would stay valid) it is recommended to rename the translation key to force a detection of language gaps (translations would have 1 orphan (old) key and a missing (new) key).
 - In busy times with many parallel UI changes it is acceptable to batch changes together. Differences SHOULD be cleared prior to a release at the latest.
 
 > [!NOTE]

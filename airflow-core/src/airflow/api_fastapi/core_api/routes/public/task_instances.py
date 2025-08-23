@@ -46,6 +46,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIQueueFilter,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITryNumberFilter,
+    # QueryTTTaskFilter,
     Range,
     RangeFilter,
     SortParam,
@@ -96,7 +98,10 @@ task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_task_instance(
-    dag_id: str, dag_run_id: str, task_id: str, session: SessionDep
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
 ) -> TaskInstanceResponse:
     """Get task instance."""
     query = (
@@ -142,6 +147,7 @@ def get_mapped_task_instances(
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
+    try_number: QueryTITryNumberFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -210,6 +216,7 @@ def get_mapped_task_instances(
             queue,
             executor,
             version_number,
+            try_number,
         ],
         order_by=order_by,
         offset=offset,
@@ -400,6 +407,7 @@ def get_task_instances(
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
+    try_number: QueryTITryNumberFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -476,6 +484,7 @@ def get_task_instances(
             task_display_name_pattern,
             version_number,
             readable_ti_filter,
+            try_number,
         ],
         order_by=order_by,
         offset=offset,
