@@ -257,7 +257,7 @@ jobs:
   test-git-clone-on-windows:
     timeout-minutes: 5
     name: "Test git clone on Windows"
-    runs-on: ["windows-latest"]
+    runs-on: ["windows-2025"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
