@@ -18,3 +18,4 @@
  */
 
 export { Dag } from "./Dag";
+export { Trigger } from "./Trigger";
