@@ -1209,12 +1209,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """FAB leaves faulty permissions that need to be cleaned up."""
         self.log.debug("Cleaning faulty perms")
         sesh = self.appbuilder.get_session
-        perms = sesh.scalars(select(Permission).where(
-            or_(
-                Permission.action == None,  # noqa: E711
-                Permission.resource == None,  # noqa: E711
+        perms = sesh.scalars(
+            select(Permission).where(
+                or_(
+                    Permission.action == None,  # noqa: E711
+                    Permission.resource == None,  # noqa: E711
+                )
             )
-        )).all()
+        ).all()
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
         # to delete the _object_ so that SQLA knows to delete the many-to-many
         # relationship object too. :(
