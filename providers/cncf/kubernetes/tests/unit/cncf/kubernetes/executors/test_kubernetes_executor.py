@@ -374,7 +374,10 @@ class TestKubernetesExecutor:
                 id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry failed)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "the object has been modified; please apply your changes to the latest version and try again"}', status=409),
+                HTTPResponse(
+                    body='{"message": "the object has been modified; please apply your changes to the latest version and try again"}',
+                    status=409,
+                ),
                 1,
                 True,
                 State.SUCCESS,
