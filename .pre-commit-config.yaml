@@ -1552,17 +1552,17 @@ repos:
 
           # TODO: These files need to be refactored to remove SDK coupling
           ^airflow-core/src/airflow/__init__\.py$|
-          ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/api/common/mark_tasks\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
-          ^airflow-core/src/airflow/api_fastapi/core_api/services/public/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/routes/ui/structure\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/services/public/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/grid\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
           ^airflow-core/src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
           ^airflow-core/src/airflow/api_fastapi/logging/decorators\.py$|
@@ -1570,6 +1570,7 @@ repos:
           ^airflow-core/src/airflow/assets/manager\.py$|
           ^airflow-core/src/airflow/cli/commands/connection_command\.py$|
           ^airflow-core/src/airflow/cli/commands/task_command\.py$|
+          ^airflow-core/src/airflow/cli/commands/triggerer_command.py$|
           ^airflow-core/src/airflow/configuration\.py$|
           ^airflow-core/src/airflow/dag_processing/collection\.py$|
           ^airflow-core/src/airflow/dag_processing/manager\.py$|
@@ -1582,58 +1583,57 @@ repos:
           ^airflow-core/src/airflow/listeners/spec/asset\.py$|
           ^airflow-core/src/airflow/listeners/spec/taskinstance\.py$|
           ^airflow-core/src/airflow/logging/remote\.py$|
+          ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/models/asset\.py$|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
-          ^airflow-core/src/airflow/models/deadline\.py$|
           ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
+          ^airflow-core/src/airflow/models/deadline\.py$|
+          ^airflow-core/src/airflow/models/expandinput\.py$|
           ^airflow-core/src/airflow/models/mappedoperator\.py$|
           ^airflow-core/src/airflow/models/operator\.py$|
           ^airflow-core/src/airflow/models/param\.py$|
+          ^airflow-core/src/airflow/models/renderedtifields\.py$|
           ^airflow-core/src/airflow/models/serialized_dag\.py$|
           ^airflow-core/src/airflow/models/taskinstance\.py$|
           ^airflow-core/src/airflow/models/taskinstancekey\.py$|
           ^airflow-core/src/airflow/models/taskmap\.py$|
+          ^airflow-core/src/airflow/models/taskmixin\.py$|
           ^airflow-core/src/airflow/models/taskreschedule\.py$|
           ^airflow-core/src/airflow/models/variable\.py$|
+          ^airflow-core/src/airflow/models/xcom\.py$|
+          ^airflow-core/src/airflow/models/xcom_arg\.py$|
           ^airflow-core/src/airflow/operators/subdag\.py$|
+          ^airflow-core/src/airflow/plugins_manager\.py$|
+          ^airflow-core/src/airflow/providers_manager\.py$|
           ^airflow-core/src/airflow/serialization/dag\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
+          ^airflow-core/src/airflow/serialization/helpers\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/settings\.py$|
           ^airflow-core/src/airflow/task/task_runner/bash_task_runner\.py$|
           ^airflow-core/src/airflow/task/task_runner/standard_task_runner\.py$|
+          ^airflow-core/src/airflow/ti_deps/deps/mapped_task_upstream_dep\.py$|
+          ^airflow-core/src/airflow/ti_deps/deps/prev_dagrun_dep\.py$|
+          ^airflow-core/src/airflow/ti_deps/deps/trigger_rule_dep\.py$|
+          ^airflow-core/src/airflow/timetables/assets\.py$|
+          ^airflow-core/src/airflow/timetables/base\.py$|
+          ^airflow-core/src/airflow/timetables/simple\.py$|
+          ^airflow-core/src/airflow/utils/cli\.py$|
+          ^airflow-core/src/airflow/utils/context\.py$|
           ^airflow-core/src/airflow/utils/dag_cycle_tester\.py$|
+          ^airflow-core/src/airflow/utils/dag_edges\.py$|
           ^airflow-core/src/airflow/utils/dag_parsing_context\.py$|
           ^airflow-core/src/airflow/utils/decorators\.py$|
+          ^airflow-core/src/airflow/utils/dot_renderer\.py$|
+          ^airflow-core/src/airflow/utils/edgemodifier\.py$|
+          ^airflow-core/src/airflow/utils/email\.py$|
+          ^airflow-core/src/airflow/utils/helpers\.py$|
           ^airflow-core/src/airflow/utils/operator_helpers\.py$|
           ^airflow-core/src/airflow/utils/session\.py$|
           ^airflow-core/src/airflow/utils/task_group\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
-          ^airflow-core/src/airflow/utils/xcom\.py$|
-          ^airflow-core/src/airflow/providers_manager\.py$|
-          ^airflow-core/src/airflow/timetables/assets\.py$|
-          ^airflow-core/src/airflow/ti_deps/deps/prev_dagrun_dep\.py$|
-          ^airflow-core/src/airflow/utils/context\.py$|
-          ^airflow-core/src/airflow/models/taskmixin\.py$|
-          ^airflow-core/src/airflow/utils/edgemodifier\.py$|
-          ^airflow-core/src/airflow/utils/email\.py$|
-          ^airflow-core/src/airflow/ti_deps/deps/trigger_rule_dep\.py$|
-          ^airflow-core/src/airflow/utils/helpers\.py$|
-          ^airflow-core/src/airflow/ti_deps/deps/mapped_task_upstream_dep\.py$|
-          ^airflow-core/src/airflow/utils/types\.py$|
-          ^airflow-core/src/airflow/utils/dag_edges\.py$|
-          ^airflow-core/src/airflow/utils/cli\.py$|
-          ^airflow-core/src/airflow/timetables/base\.py$|
-          ^airflow-core/src/airflow/utils/dot_renderer\.py$|
-          ^airflow-core/src/airflow/models/xcom_arg\.py$|
-          ^airflow-core/src/airflow/plugins_manager\.py$|
-          ^airflow-core/src/airflow/models/xcom\.py$|
-          ^airflow-core/src/airflow/timetables/simple\.py$|
-          ^airflow-core/src/airflow/settings\.py$|
-          ^airflow-core/src/airflow/models/renderedtifields\.py$|
-          ^airflow-core/src/airflow/serialization/helpers\.py$|
-          ^airflow-core/src/airflow/models/expandinput\.py$|
-          ^airflow-core/src/airflow/cli/commands/triggerer_command.py$
+          ^airflow-core/src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
