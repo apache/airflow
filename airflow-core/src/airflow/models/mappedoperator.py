@@ -438,30 +438,6 @@ class MappedOperator(DAGNode):
     def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
         raise NotImplementedError
 
-    def unmap(self, resolve: None) -> SerializedBaseOperator:
-        """
-        Get the "normal" Operator after applying the current mapping.
-
-        The *resolve* argument is never used and should always be *None*. It
-        exists only to match the signature of the non-serialized implementation.
-
-        The return value is a SerializedBaseOperator that "looks like" the
-        actual unmapping result.
-
-        :meta private:
-        """
-        # After a mapped operator is serialized, there's no real way to actually
-        # unmap it since we've lost access to the underlying operator class.
-        # This tries its best to simply "forward" all the attributes on this
-        # mapped operator to a new SerializedBaseOperator instance.
-        sop = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
-        for partial_attr, value in self.partial_kwargs.items():
-            setattr(sop, partial_attr, value)
-        SerializedBaseOperator.populate_operator(sop, self.operator_class)
-        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
-            SerializedBaseOperator.set_task_dag_references(sop, self.dag)
-        return sop
-
 
 @functools.singledispatch
 def get_mapped_ti_count(task: DAGNode, run_id: str, *, session: Session) -> int:
