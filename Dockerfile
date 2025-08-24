@@ -46,7 +46,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.0.5"
+ARG AIRFLOW_VERSION="3.0.4"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 
@@ -56,7 +56,6 @@ ARG BASE_IMAGE="debian:bookworm-slim"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
 ARG AIRFLOW_UV_VERSION=0.8.13
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
@@ -102,7 +101,7 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-v3.10.10}
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -118,11 +117,11 @@ fi
 
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
-        DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+        DEV_APT_DEPS="apt-transport-https apt-utils build-essential dirmngr \
 freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev \
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev wget \
 gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
 libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
 libzstd-dev"
@@ -144,10 +143,10 @@ function get_runtime_apt_deps() {
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
-        RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
+        RUNTIME_APT_DEPS="apt-transport-https apt-utils \
 curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
-lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
+lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc wget"
         export RUNTIME_APT_DEPS
     fi
 }
@@ -170,7 +169,7 @@ function install_docker_cli() {
 function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
@@ -192,10 +191,22 @@ function install_debian_dev_dependencies() {
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
 
+
+function link_python() {
+    ldconfig
+    pushd /usr/local/bin
+    for src in pip3 python3 python3-config; do
+        dst="$(echo "${src}" | tr -d 3)"
+        ln -sv "/usr/python/bin/${src}" "/usr/local/bin/${dst}"
+        ln -sv "${dst}" "${src}"
+    done
+    popd
+}
+
 function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_RUNTIME_APT_ENV?}
     if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
@@ -209,19 +220,62 @@ function install_debian_runtime_dependencies() {
     apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
     apt-get autoremove -yqq --purge
     apt-get clean
+    link_python
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
 function install_python() {
-    git clone --branch "${AIRFLOW_PYTHON_VERSION}" --depth 1 https://github.com/python/cpython.git
-    cd cpython
-    ./configure --enable-optimizations --prefix=/usr/python/
-    make -s -j "$(nproc)" all
+    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
+    declare -A keys=(
+        # gpg: key B26995E310250568: public key "\xc5\x81ukasz Langa (GPG langa.pl) <lukasz@langa.pl>" imported
+        # https://peps.python.org/pep-0596/#release-manager-and-crew
+        [3.9]="E3FF2839C048B25C084DEBE9B26995E310250568"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0619/#release-manager-and-crew
+        [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0664/#release-manager-and-crew
+        [3.11]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0693/#release-manager-and-crew
+        [3.12]="7169605F62C751356D054A26A821E680E5FA6305"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0719/#release-manager-and-crew
+        [3.13]="7169605F62C751356D054A26A821E680E5FA6305"
+    )
+    major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
+    GNUPGHOME="$(mktemp -d)"; export GNUPGHOME;
+    gpg_key="${keys[${major_minor_version}]}"
+    echo "Using GPG key ${gpg_key}"
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+    gpg --batch --verify python.tar.xz.asc python.tar.xz;
+    gpgconf --kill all
+    rm -rf "$GNUPGHOME" python.tar.xz.asc
+    mkdir -p /usr/src/python
+    tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
+    rm python.tar.xz
+    cd /usr/src/python
+    arch="$(dpkg --print-architecture)"; arch="${arch##*-}"
+    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"
+    EXTRA_CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
+    LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+    LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+        --enable-loadable-sqlite-extensions --enable-option-checking=fatal  --enable-shared --with-lto
+    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
     make -s -j "$(nproc)" install
-    ln -s /usr/python/bin/python3 /usr/python/bin/python
-    ln -s /usr/python/bin/pip3 /usr/python/bin/pip
-    cd ..
-    rm -rf cpython
+    cd /
+    rm -rf /usr/src/python
+    find /usr/python -depth \
+      \( \
+        \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+        -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+    \) -exec rm -rf '{}' +
+    link_python
 }
 
 function install_golang() {
@@ -229,13 +283,17 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function apt_clean() {
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
+    rm -rf /var/lib/apt/lists/* /var/log/*
+}
+
 if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
-
+    apt_clean
 else
-
     get_dev_apt_deps
     install_debian_dev_dependencies
     install_python
@@ -243,6 +301,7 @@ else
         install_golang
     fi
     install_docker_cli
+    apt_clean
 fi
 EOF
 
@@ -619,12 +678,6 @@ function common::install_packaging_tools() {
             echo
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
-    fi
-    if [[ ${AIRFLOW_SETUPTOOLS_VERSION=} != "" ]]; then
-        echo
-        echo "${COLOR_BLUE}Installing setuptools version ${AIRFLOW_SETUPTOOLS_VERSION} {COLOR_RESET}"
-        echo
-        pip install --root-user-action ignore setuptools==${AIRFLOW_SETUPTOOLS_VERSION}
     fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
         echo
@@ -1601,7 +1654,6 @@ RUN if [[ -f /docker-context-files/pip.conf ]]; then \
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 ARG UV_HTTP_TIMEOUT
@@ -1609,7 +1661,6 @@ ARG INCLUDE_PRE_RELEASE="false"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
@@ -1762,15 +1813,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
-COPY --from=airflow-build-image \
-     "/usr/python/bin/python*" "/usr/python/bin/"
-
-COPY --from=airflow-build-image \
-     "/usr/python/bin/pip*" "/usr/python/bin/"
-
-COPY --from=airflow-build-image \
-     "/usr/python/lib" "/usr/python/lib/"
-
+COPY --from=airflow-build-image "/usr/python/" "/usr/python/"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
@@ -1845,7 +1888,6 @@ RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"$(echo -n ${AIRFLOW_USER
 
 ARG AIRFLOW_VERSION
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 
@@ -1859,7 +1901,6 @@ ENV DUMB_INIT_SETSID="1" \
     PATH="/root/bin:${PATH}" \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 
 # Add protection against running pip as root user

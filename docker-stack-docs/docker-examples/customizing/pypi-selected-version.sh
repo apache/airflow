@@ -18,7 +18,7 @@
 
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
+AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd)"
 
 TEMP_DOCKER_DIR=$(mktemp -d)
 pushd "${TEMP_DOCKER_DIR}"
@@ -31,7 +31,7 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="v3.10.18" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.10.18" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --tag "my-pypi-selected-version:0.0.1"
 # [END build]

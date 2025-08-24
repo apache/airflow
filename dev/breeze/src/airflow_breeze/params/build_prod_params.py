@@ -25,7 +25,7 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
-    ALL_PYTHON_VERSION_TO_PATCH_VERSION,
+    ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     get_airflow_extras,
 )
 from airflow_breeze.params.common_build_params import CommonBuildParams
@@ -237,7 +237,7 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
         self._req_arg("BASE_IMAGE", self.python_base_image)
         self._req_arg(
-            "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCH_VERSION.get(self.python, self.python)
+            "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(self.python, self.python)
         )
         # optional build args
         self._set_common_opt_args()

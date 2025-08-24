@@ -18,7 +18,7 @@
 
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
+AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../" && pwd)"
 
 TEMP_DOCKER_DIR=$(mktemp -d)
 pushd "${TEMP_DOCKER_DIR}"
@@ -32,7 +32,7 @@ export DOCKER_BUILDKIT=1
 docker build . \
     --pull \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="v3.10.18" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.10.18" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow @ https://github.com/apache/airflow/archive/v2-2-test.tar.gz" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-2" \
     --tag "my-github-v2-2:0.0.1"

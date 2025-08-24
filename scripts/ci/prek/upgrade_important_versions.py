@@ -127,7 +127,7 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 ]
 
 PYTHON_PATTERNS: list[tuple[str, Quoting]] = [
-    (r"(\"{python_major_minor}\": \")(v[0-9.]+)(\")", Quoting.UNQUOTED),
+    (r"(\"{python_major_minor}\": \")([0-9.]+)(\")", Quoting.UNQUOTED),
 ]
 
 GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -149,10 +149,6 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
         ),
         Quoting.UNQUOTED,
     ),
-]
-
-SETUPTOOLS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_SETUPTOOLS_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
 ]
 
 PREK_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -193,7 +189,6 @@ UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", "true").lower() == "true"
 UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", "true").lower() == "true"
-UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PREK: bool = os.environ.get("UPGRADE_PREK", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
 UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", "true").lower() == "true"
@@ -286,12 +281,6 @@ if __name__ == "__main__":
             for line_pattern, quoting in GOLANG_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(golang_version, quoting), new_content, keep_length
-                )
-        if UPGRADE_SETUPTOOLS:
-            console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
-            for line_pattern, quoting in SETUPTOOLS_PATTERNS:
-                new_content = replace_version(
-                    line_pattern, get_replacement(setuptools_version, quoting), new_content, keep_length
                 )
         if UPGRADE_UV:
             console.print(f"[bright_blue]Latest uv version: {uv_version}")
