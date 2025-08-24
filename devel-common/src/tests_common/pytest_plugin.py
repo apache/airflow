@@ -1180,7 +1180,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         ):
             from airflow import settings
 
-            if AIRFLOW_V_3_0_PLUS:
+            # Don't change this to AIRFLOW_V_3_0_PLUS. Although SDK DAG exists
+            # before 3.1, things in dag maker setup can't handle it in compat
+            # tests. They are probably fixable, but it's not worthwhile to.
+            if AIRFLOW_V_3_1_PLUS:
                 from airflow.sdk import DAG
             else:
                 from airflow import DAG

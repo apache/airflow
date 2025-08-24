@@ -17,15 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import functools
 import logging
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypeVar, Union
 
-import attrs
-import methodtools
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
@@ -56,12 +53,10 @@ from airflow.models.asset import AssetDagRunQueue, AssetModel
 from airflow.models.base import Base, StringID
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
-from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.utils.context import Context
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState
@@ -70,7 +65,6 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    import pendulum
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -184,216 +178,6 @@ def get_asset_triggered_next_run_info(
             .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()
     }
-
-
-if TYPE_CHECKING:
-    dag = task_sdk_dag_decorator
-else:
-
-    def dag(dag_id: str = "", **kwargs):
-        return task_sdk_dag_decorator(dag_id, __DAG_class=DAG, __warnings_stacklevel_delta=3, **kwargs)
-
-
-@functools.total_ordering
-@attrs.define(hash=False, repr=False, eq=False, slots=False)
-class DAG(TaskSDKDag, LoggingMixin):
-    """
-    A dag (directed acyclic graph) is a collection of tasks with directional dependencies.
-
-    A dag also has a schedule, a start date and an end date (optional).  For each schedule,
-    (say daily or hourly), the DAG needs to run each individual tasks as their dependencies
-    are met. Certain tasks have the property of depending on their own past, meaning that
-    they can't run until their previous schedule (and upstream tasks) are completed.
-
-    DAGs essentially act as namespaces for tasks. A task_id can only be
-    added once to a DAG.
-
-    Note that if you plan to use time zones all the dates provided should be pendulum
-    dates. See :ref:`timezone_aware_dags`.
-
-    .. versionadded:: 2.4
-        The *schedule* argument to specify either time-based scheduling logic
-        (timetable), or asset-driven triggers.
-
-    .. versionchanged:: 3.0
-        The default value of *schedule* has been changed to *None* (no schedule).
-        The previous default was ``timedelta(days=1)``.
-
-    :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
-        characters, dashes, dots and underscores (all ASCII)
-    :param description: The description for the DAG to e.g. be shown on the webserver
-    :param schedule: If provided, this defines the rules according to which DAG
-        runs are scheduled. Possible values include a cron expression string,
-        timedelta object, Timetable, or list of Asset objects.
-        See also :doc:`/howto/timetable`.
-    :param start_date: The timestamp from which the scheduler will
-        attempt to backfill. If this is not provided, backfilling must be done
-        manually with an explicit time range.
-    :param end_date: A date beyond which your DAG won't run, leave to None
-        for open-ended scheduling.
-    :param template_searchpath: This list of folders (non-relative)
-        defines where jinja will look for your templates. Order matters.
-        Note that jinja/airflow includes the path of your DAG file by
-        default
-    :param template_undefined: Template undefined type.
-    :param user_defined_macros: a dictionary of macros that will be exposed
-        in your jinja templates. For example, passing ``dict(foo='bar')``
-        to this argument allows you to ``{{ foo }}`` in all jinja
-        templates related to this DAG. Note that you can pass any
-        type of object here.
-    :param user_defined_filters: a dictionary of filters that will be exposed
-        in your jinja templates. For example, passing
-        ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
-        you to ``{{ 'world' | hello }}`` in all jinja templates related to
-        this DAG.
-    :param default_args: A dictionary of default parameters to be used
-        as constructor keyword parameters when initialising operators.
-        Note that operators have the same hook, and precede those defined
-        here, meaning that if your dict contains `'depends_on_past': True`
-        here and `'depends_on_past': False` in the operator's call
-        `default_args`, the actual value will be `False`.
-    :param params: a dictionary of DAG level parameters that are made
-        accessible in templates, namespaced under `params`. These
-        params can be overridden at the task level.
-    :param max_active_tasks: the number of task instances allowed to run
-        concurrently
-    :param max_active_runs: maximum number of active DAG runs, beyond this
-        number of DAG runs in a running state, the scheduler won't create
-        new active DAG runs
-    :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed DAG runs,
-        beyond this the scheduler will disable the DAG
-    :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
-        fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
-    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param deadline: Optional Deadline Alert for the DAG.
-        Specifies a time by which the DAG run should be complete, either in the form of a static datetime
-        or calculated relative to a reference timestamp.  If the deadline passes before completion, the
-        provided callback is triggered.
-
-        **Example**: To set the deadline for one hour after the DAG run starts you could use ::
-
-            DeadlineAlert(
-                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-                interval=timedelta(hours=1),
-                callback=my_callback,
-            )
-
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
-    :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
-        A context dictionary is passed as a single parameter to this function.
-    :param on_success_callback: Much like the ``on_failure_callback`` except
-        that it is executed when the dag succeeds.
-    :param access_control: Specify optional DAG-level actions, e.g.,
-        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
-        or it can specify the resource name if there is a DAGs Run resource, e.g.,
-        "{'role1': {'DAG Runs': {'can_create'}}, 'role2': {'DAGs': {'can_read', 'can_edit', 'can_delete'}}"
-    :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
-        If the dag exists already, this flag will be ignored. If this optional parameter
-        is not specified, the global config setting will be used.
-    :param jinja_environment_kwargs: additional configuration options to be passed to Jinja
-        ``Environment`` for template rendering
-
-        **Example**: to avoid Jinja from removing a trailing newline from template strings ::
-
-            DAG(
-                dag_id="my-dag",
-                jinja_environment_kwargs={
-                    "keep_trailing_newline": True,
-                    # some other jinja2 Environment options here
-                },
-            )
-
-        **See**: `Jinja Environment documentation
-        <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
-
-    :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
-        to render templates as native Python types. If False, a Jinja
-        ``Environment`` is used to render templates as string values.
-    :param tags: List of tags to help filtering DAGs in the UI.
-    :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
-        Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
-        e.g: {"dag_owner": "https://airflow.apache.org/"}
-    :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_fast: Fails currently running tasks when task in DAG fails.
-        **Warning**: A fail fast dag can only have tasks with the default trigger rule ("all_success").
-        An exception will be thrown if any task in a fail fast dag has a non default trigger rule.
-    :param dag_display_name: The display name of the DAG which appears on the UI.
-    """
-
-    partial: bool = False
-
-    @property
-    def safe_dag_id(self):
-        return self.dag_id.replace(".", "__dot__")
-
-    @property
-    def dag_id(self) -> str:
-        return self._dag_id
-
-    @dag_id.setter
-    def dag_id(self, value: str) -> None:
-        self._dag_id = value
-
-    @provide_session
-    def get_is_active(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is active."""
-        return session.scalar(select(~DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
-
-    @provide_session
-    def get_is_stale(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is stale."""
-        return session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
-
-    @methodtools.lru_cache(maxsize=None)
-    @classmethod
-    def get_serialized_fields(cls):
-        """Stringified DAGs and operators contain exactly these fields."""
-        return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder"}
-
-    @staticmethod
-    @provide_session
-    def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun:
-        """
-        Return the dag run for a given run_id if it exists, otherwise none.
-
-        :param dag_id: The dag_id of the DAG to find.
-        :param run_id: The run_id of the DagRun to find.
-        :param session:
-        :return: The DagRun if found, otherwise None.
-        """
-        return session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
-
-    @provide_session
-    def get_dagrun(self, run_id: str, session: Session = NEW_SESSION) -> DagRun:
-        return DAG.fetch_dagrun(dag_id=self.dag_id, run_id=run_id, session=session)
-
-    @provide_session
-    def get_latest_logical_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
-        """Return the latest date for which at least one dag run exists."""
-        return session.scalar(select(func.max(DagRun.logical_date)).where(DagRun.dag_id == self.dag_id))
-
-    @staticmethod
-    @provide_session
-    def deactivate_stale_dags(expiration_date, session=NEW_SESSION):
-        """
-        Deactivate any DAGs that were last touched by the scheduler before the expiration date.
-
-        These DAGs were likely deleted.
-
-        :param expiration_date: set inactive DAGs that were touched before this time
-        :return: None
-        """
-        for dag in session.scalars(
-            select(DagModel).where(DagModel.last_parsed_time < expiration_date, ~DagModel.is_stale)
-        ):
-            log.info(
-                "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
-                dag.dag_id,
-                dag.last_parsed_time.isoformat(),
-            )
-            dag.is_stale = True
-            session.merge(dag)
-            session.commit()
 
 
 class DagTag(Base):
@@ -827,3 +611,23 @@ if STATICA_HACK:  # pragma: no cover
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
     """:sphinx-autoapi-skip:"""
+
+
+def __getattr__(name: str):
+    # Add DAG and dag for compatibility. We can't do this in
+    # airflow/models/__init__.py since this module contains other things.
+    if name not in ("DAG", "dag"):
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    import warnings
+
+    warnings.warn(
+        f"Import {name!r} directly from the airflow module is deprecated and "
+        f"will be removed in the future. Please import it from 'airflow.sdk'.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+    import airflow.sdk
+
+    return getattr(airflow.sdk, name)
