@@ -68,6 +68,12 @@ export default defineConfig(({ command }) => {
     resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
     server: {
       cors: true, // Only used by the dev server.
+      proxy: {
+        '/edge_worker': {
+          changeOrigin: true,
+          target: 'http://localhost:28080',
+        },
+      },
     },
     test: {
       coverage: {
