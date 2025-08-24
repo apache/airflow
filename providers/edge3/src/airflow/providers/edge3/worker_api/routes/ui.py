@@ -17,17 +17,25 @@
 
 from __future__ import annotations
 
+from fastapi import Depends
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.security import requires_access_view
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
 from airflow.providers.edge3.worker_api.datamodels_ui import Worker, WorkerCollectionResponse
 
 ui_router = AirflowRouter(tags=["UI"])
 
 
-@ui_router.get("/worker")
+@ui_router.get(
+    "/worker",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
 def worker(
     session: SessionDep,
 ) -> WorkerCollectionResponse:

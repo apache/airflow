@@ -41,6 +41,10 @@ const createColumns = (): Array<ColumnDef<Worker>> => [
 export const WorkerPage = () => {
   const { data, error } = useUiServiceWorker();
 
+  /* DataTable is somehow broken, always shows:
+  `can't access property "CreatePortal", ie is undefined`
+  -..therefore start with a very ugly plain table...
+
   return (
     <Box p={2}>
       <DataTable
@@ -52,4 +56,35 @@ export const WorkerPage = () => {
       />
     </Box>
   );
+  */
+  if (data)
+    return (
+      <Box p={2}>
+        <table cellPadding={2} cellSpacing={2} style={{ border: "1px solid gray" }}>
+          <thead>
+            <tr>
+              <th style={{ border: "1px solid gray", padding: "2px" }}>Worker Name</th>
+              <th style={{ border: "1px solid gray", padding: "2px" }}>State</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.workers.map((worker) => (
+              <tr key={worker.worker_name}>
+                <td style={{ border: "1px solid gray", padding: "2px" }}>{worker.worker_name}</td>
+                <td style={{ border: "1px solid gray", padding: "2px" }}>{worker.state}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Box>
+    );
+  if (error) {
+    return (
+      <Box p={2}>
+        <p>Unable to load data:</p>
+        <ErrorAlert error={error} />
+      </Box>
+    );
+  }
+  return (<Box p={2}>Loading...</Box>);
 };
