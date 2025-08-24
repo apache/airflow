@@ -297,7 +297,7 @@ class TestWatchedSubprocess:
                     "event": "An error message",
                     "level": "error",
                     "logger": "airflow.foobar",
-                    "timestamp": instant.replace(tzinfo=None),
+                    "timestamp": instant,
                 },
                 {
                     "category": "UserWarning",
@@ -306,7 +306,7 @@ class TestWatchedSubprocess:
                     "level": "warning",
                     "lineno": line,
                     "logger": "py.warnings",
-                    "timestamp": instant.replace(tzinfo=None),
+                    "timestamp": instant,
                 },
             ]
         )
