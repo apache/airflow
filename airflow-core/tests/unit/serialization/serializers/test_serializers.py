@@ -166,11 +166,81 @@ class TestSerializers:
             "spec": {"containers": [{"image": "bar", "name": "foo"}]},
         }
 
-    def test_numpy(self):
-        i = np.int16(10)
-        e = serialize(i)
+    def test_bignum_serialize_non_decimal(self):
+        from airflow.serialization.serializers.bignum import serialize
+
+        assert serialize(12345) == ("", "", 0, False)
+
+    def test_bignum_deserialize_decimal(self):
+        from airflow.serialization.serializers.bignum import deserialize
+
+        res = deserialize(decimal.Decimal, 1, decimal.Decimal(12345))
+        assert res == decimal.Decimal(12345)
+
+    @pytest.mark.parametrize(
+        ("klass", "version", "payload", "msg"),
+        [
+            (
+                decimal.Decimal,
+                999,
+                "0",
+                r"serialized 999 of decimal\.Decimal > 1",  # newer version
+            ),
+            (
+                str,
+                1,
+                "0",
+                r"do not know how to deserialize builtins\.str",  # wrong classname
+            ),
+        ],
+    )
+    def test_bignum_deserialize_errors(self, klass, version, payload, msg):
+        from airflow.serialization.serializers.bignum import deserialize
+
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, version, payload)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            np.int8(1),
+            np.int16(2),
+            np.int64(4),
+            np.float16(4.5),
+            np.float64(123.11241231351),
+        ],
+    )
+    def test_numpy(self, value):
+        e = serialize(value)
+        assert isinstance(e, dict)
         d = deserialize(e)
-        assert i == d
+        assert value == d
+        assert type(value) is type(d)
+
+    def test_numpy_serializers(self):
+        from airflow.serialization.serializers.numpy import serialize
+
+        numpy_version = metadata.version("numpy")
+        is_numpy_2 = version.parse(numpy_version).major == 2
+
+        assert serialize(np.bool_(False)) == (False, "numpy.bool" if is_numpy_2 else "numpy.bool_", 1, True)
+        if is_numpy_2:
+            assert serialize(np.float64(3.14)) == (float(np.float64(3.14)), "numpy.float64", 1, True)
+        else:
+            assert serialize(np.float32(3.14)) == (float(np.float32(3.14)), "numpy.float32", 1, True)
+        assert serialize(np.array([1, 2, 3])) == ("", "", 0, False)
+
+    @pytest.mark.parametrize(
+        ("klass", "ver", "value", "msg"),
+        [
+            (np.int32, 999, 123, r"serialized version is newer"),
+        ],
+    )
+    def test_numpy_deserialize_errors(self, klass, ver, value, msg):
+        from airflow.serialization.serializers.numpy import deserialize
+
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, ver, value)
 
     def test_params(self):
         i = ParamsDict({"x": Param(default="value", description="there is a value", key="test")})
@@ -212,7 +282,7 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
-    def test_deltalake(selfa):
+    def test_deltalake(self):
         deltalake = pytest.importorskip("deltalake")
 
         with (
