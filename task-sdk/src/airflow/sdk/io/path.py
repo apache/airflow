@@ -22,8 +22,9 @@ import os
 import shutil
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
+import fsspec
 from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath
 from upath.registry import get_upath_class
@@ -33,6 +34,8 @@ from airflow.sdk.io.store import attach
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
+
+    from airflow.models.connection import Connection
 
 
 class _TrackingFileWrapper:
@@ -83,6 +86,41 @@ class ObjectStoragePath(CloudPath):
     root_marker: ClassVar[str] = "/"
 
     __slots__ = ("_hash_cached",)
+
+    @classmethod
+    def from_conn(cls, conn: Connection) -> ObjectStoragePath:
+        """
+        Construct an ObjectStoragePath from an Airflow Connection.
+
+        This method expects with following keys to be present in its 'extra' JSON configuration:
+
+        - "provider": the scheme or protocol (e.g., "s3", "gs", "file") as known by fsspec
+        - "base_path": the base bucket, container, or directory (e.g., "my-bucket", "tmp/export")
+
+        The final URI is assembled as: <provider>://<base_path>, and passed to ObjectStoragePath.
+
+        :param conn: Airflow Connection object
+        :return: ObjectStoragePath instance
+        :raises ValueError: if required fields are missing or provider is unknown
+        """
+        extra = conn.extra_dejson or {}
+
+        provider = extra.get("provider")
+        base_path = extra.get("base_path")
+
+        if not provider or not base_path:
+            raise ValueError(
+                f"Missing 'provider' or 'base_path' in connection extras for conn_id={conn.conn_id}"
+            )
+
+        if provider not in fsspec.available_protocols():
+            raise ValueError(
+                f"Unknown provider '{provider}' for conn_id={conn.conn_id}. "
+                f"Known providers: {fsspec.available_protocols()}"
+            )
+
+        uri = urlunsplit((provider, base_path, "", "", ""))
+        return ObjectStoragePath(uri, conn_id=conn.conn_id)
 
     @classmethod
     def _transform_init_args(
