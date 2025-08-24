@@ -734,7 +734,7 @@ def test_get_version_revision():
         ("pa!sw0rd#", '"pa!sw0rd#"'),
         ('he"llo', '"he\\"llo"'),
         ("path\\file", '"path\\\\file"'),
-        (None, '""'),
+        (None, ""),
     ],
 )
 def test_quote_mysql_password_for_cnf(raw, expected):
