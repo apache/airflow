@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from airflow.providers.edge3.worker_api.routes.health import health_router
 from airflow.providers.edge3.worker_api.routes.jobs import jobs_router
 from airflow.providers.edge3.worker_api.routes.logs import logs_router
+from airflow.providers.edge3.worker_api.routes.ui import ui_router
 from airflow.providers.edge3.worker_api.routes.worker import worker_router
 
 
@@ -45,6 +46,7 @@ def create_edge_worker_api_app() -> FastAPI:
     edge_worker_api_app.include_router(logs_router, prefix="/v1")
     edge_worker_api_app.include_router(worker_router, prefix="/v1")
     edge_worker_api_app.include_router(health_router, prefix="/v1")
+    edge_worker_api_app.include_router(ui_router, prefix="/ui")
 
     # Fix mimetypes to serve cjs files correctly
     import mimetypes
