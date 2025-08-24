@@ -28,18 +28,18 @@ import type { Worker } from "openapi/requests/types.gen";
 const createColumns = (): Array<ColumnDef<Worker>> => [
   {
     accessorKey: "worker_name",
-    enableSorting: true,
+    enableSorting: false,  // Sorting is a future improvement
     header: "Worker Name",
   },
   {
     accessorKey: "state",
-    enableSorting: true,
+    enableSorting: false,  // Sorting is a future improvement
     header: "State",
   },
 ];
 
 export const WorkerPage = () => {
-  const { data, error} = useUiServiceWorker();
+  const { data, error } = useUiServiceWorker();
 
   return (
     <Box p={2}>
