@@ -47,6 +47,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
 ARG AIRFLOW_VERSION="3.0.4"
+ARG AIRFLOW_PYTHON_VERSION="3.12.11"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 
@@ -193,14 +194,22 @@ function install_debian_dev_dependencies() {
 
 
 function link_python() {
+    # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
+    # Links in /usr/local/bin are needed for tools that expect python to be there
+    # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
+    # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
     ldconfig
-    pushd /usr/local/bin
-    for src in pip3 python3 python3-config; do
-        dst="$(echo "${src}" | tr -d 3)"
-        ln -sv "/usr/python/bin/${src}" "/usr/local/bin/${dst}"
-        ln -sv "${dst}" "${src}"
+    for dst in pip3 python3 python3-config; do
+        src="$(echo "${dst}" | tr -d 3)"
+        echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
+        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        for dir in /usr/local/bin /usr/python/bin; do
+            if [[ ! -e "${dir}/${src}" ]]; then
+                echo "Creating ${src} - > ${dst} link in ${dir}"
+                ln -sv "${dir}/${dst}" "${dir}/${src}"
+            fi
+        done
     done
-    popd
 }
 
 function install_debian_runtime_dependencies() {
@@ -1041,13 +1050,11 @@ function install_from_external_spec() {
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
-        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
     else
         echo
         echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
-        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -1550,9 +1557,13 @@ FROM ${BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG BASE_IMAGE
+
+# Make sure noninteractive debian install is used and language variables set
+# as well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
+# shared libraries installed there are found
 ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
@@ -1568,8 +1579,7 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
 
-ARG AIRFLOW_PYTHON_VERSION=""
-ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
+ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
@@ -1784,10 +1794,12 @@ LABEL org.apache.airflow.distro="debian" \
 
 ARG BASE_IMAGE
 
+# Make sure noninteractive debian install is used and language variables set
+# as well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
+# shared libraries installed there are found
 ENV BASE_IMAGE=${BASE_IMAGE} \
-    # Make sure noninteractive debian install is used and language variables set
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
@@ -1826,7 +1838,7 @@ ARG AIRFLOW_HOME
 ARG AIRFLOW_IMAGE_TYPE
 
 # By default PIP installs everything to ~/.local
-ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
     VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local" \
     AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
@@ -1890,6 +1902,7 @@ ARG AIRFLOW_VERSION
 ARG AIRFLOW_PIP_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
+ARG AIRFLOW_PYTHON_VERSION
 
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
@@ -1897,6 +1910,7 @@ ARG AIRFLOW_USE_UV
 ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     PATH="/root/bin:${PATH}" \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
@@ -1928,6 +1942,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.python.version="${AIRFLOW_PYTHON_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.main-image.build-id="${BUILD_ID}" \
   org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \

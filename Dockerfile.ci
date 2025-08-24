@@ -133,14 +133,22 @@ function install_debian_dev_dependencies() {
 
 
 function link_python() {
+    # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
+    # Links in /usr/local/bin are needed for tools that expect python to be there
+    # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
+    # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
     ldconfig
-    pushd /usr/local/bin
-    for src in pip3 python3 python3-config; do
-        dst="$(echo "${src}" | tr -d 3)"
-        ln -sv "/usr/python/bin/${src}" "/usr/local/bin/${dst}"
-        ln -sv "${dst}" "${src}"
+    for dst in pip3 python3 python3-config; do
+        src="$(echo "${dst}" | tr -d 3)"
+        echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
+        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        for dir in /usr/local/bin /usr/python/bin; do
+            if [[ ! -e "${dir}/${src}" ]]; then
+                echo "Creating ${src} - > ${dst} link in ${dir}"
+                ln -sv "${dir}/${dst}" "${dir}/${src}"
+            fi
+        done
     done
-    popd
 }
 
 function install_debian_runtime_dependencies() {
@@ -795,13 +803,11 @@ function install_from_external_spec() {
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
-        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
     else
         echo
         echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
-        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -1359,9 +1365,11 @@ ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG DEPENDENCIES_EPOCH_NUMBER="15"
 
 # Make sure noninteractive debian install is used and language variables set
+# As well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
+# shared libraries installed there are found
 ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MSSQL_CLIENT="true" \
@@ -1385,9 +1393,9 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-ARG AIRFLOW_PYTHON_VERSION=3.10.18
-ENV AIRFLOW_PYTHON_VERSION=$AIRFLOW_PYTHON_VERSION
-ENV GOLANG_MAJOR_MINOR_VERSION=1.25.0
+ARG AIRFLOW_PYTHON_VERSION="3.12.11"
+ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
+ENV GOLANG_MAJOR_MINOR_VERSION="1.25.0"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
@@ -1518,7 +1526,6 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.8.13
-# TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PREK_VERSION="0.1.2"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
@@ -1527,7 +1534,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     UV_LINK_MODE=copy \
     AIRFLOW_PREK_VERSION=${AIRFLOW_PREK_VERSION}
 
-# The PATH is needed for PIPX to find the tools installed and cargo to build the wheels
+# The PATH is needed for python to find installed and cargo to build the wheels
 ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
@@ -1614,6 +1621,7 @@ LABEL org.apache.airflow.distro="debian" \
     org.apache.airflow.component="airflow" \
     org.apache.airflow.image="airflow-ci" \
     org.apache.airflow.version="${AIRFLOW_VERSION}" \
+    org.apache.airflow.python.version="${AIRFLOW_PYTHON_VERSION}" \
     org.apache.airflow.uid="0" \
     org.apache.airflow.gid="0" \
     org.apache.airflow.build-id="${BUILD_ID}" \

@@ -68,7 +68,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
       :substitutions:
 
 
-      AIRFLOW_VERSION=3.0.0
+      AIRFLOW_VERSION=3.0.3
 
       # Extract the version of Python you have installed. If you're currently using a Python version that is not supported by Airflow, you may want to set this manually.
       # See above for supported versions.

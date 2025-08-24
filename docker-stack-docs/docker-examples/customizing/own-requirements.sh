@@ -27,8 +27,8 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 mkdir -p docker-context-files
 
 cat <<EOF >./docker-context-files/requirements.txt
-beautifulsoup4==4.10.0
-apache-airflow==2.9.0.dev0
+beautifulsoup4==4.13.4
+apache-airflow==3.0.2
 EOF
 
 export DOCKER_BUILDKIT=1

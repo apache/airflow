@@ -27,16 +27,16 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 export DOCKER_BUILDKIT=1
 
 # [START build]
-export AIRFLOW_VERSION=2.2.4
+export AIRFLOW_VERSION=3.0.3
 export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.10.18" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.12.11" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas==2.1.2" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless" \
     --tag "my-pypi-dev-runtime:0.0.1"

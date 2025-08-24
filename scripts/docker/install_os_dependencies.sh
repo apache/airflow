@@ -115,14 +115,22 @@ function install_debian_dev_dependencies() {
 
 
 function link_python() {
+    # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
+    # Links in /usr/local/bin are needed for tools that expect python to be there
+    # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
+    # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
     ldconfig
-    pushd /usr/local/bin
-    for src in pip3 python3 python3-config; do
-        dst="$(echo "${src}" | tr -d 3)"
-        ln -sv "/usr/python/bin/${src}" "/usr/local/bin/${dst}"
-        ln -sv "${dst}" "${src}"
+    for dst in pip3 python3 python3-config; do
+        src="$(echo "${dst}" | tr -d 3)"
+        echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
+        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        for dir in /usr/local/bin /usr/python/bin; do
+            if [[ ! -e "${dir}/${src}" ]]; then
+                echo "Creating ${src} - > ${dst} link in ${dir}"
+                ln -sv "${dir}/${dst}" "${dir}/${src}"
+            fi
+        done
     done
-    popd
 }
 
 function install_debian_runtime_dependencies() {

@@ -26,13 +26,13 @@ pushd "${TEMP_DOCKER_DIR}"
 cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
-export AIRFLOW_VERSION=2.3.4
+export AIRFLOW_VERSION=3.0.3
 export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.10.18" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.12.11" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="oauth2client" \
