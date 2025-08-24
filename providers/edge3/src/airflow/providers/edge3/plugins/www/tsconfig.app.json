@@ -23,7 +23,8 @@
     "noUncheckedIndexedAccess": true,
     "baseUrl": ".",
     "paths": {
-      "src/*": ["./src/*"]
+      "src/*": ["./src/*"],
+      "openapi/*": ["./openapi-gen/*"]
     }
   },
   "include": ["src"]

@@ -552,6 +552,20 @@ paths:
                   type: string
                 type: object
                 title: Response Health
+  /edge_worker/ui/worker:
+    get:
+      tags:
+      - UI
+      summary: Worker
+      description: Return Edge Workers.
+      operationId: worker
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerCollectionResponse'
 components:
   schemas:
     BundleInfo:
@@ -802,6 +816,71 @@ components:
       - msg
       - type
       title: ValidationError
+    Worker:
+      properties:
+        queues:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Queues
+          description: List of queues the worker is pulling jobs from. If not provided,
+            worker pulls from all queues.
+        state:
+          $ref: '#/components/schemas/EdgeWorkerState'
+          description: State of the worker from the view of the worker.
+        jobs_active:
+          type: integer
+          title: Jobs Active
+          description: Number of active jobs the worker is running.
+          default: 0
+        sysinfo:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: integer
+          type: object
+          title: Sysinfo
+          description: System information of the worker.
+          examples:
+          - airflow_version: 2.0.0
+            concurrency: 4
+            edge_provider_version: 1.0.0
+            free_concurrency: 3
+        maintenance_comments:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Maintenance Comments
+          description: Comments about the maintenance state of the worker.
+        worker_name:
+          type: string
+          title: Worker Name
+          description: Name of the worker.
+      type: object
+      required:
+      - state
+      - sysinfo
+      - worker_name
+      title: Worker
+      description: Details of the worker state sent to the scheduler.
+    WorkerCollectionResponse:
+      properties:
+        workers:
+          items:
+            $ref: '#/components/schemas/Worker'
+          type: array
+          title: Workers
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - workers
+      - total_entries
+      title: WorkerCollectionResponse
+      description: Worker Collection serializer.
     WorkerQueueUpdateBody:
       properties:
         new_queues:

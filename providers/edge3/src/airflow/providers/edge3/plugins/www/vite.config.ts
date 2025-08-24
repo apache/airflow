@@ -65,7 +65,7 @@ export default defineConfig(({ command }) => {
         outDir: "dist"
       })] : [])
     ],
-    resolve: { alias: { src: "/src" } },
+    resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
     server: {
       cors: true, // Only used by the dev server.
     },

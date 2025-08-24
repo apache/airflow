@@ -17,6 +17,7 @@
  * under the License.
  */
 
+export * from "./Alert";
 export * from "./Checkbox";
 export * from "./Menu";
 export * from "./Pagination";

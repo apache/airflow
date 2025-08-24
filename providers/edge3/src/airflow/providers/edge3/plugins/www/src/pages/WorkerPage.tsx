@@ -20,27 +20,16 @@
 import { Box } from "@chakra-ui/react";
 import { ColumnDef } from "@tanstack/react-table";
 
+import { useUiServiceWorker } from "openapi/queries";
 import { DataTable } from "src/components/DataTable";
-// import { ErrorAlert } from "src/components/ErrorAlert";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import type { Worker } from "openapi/requests/types.gen";
 
-/** Mockup until real backend start */
-type WorkerMockResponse = {
-    hostname: string;
-    state: string;
-    queues: Array<(string)>;
-    firstOnline: string;
-    lastHeartbeat: string;
-    activeJobs: number;
-    systemInformation: Array<(string)>;
-    maintenanceComment: string | null;
-};
-/** Mockup until real backend end */
-
-const createColumns = (): Array<ColumnDef<WorkerMockResponse>> => [
+const createColumns = (): Array<ColumnDef<Worker>> => [
   {
-    accessorKey: "hostname",
+    accessorKey: "worker_name",
     enableSorting: true,
-    header: "Hostname",
+    header: "Worker Name",
   },
   {
     accessorKey: "state",
@@ -50,14 +39,14 @@ const createColumns = (): Array<ColumnDef<WorkerMockResponse>> => [
 ];
 
 export const WorkerPage = () => {
-  const data = null;
+  const { data, error} = useUiServiceWorker();
 
   return (
     <Box p={2}>
       <DataTable
         columns={createColumns()}
         data={data?.workers ?? []}
-        // errorMessage={<ErrorAlert error={error} />}
+        errorMessage={<ErrorAlert error={error} />}
         modelName={"Edge Worker"}
         total={data?.total_entries}
       />
