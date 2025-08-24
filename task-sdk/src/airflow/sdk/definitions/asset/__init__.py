@@ -23,7 +23,7 @@ import operator
 import os
 import urllib.parse
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import attrs
@@ -333,8 +333,6 @@ class Asset(os.PathLike, BaseAsset, Templater):
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
-
-    template_ext: Sequence[str] = ()
 
     @overload
     def __init__(
