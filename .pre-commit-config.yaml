@@ -77,7 +77,7 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|ui/openapi-gen/|.*/dist/.*
+        exclude: ^\.github/.*$|ui/openapi-gen/|www/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
