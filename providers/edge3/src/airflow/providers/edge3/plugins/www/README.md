@@ -73,6 +73,9 @@ For development and testing, use `pnpm dev` which will:
 - Load the component using `src/dev.tsx` entry point
 - Enable hot module replacement
 
+To have a usable UI, please start Airflow also in parallel via
+`breeze start-airflow`.
+
 ### Library Configuration
 
 The template is configured with:
