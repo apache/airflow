@@ -19,12 +19,14 @@
 
 import { ChakraProvider } from "@chakra-ui/react";
 import { FC } from "react";
+import axios from "axios";
 
 import { ColorModeProvider } from "src/context/colorMode";
 import { EdgeLayout } from "src/layouts/EdgeLayout";
 
 import { system } from "./theme";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { tokenHandler } from "src/utils/tokenHandler";
 
 export interface PluginComponentProps {
   // Add any props your plugin component needs
@@ -34,6 +36,10 @@ export interface PluginComponentProps {
  * Main plugin component
  */
 const PluginComponent: FC<PluginComponentProps> = (props) => {
+
+  // ensure HTTP API calls are authenticated with current session token
+  axios.interceptors.request.use(tokenHandler);
+
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
