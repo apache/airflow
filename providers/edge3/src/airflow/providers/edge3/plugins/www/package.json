@@ -24,11 +24,12 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../openapi/v2-edge-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-rq -i ../../openapi/v2-edge-generated.yaml -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@7nohe/openapi-react-query-codegen": "^1.6.2",
     "@chakra-ui/anatomy": "^2.3.4",
     "@chakra-ui/react": "^3.24.2",
     "@emotion/react": "^11.14.0",
@@ -52,7 +53,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "@vitest/coverage-v8": "^2.1.9",
-    "eslint": "^9.33.0",
+    "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-perfectionist": "^4.15.0",
