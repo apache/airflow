@@ -1451,6 +1451,12 @@ repos:
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+      - id: generate-openapi-spec-edge
+        name: Generate the FastAPI API spec for Edge
+        language: python
+        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py edge
+        pass_filenames: false
+        files: ^providers/edge3/src/airflow/providers/edge3/worker_api/.*\.py$
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
         language: python
