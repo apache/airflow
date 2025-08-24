@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-24T07:44:09.285563
+# This constraints file was automatically generated on 2025-08-24T13:48:07.601627
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -24,7 +24,7 @@ PyAthena==3.17.1
 PyGithub==2.7.0
 PyHive==0.7.0
 PyJWT==2.10.1
-PyMySQL==1.1.1
+PyMySQL==1.1.2
 PyNaCl==1.5.0
 PyYAML-ft==8.0.0
 PyYAML==6.0.2
@@ -580,7 +580,7 @@ sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
-starlette==0.47.2
+starlette==0.47.3
 statsd==4.0.1
 std-uritemplate==2.0.5
 strictyaml==1.7.3
