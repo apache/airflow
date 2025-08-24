@@ -2221,6 +2221,7 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;

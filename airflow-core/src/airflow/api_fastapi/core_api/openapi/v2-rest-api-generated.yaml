@@ -2191,6 +2191,14 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
       - name: order_by
         in: query
         required: false
