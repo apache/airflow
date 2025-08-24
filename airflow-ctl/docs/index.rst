@@ -16,7 +16,7 @@
     under the License.
 
 What is airflowctl?
-=====================
+===================
 airflowctl is a command line tool that helps you manage and deploy Apache Airflow environments.
 
 .. toctree::
