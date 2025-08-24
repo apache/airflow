@@ -66,7 +66,6 @@ def get_directory_hash(directory: Path, skip_path_regexps: list[str]) -> str:
     sha = hashlib.sha256()
     for file in files:
         if file.is_file() and not file.name.startswith("."):
-            print(f"Hashing file: {file}")
             sha.update(file.read_bytes())
     return sha.hexdigest()
 
