@@ -21,7 +21,7 @@ import { Box } from "@chakra-ui/react";
 
 import { WorkerPage } from "src/pages/WorkerPage";
 import { JobsPage } from "src/pages/JobsPage";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { NavTabs } from "./NavTabs";
 
 export const EdgeLayout = () => {
