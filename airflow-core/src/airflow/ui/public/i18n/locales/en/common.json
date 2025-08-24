@@ -94,6 +94,8 @@
   },
   "filters": {
     "dagDisplayNamePlaceholder": "Filter by Dag",
+    "endDateFromPlaceholder": "End Date From",
+    "endDateToPlaceholder": "End Date To",
     "keyPlaceholder": "Filter by XCom key",
     "logicalDateFromPlaceholder": "Logical Date From",
     "logicalDateToPlaceholder": "Logical Date To",
@@ -101,6 +103,8 @@
     "runAfterFromPlaceholder": "Run After From",
     "runAfterToPlaceholder": "Run After To",
     "runIdPlaceholder": "Filter by Run ID",
+    "startDateFromPlaceholder": "Start Date From",
+    "startDateToPlaceholder": "Start Date To",
     "taskIdPlaceholder": "Filter by Task ID"
   },
   "logicalDate": "Logical Date",
