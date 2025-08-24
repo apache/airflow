@@ -1198,6 +1198,8 @@ class SelectiveChecks:
             packages.append("docker-stack")
         if any(file.startswith("task-sdk/src/") for file in self._files):
             packages.append("task-sdk")
+        if any(file.startswith("airflow-ctl/") for file in self._files):
+            packages.append("apache-airflow-ctl")
         if providers_affected:
             for provider in providers_affected:
                 packages.append(provider.replace("-", "."))
