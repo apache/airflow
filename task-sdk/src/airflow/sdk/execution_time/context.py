@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import sys
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
@@ -522,7 +523,10 @@ class InletEventsAccessors(
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResult]:
+    def __getitem__(
+        self,
+        key: int | Asset | AssetAlias | AssetRef | tuple[int | Asset | AssetAlias | AssetRef, dict[str, Any]],
+    ) -> list[AssetEventResult]:
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,
@@ -533,6 +537,19 @@ class InletEventsAccessors(
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         msg: ToSupervisor
+        if isinstance(key, tuple):
+            if len(key) != 2 or not isinstance(key[1], dict):
+                raise TypeError("If key is a tuple, it must be of the form (key, query_dict)")
+            key, query_dict = key
+            if not query_dict:
+                raise ValueError("query_dict cannot be empty")
+            # Validate keys
+            valid_keys = {"after", "before", "ascending", "limit"}
+            invalid_keys = set(query_dict) - valid_keys
+            if invalid_keys:
+                raise ValueError(f"Invalid keys in query_dict: {invalid_keys}")
+        else:
+            query_dict = {}
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
@@ -542,25 +559,26 @@ class InletEventsAccessors(
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            msg = GetAssetEventByAsset(name=asset.name, uri=asset.uri)
+            msg = GetAssetEventByAsset(name=asset.name, uri=asset.uri, **query_dict)
         elif isinstance(obj, AssetNameRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.name == obj.name)
             except StopIteration:
                 raise KeyError(obj) from None
-            msg = GetAssetEventByAsset(name=asset.name, uri=None)
+            msg = GetAssetEventByAsset(name=asset.name, uri=None, **query_dict)
         elif isinstance(obj, AssetUriRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
             except StopIteration:
                 raise KeyError(obj) from None
-            msg = GetAssetEventByAsset(name=None, uri=asset.uri)
+            msg = GetAssetEventByAsset(name=None, uri=asset.uri, **query_dict)
         elif isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            msg = GetAssetEventByAssetAlias(alias_name=asset_alias.name)
+            msg = GetAssetEventByAssetAlias(alias_name=asset_alias.name, **query_dict)
         else:
             raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
 
+        print(f"Sending message: {msg}", sys.stderr)
         resp = SUPERVISOR_COMMS.send(msg)
         if isinstance(resp, ErrorResponse):
             raise AirflowRuntimeError(resp)
