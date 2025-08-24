@@ -18,6 +18,12 @@
 Quick Start
 -----------
 
+Let's first install ``airflowctl`` if you haven't already:
+
+From PyPI: :doc:`/installation/installing-from-pypi`
+
+From source: :doc:`/installation/installing-from-sources`
+
 airflowctl is a command line tool that helps you manage your Airflow deployments.
 It is designed to be easy to use and provides a simple interface for managing your Airflow environment.
 
