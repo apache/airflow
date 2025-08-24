@@ -66,6 +66,7 @@ def get_directory_hash(directory: Path, skip_path_regexps: list[str]) -> str:
     sha = hashlib.sha256()
     for file in files:
         if file.is_file() and not file.name.startswith("."):
+            print(f"Hashing file: {file}")
             sha.update(file.read_bytes())
     return sha.hexdigest()
 
@@ -78,7 +79,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
-SKIP_PATH_REGEXPS = [".*/node_modules.*"]
+SKIP_PATH_REGEXPS = [".*/node_modules.*", ".*/.pnpm-store.*"]
 
 
 def compile_assets(provider_name: str):
