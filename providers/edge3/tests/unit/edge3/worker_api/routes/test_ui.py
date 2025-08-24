@@ -21,12 +21,16 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-from airflow.providers.edge3.worker_api.routes.ui import worker
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+pytestmark = pytest.mark.db_test
 
+
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Plugin endpoint is not used in Airflow 3.0+")
 class TestUiApiRoutes:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, session: Session):
@@ -35,6 +39,8 @@ class TestUiApiRoutes:
         session.commit()
 
     def test_worker(self, session: Session):
+        from airflow.providers.edge3.worker_api.routes.ui import worker
+
         worker_response = worker(session=session)
         assert worker_response is not None
         assert worker_response.total_entries == 1
