@@ -166,6 +166,7 @@ class TriggerDagRunOperator(BaseOperator):
         conf: dict | None = None,
         logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
+        reset_mode: str = "all",
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list[str | DagRunState] | None = None,
@@ -180,6 +181,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_run_id = trigger_run_id
         self.conf = conf
         self.reset_dag_run = reset_dag_run
+        self.reset_mode = reset_mode
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
         if allowed_states:
@@ -250,6 +252,7 @@ class TriggerDagRunOperator(BaseOperator):
             conf=self.conf,
             logical_date=parsed_logical_date,
             reset_dag_run=self.reset_dag_run,
+            reset_mode=self.reset_mode,
             skip_when_already_exists=self.skip_when_already_exists,
             wait_for_completion=self.wait_for_completion,
             allowed_states=self.allowed_states,
