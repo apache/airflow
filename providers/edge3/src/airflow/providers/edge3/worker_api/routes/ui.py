@@ -17,31 +17,36 @@
 
 from __future__ import annotations
 
+from sqlalchemy import select
+
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
+from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
 from airflow.providers.edge3.worker_api.datamodels_ui import Worker, WorkerCollectionResponse
 
 ui_router = AirflowRouter(tags=["UI"])
 
 
 @ui_router.get("/worker")
-def worker() -> WorkerCollectionResponse:
+def worker(
+    session: SessionDep,
+) -> WorkerCollectionResponse:
     """Return Edge Workers."""
-    workers = [
+    query = select(EdgeWorkerModel)
+    workers: list[EdgeWorkerModel] = session.scalars(query)
+
+    result = [
         Worker(
-            worker_name="worker1",
-            queues=["default"],
-            state=EdgeWorkerState.RUNNING,
-            sysinfo={"cpu": "2.5GHz", "memory": "4GB"},
-        ),
-        Worker(
-            worker_name="worker2",
-            queues=["high_priority"],
-            state=EdgeWorkerState.OFFLINE,
-            sysinfo={"cpu": "3.0GHz", "memory": "8GB"},
-        ),
+            worker_name=w.worker_name,
+            queues=w.queues,
+            state=w.state,
+            jobs_active=w.jobs_active,
+            sysinfo=w.sysinfo_json or {},
+            maintenance_comments=w.maintenance_comment,
+        )
+        for w in workers
     ]
     return WorkerCollectionResponse(
-        workers=workers,
-        total_entries=len(workers),
+        workers=result,
+        total_entries=len(result),
     )
