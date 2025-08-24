@@ -25,7 +25,7 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ .Release.Name }}-triggerer
+  name: {{ include "airflow.fullname" . }}-triggerer
   labels:
     tier: airflow
     component: triggerer-horizontalpodautoscaler
@@ -39,7 +39,7 @@ metadata:
 spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.triggerer.persistence.enabled }}
-    name: {{ .Release.Name }}-triggerer
+    name: {{ include "airflow.fullname" . }}-triggerer
     envSourceContainerName: triggerer
   pollingInterval:  {{ .Values.triggerer.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.triggerer.keda.cooldownPeriod }}
