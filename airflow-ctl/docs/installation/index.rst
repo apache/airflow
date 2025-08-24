@@ -16,7 +16,7 @@
     under the License.
 
 
-Installation of airflowctl®
+Installation of airflowctl
 ----------------------------
 
 .. contents:: :local:
@@ -27,8 +27,6 @@ Installation of airflowctl®
     :hidden:
 
     Prerequisites <prerequisites>
-    Dependencies <dependencies>
-    Supported versions <supported-versions>
     Installing from sources <installing-from-sources>
     Installing from PyPI <installing-from-pypi>
 
