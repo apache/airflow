@@ -73,6 +73,7 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
+      "showGantt": "Pokaż diagram Gantta",
       "showGraph": "Pokaż graf",
       "showGrid": "Pokaż siatkę"
     },

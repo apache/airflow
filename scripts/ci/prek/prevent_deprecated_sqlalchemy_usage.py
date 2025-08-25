@@ -26,30 +26,26 @@ from rich.console import Console
 console = Console(color_system="standard", width=200)
 
 
-def check_session_query(mod: ast.Module, file_path: str) -> int:
+def check_session_query(mod: ast.Module, file_path: str) -> bool:
     errors = False
     for node in ast.walk(mod):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            if (
-                node.func.attr == "query"
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "session"
-            ):
-                console.print(
-                    f"\nUse of legacy `session.query` detected on line {node.lineno} in {file_path} "
-                    f"\nSQLAlchemy 2.0 deprecates the `Query` object"
-                    f"use the `select()` construct instead."
-                )
+            if node.func.attr == "query":
+                console.print(f"Deprecated query-obj found at line {node.lineno} in {file_path}.")
                 errors = True
     return errors
 
 
 def main():
+    exit_code = 0
     for file in sys.argv[1:]:
         file_path = Path(file)
         ast_module = ast.parse(file_path.read_text(encoding="utf-8"), file)
         errors = check_session_query(ast_module, file_path)
-        return 1 if errors else 0
+        if errors:
+            exit_code = 1
+            console.print("[yellow]Please update SQLAlchemy 2.0 style.\n")
+    return exit_code
 
 
 if __name__ == "__main__":

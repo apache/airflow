@@ -153,7 +153,7 @@ const taskInstanceColumns = ({
     header: translate("taskInstance.pool"),
   },
   {
-    accessorKey: "operator",
+    accessorKey: "operator_name",
     enableSorting: false,
     header: translate("task.operator"),
   },
