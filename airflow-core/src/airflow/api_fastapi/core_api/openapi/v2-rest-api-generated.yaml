@@ -12579,6 +12579,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
       type: object
       required:
       - key
@@ -12589,6 +12592,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -12621,6 +12625,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
         value:
           title: Value
       type: object
@@ -12633,6 +12640,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -12666,6 +12674,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
         value:
           anyOf:
           - type: string
@@ -12681,6 +12692,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.
