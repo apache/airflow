@@ -45,13 +45,13 @@ class DeadlineCallbackTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        from airflow.models.deadline import DeadlineCallbackState  # to avoid cyclic imports
+        from airflow.models.callback import CallbackState  # to avoid cyclic imports
 
         try:
             callback = import_string(self.callback_path)
             result = await callback(**self.callback_kwargs)
             log.info("Deadline callback completed with return value: %s", result)
-            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
         except Exception as e:
             if isinstance(e, ImportError):
                 message = "Could not import deadline callback on the triggerer"
@@ -61,5 +61,5 @@ class DeadlineCallbackTrigger(BaseTrigger):
                 message = "An error occurred while executing deadline callback"
             log.exception("%s: %s", message, e)
             yield TriggerEvent(
-                {PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED, PAYLOAD_BODY_KEY: f"{message}: {e}"}
+                {PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: f"{message}: {e}"}
             )
