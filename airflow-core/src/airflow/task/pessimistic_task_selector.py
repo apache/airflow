@@ -79,7 +79,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
     def get_query(self, **additional_params) -> Query:
-        priority_order = [-TI.priority_weight, DR.logical_date, TI.map_index]
+        priority_order = [-TI.priority_weight, DR.logical_date, TI.map_index, func.random()]
         max_tis = additional_params["max_tis"]
 
         query = (
@@ -197,4 +197,5 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         query = query.with_only_columns([TI])
         query = query.options(selectinload(TI.dag_model))
         query = query.limit(max_tis)
+
         return query
