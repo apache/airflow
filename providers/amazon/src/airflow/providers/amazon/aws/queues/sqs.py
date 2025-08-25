@@ -38,7 +38,66 @@ QUEUE_REGEXP = r"^https://sqs\.[^.]+\.amazonaws\.com/[0-9]+/.+"
 
 
 class SqsMessageQueueProvider(BaseMessageQueueProvider):
-    """Configuration for SQS integration with common-messaging."""
+    """
+    Configuration for SQS integration with common-messaging.
+
+    [START sqs_message_queue_provider_description]
+
+    **Scheme-based Usage (Recommended)**:
+
+    * It uses the ``sqs`` as scheme for identifying SQS queues.
+    * For parameter definitions take a look at :class:`~airflow.providers.amazon.aws.triggers.sqs.SqsSensorTrigger`.
+
+    .. code-block:: python
+
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        from airflow.sdk import Asset, AssetWatcher
+
+        # New scheme-based approach
+        trigger = MessageQueueTrigger(
+            scheme="sqs",
+            # Additional AWS SqsSensorTrigger parameters as needed
+            sqs_queue="https://sqs.us-east-1.amazonaws.com/123456789012/my-queue",
+            aws_conn_id="aws_default",
+        )
+
+        asset = Asset("sqs_queue_asset", watchers=[AssetWatcher(name="sqs_watcher", trigger=trigger)])
+
+    **URI Format (Deprecated)**:
+
+    .. warning::
+
+        * The ``queue`` parameter is deprecated and will be removed in future versions.
+        * Use the ``scheme`` parameter with appropriate keyword arguments instead.
+
+    .. code-block:: text
+
+        https://sqs.<region>.amazonaws.com/<account_id>/<queue_name>
+
+    Where:
+
+    * ``region``: AWS region where the SQS queue is located
+    * ``account_id``: AWS account ID
+    * ``queue_name``: Name of the SQS queue
+
+    **Examples (Deprecated)**:
+
+    * ``queue``: The SQS queue URL, ``https://sqs.us-east-1.amazonaws.com/123456789012/my-queue`` in this case, which means the queue URL is passed by URI instead of the ``sqs_queue`` kwarg.
+
+    .. code-block:: python
+
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+
+        # Deprecated queue URI approach - will be removed in future versions
+        trigger = MessageQueueTrigger(queue="https://sqs.us-east-1.amazonaws.com/123456789012/my-queue")
+
+    For a complete example, see:
+    :mod:`tests.system.amazon.aws.example_dag_sqs_message_queue_trigger`
+
+    [END sqs_message_queue_provider_description]
+    """
+
+    scheme = "sqs"
 
     def queue_matches(self, queue: str) -> bool:
         return bool(re.match(QUEUE_REGEXP, queue))
