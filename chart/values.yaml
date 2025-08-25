@@ -42,6 +42,19 @@ useStandardNaming: false
 # Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit
 revisionHistoryLimit: ~
 
+# Development mode. If true, the chart will mount the source code into the deployments.
+devMode:
+  enabled: false
+  persistence:
+    # Volume size for the source code
+    size: 128Mi
+    # Annotations for the source code PVC
+    annotations: {}
+    # If using a custom storageClass, pass name here
+    storageClassName:
+    ## the name of an existing PVC to use
+    existingClaim:
+
 # User and group of airflow user
 uid: 50000
 gid: 0
