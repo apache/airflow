@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -220,6 +221,7 @@ class OpenLineageTestOperator(BaseOperator):
             raise ValueError("Can't pass both event_templates and file_path")
 
     def execute(self, context: Context) -> None:
+        time.sleep(10)  # Wait for all variables to update properly
         if self.file_path is not None:
             self.event_templates = {}
             self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
