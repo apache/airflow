@@ -21,10 +21,14 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import TaskDeferred
+from airflow.utils.module_loading import import_string
+from airflow.utils.session import NEW_SESSION
 
 from tests_common.test_utils.mock_context import mock_context
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models import Operator
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -45,14 +49,25 @@ def execute_operator(operator: Operator) -> tuple[Any, Any]:
     return asyncio.run(deferrable_operator(context, operator))
 
 
-async def deferrable_operator(context, operator):
+async def deferrable_operator(context, operator, session: Session = NEW_SESSION):
     result = None
     triggered_events = []
     try:
+        if operator.start_from_trigger:
+            trigger_cls = import_string(operator.start_trigger_args.trigger_cls)
+            trigger = trigger_cls(
+                **operator.expand_start_trigger_args(context=context, session=session).trigger_kwargs
+            )
+            raise TaskDeferred(
+                trigger=trigger,
+                method_name=operator.start_trigger_args.next_method,
+                kwargs=operator.start_trigger_args.next_kwargs,
+                timeout=operator.start_trigger_args.timeout,
+            )
         operator.render_template_fields(context=context)
         result = operator.execute(context=context)
     except TaskDeferred as deferred:
-        task = deferred
+        task: TaskDeferred | None = deferred
 
         while task:
             events = await run_tigger(task.trigger)
