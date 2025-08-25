@@ -32,6 +32,9 @@ except ImportError:
 if TYPE_CHECKING:
     from airflow.models import Connection
 
+# Default Neo4j port
+DEFAULT_NEO4J_PORT = 7687
+
 
 class Neo4jHook(BaseHook):
     """
@@ -45,8 +48,6 @@ class Neo4jHook(BaseHook):
     conn_name_attr = "neo4j_conn_id"
     default_conn_name = "neo4j_default"
     conn_type = "neo4j"
-    hook_name = "Neo4j"
-    DEFAULT_PORT = 7687
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -62,49 +63,61 @@ class Neo4jHook(BaseHook):
         self.connection = self.get_connection(self.neo4j_conn_id)
         uri = self.get_uri(self.connection)
         self.log.info("URI: %s", uri)
-        self.client = self._create_driver(uri)
+        encrypted = self.connection.extra_dejson.get("encrypted", False)
+        self.client = self._create_driver(self.connection, encrypted, uri)
         return self.client
 
-    def _create_driver(self, uri: str) -> Driver:
-        """Create and return Neo4j Driver instance."""
-        encrypted = self.connection.extra_dejson.get("encrypted", False)
+    def _create_driver(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
+        """
+        Create a Neo4j driver instance.
+
+        :param conn: Connection object.
+        :param encrypted: Boolean indicating if encrypted connection is required.
+        :param uri: URI string for connection.
+        :return: Neo4j Driver instance.
+        """
         parsed_uri = urlsplit(uri)
-        kwargs = {"encrypted": encrypted} if parsed_uri.scheme in ["bolt", "neo4j"] else {}
-        return GraphDatabase.driver(uri, auth=(self.connection.login, self.connection.password), **kwargs)
+        kwargs: dict[str, Any] = {}
+        if parsed_uri.scheme in ["bolt", "neo4j"]:
+            kwargs["encrypted"] = encrypted
+        return GraphDatabase.driver(uri, auth=(conn.login, conn.password), **kwargs)
 
     def get_uri(self, conn: Connection) -> str:
         """
-        Build the uri based on extras.
+        Build the URI based on connection extras.
 
-        - Default: bolt://
-        - neo4j_scheme: neo4j://
-        - certs_self_signed: neo4j+ssc://
-        - certs_trusted_ca: neo4j+s://
+        - Default scheme: bolt
+        - Neo4j scheme: neo4j (if enabled)
+        - Encryption schemes:
+            - certs_self_signed: +ssc
+            - certs_trusted_ca: +s
 
         :param conn: Connection object.
-        :return: URI string
+        :return: Constructed URI string.
         """
         scheme = "neo4j" if conn.extra_dejson.get("neo4j_scheme", False) else "bolt"
 
+        # Determine encryption scheme
+        encryption_scheme = ""
         if conn.extra_dejson.get("certs_self_signed", False):
-            scheme += "+ssc"
+            encryption_scheme = "+ssc"
         elif conn.extra_dejson.get("certs_trusted_ca", False):
-            scheme += "+s"
+            encryption_scheme = "+s"
 
-        port = conn.port or self.DEFAULT_PORT
-        return f"{scheme}://{conn.host}:{port}"
+        port = conn.port or DEFAULT_NEO4J_PORT
+        return f"{scheme}{encryption_scheme}://{conn.host}:{port}"
 
     def run(self, query: str, parameters: dict[str, Any] | None = None) -> list[Any]:
         """
-        Create a neo4j session and execute the query.
+        Execute a Neo4j query within a session.
 
-        :param query: Neo4j query
-        :param parameters: Optional query parameters
-        :return: Query results
+        :param query: Cypher query string.
+        :param parameters: Optional parameters for the query.
+        :return: List of result records.
         """
         driver = self.get_conn()
         session_params = {"database": self.connection.schema} if self.connection.schema else {}
 
         with driver.session(**session_params) as session:
-            result = session.run(query, parameters)
+            result = session.run(query, parameters) if parameters else session.run(query)
             return result.data()
