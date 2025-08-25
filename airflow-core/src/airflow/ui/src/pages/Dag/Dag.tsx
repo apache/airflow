@@ -19,7 +19,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiCode, FiUser } from "react-icons/fi";
+import { FiBarChart, FiCode, FiUser, FiPlay } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
@@ -54,6 +54,7 @@ export const Dag = () => {
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    { icon: <FiPlay />, label: translate("tabs.trigger"), value: "trigger" },
     ...externalTabs,
   ];
 

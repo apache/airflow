@@ -113,6 +113,7 @@
     "runs": "Runs",
     "taskInstances": "Task Instances",
     "tasks": "Tasks",
+    "trigger": "Trigger",
     "xcom": "XCom"
   },
   "taskGroups": {
