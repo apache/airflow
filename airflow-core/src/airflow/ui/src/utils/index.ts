@@ -21,4 +21,5 @@ export { capitalize } from "./capitalize";
 export { getDuration, renderDuration } from "./datetimeUtils";
 export { getMetaKey } from "./getMetaKey";
 export { useContainerWidth } from "./useContainerWidth";
+export { useFiltersHandler } from "./useFiltersHandler";
 export * from "./query";

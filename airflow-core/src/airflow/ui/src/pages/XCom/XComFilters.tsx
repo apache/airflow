@@ -17,23 +17,20 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { MdDateRange, MdNumbers, MdSearch } from "react-icons/md";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
-import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { FilterBar, type FilterConfig, type FilterValue } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useFiltersHandler } from "src/utils";
 
 export const XComFilters = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation(["browse", "common", "admin"]);
 
   const filterConfigs: Array<FilterConfig> = useMemo(() => {
@@ -119,6 +116,8 @@ export const XComFilters = () => {
     return configs;
   }, [dagId, mapIndex, runId, taskId, translate]);
 
+  const { handleFiltersChange, searchParams } = useFiltersHandler(filterConfigs);
+
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
 
@@ -132,27 +131,6 @@ export const XComFilters = () => {
 
     return values;
   }, [searchParams, filterConfigs]);
-
-  const handleFiltersChange = useCallback(
-    (filters: Record<string, FilterValue>) => {
-      filterConfigs.forEach((config) => {
-        const value = filters[config.key];
-
-        if (value === null || value === undefined || value === "") {
-          searchParams.delete(config.key);
-        } else {
-          searchParams.set(config.key, String(value));
-        }
-      });
-
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [filterConfigs, pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
 
   return (
     <VStack align="start" gap={4} paddingY="4px">
