@@ -1994,7 +1994,7 @@ scheduler:
       version_added: 3.1.0
       type: string
       example: OPTIMISTIC
-      default: "PESSIMISTIC"
+      default: "OPTIMISTIC"
     scheduler_heartbeat_sec:
       description: |
         The scheduler constantly tries to trigger new tasks (look at the

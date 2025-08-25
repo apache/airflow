@@ -85,7 +85,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         query = (
             select(TI.id)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(TI.dag_run)
+            .join(DR, and_(TI.run_id == DR.run_id, TI.dag_id == DR.dag_id))
             .where(DR.state == DagRunState.RUNNING)
             .join(TI.dag_model)
             .where(~DM.is_paused)
@@ -119,6 +119,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                         )
                     ),
                 )
+                .join(DR, and_(TI.run_id == DR.run_id, TI.dag_id == DR.dag_id))  # done to remove duplicates
             )
             if limit.limit_join_model is not None:
                 query = query.join(limit.limit_join_model)
