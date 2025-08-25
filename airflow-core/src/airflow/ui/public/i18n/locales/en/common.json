@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrency",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
     "description": "Description",

@@ -541,6 +541,8 @@ export type DAGDetailsResponse = {
     readonly file_token: string;
     /**
      * Return max_active_tasks as concurrency.
+     *
+     * Deprecated: Use max_active_tasks instead.
      */
     readonly concurrency: number;
     /**
