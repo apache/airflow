@@ -35,6 +35,8 @@ import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
+import { filterGraph } from "./utils";
+
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
   evenColor?: string,
@@ -77,6 +79,10 @@ export const Graph = () => {
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [filter] = useLocalStorage<"both" | "downstream" | "upstream">(
+    `upstreamDownstreamFilter-${dagId}`,
+    "both",
+  );
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
@@ -150,17 +156,24 @@ export const Graph = () => {
     },
   }));
 
+  const { filteredEdges, filteredNodes } = filterGraph({
+    edges,
+    filter,
+    nodes: nodes ?? [],
+    taskId,
+  });
+
   return (
     <ReactFlow
       colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
-      edges={edges}
+      edges={filteredEdges}
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
       maxZoom={1.5}
       minZoom={0.25}
-      nodes={nodes}
+      nodes={filteredNodes}
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
