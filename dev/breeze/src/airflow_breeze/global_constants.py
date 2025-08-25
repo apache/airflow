@@ -31,6 +31,7 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
@@ -200,7 +201,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.12"
+UV_VERSION = "0.8.13"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -212,6 +213,7 @@ REGULAR_DOC_PACKAGES = [
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+    "apache-airflow-ctl",
 ]
 
 DESTINATION_LOCATIONS = [
@@ -559,6 +561,19 @@ COMMITTERS = [
     "yuqian90",
     "zhongjiajie",
 ]
+
+
+def get_airflowctl_version():
+    airflowctl_init_py_file = AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py"
+    airflowctl_version = "unknown"
+    with open(airflowctl_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflowctl_version = line.split()[2][1:-1]
+                break
+    if airflowctl_version == "unknown":
+        raise RuntimeError("Unable to determine AirflowCTL version")
+    return airflowctl_version
 
 
 def get_airflow_version():

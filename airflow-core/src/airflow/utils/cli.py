@@ -34,11 +34,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
+from airflow._shared.secrets_masker import should_hide_value_for_key
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.sdk.execution_time.secrets_masker import should_hide_value_for_key
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors

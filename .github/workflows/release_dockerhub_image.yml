@@ -58,6 +58,7 @@ jobs:
       AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
       AMD_ONLY: ${{ github.event.inputs.amdOnly }}
       LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
+      UV_VERSION: "0.8.13"  # Keep this comment to allow automatic replacement of uv version
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -89,7 +90,7 @@ jobs:
       - name: "Prepare and cleanup runner"
         run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
       - name: "Check airflow version"
         id: check-airflow-version
         shell: bash

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.utils.module_loading import import_string, qualname
+from airflow.utils.module_loading import qualname
 
 # lazy loading for performance reasons
 serializers = [
@@ -31,11 +31,13 @@ serializers = [
     "numpy.uint16",
     "numpy.uint32",
     "numpy.uint64",
-    "numpy.bool_",
     "numpy.float64",
+    "numpy.float32",
     "numpy.float16",
     "numpy.complex128",
     "numpy.complex64",
+    "numpy.bool",
+    "numpy.bool_",
 ]
 
 if TYPE_CHECKING:
@@ -70,7 +72,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     ):
         return int(o), *metadata
 
-    if isinstance(o, np.bool_):
+    if hasattr(np, "bool") and isinstance(o, np.bool) or isinstance(o, np.bool_):
         return bool(o), *metadata
 
     if isinstance(o, (np.float16, np.float32, np.float64, np.complex64, np.complex128)):
@@ -82,10 +84,5 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 def deserialize(cls: type, version: int, data: str) -> Any:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
-
-    allowed_deserialize_classes = [import_string(classname) for classname in deserializers]
-
-    if cls not in allowed_deserialize_classes:
-        raise TypeError(f"unsupported {qualname(cls)} found for numpy deserialization")
 
     return cls(data)

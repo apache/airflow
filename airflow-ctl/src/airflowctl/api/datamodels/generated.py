@@ -782,15 +782,25 @@ class TaskInstancesBatchBody(BaseModel):
     task_ids: Annotated[list[str] | None, Field(title="Task Ids")] = None
     state: Annotated[list[TaskInstanceState | None] | None, Field(title="State")] = None
     run_after_gte: Annotated[datetime | None, Field(title="Run After Gte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
     run_after_lte: Annotated[datetime | None, Field(title="Run After Lte")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
     logical_date_gte: Annotated[datetime | None, Field(title="Logical Date Gte")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
     logical_date_lte: Annotated[datetime | None, Field(title="Logical Date Lte")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
     start_date_gte: Annotated[datetime | None, Field(title="Start Date Gte")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
     duration_gte: Annotated[float | None, Field(title="Duration Gte")] = None
+    duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
     duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
+    duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
     pool: Annotated[list[str] | None, Field(title="Pool")] = None
     queue: Annotated[list[str] | None, Field(title="Queue")] = None
     executor: Annotated[list[str] | None, Field(title="Executor")] = None
@@ -945,6 +955,7 @@ class XComResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
 class XComResponseNative(BaseModel):
@@ -960,6 +971,7 @@ class XComResponseNative(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -976,6 +988,7 @@ class XComResponseString(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 
@@ -1348,13 +1361,21 @@ class DAGRunsBatchBody(BaseModel):
     dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
     states: Annotated[list[DagRunState | None] | None, Field(title="States")] = None
     run_after_gte: Annotated[datetime | None, Field(title="Run After Gte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
     run_after_lte: Annotated[datetime | None, Field(title="Run After Lte")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
     logical_date_gte: Annotated[datetime | None, Field(title="Logical Date Gte")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
     logical_date_lte: Annotated[datetime | None, Field(title="Logical Date Lte")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
     start_date_gte: Annotated[datetime | None, Field(title="Start Date Gte")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):
@@ -1375,6 +1396,7 @@ class DAGWarningResponse(BaseModel):
     warning_type: DagWarningType
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagStatsResponse(BaseModel):
@@ -1551,6 +1573,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     queue: Annotated[str | None, Field(title="Queue")] = None
     priority_weight: Annotated[int | None, Field(title="Priority Weight")] = None
     operator: Annotated[str | None, Field(title="Operator")] = None
+    operator_name: Annotated[str | None, Field(title="Operator Name")] = None
     queued_when: Annotated[datetime | None, Field(title="Queued When")] = None
     scheduled_when: Annotated[datetime | None, Field(title="Scheduled When")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
@@ -1586,6 +1609,7 @@ class TaskInstanceResponse(BaseModel):
     queue: Annotated[str | None, Field(title="Queue")] = None
     priority_weight: Annotated[int | None, Field(title="Priority Weight")] = None
     operator: Annotated[str | None, Field(title="Operator")] = None
+    operator_name: Annotated[str | None, Field(title="Operator Name")] = None
     queued_when: Annotated[datetime | None, Field(title="Queued When")] = None
     scheduled_when: Annotated[datetime | None, Field(title="Scheduled When")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None

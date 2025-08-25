@@ -62,7 +62,6 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import BaseOperator
@@ -2716,44 +2715,6 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
     xcom_arg = serialized_dag.task_dict["task_2"].expand_input.value
     assert isinstance(xcom_arg, SchedulerPlainXComArg)
     assert xcom_arg.operator is serialized_dag.task_dict["op1"]
-
-
-def test_operator_expand_deserialized_unmap():
-    """Unmap a deserialized mapped operator should be similar to deserializing an non-mapped operator."""
-    normal = BashOperator(task_id="a", bash_command=[1, 2], executor_config={"a": "b"})
-    mapped = BashOperator.partial(task_id="a", executor_config={"a": "b"}).expand(bash_command=[1, 2])
-
-    ser_mapped = BaseSerialization.serialize(mapped)
-    deser_mapped = BaseSerialization.deserialize(ser_mapped)
-    deser_mapped.dag = None
-
-    ser_normal = BaseSerialization.serialize(normal)
-    deser_normal = BaseSerialization.deserialize(ser_normal)
-    deser_normal.dag = None
-    unmapped_deser_mapped = deser_mapped.unmap(None)
-
-    assert type(unmapped_deser_mapped) is type(deser_normal) is SerializedBaseOperator
-    assert unmapped_deser_mapped.task_id == deser_normal.task_id == "a"
-    assert unmapped_deser_mapped.executor_config == deser_normal.executor_config == {"a": "b"}
-
-
-@pytest.mark.db_test
-def test_sensor_expand_deserialized_unmap():
-    """Unmap a deserialized mapped sensor should be similar to deserializing a non-mapped sensor"""
-    dag = DAG(dag_id="hello", schedule=None, start_date=None)
-    with dag:
-        normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
-        mapped = BashSensor.partial(task_id="b", mode="reschedule").expand(bash_command=[1, 2])
-    ser_mapped = SerializedBaseOperator.serialize(mapped)
-    deser_mapped = SerializedBaseOperator.deserialize(ser_mapped)
-    deser_mapped.dag = dag
-    deser_unmapped = deser_mapped.unmap(None)
-    ser_normal = SerializedBaseOperator.serialize(normal)
-    deser_normal = SerializedBaseOperator.deserialize(ser_normal)
-    comps = set(BashSensor._comps)
-    comps.remove("task_id")
-    comps.remove("dag_id")
-    assert all(getattr(deser_unmapped, c, None) == getattr(deser_normal, c, None) for c in comps)
 
 
 def test_task_resources_serde():

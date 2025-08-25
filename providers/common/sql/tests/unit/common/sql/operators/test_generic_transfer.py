@@ -241,6 +241,8 @@ class TestGenericTransfer:
             destination_conn_id="{{ destination_conn_id }}",
             preoperator="{{ preoperator }}",
             insert_args="{{ insert_args }}",
+            page_size="{{ page_size }}",
+            paginated_sql_statement_clause="{{ paginated_sql_statement_clause }}",
             dag=dag,
         )
         operator.render_template_fields(
@@ -251,6 +253,8 @@ class TestGenericTransfer:
                 "destination_conn_id": "my_destination_conn_id",
                 "preoperator": "my_preoperator",
                 "insert_args": {"commit_every": 5000, "executemany": True, "replace": True},
+                "page_size": 1000,
+                "paginated_sql_statement_clause": "{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY;",
             }
         )
         assert operator.sql == "my_sql"
@@ -259,6 +263,8 @@ class TestGenericTransfer:
         assert operator.destination_conn_id == "my_destination_conn_id"
         assert operator.preoperator == "my_preoperator"
         assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
+        assert operator.page_size == 1000
+        assert operator.paginated_sql_statement_clause == "{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY;"
 
     def test_non_paginated_read(self):
         with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):

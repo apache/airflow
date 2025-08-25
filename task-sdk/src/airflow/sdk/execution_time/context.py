@@ -39,7 +39,7 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-from airflow.sdk.execution_time.secrets_masker import mask_secret
+from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID

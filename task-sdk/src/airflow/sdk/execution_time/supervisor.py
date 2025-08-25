@@ -119,7 +119,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.secrets_masker import mask_secret
+from airflow.sdk.log import mask_secret
 
 try:
     from socket import send_fds
@@ -1780,7 +1780,7 @@ def supervise(
     :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
-    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+    from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:
         if dry_run and server:

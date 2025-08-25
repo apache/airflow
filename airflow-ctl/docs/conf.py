@@ -152,7 +152,7 @@ keep_warnings = True
 # a list of builtin themes.
 html_theme = "sphinx_airflow_theme"
 
-html_title = "Airflow CTL Documentation"
+html_title = "airflowctl Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""

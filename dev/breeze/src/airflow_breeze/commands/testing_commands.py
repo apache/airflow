@@ -833,7 +833,7 @@ def task_sdk_integration_tests(
 
 @group_for_testing.command(
     name="airflow-ctl-tests",
-    help="Run airflow-ctl tests - all Airflow CTL tests are non-DB bound tests.",
+    help="Run airflow-ctl tests - all airflowctl tests are non-DB bound tests.",
     context_settings=dict(
         ignore_unknown_options=False,
         allow_extra_args=False,
@@ -859,7 +859,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
     if result.returncode != 0:
         get_console().print(
-            f"[error]Airflow CTL tests failed with return code {result.returncode}.[/]\n"
+            f"[error]airflowctl tests failed with return code {result.returncode}.[/]\n"
             f"Command: {' '.join(test_command)}\n"
         )
         sys.exit(result.returncode)

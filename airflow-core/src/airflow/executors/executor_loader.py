@@ -67,15 +67,10 @@ class ExecutorLoader:
 
         :return: List of executor names from Airflow configuration
         """
-        from airflow.configuration import conf
-
         if _executor_names:
             return _executor_names
 
-        all_executor_names: list[tuple[None | str, list[str]]] = [
-            (None, conf.get_mandatory_list_value("core", "EXECUTOR"))
-        ]
-        all_executor_names.extend(cls._get_team_executor_configs())
+        all_executor_names: list[tuple[str | None, list[str]]] = cls._get_team_executor_configs()
 
         executor_names = []
         for team_id, executor_names_config in all_executor_names:
@@ -157,7 +152,7 @@ class ExecutorLoader:
             raise AirflowConfigException("Configuring multiple team based executors is not yet supported!")
 
     @classmethod
-    def _get_team_executor_configs(cls) -> list[tuple[str, list[str]]]:
+    def _get_team_executor_configs(cls) -> list[tuple[str | None, list[str]]]:
         """
         Return a list of executor configs to be loaded.
 
@@ -166,13 +161,29 @@ class ExecutorLoader:
         """
         from airflow.configuration import conf
 
-        team_config = conf.get("core", "multi_team_config_files", fallback=None)
-        configs = []
-        if team_config:
-            cls.block_use_of_multi_team()
-            for team in team_config.split(","):
-                (_, team_id) = team.split(":")
-                configs.append((team_id, conf.get_mandatory_list_value("core", "executor", team_id=team_id)))
+        executor_config = conf.get_mandatory_value("core", "executor")
+        if not executor_config:
+            raise AirflowConfigException(
+                "The 'executor' key in the 'coe' section of the configuration is mandatory and cannot be empty"
+            )
+        configs: list[tuple[str | None, list[str]]] = []
+        # The executor_config can look like a few things. One is just a single executor name, such as
+        # "CeleryExecutor". Or a list of executors, such as "CeleryExecutor,KubernetesExecutor,module.path.to.executor".
+        # In these cases these are all executors that are available to all teams, with the first one being the
+        # default executor, as usual. The config can also look like a list of executors, per team, with the team name
+        # prefixing each list of executors separated by a equal sign and then each team list separated by a
+        # semi-colon.
+        # "LocalExecutor;team1=CeleryExecutor;team2=KubernetesExecutor,module.path.to.executor".
+        for team_executor_config in executor_config.split(";"):
+            # The first item in the list may not have a team id (either empty string before the equal
+            # sign or no equal sign at all), which means it is a global executor config.
+            if "=" not in team_executor_config or team_executor_config.startswith("="):
+                team_executor_config = team_executor_config.strip("=")
+                # Split by comma to get the individual executor names and strip spaces off of them
+                configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
+            else:
+                team_id, executor_names = team_executor_config.split("=")
+                configs.append((team_id, [name.strip() for name in executor_names.split(",")]))
         return configs
 
     @classmethod

@@ -92,6 +92,17 @@
     "any": "모든",
     "or": "또는"
   },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Dag로 필터링",
+    "keyPlaceholder": "XCom 키로 필터링",
+    "logicalDateFromPlaceholder": "논리적 날짜 (시작)",
+    "logicalDateToPlaceholder": "논리적 날짜 (종료)",
+    "mapIndexPlaceholder": "맵 인덱스로 필터링",
+    "runAfterFromPlaceholder": "실행 이후 (시작)",
+    "runAfterToPlaceholder": "실행 이후 (종료)",
+    "runIdPlaceholder": "실행 ID로 필터링",
+    "taskIdPlaceholder": "작업 ID로 필터링"
+  },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
@@ -208,6 +219,7 @@
   },
   "task_one": "작업",
   "task_other": "작업들",
+  "taskGroup": "작업 그룹",
   "taskId": "작업 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",

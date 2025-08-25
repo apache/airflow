@@ -21,8 +21,8 @@ from datetime import datetime
 
 from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
+from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.sdk.execution_time.secrets_masker import redact
 
 
 class DagScheduleAssetReference(StrictBaseModel):

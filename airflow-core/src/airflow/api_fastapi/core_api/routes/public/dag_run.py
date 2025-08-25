@@ -512,19 +512,39 @@ def get_list_dag_runs_batch(
     """Get a list of DAG Runs."""
     dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
-        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        Range(
+            lower_bound_gte=body.logical_date_gte,
+            lower_bound_gt=body.logical_date_gt,
+            upper_bound_lte=body.logical_date_lte,
+            upper_bound_lt=body.logical_date_lt,
+        ),
         attribute=DagRun.logical_date,
     )
     run_after = RangeFilter(
-        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        Range(
+            lower_bound_gte=body.run_after_gte,
+            lower_bound_gt=body.run_after_gt,
+            upper_bound_lte=body.run_after_lte,
+            upper_bound_lt=body.run_after_lt,
+        ),
         attribute=DagRun.run_after,
     )
     start_date = RangeFilter(
-        Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
+        Range(
+            lower_bound_gte=body.start_date_gte,
+            lower_bound_gt=body.start_date_gt,
+            upper_bound_lte=body.start_date_lte,
+            upper_bound_lt=body.start_date_lt,
+        ),
         attribute=DagRun.start_date,
     )
     end_date = RangeFilter(
-        Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
+        Range(
+            lower_bound_gte=body.end_date_gte,
+            lower_bound_gt=body.end_date_gt,
+            upper_bound_lte=body.end_date_lte,
+            upper_bound_lt=body.end_date_lt,
+        ),
         attribute=DagRun.end_date,
     )
     state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)

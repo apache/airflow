@@ -99,13 +99,9 @@ export const DurationChart = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        {entries.length > 1
-          ? kind === "Dag Run"
-            ? translate("durationChart.lastDagRun_other", { count: entries.length })
-            : translate("durationChart.lastTaskInstance_other", { count: entries.length })
-          : kind === "Dag Run"
-            ? translate("durationChart.lastDagRun_one")
-            : translate("durationChart.lastTaskInstance_one")}
+        {kind === "Dag Run"
+          ? translate("durationChart.lastDagRun", { count: entries.length })
+          : translate("durationChart.lastTaskInstance", { count: entries.length })}
       </Heading>
       <Bar
         data={{

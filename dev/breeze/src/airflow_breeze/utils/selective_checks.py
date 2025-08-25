@@ -1198,6 +1198,8 @@ class SelectiveChecks:
             packages.append("docker-stack")
         if any(file.startswith("task-sdk/src/") for file in self._files):
             packages.append("task-sdk")
+        if any(file.startswith("airflow-ctl/") for file in self._files):
+            packages.append("apache-airflow-ctl")
         if providers_affected:
             for provider in providers_affected:
                 packages.append(provider.replace("-", "."))
@@ -1512,3 +1514,7 @@ class SelectiveChecks:
     @cached_property
     def force_pip(self):
         return FORCE_PIP_LABEL in self._pr_labels
+
+    @cached_property
+    def shared_distributions_as_json(self):
+        return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])

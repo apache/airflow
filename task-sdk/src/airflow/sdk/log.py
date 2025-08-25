@@ -31,21 +31,20 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 import msgspec
 import structlog
 
+# We have to import this here, as it is used in the type annotations at runtime even if it seems it is
+# not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
+from pydantic import JsonValue  # noqa: TC002
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
     from airflow.logging_config import RemoteLogIO
-    from airflow.sdk.execution_time.secrets_masker import mask_secret as mask_secret
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-__all__ = [
-    "configure_logging",
-    "reset_logging",
-    "mask_secret",
-]
+__all__ = ["configure_logging", "reset_logging", "mask_secret"]
 
 
 JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
@@ -108,7 +107,7 @@ def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDic
 
 
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
-    from airflow.sdk.execution_time.secrets_masker import redact
+    from airflow.sdk._shared.secrets_masker import redact
 
     event_dict = redact(event_dict)  # type: ignore[assignment]
     return event_dict
@@ -574,10 +573,24 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     handler.upload(log_relative_path, ti)
 
 
-def __getattr__(name: str):
-    if name == "mask_secret":
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+def mask_secret(secret: JsonValue, name: str | None = None) -> None:
+    """
+    Mask a secret in both task process and supervisor process.
 
-        globals()["mask_secret"] = mask_secret
-        return mask_secret
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    For secrets loaded from backends (Vault, env vars, etc.), this ensures
+    they're masked in both the task subprocess AND supervisor's log output.
+    Works safely in both sync and async contexts.
+    """
+    from contextlib import suppress
+
+    from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+    _secrets_masker().add_mask(secret, name)
+
+    with suppress(Exception):
+        # Try to tell supervisor (only if in task execution context)
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.comms import MaskSecret
+
+        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+            comms.send(MaskSecret(value=secret, name=name))

@@ -20,7 +20,11 @@ from __future__ import annotations
 import json
 
 from airflow.models import Log
-from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+
+try:
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+except ImportError:
+    from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
 
 
 def _masked_value_check(data, sensitive_fields):

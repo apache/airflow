@@ -15,12 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Dependencies
-------------
+airflowctl 1.0.0b1 (2025-08-23)
+------------------------------
 
-Airflow CTL dependencies
-''''''''''''''''''''''''''
-
-The ``apache-airflow-ctl`` PyPI basic package only installs what's needed to get started.
-Additional packages can be installed depending on what will be useful in your
-environment.
+Beta Release of airflowctl, a command-line tool. There are lots of great features to use from start.
+Please check the documentation for quick start and usage instructions.

@@ -1733,7 +1733,13 @@ class TestKubernetesPodOperator:
         pod, _ = self.run_pod(k)
 
         # check that the base container is not included in the logs
-        mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
+        mock_fetch_log.assert_called_once_with(
+            pod=pod,
+            containers=["some_init_container"],
+            follow_logs=True,
+            container_name_log_prefix_enabled=True,
+            log_formatter=None,
+        )
         # check that KPO waits for the base container to complete before proceeding to extract XCom
         mock_await_container_completion.assert_called_once_with(
             pod=pod, container_name="base", polling_time=1
@@ -1999,7 +2005,16 @@ class TestKubernetesPodOperator:
 
         if get_logs:
             fetch_requested_container_logs.assert_has_calls(
-                [mock.call(pod=pod, containers=k.container_logs, follow_logs=True)] * 3
+                [
+                    mock.call(
+                        pod=pod,
+                        containers=k.container_logs,
+                        follow_logs=True,
+                        container_name_log_prefix_enabled=True,
+                        log_formatter=None,
+                    )
+                ]
+                * 3
             )
         else:
             mock_await_container_completion.assert_has_calls(
