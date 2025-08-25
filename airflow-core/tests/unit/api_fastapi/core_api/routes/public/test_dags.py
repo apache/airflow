@@ -356,6 +356,28 @@ class TestGetDags(TestDagEndpoint):
         response = unauthorized_test_client.get("/dags")
         assert response.status_code == 403
 
+    def test_get_dags_filter_has_import_errors_true(self, session, test_client):
+        dag = session.get(DagModel, DAG1_ID)
+        dag.has_import_errors = True
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_import_errors": True})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    def test_get_dags_filter_has_import_errors_false(self, session, test_client):
+        dag = session.get(DagModel, DAG1_ID)
+        dag.has_import_errors = True
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_import_errors": False})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG2_ID]
+
 
 class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""

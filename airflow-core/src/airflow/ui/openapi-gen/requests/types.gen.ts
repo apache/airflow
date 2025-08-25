@@ -2451,6 +2451,7 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
