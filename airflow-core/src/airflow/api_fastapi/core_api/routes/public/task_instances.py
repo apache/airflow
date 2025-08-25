@@ -42,6 +42,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     QueryTIDagVersionFilter,
     QueryTIExecutorFilter,
+    QueryTIOperatorFilter,
     QueryTIPoolFilter,
     QueryTIQueueFilter,
     QueryTIStateFilter,
@@ -148,6 +149,7 @@ def get_mapped_task_instances(
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
+    operator: QueryTIOperatorFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -167,6 +169,7 @@ def get_mapped_task_instances(
                     "data_interval_start",
                     "data_interval_end",
                     "rendered_map_index",
+                    "operator",
                 ],
                 TI,
                 to_replace={
@@ -217,6 +220,7 @@ def get_mapped_task_instances(
             executor,
             version_number,
             try_number,
+            operator,
         ],
         order_by=order_by,
         offset=offset,
@@ -408,6 +412,7 @@ def get_task_instances(
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
+    operator: QueryTIOperatorFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -427,6 +432,7 @@ def get_task_instances(
                     "data_interval_start",
                     "data_interval_end",
                     "rendered_map_index",
+                    "operator",
                 ],
                 TI,
                 to_replace={
@@ -485,6 +491,7 @@ def get_task_instances(
             version_number,
             readable_ti_filter,
             try_number,
+            operator,
         ],
         order_by=order_by,
         offset=offset,
