@@ -21,6 +21,10 @@ export type UiServiceWorkerDefaultResponse = Awaited<ReturnType<typeof UiService
 export type UiServiceWorkerQueryResult<TData = UiServiceWorkerDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useUiServiceWorkerKey = "UiServiceWorker";
 export const UseUiServiceWorkerKeyFn = (queryKey?: Array<unknown>) => [useUiServiceWorkerKey, ...(queryKey ?? [])];
+export type UiServiceJobsDefaultResponse = Awaited<ReturnType<typeof UiService.jobs>>;
+export type UiServiceJobsQueryResult<TData = UiServiceJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useUiServiceJobsKey = "UiServiceJobs";
+export const UseUiServiceJobsKeyFn = (queryKey?: Array<unknown>) => [useUiServiceJobsKey, ...(queryKey ?? [])];
 export type JobsServiceFetchMutationResult = Awaited<ReturnType<typeof JobsService.fetch>>;
 export type LogsServicePushLogsMutationResult = Awaited<ReturnType<typeof LogsService.pushLogs>>;
 export type WorkerServiceRegisterMutationResult = Awaited<ReturnType<typeof WorkerService.register>>;
