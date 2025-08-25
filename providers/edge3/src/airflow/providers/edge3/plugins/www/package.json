@@ -29,11 +29,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chakra-ui/anatomy": "^2.3.4",
     "@chakra-ui/react": "^3.20.0",
     "@emotion/react": "^11.14.0",
     "@tanstack/react-query": "^5.75.1",
-    "@tanstack/react-table": "^8.21.3",
     "axios": "^1.11.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
