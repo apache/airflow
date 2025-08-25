@@ -56,9 +56,12 @@ const getArrowsForMode = (navigationMode: string) => {
 type Props = {
   readonly limit: number;
   readonly showGantt?: boolean;
+  readonly showVersionIndicator?: boolean;
 };
 
-export const Grid = ({ limit, showGantt }: Props) => {
+type GridRunsWithFlags = { isVersionChange: boolean } & GridRunsResponse;
+
+export const Grid = ({ limit, showGantt, showVersionIndicator }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
   const { isGridFocused, setIsGridFocused } = useGridStore();
@@ -127,6 +130,21 @@ export const Grid = ({ limit, showGantt }: Props) => {
     tasks: flatNodes,
   });
 
+  const processedRuns: Array<GridRunsWithFlags> = useMemo(() => {
+    if (!gridRuns) {
+      return [];
+    }
+
+    return gridRuns.map((dr, index) => {
+      const prevRun = index < gridRuns.length - 1 ? gridRuns[index + 1] : undefined;
+
+      return {
+        ...dr,
+        isVersionChange: Boolean(prevRun && prevRun.dag_version_number !== dr.dag_version_number),
+      };
+    });
+  }, [gridRuns]);
+
   return (
     <Flex
       _focus={{
@@ -174,24 +192,18 @@ export const Grid = ({ limit, showGantt }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse, index: number) => {
-              // Compare with previous run to determine if version changed
-              const prevRun = index < gridRuns.length - 1 ? gridRuns[index + 1] : undefined;
-              const showVersionIndicator = prevRun && prevRun.dag_version_number !== dr.dag_version_number;
-
-              return (
-                <Bar
-                  key={dr.run_id}
-                  max={max}
-                  nodes={flatNodes}
-                  onCellClick={() => setMode("TI")}
-                  onColumnClick={() => setMode("run")}
-                  run={dr}
-                  showVersionIndicator={showVersionIndicator}
-                  versionNumber={dr.dag_version_number}
-                />
-              );
-            })}
+            {processedRuns.map((dr) => (
+              <Bar
+                key={dr.run_id}
+                max={max}
+                nodes={flatNodes}
+                onCellClick={() => setMode("TI")}
+                onColumnClick={() => setMode("run")}
+                run={dr}
+                showVersionIndicator={Boolean(showVersionIndicator) && dr.isVersionChange}
+                versionNumber={dr.dag_version_number}
+              />
+            ))}
           </Flex>
           {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>

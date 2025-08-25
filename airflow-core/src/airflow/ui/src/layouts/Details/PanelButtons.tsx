@@ -51,7 +51,9 @@ type Props = {
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setShowVersionIndicator: React.Dispatch<React.SetStateAction<boolean>>;
   readonly showGantt: boolean;
+  readonly showVersionIndicator: boolean;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -85,7 +87,9 @@ export const PanelButtons = ({
   setDagView,
   setLimit,
   setShowGantt,
+  setShowVersionIndicator,
   showGantt,
+  showVersionIndicator,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -274,6 +278,13 @@ export const PanelButtons = ({
                         <VStack alignItems="flex-start" px={1}>
                           <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
                             {translate("dag:panel.buttons.showGantt")}
+                          </Checkbox>
+                          <Checkbox
+                            checked={showVersionIndicator}
+                            onChange={() => setShowVersionIndicator(!showVersionIndicator)}
+                            size="sm"
+                          >
+                            {translate("dag:panel.buttons.showVersionIndicator")}
                           </Checkbox>
                         </VStack>
                       ) : undefined}

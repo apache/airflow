@@ -35,6 +35,7 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
+  readonly previousRun?: GridRunsResponse;
   readonly run: GridRunsResponse;
   readonly showVersionIndicator?: boolean;
   readonly versionNumber?: number | null;
@@ -53,7 +54,6 @@ export const Bar = ({
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-
   const search = searchParams.toString();
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
 
@@ -101,6 +101,7 @@ export const Bar = ({
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}
+        showVersionIndicator={showVersionIndicator}
         taskInstances={gridTISummaries?.task_instances ?? []}
       />
     </Box>

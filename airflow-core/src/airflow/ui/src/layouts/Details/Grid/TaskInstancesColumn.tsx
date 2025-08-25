@@ -30,10 +30,17 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
+  readonly showVersionIndicator?: boolean;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 
-export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }: Props) => {
+export const TaskInstancesColumn = ({
+  nodes,
+  onCellClick,
+  runId,
+  showVersionIndicator = true,
+  taskInstances,
+}: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const search = searchParams.toString();
@@ -51,12 +58,13 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }
     const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
     const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
 
-    const showVersionIndicator =
-      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
+    const hasVersionChange = Boolean(
+      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+    );
 
     return (
       <Box key={node.id} position="relative">
-        {Boolean(showVersionIndicator) && (
+        {Boolean(showVersionIndicator && hasVersionChange) && (
           <VersionIndicator orientation="horizontal" versionNumber={taskInstance.dag_version_number} />
         )}
         <GridTI
