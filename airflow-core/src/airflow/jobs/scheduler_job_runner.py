@@ -72,6 +72,7 @@ from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.utils.dates import datetime_to_nano
+from airflow.utils.db import is_constraint_violation
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -1574,6 +1575,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             triggered_date = triggered_dates[dag.dag_id]
+
+            deterministic_run_id = DagRun.generate_run_id(
+                run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+            )
+
+            existing_run = session.scalar(
+                select(DagRun.id).where(
+                    DagRun.dag_id == dag.dag_id,
+                    DagRun.run_id == deterministic_run_id,
+                )
+            )
+
+            if existing_run:
+                continue
+
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -1605,22 +1621,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             ).all()
 
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            Stats.incr("asset.triggered_dagruns")
-            dag_run.consumed_asset_events.extend(asset_events)
-            session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=deterministic_run_id,
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+
+                dag_run.consumed_asset_events.extend(asset_events)
+                session.execute(
+                    delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
+                )
+                session.flush()
+                Stats.incr("asset.triggered_dagruns")
+
+            except Exception as e:
+                if is_constraint_violation(e):
+                    session.rollback()
+                    continue
+                raise e
 
     def _should_update_dag_next_dagruns(
         self,

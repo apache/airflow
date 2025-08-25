@@ -99,6 +99,25 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 }
 
 
+DB_CONSTRAINT_ERROR_KEYWORDS = [
+    "duplicate",
+    "unique",
+    "constraint",
+    "already exists",
+]
+
+
+def is_constraint_violation(exception: Exception) -> bool:
+    """
+    Check if an exception is a database constraint violation.
+
+    This function detects common database constraint violations (duplicates, unique constraints, etc.)
+    that should be handled gracefully rather than causing application crashes.
+    """
+    error_msg = str(exception).lower()
+    return any(keyword in error_msg for keyword in DB_CONSTRAINT_ERROR_KEYWORDS)
+
+
 @contextlib.contextmanager
 def timeout_with_traceback(seconds, message="Operation timed out"):
     """
