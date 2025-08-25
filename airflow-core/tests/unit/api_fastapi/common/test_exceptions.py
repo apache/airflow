@@ -16,16 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import re
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException, status
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from airflow.api_fastapi.common.exceptions import _DatabaseDialect, _UniqueConstraintErrorHandler
+from airflow.api_fastapi.common.exceptions import (
+    DagErrorHandler,
+    _DatabaseDialect,
+    _UniqueConstraintErrorHandler,
+)
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
-from airflow.utils.session import provide_session
+from airflow.models.dag import DAG
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.config import conf_vars
@@ -285,3 +298,91 @@ class TestUniqueConstraintErrorHandler:
 
             assert response_detail == expected_detail
             assert "INSERT INTO dag_run" in actual_statement
+        assert exeinfo_response_error.value.detail == expected_exception.detail
+
+
+class TestDagErrorHandler:
+    dag_error_handler = DagErrorHandler()
+
+    def test_handle_deserialization_error_with_value_error(self):
+        error_message = "Missing Dag ID in serialized Dag"
+        deserialization_error = DeserializationError("test_dag_id")
+
+        value_error = ValueError(error_message)
+        deserialization_error.__cause__ = value_error
+
+        with pytest.raises(
+            HTTPException,
+            match=re.escape(f"An error occurred while trying to deserialize Dag: {deserialization_error}"),
+        ):
+            self.dag_error_handler.exception_handler(None, deserialization_error)
+
+    def test_handle_deserialization_error_with_runtime_error(self):
+        error_message = "Error during Dag serialization process"
+        deserialization_error = DeserializationError("test_dag_id")
+
+        runtime_error = RuntimeError(error_message)
+        deserialization_error.__cause__ = runtime_error
+
+        expected_exception = HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while trying to deserialize Dag: {deserialization_error}",
+        )
+
+        with pytest.raises(HTTPException, match=re.escape(expected_exception.detail)):
+            self.dag_error_handler.exception_handler(None, deserialization_error)
+
+    def test_handle_deserialization_error_with_key_error(self):
+        key = "required_field"
+        deserialization_error = DeserializationError("test_dag_id")
+
+        key_error = KeyError(key)
+        deserialization_error.__cause__ = key_error
+
+        expected_exception = HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while trying to deserialize Dag: {deserialization_error}",
+        )
+        with pytest.raises(HTTPException, match=re.escape(expected_exception.detail)):
+            self.dag_error_handler.exception_handler(None, deserialization_error)
+
+    def test_handle_real_dag_deserialization_error(self):
+        """Test handling a real Dag deserialization error with actual serialized Dag."""
+
+        # Create a test DAG
+        bundle_name = "testing"
+
+        # Create the bundle in the database first
+        with create_session() as session:
+            if session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).count() == 0:
+                session.add(DagBundleModel(name=bundle_name))
+                session.commit()
+
+        dag_id = "test_dag_for_error"
+        test_dag = DAG(dag_id=dag_id, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id="test_task", dag=test_dag)
+        DAG.bulk_write_to_db(bundle_name, None, [test_dag])
+        SerializedDagModel.write_dag(test_dag, bundle_name=bundle_name)
+
+        with create_session() as session:
+            dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id).values(_data=data)
+            )
+            session.commit()
+
+        dag_bag = DBDagBag()
+        with create_session() as session:
+            with pytest.raises(DeserializationError) as exc_info:
+                dag_bag.get_latest_version_of_dag(dag_id, session=session)
+
+        with pytest.raises(
+            HTTPException,
+            match=re.escape(f"An error occurred while trying to deserialize Dag: {exc_info.value}"),
+        ):
+            self.dag_error_handler.exception_handler(None, exc_info.value)
+        with create_session() as session:
+            session.query(SerializedDagModel).filter(SerializedDagModel.dag_id == dag_id).delete()
+            session.commit()
