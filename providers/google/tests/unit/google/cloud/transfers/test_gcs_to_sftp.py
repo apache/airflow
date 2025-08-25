@@ -37,26 +37,18 @@ DESTINATION_SFTP = "destination_path"
 #       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToSFTPOperator:
     @pytest.mark.parametrize(
-        "source_object, target_object, keep_directory_structure, create_intermediate_dirs",
+        "source_object, target_object, keep_directory_structure",
         [
-            ("folder/test_object.txt", "folder/test_object.txt", True, True),
-            ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True, True),
-            ("folder/test_object.txt", "test_object.txt", False, True),
-            ("folder/subfolder/test_object.txt", "test_object.txt", False, True),
-            # Test create_intermediate_dirs=False
-            ("folder/subfolder/test_object.txt", "test_object.txt", False, False),
+            ("folder/test_object.txt", "folder/test_object.txt", True),
+            ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
+            ("folder/test_object.txt", "test_object.txt", False),
+            ("folder/subfolder/test_object.txt", "test_object.txt", False),
         ],
     )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_copy_single_file(
-        self,
-        sftp_hook_mock,
-        gcs_hook_mock,
-        source_object,
-        target_object,
-        keep_directory_structure,
-        create_intermediate_dirs,
+        self, sftp_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
     ):
         task = GCSToSFTPOperator(
             task_id=TASK_ID,
@@ -64,7 +56,6 @@ class TestGoogleCloudStorageToSFTPOperator:
             source_object=source_object,
             destination_path=DESTINATION_SFTP,
             keep_directory_structure=keep_directory_structure,
-            create_intermediate_dirs=create_intermediate_dirs,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
@@ -80,10 +71,6 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_hook_mock.return_value.download.assert_called_with(
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
         )
-
-        if create_intermediate_dirs:
-            dir_path = os.path.dirname(os.path.join(DESTINATION_SFTP, target_object))
-            sftp_hook_mock.return_value.create_directory.assert_called_once_with(dir_path)
 
         sftp_hook_mock.return_value.store_file.assert_called_with(
             os.path.join(DESTINATION_SFTP, target_object), mock.ANY
@@ -413,3 +400,49 @@ class TestGoogleCloudStorageToSFTPOperator:
         assert result.inputs[0].name == expected_source
         assert result.outputs[0].namespace == "file://11.222.33.44:22"
         assert result.outputs[0].name == expected_destination
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
+    def test_create_intermediate_dirs_true(self, sftp_hook_mock, gcp_hook_mock):
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="folder/test_object.txt",  # Hard-coding
+            destination_path=DESTINATION_SFTP,
+            keep_directory_structure=True,  # Hard-coding
+            create_intermediate_dirs=True,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        assert task.create_intermediate_dirs
+
+        task.execute(None)
+
+        sftp_hook_mock.return_value.create_directory.assert_called_once_with(
+            os.path.join(DESTINATION_SFTP, "folder")
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
+    def test_create_intermediate_dirs_false(self, sftp_hook_mock, gcp_hook_mock):
+        task = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="folder/test_object.txt",  # Hard-coding
+            destination_path=DESTINATION_SFTP,
+            keep_directory_structure=True,  # Hard-coding
+            create_intermediate_dirs=False,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        assert not task.create_intermediate_dirs
+
+        task.execute(None)
+
+        sftp_hook_mock.return_value.create_directory.assert_not_called()
