@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link, type SelectValueChangeDetails, Text, Box } from "@chakra-ui/react";
+import { Flex, HStack, Link, type SelectValueChangeDetails, Text, Box, Button } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useCallback } from "react";
@@ -31,6 +31,7 @@ import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DateTimeInput } from "src/components/DateTimeInput";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
@@ -48,10 +49,15 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
-  END_DATE: END_DATE_PARAM,
+  DAG_ID: DAG_ID_PARAM,
+  END_DATE_GTE: END_DATE_GTE_PARAM,
+  END_DATE_LTE: END_DATE_LTE_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
-  START_DATE: START_DATE_PARAM,
+  START_DATE_GTE: START_DATE_GTE_PARAM,
+  START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -181,22 +187,31 @@ export const DagRuns = () => {
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
+  const filteredDagId = searchParams.get(DAG_ID_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
-  const startDate = searchParams.get(START_DATE_PARAM);
-  const endDate = searchParams.get(END_DATE_PARAM);
+  const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
+  const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
+  const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
+  const endDateLte = searchParams.get(END_DATE_LTE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
-      dagId: dagId ?? "~",
-      endDateLte: endDate ?? undefined,
+      dagId: filteredDagId ?? "~",
+      endDateGte: endDateGte ?? undefined,
+      endDateLte: endDateLte ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
-      startDateGte: startDate ?? undefined,
+      startDateGte: startDateGte ?? undefined,
+      startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
       triggeringUserNamePattern: filteredTriggeringUserNamePattern ?? undefined,
     },
@@ -243,6 +258,22 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleDagIdChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete(DAG_ID_PARAM);
+      } else {
+        searchParams.set(DAG_ID_PARAM, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   const handleRunIdPatternChange = useCallback(
     (value: string) => {
       if (value === "") {
@@ -275,9 +306,47 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleDateRangeChange = useCallback(
+    (gteParam: string, lteParam: string) => (gteValue: string, lteValue: string) => {
+      if (gteValue === "") {
+        searchParams.delete(gteParam);
+      } else {
+        searchParams.set(gteParam, gteValue);
+      }
+
+      if (lteValue === "") {
+        searchParams.delete(lteParam);
+      } else {
+        searchParams.set(lteParam, lteValue);
+      }
+
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleStartDateRangeChange = handleDateRangeChange(START_DATE_GTE_PARAM, START_DATE_LTE_PARAM);
+  const handleEndDateRangeChange = handleDateRangeChange(END_DATE_GTE_PARAM, END_DATE_LTE_PARAM);
+  const handleRunAfterRangeChange = handleDateRangeChange(RUN_AFTER_GTE_PARAM, RUN_AFTER_LTE_PARAM);
+
   return (
     <>
       <HStack paddingY="4px">
+        {!Boolean(dagId) && (
+          <Box>
+            <SearchBar
+              defaultValue={filteredDagId ?? ""}
+              hideAdvanced
+              hotkeyDisabled={false}
+              onChange={handleDagIdChange}
+              placeHolder={translate("dags:filters.dagIdPatternFilter")}
+            />
+          </Box>
+        )}
         <Box>
           <SearchBar
             defaultValue={filteredRunIdPattern ?? ""}
@@ -364,6 +433,108 @@ export const DagRuns = () => {
           </Select.Content>
         </Select.Root>
       </HStack>
+      <HStack flexWrap="wrap" gap={6} paddingY="4px">
+        {/* Start Date Range */}
+        <Box>
+          <HStack alignItems="flex-start">
+            <Box w="180px">
+              <Box marginBottom={1} minHeight="1.2em">
+                <Text fontSize="xs">{translate("common:filters.startDateFromPlaceholder")}</Text>
+              </Box>
+              <DateTimeInput
+                onChange={(event) => handleStartDateRangeChange(event.target.value, startDateLte ?? "")}
+                size="sm"
+                value={startDateGte ?? ""}
+              />
+            </Box>
+            <Box w="180px">
+              <Box marginBottom={1} minHeight="1.2em">
+                <Text fontSize="xs">{translate("common:filters.startDateToPlaceholder")}</Text>
+              </Box>
+              <DateTimeInput
+                onChange={(event) => handleStartDateRangeChange(startDateGte ?? "", event.target.value)}
+                size="sm"
+                value={startDateLte ?? ""}
+              />
+            </Box>
+          </HStack>
+        </Box>
+        {/* End Date Range */}
+        <Box>
+          <HStack alignItems="flex-start">
+            <Box w="180px">
+              <Box marginBottom={1} minHeight="1.2em">
+                <Text fontSize="xs">{translate("common:filters.endDateFromPlaceholder")}</Text>
+              </Box>
+              <DateTimeInput
+                onChange={(event) => handleEndDateRangeChange(event.target.value, endDateLte ?? "")}
+                size="sm"
+                value={endDateGte ?? ""}
+              />
+            </Box>
+            <Box w="180px">
+              <Box marginBottom={1} minHeight="1.2em">
+                <Text fontSize="xs">{translate("common:filters.endDateToPlaceholder")}</Text>
+              </Box>
+              <DateTimeInput
+                onChange={(event) => handleEndDateRangeChange(endDateGte ?? "", event.target.value)}
+                size="sm"
+                value={endDateLte ?? ""}
+              />
+            </Box>
+          </HStack>
+        </Box>
+        {/* Run After Range */}
+        <Box>
+          <HStack alignItems="flex-start">
+            <Box w="180px">
+              <Box marginBottom={1} minHeight="1.2em">
+                <Text fontSize="xs">{translate("common:filters.runAfterFromPlaceholder")}</Text>
+              </Box>
+              <DateTimeInput
+                onChange={(event) => handleRunAfterRangeChange(event.target.value, runAfterLte ?? "")}
+                size="sm"
+                value={runAfterGte ?? ""}
+              />
+            </Box>
+            <Box w="180px">
+              <Box marginBottom={1} minHeight="1.2em">
+                <Text fontSize="xs">{translate("common:filters.runAfterToPlaceholder")}</Text>
+              </Box>
+              <DateTimeInput
+                onChange={(event) => handleRunAfterRangeChange(runAfterGte ?? "", event.target.value)}
+                size="sm"
+                value={runAfterLte ?? ""}
+              />
+            </Box>
+          </HStack>
+        </Box>
+        {/* Clear Filters Button */}
+        <Box alignItems="flex-end" display="flex" height="100%">
+          <Button
+            _hover={{ bg: "red.600" }}
+            bg="red.700"
+            borderColor="red.500"
+            borderRadius="md"
+            color="white"
+            ml={2}
+            onClick={() => {
+              searchParams.forEach((_, key) => searchParams.delete(key));
+              setTableURLState({
+                pagination: { ...pagination, pageIndex: 0 },
+                sorting: [],
+              });
+              setSearchParams(searchParams);
+            }}
+            px={3}
+            py={1.5}
+            type="button"
+          >
+            {translate("common:filters.clearAllFilters", "Clear Filters")}
+          </Button>
+        </Box>
+      </HStack>
+
       <DataTable
         columns={runColumns(translate, dagId)}
         data={data?.dag_runs ?? []}
