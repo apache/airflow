@@ -53,7 +53,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
 # Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -783,14 +783,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
 ]
 
-ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
-    "3.6": "v3.6.15",
-    "3.7": "v3.7.17",
-    "3.8": "v3.8.20",
-    "3.9": "v3.9.23",
-    "3.10": "v3.10.18",
-    "3.11": "v3.11.13",
-    "3.12": "v3.12.11",
+ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
+    "3.9": "3.9.23",
+    "3.10": "3.10.18",
+    "3.11": "3.11.13",
+    "3.12": "3.12.11",
+    "3.13": "3.13.7",
 }
 
 # Number of slices for low dep tests
