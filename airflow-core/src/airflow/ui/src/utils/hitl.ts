@@ -33,10 +33,37 @@ const getChosenOptionsValue = (hitlDetail: HITLDetail) => {
   return hitlDetail.multiple ? sourceValues : sourceValues?.[0];
 };
 
-export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction): ParamsSpec => {
+export const getPreloadHITLFormData = (searchParams: URLSearchParams) => {
+  const preloadedHITLParams: Record<string, number | string> = Object.fromEntries(
+    [...searchParams.entries()]
+      .filter(([key]) => key !== "_options")
+      .map(([key, value]) => [key, isNaN(Number(value)) ? value : Number(value)]),
+  );
+
+  const options = searchParams.get("_options") ?? "";
+  const preloadedHITLOptions: Array<string> = options
+    ? options.split(",").filter((option) => option.length > 0)
+    : [];
+
+  return {
+    preloadedHITLOptions,
+    preloadedHITLParams,
+  };
+};
+
+export const getHITLParamsDict = (
+  hitlDetail: HITLDetail,
+  translate: TFunction,
+  searchParams: URLSearchParams,
+): ParamsSpec => {
   const paramsDict: ParamsSpec = {};
+  const { preloadedHITLOptions, preloadedHITLParams } = getPreloadHITLFormData(searchParams);
 
   if (hitlDetail.options.length > 4 || hitlDetail.multiple) {
+    const filteredPreloadedHITLOptions = preloadedHITLOptions.filter((option) =>
+      hitlDetail.options.includes(option),
+    );
+
     paramsDict.chosen_options = {
       description: translate("hitl:response.optionsDescription"),
       schema: {
@@ -56,7 +83,7 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
         values_display: undefined,
       },
 
-      value: getChosenOptionsValue(hitlDetail),
+      value: getChosenOptionsValue(hitlDetail) ?? filteredPreloadedHITLOptions,
     };
   }
 
@@ -84,7 +111,7 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
           type: valueType,
           values_display: undefined,
         },
-        value,
+        value: preloadedHITLParams[key] ?? value,
       };
     });
   }
