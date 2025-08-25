@@ -24,8 +24,14 @@ from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import requires_access_view
+from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
-from airflow.providers.edge3.worker_api.datamodels_ui import Worker, WorkerCollectionResponse
+from airflow.providers.edge3.worker_api.datamodels_ui import (
+    Job,
+    JobCollectionResponse,
+    Worker,
+    WorkerCollectionResponse,
+)
 
 ui_router = AirflowRouter(tags=["UI"])
 
@@ -40,7 +46,7 @@ def worker(
     session: SessionDep,
 ) -> WorkerCollectionResponse:
     """Return Edge Workers."""
-    query = select(EdgeWorkerModel)
+    query = select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)
     workers: list[EdgeWorkerModel] = session.scalars(query)
 
     result = [
@@ -51,10 +57,46 @@ def worker(
             jobs_active=w.jobs_active,
             sysinfo=w.sysinfo_json or {},
             maintenance_comments=w.maintenance_comment,
+            first_online=w.first_online,
+            last_heartbeat=w.last_update,
         )
         for w in workers
     ]
     return WorkerCollectionResponse(
         workers=result,
+        total_entries=len(result),
+    )
+
+
+@ui_router.get(
+    "/jobs",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def jobs(
+    session: SessionDep,
+) -> JobCollectionResponse:
+    """Return Edge Jobs."""
+    query = select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)
+    jobs: list[EdgeJobModel] = session.scalars(query)
+
+    result = [
+        Job(
+            dag_id=j.dag_id,
+            task_id=j.task_id,
+            run_id=j.run_id,
+            map_index=j.map_index,
+            try_number=j.try_number,
+            state=j.state,
+            queue=j.queue,
+            queued_dttm=j.queued_dttm,
+            edge_worker=j.edge_worker,
+            last_update=j.last_update,
+        )
+        for j in jobs
+    ]
+    return JobCollectionResponse(
+        jobs=result,
         total_entries=len(result),
     )

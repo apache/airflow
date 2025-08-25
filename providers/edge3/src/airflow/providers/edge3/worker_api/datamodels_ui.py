@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import (
     Annotated,
 )
@@ -23,17 +24,44 @@ from typing import (
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.providers.edge3.worker_api.datamodels import WorkerStateBody
+from airflow.providers.edge3.worker_api.datamodels import EdgeJobBase, WorkerStateBody
+from airflow.utils.state import TaskInstanceState  # noqa: TC001
 
 
 class Worker(WorkerStateBody):
     """Details of the worker state sent to the scheduler."""
 
     worker_name: Annotated[str, Field(description="Name of the worker.")]
+    first_online: Annotated[datetime | None, Field(description="When the worker was first online.")] = None
+    last_heartbeat: Annotated[
+        datetime | None, Field(description="When the worker last sent a heartbeat.")
+    ] = None
 
 
 class WorkerCollectionResponse(BaseModel):
     """Worker Collection serializer."""
 
     workers: list[Worker]
+    total_entries: int
+
+
+class Job(EdgeJobBase):
+    """Details of the job sent to the scheduler."""
+
+    state: Annotated[TaskInstanceState, Field(description="State of the job from the view of the executor.")]
+    queue: Annotated[
+        str,
+        Field(description="Queue for which the task is scheduled/running."),
+    ]
+    queued_dttm: Annotated[datetime | None, Field(description="When the job was queued.")] = None
+    edge_worker: Annotated[
+        str | None, Field(description="The worker processing the job during execution.")
+    ] = None
+    last_update: Annotated[datetime | None, Field(description="Last heartbeat of the job.")] = None
+
+
+class JobCollectionResponse(BaseModel):
+    """Job Collection serializer."""
+
+    jobs: list[Job]
     total_entries: int

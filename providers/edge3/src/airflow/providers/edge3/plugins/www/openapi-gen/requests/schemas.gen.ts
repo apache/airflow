@@ -151,6 +151,107 @@ export const $HTTPValidationError = {
     title: 'HTTPValidationError'
 } as const;
 
+export const $Job = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag ID',
+            description: 'Identifier of the DAG to which the task belongs.'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task ID',
+            description: 'Task name in the DAG.'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run ID',
+            description: 'Run ID of the DAG execution.'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index',
+            description: 'For dynamically mapped tasks the mapping number, -1 if the task is not mapped.'
+        },
+        try_number: {
+            type: 'integer',
+            title: 'Try Number',
+            description: 'The number of attempt to execute this task.'
+        },
+        state: {
+            '$ref': '#/components/schemas/TaskInstanceState',
+            description: 'State of the job from the view of the executor.'
+        },
+        queue: {
+            type: 'string',
+            title: 'Queue',
+            description: 'Queue for which the task is scheduled/running.'
+        },
+        queued_dttm: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queued Dttm',
+            description: 'When the job was queued.'
+        },
+        edge_worker: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Edge Worker',
+            description: 'The worker processing the job during execution.'
+        },
+        last_update: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Update',
+            description: 'Last heartbeat of the job.'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'task_id', 'run_id', 'map_index', 'try_number', 'state', 'queue'],
+    title: 'Job',
+    description: 'Details of the job sent to the scheduler.'
+} as const;
+
+export const $JobCollectionResponse = {
+    properties: {
+        jobs: {
+            items: {
+                '$ref': '#/components/schemas/Job'
+            },
+            type: 'array',
+            title: 'Jobs'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['jobs', 'total_entries'],
+    title: 'JobCollectionResponse',
+    description: 'Job Collection serializer.'
+} as const;
+
 export const $PushLogsBody = {
     properties: {
         log_chunk_time: {
@@ -352,6 +453,32 @@ export const $Worker = {
             type: 'string',
             title: 'Worker Name',
             description: 'Name of the worker.'
+        },
+        first_online: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'First Online',
+            description: 'When the worker was first online.'
+        },
+        last_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Heartbeat',
+            description: 'When the worker last sent a heartbeat.'
         }
     },
     type: 'object',

@@ -73,6 +73,60 @@ export type HTTPValidationError = {
 };
 
 /**
+ * Details of the job sent to the scheduler.
+ */
+export type Job = {
+    /**
+     * Identifier of the DAG to which the task belongs.
+     */
+    dag_id: string;
+    /**
+     * Task name in the DAG.
+     */
+    task_id: string;
+    /**
+     * Run ID of the DAG execution.
+     */
+    run_id: string;
+    /**
+     * For dynamically mapped tasks the mapping number, -1 if the task is not mapped.
+     */
+    map_index: number;
+    /**
+     * The number of attempt to execute this task.
+     */
+    try_number: number;
+    /**
+     * State of the job from the view of the executor.
+     */
+    state: TaskInstanceState;
+    /**
+     * Queue for which the task is scheduled/running.
+     */
+    queue: string;
+    /**
+     * When the job was queued.
+     */
+    queued_dttm?: string | null;
+    /**
+     * The worker processing the job during execution.
+     */
+    edge_worker?: string | null;
+    /**
+     * Last heartbeat of the job.
+     */
+    last_update?: string | null;
+};
+
+/**
+ * Job Collection serializer.
+ */
+export type JobCollectionResponse = {
+    jobs: Array<Job>;
+    total_entries: number;
+};
+
+/**
  * Incremental new log content from worker.
  */
 export type PushLogsBody = {
@@ -151,6 +205,14 @@ export type Worker = {
      * Name of the worker.
      */
     worker_name: string;
+    /**
+     * When the worker was first online.
+     */
+    first_online?: string | null;
+    /**
+     * When the worker last sent a heartbeat.
+     */
+    last_heartbeat?: string | null;
 };
 
 /**
@@ -396,6 +458,8 @@ export type HealthResponse = {
 
 export type WorkerResponse = WorkerCollectionResponse;
 
+export type JobsResponse = JobCollectionResponse;
+
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
         post: {
@@ -575,6 +639,16 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: WorkerCollectionResponse;
+            };
+        };
+    };
+    '/edge_worker/ui/jobs': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: JobCollectionResponse;
             };
         };
     };

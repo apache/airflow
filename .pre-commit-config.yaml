@@ -435,7 +435,15 @@ repos:
         entry: ./scripts/ci/prek/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
+        exclude: >
+          (?x)
+          ^clients/gen/go\.sh$|
+          ^\.gitmodules$|
+          ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
+          .*/dist/.*|
+          \.go$|
+          /go\.(mod|sum)$
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python

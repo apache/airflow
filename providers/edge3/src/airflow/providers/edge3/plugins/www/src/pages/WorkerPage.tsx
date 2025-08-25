@@ -26,7 +26,6 @@ export const WorkerPage = () => {
   const { data, error } = useUiServiceWorker();
 
   // TODO to make it proper
-  // Add missing columns first online / last heartbeat
   // Beautification of state like in Airflow 2
   // Use DataTable as component from Airflow-Core UI
   // Add auto-refresh
@@ -44,6 +43,8 @@ export const WorkerPage = () => {
               <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
               <Table.ColumnHeader>State</Table.ColumnHeader>
               <Table.ColumnHeader>Queues</Table.ColumnHeader>
+              <Table.ColumnHeader>First Online</Table.ColumnHeader>
+              <Table.ColumnHeader>Last Heartbeat</Table.ColumnHeader>
               <Table.ColumnHeader>Active Jobs</Table.ColumnHeader>
               <Table.ColumnHeader>System Information</Table.ColumnHeader>
               <Table.ColumnHeader>Operations</Table.ColumnHeader>
@@ -55,6 +56,8 @@ export const WorkerPage = () => {
                 <Table.Cell>{worker.worker_name}</Table.Cell>
                 <Table.Cell>{worker.state}</Table.Cell>
                 <Table.Cell>{worker.queues}</Table.Cell>
+                <Table.Cell>{worker.first_online}</Table.Cell>
+                <Table.Cell>{worker.last_heartbeat}</Table.Cell>
                 <Table.Cell>{worker.jobs_active}</Table.Cell>
                 <Table.Cell>
                   {worker.sysinfo ? <ul>{Object.entries(worker.sysinfo).map(([key, value]) => <li key={key}>{key}: {value}</li>)}</ul> : "N/A"}

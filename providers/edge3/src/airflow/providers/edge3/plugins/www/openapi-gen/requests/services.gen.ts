@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -270,6 +270,19 @@ export class UiService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/edge_worker/ui/worker'
+        });
+    }
+    
+    /**
+     * Jobs
+     * Return Edge Jobs.
+     * @returns JobCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static jobs(): CancelablePromise<JobsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/edge_worker/ui/jobs'
         });
     }
     
