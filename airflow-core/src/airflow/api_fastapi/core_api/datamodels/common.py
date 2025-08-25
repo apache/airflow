@@ -80,8 +80,8 @@ class BulkUpdateAction(BulkBaseAction[T]):
     update_mask: list[str] | None = Field(
         default=None,
         description=(
-            "A list of field names to update for each entity. "
-            "Only these fields will be applied from the request body to the database model. "
+            "A list of field names to update for each entity."
+            "Only these fields will be applied from the request body to the database model."
             "Any extra fields provided will be ignored."
         ),
     )
