@@ -20,20 +20,21 @@ import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.sdk.bases.notifier import BaseNotifier
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
-
 from collections.abc import Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
+from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
+from airflow.configuration import conf
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
+from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
@@ -87,11 +88,19 @@ class HITLOperator(BaseOperator):
         self.respondents = [respondents] if isinstance(respondents, str) else respondents
 
         self.validate_options()
+        self.validate_params()
         self.validate_defaults()
 
     def validate_options(self) -> None:
         if not self.options:
             raise ValueError('"options" cannot be empty.')
+
+        if any("," in option for option in self.options):
+            raise ValueError('"," is not allowed in option')
+
+    def validate_params(self) -> None:
+        if "_options" in self.params:
+            raise ValueError('"_options" is not allowed in params')
 
     def validate_defaults(self) -> None:
         """
@@ -180,6 +189,45 @@ class HITLOperator(BaseOperator):
             and set(self.serialized_params.keys()) ^ set(params_input)
         ):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
+
+    def generate_link_to_ui(
+        self,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        options: list[str] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> str:
+        """Generate the URL link to the "required actions" page with pre-defined data."""
+        query_param: dict[str, Any] = {}
+        if options:
+            if diff := set(options) - set(self.options):
+                raise ValueError(f"options {diff} are not valid options")
+            query_param["_options"] = ",".join(options)
+
+        if params:
+            if diff := set(params.keys()) - set(self.params.keys()):
+                raise ValueError(f"params {diff} are not valid params")
+            query_param.update(params)
+
+        if not (base_url := conf.get("api", "base_url", fallback=None)):
+            raise ValueError("Not able to retrieve base_url")
+
+        query_param["map_index"] = map_index
+
+        parsed_base_url: ParseResult = urlparse(base_url)
+        return urlunparse(
+            (
+                parsed_base_url.scheme,
+                parsed_base_url.netloc,
+                f"/api/v2/hitlDetails/{dag_id}/{run_id}/{task_id}",
+                "",
+                urlencode(query_param) if query_param else "",
+                "",
+            )
+        )
 
 
 class ApprovalOperator(HITLOperator, SkipMixin):
