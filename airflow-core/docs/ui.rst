@@ -361,6 +361,25 @@ Each node includes a visual indicator of task duration.
 
 .. _ui-ti-view:
 
+DAG Trigger Window
+------------------
+
+Single Run
+''''''''''
+
+The Single Run window allows you to trigger a DAG run.
+
+.. image:: img/ui-light/dag_trigger_window_single_run.png
+   :alt: DAG Trigger Window - Single Run (Light Mode)
+
+Backfill
+''''''''
+
+The Backfill window allows you to trigger a DAG run for past dates.
+
+.. image:: img/ui-light/dag_trigger_window_backfill.png
+   :alt: DAG Trigger Window - Backfill (Light Mode)
+
 Task Instance View
 ------------------
 
