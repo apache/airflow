@@ -49,6 +49,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
 
 if TYPE_CHECKING:
@@ -319,8 +320,8 @@ class TestCliTasks:
             {% endfor %}
             """
             commands = [templated_command, "echo 1"]
-
             BashOperator.partial(task_id="some_command").expand(bash_command=commands)
+        sync_dag_to_db(dag)
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(

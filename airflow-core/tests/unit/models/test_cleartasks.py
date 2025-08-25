@@ -23,13 +23,13 @@ import random
 import pytest
 from sqlalchemy import select
 
-from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -629,7 +629,7 @@ class TestClearTasks:
                 )
             )
 
-        DAG.clear_dags(dags)
+        SerializedDAG.clear_dags(dags)
         session.commit()
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
@@ -648,7 +648,7 @@ class TestClearTasks:
             assert ti.try_number == 2
             assert ti.max_tries == 1
         session.commit()
-        DAG.clear_dags(dags, dry_run=True)
+        SerializedDAG.clear_dags(dags, dry_run=True)
         session.commit()
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
@@ -662,7 +662,7 @@ class TestClearTasks:
         ti_fail.state = State.FAILED
         session.commit()
 
-        DAG.clear_dags(dags, only_failed=True)
+        SerializedDAG.clear_dags(dags, only_failed=True)
 
         for ti in tis:
             ti = _get_ti(ti)

@@ -24,7 +24,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import BaseOperator
+from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     import graphviz
 
     from airflow.models import TaskInstance
-    from airflow.models.dag import DAG
     from airflow.models.taskmixin import DependencyMixin
     from airflow.serialization.dag_dependency import DagDependency
 else:

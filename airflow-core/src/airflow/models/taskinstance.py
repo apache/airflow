@@ -117,7 +117,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.dag import DAG as SchedulerDAG, DagModel
+    from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
@@ -845,8 +845,6 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             return None
 
-        if TYPE_CHECKING:
-            assert isinstance(dag, SchedulerDAG)
         dr = self.get_dagrun(session=session)
         dr.dag = dag
 
@@ -1023,7 +1021,6 @@ class TaskInstance(Base, LoggingMixin):
         if getattr(self, "task", None) is not None:
             if TYPE_CHECKING:
                 assert self.task
-                assert isinstance(self.task.dag, SchedulerDAG)
             dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.logical_date` will work correctly
         set_committed_value(self, "dag_run", dr)

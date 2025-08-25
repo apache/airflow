@@ -29,9 +29,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow._shared.timezones.timezone import utcnow
-from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk import DAG
+from airflow.sdk.timezone import utcnow
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
@@ -44,6 +43,8 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -72,10 +73,8 @@ class TestSqlAlchemyUtils:
         iso_date = start_date.isoformat()
         logical_date = start_date + datetime.timedelta(hours=1, days=1)
 
-        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
+        dag = sync_dag_to_db(DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date))
         dag.clear()
-        DAG.bulk_write_to_db("testing", None, [dag], session=self.session)
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=self.session)
         run = dag.create_dagrun(
             run_id=iso_date,
             run_type=DagRunType.MANUAL,
@@ -107,7 +106,7 @@ class TestSqlAlchemyUtils:
 
         # naive
         start_date = datetime.datetime.now()
-        dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
+        dag = sync_dag_to_db(DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1)))
         dag.clear()
 
         with pytest.raises((ValueError, StatementError)):
