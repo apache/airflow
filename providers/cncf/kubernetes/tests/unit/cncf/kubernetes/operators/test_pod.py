@@ -2589,6 +2589,9 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
+    )
     @patch(f"{HOOK_CLASS}.get_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
@@ -2597,6 +2600,7 @@ class TestKubernetesPodOperatorAsync:
         fetch_container_logs,
         await_pod_completion,
         get_pod,
+        mock_convert_config_file_to_dict,
     ):
         """When logs fetch exits with status running, raise task deferred"""
         pod = MagicMock()
