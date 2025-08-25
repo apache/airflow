@@ -38,7 +38,7 @@ from airflow.serialization.serde import deserialize, serialize
 from airflow.settings import json
 from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import provide_session, provide_readonly_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -356,7 +356,7 @@ class ReferenceModels:
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
 
 
-@provide_session
+@provide_readonly_session
 def _fetch_from_db(model_reference: Column, session=None, **conditions) -> datetime:
     """
     Fetch a datetime value from the database using the provided model reference and filtering conditions.
