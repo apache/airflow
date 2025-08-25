@@ -19,4 +19,72 @@
 Manage user permissions with Keycloak auth manager
 ==================================================
 
-To be completed
+Please setup your Keycloak instance and required parameters for the Keycloak auth manager.
+
+Setting up the permissions can easily done using CLI commands.
+It can create the permissions and needed resources easily.
+
+There is two options to create the permissions:
+
+* Create all permissions in one go using single CLI command
+* Create step by step using the CLI commands
+
+CLI commands taking following parameters:
+
+* ``--username``: Keycloak admin username
+* ``--password``: Keycloak admin password
+* ``--user-realm``: Keycloak user realm (default: master)
+* ``--client-id``: Keycloak client id (default: admin-cli)
+
+Please check the documentation for more information about the parameters.
+
+`Keycloak auth manager CLI </cli-refs.html>`_
+
+One go creation of permissions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+There is a single command do all the magic for you.
+
+.. code-block:: bash
+
+  airflow keycloak create-all
+
+This will create scopes, resources and permissions in one go.
+
+Step by step creation of permissions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+First we need to create scopes for the permissions. These scopes later will be used in Keycloak authorization [1].
+
+.. code-block:: bash
+
+  airflow keycloak create-scopes
+
+This will create scopes for certain types of permissions.
+
+.. code-block:: bash
+
+  airflow keycloak create-resources
+
+This will create resources for certain types of permissions.
+
+.. code-block:: bash
+
+  airflow keycloak create-permissions
+
+Finally we create the permissions using the previously created scopes and resources.
+
+This will create
+
+* read-only permissions
+* admin permissions
+* user permissions
+* operations permissions
+
+More resources about permissions can be found in the official documentation of Keycloak:
+
+1- `Keylcloak Authorization Process <https://www.keycloak.org/docs/latest/authorization_services/index.html#the-authorization-process>`_
+
+2- `Keycloak Permission Overview <https://www.keycloak.org/docs/latest/authorization_services/index.html#_permission_overview>`_
+
+3- `Keycloak Creating scope-based Permissions <https://www.keycloak.org/docs/latest/authorization_services/index.html#_policy_overview>`_

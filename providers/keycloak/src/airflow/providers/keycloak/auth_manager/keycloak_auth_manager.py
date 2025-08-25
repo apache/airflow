@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -34,7 +35,7 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.cli.cli_config import CLICommand, GroupCommand
+from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
@@ -67,6 +68,17 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """Generate documentation; used by Sphinx argparse."""
+    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in KeycloakAuthManager.get_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
