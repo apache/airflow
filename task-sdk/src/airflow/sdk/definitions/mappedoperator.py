@@ -375,6 +375,10 @@ class MappedOperator(AbstractOperator):
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",
+            "operator_class",
+            "_needs_expansion",
+            "partial_kwargs",
+            "operator_extra_links",
         }
 
     @property
@@ -621,6 +625,26 @@ class MappedOperator(AbstractOperator):
     @on_skipped_callback.setter
     def on_skipped_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_skipped_callback"] = value or []
+
+    @property
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.on_skipped_callback)
 
     @property
     def run_as_user(self) -> str | None:

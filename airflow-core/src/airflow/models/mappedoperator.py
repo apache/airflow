@@ -42,7 +42,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WEIGHT_RULE,
     NotMapped,
-    TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
@@ -90,6 +89,7 @@ def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG."""
 
+    # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
     operator_class: dict[str, Any]
     partial_kwargs: dict[str, Any] = attrs.field(init=False, factory=dict)
 
@@ -241,24 +241,24 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("max_active_tis_per_dagrun")
 
     @property
-    def on_execute_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_execute_callback") or []
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_execute_callback", False))
 
     @property
-    def on_failure_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_failure_callback") or []
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_failure_callback", False))
 
     @property
-    def on_retry_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_retry_callback") or []
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_retry_callback", False))
 
     @property
-    def on_success_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_success_callback") or []
+    def has_on_success_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_success_callback", False))
 
     @property
-    def on_skipped_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_skipped_callback") or []
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_skipped_callback", False))
 
     @property
     def run_as_user(self) -> str | None:
@@ -310,8 +310,33 @@ class MappedOperator(DAGNode):
     def on_failure_fail_dagrun(self, v) -> None:
         self.partial_kwargs["on_failure_fail_dagrun"] = bool(v)
 
-    def get_serialized_fields(self):
-        return TaskSDKMappedOperator.get_serialized_fields()
+    @classmethod
+    def get_serialized_fields(cls):
+        return frozenset(
+            {
+                "_disallow_kwargs_override",
+                "_expand_input_attr",
+                "_is_sensor",
+                "_needs_expansion",
+                "_operator_name",
+                "_task_module",
+                "downstream_task_ids",
+                "end_date",
+                "operator_extra_links",
+                "params",
+                "partial_kwargs",
+                "start_date",
+                "start_from_trigger",
+                "start_trigger_args",
+                "task_id",
+                "task_type",
+                "template_ext",
+                "template_fields",
+                "template_fields_renderers",
+                "ui_color",
+                "ui_fgcolor",
+            }
+        )
 
     @functools.cached_property
     def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
