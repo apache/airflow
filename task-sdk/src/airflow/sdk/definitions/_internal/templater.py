@@ -89,7 +89,7 @@ class Templater:
 
     def resolve_template_files(self) -> None:
         """Get the content of files for template_field / template_ext."""
-        if hasattr(self, "template_ext") and self.template_ext:
+        if getattr(self, "template_ext", None):
             for field in self.template_fields:
                 content = getattr(self, field, None)
                 if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
