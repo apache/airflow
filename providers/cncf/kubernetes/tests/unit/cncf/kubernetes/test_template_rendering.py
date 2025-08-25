@@ -205,6 +205,17 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     Test that k8s_pod_yaml is rendered correctly, stored in the Database,
     and are correctly fetched using RTIF.get_k8s_pod_yaml
     """
+    # DEBUG: Check secrets masker patterns before and after
+    try:
+        from airflow._shared.secrets_masker import _secrets_masker
+    except ImportError:
+        from airflow.utils.log.secrets_masker import _secrets_masker
+
+    masker = _secrets_masker()
+    patterns_before = set(masker.patterns)
+    single_chars_before = [p for p in patterns_before if len(p) == 1]
+    print(f"DEBUG: Patterns before test: {patterns_before} total, single chars: {single_chars_before}")
+
     with dag_maker("test_get_k8s_pod_yaml") as dag:
         task = BashOperator(task_id="test", bash_command="echo hi")
     dr = dag_maker.create_dagrun()
@@ -216,6 +227,13 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     render_k8s_pod_yaml.return_value = {"I'm a": "pod", "secret": "password123"}
 
     rtif = RTIF(ti=ti)
+
+    patterns_after = set(masker.patterns)
+    single_chars_after = [p for p in patterns_after if len(p) == 1]
+    new_patterns = patterns_after - patterns_before
+    print(f"DEBUG: Patterns after RTIF creation: {patterns_after} total, single chars: {single_chars_after}")
+    print(f"DEBUG: New patterns from RTIF: {new_patterns}")
+    print(f"DEBUG: Result: {rtif.k8s_pod_yaml}")
 
     assert ti.dag_id == rtif.dag_id
     assert ti.task_id == rtif.task_id
