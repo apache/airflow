@@ -16,4 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from testcontainers.elasticsearch import ElasticSearchContainer
+
+
+@pytest.fixture(scope="session")
+def es_8_container_url():
+    with ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0") as es:
+        yield es.get_url()
+
+
 pytest_plugins = "tests_common.pytest_plugin"
