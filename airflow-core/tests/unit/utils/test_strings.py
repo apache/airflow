@@ -1,8 +1,3 @@
-"""
-Tests for :mod:`airflow.utils.strings`.
-"""
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -29,4 +24,3 @@ def test_to_boolean_strips_whitespace():
     assert to_boolean(" yes ") is True
     assert to_boolean(" 1\n") is True
     assert to_boolean("\tON") is True
-
