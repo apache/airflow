@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
+# requires-python = ">=3.10"
 # dependencies = [
-#   "docutils>=0.20.0",
+#   "docutils>=0.21.2",
 #   "pygments>=2.19.1",
 #   "jinja2>=3.1.5"
 # ]

@@ -15,6 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "rich>=13.6.0".
+#   "argcomplete>=1.10",
+# ]
+# ///
 from __future__ import annotations
 
 import sys
