@@ -591,6 +591,28 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # Test dag_version filter
+            (
+                DAG1_ID,
+                {"dag_version": [1]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Version 1 should match all DAG1 runs
+            (
+                DAG2_ID,
+                {"dag_version": [1]},
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Version 1 should match all DAG2 runs
+            (
+                "~",
+                {"dag_version": [1]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Version 1 should match all runs
+            ("~", {"dag_version": [999]}, []),  # Non-existent version should match no runs
+            (
+                DAG1_ID,
+                {"dag_version": [1, 999]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Multiple versions, only existing ones match
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -680,6 +702,13 @@ class TestGetDagRuns:
         assert (
             response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
         )
+
+    def test_invalid_dag_version(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"dag_version": ["invalid"]})
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"][0]["type"] == "int_parsing"
+        assert "dag_version" in body["detail"][0]["loc"]
 
 
 class TestListDagRunsBatch:
