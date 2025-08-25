@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "tabulate>=0.9.0",
+#   "rich>=13.6.0",
+#   "pyyaml>=6.0.2"
+# ]
+# ///
 """
 Module to check integration tests are listed in documentation.
 
