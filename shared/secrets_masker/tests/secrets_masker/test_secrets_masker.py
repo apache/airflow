@@ -215,7 +215,7 @@ class TestSecretsMasker:
             ERROR Err
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line}, in test_masking_in_explicit_context_exceptions
-                raise RuntimeError(f"Cannot connect to user:{{p}}")
+                raise RuntimeError(f"Cannot connect to user:{{PASSWORD}}")
             RuntimeError: Cannot connect to user:***
 
             The above exception was the direct cause of the following exception:
