@@ -48,6 +48,7 @@ class Neo4jHook(BaseHook):
     conn_name_attr = "neo4j_conn_id"
     default_conn_name = "neo4j_default"
     conn_type = "neo4j"
+    hook_name = "Neo4j"
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
