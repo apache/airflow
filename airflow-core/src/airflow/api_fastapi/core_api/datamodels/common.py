@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Common Data Models for Airflow REST API.P
+Common Data Models for Airflow REST API.
 
 :meta private:
 """
