@@ -46,13 +46,14 @@ class LimitWindowDescriptor:
 
     Args:
         running_now_join (Subquery): the subquery on which we join for the window to get the additional parallelism
-        limits data.
-        running_now_join_predicates (Collection[str]): on what columns we do the join for for the
+        limits data, part of the so called "predicate map" (explanation later in the code).
+        running_now_join_predicates (Collection[str]): on what (additional) columns we do the join for for the running_now_join.
         running_now_join, also used in the group by.
-        limit_column (Column): The column which decides how many rows should be chosen per window for
-        concurency limits.
-        window (expression.ColumnElement): the column by which we window.
-        limit_join_model (Base | None): the model on which we join to get a concurency limit.
+        limit_column (Column): the column by which we check the window result, the window result has to be
+        less than or equal to the limit_column (used for concurrency limits).
+        window (expression.ColumnElement): the window expression itself.
+        limit_join_model (Base | None): the model on which we join to get an aditional concurrency limit,
+        sometimes it is needed for limits which are outside of dagrun, taskinstance and dag.
     """
 
     running_now_join: CTE
@@ -73,6 +74,31 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
     Works by delegating almost all the work from python do sql.
     Uses a few nested window functions to query only ready tasks.
+
+    The query is built in a dynamic manner, meaning, it can be extended easily
+    but it might be hard to understand how everything connects.
+
+    Each window checks a single concurrency limit (i.e parallelism, dag max active tasks, for more info visit https://stackoverflow.com/questions/38200666/airflow-parallelism)
+
+    as of now, there exist 4 windows that check `mapped_tis_per_task_run_count` which checks for mapped
+    tasks, `total_tis_per_dagrun_count` which checks for tis across all dagruns, `tis_per_dag_count` which
+    check for specific task across all dagruns and `pool_slots_taken` which checks for pool slots taken by all
+    tasks we want to set to queued.
+
+    For each window, we have a value whome reflects the current state of the limit.
+    These are called `concurrency map`, the name is taken from optimistic implementation.
+
+    These include:
+
+        `running_total_tis_per_dagrun`: counts all running tis per dagrun for the `total_tis_per_dagrun_count` window.
+
+        `running_tis_per_dag`: counts all specific ti's across a dag (across all dagruns) for the `tis_per_dag_count` window.
+
+        `running_total_tis_per_task_run`: counts all mapped tasks of specific task run for the `mapped_tis_per_task_run_count` window.
+
+        `running_tis_per_pool`: which counts how many tasks are running per pool for the `pool_slots_taken` window.
+
+    All of these are created using the `running_tasks_group` and are called the `Concurrency Map` function which just counts and groups tasks by the fields we give it, along with having some predicates to only count running tasks.
     """
 
     def __init__(self) -> None:
@@ -106,6 +132,22 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             )
 
         def add_window_limit(query: Select, limit: LimitWindowDescriptor) -> Select:
+            """
+            Create a query with an added window limit from the LimitWindowDescriptor.
+
+            This function uses the old query and the results from the old query (the query field)
+            to join on the new window created dynamically (in order to use the tasks queried from the old query),
+            and it is used to filter more and more tasks each window we create.
+            It allows for additional outer join predicates in case they are needed.
+
+            Priority Behaviour:
+                The behaviour of priorities using this task selector is that we always drop less prioritized tasks,
+                as long as they are related (meaning either same pool, same dag, dagrun or task (for mapped)).
+                if the tasks are not related, we can have a lower priority task running before a higher priority one.
+                Related tasks are tasks which have any common trait (i.e same pool), meaning,
+                they can cause another related task to not run because they occupy some slot in the concurrency map of the same task.
+                Otherwise, we can run lower priority tasks as they do not relate in any way and cannot interfere with a higher priority task running.
+            """
             cte_query = query.add_columns(limit.window).cte()
             query = (
                 select(TI.id)
@@ -161,6 +203,13 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             .over(partition_by=(TI.pool), order_by=priority_order, rows=(None, 0))
             .label("pool_slots_taken_sum")
         )
+
+        # The order of the LimitWindowDescriptors here matters, it is arranged to go from the
+        # most specific limit to least specific limit, where mapped tasks are first, as it only drops mapped
+        # tasks which do not pass their concurrency limit.
+        # we then have the dagrun window, which selects all tasks which a dagrun can run according to given limits.
+        # the next is the tis per dag, which is included in the dagrun window as it checks a "row" of tasks across all dagruns.
+        # and the last is pool, the least specific, to select the most prioritized tasks for each pool
 
         limits = [
             LimitWindowDescriptor(
