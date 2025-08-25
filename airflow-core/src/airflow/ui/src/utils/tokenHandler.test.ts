@@ -28,12 +28,12 @@ describe("TokenFlow Interceptor", () => {
     });
   });
 
-  it("Should read from the cookie, persist to the localStorage and remove from the cookie", () => {
+  it("Should read from the cookie, persist to the sessionStorage and remove from the cookie", () => {
     const token = "test-token";
 
     document.cookie = `_token=${token};`;
 
-    const setItemMock = vi.spyOn(localStorage, "setItem");
+    const setItemMock = vi.spyOn(sessionStorage, "setItem");
 
     const headers = {};
 

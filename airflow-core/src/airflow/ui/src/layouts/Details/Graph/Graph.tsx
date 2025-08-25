@@ -20,7 +20,7 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import {
   useDagRunServiceGetDagRun,
@@ -78,8 +78,8 @@ export const Graph = () => {
   const { openGroupIds } = useOpenGroups();
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
-  const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [dependencies] = useSessionStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+  const [direction] = useSessionStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 

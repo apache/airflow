@@ -19,25 +19,9 @@
 import type { InternalAxiosRequestConfig } from "axios";
 
 export const TOKEN_STORAGE_KEY = "token";
-const getTokenFromCookies = (): string | undefined => {
-  const cookies = document.cookie.split(";");
-
-  for (const cookie of cookies) {
-    const [name, token] = cookie.split("=");
-
-    if (name?.trim() === "_token" && token !== undefined) {
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      document.cookie = "_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;";
-
-      return token;
-    }
-  }
-
-  return undefined;
-};
 
 export const tokenHandler = (config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY) ?? getTokenFromCookies();
+  const token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
 
   if (token !== undefined) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -47,5 +31,5 @@ export const tokenHandler = (config: InternalAxiosRequestConfig) => {
 };
 
 export const clearToken = () => {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
 };

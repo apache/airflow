@@ -28,7 +28,7 @@ import {
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DagRunInfo from "src/components/DagRunInfo";
@@ -149,7 +149,7 @@ const DAGS_LIST_DISPLAY = "dags_list_display";
 
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
+  const [display, setDisplay] = useSessionStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));

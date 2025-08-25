@@ -19,7 +19,7 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { useConfig } from "src/queries/useConfig";
 
@@ -31,7 +31,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const location = useLocation();
   const pageName = location.pathname;
 
-  const [sorting, setSorting] = useLocalStorage<TableState["sorting"]>(
+  const [sorting, setSorting] = useSessionStorage<TableState["sorting"]>(
     `${pageName.replaceAll("/", "-").slice(1)}-table-sort`,
     [],
   );

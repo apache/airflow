@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useCallback, useMemo, type PropsWithChildren } from "react";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { OpenGroupsContext, type OpenGroupsContextType } from "./Context";
 
@@ -27,7 +27,7 @@ type Props = {
 
 export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const openGroupsKey = `${dagId}/open-groups`;
-  const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
+  const [openGroupIds, setOpenGroupIds] = useSessionStorage<Array<string>>(openGroupsKey, []);
 
   const toggleGroupId = useCallback(
     (groupId: string) => {

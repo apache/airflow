@@ -19,7 +19,6 @@
 import { Flex, Alert, CloseButton, Container, Heading, Span, Text } from "@chakra-ui/react";
 import type { LoginResponse } from "openapi-gen/requests/types.gen";
 import { useState } from "react";
-import { useCookies } from "react-cookie";
 import { useSearchParams } from "react-router-dom";
 
 import { AirflowPin } from "src/AirflowPin";
@@ -47,9 +46,8 @@ const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner";
 
 export const Login = () => {
   const [searchParams] = useSearchParams();
-  const [, setCookie] = useCookies(["_token"]);
   const [isBannerDisabled, setIsBannerDisabled] = useState(
-    localStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY),
+    sessionStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY),
   );
 
   const onSuccess = (data: LoginResponse) => {
@@ -59,10 +57,8 @@ export const Login = () => {
     // Redirect to appropriate page with the token
     const next = searchParams.get("next") ?? fallback;
 
-    setCookie("_token", data.access_token, {
-      path: "/",
-      secure: globalThis.location.protocol !== "http:",
-    });
+    //set token in session Storage
+    sessionStorage.setItem("token",data.access_token)
 
     const redirectTarget = isSafeUrl(next) ? next : fallback;
 
@@ -122,7 +118,7 @@ export const Login = () => {
           <CloseButton
             insetEnd="-2"
             onClick={() => {
-              localStorage.setItem(LOCAL_STORAGE_DISABLE_BANNER_KEY, "1");
+              sessionStorage.setItem(LOCAL_STORAGE_DISABLE_BANNER_KEY, "1");
               setIsBannerDisabled("1");
             }}
             pos="relative"

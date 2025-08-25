@@ -23,7 +23,7 @@ import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
 import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
@@ -41,7 +41,7 @@ export const UserSettingsButton = () => {
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { selectedTimezone } = useTimezone();
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+  const [dagView, setDagView] = useSessionStorage<"graph" | "grid">("default_dag_view", "grid");
 
   const [time, setTime] = useState(dayjs());
 

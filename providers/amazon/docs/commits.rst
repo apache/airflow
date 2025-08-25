@@ -100,7 +100,7 @@ Commit                                                                          
 `b6a41a4293 <https://github.com/apache/airflow/commit/b6a41a42938bc403abe4c3be177703be6a309388>`__  2025-03-14   ``Update Dockerfile in aws execs docs (#47799)``
 `ffe2d3bae2 <https://github.com/apache/airflow/commit/ffe2d3bae23ecacfc9b8c3292174f49d3fd5a87e>`__  2025-03-14   ``Update AWS auth manager system test to handle new way of passing JWT token (#47794)``
 `af2461bc19 <https://github.com/apache/airflow/commit/af2461bc19ab88cd78c6d67624e5ff525c852052>`__  2025-03-14   ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
-`4ffb0a6fd3 <https://github.com/apache/airflow/commit/4ffb0a6fd38ae97bd02e1eb4e40d3781318ef9ef>`__  2025-03-14   ``Set JWT token to localStorage from cookies (#47432)``
+`4ffb0a6fd3 <https://github.com/apache/airflow/commit/4ffb0a6fd38ae97bd02e1eb4e40d3781318ef9ef>`__  2025-03-14   ``Set JWT token to sessionStorage from cookies (#47432)``
 `74f4860bb1 <https://github.com/apache/airflow/commit/74f4860bb12571f42e25f77c2f992bd0c7f2a70a>`__  2025-03-14   ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
 `d5ea56ae4b <https://github.com/apache/airflow/commit/d5ea56ae4be04ebccb12d13fa2cb2be994cf51ac>`__  2025-03-14   ``AIP-84 Add Auth for DAG Versioning (#47553)``
 `b32257bc82 <https://github.com/apache/airflow/commit/b32257bc827f20acc2e74df1cd2d7be69aafad3b>`__  2025-03-13   ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``

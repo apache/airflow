@@ -20,7 +20,7 @@ import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react
 import { useMemo } from "react";
 import { MdExpand, MdCompress } from "react-icons/md";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { useOpenGroups } from "src/context/openGroups";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
@@ -30,7 +30,7 @@ import { flattenNodes } from "./Grid/utils";
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { openGroupIds, setOpenGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [limit] = useSessionStorage<number>(`dag_runs_limit-${dagId}`, 10);
   const { data: dagStructure } = useGridStructure({ limit });
   const { allGroupIds } = useMemo(
     () => flattenNodes(dagStructure, openGroupIds),
