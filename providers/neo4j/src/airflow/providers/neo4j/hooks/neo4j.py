@@ -46,6 +46,7 @@ class Neo4jHook(BaseHook):
     default_conn_name = "neo4j_default"
     conn_type = "neo4j"
     hook_name = "Neo4j"
+    DEFAULT_PORT = 7687
 
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -59,77 +60,51 @@ class Neo4jHook(BaseHook):
             return self.client
 
         self.connection = self.get_connection(self.neo4j_conn_id)
-
         uri = self.get_uri(self.connection)
         self.log.info("URI: %s", uri)
-
-        is_encrypted = self.connection.extra_dejson.get("encrypted", False)
-
-        self.client = self.get_client(self.connection, is_encrypted, uri)
-
+        self.client = self._create_driver(uri)
         return self.client
 
-    def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
-        """
-        Determine that relevant driver based on extras.
-
-        :param conn: Connection object.
-        :param encrypted: boolean if encrypted connection or not.
-        :param uri: uri string for connection.
-        :return: Driver
-        """
+    def _create_driver(self, uri: str) -> Driver:
+        """Create and return Neo4j Driver instance."""
+        encrypted = self.connection.extra_dejson.get("encrypted", False)
         parsed_uri = urlsplit(uri)
-        kwargs: dict[str, Any] = {}
-        if parsed_uri.scheme in ["bolt", "neo4j"]:
-            kwargs["encrypted"] = encrypted
-        return GraphDatabase.driver(uri, auth=(conn.login, conn.password), **kwargs)
+        kwargs = {"encrypted": encrypted} if parsed_uri.scheme in ["bolt", "neo4j"] else {}
+        return GraphDatabase.driver(uri, auth=(self.connection.login, self.connection.password), **kwargs)
 
     def get_uri(self, conn: Connection) -> str:
         """
         Build the uri based on extras.
 
-        - Default - uses bolt scheme(bolt://)
-        - neo4j_scheme - neo4j://
-        - certs_self_signed - neo4j+ssc://
-        - certs_trusted_ca - neo4j+s://
+        - Default: bolt://
+        - neo4j_scheme: neo4j://
+        - certs_self_signed: neo4j+ssc://
+        - certs_trusted_ca: neo4j+s://
 
-        :param conn: connection object.
-        :return: uri
+        :param conn: Connection object.
+        :return: URI string
         """
-        use_neo4j_scheme = conn.extra_dejson.get("neo4j_scheme", False)
-        scheme = "neo4j" if use_neo4j_scheme else "bolt"
+        scheme = "neo4j" if conn.extra_dejson.get("neo4j_scheme", False) else "bolt"
 
-        # Self signed certificates
-        ssc = conn.extra_dejson.get("certs_self_signed", False)
+        if conn.extra_dejson.get("certs_self_signed", False):
+            scheme += "+ssc"
+        elif conn.extra_dejson.get("certs_trusted_ca", False):
+            scheme += "+s"
 
-        # Only certificates signed by CA.
-        trusted_ca = conn.extra_dejson.get("certs_trusted_ca", False)
-        encryption_scheme = ""
-
-        if ssc:
-            encryption_scheme = "+ssc"
-        elif trusted_ca:
-            encryption_scheme = "+s"
-
-        return f"{scheme}{encryption_scheme}://{conn.host}:{7687 if conn.port is None else conn.port}"
+        port = conn.port or self.DEFAULT_PORT
+        return f"{scheme}://{conn.host}:{port}"
 
     def run(self, query: str, parameters: dict[str, Any] | None = None) -> list[Any]:
         """
-        Create a neo4j session and execute the query in the session.
+        Create a neo4j session and execute the query.
 
         :param query: Neo4j query
-        :param parameters: Optional parameters for the query
-        :return: Result
+        :param parameters: Optional query parameters
+        :return: Query results
         """
         driver = self.get_conn()
-        session_paramters = {}
+        session_params = {"database": self.connection.schema} if self.connection.schema else {}
 
-        if db := self.connection.schema:
-            session_paramters["database"] = db
-
-        with driver.session(**session_paramters) as session:
-            if parameters is not None:
-                result = session.run(query, parameters)
-            else:
-                result = session.run(query)
+        with driver.session(**session_params) as session:
+            result = session.run(query, parameters)
             return result.data()
