@@ -26,20 +26,27 @@ export const WorkerPage = () => {
   const { data, error } = useUiServiceWorker();
 
   // TODO to make it proper
+  // Add missing columns first online / last heartbeat
+  // Beautification of state like in Airflow 2
   // Use DataTable as component from Airflow-Core UI
   // Add auto-refresh
-  // Add Actions for Maintenance
+  // Add actions for maintenance / delete of orphan worker
   // Add sorting
   // Add filtering
+  // Add links to see jobs on worker
   // Translation
   if (data)
     return (
       <Box p={2}>
-        <Table.Root size="sm" interactive stickyHeader striped variant={"outline"}>
+        <Table.Root size="sm" interactive stickyHeader striped>
           <Table.Header>
             <Table.Row>
               <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
               <Table.ColumnHeader>State</Table.ColumnHeader>
+              <Table.ColumnHeader>Queues</Table.ColumnHeader>
+              <Table.ColumnHeader>Active Jobs</Table.ColumnHeader>
+              <Table.ColumnHeader>System Information</Table.ColumnHeader>
+              <Table.ColumnHeader>Operations</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -47,6 +54,12 @@ export const WorkerPage = () => {
               <Table.Row key={worker.worker_name}>
                 <Table.Cell>{worker.worker_name}</Table.Cell>
                 <Table.Cell>{worker.state}</Table.Cell>
+                <Table.Cell>{worker.queues}</Table.Cell>
+                <Table.Cell>{worker.jobs_active}</Table.Cell>
+                <Table.Cell>
+                  {worker.sysinfo ? <ul>{Object.entries(worker.sysinfo).map(([key, value]) => <li key={key}>{key}: {value}</li>)}</ul> : "N/A"}
+                </Table.Cell>
+                <Table.Cell>{worker.maintenance_comments}</Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>
