@@ -55,6 +55,7 @@ PLURAL_SUFFIXES = {
     "he": ["_one", "_other"],
     "ko": ["_other"],
     "zh-TW": ["_other"],
+    "zh-CN": ["_other"],
 }
 
 

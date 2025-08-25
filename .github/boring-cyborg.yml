@@ -405,6 +405,9 @@ labelPRBasedOnFilePath:
   translation:zh-TW:
     - airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/*
 
+  translation:zh-CN:
+    - airflow-core/src/airflow/ui/public/i18n/locales/zh-CN/*
+
   area:CLI:
     - airflow-core/src/airflow/cli/**/*.py
     - airflow-core/tests/unit/cli/**/*.py
