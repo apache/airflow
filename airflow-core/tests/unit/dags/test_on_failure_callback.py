@@ -19,10 +19,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.exceptions import AirflowFailException
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.exceptions import AirflowFailException
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

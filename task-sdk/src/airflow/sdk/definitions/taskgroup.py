@@ -33,14 +33,15 @@ import attrs
 import methodtools
 
 from airflow.configuration import conf
-from airflow.exceptions import (
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowDagCycleException,
     AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
-from airflow.sdk.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput

@@ -22,7 +22,6 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
@@ -35,6 +34,7 @@ from airflow.sdk import (
     teardown,
 )
 from airflow.sdk.definitions.taskgroup import TaskGroup, task_group_to_dict
+from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
 from airflow.utils.dag_edges import dag_edges
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
@@ -683,7 +683,7 @@ def test_dag_edges_setup_teardown_nested():
 
 
 def test_duplicate_group_id():
-    from airflow.exceptions import DuplicateTaskIdFound
+    from airflow.sdk.exceptions import DuplicateTaskIdFound
 
     logical_date = pendulum.parse("20200101")
 

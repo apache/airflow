@@ -1687,6 +1687,7 @@ repos:
           ^airflow-core/src/airflow/serialization/dag\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/ti_deps/dep_context\.py$|
           ^airflow-core/src/airflow/task/task_runner/bash_task_runner\.py$|
           ^airflow-core/src/airflow/task/task_runner/standard_task_runner\.py$|
           ^airflow-core/src/airflow/utils/dag_cycle_tester\.py$|
