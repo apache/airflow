@@ -20,7 +20,16 @@ from __future__ import annotations
 from airflow.utils.strings import to_boolean
 
 
-def test_to_boolean_strips_whitespace():
-    assert to_boolean(" yes ") is True
-    assert to_boolean(" 1\n") is True
-    assert to_boolean("\tON") is True
+@pytest.mark.parametrize(
+    "input_string, expected_result",
+    [
+        (" yes ", True),
+        (" 1\n", True),
+        ("\tON", True),
+        (" no ", False),
+        (" 0\n", False),
+        ("\tOFF", False),
+    ]
+)
+def test_to_boolean_strips_whitespace(input_string: str, expected_result: bool) -> None:
+    assert to_boolean(input_string) is expected_result
