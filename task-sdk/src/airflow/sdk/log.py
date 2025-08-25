@@ -594,3 +594,28 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
 
         if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
             comms.send(MaskSecret(value=secret, name=name))
+
+
+async def async_mask_secret(secret: JsonValue, name: str | None = None) -> None:
+    """
+    Async version of mask_secret.
+
+    Mask a secret in both task process and supervisor process.
+
+    For secrets loaded from backends (Vault, env vars, etc.), this ensures
+    they're masked in both the task subprocess AND supervisor's log output.
+    Works safely in both sync and async contexts.
+    """
+    from contextlib import suppress
+
+    from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+    _secrets_masker().add_mask(secret, name)
+
+    with suppress(Exception):
+        # Try to tell supervisor (only if in task execution context)
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.comms import MaskSecret
+
+        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+            await comms.asend(MaskSecret(value=secret, name=name))

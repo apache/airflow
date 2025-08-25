@@ -130,7 +130,7 @@ class TestConnections:
         with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
             _ = Connection.get(conn_id="mysql_conn")
 
-    def test_to_dict(self):
+    def test_to_dict(self, patched_secrets_masker):
         """Test that to_dict returns correct dictionary representation."""
         connection = Connection(
             conn_id="test_conn",
@@ -223,6 +223,47 @@ class TestConnections:
 
         connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
         assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
+
+    def test_deserialize_extra(self, patched_secrets_masker):
+        """Test that _deserialize_extra correctly handles various inputs."""
+        connection = Connection(conn_id="test_conn", conn_type="test")
+
+        connection.extra = '{"key": "value", "nested": {"inner": "data"}}'
+        assert connection._deserialize_extra() == {"key": "value", "nested": {"inner": "data"}}
+
+        connection.extra = None
+        assert connection._deserialize_extra() == {}
+
+        connection.extra = "not-json"
+        assert connection._deserialize_extra() == {}
+
+    def test_extra_dejson_uses_deserialize(self, patched_secrets_masker):
+        """Test that extra_dejson property uses deserialized extra data."""
+        test_data = {"key": "value"}
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="test",
+            extra=json.dumps(test_data),
+        )
+
+        assert connection._deserialize_extra() == test_data
+        assert connection.extra_dejson == test_data
+
+    @pytest.mark.asyncio
+    async def test_async_extra_dejson(self, mock_supervisor_comms, patched_secrets_masker):
+        """Test that async_extra_dejson correctly deserializes and masks secrets."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="test",
+            extra='{"password": "secret", "key": "value"}',
+        )
+
+        mock_supervisor_comms.asend = mock.AsyncMock()
+
+        result = await connection.async_extra_dejson()
+        assert result == {"password": "secret", "key": "value"}
+
+        mock_supervisor_comms.asend.assert_called()
 
 
 class TestConnectionsFromSecrets:
