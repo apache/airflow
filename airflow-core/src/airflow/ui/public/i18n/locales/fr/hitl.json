@@ -1,0 +1,24 @@
+{
+  "requiredAction_one": "Actions requises",
+  "requiredAction_other": "Actions requises",
+  "requiredActionState": "État de l'action requise",
+  "response": {
+    "error": "Échec de la réponse",
+    "optionsDescription": "Choisissez vos options pour cette instance de tâche",
+    "optionsLabel": "Options",
+    "received": "Réponse reçue à ",
+    "respond": "Répondre",
+    "success": "Réponse pour {{taskId}} réussie",
+    "title": "Instance de tâche humaine - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Approbation reçue",
+    "approvalRequired": "Approbation requise",
+    "choiceReceived": "Choix reçu",
+    "choiceRequired": "Choix requis",
+    "rejectionReceived": "Rejet reçu",
+    "responseReceived": "Réponse reçue",
+    "responseRequired": "Réponse requise"
+  },
+  "subject": "Sujet"
+}

@@ -55,8 +55,12 @@ backfill will consider creating runs for.  Whether or not they will be created
 depends on your chosen reprocessing behavior and the states of any existing
 runs in the range at the time you actually run the backfill.
 
-Example:
---------
+Example
+-------
+
+Backfill can be created from either the CLI or the UI.
+
+For CLI, below is an example command:
 
 .. code-block:: bash
 
@@ -67,3 +71,19 @@ Example:
         --max-active-runs 3 \
         --run-backwards \
         --dag-run-conf '{"my": "param"}'
+
+For UI, follow the following steps:
+
+1. Navigate to a DAG's Details page and click **Trigger**.
+2. In the pop-up window, select **Backfill**.
+3. Fill in the form:
+
+   - **Date range**: set "From" and "To" logical datetimes for the backfill window.
+   - **Reprocess behavior**: choose one of ``Missing Runs``, ``Missing and Errored Runs``, or ``All Runs``.
+   - **Max active runs**: limit concurrent backfill runs for this backfill.
+   - **Run backwards**: execute most recent intervals first.
+   - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
+   - If the DAG is paused, you can **Unpause** it in the same window.
+
+.. image:: ../img/ui-light/backfill.png
+   :alt: Backfill pop-up window (Light Mode)
