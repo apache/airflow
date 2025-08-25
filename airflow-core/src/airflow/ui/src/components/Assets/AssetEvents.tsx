@@ -19,16 +19,16 @@
 import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
-import { useSearchParams } from "react-router-dom";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
 import { DateTimeInput } from "src/components/DateTimeInput";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useFilterSearchParams } from "src/utils/useFilterSearchParams";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
@@ -76,25 +76,9 @@ export const AssetEvents = ({
       value: type,
     })),
   });
-  const [searchParams, setSearchParams] = useSearchParams();
   const { DAG_ID_PATTERN, END_DATE, RUN_TYPE, START_DATE, TASK_ID_PATTERN } = SearchParamsKeys;
-  const startDate = searchParams.get(START_DATE) ?? "";
-  const endDate = searchParams.get(END_DATE) ?? "";
-  const dagIdPattern = searchParams.get(DAG_ID_PATTERN) ?? "";
-  const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? "";
-  const runType = searchParams.get(RUN_TYPE) ?? "";
-
-  const handleFilterChange = useCallback(
-    (paramKey: string) => (value: string) => {
-      if (value === "") {
-        searchParams.delete(paramKey);
-      } else {
-        searchParams.set(paramKey, value);
-      }
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+  const { dagIdPattern, endDate, handleFilterChange, runType, startDate, taskIdPattern } =
+    useFilterSearchParams();
   const filteredData = useMemo(() => {
     if (!data) {
       return {
@@ -166,21 +150,18 @@ export const AssetEvents = ({
       </Flex>
       <DateTimeInput
         onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
-        value={searchParams.get(START_DATE) ?? ""}
+        value={startDate}
       />
-      <DateTimeInput
-        onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
-        value={searchParams.get(END_DATE) ?? ""}
-      />
+      <DateTimeInput onChange={(event) => handleFilterChange(END_DATE)(event.target.value)} value={endDate} />
       <SearchBar
-        defaultValue={searchParams.get(DAG_ID_PATTERN) ?? ""}
+        defaultValue={dagIdPattern}
         hideAdvanced
         hotkeyDisabled={true}
         onChange={handleFilterChange(DAG_ID_PATTERN)}
         placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
       />
       <SearchBar
-        defaultValue={searchParams.get(TASK_ID_PATTERN) ?? ""}
+        defaultValue={taskIdPattern}
         hideAdvanced
         hotkeyDisabled={true}
         onChange={handleFilterChange(TASK_ID_PATTERN)}
