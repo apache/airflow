@@ -955,6 +955,7 @@ class XComResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
 class XComResponseNative(BaseModel):
@@ -970,6 +971,7 @@ class XComResponseNative(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -986,6 +988,7 @@ class XComResponseString(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 

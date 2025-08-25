@@ -1571,6 +1571,7 @@ export type XComResponse = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
 };
 
 /**
@@ -1585,6 +1586,7 @@ export type XComResponseNative = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
     value: unknown;
 };
 
@@ -1600,6 +1602,7 @@ export type XComResponseString = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
     value: string | null;
 };
 

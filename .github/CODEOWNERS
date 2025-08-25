@@ -48,6 +48,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @ka
 airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
 airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 airflow-core/src/airflow/ui/public/i18n/locales/tr/ @bugraoz93 # +@hasancatalgol
+airflow-core/src/airflow/ui/public/i18n/locales/hi/ @vatsrahul1001
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
