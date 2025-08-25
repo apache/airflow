@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Box } from "@chakra-ui/react";
+import { Box, Table } from "@chakra-ui/react";
 
 import { useUiServiceWorker } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -31,25 +31,26 @@ export const WorkerPage = () => {
   // Add Actions for Maintenance
   // Add sorting
   // Add filtering
+  // Translation
   if (data)
     return (
       <Box p={2}>
-        <table cellPadding={2} cellSpacing={2} style={{ border: "1px solid gray" }}>
-          <thead>
-            <tr>
-              <th style={{ border: "1px solid gray", padding: "2px" }}>Worker Name</th>
-              <th style={{ border: "1px solid gray", padding: "2px" }}>State</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table.Root size="sm" interactive stickyHeader striped variant={"outline"}>
+          <Table.Header>
+            <Table.Row>
+              <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
+              <Table.ColumnHeader>State</Table.ColumnHeader>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
             {data.workers.map((worker) => (
-              <tr key={worker.worker_name}>
-                <td style={{ border: "1px solid gray", padding: "2px" }}>{worker.worker_name}</td>
-                <td style={{ border: "1px solid gray", padding: "2px" }}>{worker.state}</td>
-              </tr>
+              <Table.Row key={worker.worker_name}>
+                <Table.Cell>{worker.worker_name}</Table.Cell>
+                <Table.Cell>{worker.state}</Table.Cell>
+              </Table.Row>
             ))}
-          </tbody>
-        </table>
+          </Table.Body>
+        </Table.Root>
       </Box>
     );
   if (error) {
