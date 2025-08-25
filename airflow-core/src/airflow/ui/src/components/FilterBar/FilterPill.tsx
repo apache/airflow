@@ -18,7 +18,7 @@
  */
 import { Box, Button, HStack, IconButton } from "@chakra-ui/react";
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MdClose } from "react-icons/md";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
@@ -43,6 +43,8 @@ export const FilterPill = ({
 }: FilterPillProps) => {
   const isEmpty = filter.value === null || filter.value === undefined || String(filter.value).trim() === "";
   const [isEditing, setIsEditing] = useState(isEmpty);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const handlePillClick = () => setIsEditing(true);
 
@@ -53,28 +55,45 @@ export const FilterPill = ({
   };
 
   const handleBlur = () => {
-    setTimeout(() => setIsEditing(false), 100);
+    blurTimeoutRef.current = setTimeout(() => setIsEditing(false), 150);
+  };
+
+  const handleFocus = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = undefined;
+    }
   };
 
   useEffect(() => {
-    if (isEditing) {
-      setTimeout(() => {
-        const input = document.querySelector(`input[placeholder*="${filter.config.label}"]`);
+    if (isEditing && inputRef.current) {
+      const input = inputRef.current;
+      const focusInput = () => {
+        input.focus();
+        input.select();
+      };
 
-        if (input instanceof HTMLInputElement) {
-          input.focus();
-        }
-      }, 10);
+      requestAnimationFrame(focusInput);
     }
-  }, [isEditing, filter.config.label]);
+  }, [isEditing]);
+
+  useEffect(
+    () => () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   const childrenWithProps = React.Children.map(children, (child) => {
     if (React.isValidElement(child)) {
       return React.cloneElement(child, {
-        autoFocus: true,
         onBlur: handleBlur,
         onChange,
+        onFocus: handleFocus,
         onKeyDown: handleKeyDown,
+        ref: inputRef,
         ...child.props,
       } as Record<string, unknown>);
     }
