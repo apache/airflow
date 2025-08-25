@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-apache-seatunnel
+name: Apache SeaTunnel Provider
+state: ready
+
+description: |
+  `Apache SeaTunnel <https://seatunnel.apache.org/>`__
+
+# Note that versions are maintained by release managers in Airflow
+versions:
+  - 0.1.0
+
+# Optional: dependencies are taken from pyproject.toml by tooling,
+# but can be kept here for readability.
+dependencies:
+  - apache-airflow>=3.0.0
+  - requests>=2.25.0
+
+integrations:
+  - integration-name: Apache SeaTunnel
+    external-doc-url: https://seatunnel.apache.org/
+    logo: /integration-logos/apache/seatunnel.png
+    tags: [apache]
+
+operators:
+  - integration-name: Apache SeaTunnel
+    python-modules:
+      - airflow.providers.apache.seatunnel.operators.seatunnel_operator
+
+sensors:
+  - integration-name: Apache SeaTunnel
+    python-modules:
+      - airflow.providers.apache.seatunnel.sensors.seatunnel_sensor
+
+hooks:
+  - integration-name: Apache SeaTunnel
+    python-modules:
+      - airflow.providers.apache.seatunnel.hooks.seatunnel_hook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook
+    connection-type: apache_seatunnel

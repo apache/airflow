@@ -1,0 +1,26 @@
+services:
+  seatunnel:
+    image: python:3.9-slim
+    container_name: seatunnel-test
+    ports:
+      - "8083:8083"  # REST API port for mock service
+    command: >
+      sh -c "
+        echo 'Starting mock SeaTunnel service...' &&
+        mkdir -p /tmp/health &&
+        echo 'OK' > /tmp/health/status &&
+        echo 'Mock SeaTunnel service ready' &&
+        python3 -m http.server 8083 --directory /tmp/health
+      "
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/status')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - seatunnel-test-network
+
+networks:
+  seatunnel-test-network:
+    driver: bridge
