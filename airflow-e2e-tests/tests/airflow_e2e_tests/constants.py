@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
+AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
@@ -32,7 +32,8 @@ DOCKER_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "d
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
 
-E2E_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "dags"
+E2E_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e2e_tests" / "dags"
 
 # The logs folder where the Airflow logs will be copied to and uploaded to github artifacts
 LOGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "logs"
+TEST_REPORT_FILE = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "_e2e_test_report.json"

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from e2e_test_utils.clients import AirflowClient, TaskSDKClient
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient, TaskSDKClient
 
 
 class TestBasicDagFunctionality:
