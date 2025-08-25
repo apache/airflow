@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from airflow.utils.strings import to_boolean
 
 
@@ -29,7 +31,7 @@ from airflow.utils.strings import to_boolean
         (" no ", False),
         (" 0\n", False),
         ("\tOFF", False),
-    ]
+    ],
 )
 def test_to_boolean_strips_whitespace(input_string: str, expected_result: bool) -> None:
     assert to_boolean(input_string) is expected_result
