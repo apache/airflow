@@ -45,7 +45,7 @@ class FailureDetails(TypedDict, total=False):
 class KubernetesResults(NamedTuple):
     """Results from Kubernetes task execution."""
 
-    key: TaskInstanceKey  # 使用字符串引用
+    key: TaskInstanceKey
     state: TaskInstanceState | str | None
     pod_name: str
     namespace: str

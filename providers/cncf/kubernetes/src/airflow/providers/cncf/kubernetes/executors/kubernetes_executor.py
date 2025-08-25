@@ -332,13 +332,7 @@ class KubernetesExecutor(BaseExecutor):
                     last_resource_version[results.namespace] = results.resource_version
                     self.log.info("Changing state of %s to %s", results, results.state)
                     try:
-                        self._change_state(
-                            results.key,
-                            results.state,
-                            results.pod_name,
-                            results.namespace,
-                            results.failure_details,
-                        )
+                        self._change_state(results)
                     except Exception as e:
                         self.log.exception(
                             "Exception: %s when attempting to change state of %s to %s, re-queueing.",
@@ -411,15 +405,18 @@ class KubernetesExecutor(BaseExecutor):
     @provide_session
     def _change_state(
         self,
-        key: TaskInstanceKey,
-        state: TaskInstanceState | str | None,
-        pod_name: str,
-        namespace: str,
-        failure_details: FailureDetails | None = None,
+        results: KubernetesResults,
         session: Session = NEW_SESSION,
     ) -> None:
+        """Change state of the task based on KubernetesResults."""
         if TYPE_CHECKING:
             assert self.kube_scheduler
+
+        key = results.key
+        state = results.state
+        pod_name = results.pod_name
+        namespace = results.namespace
+        failure_details = results.failure_details
 
         if state == TaskInstanceState.FAILED:
             # Use pre-collected failure details from the watcher to avoid additional API calls
@@ -744,13 +741,7 @@ class KubernetesExecutor(BaseExecutor):
                         results.resource_version,
                     )
                     try:
-                        self._change_state(
-                            results.key,
-                            results.state,
-                            results.pod_name,
-                            results.namespace,
-                            results.failure_details,
-                        )
+                        self._change_state(results)
                     except Exception as e:
                         self.log.exception(
                             "Ignoring exception: %s when attempting to change state of %s to %s.",
