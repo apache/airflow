@@ -650,7 +650,6 @@ class KubernetesPodOperator(BaseOperator):
         self.name = self._set_name(self.name)
         if not self.deferrable:
             return self.execute_sync(context)
-
         self.execute_async(context)
 
     def execute_sync(self, context: Context):
@@ -833,7 +832,6 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
@@ -847,6 +845,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
+        self.convert_config_file_to_dict()
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
             trigger=KubernetesPodTrigger(
