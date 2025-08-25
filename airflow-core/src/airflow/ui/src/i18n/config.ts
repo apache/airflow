@@ -33,6 +33,7 @@ export const supportedLanguages = [
   { code: "pl", name: "Polski" },
   { code: "pt", name: "Português" },
   { code: "zh-TW", name: "繁體中文" },
+  { code: "tr", name: "Türkçe" },
 ] as const;
 
 export const defaultLanguage = "en";
