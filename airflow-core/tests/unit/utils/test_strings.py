@@ -1,3 +1,8 @@
+"""
+Tests for :mod:`airflow.utils.strings`.
+"""
+
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,26 +19,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Common utility functions with strings."""
 
 from __future__ import annotations
 
-import random
-import string
+from airflow.utils.strings import to_boolean
 
 
-def get_random_string(length=8, choices=string.ascii_letters + string.digits):
-    """Generate random string."""
-    return "".join(random.choices(choices, k=length))
+def test_to_boolean_strips_whitespace():
+    assert to_boolean(" yes ") is True
+    assert to_boolean(" 1\n") is True
+    assert to_boolean("\tON") is True
 
-
-TRUE_LIKE_VALUES = {"on", "t", "true", "y", "yes", "1"}
-
-
-def to_boolean(astring: str | None) -> bool:
-    """Convert a string to a boolean."""
-    if astring is None:
-        return False
-    if astring.strip().lower() in TRUE_LIKE_VALUES:
-        return True
-    return False
