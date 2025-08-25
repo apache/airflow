@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -95,7 +95,8 @@ def _update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
-    map_index: int,
+    map_index: int | None = None,
+    update_mask: list[str] | None = Query(None),
 ) -> HITLDetailResponse:
     task_instance = _get_task_instance(
         dag_id=dag_id,
@@ -129,14 +130,32 @@ def _update_hitl_detail(
         if user_id not in hitl_detail_model.respondents:
             log.error("User=%s is not a respondent for the task", user_id)
             raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"User={user_id} is not a respondent for the task.",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User={user_id} is not a respondent for the task.",
             )
+    fields_to_update = (
+        update_mask
+        if update_mask
+        else [
+            "user_id",
+            "response_at",
+            "chosen_options",
+            "params_input",
+        ]
+    )
 
-    hitl_detail_model.user_id = user.get_id()
-    hitl_detail_model.response_at = timezone.utcnow()
-    hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+    if "user_id" in fields_to_update:
+        hitl_detail_model.user_id = user.get_id()
+
+    if "response_at" in fields_to_update:
+        hitl_detail_model.response_at = timezone.utcnow()
+
+    if "chosen_options" in fields_to_update:
+        hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
+
+    if "params_input" in fields_to_update:
+        hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+
     session.add(hitl_detail_model)
     session.commit()
     return HITLDetailResponse.model_validate(hitl_detail_model)
@@ -195,6 +214,7 @@ def update_hitl_detail(
     user: GetUserDep,
     session: SessionDep,
     map_index: int = -1,
+    update_mask: list[str] | None = Query(None),
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
     return _update_hitl_detail(
@@ -205,6 +225,7 @@ def update_hitl_detail(
         update_hitl_detail_payload=update_hitl_detail_payload,
         user=user,
         map_index=map_index,
+        update_mask=update_mask,
     )
 
 

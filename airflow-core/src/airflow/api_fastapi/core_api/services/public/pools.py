@@ -31,9 +31,48 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolBody,
+    PoolPatchBody,
 )
-from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.common import BulkService, PatchUtil
 from airflow.models.pool import Pool
+
+
+def update_orm_from_pydantic(
+    old_pool: Pool,
+    patch_body: PoolBody | PoolPatchBody,
+    update_mask: list[str] | None,
+) -> Pool:
+    """
+    Patch an existing Pool instance with provided update fields.
+
+    Args:
+        old_pool (Pool): The existing Pool ORM model instance to be updated.
+        patch_body (PoolBody): Pydantic model containing the fields to update.
+        update_mask (list[str] | None): Specific fields to update. If None, all provided fields will be considered.
+
+    Returns:
+        Pool: The updated Pool instance.
+
+    Raises:
+        HTTPException: If attempting to update disallowed fields on `default_pool`.
+    """
+    # Special restriction: default pool only allows limited fields to be patched
+    if old_pool.pool == Pool.DEFAULT_POOL_NAME:
+        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+            pass
+        else:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Only slots and include_deferred can be modified on Default Pool",
+            )
+
+    # Delegate patch application to the common utility
+    return PatchUtil.apply_patch_with_update_mask(
+        model=old_pool,
+        patch_body=patch_body,
+        update_mask=update_mask,
+        non_update_fields=None,
+    )
 
 
 class BulkPoolService(BulkService[PoolBody]):
@@ -90,6 +129,7 @@ class BulkPoolService(BulkService[PoolBody]):
         """Bulk Update pools."""
         to_update_pool_names = {pool.pool for pool in action.entities}
         _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_update_pool_names)
+        print(to_update_pool_names)
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
@@ -103,17 +143,13 @@ class BulkPoolService(BulkService[PoolBody]):
                 update_pool_names = to_update_pool_names
 
             for pool in action.entities:
-                if pool.pool in update_pool_names:
-                    old_pool = self.session.scalar(select(Pool).filter(Pool.pool == pool.pool).limit(1))
+                if pool.pool not in update_pool_names:
+                    continue
 
-                    data = {
-                        key: val for key, val in pool.model_dump(by_alias=True).items() if val is not None
-                    }
-                    try:
-                        PoolBody(**data)
-
-                        for key, val in data.items():
-                            setattr(old_pool, key, val)
+                old_pool = self.session.scalar(select(Pool).filter(Pool.pool == pool.pool).limit(1))
+                if not old_pool:
+                    continue  # Should not happen because we filtered above
+                pool = update_orm_from_pydantic(old_pool, pool, action.update_mask)
 
                         results.success.append(str(pool.pool))
 
