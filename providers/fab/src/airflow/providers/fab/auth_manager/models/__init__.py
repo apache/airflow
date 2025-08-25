@@ -288,8 +288,8 @@ class User(Model, BaseUser):
                 }
         return self._perms
 
-    def get_id(self):
-        return self.id
+    def get_id(self) -> str:
+        return str(self.id)
 
     def get_name(self) -> str:
         return self.username or self.email or self.user_id
