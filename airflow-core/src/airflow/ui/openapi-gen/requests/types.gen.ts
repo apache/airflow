@@ -2338,6 +2338,10 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    /**
+     * Filter DAGs by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
@@ -2358,6 +2362,10 @@ export type GetDagsData = {
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    /**
+     * Filter DAGs with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2440,6 +2448,10 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    /**
+     * Filter DAGs by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
@@ -2453,6 +2465,10 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    /**
+     * Filter DAGs with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
