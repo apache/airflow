@@ -53,6 +53,7 @@
     "tags": "Tags"
   },
   "dagId": "Dag ID",
+  "dagName": "Dag Name",
   "dagRun": {
     "conf": "Conf",
     "dagVersions": "Dag Version(s)",
@@ -101,6 +102,7 @@
   },
   "filters": {
     "dagDisplayNamePlaceholder": "Filter by Dag",
+    "filter": "Filter",
     "keyPlaceholder": "Filter by XCom key",
     "logicalDateFromPlaceholder": "Logical Date From",
     "logicalDateToPlaceholder": "Logical Date To",

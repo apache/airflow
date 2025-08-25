@@ -52,6 +52,7 @@
     "tags": "標籤"
   },
   "dagId": "Dag ID",
+  "dagName": "Dag 名稱",
   "dagRun": {
     "conf": "設定",
     "dagVersions": "Dag 版本",
@@ -100,6 +101,7 @@
   },
   "filters": {
     "dagDisplayNamePlaceholder": "依 Dag 名稱篩選",
+    "filter": "篩選",
     "keyPlaceholder": "依 XCom 鍵篩選",
     "logicalDateFromPlaceholder": "邏輯日期起始",
     "logicalDateToPlaceholder": "邏輯日期結束",
