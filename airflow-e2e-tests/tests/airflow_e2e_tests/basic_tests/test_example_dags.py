@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import pytest
-from e2e_test_utils.clients import AirflowClient
 
-dag_ids = [
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+
+DAG_IDS = [
     "example_bash_decorator",
     "example_bash_operator",
     "example_branch_datetime_operator",
@@ -72,11 +73,11 @@ class TestExampleDags:
 
     @pytest.mark.parametrize(
         "dag_id",
-        dag_ids,
-        ids=[dag_id for dag_id in dag_ids],
+        DAG_IDS,
+        ids=[dag_id for dag_id in DAG_IDS],
     )
     def test_example_dags(self, dag_id):
-        """Test that example DAGs can be triggered and complete successfully."""
+        """Test that DAGs can be triggered and complete successfully."""
 
         state = self.airflow_client.trigger_dag_and_wait(dag_id)
 

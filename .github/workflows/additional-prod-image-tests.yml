@@ -200,3 +200,4 @@ jobs:
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
+      docker-image-tag: "ghcr.io/apache/airflow/main/prod/python${{ inputs.default-python-version }}:latest"

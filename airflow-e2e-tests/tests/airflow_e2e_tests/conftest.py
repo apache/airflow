@@ -22,9 +22,17 @@ from datetime import datetime
 from shutil import copyfile, copytree
 
 import pytest
-from constants import AIRFLOW_ROOT_PATH, DOCKER_COMPOSE_HOST_PORT, DOCKER_IMAGE, E2E_DAGS_FOLDER, LOGS_FOLDER
 from rich.console import Console
 from testcontainers.compose import DockerCompose
+
+from airflow_e2e_tests.constants import (
+    AIRFLOW_ROOT_PATH,
+    DOCKER_COMPOSE_HOST_PORT,
+    DOCKER_IMAGE,
+    E2E_DAGS_FOLDER,
+    LOGS_FOLDER,
+    TEST_REPORT_FILE,
+)
 
 console = Console(width=400, color_system="standard")
 compose_instance = None
@@ -61,7 +69,11 @@ def spin_up_airflow_environment(tmp_path_factory):
     dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
 
-    compose_instance = DockerCompose(tmp_dir, compose_file_name=["docker-compose.yaml"], pull=False)
+    # If we are using the image from ghcr.io/apache/airflow/main we do not pull
+    # as it is already available and loaded using prepare_breeze_and_image step in workflow
+    pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
+
+    compose_instance = DockerCompose(tmp_dir, compose_file_name=["docker-compose.yaml"], pull=pull)
 
     compose_instance.start()
 
@@ -108,7 +120,8 @@ def pytest_sessionfinish(session, exitstatus):
         copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
     if compose_instance:
-        compose_instance.stop()
+        if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
+            compose_instance.stop()
 
 
 def generate_test_report(results):
@@ -123,7 +136,7 @@ def generate_test_report(results):
         "test_results": results,
     }
 
-    with open("_e2e_test_report.json", "w") as f:
+    with open(TEST_REPORT_FILE, "w") as f:
         json.dump(report, f, indent=2)
 
     console.print(f"[blue]\n{'=' * 50}")
