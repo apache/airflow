@@ -535,7 +535,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.8.12",
+    "uv>=0.8.13",
 ]
 
 
@@ -1265,6 +1265,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-ctl",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-secrets-masker",
 ]
 
 # To build docs:
@@ -1312,6 +1313,7 @@ apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
+apache-airflow-shared-secrets-masker = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1428,6 +1430,7 @@ members = [
     "providers-summary-docs",
     "docker-stack-docs",
     "shared/timezones",
+    "shared/secrets_masker",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

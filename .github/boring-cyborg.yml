@@ -357,6 +357,7 @@ labelPRBasedOnFilePath:
     - providers/**/docs/**/*
     - providers-summary-docs/**/*
     - docker-stack-docs/**/*
+    - airflow-ctl/docs/**/*
 
   area:helm-chart:
     - chart/**/*
@@ -385,6 +386,9 @@ labelPRBasedOnFilePath:
 
   translation:he:
     - airflow-core/src/airflow/ui/public/i18n/locales/he/*
+
+  translation:hi:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hi/*
 
   translation:ko:
     - airflow-core/src/airflow/ui/public/i18n/locales/ko/*

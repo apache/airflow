@@ -1550,7 +1550,7 @@ Miscellaneous
 - Bump ``dompurify`` from 2.2.9 to 2.5.6 in /airflow/www (#42263) (#42270)
 - Correct docstring format in _get_template_context (#42244) (#42272)
 - Backport: Bump Flask-AppBuilder to ``4.5.2`` (#43309) (#43318)
-- Check python version that was used to install prek venvs (#43282) (#43310)
+- Check python version that was used to install pre-commit venvs (#43282) (#43310)
 - Resolve warning in Dataset Alias migration (#43425)
 
 Doc Only Changes

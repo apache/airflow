@@ -15,6 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "packaging>=25",
+#   "pyyaml>=6.0.2",
+#   "requests>=2.31.0",
+#   "rich>=13.6.0",
+# ]
+# ///
 from __future__ import annotations
 
 import os
@@ -49,7 +58,9 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),

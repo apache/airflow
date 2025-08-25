@@ -135,7 +135,7 @@ export const Details = () => {
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("task.operator")}</Table.Cell>
-            <Table.Cell>{tryInstance?.operator}</Table.Cell>
+            <Table.Cell>{tryInstance?.operator_name}</Table.Cell>
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("duration")}</Table.Cell>

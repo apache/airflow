@@ -5,6 +5,33 @@
     "reason": "Reason",
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
+  "calendar": {
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "legend": {
+      "less": "Less",
+      "more": "More"
+    },
+    "navigation": {
+      "nextMonth": "Next month",
+      "nextYear": "Next year",
+      "previousMonth": "Previous month",
+      "previousYear": "Previous year"
+    },
+    "noData": "No data available",
+    "noRuns": "No runs",
+    "totalRuns": "Total Runs",
+    "week": "Week {{weekNumber}}",
+    "weekdays": {
+      "friday": "Fri",
+      "monday": "Mon",
+      "saturday": "Sat",
+      "sunday": "Sun",
+      "thursday": "Thu",
+      "tuesday": "Tue",
+      "wednesday": "Wed"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
@@ -102,6 +129,7 @@
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
     "backfills": "Backfills",
+    "calendar": "Calendar",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
