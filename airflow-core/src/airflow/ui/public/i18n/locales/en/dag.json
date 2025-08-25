@@ -94,7 +94,8 @@
       "options": "Options",
       "showGantt": "Show Gantt",
       "showGraph": "Show Graph",
-      "showGrid": "Show Grid"
+      "showGrid": "Show Grid",
+      "showVersionIndicator": "Show Version Indicator"
     },
     "dagRuns": {
       "label": "Number of Dag Runs"
