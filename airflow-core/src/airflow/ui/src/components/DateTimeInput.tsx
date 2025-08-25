@@ -30,7 +30,7 @@ dayjs.extend(tz);
 // We are replacing the native datetime-local input with react-datepicker for cross-browser compatibility.
 // The component's public API (props) should remain the same to avoid breaking changes in parent components.
 export const DateTimeInput = forwardRef<HTMLInputElement, InputProps>(
-  ({ value, onChange, ...rest }, ref) => {
+  ({ onChange, value, ...rest }, ref) => {
     const { selectedTimezone } = useTimezone();
 
     // The `value` from the form is a string (UTC ISO format). Convert to a Date object for DatePicker.
@@ -41,7 +41,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, InputProps>(
         : null;
 
     const handleChange = (date: Date | null) => {
-      if (!onChange) return;
+      if (!onChange) {return;}
 
       // When a date is selected, `react-datepicker` provides a Date object.
       // This object represents the selected time in the user's browser timezone.
@@ -69,21 +69,22 @@ export const DateTimeInput = forwardRef<HTMLInputElement, InputProps>(
     };
 
     // Use a custom input to apply Chakra styling and pass down props.
-    const CustomInput = forwardRef<HTMLInputElement, { value?: string }>(
+    const CustomInput = forwardRef<HTMLInputElement, { readonly value?: string }>(
       (props, customRef) => <Input {...rest} {...props} ref={customRef} />
     );
+
     CustomInput.displayName = "CustomInput";
 
     return (
       <DatePicker
-        selected={selected}
-        onChange={handleChange}
         customInput={<CustomInput />}
-        showTimeSelect
         dateFormat="yyyy-MM-dd HH:mm"
-        timeFormat="HH:mm"
+        onChange={handleChange}
         popperPlacement="bottom-start"
         ref={ref}
+        selected={selected}
+        showTimeSelect
+        timeFormat="HH:mm"
       />
     );
   }
