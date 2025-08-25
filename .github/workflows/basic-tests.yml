@@ -48,6 +48,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Which version of python should be used by default"
         required: true
         type: string
+      shared-distributions-as-json:
+        description: "Json array of shared distributions to run tests for"
+        required: true
+        type: string
       canary-run:
         description: "Whether to run canary tests (true/false)"
         required: true
@@ -59,6 +63,10 @@ on:  # yamllint disable-line rule:truthy
       use-uv:
         description: "Whether to use uv in the image"
         required: true
+        type: string
+      uv-version:
+        description: 'uv version to use'
+        default: "0.8.13"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -86,6 +94,27 @@ jobs:
         uses: ./.github/actions/breeze
       - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
         working-directory: ./dev/breeze/
+  tests-shared-distributions:
+    timeout-minutes: 10
+    name: Shared ${{ matrix.shared-distribution }} tests
+    strategy:
+      fail-fast: false
+      matrix:
+        shared-distribution: ${{ fromJSON(inputs.shared-distributions-as-json) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    env:
+      UV_VERSION: ${{inputs.uv-version}}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      - name: "Run shared secrets masker tests"
+        run: uv run --group dev pytest --color=yes -n auto
+        working-directory: shared/${{ matrix.shared-distribution }}
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
@@ -228,7 +257,7 @@ jobs:
   test-git-clone-on-windows:
     timeout-minutes: 5
     name: "Test git clone on Windows"
-    runs-on: ["windows-latest"]
+    runs-on: ["windows-2025"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2

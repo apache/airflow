@@ -35,8 +35,6 @@ from typing import TYPE_CHECKING, Any, Protocol, TextIO, TypeAlias, TypeVar, ove
 # not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
 from pydantic import JsonValue  # noqa: TC002
 
-from airflow import settings
-
 if TYPE_CHECKING:
     from typing import TypeGuard
 
@@ -123,13 +121,6 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     if not secret:
         return
 
-    from airflow.sdk.execution_time import task_runner
-    from airflow.sdk.execution_time.comms import MaskSecret
-
-    if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
-        # Tell the parent, the process which handles all logs writing and output, about the values to mask
-        comms.send(MaskSecret(value=secret, name=name))
-
     _secrets_masker().add_mask(secret, name)
 
 
@@ -161,17 +152,22 @@ def merge(
     return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
-@cache
+_global_secrets_masker: SecretsMasker | None = None
+
+
 def _secrets_masker() -> SecretsMasker:
-    for flt in logging.getLogger("airflow.task").filters:
-        if isinstance(flt, SecretsMasker):
-            return flt
-    raise RuntimeError(
-        "Logging Configuration Error! No SecretsMasker found! If you have custom logging, please make "
-        "sure you configure it taking airflow configuration as a base as explained at "
-        "https://airflow.apache.org/docs/apache-airflow/stable/logging-monitoring/logging-tasks.html"
-        "#advanced-configuration"
-    )
+    """
+    Get or create the module-level secrets masker instance.
+
+    This function implements a module level singleton pattern within this specific
+    module. Note that different import paths (e.g., airflow._shared vs
+    airflow.sdk._shared) will have separate global variables and thus separate
+    masker instances.
+    """
+    global _global_secrets_masker
+    if _global_secrets_masker is None:
+        _global_secrets_masker = SecretsMasker()
+    return _global_secrets_masker
 
 
 def reset_secrets_masker() -> None:
@@ -210,6 +206,7 @@ class SecretsMasker(logging.Filter):
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
     _has_warned_short_secret = False
+    mask_secrets_in_logs = False
 
     def __init__(self):
         super().__init__()
@@ -237,6 +234,21 @@ class SecretsMasker(logging.Filter):
 
                 cls._redact = _redact
                 ...
+
+    @classmethod
+    def enable_log_masking(cls) -> None:
+        """Enable secret masking in logs."""
+        cls.mask_secrets_in_logs = True
+
+    @classmethod
+    def disable_log_masking(cls) -> None:
+        """Disable secret masking in logs."""
+        cls.mask_secrets_in_logs = False
+
+    @classmethod
+    def is_log_masking_enabled(cls) -> bool:
+        """Check if secret masking in logs is enabled."""
+        return cls.mask_secrets_in_logs
 
     @cached_property
     def _record_attrs_to_ignore(self) -> Iterable[str]:
@@ -270,7 +282,7 @@ class SecretsMasker(logging.Filter):
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
-        if settings.MASK_SECRETS_IN_LOGS is not True:
+        if not self.is_log_masking_enabled():
             return True
 
         if self.ALREADY_FILTERED_FLAG in record.__dict__:

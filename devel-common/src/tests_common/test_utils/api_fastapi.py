@@ -21,7 +21,13 @@ import json
 from airflow.models import DagRun, Log
 from airflow.models.dagrun import DagRunNote
 from airflow.models.taskinstance import TaskInstanceNote
-from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
+
+try:
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+except ImportError:
+    from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
+
+sensitive_fields = DEFAULT_SENSITIVE_FIELDS
 
 
 def _masked_value_check(data, sensitive_fields):

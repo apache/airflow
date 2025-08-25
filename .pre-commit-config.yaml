@@ -1514,14 +1514,14 @@ repos:
       - id: generate-openapi-spec-fab
         name: Generate the FastAPI API spec for FAB
         language: python
-        entry: ./scripts/ci/prek/generate_openapi_spec_fab.py
+        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
         language: python
-        entry: ./scripts/ci/prek/generate_openapi_spec_keycloak.py
+        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py keycloak
         pass_filenames: false
         files: ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4', 'openapi-spec-validator>=0.7.1' ]
@@ -1719,6 +1719,7 @@ repos:
           ^airflow-core/src/airflow/settings\.py$|
           ^airflow-core/src/airflow/models/renderedtifields\.py$|
           ^airflow-core/src/airflow/serialization/helpers\.py$|
-          ^airflow-core/src/airflow/models/expandinput\.py$
+          ^airflow-core/src/airflow/models/expandinput\.py$|
+          ^airflow-core/src/airflow/cli/commands/triggerer_command.py$
         additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE

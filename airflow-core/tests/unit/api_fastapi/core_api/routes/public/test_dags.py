@@ -187,9 +187,53 @@ class TestGetDags(TestDagEndpoint):
                 [DAG3_ID],
             ),
             (
+                {"dag_run_start_date_gt": DAG3_START_DATE_1.isoformat(), "exclude_stale": False},
+                2,
+                [DAG1_ID, DAG3_ID],
+            ),
+            (
                 {
                     "dag_run_start_date_gte": DAG1_START_DATE.isoformat(),
                     "dag_run_start_date_lte": DAG2_START_DATE.isoformat(),
+                },
+                1,
+                [DAG1_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_gt": DAG1_START_DATE.isoformat(),
+                    "dag_run_start_date_lt": DAG2_START_DATE.isoformat(),
+                },
+                0,
+                [],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": (DAG1_START_DATE - timedelta(days=1)).isoformat(),
+                    "dag_run_start_date_gt": (DAG1_START_DATE - timedelta(days=1)).isoformat(),
+                },
+                1,
+                [DAG1_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_gt": DAG1_START_DATE.isoformat(),
+                    "dag_run_start_date_lte": DAG2_START_DATE.isoformat(),
+                },
+                0,
+                [],
+            ),
+            (
+                {
+                    "dag_run_start_date_lt": DAG2_START_DATE.isoformat(),
+                },
+                1,
+                [DAG1_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_lt": DAG2_START_DATE.isoformat(),
+                    "dag_run_start_date_lte": DAG3_START_DATE_2.isoformat(),
                 },
                 1,
                 [DAG1_ID],

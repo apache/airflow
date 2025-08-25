@@ -66,6 +66,7 @@ from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookExceptio
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
+    FailureDetails,
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
@@ -330,11 +331,11 @@ class KubernetesExecutor(BaseExecutor):
             while True:
                 results = self.result_queue.get_nowait()
                 try:
-                    key, state, pod_name, namespace, resource_version = results
+                    key, state, pod_name, namespace, resource_version, failure_details = results
                     last_resource_version[namespace] = resource_version
                     self.log.info("Changing state of %s to %s", results, state)
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(key, state, pod_name, namespace, failure_details)
                     except Exception as e:
                         self.log.exception(
                             "Exception: %s when attempting to change state of %s to %s, re-queueing.",
@@ -373,12 +374,11 @@ class KubernetesExecutor(BaseExecutor):
                 except ApiException as e:
                     body = json.loads(e.body)
                     retries = self.task_publish_retries[key]
-                    # In case of exceeded quota errors, requeue the task as per the task_publish_max_retries
+                    # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
                     if (
-                        str(e.status) == "403"
-                        and "exceeded quota" in body["message"]
-                        and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries)
-                    ):
+                        (str(e.status) == "403" and "exceeded quota" in body["message"])
+                        or (str(e.status) == "409" and "object has been modified" in body["message"])
+                    ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
                             self.task_publish_retries[key] + 1,
@@ -412,10 +412,48 @@ class KubernetesExecutor(BaseExecutor):
         state: TaskInstanceState | str | None,
         pod_name: str,
         namespace: str,
+        failure_details: FailureDetails | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
+
+        if state == TaskInstanceState.FAILED:
+            # Use pre-collected failure details from the watcher to avoid additional API calls
+            if failure_details:
+                pod_status = failure_details.get("pod_status")
+                pod_reason = failure_details.get("pod_reason")
+                pod_message = failure_details.get("pod_message")
+                container_state = failure_details.get("container_state")
+                container_reason = failure_details.get("container_reason")
+                container_message = failure_details.get("container_message")
+                exit_code = failure_details.get("exit_code")
+                container_type = failure_details.get("container_type")
+                container_name = failure_details.get("container_name")
+
+                task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                self.log.warning(
+                    "Task %s failed in pod %s/%s. Pod phase: %s, reason: %s, message: %s, "
+                    "container_type: %s, container_name: %s, container_state: %s, container_reason: %s, "
+                    "container_message: %s, exit_code: %s",
+                    task_key_str,
+                    namespace,
+                    pod_name,
+                    pod_status,
+                    pod_reason,
+                    pod_message,
+                    container_type,
+                    container_name,
+                    container_state,
+                    container_reason,
+                    container_message,
+                    exit_code,
+                )
+            else:
+                task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                self.log.warning(
+                    "Task %s failed in pod %s/%s (no details available)", task_key_str, namespace, pod_name
+                )
 
         if state == ADOPTED:
             # When the task pod is adopted by another executor,
@@ -696,12 +734,12 @@ class KubernetesExecutor(BaseExecutor):
                 results = self.result_queue.get_nowait()
                 self.log.warning("Executor shutting down, flushing results=%s", results)
                 try:
-                    key, state, pod_name, namespace, resource_version = results
+                    key, state, pod_name, namespace, resource_version, failure_details = results
                     self.log.info(
                         "Changing state of %s to %s : resource_version=%d", results, state, resource_version
                     )
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(key, state, pod_name, namespace, failure_details)
                     except Exception as e:
                         self.log.exception(
                             "Ignoring exception: %s when attempting to change state of %s to %s.",

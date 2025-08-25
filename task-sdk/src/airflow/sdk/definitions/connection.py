@@ -202,7 +202,7 @@ class Connection:
     @property
     def extra_dejson(self) -> dict:
         """Returns the extra property by deserializing json."""
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
 
         extra = {}
         if self.extra:

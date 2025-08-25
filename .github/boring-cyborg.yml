@@ -357,6 +357,7 @@ labelPRBasedOnFilePath:
     - providers/**/docs/**/*
     - providers-summary-docs/**/*
     - docker-stack-docs/**/*
+    - airflow-ctl/docs/**/*
 
   area:helm-chart:
     - chart/**/*
