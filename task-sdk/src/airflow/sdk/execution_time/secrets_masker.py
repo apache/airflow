@@ -28,7 +28,7 @@ from __future__ import annotations
 import warnings
 
 warnings.warn(
-    "Importing from 'airflow.sdk.execution_time.secrets_masker' is deprecated. "
+    "Importing from 'airflow.sdk.execution_time.secrets_masker' is deprecated and will be removed in a future version. "
     "Please use 'airflow.sdk._shared.secrets_masker' instead.",
     DeprecationWarning,
     stacklevel=2,
