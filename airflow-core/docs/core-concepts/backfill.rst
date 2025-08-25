@@ -85,5 +85,5 @@ For UI, follow the following steps:
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
    - If the DAG is paused, you can **Unpause** it in the same window.
 
-.. image:: img/ui-light/backfill.png
+.. image:: ../../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)

@@ -155,7 +155,7 @@ UI
 From the DAG Details page, click **Trigger** and select **Backfill** to open the backfill form. Set the date range, reprocess
 behavior, max active runs, optional backwards ordering, and Advanced Config.
 
-.. image:: img/ui-light/backfill.png
+.. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)
 
 CLI
