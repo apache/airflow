@@ -186,8 +186,7 @@ class LocalExecutor(BaseExecutor):
         # If we're using spawn in multiprocessing (default on macOS now) to start tasks, this can get called a
         # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
         # create too much
-        need_more_workers = len(self.workers) < num_outstanding
-        if need_more_workers and (self.parallelism == 0 or len(self.workers) < self.parallelism):
+        if num_outstanding and (self.parallelism == 0 or len(self.workers) < self.parallelism):
             # This only creates one worker, which is fine as we call this directly after putting a message on
             # activity_queue in execute_async
             self._spawn_worker()
