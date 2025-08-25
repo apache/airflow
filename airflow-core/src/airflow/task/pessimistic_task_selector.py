@@ -164,6 +164,12 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
         limits = [
             LimitWindowDescriptor(
+                running_total_tis_per_task_run,
+                ["dag_id", "run_id", "task_id"],
+                TI.max_active_tis_per_dagrun,
+                mapped_tis_per_task_run_count,
+            ),
+            LimitWindowDescriptor(
                 running_total_tis_per_dagrun,
                 ["dag_id", "run_id"],
                 DagModel.max_active_tasks,
@@ -175,12 +181,6 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 ["dag_id", "task_id"],
                 TI.max_active_tis_per_dag,
                 tis_per_dag_count,
-            ),
-            LimitWindowDescriptor(
-                running_total_tis_per_task_run,
-                ["dag_id", "run_id", "task_id"],
-                TI.max_active_tis_per_dagrun,
-                mapped_tis_per_task_run_count,
             ),
             LimitWindowDescriptor(
                 running_tis_per_pool,
