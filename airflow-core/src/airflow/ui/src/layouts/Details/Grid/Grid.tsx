@@ -51,7 +51,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
-  const { dagId = "", groupId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
 
