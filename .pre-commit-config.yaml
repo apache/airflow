@@ -20,7 +20,7 @@ default_language_version:
   python: python3
   node: 22.18.0
   golang: 1.24.0
-minimum_prek_version: '0.1.1'
+minimum_prek_version: '0.1.3'
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -190,7 +190,6 @@ repos:
         name: Check minimum Python version
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
-        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
@@ -204,13 +203,11 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0',"packaging>=25"]
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/prek/update_chart_dependencies.py
         stages: ['manual']
         language: python
-        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4', 'requests>=2.31.0']
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/prek/update_build_dependencies\.py$
         pass_filenames: false
         require_serial: true
@@ -218,7 +215,6 @@ repos:
         name: Check that TI and TIS have the same attributes
         entry: ./scripts/ci/prek/check_ti_vs_tis_attributes.py
         language: python
-        additional_dependencies: ['rich>=12.4.4']
         files: ^airflow-core/src/airflow/models/taskinstance\.py$|^airflow-core/src/airflow/models/taskinstancehistory\.py$
         pass_filenames: false
         require_serial: true
@@ -228,7 +224,6 @@ repos:
         entry: ./scripts/ci/prek/check_deferrable_default.py
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
-        additional_dependencies: ['libcst>=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 78a9dcbecf4f755f65d1f3dec556bc249d723600  # frozen: 1.19.1
@@ -376,19 +371,16 @@ repos:
         language: python
         always_run: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'tomli>=2.0.1']
       - id: check-shared-distributions-structure
         name: Check shared distributions structure
         entry: ./scripts/ci/prek/check_shared_distributions_structure.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
         pass_filenames: false
         files: ^shared/.*$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/prek/check_shared_distributions_usage.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1']
         pass_filenames: false
         files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
       - id: validate-operators-init
@@ -398,7 +390,6 @@ repos:
         entry: ./scripts/ci/prek/validate_operators_init.py
         pass_filenames: true
         files: ^providers/.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-providers-build-files
         name: Update providers build files
         entry: ./scripts/ci/prek/update_providers_build_files.py
@@ -413,7 +404,6 @@ repos:
           ^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE\.py\.jinja2$|
           ^airflow_breeze/templates/get_provider_info_TEMPLATE\.py\.jinja2$|
           ^airflow_breeze/templates/PROVIDER_README_TEMPLATE\.rst\.jinja2$
-        additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
         require_serial: true
       - id: check-airflow-v-imports-in-tests
         name: Check AIRFLOW_V imports in tests
@@ -421,7 +411,6 @@ repos:
         entry: ./scripts/ci/prek/check_airflow_v_imports_in_tests.py
         pass_filenames: true
         files: ^providers/.*/tests/.+\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -440,7 +429,6 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ['ruff==0.12.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -448,7 +436,6 @@ repos:
         language: python
         types: [file, text]
         exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
-        additional_dependencies: ['rich>=12.4.4']
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
@@ -465,7 +452,6 @@ repos:
         entry: ./scripts/ci/prek/check_airflow_imports.py
           --pattern '^airflow\.kubernetes'
           --message "You should only import kubernetes code from `airflow.providers.cncf.kubernetes`."
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-common-compat-used-for-openlineage
         name: Check common.compat is used for OL deprecated classes
         language: python
@@ -478,14 +464,12 @@ repos:
         entry: ./scripts/ci/prek/check_airflow_imports.py
           --pattern '^openlineage\.client\.(facet|run)'
           --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
         files: ^\.github/ISSUE_TEMPLATE/3-airflow_providers_bug_report\.yml$
         require_serial: true
         entry: ./scripts/ci/prek/check_airflow_bug_report_template.py
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
       - id: check-cncf-k8s-only-for-executors
         name: Check cncf.kubernetes imports used for executors only
         language: python
@@ -502,21 +486,18 @@ repos:
         entry: ./scripts/ci/prek/check_airflow_imports.py
             --pattern '^airflow\.providers\.cncf\.kubernetes'
             --message "Only few k8s executors exceptions are allowed to use `airflow.providers.cncf.kubernetes`."
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/prek/local_yml_mounts.py
         language: python
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-sql-dependency-common-data-structure
         name: Check dependency of SQL providers
         description: Check dependency of SQL Providers with common data structure
         entry: ./scripts/ci/prek/check_common_sql_dependency.py
         language: python
         files: ^providers/.*/src/airflow/providers/.*/hooks/.*\.py$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'packaging>=25']
       - id: check-extra-packages-references
         name: Checks setup extra packages
         description: Checks if all the extras defined in hatch_build.py are listed in extra-packages-ref.rst file
@@ -524,14 +505,12 @@ repos:
         files: ^airflow-core/docs/extra-packages-ref\.rst$|^hatch_build\.py$
         pass_filenames: false
         entry: ./scripts/ci/prek/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0', 'tabulate>=0.9.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/prek/check_order_dockerfile_extras.py
         language: python
         files: ^Dockerfile$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
       - id: generate-airflow-diagrams
         name: Generate airflow diagrams
         entry: ./scripts/ci/prek/generate_airflow_diagrams.py
@@ -541,7 +520,6 @@ repos:
           ^airflow-core/docs/.*/diagram_[^/]*\.py$|
           ^docs/images/.*\.py$
         pass_filenames: true
-        additional_dependencies: ['rich>=12.4.4', 'diagrams>=0.23.4']
       - id: generate-volumes-for-sources
         name: Generate volumes for docker compose
         entry: ./scripts/ci/prek/generate_volumes_for_sources.py
@@ -549,12 +527,10 @@ repos:
         files: ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: prevent-deprecated-sqlalchemy-usage
         name: Prevent deprecated sqlalchemy usage
         entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
         language: python
-        additional_dependencies: ['rich>=12.4.4']
         files: >
             (?x)
             ^airflow-ctl.*\.py$|
@@ -566,7 +542,6 @@ repos:
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
         pass_filenames: false
-        additional_dependencies: ['tabulate>=0.9.0']
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
         language: python
@@ -579,14 +554,12 @@ repos:
           ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|^providers/fab/src/airflow/providers/fab/migrations/versions|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/models/db\.py$
-        additional_dependencies: ['packaging>=25', 'rich>=12.4.4']
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/prek/update_versions.py
         language: python
         files: ^docs|^airflow-core/src/airflow/__init__\.py$|.*/pyproject\.toml$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -793,20 +766,17 @@ repos:
         entry: ./scripts/ci/prek/check_base_operator_partial_arguments.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/models/(?:base|mapped)operator\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-init-decorator-arguments
         name: Sync model __init__ and decorator arguments
         language: python
         entry: ./scripts/ci/prek/check_init_decorator_arguments.py
         pass_filenames: false
         files: ^task-sdk/src/airflow/sdk/definitions/dag\.py$|^task-sdk/src/airflow/sdk/definitions/decorators/task_group\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs
         language: python
         entry: ./scripts/ci/prek/check_template_context_variable_in_sync.py
         files: ^airflow-core/src/airflow/models/taskinstance\.py$|^task-sdk/src/airflow/sdk/definitions/context\.py$|^airflow-core/docs/templates-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator core imports
@@ -855,7 +825,6 @@ repos:
           --only_top_level
         files: ^providers/.*/src/airflow/providers/.*\.py$
         exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python
@@ -900,7 +869,6 @@ repos:
         language: python
         files: ^providers/.*/provider\.yaml$
         pass_filenames: true
-        additional_dependencies: ['click>=8.1.8', 'rich>=12.4.4', 'pyyaml>=6.0.2']
         require_serial: true
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
@@ -908,7 +876,6 @@ repos:
         entry: ./scripts/ci/prek/boring_cyborg.py
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml>=6.0.2', 'termcolor==2.5.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
         entry: ./scripts/ci/prek/sort_in_the_wild.py
@@ -937,14 +904,12 @@ repos:
         pass_filenames: false
         files: ^chart
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
       - id: validate-chart-annotations
         name: Validate chart annotations
         entry: ./scripts/ci/prek/validate_chart_annotations.py
         language: python
         pass_filenames: false
         files: ^chart/Chart\.yaml$
-        additional_dependencies: ['pyyaml>=6.0.2', 'rich>=12.4.4']
       - id: kubeconform
         name: Kubeconform check on our helm chart
         entry: ./scripts/ci/prek/check_kubeconform.py
@@ -952,7 +917,6 @@ repos:
         pass_filenames: false
         files: ^chart
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4','requests>=2.31.0']
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
@@ -991,13 +955,11 @@ repos:
         entry: ./scripts/ci/prek/check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-integrations-list-consistent
         name: Sync integrations list with docs
         entry: ./scripts/ci/prek/check_integrations_list.py
         language: python
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
-        additional_dependencies: ['tabulate>=0.9.0', 'rich>=12.4.4', 'pyyaml>=6.0.2']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
@@ -1007,7 +969,6 @@ repos:
         files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -1020,14 +981,11 @@ repos:
           ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'tomli>=2.0.1', 'packaging>=25' ]
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
         entry: ./scripts/ci/prek/update_source_date_epoch.py
         files: ^RELEASE_NOTES\.rst$|^chart/RELEASE_NOTES\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
-        pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
         name: Check top-level breeze deps
@@ -1037,7 +995,6 @@ repos:
         files: ^dev/breeze/.*$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['click>=8.1.8', 'rich>=12.4.4', 'pyyaml>=6.0.2']
       - id: check-tests-in-the-right-folders
         name: Check if tests are in the right folders
         entry: ./scripts/ci/prek/check_tests_in_right_folders.py
@@ -1045,14 +1002,12 @@ repos:
         files: ^airflow-core/tests/.*\.py$
         pass_filenames: true
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-system-tests-present
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/prek/check_system_tests.py
         language: python
         files: ^.*/tests/system/.*/example_[^/]*\.py$
         pass_filenames: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
         name: Generate PyPI README
         entry: ./scripts/ci/prek/generate_pypi_readme.py
@@ -1077,7 +1032,6 @@ repos:
         pass_filenames: true
         files: .*\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
       - id: lint-json-schema
         name: Lint NodePort Service
         entry: ./scripts/ci/prek/lint_json_schema.py
@@ -1088,7 +1042,6 @@ repos:
         pass_filenames: true
         files: ^scripts/ci/kubernetes/nodeport\.yaml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
       - id: lint-json-schema
         name: Lint Docker compose files
         entry: ./scripts/ci/prek/lint_json_schema.py
@@ -1104,7 +1057,6 @@ repos:
           ^scripts/ci/docker-compose/gremlin/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
       - id: lint-json-schema
         name: Lint chart/values.schema.json
         entry: ./scripts/ci/prek/lint_json_schema.py
@@ -1116,13 +1068,11 @@ repos:
         pass_filenames: false
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
       - id: update-vendored-in-k8s-json-schema
         name: Vendor k8s definitions into values.schema.json
         entry: ./scripts/ci/prek/vendor_k8s_json_schema.py
         language: python
         files: ^chart/values\.schema\.json$
-        additional_dependencies: ['requests==2.32.3']
       - id: lint-json-schema
         name: Lint chart/values.yaml
         entry: ./scripts/ci/prek/lint_json_schema.py
@@ -1135,7 +1085,6 @@ repos:
         pass_filenames: false
         files: ^chart/values\.yaml$|^chart/values\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
       - id: lint-json-schema
         name: Lint config_templates/config.yml
         entry: ./scripts/ci/prek/lint_json_schema.py
@@ -1146,7 +1095,6 @@ repos:
         pass_filenames: true
         files: ^airflow-core/src/airflow/config_templates/config\.yml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
       - id: check-persist-credentials-disabled-in-github-workflows
         name: Check persistent creds in workflow files
         description: Check that workflow files have persist-credentials disabled
@@ -1154,14 +1102,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
-        additional_dependencies: ['pyyaml>=6.0.1', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
         entry: ./scripts/ci/prek/docstring_param_type.py
         language: python
         pass_filenames: true
         files: \.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-zip-file-is-not-committed
         name: Check no zip files are committed
         description: Zip files are not allowed in the repository
@@ -1176,7 +1122,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow-core/src/airflow/.*\.py$
-        additional_dependencies: ['rich>=12.4.4', 'python-dateutil>=2.9.0']
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/prek/chart_schema.py
@@ -1219,7 +1164,6 @@ repos:
         files: ^airflow-core/newsfragments/.*\.rst$
         entry: ./scripts/ci/prek/significant_newsfragments_checker.py
         pass_filenames: false
-        additional_dependencies: ['docutils>=0.21.2', 'pygments>=2.19.1', 'jinja2>=3.1.5']
         # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
         # This is fast, so not too much downside
         always_run: true
@@ -1236,14 +1180,12 @@ repos:
           ^generated/provider_dependencies\.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py
         language: python
         pass_filenames: true
         files: ^airflow-core/docs/.*example-dags\.rst$|^docs/.*index\.rst$^airflow-core/docs/.*index\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
         always_run: true
       - id: check-system-tests-tocs
         name: Check that system tests is properly added
@@ -1251,19 +1193,16 @@ repos:
         language: python
         pass_filenames: true
         files: ^providers/.*/docs/index\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2']
       - id: check-lazy-logging
         name: Check that all logging methods are lazy
         entry: ./scripts/ci/prek/check_lazy_logging.py
         language: python
         pass_filenames: true
         files: \.py$
-        additional_dependencies: ['rich>=12.4.4', 'astor>=0.8.1']
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
         entry: ./scripts/ci/prek/check_init_in_tests.py
         language: python
-        additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^airflow-core/tests/.*\.py$
       - id: check-tests-unittest-testcase
@@ -1278,7 +1217,6 @@ repos:
         entry: ./scripts/ci/prek/check_provider_docs.py
         language: python
         files: ^providers/.*/provider\.yaml$|^.*/docs/.*
-        additional_dependencies: ['rich>=12.4.4', 'pyyaml>=6.0.2', 'jinja2']
         require_serial: true
         pass_filenames: false
       - id: bandit
@@ -1412,7 +1350,6 @@ repos:
         entry: ./scripts/ci/prek/mypy.py
         files: ^dev/.*\.py$|^scripts/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-dev
         stages: ['manual']
         name: Run mypy for dev (manual)
@@ -1421,14 +1358,12 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-core
         name: Run mypy for airflow-core
         language: python
         entry: ./scripts/ci/prek/mypy.py
         files: ^airflow-core/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-core
         stages: ['manual']
         name: Run mypy for airflow-core (manual)
@@ -1437,14 +1372,12 @@ repos:
         pass_filenames: false
         files: ^airflow-core/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/prek/mypy.py
         files: ^providers/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         stages: ['manual']
         name: Run mypy for providers (manual)
@@ -1453,14 +1386,12 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk
         name: Run mypy for task-sdk
         language: python
         entry: ./scripts/ci/prek/mypy.py
         files: ^task-sdk/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk
         stages: ['manual']
         name: Run mypy for task-sdk (manual)
@@ -1469,14 +1400,12 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-devel-common
         name: Run mypy for devel-common
         language: python
         entry: ./scripts/ci/prek/mypy.py
         files: ^devel-common/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-devel-common
         stages: ['manual']
         name: Run mypy for devel-common (manual)
@@ -1485,7 +1414,6 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-ctl
         name: Run mypy for airflow-ctl
         language: python
@@ -1493,7 +1421,6 @@ repos:
         files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests/.*\.py$
         exclude: .*generated.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-ctl
         stages: ['manual']
         name: Run mypy for airflow-ctl (manual)
@@ -1502,7 +1429,6 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
@@ -1510,28 +1436,24 @@ repos:
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
-        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: generate-openapi-spec-fab
         name: Generate the FastAPI API spec for FAB
         language: python
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
         language: python
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py keycloak
         pass_filenames: false
         files: ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/.*\.py$
-        additional_dependencies: [ 'rich>=12.4.4', 'openapi-spec-validator>=0.7.1' ]
       - id: check-i18n-json
         name: Check i18n files validity
         description: Check i18n files are valid json, have no TODOs, and auto-format them
         language: python
         files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/prek/check_i18n_json.py
-        additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
@@ -1539,14 +1461,12 @@ repos:
         language: python
         files: ^providers/.*/provider\.yaml$
         exclude: ^providers/.*/.venv/.*$
-        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: check-template-fields-valid
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/prek/check_template_fields.py
         files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc
@@ -1554,7 +1474,6 @@ repos:
         entry: ./scripts/ci/prek/migration_reference.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$|^airflow-core/docs/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
@@ -1578,12 +1497,10 @@ repos:
         entry: ./scripts/ci/prek/update_er_diagram.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$|^airflow-core/docs/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
       - id: check-default-configuration
         name: Check the default configuration
         entry: ./scripts/ci/prek/check_default_configuration.py
         language: python
-        additional_dependencies: ['rich>=12.4.4']
         require_serial: true
         pass_filenames: false
         files: ^airflow-core/src/airflow/config_templates/config\.yml$
@@ -1594,12 +1511,10 @@ repos:
         pass_filenames: false
         files:
           ^airflow-ctl/src/airflowctl/ctl/cli_config.py$|airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py
-        additional_dependencies: ['rich>=12.4.4', 'argcomplete>=1.10']
       - id: check-imports-in-providers
         name: Check imports in providers
         entry: ./scripts/ci/prek/check_imports_in_providers.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', 'ruff==0.12.8']
         files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
         require_serial: true
       - id: provider-version-compat
@@ -1721,5 +1636,4 @@ repos:
           ^airflow-core/src/airflow/serialization/helpers\.py$|
           ^airflow-core/src/airflow/models/expandinput\.py$|
           ^airflow-core/src/airflow/cli/commands/triggerer_command.py$
-        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
