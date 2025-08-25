@@ -27,8 +27,9 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
@@ -134,6 +135,7 @@ class Connection(Base, LoggingMixin):
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
     _extra = Column("extra", Text())
 
     def __init__(
