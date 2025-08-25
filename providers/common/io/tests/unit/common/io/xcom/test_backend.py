@@ -28,10 +28,12 @@ from airflow.utils import timezone
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
 
 pytestmark = [pytest.mark.db_test]
 
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.xcom import XComModel
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel
     from airflow.sdk import ObjectStoragePath
@@ -129,7 +131,26 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
+            XComModel.set(
+                key=XCOM_RETURN_KEY,
+                value=self.path,
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+            )
+
+            res = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
+            data = XComModel.deserialize_value(res)
+        elif AIRFLOW_V_3_0_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=self.path,
@@ -178,7 +199,7 @@ class TestXComObjectStorageBackend:
         )
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
             qry = XComModel.get_many(
                 key=XCOM_RETURN_KEY,
                 dag_ids=task_instance.dag_id,
@@ -186,7 +207,18 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 session=session,
             )
-            assert str(p) == XComModel.deserialize_value(qry.first())
+            assert str(p) == XComModel.deserialize_value(
+                session.execute(qry.with_only_columns(XComModel.value)).first()
+            )
+        elif AIRFLOW_V_3_0_PLUS:
+            qry = XComModel.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+            assert str(p) == XComModel.deserialize_value((qry.with_entities(XComModel.value)).first())
         else:
             qry = XCom.get_many(
                 key=XCOM_RETURN_KEY,
@@ -211,7 +243,32 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
+            if hasattr(mock_supervisor_comms, "send_request"):
+                # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
+                last_call = mock_supervisor_comms.send_request.call_args_list[-1]
+            else:
+                last_call = mock_supervisor_comms.send.call_args_list[-1]
+            path = (last_call.kwargs.get("msg") or last_call.args[0]).value
+            XComModel.set(
+                key=XCOM_RETURN_KEY,
+                value=path,
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+            )
+
+            res = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
+            data = XComModel.deserialize_value(res)
+        elif AIRFLOW_V_3_0_PLUS:
             if hasattr(mock_supervisor_comms, "send_request"):
                 # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
                 last_call = mock_supervisor_comms.send_request.call_args_list[-1]
@@ -264,7 +321,31 @@ class TestXComObjectStorageBackend:
         )
         assert value
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
+            mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
+            XCom.delete(
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+                key=XCOM_RETURN_KEY,
+                map_index=task_instance.map_index,
+            )
+            XComModel.clear(
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+                map_index=task_instance.map_index,
+            )
+            value = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
+        elif AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
             XCom.delete(
                 dag_id=task_instance.dag_id,
@@ -322,7 +403,26 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_1_PLUS:
+            XComModel.set(
+                key=XCOM_RETURN_KEY,
+                value=self.path + ".gz",
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+            )
+
+            res = session.execute(
+                XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                ).with_only_columns(XComModel.value)
+            ).first()
+            data = XComModel.deserialize_value(res)
+        elif AIRFLOW_V_3_0_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=self.path + ".gz",
@@ -342,6 +442,8 @@ class TestXComObjectStorageBackend:
                 .with_entities(XComModel.value)
                 .first()
             )
+            print(res)
+            print(type(res))
             data = XComModel.deserialize_value(res)
         else:
             res = (
