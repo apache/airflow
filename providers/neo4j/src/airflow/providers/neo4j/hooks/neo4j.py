@@ -112,7 +112,7 @@ class Neo4jHook(BaseHook):
         """
         Execute a Neo4j query within a session.
 
-        :param query: Cypher query string.
+        :param query: Neo4j query string.
         :param parameters: Optional parameters for the query.
         :return: List of result records.
         """
