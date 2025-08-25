@@ -48,7 +48,6 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
     QueryTITryNumberFilter,
-    # QueryTTTaskFilter,
     Range,
     RangeFilter,
     SortParam,
