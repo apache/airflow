@@ -104,7 +104,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
                         conn_id=self.airbyte_conn_id,
                         job_id=self.job_id,
                         end_time=end_time,
-                        poll_interval=60,
+                        poll_interval=self.wait_seconds,
                     ),
                     method_name="execute_complete",
                 )
