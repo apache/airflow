@@ -106,11 +106,7 @@ const buildPath = (params: {
   }
 };
 
-export const useNavigation = ({
-  onToggleGroup,
-  runs,
-  tasks,
-}: UseNavigationProps): UseNavigationReturn => {
+export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
