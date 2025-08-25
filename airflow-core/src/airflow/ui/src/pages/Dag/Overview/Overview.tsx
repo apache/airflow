@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import {
   useAssetServiceGetAssetEvents,
@@ -56,7 +56,7 @@ export const Overview = () => {
     state: ["failed"],
   });
 
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [limit] = useSessionStorage<number>(`dag_runs_limit-${dagId}`, 10);
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit,

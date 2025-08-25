@@ -21,7 +21,7 @@ import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } 
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
@@ -75,8 +75,8 @@ export const Graph = () => {
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
-  const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [dependencies] = useSessionStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+  const [direction] = useSessionStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useCallback, useMemo, useEffect, type PropsWithChildren } from "react";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -32,12 +32,12 @@ type Props = {
 export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const openGroupsKey = `${dagId}/open-groups`;
   const allGroupsKey = `${dagId}/all-groups`;
-  const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
-  const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
+  const [openGroupIds, setOpenGroupIds] = useSessionStorage<Array<string>>(openGroupsKey, []);
+  const [allGroupIds, setAllGroupIds] = useSessionStorage<Array<string>>(allGroupsKey, []);
 
   // For Graph view support: dependencies + selected version
   const selectedVersion = useSelectedVersion();
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+  const [dependencies] = useSessionStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
 
   // Fetch structure (minimal params if you want it lightweight for Grid)
   const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(

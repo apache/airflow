@@ -20,7 +20,7 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
@@ -39,7 +39,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+  const [dagView, setDagView] = useSessionStorage<"graph" | "grid">("default_dag_view", "grid");
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>

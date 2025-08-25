@@ -62,8 +62,8 @@ void i18n
     },
     defaultNS: "common",
     detection: {
-      caches: ["localStorage"],
-      order: ["localStorage", "navigator", "htmlTag"],
+      caches: ["sessionStorage"],
+      order: ["sessionStorage", "navigator", "htmlTag"],
     },
     fallbackLng: defaultLanguage,
     interpolation: {

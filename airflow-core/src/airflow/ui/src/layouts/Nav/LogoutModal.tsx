@@ -38,7 +38,7 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
       onConfirm={() => {
         const logoutPath = getRedirectPath("api/v2/auth/logout");
 
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
         globalThis.location.replace(logoutPath);
       }}
       onOpenChange={onClose}
