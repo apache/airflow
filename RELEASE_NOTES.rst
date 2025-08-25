@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.0.6 (2025-08-25)
+Airflow 3.0.6 (2025-08-29)
 --------------------------
 
 Significant Changes
@@ -47,11 +47,15 @@ Bug Fixes
 - UI: Fix "Maximum update depth exceeded" errors in Task Log Preview by filtering out empty log entries (#54628)
 - Fix custom logging configuration failures preventing triggerer and scheduler startup with simple module paths (#54686)
 - Fix MySQL UUID generation in task_instance migration (#54814)
+- Only redirect on the dag detail page (#54921)
+- Fix local executor task execution (#54922)
 
 Miscellaneous
 """""""""""""
 
 - Add logging when triggerer reaches maximum trigger capacity for better observability (#54549)
+- Point deprecation warning in Variable methods to specific alternatives (#54871)
+- Point deprecation warning in Connection method to specific alternatives (#54872)
 - Bump ``axios`` UI dependency from ``1.8.0`` to ``1.11.0`` (#54733)
 - Bump ``pluggy`` to ``1.6.0`` (#54728, #54730)
 
@@ -61,6 +65,7 @@ Doc Only Changes
 - Fix broken link for Listener spec (#54535)
 - Remove experimental status from ``get_parsing_context`` function (#54802)
 - Correct Trigger-Form UI documentation for current Airflow 3 features (#54806)
+- Add backfill through UI to docs (#54910)
 
 Airflow 3.0.5 (2025-08-20)
 --------------------------
