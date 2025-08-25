@@ -155,7 +155,15 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("backfill.dateRangeFrom")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput
+                    {...field}
+                    max={today}
+                    onBlur={() => {
+                      field.onBlur();
+                      resetDateError();
+                    }}
+                    size="sm"
+                  />
                   <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
                 </Field.Root>
               )}
@@ -166,7 +174,15 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("backfill.dateRangeTo")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput
+                    {...field}
+                    max={today}
+                    onBlur={() => {
+                      field.onBlur();
+                      resetDateError();
+                    }}
+                    size="sm"
+                  />
                 </Field.Root>
               )}
             />

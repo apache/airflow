@@ -33,15 +33,9 @@ export const FieldDateTime = ({
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      if (rest.type === "datetime-local") {
-        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : `${value}:00+00:00`; // Need to suffix to make it UTC like
-      } else {
-        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : value;
-      }
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value;
     }
 
     setParamsDict(paramsDict);
@@ -56,7 +50,7 @@ export const FieldDateTime = ({
         name={`element_${name}`}
         onChange={(event) => handleChange(event.target.value)}
         size="sm"
-        value={((param.value ?? "") as string).slice(0, 16)}
+        value={(param.value ?? "") as string}
       />
     );
   }
