@@ -713,13 +713,13 @@ def post_clear_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         # Get the specific dag version:
         dag = get_dag_for_run(dag_bag, dag_run, session)
-        if past or future:
+        if (past or future) and dag_run.logical_date is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Cannot use include_past or include_future when dag_run_id is provided because logical_date is not applicable.",
+                "Cannot use include_past or include_future with a manually triggered DAG run (logical_date is None).",
             )
-        body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
-        body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
+        body.start_date = dag_run.logical_date
+        body.end_date = dag_run.logical_date
 
     if past:
         body.start_date = None
