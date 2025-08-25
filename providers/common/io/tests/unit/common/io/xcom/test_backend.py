@@ -24,7 +24,11 @@ import pytest
 import airflow.models.xcom
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
@@ -357,7 +361,7 @@ class TestXComObjectStorageBackend:
             )
             data = BaseXCom.deserialize_value(res)
 
-        assert data.endswith(".gz")
+        assert data.endswith(".gz") or data.endswith(".gzip")
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(
