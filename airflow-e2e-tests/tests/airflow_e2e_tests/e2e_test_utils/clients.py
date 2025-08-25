@@ -21,9 +21,14 @@ from datetime import datetime, timezone
 from functools import cached_property
 
 import requests
-from constants import AIRFLOW_WWW_USER_PASSWORD, AIRFLOW_WWW_USER_USERNAME, DOCKER_COMPOSE_HOST_PORT
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+from airflow_e2e_tests.constants import (
+    AIRFLOW_WWW_USER_PASSWORD,
+    AIRFLOW_WWW_USER_USERNAME,
+    DOCKER_COMPOSE_HOST_PORT,
+)
 
 
 class AirflowClient:
@@ -72,9 +77,6 @@ class AirflowClient:
         )
         response.raise_for_status()
         return response.json()
-
-    def get_dags(self):
-        pass
 
     def un_pause_dag(self, dag_id: str):
         return self._make_request(
