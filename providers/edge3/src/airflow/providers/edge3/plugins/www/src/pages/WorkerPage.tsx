@@ -18,45 +18,19 @@
  */
 
 import { Box } from "@chakra-ui/react";
-import { ColumnDef } from "@tanstack/react-table";
 
 import { useUiServiceWorker } from "openapi/queries";
-import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import type { Worker } from "openapi/requests/types.gen";
-
-const createColumns = (): Array<ColumnDef<Worker>> => [
-  {
-    accessorKey: "worker_name",
-    enableSorting: false,  // Sorting is a future improvement
-    header: "Worker Name",
-  },
-  {
-    accessorKey: "state",
-    enableSorting: false,  // Sorting is a future improvement
-    header: "State",
-  },
-];
 
 export const WorkerPage = () => {
   const { data, error } = useUiServiceWorker();
 
-  /* DataTable is somehow broken, always shows:
-  `can't access property "CreatePortal", ie is undefined`
-  -..therefore start with a very ugly plain table...
-
-  return (
-    <Box p={2}>
-      <DataTable
-        columns={createColumns()}
-        data={data?.workers ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        modelName={"Edge Worker"}
-        total={data?.total_entries}
-      />
-    </Box>
-  );
-  */
+  // TODO to make it proper
+  // Use DataTable as component from Airflow-Core UI
+  // Add auto-refresh
+  // Add Actions for Maintenance
+  // Add sorting
+  // Add filtering
   if (data)
     return (
       <Box p={2}>
