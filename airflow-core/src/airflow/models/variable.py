@@ -24,9 +24,10 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
@@ -54,6 +55,7 @@ class Variable(Base, LoggingMixin):
     _val = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
     description = Column(Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
     def __init__(self, key=None, val=None, description=None):
         super().__init__()
