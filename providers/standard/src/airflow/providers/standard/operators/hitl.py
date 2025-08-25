@@ -193,10 +193,14 @@ class HITLOperator(BaseOperator):
     def generate_link_to_ui(
         self,
         *,
-        context: Context,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
         options: list[str] | None = None,
         params: dict[str, Any] | None = None,
     ) -> str:
+        """Generate the URL link to the "required actions" page with pre-defined data."""
         query_param: dict[str, Any] = {}
         if options:
             if diff := set(options) - set(self.options):
@@ -208,21 +212,17 @@ class HITLOperator(BaseOperator):
                 raise ValueError(f"params {diff} are not valid params")
             query_param.update(params)
 
-        if not (task_instance := context.get("task_instance", None)):
-            raise ValueError("Missing task instance in context")
-
-        if map_index := task_instance.map_index:
-            query_param["map_index"] = map_index
-
         if not (base_url := conf.get("api", "base_url", fallback=None)):
             raise ValueError("Not able to retrieve base_url")
+
+        query_param["map_index"] = map_index
 
         parsed_base_url: ParseResult = urlparse(base_url)
         return urlunparse(
             (
                 parsed_base_url.scheme,
                 parsed_base_url.netloc,
-                f"/api/v2/hitlDetails/{task_instance.dag_id}/{task_instance.run_id}/{task_instance.task_id}",
+                f"/api/v2/hitlDetails/{dag_id}/{run_id}/{task_id}",
                 "",
                 urlencode(query_param) if query_param else "",
                 "",
