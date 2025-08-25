@@ -17,17 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import os
 from unittest import mock
 
-import pytest
-
 from airflow.cli import cli_parser
-from airflow.cli.commands import dag_processor_command
 
 from tests_common.test_utils.config import conf_vars
-
-pytestmark = pytest.mark.db_test
 
 
 class TestDagProcessorCommand:
@@ -40,19 +36,76 @@ class TestDagProcessorCommand:
         cls.parser = cli_parser.get_parser()
 
     @conf_vars({("core", "load_examples"): "False"})
-    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
-    def test_start_job(self, mock_runner):
-        """Ensure that DagProcessorJobRunner is started"""
-        mock_runner.return_value.job_type = "DagProcessorJob"
+    def test_start_job(self):
         args = self.parser.parse_args(["dag-processor"])
-        dag_processor_command.dag_processor(args)
-        mock_runner.return_value._execute.assert_called()
+
+        # Patch both decorators before importing the target function/module.
+        # These decorators internally access the DB
+        mock.patch("airflow.utils.cli.action_cli", lambda x: x).start()
+        mock.patch(
+            "airflow.cli.commands.dag_processor_command.providers_configuration_loaded", lambda x: x
+        ).start()
+
+        import airflow.cli.commands.dag_processor_command as dag_cmd
+
+        importlib.reload(dag_cmd)
+
+        with (
+            mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner") as mock_runner,
+            mock.patch(
+                "airflow.cli.commands.dag_processor_command.run_command_with_daemon_option"
+            ) as mock_run_cmd,
+            mock.patch("airflow.cli.commands.dag_processor_command.run_job") as mock_run_job,
+        ):
+            # Arrange
+            mock_execute = mock.Mock()
+            mock_job = mock.Mock()
+            mock_runner.return_value = mock.Mock(job=mock_job, _execute=mock_execute)
+
+            def fake_run_command_with_daemon_option(*, args, process_name, callback, **kwargs):
+                callback()
+
+            mock_run_cmd.side_effect = fake_run_command_with_daemon_option
+            mock_run_job.side_effect = lambda job, execute_callable: execute_callable()
+
+            # Act
+            dag_cmd.dag_processor(args)
+
+            # Assert
+            mock_execute.assert_called()
 
     @conf_vars({("core", "load_examples"): "False"})
-    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
-    def test_bundle_names_passed(self, mock_runner, configure_testing_dag_bundle):
-        mock_runner.return_value.job_type = "DagProcessorJob"
-        args = self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
-        with configure_testing_dag_bundle(os.devnull):
-            dag_processor_command.dag_processor(args)
-        assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]
+    def test_bundle_names_passed(self, configure_testing_dag_bundle):
+        mock.patch("airflow.utils.cli.action_cli", lambda x: x).start()
+        mock.patch(
+            "airflow.cli.commands.dag_processor_command.providers_configuration_loaded", lambda x: x
+        ).start()
+
+        import airflow.cli.commands.dag_processor_command as dag_cmd
+
+        importlib.reload(dag_cmd)
+
+        with (
+            mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner") as mock_runner,
+            mock.patch(
+                "airflow.cli.commands.dag_processor_command.run_command_with_daemon_option"
+            ) as mock_run_cmd,
+            mock.patch("airflow.cli.commands.dag_processor_command.run_job") as mock_run_job,
+        ):
+            mock_runner.return_value.job_type = "DagProcessorJob"
+            mock_runner.return_value._execute = mock.Mock()
+
+            args = self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
+
+            def fake_run_command_with_daemon_option(*, args, process_name, callback, **kwargs):
+                callback()
+
+            mock_run_cmd.side_effect = fake_run_command_with_daemon_option
+            mock_run_job.side_effect = lambda job, execute_callable: execute_callable()
+
+            # Act
+            with configure_testing_dag_bundle(os.devnull):
+                dag_cmd.dag_processor(args)
+
+            # Assert
+            assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]
