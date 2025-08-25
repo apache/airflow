@@ -18,8 +18,3 @@
  */
 
 export * from "./Alert";
-export * from "./Checkbox";
-export * from "./Menu";
-export * from "./Pagination";
-export * from "./ProgressBar";
-export * from "./Toaster";
