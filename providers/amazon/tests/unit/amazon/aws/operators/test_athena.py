@@ -43,6 +43,8 @@ try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from moto import mock_aws
+
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -67,6 +69,7 @@ query_context = {"Database": MOCK_DATA["database"], "Catalog": MOCK_DATA["catalo
 result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 
+@mock_aws
 class TestAthenaOperator:
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self):

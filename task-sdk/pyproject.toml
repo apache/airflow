@@ -67,6 +67,10 @@ dependencies = [
     # Start of shared timezones dependencies
     "pendulum>=3.1.0",
     # End of shared timezones dependencies
+    # Start of shared secrets_masker dependencies
+    "colorlog>=6.8.2",
+    "pydantic>2.11.0",
+    # End of shared secrets_masker dependencies
 ]
 
 [project.urls]
@@ -89,6 +93,7 @@ path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
+"../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -231,4 +236,5 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-secrets-masker",
 ]

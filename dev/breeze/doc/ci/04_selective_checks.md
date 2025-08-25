@@ -24,7 +24,7 @@
 - [Selective CI Checks](#selective-ci-checks)
   - [Groups of files that selective check make decisions on](#groups-of-files-that-selective-check-make-decisions-on)
   - [Selective check decision rules](#selective-check-decision-rules)
-  - [Skipping pre-commits (Static checks)](#skipping-pre-commits-static-checks)
+  - [Skipping prek hooks (Static checks)](#skipping-prek-hooks-static-checks)
   - [Suspended providers](#suspended-providers)
   - [Selective check outputs](#selective-check-outputs)
   - [Committer vs. Non-committer PRs](#committer-vs-non-committer-prs)
@@ -111,7 +111,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * If there are no files left in sources after matching the test types and Kubernetes files,
   then apparently some Core/Other files have been changed. This automatically adds all test
   types to execute. This is done because changes in core might impact all the other test types.
-* if `CI Image building` is disabled, only basic pre-commits are enabled - no 'image-depending` pre-commits
+* if `CI Image building` is disabled, only basic prek hooks are enabled - no 'image-depending` prek hooks
   are enabled.
 * If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
   the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
@@ -121,12 +121,12 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
   build python files changed or when build is "canary" type in main - all docs packages are built.
 
-## Skipping pre-commits (Static checks)
+## Skipping prek hooks (Static checks)
 
-Our CI always run pre-commit checks with `--all-files` flag. This is in order to avoid cases where
-different check results are run when only subset of files is used. This has an effect that the pre-commit
+Our CI always run prek checks with `--all-files` flag. This is in order to avoid cases where
+different check results are run when only subset of files is used. This has an effect that the prek
 tests take a long time to run when all of them are run. Selective checks allow to save a lot of time
-for those tests in regular PRs of contributors by smart detection of which pre-commits should be skipped
+for those tests in regular PRs of contributors by smart detection of which prek hooks should be skipped
 when some files are not changed. Those are the rules implemented:
 
 * The `identity` check is always skipped (saves space to display all changed files in CI)
@@ -137,7 +137,7 @@ when some files are not changed. Those are the rules implemented:
   * check-provider-yaml-valid
   * lint-helm-chart
   * mypy-providers
-* If "full tests" mode is detected, no more pre-commits are skipped - we run all of them
+* If "full tests" mode is detected, no more prek hooks are skipped - we run all of them
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
   * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
@@ -205,13 +205,6 @@ GitHub Actions to pass the list of parameters to a command to execute
 | mypy-checks                                             | List of folders to be considered for mypy checks                                                        | \["airflow_aux", "airflow_core"\]        |      |
 | mysql-exclude                                           | Which versions of MySQL to exclude for tests as JSON array                                              | []                                       |      |
 | mysql-versions                                          | Which versions of MySQL to use for tests as JSON array                                                  | \['8.0'\]                                |      |
-| needs-api-codegen                                       | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
-| needs-api-tests                                         | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
-| needs-helm-tests                                        | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
-| needs-javascript-scans                                  | Whether javascript CodeQL scans should be run ("true"/"false")                                          | true                                     |      |
-| needs-mypy                                              | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
-| needs-python-scans                                      | Whether Python CodeQL scans should be run ("true"/"false")                                              | true                                     |      |
-| only-new-ui-files                                       | Whether only new UI files are present in the PR ("true"/"false")                                        | false                                    |      |
 | postgres-exclude                                        | Which versions of Postgres to exclude for tests as JSON array                                           | []                                       |      |
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
@@ -221,16 +214,20 @@ GitHub Actions to pass the list of parameters to a command to execute
 | python-versions                                         | List of python versions to use for that build                                                           | \['3.10'\]                               |      |
 | python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.10                                     | *    |
 | run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                     | true                                     |      |
+| run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
+| run-api-tests                                           | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
+| run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
+| run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
-| run-tests                                               | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
+| run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |
 | arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                               | \["ubuntu-22.04-arm"\]                   |      |
 | selected-providers-list-as-string                       | List of providers affected when they are selectively affected.                                          | airbyte http                             | *    |
-| skip-pre-commits                                        | Which pre-commits should be skipped during the static-checks run                                        | flynt,identity                           |      |
+| skip-prek-hooks                                         | Which prek hooks should be skipped during the static-checks run                                         | flynt,identity                           |      |
 | skip-providers-tests                                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)         | true                                     |      |
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
@@ -244,7 +241,7 @@ When we decided whether to run `full tests` we do not check (directly) if provid
 even if they are single source of truth for provider dependencies and when you add a dependency there,
 the environment changes and generally full tests are advised.
 
-This is because provider.yaml change will automatically trigger (via `update-provider-dependencies` pre-commit)
+This is because provider.yaml change will automatically trigger (via `update-provider-dependencies` prek)
 generation of `generated/provider_dependencies.json` and `pyproject.toml` gets updated as well. This is a far
 better indication if we need to run full tests than just checking if provider.yaml files changed, because
 provider.yaml files contain more information than just dependencies - they are the single source of truth

@@ -141,6 +141,35 @@ class TestCalendar:
                     ],
                 },
             ),
+            (
+                {
+                    "granularity": "hourly",
+                    "logical_date_gte": "2025-01-02T00:00:00Z",
+                    "logical_date_lte": "2025-01-02T23:23:59Z",
+                    "logical_date_gt": "2025-01-02T00:00:00Z",
+                    "logical_date_lt": "2025-01-02T23:23:59Z",
+                },
+                {
+                    "total_entries": 0,
+                    "dag_runs": [],
+                },
+            ),
+            (
+                {
+                    "granularity": "hourly",
+                    "logical_date_gte": "2025-01-02T00:00:00Z",
+                    "logical_date_lte": "2025-01-02T23:23:59Z",
+                    "logical_date_gt": "2025-01-01T23:00:00Z",
+                    "logical_date_lt": "2025-01-03T00:00:00Z",
+                },
+                {
+                    "total_entries": 2,
+                    "dag_runs": [
+                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
+                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
+                    ],
+                },
+            ),
         ],
     )
     def test_hourly_calendar(self, setup_dag_runs, test_client, query_params, result):
