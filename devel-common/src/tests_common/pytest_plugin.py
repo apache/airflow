@@ -2678,3 +2678,17 @@ def mock_task_instance():
         return mock_ti
 
     return _create_mock_task_instance
+
+
+@pytest.fixture(autouse=True, scope="module")
+def clean_secrets_manager():
+    """Cleans up secrets masker in every test module to avoid side-effects."""
+    try:
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+    except ImportError:
+        try:
+            from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+        except ImportError:
+            from airflow.utils.log.secrets_masker import _secrets_masker
+    masker = _secrets_masker()
+    masker.patterns = {}
