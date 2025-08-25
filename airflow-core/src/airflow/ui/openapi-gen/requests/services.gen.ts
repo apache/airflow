@@ -1393,6 +1393,8 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
+     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
@@ -1425,6 +1427,8 @@ export class DagService {
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
                 dag_run_start_date_gt: data.dagRunStartDateGt,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
@@ -1695,6 +1699,8 @@ export class DagService {
      * @param data.bundleVersion
      * @param data.orderBy
      * @param data.isFavorite
+     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1719,7 +1725,9 @@ export class DagService {
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
-                is_favorite: data.isFavorite
+                is_favorite: data.isFavorite,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency
             },
             errors: {
                 422: 'Validation Error'
@@ -2030,6 +2038,7 @@ export class TaskInstanceService {
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
+     * @param data.operator
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2076,6 +2085,7 @@ export class TaskInstanceService {
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
+                operator: data.operator,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2322,6 +2332,7 @@ export class TaskInstanceService {
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
+     * @param data.operator
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2369,6 +2380,7 @@ export class TaskInstanceService {
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
+                operator: data.operator,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy

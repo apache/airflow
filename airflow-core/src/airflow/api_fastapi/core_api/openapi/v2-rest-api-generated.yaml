@@ -3012,6 +3012,26 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: has_asset_schedule
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter DAGs with asset-based scheduling
+          title: Has Asset Schedule
+        description: Filter DAGs with asset-based scheduling
+      - name: asset_dependency
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter DAGs by asset dependency (name or URI)
+          title: Asset Dependency
+        description: Filter DAGs by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -5602,6 +5622,14 @@ paths:
           items:
             type: integer
           title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
       - name: limit
         in: query
         required: false
@@ -6394,6 +6422,14 @@ paths:
           items:
             type: integer
           title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
       - name: limit
         in: query
         required: false
@@ -12587,6 +12623,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
       type: object
       required:
       - key
@@ -12597,6 +12636,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -12629,6 +12669,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
         value:
           title: Value
       type: object
@@ -12641,6 +12684,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -12674,6 +12718,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
         value:
           anyOf:
           - type: string
@@ -12689,6 +12736,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

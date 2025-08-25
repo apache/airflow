@@ -6348,10 +6348,14 @@ export const $XComResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name'],
     title: 'XComResponse',
     description: 'Serializer for a xcom item.'
 } as const;
@@ -6399,12 +6403,16 @@ export const $XComResponseNative = {
             type: 'string',
             title: 'Dag Display Name'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         value: {
             title: 'Value'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
     title: 'XComResponseNative',
     description: 'XCom response serializer with native return type.'
 } as const;
@@ -6452,6 +6460,10 @@ export const $XComResponseString = {
             type: 'string',
             title: 'Dag Display Name'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         value: {
             anyOf: [
                 {
@@ -6465,7 +6477,7 @@ export const $XComResponseString = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
     title: 'XComResponseString',
     description: 'XCom response serializer with string return type.'
 } as const;
