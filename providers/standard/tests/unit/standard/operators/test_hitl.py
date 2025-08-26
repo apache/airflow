@@ -329,7 +329,6 @@ class TestHITLOperator:
     @conf_vars({("api", "base_url"): "http://localhost:8080/"})
     def test_generate_link_fall_back_to_conf_api_base_url(
         self,
-        dag_maker: DagMaker,
         options: list[str] | None,
         params_input: dict[str, Any] | None,
         expected_query_string: str,
