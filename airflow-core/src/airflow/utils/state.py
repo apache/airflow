@@ -20,33 +20,6 @@ from __future__ import annotations
 from enum import Enum
 
 
-class TerminalTIState(str, Enum):
-    """States that a Task Instance can be in that indicate it has reached a terminal state."""
-
-    SUCCESS = "success"
-    FAILED = "failed"
-    SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
-    UPSTREAM_FAILED = "upstream_failed"
-    REMOVED = "removed"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class IntermediateTIState(str, Enum):
-    """States that a Task Instance can be in that indicate it is not yet in a terminal or running state."""
-
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RESTARTING = "restarting"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    DEFERRED = "deferred"
-
-    def __str__(self) -> str:
-        return self.value
-
-
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -59,20 +32,20 @@ class TaskInstanceState(str, Enum):
     # Use None instead if need this state.
 
     # Set by the scheduler
-    REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
-    SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
+    REMOVED = "removed"  # Task vanished from DAG before it ran
+    SCHEDULED = "scheduled"  # Task should run and will be handed to executor soon
 
     # Set by the task instance itself
-    QUEUED = IntermediateTIState.QUEUED  # Executor has enqueued the task
+    QUEUED = "queued"  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing
-    SUCCESS = TerminalTIState.SUCCESS  # Task completed
-    RESTARTING = IntermediateTIState.RESTARTING  # External request to restart (e.g. cleared when running)
-    FAILED = TerminalTIState.FAILED  # Task errored out
-    UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
-    UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
-    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
-    SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
-    DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
+    SUCCESS = "success"  # Task completed
+    RESTARTING = "restarting"  # External request to restart (e.g. cleared when running)
+    FAILED = "failed"  # Task errored out
+    UP_FOR_RETRY = "up_for_retry"  # Task failed but has retries left
+    UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
+    UPSTREAM_FAILED = "upstream_failed"  # One or more upstream deps failed
+    SKIPPED = "skipped"  # Skipped by branching or some other mechanism
+    DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
     def __str__(self) -> str:
         return self.value
@@ -230,5 +203,31 @@ def __getattr__(name: str):
             stacklevel=2,
         )
         return JobState
+
+    if name == "TerminalTIState":
+        import warnings
+
+        from airflow.models.taskinstance import TerminalTIState
+
+        warnings.warn(
+            "The `airflow.utils.state.TerminalTIState` attribute is deprecated and will be removed in a future version. "
+            "Please use `airflow.models.taskinstance.TerminalTIState` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return TerminalTIState
+
+    if name == "IntermediateTIState":
+        import warnings
+
+        from airflow.models.taskinstance import IntermediateTIState
+
+        warnings.warn(
+            "The `airflow.utils.state.IntermediateTIState` attribute is deprecated and will be removed in a future version. "
+            "Please use `airflow.models.taskinstance.IntermediateTIState` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return IntermediateTIState
 
     raise AttributeError(f"module 'airflow.utils.state' has no attribute '{name}'")
