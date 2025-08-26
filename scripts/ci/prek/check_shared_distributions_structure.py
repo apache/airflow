@@ -15,7 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "rich>=13.6.0",
+#   "tomli>=2.0.1",
+# ]
+# ///
 """
 Check shared projects in the "shared" subfolder for compliance.
 """
@@ -50,13 +56,17 @@ def check_pyproject_exists(shared_path: Path) -> bool:
 
 def check_project_name(shared_path: Path, pyproject: dict) -> tuple[bool, str]:
     name = pyproject.get("project", {}).get("name", "")
-    expected_name = f"apache-airflow-shared-{shared_path.name}"
+    # Normalize directory name: convert underscores to hyphens for package name
+    normalized_name = shared_path.name.replace("_", "-")
+    expected_name = f"apache-airflow-shared-{normalized_name}"
+
     m = re.match(r"apache-airflow-shared-(.+)", name)
     if m and name == expected_name:
         console.print(
             f"  project name matches [magenta]{shared_path.name}[/magenta] and is '{expected_name}' [bold green]OK[/bold green]"
         )
-        return True, m.group(1)
+        # Return the original directory name (with underscores), not the normalized package name
+        return True, shared_path.name
     console.print(
         f"  [red]project name '{name}' does not match for [magenta]{shared_path.name}[/magenta] or is not '{expected_name}'[/red]"
     )

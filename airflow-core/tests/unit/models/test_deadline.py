@@ -236,6 +236,11 @@ class TestDeadline:
                 id="failed_event",
             ),
             pytest.param(
+                TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.RUNNING}),
+                False,
+                id="running_event",
+            ),
+            pytest.param(
                 TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.QUEUED, PAYLOAD_BODY_KEY: ""}),
                 False,
                 id="invalid_event",

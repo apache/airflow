@@ -50,11 +50,13 @@ TEST_XCOM_KEY_2 = "test_xcom_key_non_existing"
 TEST_DAG_ID = "test-dag-id"
 TEST_DAG_DISPLAY_NAME = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
+TEST_TASK_DISPLAY_NAME = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
 TEST_DAG_ID_2 = "test-dag-id-2"
 TEST_DAG_DISPLAY_NAME_2 = "test-dag-id-2"
 TEST_TASK_ID_2 = "test-task-id-2"
+TEST_TASK_DISPLAY_NAME_2 = "test-task-id-2"
 
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
 logical_date_formatted = logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -133,6 +135,7 @@ class TestGetXComEntry(TestXComEndpoint):
             "run_id": run_id,
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
+            "task_display_name": TEST_TASK_DISPLAY_NAME,
             "map_index": -1,
             "timestamp": current_data["timestamp"],
             "value": json.dumps(TEST_XCOM_VALUE),
@@ -216,6 +219,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -226,6 +230,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -253,6 +258,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -263,6 +269,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -273,6 +280,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID_2,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME_2,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -283,6 +291,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID_2,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME_2,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -311,6 +320,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": idx,
                 }
@@ -325,6 +335,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": map_index,
                 }
@@ -349,6 +360,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
+                        "task_display_name": TEST_TASK_DISPLAY_NAME,
                         "timestamp": "TIMESTAMP",
                         "map_index": 0,
                     },
@@ -359,6 +371,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
+                        "task_display_name": TEST_TASK_DISPLAY_NAME,
                         "timestamp": "TIMESTAMP",
                         "map_index": 1,
                     },

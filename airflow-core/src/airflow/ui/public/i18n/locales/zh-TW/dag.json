@@ -5,6 +5,34 @@
     "reason": "原因",
     "title": "依賴 (Dependencies) 阻礙任務排程"
   },
+  "calendar": {
+    "daily": "每日",
+    "error": "載入日曆資料時發生錯誤",
+    "hourly": "每小時",
+    "legend": {
+      "less": "較少",
+      "more": "較多"
+    },
+    "navigation": {
+      "nextMonth": "下一月",
+      "nextYear": "下一年",
+      "previousMonth": "上一月",
+      "previousYear": "上一年"
+    },
+    "noData": "沒有可用的資料",
+    "noRuns": "沒有執行",
+    "totalRuns": "總執行數",
+    "week": "第 {{weekNumber}} 週",
+    "weekdays": {
+      "friday": "五",
+      "monday": "一",
+      "saturday": "六",
+      "sunday": "日",
+      "thursday": "四",
+      "tuesday": "二",
+      "wednesday": "三"
+    }
+  },
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
@@ -102,6 +130,7 @@
     "assetEvents": "資源事件",
     "auditLog": "審計日誌",
     "backfills": "回填",
+    "calendar": "日曆",
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",

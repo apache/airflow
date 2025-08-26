@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
+    from airflow.sdk import Context, TriggerRule
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
@@ -56,7 +56,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.trigger_rule import TriggerRule
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
@@ -1808,24 +1807,57 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         yield
         return
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
-            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow._shared.secrets_masker import (
+                    SecretsMasker as CoreSecretsMasker,
+                )
+                from airflow.sdk._shared.secrets_masker import (
+                    SecretsMasker as SDKSecretsMasker,
+                )
+
+                mp_ctx.setattr(CoreSecretsMasker, "mask_secrets_in_logs", True)
+                mp_ctx.setattr(SDKSecretsMasker, "mask_secrets_in_logs", True)
+            else:
+                # Fallback for older versions
+                mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
-    target = (
-        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
-    )
+    # Rest of the mocking logic remains the same
+    targets = []
+    if AIRFLOW_V_3_1_PLUS:
+        targets = [
+            "airflow._shared.secrets_masker.SecretsMasker.redact",
+            "airflow.sdk._shared.secrets_masker.SecretsMasker.redact",
+        ]
+    elif AIRFLOW_V_3_0_PLUS:
+        targets = ["airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"]
+    else:
+        targets = ["airflow.utils.log.secrets_masker.SecretsMasker.redact"]
 
-    mocked_redact = mocker.patch(target)
-    mocked_redact.side_effect = lambda item, *args, **kwargs: item
+    for target in targets:
+        mocked_redact = mocker.patch(target)
+        mocked_redact.side_effect = lambda item, *args, **kwargs: item
+
     with pytest.MonkeyPatch.context() as mp_ctx:
-        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
+        # NEW: Set class variable instead of settings
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow._shared.secrets_masker import (
+                SecretsMasker as CoreSecretsMasker,
+            )
+            from airflow.sdk._shared.secrets_masker import (
+                SecretsMasker as SDKSecretsMasker,
+            )
+
+            mp_ctx.setattr(CoreSecretsMasker, "mask_secrets_in_logs", True)
+            mp_ctx.setattr(SDKSecretsMasker, "mask_secrets_in_logs", True)
+        else:
+            # Fallback for older versions
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
 

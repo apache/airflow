@@ -64,7 +64,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import BaseSensorOperator, task, task_group
+from airflow.sdk import BaseSensorOperator, Metadata, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
@@ -1652,6 +1652,98 @@ class TestTaskInstance:
         assert events["write2"].source_task_id == "write2"
         assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
+
+    @pytest.mark.want_activate_assets(True)
+    def test_outlet_asset_template_extra(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(
+                outlets=Asset(
+                    "test_outlet_asset_template_extra1",
+                    extra={
+                        "static_extra": "value",
+                        "dag_id": "{{ dag.dag_id }}",
+                        "nested_extra": {
+                            "task_id": "{{ task.task_id }}",
+                            "logical_date": "{{ ds }}",
+                        },
+                    },
+                )
+            )
+            def write_template1(*, outlet_events):
+                yield Metadata(
+                    Asset("test_outlet_asset_template_extra1"),
+                    {
+                        "dag_id": "override_dag_id",
+                        "some_other_key": "some_other_value",
+                    },
+                )
+
+            write_template1()
+
+            BashOperator(
+                task_id="write_template2",
+                bash_command=":",
+                outlets=Asset(
+                    "test_outlet_asset_template_extra2",
+                    extra={
+                        "static_extra": "value",
+                        "dag_id": "{{ dag.dag_id }}",
+                        "nested_extra": {
+                            "task_id": "{{ task.task_id }}",
+                            "logical_date": "{{ ds }}",
+                        },
+                    },
+                ),
+            )
+
+            BashOperator(
+                task_id="write_asset_no_extra",
+                bash_command=":",
+                outlets=Asset("test_outlet_asset_no_extra"),
+            )
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
+        assert set(events) == {"write_template1", "write_template2", "write_asset_no_extra"}
+
+        assert events["write_template1"].source_dag_id == dr.dag_id
+        assert events["write_template1"].source_run_id == dr.run_id
+        assert events["write_template1"].source_task_id == "write_template1"
+        assert events["write_template1"].asset.uri == "test_outlet_asset_template_extra1"
+        assert events["write_template1"].extra == {
+            "static_extra": "value",
+            "dag_id": "override_dag_id",  # Overridden by Metadata
+            "nested_extra": {
+                "task_id": "write_template1",
+                "logical_date": dr.logical_date.strftime("%Y-%m-%d"),
+            },
+            "some_other_key": "some_other_value",  # Added by Metadata
+        }
+
+        assert events["write_template2"].source_dag_id == dr.dag_id
+        assert events["write_template2"].source_run_id == dr.run_id
+        assert events["write_template2"].source_task_id == "write_template2"
+        assert events["write_template2"].asset.uri == "test_outlet_asset_template_extra2"
+        assert events["write_template2"].extra == {
+            "static_extra": "value",
+            "dag_id": dr.dag_id,
+            "nested_extra": {
+                "task_id": "write_template2",
+                "logical_date": dr.logical_date.strftime("%Y-%m-%d"),
+            },
+        }
+
+        assert events["write_asset_no_extra"].source_dag_id == dr.dag_id
+        assert events["write_asset_no_extra"].source_run_id == dr.run_id
+        assert events["write_asset_no_extra"].source_task_id == "write_asset_no_extra"
+        assert events["write_asset_no_extra"].asset.uri == "test_outlet_asset_no_extra"
+        assert events["write_asset_no_extra"].extra == {}
 
     @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra_ignore_different(self, dag_maker, session):

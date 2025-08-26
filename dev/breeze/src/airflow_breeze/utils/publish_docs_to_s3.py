@@ -30,7 +30,7 @@ from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
 PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 
-NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow", "task-sdk"]
+NON_SHORT_NAME_PACKAGES = ["apache-airflow", "apache-airflow-ctl", "docker-stack", "helm-chart", "task-sdk"]
 
 
 s3_client = boto3.client("s3")

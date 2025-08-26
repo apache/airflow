@@ -1950,7 +1950,9 @@ export const $DAGDetailsResponse = {
         concurrency: {
             type: 'integer',
             title: 'Concurrency',
-            description: 'Return max_active_tasks as concurrency.',
+            description: `Return max_active_tasks as concurrency.
+
+Deprecated: Use max_active_tasks instead.`,
             readOnly: true
         },
         latest_dag_version: {
@@ -2544,6 +2546,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'Run After Gte'
         },
+        run_after_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Gt'
+        },
         run_after_lte: {
             anyOf: [
                 {
@@ -2555,6 +2569,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'Run After Lte'
+        },
+        run_after_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Lt'
         },
         logical_date_gte: {
             anyOf: [
@@ -2568,6 +2594,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'Logical Date Gte'
         },
+        logical_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Gt'
+        },
         logical_date_lte: {
             anyOf: [
                 {
@@ -2579,6 +2617,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'Logical Date Lte'
+        },
+        logical_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Lt'
         },
         start_date_gte: {
             anyOf: [
@@ -2592,6 +2642,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'Start Date Gte'
         },
+        start_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Gt'
+        },
         start_date_lte: {
             anyOf: [
                 {
@@ -2603,6 +2665,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'Start Date Lte'
+        },
+        start_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Lt'
         },
         end_date_gte: {
             anyOf: [
@@ -2616,6 +2690,18 @@ export const $DAGRunsBatchBody = {
             ],
             title: 'End Date Gte'
         },
+        end_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Gt'
+        },
         end_date_lte: {
             anyOf: [
                 {
@@ -2627,6 +2713,18 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'End Date Lte'
+        },
+        end_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Lt'
         }
     },
     additionalProperties: false,
@@ -2751,10 +2849,14 @@ export const $DAGWarningResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Timestamp'
+        },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
         }
     },
     type: 'object',
-    required: ['dag_id', 'warning_type', 'message', 'timestamp'],
+    required: ['dag_id', 'warning_type', 'message', 'timestamp', 'dag_display_name'],
     title: 'DAGWarningResponse',
     description: 'DAG Warning serializer for responses.'
 } as const;
@@ -4717,6 +4819,17 @@ export const $TaskInstanceHistoryResponse = {
             ],
             title: 'Operator'
         },
+        operator_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator Name'
+        },
         queued_when: {
             anyOf: [
                 {
@@ -4779,7 +4892,7 @@ export const $TaskInstanceHistoryResponse = {
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -4947,6 +5060,17 @@ export const $TaskInstanceResponse = {
             ],
             title: 'Operator'
         },
+        operator_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator Name'
+        },
         queued_when: {
             anyOf: [
                 {
@@ -5056,7 +5180,7 @@ export const $TaskInstanceResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
@@ -5147,6 +5271,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Run After Gte'
         },
+        run_after_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Gt'
+        },
         run_after_lte: {
             anyOf: [
                 {
@@ -5158,6 +5294,18 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Run After Lte'
+        },
+        run_after_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After Lt'
         },
         logical_date_gte: {
             anyOf: [
@@ -5171,6 +5319,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Logical Date Gte'
         },
+        logical_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Gt'
+        },
         logical_date_lte: {
             anyOf: [
                 {
@@ -5182,6 +5342,18 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Logical Date Lte'
+        },
+        logical_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date Lt'
         },
         start_date_gte: {
             anyOf: [
@@ -5195,6 +5367,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Start Date Gte'
         },
+        start_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Gt'
+        },
         start_date_lte: {
             anyOf: [
                 {
@@ -5206,6 +5390,18 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Start Date Lte'
+        },
+        start_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date Lt'
         },
         end_date_gte: {
             anyOf: [
@@ -5219,6 +5415,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'End Date Gte'
         },
+        end_date_gt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Gt'
+        },
         end_date_lte: {
             anyOf: [
                 {
@@ -5231,6 +5439,18 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'End Date Lte'
         },
+        end_date_lt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date Lt'
+        },
         duration_gte: {
             anyOf: [
                 {
@@ -5242,6 +5462,17 @@ export const $TaskInstancesBatchBody = {
             ],
             title: 'Duration Gte'
         },
+        duration_gt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gt'
+        },
         duration_lte: {
             anyOf: [
                 {
@@ -5252,6 +5483,17 @@ export const $TaskInstancesBatchBody = {
                 }
             ],
             title: 'Duration Lte'
+        },
+        duration_lt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lt'
         },
         pool: {
             anyOf: [
@@ -6108,10 +6350,14 @@ export const $XComResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name'],
     title: 'XComResponse',
     description: 'Serializer for a xcom item.'
 } as const;
@@ -6159,12 +6405,16 @@ export const $XComResponseNative = {
             type: 'string',
             title: 'Dag Display Name'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         value: {
             title: 'Value'
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
     title: 'XComResponseNative',
     description: 'XCom response serializer with native return type.'
 } as const;
@@ -6212,6 +6462,10 @@ export const $XComResponseString = {
             type: 'string',
             title: 'Dag Display Name'
         },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
         value: {
             anyOf: [
                 {
@@ -6225,7 +6479,7 @@ export const $XComResponseString = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'value'],
     title: 'XComResponseString',
     description: 'XCom response serializer with string return type.'
 } as const;

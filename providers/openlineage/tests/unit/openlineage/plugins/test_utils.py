@@ -44,7 +44,7 @@ from airflow.providers.openlineage.utils.utils import (
     is_operator_disabled,
 )
 from airflow.serialization.enums import DagAttributeTypes, Encoding
-from airflow.utils import timezone
+from airflow.utils import timezone  # type:ignore[attr-defined]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -60,9 +60,12 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import _secrets_masker
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
     except ImportError:
-        from airflow.utils.log.secrets_masker import _secrets_masker
+        try:
+            from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+        except ImportError:
+            from airflow.utils.log.secrets_masker import _secrets_masker
 
 
 class SafeStrDict(dict):

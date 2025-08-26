@@ -60,7 +60,7 @@ RELEASE_AIRFLOW_TASK_SDK_COMMANDS: dict[str, str | list[str]] = {
 }
 
 RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Airflow CTL release commands",
+    "name": "airflowctl release commands",
     "commands": [
         "prepare-airflow-ctl-distributions",
     ],

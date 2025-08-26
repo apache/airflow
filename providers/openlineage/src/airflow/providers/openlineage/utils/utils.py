@@ -97,19 +97,27 @@ else:
             from airflow.datasets import Dataset as Asset
 
     try:
-        from airflow.sdk.execution_time.secrets_masker import (
+        from airflow.sdk._shared.secrets_masker import (
             Redactable,
             Redacted,
             SecretsMasker,
             should_hide_value_for_key,
         )
     except ImportError:
-        from airflow.utils.log.secrets_masker import (
-            Redactable,
-            Redacted,
-            SecretsMasker,
-            should_hide_value_for_key,
-        )
+        try:
+            from airflow.sdk.execution_time.secrets_masker import (
+                Redactable,
+                Redacted,
+                SecretsMasker,
+                should_hide_value_for_key,
+            )
+        except ImportError:
+            from airflow.utils.log.secrets_masker import (
+                Redactable,
+                Redacted,
+                SecretsMasker,
+                should_hide_value_for_key,
+            )
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"

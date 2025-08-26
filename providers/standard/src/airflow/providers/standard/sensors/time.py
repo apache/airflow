@@ -28,18 +28,21 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.providers.standard.version_compat import BaseSensorOperator
 
 try:
-    from airflow.triggers.base import StartTriggerArgs
-except ImportError:
-    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
-    @dataclass
-    class StartTriggerArgs:  # type: ignore[no-redef]
-        """Arguments required for start task execution from triggerer."""
+    from airflow.sdk import StartTriggerArgs
+except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for standard provider
+    try:
+        from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]
+    except ImportError:  # TODO: Remove this when min airflow version is 2.10.0 for standard provider
 
-        trigger_cls: str
-        next_method: str
-        trigger_kwargs: dict[str, Any] | None = None
-        next_kwargs: dict[str, Any] | None = None
-        timeout: datetime.timedelta | None = None
+        @dataclass
+        class StartTriggerArgs:  # type: ignore[no-redef]
+            """Arguments required for start task execution from triggerer."""
+
+            trigger_cls: str
+            next_method: str
+            trigger_kwargs: dict[str, Any] | None = None
+            next_kwargs: dict[str, Any] | None = None
+            timeout: datetime.timedelta | None = None
 
 
 try:
@@ -48,11 +51,7 @@ except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class TimeSensor(BaseSensorOperator):

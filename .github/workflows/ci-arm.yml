@@ -114,6 +114,7 @@ jobs:
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
+      shared-distributions-as-json: ${{ steps.selective-checks.outputs.shared-distributions-as-json }}
       skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
@@ -175,6 +176,7 @@ jobs:
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: "linux/arm64"
+      shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
 
   build-ci-images:
     name: Build CI images

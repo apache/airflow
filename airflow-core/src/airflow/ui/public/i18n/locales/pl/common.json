@@ -35,7 +35,6 @@
   "dag_other": "Dagi",
   "dagDetails": {
     "catchup": "Nadrabianie zaległości",
-    "concurrency": "Współbieżność",
     "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
     "description": "Opis",

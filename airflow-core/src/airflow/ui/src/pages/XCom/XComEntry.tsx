@@ -86,16 +86,16 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
     />
   ) : (
     <HStack>
-      {Boolean(data?.value) ? (
-        <ClipboardRoot value={valueFormatted}>
-          <ClipboardIconButton />
-        </ClipboardRoot>
-      ) : undefined}
       {["array", "object"].includes(typeof data?.value) ? (
         <RenderedJsonField content={data?.value as object} enableClipboard={false} />
       ) : (
         <Text>{renderTextWithLinks(valueFormatted)}</Text>
       )}
+      {Boolean(data?.value) ? (
+        <ClipboardRoot value={valueFormatted}>
+          <ClipboardIconButton />
+        </ClipboardRoot>
+      ) : undefined}
     </HStack>
   );
 };

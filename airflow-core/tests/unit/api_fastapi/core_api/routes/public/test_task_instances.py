@@ -195,6 +195,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": None,
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -215,6 +216,17 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
         }
+
+    def test_should_respond_200_with_decorator(self, test_client, session):
+        self.create_task_instances(session, "example_python_decorator")
+        response = test_client.get(
+            "/dags/example_python_decorator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["operator_name"] == "@task"
+        assert response_json["operator"] == "_PythonDecoratedOperator"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -267,6 +279,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -331,6 +344,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -383,6 +397,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -430,6 +445,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -540,6 +556,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -935,6 +952,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"start_date": DEFAULT_DATETIME_1},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/dags/example_python_operator/dagRuns/~/taskInstances",
+                {
+                    "start_date_gt": (DEFAULT_DATETIME_1 - dt.timedelta(hours=1)).isoformat(),
+                    "start_date_lt": DEFAULT_DATETIME_STR_2,
+                },
+                1,
+                id="test start date gt and lt filter",
+            ),
+            pytest.param(
+                [
                     {"end_date": DEFAULT_DATETIME_1},
                     {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
                     {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
@@ -944,6 +976,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"end_date_gte": DEFAULT_DATETIME_1, "end_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
                 id="test end date filter",
+            ),
+            pytest.param(
+                [
+                    {"end_date": DEFAULT_DATETIME_1},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/dags/example_python_operator/dagRuns/~/taskInstances?",
+                {
+                    "end_date_gt": DEFAULT_DATETIME_1,
+                    "end_date_lt": (DEFAULT_DATETIME_2 + dt.timedelta(hours=1)).isoformat(),
+                },
+                1,
+                id="test end date gt and lt filter",
             ),
             pytest.param(
                 [
@@ -968,6 +1015,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
                 id="test duration filter ~",
+            ),
+            pytest.param(
+                [
+                    {"duration": 100},
+                    {"duration": 150},
+                    {"duration": 200},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"duration_gt": 100, "duration_lt": 200},
+                1,
+                id="test duration gt and lt filter ~",
             ),
             pytest.param(
                 [
@@ -1132,6 +1191,39 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 7,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
                 id="test multiple version numbers filter",
+            ),
+            pytest.param(
+                [
+                    {"try_number": 0},
+                    {"try_number": 0},
+                    {"try_number": 1},
+                    {"try_number": 1},
+                    {"try_number": 1},
+                    {"try_number": 2},
+                ],
+                True,
+                ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"try_number": [0, 1]},
+                5,
+                id="test_try_number_filter",
+            ),
+            pytest.param(
+                [
+                    {"operator": "FirstOperator"},
+                    {"operator": "FirstOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"operator": ["FirstOperator", "SecondOperator"]},
+                5,
+                id="test operator type filter filter",
             ),
         ],
     )
@@ -1737,6 +1829,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -1773,6 +1866,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0 if try_number == 1 else 1,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -1840,6 +1934,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "map_index": map_index,
                 "max_tries": 0 if try_number == 1 else 1,
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -1903,6 +1998,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -1940,6 +2036,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -2018,6 +2115,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -2071,6 +2169,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -2564,6 +2663,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -2903,6 +3003,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "map_index": -1,
                     "max_tries": 0,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -2930,6 +3031,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "map_index": -1,
                     "max_tries": 1,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -2990,6 +3092,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "map_index": -1,
                     "max_tries": 0,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3061,6 +3164,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "map_index": map_index,
                         "max_tries": 0,
                         "operator": "PythonOperator",
+                        "operator_name": "PythonOperator",
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
@@ -3088,6 +3192,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "map_index": map_index,
                         "max_tries": 1,
                         "operator": "PythonOperator",
+                        "operator_name": "PythonOperator",
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
@@ -3158,6 +3263,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -3212,6 +3318,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -3310,6 +3417,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3561,6 +3669,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,
@@ -3676,6 +3785,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3727,6 +3837,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3797,6 +3908,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "max_tries": 0,
                         "note": new_note_value,
                         "operator": "PythonOperator",
+                        "operator_name": "PythonOperator",
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
@@ -3868,6 +3980,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "max_tries": 0,
                 "note": new_note_value,
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -3975,6 +4088,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -4251,6 +4365,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,

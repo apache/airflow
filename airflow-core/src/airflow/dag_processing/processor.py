@@ -430,7 +430,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
             resp = dagrun_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
+            # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
+            from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
         else:

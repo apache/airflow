@@ -432,10 +432,42 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
             (
+                "~",
+                {
+                    "start_date_gt": START_DATE1.isoformat(),
+                    "start_date_lt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                },
+                [],
+            ),
+            (
+                "~",
+                {
+                    "start_date_gt": (START_DATE1 - timedelta(hours=1)).isoformat(),
+                    "start_date_lt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
                 DAG1_ID,
                 {
                     "end_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gt": START_DATE2.isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
@@ -450,8 +482,40 @@ class TestGetDagRuns:
             (
                 DAG1_ID,
                 {
+                    "logical_date_gt": LOGICAL_DATE1.isoformat(),
+                    "logical_date_lt": LOGICAL_DATE2.isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "logical_date_gt": (LOGICAL_DATE1 - timedelta(hours=1)).isoformat(),
+                    "logical_date_lt": LOGICAL_DATE2.isoformat(),
+                },
+                [DAG1_RUN1_ID],
+            ),
+            (
+                DAG1_ID,
+                {
                     "run_after_gte": RUN_AFTER1.isoformat(),
                     "run_after_lte": RUN_AFTER2.isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_after_gt": RUN_AFTER1.isoformat(),
+                    "run_after_lt": RUN_AFTER2.isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_after_gt": (RUN_AFTER1 - timedelta(hours=1)).isoformat(),
+                    "run_after_lt": (RUN_AFTER2 + timedelta(hours=1)).isoformat(),
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
@@ -460,6 +524,22 @@ class TestGetDagRuns:
                 {
                     "start_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gt": START_DATE2.isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gt": (START_DATE2 - timedelta(hours=1)).isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
                 [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),

@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "自動回填",
-    "concurrency": "並行數",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
     "description": "描述",
@@ -181,6 +180,7 @@
     "failed": "失敗",
     "no_status": "無狀態",
     "none": "無狀態",
+    "planned": "已計劃",
     "queued": "排隊中",
     "removed": "已移除",
     "restarting": "重啟中",

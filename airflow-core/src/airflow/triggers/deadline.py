@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -49,17 +50,21 @@ class DeadlineCallbackTrigger(BaseTrigger):
 
         try:
             callback = import_string(self.callback_path)
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.RUNNING})
             result = await callback(**self.callback_kwargs)
             log.info("Deadline callback completed with return value: %s", result)
             yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
         except Exception as e:
             if isinstance(e, ImportError):
-                message = "Could not import deadline callback on the triggerer"
+                message = "Failed to import this deadline callback on the triggerer"
             elif isinstance(e, TypeError) and "await" in str(e):
-                message = "Deadline callback not awaitable"
+                message = "Failed to run this deadline callback because it is not awaitable"
             else:
-                message = "An error occurred while executing deadline callback"
-            log.exception("%s: %s", message, e)
+                message = "An error occurred during execution of this deadline callback"
+            log.exception("%s: %s; kwargs: %s\n%s", message, self.callback_path, self.callback_kwargs, e)
             yield TriggerEvent(
-                {PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED, PAYLOAD_BODY_KEY: f"{message}: {e}"}
+                {
+                    PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED,
+                    PAYLOAD_BODY_KEY: f"{message}: {traceback.format_exception(e)}",
+                }
             )

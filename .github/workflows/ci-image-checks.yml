@@ -373,6 +373,8 @@ jobs:
         run: breeze release-management add-back-references docker-stack
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
+      - name: "Generate back references for apache-airflow-ctl"
+        run: breeze release-management add-back-references apache-airflow-ctl
       - name: "Validate published doc versions"
         id: validate-docs-versions
         run: cd ./dev/breeze && uv run ./src/airflow_breeze/utils/docs_version_validation.py

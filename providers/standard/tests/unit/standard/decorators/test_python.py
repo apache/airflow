@@ -25,9 +25,14 @@ import pytest
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 from unit.standard.operators.test_python import BasePythonTest
@@ -883,7 +888,12 @@ def test_task_decorator_has_doc_attr():
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
-    from airflow.utils.trigger_rule import TriggerRule
+
+    try:
+        from airflow.sdk import TriggerRule
+    except ImportError:
+        # Compatibility for Airflow < 3.1
+        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
     result = None
 
@@ -920,7 +930,12 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
     from airflow.exceptions import AirflowSkipException
-    from airflow.utils.trigger_rule import TriggerRule
+
+    try:
+        from airflow.sdk import TriggerRule
+    except ImportError:
+        # Compatibility for Airflow < 3.1
+        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
     result = None
 

@@ -142,19 +142,35 @@ if your DAG performs catchup internally.
 
 
 Backfill
----------
+--------
 You may want to run the DAG for a specified historical period. For example,
 a DAG is created with ``start_date`` **2024-11-21**, but another user requires
 the output data from a month prior, i.e. **2024-10-21**.
 This process is known as Backfill.
 
-This can be done through API or CLI. For CLI usage, run the command below:
+This can be done through either the UI or CLI.
+
+UI
+''
+From the DAG Details page, click **Trigger** and select **Backfill** to open the backfill form. Set the date range, reprocess
+behavior, max active runs, optional backwards ordering, and Advanced Config.
+
+.. image:: ../img/ui-light/backfill.png
+   :alt: Backfill pop-up window (Light Mode)
+
+CLI
+'''
+For CLI usage, run the command below:
 
 .. code-block:: bash
 
     airflow backfill create --dag-id DAG_ID \
         --start-date START_DATE \
         --end-date END_DATE \
+        --reprocessing-behavior failed \
+        --max-active-runs 3 \
+        --run-backwards \
+        --dag-run-conf '{"my": "param"}'
 
 The `backfill command <../cli-and-env-variables-ref.html#backfill>`_ will
 re-run all the instances of the dag_id for all the intervals within the start
