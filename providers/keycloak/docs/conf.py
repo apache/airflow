@@ -24,7 +24,4 @@ import os
 
 os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-keycloak"
 
-# Disable color output for documentation generation
-os.environ["NO_COLOR"] = "1"
-
 from docs.provider_conf import *  # noqa: F403

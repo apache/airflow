@@ -38,7 +38,7 @@ CLI commands take the following parameters:
 
 * ``--username``: Keycloak admin username
 * ``--password``: Keycloak admin password
-* ``--user-realm``: Keycloak user realm (default: master)
+* ``--user-realm``: Keycloak user realm
 * ``--client-id``: Keycloak client id (default: admin-cli)
 
 Please check the `Keycloak auth manager CLI </cli-refs.html>`_ documentation for more information about accepted parameters.
