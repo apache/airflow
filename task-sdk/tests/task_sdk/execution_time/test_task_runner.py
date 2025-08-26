@@ -2660,7 +2660,7 @@ class TestTaskRunnerCallsListeners:
         class Producer(BaseOperator):
             def execute(self, context):
                 outlet_events = context["outlet_events"]
-                outlet_events[test_asset].extra = {"name1": "value1", "nested_obj": {"name2": "value2"}}
+                outlet_events[test_asset].extra = test_extra
 
         task = Producer(
             task_id="test_listener_access_outlet_event_on_running_and_success", outlets=[test_asset]
@@ -2720,7 +2720,7 @@ class TestTaskRunnerCallsListeners:
         class Producer(BaseOperator):
             def execute(self, context):
                 outlet_events = context["outlet_events"]
-                outlet_events[test_asset].extra = {"name1": "value1", "nested_obj": {"name2": "value2"}}
+                outlet_events[test_asset].extra = test_extra
                 raise exception
 
         task = Producer(task_id="test_listener_access_outlet_event_on_failed", outlets=[test_asset])
