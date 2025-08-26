@@ -131,7 +131,6 @@ class OracleHook(DbApiHook):
             self._sid = self.get_connection(self.get_conn_id()).extra_dejson.get("sid")
         return self._sid
 
-
     def get_conn(self) -> oracledb.Connection:
         """
         Get an Oracle connection object.

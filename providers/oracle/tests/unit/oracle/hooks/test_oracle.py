@@ -546,7 +546,6 @@ class TestOracleHook:
         assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
         assert "owner" in db_info.information_schema_columns
 
-
     def test_get_openlineage_database_info_with_sid(self):
         conn = Connection(
             conn_id="oracle_default",

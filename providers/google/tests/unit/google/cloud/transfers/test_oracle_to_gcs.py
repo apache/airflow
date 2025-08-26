@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 import oracledb
 import pytest
 
-from unittest.mock import MagicMock, patch
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     OutputDataset,
@@ -159,7 +159,9 @@ class TestOracleToGoogleCloudStorageOperator:
             (None, "SID", 1234, 1521, 1234),
         ],
     )
-    def test_execute_openlineage_events(self, input_service_name, input_sid, connection_port, default_port, expected_port):
+    def test_execute_openlineage_events(
+        self, input_service_name, input_sid, connection_port, default_port, expected_port
+    ):
         class DBApiHookForTests(DbApiHook):
             conn_name_attr = "sql_default"
             get_conn = MagicMock(name="conn")
@@ -183,9 +185,7 @@ class TestOracleToGoogleCloudStorageOperator:
                 return dbapi_hook
 
         sql = """SELECT employee_id, first_name FROM hr.employees"""
-        op = OracleToGCSOperatorForTest(
-            task_id=TASK_ID, sql=sql, bucket="bucket", filename="dir/file{}.csv"
-        )
+        op = OracleToGCSOperatorForTest(task_id=TASK_ID, sql=sql, bucket="bucket", filename="dir/file{}.csv")
         DB_SCHEMA_NAME = "HR"
         rows = [
             (DB_SCHEMA_NAME, "employees", "employee_id", 1, "NUMBER"),
