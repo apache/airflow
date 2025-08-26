@@ -334,20 +334,7 @@ class TestHITLOperator:
         expected_query_string: str,
         hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
     ) -> None:
-        with dag_maker("test_dag"):
-            task = HITLOperator(
-                task_id="hitl_test",
-                subject="This is subject",
-                options=["1", "2", "3", "4", "5"],
-                body="This is body",
-                defaults=["1"],
-                respondents="test",
-                multiple=True,
-                params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
-            )
-        dr = dag_maker.create_dagrun()
-        ti = dag_maker.run_ti(task.task_id, dr)
-
+        task, ti = hitl_task_and_ti_for_generating_link
         expected_url = f"http://localhost:8080/dags/test_dag/runs/test/tasks/hitl_test/required_actions{expected_query_string}"
 
         url = task.generate_link_to_ui(
