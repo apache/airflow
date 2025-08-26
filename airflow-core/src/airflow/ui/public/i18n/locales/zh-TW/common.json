@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "自動回填",
-    "concurrency": "並行數",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
     "description": "描述",
@@ -97,6 +96,7 @@
     "keyPlaceholder": "依 XCom 鍵篩選",
     "logicalDateFromPlaceholder": "邏輯日期起始",
     "logicalDateToPlaceholder": "邏輯日期結束",
+    "mapIndexPlaceholder": "依映射索引篩選",
     "runAfterFromPlaceholder": "執行時間起始",
     "runAfterToPlaceholder": "執行時間結束",
     "runIdPlaceholder": "依執行 ID 篩選",
@@ -180,6 +180,7 @@
     "failed": "失敗",
     "no_status": "無狀態",
     "none": "無狀態",
+    "planned": "已計劃",
     "queued": "排隊中",
     "removed": "已移除",
     "restarting": "重啟中",
@@ -218,6 +219,7 @@
   },
   "task_one": "任務",
   "task_other": "任務",
+  "taskGroup": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",

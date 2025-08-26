@@ -26,8 +26,9 @@ import pytest
 import structlog
 from uuid6 import UUID
 
+from airflow.sdk._shared.secrets_masker import SecretsMasker
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+from airflow.sdk.log import configure_logging, reset_logging
 
 
 @pytest.mark.parametrize(
@@ -41,7 +42,7 @@ def test_json_rendering(captured_logs):
 
     secrets_masker = SecretsMasker()
 
-    with mock.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+    with mock.patch("airflow.sdk._shared.secrets_masker._secrets_masker", return_value=secrets_masker):
         logger.info(
             "A test message with a Pydantic class",
             pydantic_class=TaskInstance(
@@ -72,33 +73,29 @@ def test_jwt_token_is_redacted(captured_logs):
     Tests that jwt token is redacted.
     """
     logger = structlog.get_logger()
-
-    secrets_masker = SecretsMasker()
-
-    with mock.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-        logger.info(
-            "Executing workload",
-            token="eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ1cm46YWlyZmxvdy5hcGFjaGUub3JnOnRhc2siLCJuYmYiOjE3NDM0OTQ1NjgsImV4cCI6MTc0MzQ5NTE2OCwiaWF0IjoxNzQzNDk0NTY4LCJzdWIiOiIwMTk1ZjA1Zi1kNjRhLTc2NjMtOWQ2Yy1lYzYwYTM0MmQ5NTYifQ.df0ZNUbXwnoed2O1bjXQkPV8Df1mmMUu1b_PJrQuHoft9fhPRQELVDp-s3PtL6QYSSrF_81FzsQ7YHAu7bk-1g",
-            pydantic_class=TaskInstance(
-                id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
-                dag_id="test_dag",
-                task_id="test_task",
-                run_id="test_run",
-                try_number=1,
-                dag_version_id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
-            ),
-        )
-        assert captured_logs
-        assert isinstance(captured_logs[0], bytes)
-        assert json.loads(captured_logs[0]) == {
-            "event": "Executing workload",
-            "level": "info",
-            "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), "
-            "task_id='test_task', dag_id='test_dag', run_id='test_run', "
-            "try_number=1, dag_version_id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), map_index=-1, hostname=None, context_carrier=None)",
-            "timestamp": unittest.mock.ANY,
-            "token": "eyJ***",
-        }
+    logger.info(
+        "Executing workload",
+        token="eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ1cm46YWlyZmxvdy5hcGFjaGUub3JnOnRhc2siLCJuYmYiOjE3NDM0OTQ1NjgsImV4cCI6MTc0MzQ5NTE2OCwiaWF0IjoxNzQzNDk0NTY4LCJzdWIiOiIwMTk1ZjA1Zi1kNjRhLTc2NjMtOWQ2Yy1lYzYwYTM0MmQ5NTYifQ.df0ZNUbXwnoed2O1bjXQkPV8Df1mmMUu1b_PJrQuHoft9fhPRQELVDp-s3PtL6QYSSrF_81FzsQ7YHAu7bk-1g",
+        pydantic_class=TaskInstance(
+            id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
+        ),
+    )
+    assert captured_logs
+    assert isinstance(captured_logs[0], bytes)
+    assert json.loads(captured_logs[0]) == {
+        "event": "Executing workload",
+        "level": "info",
+        "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), "
+        "task_id='test_task', dag_id='test_dag', run_id='test_run', "
+        "try_number=1, dag_version_id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), map_index=-1, hostname=None, context_carrier=None)",
+        "timestamp": unittest.mock.ANY,
+        "token": "eyJ***",
+    }
 
 
 @pytest.mark.parametrize(
@@ -112,7 +109,7 @@ def test_logs_are_masked(captured_logs):
     secrets_masker = SecretsMasker()
     secrets_masker.add_mask("password")
     with mock.patch(
-        "airflow.sdk.execution_time.secrets_masker.redact",
+        "airflow.sdk._shared.secrets_masker.redact",
         side_effect=lambda event: {
             "event": "Connection *** is ***",
             "level": "info",
@@ -186,7 +183,6 @@ def test_logging_processors_json_format():
 
 def test_configure_logging_respects_colored_console_log_config():
     """Test that configure_logging respects the colored_console_log configuration."""
-    from airflow.sdk.log import configure_logging, reset_logging
 
     mock_conf = mock.MagicMock()
     mock_conf.get.return_value = "INFO"
@@ -203,7 +199,6 @@ def test_configure_logging_respects_colored_console_log_config():
 
 def test_configure_logging_explicit_colored_console_log():
     """Test that configure_logging respects explicit colored_console_log parameter."""
-    from airflow.sdk.log import configure_logging, reset_logging
 
     mock_conf = mock.MagicMock()
     mock_conf.get.return_value = "INFO"
@@ -218,7 +213,6 @@ def test_configure_logging_explicit_colored_console_log():
 
 def test_configure_logging_no_airflow_config():
     """Test that configure_logging defaults work correctly."""
-    from airflow.sdk.log import configure_logging, reset_logging
 
     # This test can be removed or repurposed since we now always import airflow.configuration
     mock_conf = mock.MagicMock()

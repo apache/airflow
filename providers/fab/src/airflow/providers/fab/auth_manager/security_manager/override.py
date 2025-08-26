@@ -2193,7 +2193,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def oauth_token_getter():
         """Get authentication (OAuth) token."""
         token = session.get("oauth")
-        log.debug("Token Get: %s", token)
+        log.debug("OAuth token retrieved from session.")
         return token
 
     @staticmethod

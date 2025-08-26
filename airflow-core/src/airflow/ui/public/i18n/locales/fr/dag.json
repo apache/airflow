@@ -19,18 +19,30 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Avancé",
       "dagDocs": "Documentation du Dag"
     }
   },
   "logs": {
     "allLevels": "Tous les niveaux de journalisation",
     "allSources": "Toutes les sources",
+    "critical": "CRITIQUE",
+    "debug": "DÉBOGAGE",
+    "error": "ERREUR",
     "fullscreen": {
       "button": "Plein écran",
       "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
     },
+    "info": "INFO",
     "noTryNumber": "Aucun essai",
-    "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})"
+    "settings": "Paramètres des journaux",
+    "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})",
+    "warning": "AVERTISSEMENT"
+  },
+  "navigation": {
+    "jump": "Sauter : Maj+{{arrow}}",
+    "navigation": "Navigation : {{arrow}}",
+    "toggleGroup": "Basculer le groupe : Espace"
   },
   "overview": {
     "buttons": {
@@ -53,6 +65,7 @@
   "panel": {
     "buttons": {
       "options": "Options",
+      "showGantt": "Afficher le Gantt",
       "showGraph": "Afficher le graphe",
       "showGrid": "Afficher la grille"
     },
@@ -96,6 +109,7 @@
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Aperçu",
     "renderedTemplates": "Modèles rendus",
+    "requiredActions": "Actions requises",
     "runs": "Runs",
     "taskInstances": "Task Instances",
     "tasks": "Tâches",

@@ -29,11 +29,20 @@ pytestmark = pytest.mark.db_test
 
 DAG1_ID = "test_dag1"
 DAG1_MESSAGE = "test message 1"
+DAG1_DISPLAY_NAME = "dag_display_name1"
 DAG2_ID = "test_dag2"
 DAG2_MESSAGE = "test message 2"
+DAG2_DISPLAY_NAME = "dag_display_name2"
 DAG3_ID = "test_dag3"
 DAG3_MESSAGE = "test message 3"
+DAG3_DISPLAY_NAME = "dag_display_name3"
 DAG_WARNING_TYPE = "non-existent pool"
+
+expected_display_names = {
+    DAG1_ID: DAG1_DISPLAY_NAME,
+    DAG2_ID: DAG2_DISPLAY_NAME,
+    DAG3_ID: DAG3_DISPLAY_NAME,
+}
 
 
 @pytest.fixture(autouse=True)
@@ -44,9 +53,15 @@ def setup(dag_maker, testing_dag_bundle, session=None) -> None:
 
     bundle_name = "testing"
 
-    session.add(DagModel(dag_id=DAG1_ID, bundle_name=bundle_name))
-    session.add(DagModel(dag_id=DAG2_ID, bundle_name=bundle_name))
-    session.add(DagModel(dag_id=DAG3_ID, bundle_name=bundle_name))
+    session.add(
+        DagModel(dag_id=DAG1_ID, bundle_name=bundle_name, _dag_display_property_value=DAG1_DISPLAY_NAME)
+    )
+    session.add(
+        DagModel(dag_id=DAG2_ID, bundle_name=bundle_name, _dag_display_property_value=DAG2_DISPLAY_NAME)
+    )
+    session.add(
+        DagModel(dag_id=DAG3_ID, bundle_name=bundle_name, _dag_display_property_value=DAG3_DISPLAY_NAME)
+    )
     session.add(DagWarning(DAG1_ID, DAG_WARNING_TYPE, DAG1_MESSAGE))
     session.add(DagWarning(DAG2_ID, DAG_WARNING_TYPE, DAG2_MESSAGE))
     session.add(DagWarning(DAG3_ID, DAG_WARNING_TYPE, DAG3_MESSAGE))
@@ -79,6 +94,11 @@ class TestGetDagWarnings:
         assert response_json["total_entries"] == expected_total_entries
         assert len(response_json["dag_warnings"]) == len(expected_messages)
         assert [dag_warning["message"] for dag_warning in response_json["dag_warnings"]] == expected_messages
+
+        for dag_warning in response_json["dag_warnings"]:
+            assert "dag_display_name" in dag_warning
+            dag_id = dag_warning["dag_id"]
+            assert dag_warning["dag_display_name"] == expected_display_names[dag_id]
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dagWarnings", params={})
