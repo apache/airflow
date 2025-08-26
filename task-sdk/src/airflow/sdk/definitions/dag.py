@@ -1099,10 +1099,10 @@ class DAG:
         from airflow.configuration import secrets_backend_list
         from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
         from airflow.models.dagrun import DagRun
-        from airflow.sdk import timezone
+        from airflow.sdk import DagRunState, TaskInstanceState, timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils.state import DagRunState, State, TaskInstanceState
+        from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         if TYPE_CHECKING:
