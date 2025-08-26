@@ -29,7 +29,7 @@ import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelec
 
 export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
   const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("tasks");
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedOperators = searchParams.getAll(OPERATOR);
   const selectedTriggerRules = searchParams.getAll(TRIGGER_RULE);
@@ -75,8 +75,8 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
     ),
   ];
   const allMappedValues = [
-    { key: "true", label: translate("tasks:mapped") },
-    { key: "false", label: translate("tasks:notMapped") },
+    { key: "true", label: translate("mapped") },
+    { key: "false", label: translate("notMapped") },
   ];
   const taskNamePattern = searchParams.get(NAME_PATTERN) ?? "";
   const handleSearchChange = (value: string) => {
@@ -93,39 +93,40 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
       <HStack justifyContent="space-between" style={{ marginBottom: "5px" }}>
         <SearchBar
           defaultValue={taskNamePattern}
-          hideAdvanced={true}
+          hideAdvanced
+          hotkeyDisabled
           onChange={handleSearchChange}
-          placeHolder={translate("tasks:searchTasks")}
+          placeHolder={translate("searchTasks")}
         />
         <Box>
-          <ResetButton filterCount={2} onClearFilters={onClearFilters} />
+          <ResetButton filterCount={searchParams.size} onClearFilters={onClearFilters} />
         </Box>
       </HStack>
       <HStack justifyContent="space-between">
         <AttrSelectFilterMulti
           displayPrefix={undefined}
           handleSelect={handleSelectedOperators}
-          placeholderText={translate("tasks:selectOperator")}
+          placeholderText={translate("selectOperator")}
           selectedValues={selectedOperators}
           values={allOperatorNames}
         />
         <AttrSelectFilterMulti
           displayPrefix={undefined}
           handleSelect={handleSelectedTriggerRules}
-          placeholderText={translate("tasks:selectTriggerRules")}
+          placeholderText={translate("selectTriggerRules")}
           selectedValues={selectedTriggerRules}
           values={allTriggerRules}
         />
         <AttrSelectFilterMulti
-          displayPrefix={translate("tasks:retries")}
+          displayPrefix={translate("retries")}
           handleSelect={handleSelectedRetries}
-          placeholderText={translate("tasks:selectRetryValues")}
+          placeholderText={translate("selectRetryValues")}
           selectedValues={selectedRetries}
           values={allRetryValues}
         />
         <AttrSelectFilter
           handleSelect={handleSelectedMapped}
-          placeholderText={translate("tasks:selectMapped")}
+          placeholderText={translate("selectMapped")}
           selectedValue={selectedMapped}
           values={allMappedValues}
         />
