@@ -31,6 +31,7 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
@@ -124,7 +125,7 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -200,7 +201,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.4"
+UV_VERSION = "0.8.13"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -212,12 +213,15 @@ REGULAR_DOC_PACKAGES = [
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+    "apache-airflow-ctl",
 ]
 
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
+
+PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 
 @clearable_cache
@@ -559,6 +563,19 @@ COMMITTERS = [
 ]
 
 
+def get_airflowctl_version():
+    airflowctl_init_py_file = AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py"
+    airflowctl_version = "unknown"
+    with open(airflowctl_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflowctl_version = line.split()[2][1:-1]
+                break
+    if airflowctl_version == "unknown":
+        raise RuntimeError("Unable to determine AirflowCTL version")
+    return airflowctl_version
+
+
 def get_airflow_version():
     airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
@@ -603,7 +620,7 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
 )
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 ALL_PYPROJECT_TOML_FILES = []
@@ -700,7 +717,7 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_VERSION = "25.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 MIN_GH_VERSION = "2.70.0"
 
@@ -750,19 +767,19 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "python-version": "3.10",
         "airflow-version": "2.10.5",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.3",
+        "airflow-version": "3.0.4",
         "remove-providers": "",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
 ]
 

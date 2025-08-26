@@ -97,19 +97,27 @@ else:
             from airflow.datasets import Dataset as Asset
 
     try:
-        from airflow.sdk.execution_time.secrets_masker import (
+        from airflow.sdk._shared.secrets_masker import (
             Redactable,
             Redacted,
             SecretsMasker,
             should_hide_value_for_key,
         )
     except ImportError:
-        from airflow.utils.log.secrets_masker import (
-            Redactable,
-            Redacted,
-            SecretsMasker,
-            should_hide_value_for_key,
-        )
+        try:
+            from airflow.sdk.execution_time.secrets_masker import (
+                Redactable,
+                Redacted,
+                SecretsMasker,
+                should_hide_value_for_key,
+            )
+        except ImportError:
+            from airflow.utils.log.secrets_masker import (
+                Redactable,
+                Redacted,
+                SecretsMasker,
+                should_hide_value_for_key,
+            )
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -732,6 +740,12 @@ def get_airflow_state_run_facet(
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
+            tasksDuration={
+                ti.task_id: ti.duration
+                if ti.duration is not None
+                else (ti.end_date - ti.start_date).total_seconds()
+                for ti in tis
+            },
         )
     }
 

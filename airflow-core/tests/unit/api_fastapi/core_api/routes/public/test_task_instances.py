@@ -36,7 +36,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
@@ -103,7 +103,7 @@ class TestTaskInstanceEndpoint:
         with_ti_history=False,
     ):
         """Method to create task instances using kwargs and default arguments"""
-        dag = self.dagbag.get_latest_version_of_dag(dag_id, session)
+        dag = self.dagbag.get_latest_version_of_dag(dag_id, session=session)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:
@@ -195,6 +195,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": None,
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -215,6 +216,17 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
         }
+
+    def test_should_respond_200_with_decorator(self, test_client, session):
+        self.create_task_instances(session, "example_python_decorator")
+        response = test_client.get(
+            "/dags/example_python_decorator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["operator_name"] == "@task"
+        assert response_json["operator"] == "_PythonDecoratedOperator"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -267,6 +279,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -331,6 +344,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -383,6 +397,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -430,6 +445,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -540,6 +556,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -608,7 +625,9 @@ class TestGetMappedTaskInstances:
     def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags=None):
         for dag_id, dag in (dags or {}).items():
             count = dag["success"] + dag["running"]
-            with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
+            with dag_maker(
+                session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True
+            ) as sdag:
                 task1 = BaseOperator(task_id="op1")
                 mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
 
@@ -653,10 +672,10 @@ class TestGetMappedTaskInstances:
             DagBundlesManager().sync_bundles_to_db()
             dagbag = DagBag(os.devnull, include_examples=False)
             dagbag.dags = {dag_id: dag_maker.dag}
-            dagbag.sync_to_db("dags-folder", None)
+            sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
 
-            TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+            TaskMap.expand_mapped_task(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):
@@ -933,6 +952,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"start_date": DEFAULT_DATETIME_1},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/dags/example_python_operator/dagRuns/~/taskInstances",
+                {
+                    "start_date_gt": (DEFAULT_DATETIME_1 - dt.timedelta(hours=1)).isoformat(),
+                    "start_date_lt": DEFAULT_DATETIME_STR_2,
+                },
+                1,
+                id="test start date gt and lt filter",
+            ),
+            pytest.param(
+                [
                     {"end_date": DEFAULT_DATETIME_1},
                     {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
                     {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
@@ -942,6 +976,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"end_date_gte": DEFAULT_DATETIME_1, "end_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
                 id="test end date filter",
+            ),
+            pytest.param(
+                [
+                    {"end_date": DEFAULT_DATETIME_1},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/dags/example_python_operator/dagRuns/~/taskInstances?",
+                {
+                    "end_date_gt": DEFAULT_DATETIME_1,
+                    "end_date_lt": (DEFAULT_DATETIME_2 + dt.timedelta(hours=1)).isoformat(),
+                },
+                1,
+                id="test end date gt and lt filter",
             ),
             pytest.param(
                 [
@@ -966,6 +1015,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
                 id="test duration filter ~",
+            ),
+            pytest.param(
+                [
+                    {"duration": 100},
+                    {"duration": 150},
+                    {"duration": 200},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"duration_gt": 100, "duration_lt": 200},
+                1,
+                id="test duration gt and lt filter ~",
             ),
             pytest.param(
                 [
@@ -1130,6 +1191,39 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 7,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
                 id="test multiple version numbers filter",
+            ),
+            pytest.param(
+                [
+                    {"try_number": 0},
+                    {"try_number": 0},
+                    {"try_number": 1},
+                    {"try_number": 1},
+                    {"try_number": 1},
+                    {"try_number": 2},
+                ],
+                True,
+                ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"try_number": [0, 1]},
+                5,
+                id="test_try_number_filter",
+            ),
+            pytest.param(
+                [
+                    {"operator": "FirstOperator"},
+                    {"operator": "FirstOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"operator": ["FirstOperator", "SecondOperator"]},
+                5,
+                id="test operator type filter filter",
             ),
         ],
     )
@@ -1735,6 +1829,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -1771,6 +1866,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0 if try_number == 1 else 1,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -1838,6 +1934,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "map_index": map_index,
                 "max_tries": 0 if try_number == 1 else 1,
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -1901,6 +1998,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -1938,6 +2036,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "map_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
+            "operator_name": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -2016,6 +2115,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -2069,6 +2169,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -2562,6 +2663,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -2901,6 +3003,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "map_index": -1,
                     "max_tries": 0,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -2928,6 +3031,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "map_index": -1,
                     "max_tries": 1,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -2988,6 +3092,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "map_index": -1,
                     "max_tries": 0,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3059,6 +3164,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "map_index": map_index,
                         "max_tries": 0,
                         "operator": "PythonOperator",
+                        "operator_name": "PythonOperator",
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
@@ -3086,6 +3192,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "map_index": map_index,
                         "max_tries": 1,
                         "operator": "PythonOperator",
+                        "operator_name": "PythonOperator",
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
@@ -3156,6 +3263,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -3210,6 +3318,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "queue": "default",
             "priority_weight": 1,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
@@ -3308,6 +3417,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3559,6 +3669,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,
@@ -3674,6 +3785,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3725,6 +3837,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -3795,6 +3908,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "max_tries": 0,
                         "note": new_note_value,
                         "operator": "PythonOperator",
+                        "operator_name": "PythonOperator",
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
@@ -3866,6 +3980,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "max_tries": 0,
                 "note": new_note_value,
                 "operator": "PythonOperator",
+                "operator_name": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
@@ -3973,6 +4088,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
+                    "operator_name": "PythonOperator",
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
@@ -4249,6 +4365,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,
@@ -4514,6 +4631,29 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         {
                             "action": "delete",
                             "entities": [
+                                {
+                                    "task_id": TASK_ID,
+                                    "map_index": -1,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [f"{TASK_ID}[-1]"],
+                        "errors": [],
+                    }
+                },
+                id="delete-with-entity-success",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
                                 "non_existent_task",
                             ],
                             "action_on_non_existence": "skip",
@@ -4535,6 +4675,30 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         {
                             "action": "delete",
                             "entities": [
+                                {
+                                    "task_id": "non_existent_task",
+                                    "map_index": -1,
+                                },
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+                id="delete-with-entity-skip",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
                                 "non_existent_task",
                             ],
                         }
@@ -4545,13 +4709,86 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: ['non_existent_task'] were not found",
+                                "error": "No task instances found for task_id: non_existent_task",
                                 "status_code": 404,
                             }
                         ],
                     }
                 },
                 id="delete-failure",
+            ),
+            pytest.param(
+                [{"task_id": TASK_ID, "state": State.SUCCESS}],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "task_id": "non_existent_task",
+                                    "map_index": -1,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The task instances with these task_ids: ['non_existent_task[-1]'] were not found",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+                id="delete-with-entity-failure",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 0},
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 1},
+                    {"task_id": TASK_ID, "state": State.SUCCESS, "map_index": 2},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {"task_id": TASK_ID, "map_index": None},
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="delete-all-map-indexes",
+            ),
+            pytest.param(
+                [
+                    {"task_id": TASK_ID, "state": State.SUCCESS},
+                    {"task_id": "another_task", "state": State.SUCCESS},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [TASK_ID, {"task_id": "another_task", "map_index": -1}],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": ["another_task[-1]", TASK_ID],
+                        "errors": [],
+                    }
+                },
+                id="mixed-string-and-object",
             ),
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.RUNNING}],
@@ -4786,7 +5023,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [TASK_ID],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: ['non_existent_task'] were not found",
+                                "error": "No task instances found for task_id: non_existent_task",
                                 "status_code": 404,
                             }
                         ],

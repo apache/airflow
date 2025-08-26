@@ -43,12 +43,15 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
+from airflow.models import DagBag
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteVariable,
+    DeleteXCom,
     DRCount,
     ErrorResponse,
     GetConnection,
@@ -59,6 +62,10 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    MaskSecret,
+    OKResponse,
+    PutVariable,
+    SetXCom,
     TaskStatesResult,
     TICount,
     UpdateHITLDetail,
@@ -240,7 +247,8 @@ ToTriggerRunner = Annotated[
     | TICount
     | TaskStatesResult
     | HITLDetailResponseResult
-    | ErrorResponse,
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
 """
@@ -252,14 +260,19 @@ code).
 ToTriggerSupervisor = Annotated[
     messages.TriggerStateChanges
     | GetConnection
+    | DeleteVariable
     | GetVariable
+    | PutVariable
+    | DeleteXCom
     | GetXCom
+    | SetXCom
     | GetTICount
     | GetTaskStates
     | GetDagRunState
     | GetDRCount
     | GetHITLDetailResponse
-    | UpdateHITLDetail,
+    | UpdateHITLDetail
+    | MaskSecret,
     Field(discriminator="type"),
 ]
 """
@@ -419,14 +432,25 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                # TODO: call for help to figure out why this is needed
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
@@ -435,6 +459,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = xcom
+        elif isinstance(msg, SetXCom):
+            self.client.xcoms.set(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+            )
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -481,6 +509,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, MaskSecret):
+            from airflow.sdk.log import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
@@ -488,10 +520,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
-
-        reset_secrets_masker()
-
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
@@ -578,11 +606,51 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         trigger set.
         """
         render_log_fname = log_filename_template_renderer()
+        dag_bag = DagBag(collect_dags=False)
+
+        def expand_start_trigger_args(trigger: Trigger) -> Trigger:
+            task = dag_bag.get_dag(trigger.task_instance.dag_id).get_task(trigger.task_instance.task_id)
+            if task.template_fields:
+                trigger.task_instance.refresh_from_task(task)
+                context = trigger.task_instance.get_template_context()
+                task.render_template_fields(context=context)
+                start_trigger_args = task.expand_start_trigger_args(context=context)
+                if start_trigger_args:
+                    trigger.kwargs = start_trigger_args.trigger_kwargs
+            return trigger
+
+        def create_workload(trigger: Trigger) -> workloads.RunTrigger:
+            if trigger.task_instance:
+                log_path = render_log_fname(ti=trigger.task_instance)
+
+                trigger = expand_start_trigger_args(trigger)
+
+                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
+                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+                self.logger_cache[new_id] = TriggerLoggingFactory(
+                    log_path=f"{log_path}.trigger.{self.job.id}.log",
+                    ti=ser_ti,  # type: ignore
+                )
+
+                return workloads.RunTrigger(
+                    classpath=trigger.classpath,
+                    id=new_id,
+                    encrypted_kwargs=trigger.encrypted_kwargs,
+                    ti=ser_ti,
+                    timeout_after=trigger.task_instance.trigger_timeout,
+                )
+            return workloads.RunTrigger(
+                classpath=trigger.classpath,
+                id=new_id,
+                encrypted_kwargs=trigger.encrypted_kwargs,
+                ti=None,
+            )
 
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
             .union(trigger[0] for trigger in self.failed_triggers)
+            .union(trigger.id for trigger in self.creating_triggers)
         )
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
@@ -614,26 +682,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
                 continue
 
-            workload = workloads.RunTrigger(
-                classpath=new_trigger_orm.classpath,
-                id=new_id,
-                encrypted_kwargs=new_trigger_orm.encrypted_kwargs,
-                ti=None,
-            )
-            if new_trigger_orm.task_instance:
-                log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-
-                ser_ti = workloads.TaskInstance.model_validate(
-                    new_trigger_orm.task_instance, from_attributes=True
-                )
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log",
-                    ti=ser_ti,  # type: ignore
-                )
-
-                workload.ti = ser_ti
-                workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
+            workload = create_workload(new_trigger_orm)
 
             to_create.append(workload)
 

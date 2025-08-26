@@ -23,6 +23,7 @@ import click
 
 from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
@@ -389,7 +390,7 @@ option_tty = click.option(
     default=ALLOWED_TTY[0],
     show_default=True,
     help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
+    " (useful for prek and CI to force-enable it).",
 )
 option_upgrade_boto = click.option(
     "--upgrade-boto",
@@ -438,7 +439,7 @@ option_use_airflow_version = click.option(
 )
 option_allow_pre_releases = click.option(
     "--allow-pre-releases",
-    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    help="Allow pre-releases of Airflow, task-sdk, providers and airflowctl to be installed. "
     "Set to true automatically for pre-release --use-airflow-version)",
     is_flag=True,
     envvar="ALLOW_PRE_RELEASES",
@@ -528,6 +529,15 @@ option_version_suffix = click.option(
     envvar="VERSION_SUFFIX",
     callback=_validate_version_suffix,
     default="",
+)
+
+
+option_auth_manager = click.option(
+    "--auth-manager",
+    type=CacheableChoice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
+    help="Specify the auth manager to set",
+    default=CacheableDefault(ALLOWED_AUTH_MANAGERS[0]),
+    show_default=True,
 )
 
 

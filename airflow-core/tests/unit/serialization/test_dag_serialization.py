@@ -62,12 +62,13 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk import AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
+from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
@@ -82,9 +83,7 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.module_loading import qualname
-from airflow.utils.operator_resources import Resources
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -488,6 +487,8 @@ class TestStringifiedDAGs:
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
         with warnings.catch_warnings():
             dags, import_errors = collect_dags()
         serialized_dags = {}
@@ -726,10 +727,10 @@ class TestStringifiedDAGs:
         task,
     ):
         """Verify non-Airflow operators are casted to BaseOperator or MappedOperator."""
+        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-        assert not isinstance(task, SerializedBaseOperator)
         assert isinstance(task, (BaseOperator, MappedOperator))
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
@@ -760,7 +761,7 @@ class TestStringifiedDAGs:
                 "_is_sensor",
             }
         else:  # Promised to be mapped by the assert above.
-            assert isinstance(serialized_task, MappedOperator)
+            assert isinstance(serialized_task, SchedulerMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
                 "map_index_template",
@@ -827,7 +828,9 @@ class TestStringifiedDAGs:
             assert serialized_partial_kwargs == original_partial_kwargs
 
             # ExpandInputs have different classes between scheduler and definition
-            assert attrs.asdict(serialized_task.expand_input) == attrs.asdict(task.expand_input)
+            assert attrs.asdict(serialized_task._get_specified_expand_input()) == attrs.asdict(
+                task._get_specified_expand_input()
+            )
 
     @pytest.mark.parametrize(
         "dag_start_date, task_start_date, expected_task_start_date",
@@ -1389,7 +1392,7 @@ class TestStringifiedDAGs:
         This test verifies that there are no new fields added to BaseOperator. And reminds that
         tests should be added for it.
         """
-        from airflow.utils.trigger_rule import TriggerRule
+        from airflow.task.trigger_rule import TriggerRule
 
         base_operator = BaseOperator(task_id="10")
         # Return the name of any annotated class property, or anything explicitly listed in serialized fields
@@ -2712,44 +2715,6 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
     xcom_arg = serialized_dag.task_dict["task_2"].expand_input.value
     assert isinstance(xcom_arg, SchedulerPlainXComArg)
     assert xcom_arg.operator is serialized_dag.task_dict["op1"]
-
-
-def test_operator_expand_deserialized_unmap():
-    """Unmap a deserialized mapped operator should be similar to deserializing an non-mapped operator."""
-    normal = BashOperator(task_id="a", bash_command=[1, 2], executor_config={"a": "b"})
-    mapped = BashOperator.partial(task_id="a", executor_config={"a": "b"}).expand(bash_command=[1, 2])
-
-    ser_mapped = BaseSerialization.serialize(mapped)
-    deser_mapped = BaseSerialization.deserialize(ser_mapped)
-    deser_mapped.dag = None
-
-    ser_normal = BaseSerialization.serialize(normal)
-    deser_normal = BaseSerialization.deserialize(ser_normal)
-    deser_normal.dag = None
-    unmapped_deser_mapped = deser_mapped.unmap(None)
-
-    assert type(unmapped_deser_mapped) is type(deser_normal) is SerializedBaseOperator
-    assert unmapped_deser_mapped.task_id == deser_normal.task_id == "a"
-    assert unmapped_deser_mapped.executor_config == deser_normal.executor_config == {"a": "b"}
-
-
-@pytest.mark.db_test
-def test_sensor_expand_deserialized_unmap():
-    """Unmap a deserialized mapped sensor should be similar to deserializing a non-mapped sensor"""
-    dag = DAG(dag_id="hello", schedule=None, start_date=None)
-    with dag:
-        normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
-        mapped = BashSensor.partial(task_id="b", mode="reschedule").expand(bash_command=[1, 2])
-    ser_mapped = SerializedBaseOperator.serialize(mapped)
-    deser_mapped = SerializedBaseOperator.deserialize(ser_mapped)
-    deser_mapped.dag = dag
-    deser_unmapped = deser_mapped.unmap(None)
-    ser_normal = SerializedBaseOperator.serialize(normal)
-    deser_normal = SerializedBaseOperator.deserialize(ser_normal)
-    comps = set(BashSensor._comps)
-    comps.remove("task_id")
-    comps.remove("dag_id")
-    assert all(getattr(deser_unmapped, c, None) == getattr(deser_normal, c, None) for c in comps)
 
 
 def test_task_resources_serde():

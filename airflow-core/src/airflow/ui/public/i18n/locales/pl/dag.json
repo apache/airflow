@@ -39,6 +39,11 @@
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "jump": "Przeskocz: Shift+{{arrow}}",
+    "navigation": "Przewiń: {{arrow}}",
+    "toggleGroup": "Przełącz grupę: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",
@@ -68,6 +73,7 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
+      "showGantt": "Pokaż diagram Gantta",
       "showGraph": "Pokaż graf",
       "showGrid": "Pokaż siatkę"
     },
@@ -113,6 +119,7 @@
     "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
+    "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
     "taskInstances": "Instancje zadań",
     "tasks": "Zadania",

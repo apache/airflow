@@ -27,6 +27,7 @@
   "backfill_zero": "لا يوجد أي إعادة ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
+    "requiredActions": "إجراءات مطلوبة",
     "xcoms": "(XComs) إكس كوم"
   },
   "collapseDetailsPanel": "طي لوحة التفاصيل",
@@ -44,7 +45,6 @@
   "dag_zero": "لا يوجد أي Dag",
   "dagDetails": {
     "catchup": "إلحاق",
-    "concurrency": "تزامن",
     "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
     "description": "وصف",
@@ -84,6 +84,7 @@
   "dagRun_other": "مثيلات تشغيل لDag",
   "dagRun_two": "مثيلا تشغيل لDag",
   "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
+  "dagRunId": "معرف تشغيل الDag",
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
@@ -113,6 +114,17 @@
     "and": "و",
     "any": "أي",
     "or": "أو"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "تصفية حسب الDag",
+    "keyPlaceholder": "تصفية حسب مفتاح XCom",
+    "logicalDateFromPlaceholder": "من التاريخ المنطقي",
+    "logicalDateToPlaceholder": "إلى التاريخ المنطقي",
+    "mapIndexPlaceholder": "تصفية حسب فهرس الخريطة",
+    "runAfterFromPlaceholder": "من تشغيل بعد",
+    "runAfterToPlaceholder": "إلى تشغيل بعد",
+    "runIdPlaceholder": "تصفية حسب معرف التشغيل",
+    "taskIdPlaceholder": "تصفية حسب معرف المهمة"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
@@ -246,6 +258,7 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
+  "taskGroup": "مجموعة المهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
     "dagVersion": "إصدار الDag",

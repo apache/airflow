@@ -39,7 +39,7 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-from airflow.sdk.execution_time.secrets_masker import mask_secret
+from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -130,6 +130,11 @@ def _get_connection(conn_id: str) -> Connection:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
+                # TODO: this should probably be in get conn
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 return conn
         except Exception:
             log.exception(

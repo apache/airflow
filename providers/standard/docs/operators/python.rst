@@ -298,16 +298,16 @@ Templating
 Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 
-.. _howto/operator:PythonBranchOperator:
+.. _howto/operator:BranchPythonOperator:
 
-PythonBranchOperator
+BranchPythonOperator
 ====================
 
-Use the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
+Use the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` to execute Python :ref:`branching <concepts:branching>`
 tasks.
 
 .. tip::
-    The ``@task.branch`` decorator is recommended over the classic ``PythonBranchOperator``
+    The ``@task.branch`` decorator is recommended over the classic ``BranchPythonOperator``
     to execute Python code.
 
 .. tab-set::
@@ -321,7 +321,7 @@ tasks.
             :start-after: [START howto_operator_branch_python]
             :end-before: [END howto_operator_branch_python]
 
-    .. tab-item:: PythonBranchOperator
+    .. tab-item:: BranchPythonOperator
         :sync: operator
 
         .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_operator.py
@@ -341,7 +341,7 @@ BranchPythonVirtualenvOperator
 ==============================
 
 Use the :class:`~airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in a virtual environment.
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` with execution in a virtual environment.
 
 .. tip::
     The ``@task.branch_virtualenv`` decorator is recommended over the classic
@@ -378,7 +378,7 @@ BranchExternalPythonOperator
 ============================
 
 Use the :class:`~airflow.providers.standard.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in an
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` with execution in an
 external Python environment.
 
 .. tip::

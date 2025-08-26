@@ -26,8 +26,6 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.utils.trigger_rule import TriggerRule
-
 if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -174,10 +172,6 @@ class XComNotFound(AirflowException):
         )
 
 
-class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in DAG definition."""
-
-
 class AirflowDagDuplicatedIdException(AirflowException):
     """Raise when a DAG's ID is already used by another DAG."""
 
@@ -243,25 +237,6 @@ class DagRunAlreadyExists(AirflowBadRequest):
             (),
             {"dag_run": dag_run},
         )
-
-
-class FailFastDagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
-
-    _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
-
-    @classmethod
-    def check(cls, *, fail_fast: bool, trigger_rule: TriggerRule):
-        """
-        Check that fail_fast dag tasks have allowable trigger rules.
-
-        :meta private:
-        """
-        if fail_fast and trigger_rule not in cls._allowed_rules:
-            raise cls()
-
-    def __str__(self) -> str:
-        return f"A 'fail_fast' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
 
 
 class DuplicateTaskIdFound(AirflowException):
@@ -347,8 +322,16 @@ class AirflowFileParseException(AirflowException):
         return result
 
 
+class AirflowUnsupportedFileTypeException(AirflowException):
+    """Raise when a file type is not supported."""
+
+
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
+
+
+class VariableNotUnique(AirflowException):
+    """Raise when multiple values are found for the same variable name."""
 
 
 class DownstreamTasksSkipped(AirflowException):
@@ -511,3 +494,21 @@ class DeserializingResultError(ValueError):
 
 class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved exceptions."""
+    if name == "AirflowDagCycleException":
+        import warnings
+
+        from airflow.sdk.exceptions import AirflowDagCycleException
+
+        warnings.warn(
+            "airflow.exceptions.AirflowDagCycleException is deprecated. "
+            "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return AirflowDagCycleException
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

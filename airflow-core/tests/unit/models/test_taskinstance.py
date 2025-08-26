@@ -64,7 +64,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import BaseSensorOperator, task, task_group
+from airflow.sdk import BaseSensorOperator, Metadata, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
@@ -624,6 +624,31 @@ class TestTaskInstance:
         assert date == ti.end_date + max_delay
 
         ti.try_number = 50
+        date = ti.next_retry_datetime()
+        assert date == ti.end_date + max_delay
+
+    def test_next_retry_datetime_returns_max_for_overflow(self, dag_maker):
+        delay = datetime.timedelta(seconds=30)
+        max_delay = datetime.timedelta(minutes=60)
+
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_exp_backoff_and_max_delay",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=delay,
+                retry_exponential_backoff=True,
+                max_retry_delay=max_delay,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        ti.try_number = 5000
+        date = ti.next_retry_datetime()
+        assert date == ti.end_date + max_delay
+
+        ti.try_number = 50000
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
 
@@ -1246,8 +1271,15 @@ class TestTaskInstance:
         assert completed == expect_completed
         assert ti.state == expect_state
 
-    def test_respects_prev_dagrun_dep(self, create_task_instance):
-        ti = create_task_instance()
+    def test_respects_prev_dagrun_dep(self, dag_maker, session):
+        with dag_maker("test_respects_prev_dagrun_dep", serialized=True) as dag:
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+
+        # Operate on serialized task
+        ti.task = dag.task_dict[ti.task_id]
         failing_status = [TIDepStatus("test fail status name", False, "test fail reason")]
         passing_status = [TIDepStatus("test pass status name", True, "test passing reason")]
         with patch(
@@ -1620,6 +1652,98 @@ class TestTaskInstance:
         assert events["write2"].source_task_id == "write2"
         assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
+
+    @pytest.mark.want_activate_assets(True)
+    def test_outlet_asset_template_extra(self, dag_maker, session):
+        from airflow.sdk.definitions.asset import Asset
+
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(
+                outlets=Asset(
+                    "test_outlet_asset_template_extra1",
+                    extra={
+                        "static_extra": "value",
+                        "dag_id": "{{ dag.dag_id }}",
+                        "nested_extra": {
+                            "task_id": "{{ task.task_id }}",
+                            "logical_date": "{{ ds }}",
+                        },
+                    },
+                )
+            )
+            def write_template1(*, outlet_events):
+                yield Metadata(
+                    Asset("test_outlet_asset_template_extra1"),
+                    {
+                        "dag_id": "override_dag_id",
+                        "some_other_key": "some_other_value",
+                    },
+                )
+
+            write_template1()
+
+            BashOperator(
+                task_id="write_template2",
+                bash_command=":",
+                outlets=Asset(
+                    "test_outlet_asset_template_extra2",
+                    extra={
+                        "static_extra": "value",
+                        "dag_id": "{{ dag.dag_id }}",
+                        "nested_extra": {
+                            "task_id": "{{ task.task_id }}",
+                            "logical_date": "{{ ds }}",
+                        },
+                    },
+                ),
+            )
+
+            BashOperator(
+                task_id="write_asset_no_extra",
+                bash_command=":",
+                outlets=Asset("test_outlet_asset_no_extra"),
+            )
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
+        assert set(events) == {"write_template1", "write_template2", "write_asset_no_extra"}
+
+        assert events["write_template1"].source_dag_id == dr.dag_id
+        assert events["write_template1"].source_run_id == dr.run_id
+        assert events["write_template1"].source_task_id == "write_template1"
+        assert events["write_template1"].asset.uri == "test_outlet_asset_template_extra1"
+        assert events["write_template1"].extra == {
+            "static_extra": "value",
+            "dag_id": "override_dag_id",  # Overridden by Metadata
+            "nested_extra": {
+                "task_id": "write_template1",
+                "logical_date": dr.logical_date.strftime("%Y-%m-%d"),
+            },
+            "some_other_key": "some_other_value",  # Added by Metadata
+        }
+
+        assert events["write_template2"].source_dag_id == dr.dag_id
+        assert events["write_template2"].source_run_id == dr.run_id
+        assert events["write_template2"].source_task_id == "write_template2"
+        assert events["write_template2"].asset.uri == "test_outlet_asset_template_extra2"
+        assert events["write_template2"].extra == {
+            "static_extra": "value",
+            "dag_id": dr.dag_id,
+            "nested_extra": {
+                "task_id": "write_template2",
+                "logical_date": dr.logical_date.strftime("%Y-%m-%d"),
+            },
+        }
+
+        assert events["write_asset_no_extra"].source_dag_id == dr.dag_id
+        assert events["write_asset_no_extra"].source_run_id == dr.run_id
+        assert events["write_asset_no_extra"].source_task_id == "write_asset_no_extra"
+        assert events["write_asset_no_extra"].asset.uri == "test_outlet_asset_no_extra"
+        assert events["write_asset_no_extra"].extra == {}
 
     @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_extra_ignore_different(self, dag_maker, session):
@@ -2924,7 +3048,7 @@ class TestMappedTaskInstanceReceiveValue:
     def test_map_xcom(self, upstream_return, expected_outputs, dag_maker, session):
         outputs = []
 
-        with dag_maker(dag_id="xcom", session=session) as dag:
+        with dag_maker(dag_id="xcom", session=session, serialized=True) as dag:
 
             @dag.task
             def emit():
@@ -2938,23 +3062,25 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         emit_ti = dag_run.get_task_instance("emit", session=session)
-        emit_ti.refresh_from_task(dag.get_task("emit"))
-        emit_ti.run()
+        emit_ti.refresh_from_task(dag_maker.dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(
+            dag.task_dict[show_task.task_id], dag_run.run_id, session=session
+        )
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
-            ti.run()
+            dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
         assert outputs == expected_outputs
 
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
         outputs = []
 
-        with dag_maker(dag_id="product_same_types", session=session) as dag:
+        with dag_maker(dag_id="product_same_types", session=session, serialized=True) as dag:
 
             @dag.task
             def show(a, b):
@@ -2982,14 +3108,14 @@ class TestMappedTaskInstanceReceiveValue:
         )
         for ti in tis:
             ti.refresh_from_task(show_task)
-            ti.run()
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
         assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
         out.touch()
 
-        with dag_maker(dag_id="in_group", session=session) as dag:
+        with dag_maker(dag_id="in_group", session=session, serialized=True) as dag:
 
             @dag.task
             def envs():
@@ -3011,7 +3137,7 @@ class TestMappedTaskInstanceReceiveValue:
         for task_id in ["dynamic.envs", "dynamic.cmds"]:
             ti = original_tis[task_id]
             ti.refresh_from_task(dag.get_task(task_id))
-            ti.run()
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
 
         bash_task = dag.get_task("dynamic.bash")
         mapped_bash_tis, max_map_index = TaskMap.expand_mapped_task(
@@ -3020,7 +3146,7 @@ class TestMappedTaskInstanceReceiveValue:
         assert max_map_index == 3  # 2 * 2 mapped tasks.
         for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(bash_task)
-            ti.run()
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
 
         with out.open() as f:
             out_lines = [line.strip() for line in f]

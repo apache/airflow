@@ -24,10 +24,10 @@ import pendulum
 from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
-from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,12 @@ def _mask_connection_fields(extra_fields):
     for k, v in extra_fields.items():
         if k == "extra" and v:
             try:
-                extra = json.loads(v)
-                extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
-                result[k] = dict(extra)
+                parsed_extra = json.loads(v)
+                if isinstance(parsed_extra, dict):
+                    masked_extra = {ek: secrets_masker.redact(ev, ek) for ek, ev in parsed_extra.items()}
+                    result[k] = masked_extra
+                else:
+                    result[k] = "Expected JSON object in `extra` field, got non-dict JSON"
             except json.JSONDecodeError:
                 result[k] = "Encountered non-JSON in `extra` field"
         else:

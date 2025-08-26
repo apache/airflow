@@ -15,6 +15,7 @@
   "backfill_other": "השלמות למפרע",
   "browse": {
     "auditLog": "יומן מערכת",
+    "requiredActions": "פעולות נדרשות",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "כווץ לוח פרטים",
@@ -24,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "השלמה אוטומטית",
-    "concurrency": "מספר הרצות מקבילות",
     "dagRunTimeout": "זמן תפוגה להרצת Dag",
     "defaultArgs": "פרמטרי ברירת מחדל",
     "description": "תיאור",
@@ -60,6 +60,7 @@
   },
   "dagRun_one": "הרצת Dag",
   "dagRun_other": "הרצת Dag",
+  "dagRunId": "מזהה הרצת Dag",
   "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
@@ -89,6 +90,17 @@
     "and": "וגם",
     "any": "כלשהו",
     "or": "או"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "סנן לפי Dag",
+    "keyPlaceholder": "סנן לפי מפתח XCom",
+    "logicalDateFromPlaceholder": "תאריך לוגי מ-",
+    "logicalDateToPlaceholder": "תאריך לוגי עד",
+    "mapIndexPlaceholder": "סנן לפי אינדקס מיפוי",
+    "runAfterFromPlaceholder": "זמן הרצה מוקדם ביותר מ-",
+    "runAfterToPlaceholder": "זמן הרצה מוקדם ביותר עד",
+    "runIdPlaceholder": "סנן לפי מזהה הרצה",
+    "taskIdPlaceholder": "סנן לפי מזהה משימה"
   },
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
@@ -206,6 +218,7 @@
   },
   "task_one": "משימה",
   "task_other": "משימות",
+  "taskGroup": "קבוצת משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
     "dagVersion": "גרסת Dag",

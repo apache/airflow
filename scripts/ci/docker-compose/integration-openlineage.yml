@@ -55,6 +55,7 @@ services:
       test: ["CMD", "psql", "-h", "localhost", "-U", "marquez"]
       interval: 10s
       timeout: 10s
+      start_period: 30s
       retries: 5
 
   airflow:

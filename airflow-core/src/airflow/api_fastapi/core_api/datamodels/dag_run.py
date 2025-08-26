@@ -102,7 +102,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     logical_date: AwareDatetime | None
     run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
-    conf: dict = Field(default_factory=dict)
+    conf: dict | None = Field(default_factory=dict)
     note: str | None = None
 
     @model_validator(mode="after")
@@ -160,11 +160,23 @@ class DAGRunsBatchBody(StrictBaseModel):
     page_limit: NonNegativeInt = 100
     dag_ids: list[str] | None = None
     states: list[DagRunState | None] | None = None
+
     run_after_gte: AwareDatetime | None = None
+    run_after_gt: AwareDatetime | None = None
     run_after_lte: AwareDatetime | None = None
+    run_after_lt: AwareDatetime | None = None
+
     logical_date_gte: AwareDatetime | None = None
+    logical_date_gt: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
+    logical_date_lt: AwareDatetime | None = None
+
     start_date_gte: AwareDatetime | None = None
+    start_date_gt: AwareDatetime | None = None
     start_date_lte: AwareDatetime | None = None
+    start_date_lt: AwareDatetime | None = None
+
     end_date_gte: AwareDatetime | None = None
+    end_date_gt: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
+    end_date_lt: AwareDatetime | None = None

@@ -21,7 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSend } from "react-icons/fi";
 
-import type { HITLDetail } from "openapi/requests/types.gen";
+import type { HITLDetail, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
 import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
@@ -29,7 +29,9 @@ import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
 import { getHITLParamsDict, getHITLFormData } from "src/utils/hitl";
 
 type HITLResponseFormProps = {
-  readonly hitlDetail?: HITLDetail;
+  readonly hitlDetail: {
+    task_instance: TaskInstanceResponse;
+  } & Omit<HITLDetail, "task_instance">;
 };
 
 const isHighlightOption = (option: string, hitlDetail: HITLDetail) => {
@@ -47,12 +49,12 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
   const { t: translate } = useTranslation();
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const { paramsDict } = useParamStore();
+  const { paramsDict } = useParamStore("hitl");
   const { updateHITLResponse } = useUpdateHITLDetail({
-    dagId: hitlDetail?.task_instance.dag_id ?? "",
-    dagRunId: hitlDetail?.task_instance.dag_run_id ?? "",
-    mapIndex: hitlDetail?.task_instance.map_index ?? -1,
-    taskId: hitlDetail?.task_instance.task_id ?? "",
+    dagId: hitlDetail.task_instance.dag_id,
+    dagRunId: hitlDetail.task_instance.dag_run_id,
+    mapIndex: hitlDetail.task_instance.map_index,
+    taskId: hitlDetail.task_instance.task_id,
   });
 
   const handleSubmit = (option?: string) => {
@@ -73,10 +75,6 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     }
   };
 
-  if (!hitlDetail) {
-    return undefined;
-  }
-
   return (
     <Box mt={4}>
       {hitlDetail.response_received ? (
@@ -90,6 +88,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         defaultValue={[hitlDetail.subject]}
         mb={4}
         mt={4}
+        overflow="visible"
         size="lg"
         variant="enclosed"
       >
@@ -102,6 +101,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           }}
           isHITL
           key={hitlDetail.subject}
+          namespace="hitl"
           setError={setErrors}
         />
       </Accordion.Root>
@@ -113,7 +113,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail) ? "blue" : "gray"}
-                disabled={(hitlDetail.response_received ?? errors) || isSubmitting}
+                disabled={errors || isSubmitting || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
                 variant={isHighlightOption(option, hitlDetail) ? "solid" : "subtle"}

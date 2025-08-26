@@ -19,7 +19,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiCode, FiUser } from "react-icons/fi";
+import { FiBarChart, FiCode, FiUser, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
@@ -49,6 +49,7 @@ export const Dag = () => {
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
     { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+    { icon: <FiCalendar />, label: translate("tabs.calendar"), value: "calendar" },
     { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
@@ -74,7 +75,7 @@ export const Dag = () => {
 
   const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
     {
-      dagIdPattern: dagId,
+      dagId,
     },
     undefined,
     {
@@ -82,14 +83,14 @@ export const Dag = () => {
     },
   );
 
-  const hasHitlTasks = (hitlData?.total_entries ?? 0) > 0;
+  const hasHitlTaskInstances = (hitlData?.total_entries ?? 0) > 0;
 
   const displayTabs = tabs.filter((tab) => {
     if (dag?.timetable_summary === null && tab.value === "backfills") {
       return false;
     }
 
-    if (tab.value === "required_actions" && !hasHitlTasks) {
+    if (tab.value === "required_actions" && !hasHitlTaskInstances) {
       return false;
     }
 

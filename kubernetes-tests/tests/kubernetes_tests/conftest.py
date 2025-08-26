@@ -38,3 +38,20 @@ def pod_template() -> Path:
 @pytest.fixture
 def basic_pod_template() -> Path:
     return (DATA_FILES_DIRECTORY / "basic_pod.yaml").resolve(strict=True)
+
+
+@pytest.fixture
+def create_connection_without_db(monkeypatch):
+    """
+    Fixture to create connections for tests without using the database.
+
+    This fixture uses monkeypatch to set the appropriate AIRFLOW_CONN_{conn_id} environment variable.
+    """
+
+    def _create_conn(connection, session=None):
+        """Create connection using environment variable."""
+
+        env_var_name = f"AIRFLOW_CONN_{connection.conn_id.upper()}"
+        monkeypatch.setenv(env_var_name, connection.as_json())
+
+    return _create_conn
