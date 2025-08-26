@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
 import { Button } from "src/components/ui";
-import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
@@ -36,7 +35,7 @@ import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
+import { ReprocessBehaviorForm } from "./ReprocessBehaviorForm";
 import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
@@ -193,29 +192,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Controller
           control={control}
           name="reprocess_behavior"
-          render={({ field }) => (
-            <RadioCardRoot
-              defaultValue={field.value}
-              onChange={(event) => {
-                field.onChange(event);
-              }}
-            >
-              <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
-                {translate("backfill.reprocessBehavior")}
-              </RadioCardLabel>
-              <HStack>
-                {reprocessBehaviors.map((item) => (
-                  <RadioCardItem
-                    colorPalette="blue"
-                    indicatorPlacement="start"
-                    key={item.value}
-                    label={translate(item.label)}
-                    value={item.value}
-                  />
-                ))}
-              </HStack>
-            </RadioCardRoot>
-          )}
+          render={({ field }) => <ReprocessBehaviorForm field={field} translate={translate} />}
         />
         <Spacer />
         <Controller
