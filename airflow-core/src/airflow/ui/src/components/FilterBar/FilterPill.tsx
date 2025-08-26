@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack, IconButton } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
 import React from "react";
 import { useEffect, useRef, useState } from "react";
 import { MdClose } from "react-icons/md";
@@ -70,7 +70,11 @@ export const FilterPill = ({
       const input = inputRef.current;
       const focusInput = () => {
         input.focus();
-        input.select();
+        try {
+          input.select();
+        } catch {
+          // NumberInputField doesn't support select()
+        }
       };
 
       requestAnimationFrame(focusInput);
@@ -106,43 +110,52 @@ export const FilterPill = ({
   }
 
   return (
-    <Button
+    <Box
       _hover={{ bg: "colorPalette.subtle" }}
+      as="button"
       bg={hasValue ? "blue.muted" : "gray.muted"}
       borderRadius="full"
       color="colorPalette.fg"
       colorPalette={hasValue ? "blue" : "gray"}
       cursor="pointer"
+      display="flex"
+      fontSize="sm"
+      fontWeight="medium"
+      h="10"
       onClick={handlePillClick}
-      size="sm"
+      px={4}
     >
       <HStack align="center" gap={1}>
         {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
-        <Box flex="1" fontSize="sm" fontWeight="medium" px={2} py={2}>
+        <Box flex="1" px={2} py={2}>
           {filter.config.label}: {displayValue}
         </Box>
 
-        <IconButton
+        <Box
           _hover={{
             bg: "gray.100",
             color: "gray.600",
           }}
+          alignItems="center"
           aria-label={`Remove ${filter.config.label} filter`}
           bg="transparent"
+          borderRadius="full"
           color="gray.400"
+          cursor="pointer"
+          display="flex"
+          h={6}
+          justifyContent="center"
           mr={1}
           onClick={(event) => {
             event.stopPropagation();
             onRemove();
           }}
-          rounded="full"
-          size="xs"
           transition="all 0.2s"
-          variant="ghost"
+          w={6}
         >
-          <MdClose size={12} />
-        </IconButton>
+          <MdClose size={16} />
+        </Box>
       </HStack>
-    </Button>
+    </Box>
   );
 };

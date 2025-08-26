@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState, useEffect } from "react";
+
 import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 
 import { FilterPill } from "../FilterPill";
@@ -24,17 +26,30 @@ import type { FilterPluginProps } from "../types";
 export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
 
+  const [inputValue, setInputValue] = useState(filter.value?.toString() ?? "");
+
+  useEffect(() => {
+    setInputValue(filter.value?.toString() ?? "");
+  }, [filter.value]);
+
   const handleValueChange = ({ value }: { value: string }) => {
+    setInputValue(value);
+
     if (value === "") {
       onChange(undefined);
 
       return;
     }
 
-    const numValue = Number(value);
+    // Allow user to input negative sign for negative number
+    if (value === "-") {
+      return;
+    }
 
-    if (!isNaN(numValue)) {
-      onChange(numValue);
+    const parsedValue = Number(value);
+
+    if (!isNaN(parsedValue)) {
+      onChange(parsedValue);
     }
   };
 
@@ -49,10 +64,10 @@ export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
       <NumberInputRoot
         borderRadius="full"
         max={filter.config.max}
-        min={filter.config.min ?? 0}
+        min={filter.config.min}
         onValueChange={handleValueChange}
         overflow="hidden"
-        value={filter.value?.toString() ?? ""}
+        value={inputValue}
         width="180px"
       >
         <NumberInputField
