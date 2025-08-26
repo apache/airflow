@@ -128,6 +128,10 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
         dag_runs = self._pull_dag_runs()
 
+        if len(dag_runs) == 0:
+            self.log.info("Dag runs are empty. Sensor waits for dag runs...")
+            return False
+
         self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
         allowed_states_status = self._check_dag_runs_states(
             dag_runs=dag_runs,
@@ -194,6 +198,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         if self.deferrable:
             start_date, end_date = self._get_logical_dates(context)
             self.defer(
+                timeout=self.timeout,
                 trigger=CloudComposerDAGRunTrigger(
                     project_id=self.project_id,
                     region=self.region,
