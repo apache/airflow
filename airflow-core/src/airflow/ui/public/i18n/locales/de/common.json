@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Nachgeholt",
-    "concurrency": "Parallelität",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
     "description": "Beschreibung",

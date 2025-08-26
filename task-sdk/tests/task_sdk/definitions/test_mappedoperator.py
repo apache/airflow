@@ -25,14 +25,13 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk.api.datamodels._generated import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import GetXCom, SetXCom, XComResult
-from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.mapping import expand_mapped_task  # noqa: F401
 from tests_common.test_utils.mock_operators import (
