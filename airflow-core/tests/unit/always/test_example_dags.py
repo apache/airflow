@@ -58,12 +58,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
-    # CommonMessageQueueTrigger that are still using 'queue' parameter
-    # TODO: Update these examples to use 'scheme' parameter instead
-    "providers/common/messaging/tests/system/common/messaging/example_message_queue_trigger.py",
-    "providers/common/messaging/src/airflow/providers/common/messaging/triggers/msg_queue.py",
-    "providers/apache/kafka/tests/system/apache/kafka/example_dag_kafka_message_queue_trigger.py",
-    "providers/apache/kafka/tests/system/apache/kafka/example_dag_message_queue_trigger.py",
 )
 
 
