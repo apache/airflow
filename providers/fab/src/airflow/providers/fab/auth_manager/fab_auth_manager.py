@@ -332,7 +332,7 @@ class FabAuthManager(BaseAuthManager[User]):
         (e.g. DAG runs).
 
             a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
-            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity
+            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity.
 
         :param method: The method to authorize.
         :param user: The user performing the action.

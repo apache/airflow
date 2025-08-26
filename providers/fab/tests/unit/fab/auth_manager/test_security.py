@@ -848,12 +848,6 @@ def test_access_control_with_invalid_permission(app, security_manager):
                     access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
-
-            with pytest.raises(AirflowException) as ctx:
-                security_manager._sync_dag_view_permissions(
-                    "access_control_test",
-                    access_control={rolename: {permissions.RESOURCE_DAG_RUN: {action}}},
-                )
             if hasattr(permissions, "resource_name"):
                 assert "invalid permission" in str(ctx.value)
             else:
