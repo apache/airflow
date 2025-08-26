@@ -41,9 +41,7 @@ CLI commands taking following parameters:
 * ``--user-realm``: Keycloak user realm (default: master)
 * ``--client-id``: Keycloak client id (default: admin-cli)
 
-Please check the documentation for more information about the parameters.
-
-`Keycloak auth manager CLI </cli-refs.html>`_
+Please check the `Keycloak auth manager CLI </cli-refs.html>`_ documentation for more information about accepted parameters.
 
 One go creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
