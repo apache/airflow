@@ -19,8 +19,6 @@ from __future__ import annotations
 import abc
 import json
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
-from datetime import timedelta
 from typing import Annotated, Any
 
 import structlog
@@ -33,20 +31,25 @@ from pydantic import (
 )
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-@dataclass
-class StartTriggerArgs:
-    """Arguments required for start task execution from triggerer."""
+def __getattr__(name: str):
+    if name == "StartTriggerArgs":
+        import warnings
 
-    trigger_cls: str
-    next_method: str
-    trigger_kwargs: dict[str, Any] | None = None
-    next_kwargs: dict[str, Any] | None = None
-    timeout: timedelta | None = None
+        warnings.warn(
+            "airflow.triggers.base.StartTriggerArgs is deprecated. "
+            "Use airflow.sdk.bases.trigger.StartTriggerArgs instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return import_string(f"airflow.sdk.bases.trigger.{name}")
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):

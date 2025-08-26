@@ -101,7 +101,8 @@ jobs:
       "kaxil",
       "pierrejeambrun",
       "potiuk",
-      "utkarsharma2"
+      "utkarsharma2",
+      "bugraoz93"
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"

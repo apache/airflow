@@ -241,9 +241,51 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg://postgres:airflow@postgres:5432/airflow"),
+    )
+    def test_cli_shell_postgres_ppg3(self, mock_execute_interactive):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
+        db_command.shell(self.parser.parse_args(["db", "shell"]))
+        mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs["env"]
+        postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
+        assert postgres_env == {
+            "PGDATABASE": "airflow",
+            "PGHOST": "postgres",
+            "PGPASSWORD": "airflow",
+            "PGPORT": "5432",
+            "PGUSER": "postgres",
+        }
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
     )
     def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
+        db_command.shell(self.parser.parse_args(["db", "shell"]))
+        mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs["env"]
+        postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
+        assert postgres_env == {
+            "PGDATABASE": "airflow",
+            "PGHOST": "postgres",
+            "PGPASSWORD": "airflow",
+            "PGPORT": "5432",
+            "PGUSER": "postgres",
+        }
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_postgres_without_port_ppg3(self, mock_execute_interactive):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
         db_command.shell(self.parser.parse_args(["db", "shell"]))
         mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
         _, kwargs = mock_execute_interactive.call_args
@@ -263,6 +305,16 @@ class TestCliDb:
     )
     def test_cli_shell_invalid(self):
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg2"):
+            db_command.shell(self.parser.parse_args(["db", "shell"]))
+
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("invalid+psycopg://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_invalid_ppg3(self):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
+        with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg"):
             db_command.shell(self.parser.parse_args(["db", "shell"]))
 
     @pytest.mark.parametrize(
