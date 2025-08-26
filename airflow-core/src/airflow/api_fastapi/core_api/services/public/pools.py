@@ -129,7 +129,6 @@ class BulkPoolService(BulkService[PoolBody]):
         """Bulk Update pools."""
         to_update_pool_names = {pool.pool for pool in action.entities}
         _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_update_pool_names)
-        print(to_update_pool_names)
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
