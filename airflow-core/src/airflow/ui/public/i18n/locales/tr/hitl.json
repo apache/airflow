@@ -1,0 +1,24 @@
+{
+  "requiredAction_one": "Gerekli işlem",
+  "requiredAction_other": "Gerekli işlemler",
+  "requiredActionState": "Gerekli işlemin durumu",
+  "response": {
+    "error": "Yanıt alınamadı",
+    "optionsDescription": "Bu görev örneği için seçenekleri seçin",
+    "optionsLabel": "Seçenekler",
+    "received": "Yanıt alındı: ",
+    "respond": "Yanıtla",
+    "success": "{{taskId}} için yanıt başarıyla gönderildi",
+    "title": "İnsan müdahalesi gerektiren görev örneği - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Onay alındı",
+    "approvalRequired": "Onay gerekli",
+    "choiceReceived": "Seçim alındı",
+    "choiceRequired": "Seçim gerekli",
+    "rejectionReceived": "Reddetme alındı",
+    "responseReceived": "Yanıt alındı",
+    "responseRequired": "Yanıt gerekli"
+  },
+  "subject": "Konu"
+}

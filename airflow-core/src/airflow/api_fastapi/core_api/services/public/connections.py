@@ -23,6 +23,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -34,7 +35,6 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
-from airflow.sdk.execution_time.secrets_masker import merge
 
 
 def update_orm_from_pydantic(

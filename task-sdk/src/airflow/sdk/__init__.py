@@ -39,7 +39,9 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "StartTriggerArgs",
     "TaskGroup",
+    "TriggerRule",
     "Variable",
     "WeightRule",
     "XComArg",
@@ -60,11 +62,13 @@ __all__ = [
 __version__ = "1.1.0"
 
 if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import TriggerRule
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -102,7 +106,9 @@ __lazy_imports: dict[str, str] = {
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
+    "StartTriggerArgs": ".bases.trigger",
     "TaskGroup": ".definitions.taskgroup",
+    "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
     "XComArg": ".definitions.xcom_arg",

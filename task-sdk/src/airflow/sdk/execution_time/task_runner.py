@@ -689,6 +689,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
+        os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
@@ -1167,8 +1169,7 @@ def _get_email_subject_content(
     :meta private:
     """
     from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-    from airflow.sdk.definitions.context import Context
-    from airflow.utils.helpers import render_template_to_string
+    from airflow.sdk.definitions.context import Context, render_template_to_string
 
     exception_html = str(exception).replace("\n", "<br>")
 
@@ -1268,6 +1269,11 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     os.environ.update(airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
+
+    for outlet in task.outlets or ():
+        if isinstance(outlet, Asset):
+            outlet.render_extra_field(context, jinja_env=task.dag.get_template_env())
+            outlet_events[outlet].extra.update(outlet.extra)
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
