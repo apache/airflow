@@ -368,7 +368,7 @@ class TestHITLOperator:
 
     def test_generate_link_to_ui_without_base_url(
         self,
-        dag_maker: DagMaker,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
     ) -> None:
         with dag_maker("test_dag"):
             task = HITLOperator(
