@@ -67,7 +67,7 @@ class TestHITLOperator:
             multiple=False,
             params=ParamsDict({"input_1": 1}),
         )
-        hitl_op.validate_defaults()
+        hitl_op.validate_options()
 
     @pytest.mark.parametrize(
         "options, expected_err_msg",
@@ -134,6 +134,7 @@ class TestHITLOperator:
         extra_kwargs: dict[str, Any],
         expected_error_msg: str,
     ) -> None:
+        # validate_default is called during initialization
         with pytest.raises(ValueError, match=expected_error_msg):
             HITLOperator(
                 task_id="hitl_test",

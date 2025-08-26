@@ -228,6 +228,22 @@ class HITLOperator(BaseOperator):
             )
         )
 
+    @staticmethod
+    def generate_link_to_ui_from_context(
+        *,
+        context: Context,
+        base_url: str | None = None,
+        options: list[str] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> str:
+        hitl_op = context["task"]
+        if not isinstance(hitl_op, HITLOperator):
+            raise ValueError("This method only supports HITLOperator")
+
+        return hitl_op.generate_link_to_ui(
+            task_instance=context["task_instance"], base_url=base_url, options=options, params=params
+        )
+
 
 class ApprovalOperator(HITLOperator, SkipMixin):
     """Human-in-the-loop Operator that has only 'Approval' and 'Reject' options."""
