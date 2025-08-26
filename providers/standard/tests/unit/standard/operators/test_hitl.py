@@ -287,7 +287,6 @@ class TestHITLOperator:
     @pytest.mark.parametrize("base_url", ["http://test", "http://test_2:8080"])
     def test_generate_link_to_ui(
         self,
-        dag_maker: DagMaker,
         base_url: str,
         options: list[str] | None,
         params_input: dict[str, Any] | None,
