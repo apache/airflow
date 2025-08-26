@@ -108,7 +108,6 @@ class PatchUtil:
         Raises:
             HTTPException: If invalid fields are provided in update_mask.
         """
-        print("Inside patch")
 
         # Always dump without aliases for internal validation
         raw_data = patch_body.model_dump(by_alias=False)
