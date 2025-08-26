@@ -37,8 +37,6 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
 
     [START kafka_message_queue_provider_description]
 
-    **Scheme-based Usage (Recommended)**:
-
     * It uses the ``kafka`` as scheme for identifying Kafka queues.
     * For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`.
 
@@ -57,38 +55,6 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
         )
 
         asset = Asset("kafka_queue_asset", watchers=[AssetWatcher(name="kafka_watcher", trigger=trigger)])
-
-    **URI Format (Deprecated)**:
-
-    .. warning::
-
-        * The ``queue`` parameter is deprecated and will be removed in future versions.
-        * Use the ``scheme`` parameter with appropriate keyword arguments instead.
-
-    .. code-block:: text
-
-        kafka://<broker>/<topic_list>
-
-    Where:
-
-    * ``broker``: Kafka brokers (hostname:port)
-    * ``topic_list``: Comma-separated list of Kafka topics to consume messages from
-
-    **Examples (Deprecated)**:
-
-    * ``queue``: The Kafka queue URI, ``kafka://localhost:9092/my_topic`` in this case, which means the topic is passed by URI instead of the ``topics`` kwarg.
-    * ``apply_function``: Function to process each Kafka message
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-
-        # Deprecated queue URI approach - will be removed in future versions
-        trigger = MessageQueueTrigger(
-            queue="kafka://localhost:9092/test",
-            # Additional Kafka AwaitMessageTrigger parameters as needed
-            apply_function="module.apply_function",
-        )
 
     For a complete example, see:
     :mod:`tests.system.common.messaging.kafka_message_queue_trigger`
