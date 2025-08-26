@@ -66,7 +66,6 @@ from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookExceptio
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
-    FailureDetails,
     KubernetesJob,
     KubernetesResults,
 )
