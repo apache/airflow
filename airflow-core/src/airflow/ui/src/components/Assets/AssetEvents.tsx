@@ -165,6 +165,7 @@ export const AssetEvents = ({
             />
           </Box>
           <Box w="200px">
+            <Text fontSize="xs">{translate("common:filters.dagDisplayNamePlaceholder")}</Text>
             <SearchBar
               defaultValue={dagIdPattern}
               hideAdvanced
@@ -174,6 +175,7 @@ export const AssetEvents = ({
             />
           </Box>
           <Box w="200px">
+            <Text fontSize="xs">{translate("common:filters.taskIdPlaceholder")}</Text>
             <SearchBar
               defaultValue={taskIdPattern}
               hideAdvanced
