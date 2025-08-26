@@ -197,7 +197,7 @@ class HITLOperator(BaseOperator):
         task_instance: RuntimeTaskInstanceProtocol,
         base_url: str | None = None,
         options: str | list[str] | None = None,
-        params: dict[str, Any] | None = None,
+        params_input: dict[str, Any] | None = None,
     ) -> str:
         """Generate the URL link to the "required actions" page with pre-defined data."""
         query_param: dict[str, Any] = {}
@@ -207,10 +207,10 @@ class HITLOperator(BaseOperator):
                 raise ValueError(f"options {diff} are not valid options")
             query_param["_options"] = ",".join(options)
 
-        if params:
-            if diff := set(params.keys()) - set(self.params.keys()):
+        if params_input:
+            if diff := set(params_input.keys()) - set(self.params.keys()):
                 raise ValueError(f"params {diff} are not valid params")
-            query_param.update(params)
+            query_param.update(params_input)
 
         if not (base_url := base_url or conf.get("api", "base_url", fallback=None)):
             raise ValueError("Not able to retrieve base_url")
@@ -235,14 +235,17 @@ class HITLOperator(BaseOperator):
         context: Context,
         base_url: str | None = None,
         options: list[str] | None = None,
-        params: dict[str, Any] | None = None,
+        params_input: dict[str, Any] | None = None,
     ) -> str:
         hitl_op = context["task"]
         if not isinstance(hitl_op, HITLOperator):
             raise ValueError("This method only supports HITLOperator")
 
         return hitl_op.generate_link_to_ui(
-            task_instance=context["task_instance"], base_url=base_url, options=options, params=params
+            task_instance=context["task_instance"],
+            base_url=base_url,
+            options=options,
+            params_input=params_input,
         )
 
 

@@ -48,7 +48,8 @@ class LocalLogNotifier(BaseNotifier):
 
     def notify(self, context: Context) -> None:
         url = HITLOperator.generate_link_to_ui_from_context(
-            context=context, base_url="http://localhost:28080"
+            context=context,
+            base_url="http://localhost:28080",
         )
         self.log.info(self.message)
         self.log.info("Url to respond %s", url)

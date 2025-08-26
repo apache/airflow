@@ -264,7 +264,7 @@ class TestHITLOperator:
             )
 
     @pytest.mark.parametrize(
-        "options, params, expected_query_string",
+        "options, params_input, expected_query_string",
         [
             (None, None, "?map_index=-1"),
             ("1", None, "?_options=1&map_index=-1"),
@@ -290,7 +290,7 @@ class TestHITLOperator:
         dag_maker: DagMaker,
         base_url: str,
         options: list[str] | None,
-        params: dict[str, Any] | None,
+        params_input: dict[str, Any] | None,
         expected_query_string: str,
     ) -> None:
         with dag_maker("test_dag"):
@@ -315,12 +315,12 @@ class TestHITLOperator:
             task_instance=ti,
             base_url=base_url,
             options=options,
-            params=params,
+            params_input=params_input,
         )
         assert url == expected_url
 
     @pytest.mark.parametrize(
-        "options, params, expected_query_string",
+        "options, params_input, expected_query_string",
         [
             (None, None, "?map_index=-1"),
             ("1", None, "?_options=1&map_index=-1"),
@@ -345,7 +345,7 @@ class TestHITLOperator:
         self,
         dag_maker: DagMaker,
         options: list[str] | None,
-        params: dict[str, Any] | None,
+        params_input: dict[str, Any] | None,
         expected_query_string: str,
     ) -> None:
         with dag_maker("test_dag"):
@@ -367,12 +367,12 @@ class TestHITLOperator:
         url = task.generate_link_to_ui(
             task_instance=ti,
             options=options,
-            params=params,
+            params_input=params_input,
         )
         assert url == expected_url
 
     @pytest.mark.parametrize(
-        "options, params, expected_err_msg",
+        "options, params_input, expected_err_msg",
         [
             ([100, "2", 30000], None, "options {.*} are not valid options"),
             (
@@ -386,7 +386,7 @@ class TestHITLOperator:
         self,
         dag_maker: DagMaker,
         options: list[str] | None,
-        params: dict[str, Any] | None,
+        params_input: dict[str, Any] | None,
         expected_err_msg: str,
     ) -> None:
         with dag_maker("test_dag"):
@@ -404,7 +404,7 @@ class TestHITLOperator:
         ti = dag_maker.run_ti(task.task_id, dr)
 
         with pytest.raises(ValueError, match=expected_err_msg):
-            task.generate_link_to_ui(task_instance=ti, options=options, params=params)
+            task.generate_link_to_ui(task_instance=ti, options=options, params_input=params_input)
 
     def test_generate_link_to_ui_without_base_url(
         self,
