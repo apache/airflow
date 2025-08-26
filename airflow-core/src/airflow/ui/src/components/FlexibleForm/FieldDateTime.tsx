@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, type InputProps } from "@chakra-ui/react";
+import type { InputProps } from "@chakra-ui/react";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
@@ -31,38 +31,24 @@ export const FieldDateTime = ({
 }: FlexibleFormElementProps & InputProps) => {
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
+
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      if (rest.type === "datetime-local") {
-        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : `${value}:00+00:00`; // Need to suffix to make it UTC like
-      } else {
-        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : value;
-      }
+      // The new DateTimeInput component returns a value in the correct format,
+      // so no special handling is needed here anymore.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value;
     }
 
     setParamsDict(paramsDict);
     onUpdate(value);
   };
 
-  if (rest.type === "datetime-local") {
-    return (
-      <DateTimeInput
-        disabled={disabled}
-        id={`element_${name}`}
-        name={`element_${name}`}
-        onChange={(event) => handleChange(event.target.value)}
-        size="sm"
-        value={((param.value ?? "") as string).slice(0, 16)}
-      />
-    );
-  }
-
+  // Always render the enhanced DateTimeInput for a consistent and cross-browser compatible UI.
+  // The `type` prop is passed down to DateTimeInput, which will internally
+  // configure react-datepicker to show the correct UI (date, time, or datetime).
   return (
-    <Input
+    <DateTimeInput
       disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
@@ -70,7 +56,7 @@ export const FieldDateTime = ({
       required={rest.required}
       size="sm"
       type={rest.type}
-      value={((param.value ?? "") as string).slice(0, 16)}
+      value={(param.value ?? "") as string}
     />
   );
 };
