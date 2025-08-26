@@ -18,34 +18,24 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.fab.auth_manager.models import User
+
 pytestmark = pytest.mark.db_test
 
-try:
-    from airflow.providers.fab.auth_manager.models import User
 
-    class TestUserModelGetId:
-        def test_get_id_returns_str_for_int_id(self, session):
-            """
-            To ensure get_id() always returns a string.
-            This is required because return type str is expected.
-            """
-            user = User()
-            user.id = 999
-            result = user.get_id()
-
-            assert isinstance(result, str), f"Expected str, got {type(result)}"
-            assert result == "999"
-
-        def test_get_id_returns_str_for_str_id(self, session):
-            """
-            If the user id is a string, get_id() should return it without any modification.
-            """
-            user = User()
-            user.id = "999"
-            result = user.get_id()
-
-            assert isinstance(result, str)
-            assert result == "999"
-
-except ModuleNotFoundError:
-    pass
+@pytest.mark.parametrize(
+    "user_id, expected_id",
+    [
+        (999, "999"),
+        ("999", "999"),
+    ],
+)
+def test_get_id_returns_str(user_id: int | str, expected_id: str) -> None:
+    """
+    Ensure get_id() always returns a string representation of the id.
+    """
+    user = User()
+    user.id = user_id
+    result = user.get_id()
+    assert isinstance(result, str), f"Expected str, got {type(result)}"
+    assert result == expected_id
