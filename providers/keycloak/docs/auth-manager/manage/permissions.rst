@@ -19,8 +19,13 @@
 Manage user permissions with Keycloak auth manager
 ==================================================
 
-Please setup your Keycloak instance and required parameters for the Keycloak auth manager.
+You can set-up and manage user permissions with Keycloak auth manager in different ways:
 
+1. Using Airflow CLI
+2. Using Keycloak console
+
+With Airflow CLI
+----------------
 Setting up the permissions can easily done using CLI commands.
 It can create the permissions and needed resources easily.
 
