@@ -29,6 +29,7 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow._shared.configuration import run_command
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
@@ -39,7 +40,6 @@ from airflow.configuration import (
     get_airflow_home,
     get_all_expansion_variables,
     initialize_secrets_backends,
-    run_command,
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager

@@ -29,6 +29,7 @@ from .parser import (
     ConfigSourcesType,
     ConfigType,
     expand_env_var,
+    run_command,
 )
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     "ConfigSectionSourcesType",
     "ENV_VAR_PREFIX",
     "expand_env_var",
+    "run_command",
 ]
