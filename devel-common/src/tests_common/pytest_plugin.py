@@ -2127,7 +2127,10 @@ def sdk_connection_not_found(mock_supervisor_comms):
     from airflow.sdk.exceptions import ErrorType
     from airflow.sdk.execution_time.comms import ErrorResponse
 
-    mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    mock_supervisor_comms.send.return_value = error_response
+    if hasattr(mock_supervisor_comms, "asend"):
+        mock_supervisor_comms.asend.return_value = error_response
 
     yield mock_supervisor_comms
 
