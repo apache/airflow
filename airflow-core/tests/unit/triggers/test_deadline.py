@@ -78,32 +78,45 @@ class TestDeadlineCallbackTrigger:
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
 
-        event = await TEST_TRIGGER.run().asend(None)
+        trigger_gen = TEST_TRIGGER.run()
 
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+
+        success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS, context={})
-
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
-        assert event.payload[PAYLOAD_BODY_KEY] == callback_return_value
+        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS, context=mock.ANY)
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
     @pytest.mark.asyncio
     async def test_run_success_with_notifier(self, mock_import_string):
         """Test trigger handles async notifier classes correctly."""
         mock_import_string.return_value = ExampleAsyncNotifier
 
-        event = await TEST_TRIGGER.run().asend(None)
+        trigger_gen = TEST_TRIGGER.run()
 
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+
+        success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
-        assert event.payload[PAYLOAD_BODY_KEY] == f"Async notification: {TEST_MESSAGE}, context: {{}}"
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_BODY_KEY] == f"Async notification: {TEST_MESSAGE}, context: {{}}"
 
     @pytest.mark.asyncio
     async def test_run_failure(self, mock_import_string):
-        mock_callback = mock.AsyncMock(side_effect=RuntimeError("Something went wrong"))
+        exc_msg = "Something went wrong"
+        mock_callback = mock.AsyncMock(side_effect=RuntimeError(exc_msg))
         mock_import_string.return_value = mock_callback
 
-        event = await TEST_TRIGGER.run().asend(None)
+        trigger_gen = TEST_TRIGGER.run()
 
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+
+        failure_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        assert event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
-        assert PAYLOAD_BODY_KEY in event.payload
+        mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS, context=mock.ANY)
+        assert failure_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
+        assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])
