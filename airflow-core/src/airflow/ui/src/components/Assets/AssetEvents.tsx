@@ -72,7 +72,7 @@ export const AssetEvents = ({
   const runTypes = ["", "asset_triggered", "backfill", "manual", "scheduled"];
   const runTypeOptions = createListCollection({
     items: runTypes.map((type) => ({
-      label: type === "" ? "\u00A0" : translate(`common:runTypes.${type}`),
+      label: type === "" ? translate(`common:expression.all`) : translate(`common:runTypes.${type}`),
       value: type,
     })),
   });
@@ -148,10 +148,12 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
+      {translate("common:table.from")}
       <DateTimeInput
         onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
         value={startDate}
       />
+      {translate("common:table.to")}
       <DateTimeInput onChange={(event) => handleFilterChange(END_DATE)(event.target.value)} value={endDate} />
       <SearchBar
         defaultValue={dagIdPattern}
@@ -167,6 +169,7 @@ export const AssetEvents = ({
         onChange={handleFilterChange(TASK_ID_PATTERN)}
         placeHolder={translate("common:filters.taskIdPlaceholder")}
       />
+      {translate("common:dagRun.runType")}
       <Select.Root
         borderWidth={0}
         collection={runTypeOptions}
