@@ -23,7 +23,7 @@ from sqlalchemy import delete, func, select
 
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.providers.fab.www.security import permissions
-from airflow.utils import timezone
+from airflow.sdk import timezone
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error

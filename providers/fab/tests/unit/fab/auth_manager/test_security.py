@@ -28,7 +28,7 @@ import pytest
 import time_machine
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
-from sqlalchemy import Column, Date, Float, Integer, String, delete, select, func
+from sqlalchemy import Column, Date, Float, Integer, String, delete, func, select
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
