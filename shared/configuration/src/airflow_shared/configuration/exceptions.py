@@ -15,30 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Shared configuration parser for Airflow distributions."""
+"""Configuration-related exceptions for shared configuration parser."""
 
 from __future__ import annotations
 
-from .exceptions import AirflowConfigException
-from .parser import (
-    ENV_VAR_PREFIX,
-    AirflowConfigParser,
-    ConfigModifications,
-    ConfigOptionsDictType,
-    ConfigSectionSourcesType,
-    ConfigSourcesType,
-    ConfigType,
-    expand_env_var,
-)
 
-__all__ = [
-    "AirflowConfigParser",
-    "AirflowConfigException",
-    "ConfigModifications",
-    "ConfigSourcesType",
-    "ConfigType",
-    "ConfigOptionsDictType",
-    "ConfigSectionSourcesType",
-    "ENV_VAR_PREFIX",
-    "expand_env_var",
-]
+class AirflowConfigException(Exception):
+    """Raised when there is a configuration problem."""
+
+    pass
