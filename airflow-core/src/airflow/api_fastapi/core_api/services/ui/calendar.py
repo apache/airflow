@@ -317,9 +317,13 @@ class CalendarService:
         if not logical_date.value:
             return True
 
-        if logical_date.value.lower_bound and dt < logical_date.value.lower_bound:
+        if logical_date.value.lower_bound_gte and dt < logical_date.value.lower_bound_gte:
             return False
-        if logical_date.value.upper_bound and dt > logical_date.value.upper_bound:
+        if logical_date.value.lower_bound_gt and dt <= logical_date.value.lower_bound_gt:
+            return False
+        if logical_date.value.upper_bound_lte and dt > logical_date.value.upper_bound_lte:
+            return False
+        if logical_date.value.upper_bound_lt and dt >= logical_date.value.upper_bound_lt:
             return False
 
         return True

@@ -47,9 +47,9 @@ from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -860,7 +860,8 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow._shared.secrets_masker import mask_secret as mask_secret_core
+        from airflow.sdk.log import mask_secret as mask_secret_sdk
 
         for section, key in self.sensitive_config_values:
             try:
@@ -873,7 +874,8 @@ class AirflowConfigParser(ConfigParser):
                     key,
                 )
                 continue
-            mask_secret(value)
+            mask_secret_core(value)
+            mask_secret_sdk(value)
 
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
@@ -902,7 +904,16 @@ class AirflowConfigParser(ConfigParser):
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
-                return run_command(command)
+                try:
+                    cmd_output = run_command(command)
+                except AirflowConfigException as e:
+                    raise e
+                except Exception as e:
+                    raise AirflowConfigException(
+                        f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
+                        f" Please check the {fallback_key} value."
+                    ) from e
+                return cmd_output
         return None
 
     def _get_cmd_option_from_config_sources(

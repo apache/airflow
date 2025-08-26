@@ -85,9 +85,12 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
     except ImportError:
-        from airflow.utils.log.secrets_masker import mask_secret
+        try:
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+        except ImportError:
+            from airflow.utils.log.secrets_masker import mask_secret
 
 _loader = botocore.loaders.Loader()
 """
@@ -621,7 +624,13 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 self.log.warning(
                     "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )
-
+            # In the TaskSDK's BaseHook, it only retrieves the connection via task-sdk. Since the AWS system testing infrastructure
+            # doesn't use task-sdk, this leads to an error which we handle below.
+            except ImportError as e:
+                if "SUPERVISOR_COMMS" in str(e):
+                    self.log.exception(e)
+                else:
+                    raise
         return AwsConnectionWrapper(
             conn=connection,
             region_name=self._region_name,

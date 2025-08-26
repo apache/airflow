@@ -98,6 +98,6 @@ describe("Task log grouping", () => {
 
     fireEvent.click(collapseItem);
 
-    expect(screen.getByText(/Marking task as SUCCESS/iu)).toBeVisible();
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
   }, 10_000);
 });

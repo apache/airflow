@@ -55,7 +55,12 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.openlineage.operator import OpenLineageTestOperator
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
