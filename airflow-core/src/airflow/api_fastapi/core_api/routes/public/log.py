@@ -146,9 +146,7 @@ def get_log(
 
     if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
         # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
-        ndjson_log_stream = list(task_log_reader.read_log_stream(ti, try_number, metadata))  # type: ignore[arg-type]
-        reversed_stream = reversed(ndjson_log_stream)
-        log_stream = (line for line in reversed_stream)
+        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
         headers = None
         if not metadata.get("end_of_log", False):
             headers = {
@@ -162,11 +160,11 @@ def get_log(
     # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
     structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)  # type: ignore[arg-type]
     encoded_token = None
-    log_chunks = list(structured_log_stream)
-    log_chunks.reverse()
     if not out_metadata.get("end_of_log", False):
         encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
-    return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=log_chunks)
+    return TaskInstancesLogResponse.model_construct(
+        continuation_token=encoded_token, content=list(structured_log_stream)
+    )
 
 
 @task_instances_log_router.get(
