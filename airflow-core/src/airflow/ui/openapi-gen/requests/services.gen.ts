@@ -3564,7 +3564,7 @@ export class HumanInTheLoopService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
                 update_mask: data.updateMask
             },
             body: data.requestBody,
@@ -3599,72 +3599,7 @@ export class HumanInTheLoopService {
                 dag_run_id: data.dagRunId,
                 task_id: data.taskId
             },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Update Mapped Ti Hitl Detail
-     * Update a Human-in-the-loop detail.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
-     * @param data.taskId
-     * @param data.mapIndex
-     * @param data.requestBody
-     * @param data.updateMask
-     * @returns HITLDetailResponse Successful Response
-     * @throws ApiError
-     */
-    public static updateMappedTiHitlDetail(data: UpdateMappedTiHitlDetailData): CancelablePromise<UpdateMappedTiHitlDetailResponse> {
-        return __request(OpenAPI, {
-            method: 'PATCH',
-            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                map_index: data.mapIndex
-            },
             query: {
-                update_mask: data.updateMask
-            },
-            body: data.requestBody,
-            mediaType: 'application/json',
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                409: 'Conflict',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Get Mapped Ti Hitl Detail
-     * Get a Human-in-the-loop detail of a specific task instance.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
-     * @param data.taskId
-     * @param data.mapIndex
-     * @returns HITLDetail Successful Response
-     * @throws ApiError
-     */
-    public static getMappedTiHitlDetail(data: GetMappedTiHitlDetailData): CancelablePromise<GetMappedTiHitlDetailResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId,
                 map_index: data.mapIndex
             },
             errors: {
