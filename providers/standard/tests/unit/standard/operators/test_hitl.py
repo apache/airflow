@@ -357,7 +357,6 @@ class TestHITLOperator:
     )
     def test_generate_link_to_ui_with_invalid_input(
         self,
-        dag_maker: DagMaker,
         options: list[str] | None,
         params_input: dict[str, Any] | None,
         expected_err_msg: str,
