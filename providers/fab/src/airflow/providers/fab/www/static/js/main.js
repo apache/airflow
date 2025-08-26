@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/* global $, moment, Airflow, window, localStorage, document, hostName, csrfToken, CustomEvent */
+/* global $, moment, Airflow, window, sessionStorage, document, hostName, csrfToken, CustomEvent */
 
 import {
   dateTimeAttrFormat,
@@ -43,7 +43,7 @@ function displayTime() {
 }
 
 function changeDisplayedTimezone(tz) {
-  localStorage.setItem("selected-timezone", tz);
+  sessionStorage.setItem("selected-timezone", tz);
 
   // dispatch an event that React can listen for
   const event = new CustomEvent(TimezoneEvent, {
@@ -138,11 +138,11 @@ window.postAsForm = postAsForm;
 function initializeUITimezone() {
   const local = moment.tz.guess();
 
-  const selectedTz = localStorage.getItem("selected-timezone");
-  const manualTz = localStorage.getItem("chosen-timezone");
+  const selectedTz = sessionStorage.getItem("selected-timezone");
+  const manualTz = sessionStorage.getItem("chosen-timezone");
 
   function setManualTimezone(tz) {
-    localStorage.setItem("chosen-timezone", tz);
+    sessionStorage.setItem("chosen-timezone", tz);
     if (tz === local && tz === Airflow.serverTimezone) {
       $("#timezone-manual").hide();
       return;

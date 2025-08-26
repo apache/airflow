@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useMemo, type PropsWithChildren } from "react";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { TimezoneContext, type TimezoneContextType } from "./Context";
 
@@ -26,7 +26,7 @@ const TIMEZONE_KEY = "timezone";
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
   const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const [selectedTimezone, setSelectedTimezone] = useLocalStorage(TIMEZONE_KEY, systemTimezone);
+  const [selectedTimezone, setSelectedTimezone] = useSessionStorage(TIMEZONE_KEY, systemTimezone);
 
   const value = useMemo<TimezoneContextType>(
     () => ({ selectedTimezone, setSelectedTimezone }),

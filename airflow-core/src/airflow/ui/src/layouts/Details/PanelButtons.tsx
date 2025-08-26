@@ -34,7 +34,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
@@ -91,11 +91,11 @@ export const PanelButtons = ({
   const { dagId = "", runId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
-  const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
+  const [dependencies, setDependencies, removeDependencies] = useSessionStorage<Dependency>(
     `dependencies-${dagId}`,
     "tasks",
   );
-  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [direction, setDirection] = useSessionStorage<Direction>(`direction-${dagId}`, "RIGHT");
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
