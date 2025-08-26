@@ -360,6 +360,7 @@ class TestHITLOperator:
         options: list[str] | None,
         params_input: dict[str, Any] | None,
         expected_err_msg: str,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
     ) -> None:
         with dag_maker("test_dag"):
             task = HITLOperator(
