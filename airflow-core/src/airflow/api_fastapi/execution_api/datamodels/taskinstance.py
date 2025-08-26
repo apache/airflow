@@ -35,11 +35,10 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+from airflow.models.taskinstance import IntermediateTIState, TerminalTIState
 from airflow.utils.state import (
     DagRunState,
-    IntermediateTIState,
     TaskInstanceState as TIState,
-    TerminalTIState,
 )
 from airflow.utils.types import DagRunType
 
