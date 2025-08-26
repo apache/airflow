@@ -75,7 +75,7 @@ class TestHITLOperator:
             ([], '"options" cannot be empty.'),
             (["1,1", "1", "2"], '"," is not allowed in option'),
         ],
-        ids=["empty", "comman"],
+        ids=["empty", "comma"],
     )
     def test_validate_options_with_empty_options(self, options: list[str], expected_err_msg: str) -> None:
         # validate_options is called during initialization
