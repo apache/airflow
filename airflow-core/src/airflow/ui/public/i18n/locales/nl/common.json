@@ -191,8 +191,6 @@
     "up_for_retry": "Wachtend op een nieuwe poging",
     "upstream_failed": "Upstream mislukt"
   },
-  "switchToDarkMode": "Schakel over naar donkere modus",
-  "switchToLightMode": "Schakel over naar lichte modus",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

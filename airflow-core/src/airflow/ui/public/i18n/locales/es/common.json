@@ -165,8 +165,6 @@
     "up_for_retry": "Por Reintentar",
     "upstream_failed": "Fallido en Upstream"
   },
-  "switchToDarkMode": "Cambiar a Modo Oscuro",
-  "switchToLightMode": "Cambiar a Modo Claro",
   "table": {
     "completedAt": "Completado en",
     "createdAt": "Creado en",
