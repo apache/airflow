@@ -275,32 +275,98 @@ class TestHITLOperator:
                 "?_options=3%2C4%2C5&input_1=123123&input_2=345345&map_index=-1",
             ),
         ],
-        ids=[],
+        ids=[
+            "empty",
+            "single-option",
+            "multiple-options",
+            "single-param-input",
+            "multiple-options-and-param-inputs",
+        ],
     )
-    @conf_vars({("api", "base_url"): "http://localhost:8080/"})
+    @pytest.mark.parametrize("base_url", ["http://test", "http://test_2:8080"])
     def test_generate_link_to_ui(
         self,
+        dag_maker: DagMaker,
+        base_url: str,
         options: list[str] | None,
         params: dict[str, Any] | None,
         expected_query_string: str,
     ) -> None:
-        task = HITLOperator(
-            task_id="hitl_test",
-            subject="This is subject",
-            options=["1", "2", "3", "4", "5"],
-            body="This is body",
-            defaults=["1"],
-            respondents="test",
-            multiple=True,
-            params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
-        )
+        with dag_maker("test_dag"):
+            task = HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=["1", "2", "3", "4", "5"],
+                body="This is body",
+                defaults=["1"],
+                respondents="test",
+                multiple=True,
+                params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
+            )
+        dr = dag_maker.create_dagrun()
+        ti = dag_maker.run_ti(task.task_id, dr)
 
         expected_url = (
-            f"http://localhost:8080/api/v2/hitlDetails/test_dag/test/hitl_test{expected_query_string}"
+            f"{base_url}/dags/test_dag/runs/test/tasks/hitl_test/required_actions{expected_query_string}"
         )
 
         url = task.generate_link_to_ui(
-            dag_id="test_dag", run_id="test", task_id="hitl_test", options=options, params=params
+            task_instance=ti,
+            base_url=base_url,
+            options=options,
+            params=params,
+        )
+        assert url == expected_url
+
+    @pytest.mark.parametrize(
+        "options, params, expected_query_string",
+        [
+            (None, None, "?map_index=-1"),
+            (["1"], None, "?_options=1&map_index=-1"),
+            (["1", "2"], None, "?_options=1%2C2&map_index=-1"),
+            (None, {"input_1": 123}, "?input_1=123&map_index=-1"),
+            (
+                ["3", "4", "5"],
+                {"input_1": 123123, "input_2": 345345},
+                "?_options=3%2C4%2C5&input_1=123123&input_2=345345&map_index=-1",
+            ),
+        ],
+        ids=[
+            "empty",
+            "single-option",
+            "multiple-options",
+            "single-param-input",
+            "multiple-options-and-param-inputs",
+        ],
+    )
+    @conf_vars({("api", "base_url"): "http://localhost:8080/"})
+    def test_generate_link_fall_back_to_conf_api_base_url(
+        self,
+        dag_maker: DagMaker,
+        options: list[str] | None,
+        params: dict[str, Any] | None,
+        expected_query_string: str,
+    ) -> None:
+        with dag_maker("test_dag"):
+            task = HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=["1", "2", "3", "4", "5"],
+                body="This is body",
+                defaults=["1"],
+                respondents="test",
+                multiple=True,
+                params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
+            )
+        dr = dag_maker.create_dagrun()
+        ti = dag_maker.run_ti(task.task_id, dr)
+
+        expected_url = f"http://localhost:8080/dags/test_dag/runs/test/tasks/hitl_test/required_actions{expected_query_string}"
+
+        url = task.generate_link_to_ui(
+            task_instance=ti,
+            options=options,
+            params=params,
         )
         assert url == expected_url
 
@@ -317,25 +383,48 @@ class TestHITLOperator:
     )
     def test_generate_link_to_ui_with_invalid_input(
         self,
+        dag_maker: DagMaker,
         options: list[str] | None,
         params: dict[str, Any] | None,
         expected_err_msg: str,
     ) -> None:
-        task = HITLOperator(
-            task_id="hitl_test",
-            subject="This is subject",
-            options=["1", "2", "3", "4", "5"],
-            body="This is body",
-            defaults=["1"],
-            respondents="test",
-            multiple=True,
-            params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
-        )
+        with dag_maker("test_dag"):
+            task = HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=["1", "2", "3", "4", "5"],
+                body="This is body",
+                defaults=["1"],
+                respondents="test",
+                multiple=True,
+                params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
+            )
+        dr = dag_maker.create_dagrun()
+        ti = dag_maker.run_ti(task.task_id, dr)
 
         with pytest.raises(ValueError, match=expected_err_msg):
-            task.generate_link_to_ui(
-                dag_id="test_dag", run_id="test", task_id="hitl_test", options=options, params=params
+            task.generate_link_to_ui(task_instance=ti, options=options, params=params)
+
+    def test_generate_link_to_ui_without_base_url(
+        self,
+        dag_maker: DagMaker,
+    ) -> None:
+        with dag_maker("test_dag"):
+            task = HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=["1", "2", "3", "4", "5"],
+                body="This is body",
+                defaults=["1"],
+                respondents="test",
+                multiple=True,
+                params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
             )
+        dr = dag_maker.create_dagrun()
+        ti = dag_maker.run_ti(task.task_id, dr)
+
+        with pytest.raises(ValueError, match="Not able to retrieve base_url"):
+            task.generate_link_to_ui(task_instance=ti)
 
 
 class TestApprovalOperator:

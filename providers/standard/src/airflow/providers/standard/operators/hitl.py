@@ -20,6 +20,7 @@ import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
@@ -193,10 +194,8 @@ class HITLOperator(BaseOperator):
     def generate_link_to_ui(
         self,
         *,
-        dag_id: str,
-        run_id: str,
-        task_id: str,
-        map_index: int = -1,
+        task_instance: RuntimeTaskInstanceProtocol,
+        base_url: str | None = None,
         options: list[str] | None = None,
         params: dict[str, Any] | None = None,
     ) -> str:
@@ -212,17 +211,17 @@ class HITLOperator(BaseOperator):
                 raise ValueError(f"params {diff} are not valid params")
             query_param.update(params)
 
-        if not (base_url := conf.get("api", "base_url", fallback=None)):
+        if not (base_url := base_url or conf.get("api", "base_url", fallback=None)):
             raise ValueError("Not able to retrieve base_url")
 
-        query_param["map_index"] = map_index
+        query_param["map_index"] = task_instance.map_index
 
         parsed_base_url: ParseResult = urlparse(base_url)
         return urlunparse(
             (
                 parsed_base_url.scheme,
                 parsed_base_url.netloc,
-                f"/api/v2/hitlDetails/{dag_id}/{run_id}/{task_id}",
+                f"/dags/{task_instance.dag_id}/runs/{task_instance.run_id}/tasks/{task_instance.task_id}/required_actions",
                 "",
                 urlencode(query_param) if query_param else "",
                 "",
