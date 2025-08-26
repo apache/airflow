@@ -125,7 +125,13 @@ export const XComFilters = () => {
       const value = searchParams.get(config.key);
 
       if (value !== null && value !== "") {
-        values[config.key] = config.type === "number" ? Number(value) : value;
+        if (config.type === "number") {
+          const parsedValue = Number(value);
+
+          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
+        } else {
+          values[config.key] = value;
+        }
       }
     });
 
