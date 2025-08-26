@@ -739,7 +739,9 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=3)
             executor.running = {key}
-            results = KubernetesResults(key, State.FAILED, "pod_id", "test-namespace", "resource_version", None)
+            results = KubernetesResults(
+                key, State.FAILED, "pod_id", "test-namespace", "resource_version", None
+            )
             executor._change_state(results)
             assert executor.event_buffer[key][0] == State.FAILED
             assert executor.running == set()
@@ -858,7 +860,9 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
             executor.running = {key}
-            results = KubernetesResults(key, State.SUCCESS, "pod_name", "test-namespace", "resource_version", None)
+            results = KubernetesResults(
+                key, State.SUCCESS, "pod_name", "test-namespace", "resource_version", None
+            )
             executor._change_state(results)
             assert executor.event_buffer[key][0] == State.SUCCESS
             assert executor.running == set()
@@ -885,7 +889,9 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
             executor.running = {key}
-            results = KubernetesResults(key, State.FAILED, "pod_name", "test-namespace", "resource_version", None)
+            results = KubernetesResults(
+                key, State.FAILED, "pod_name", "test-namespace", "resource_version", None
+            )
             executor._change_state(results)
             assert executor.event_buffer[key][0] == State.FAILED
             assert executor.running == set()

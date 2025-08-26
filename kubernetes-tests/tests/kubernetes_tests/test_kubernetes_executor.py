@@ -24,6 +24,7 @@ import pytest
 if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import FailureDetails
 
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesResults
 from kubernetes_tests.test_base import (
     EXECUTOR,
     BaseK8STest,  # isort:skip (needed to workaround isort bug)
@@ -138,14 +139,18 @@ class TestKubernetesExecutor(BaseK8STest):
         # Create a test task key
         task_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
 
-        # Call _change_state with FAILED status and failure details
-        executor._change_state(
+        # Create KubernetesResults object
+        results = KubernetesResults(
             key=task_key,
             state=TaskInstanceState.FAILED,
             pod_name="test-pod",
             namespace="test-namespace",
+            resource_version="123",
             failure_details=failure_details,
         )
+
+        # Call _change_state with KubernetesResults object
+        executor._change_state(results)
 
         # Verify that the warning log was called with expected parameters
         mock_log.warning.assert_called_once_with(
@@ -181,14 +186,18 @@ class TestKubernetesExecutor(BaseK8STest):
         # Create a test task key
         task_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
 
-        # Call _change_state with FAILED status but no failure details
-        executor._change_state(
+        # Create KubernetesResults object without failure details
+        results = KubernetesResults(
             key=task_key,
             state=TaskInstanceState.FAILED,
             pod_name="test-pod",
             namespace="test-namespace",
+            resource_version="123",
             failure_details=None,
         )
+
+        # Call _change_state with KubernetesResults object
+        executor._change_state(results)
 
         # Verify that the warning log was called with the correct parameters
         mock_log.warning.assert_called_once_with(
@@ -214,10 +223,18 @@ class TestKubernetesExecutor(BaseK8STest):
         # Create a test task key
         task_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
 
-        # Call _change_state with SUCCESS status
-        executor._change_state(
-            key=task_key, state=TaskInstanceState.SUCCESS, pod_name="test-pod", namespace="test-namespace"
+        # Create KubernetesResults object with SUCCESS state
+        results = KubernetesResults(
+            key=task_key,
+            state=TaskInstanceState.SUCCESS,
+            pod_name="test-pod",
+            namespace="test-namespace",
+            resource_version="123",
+            failure_details=None,
         )
+
+        # Call _change_state with KubernetesResults object
+        executor._change_state(results)
 
         # Verify that no failure logs were called
         mock_log.error.assert_not_called()
