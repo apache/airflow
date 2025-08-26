@@ -26,15 +26,15 @@ You can set-up and manage user permissions with Keycloak auth manager in differe
 
 With Airflow CLI
 ----------------
-Setting up the permissions can easily done using CLI commands.
-It can create the permissions and needed resources easily.
+Setting up the permissions can be done using CLI commands.
+They can create the permissions and needed resources easily.
 
 There are two options to create the permissions:
 
-* Create all permissions in one go using single CLI command
-* Create step by step using the CLI commands
+* Create all permissions (Scopes, Resources, Permissions) in one go using one CLI command
+* Create all permissions (Scopes, Resources, Permissions) step-by-step using the CLI commands
 
-CLI commands taking following parameters:
+CLI commands take the following parameters:
 
 * ``--username``: Keycloak admin username
 * ``--password``: Keycloak admin password
@@ -43,39 +43,39 @@ CLI commands taking following parameters:
 
 Please check the `Keycloak auth manager CLI </cli-refs.html>`_ documentation for more information about accepted parameters.
 
-One go creation of permissions
+One-go creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There is a single command do all the magic for you.
+
+This command will create scopes, resources and permissions in one-go.
 
 .. code-block:: bash
 
   airflow keycloak create-all
 
-This will create scopes, resources and permissions in one go.
-
-Step by step creation of permissions
+Step-by-step creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First we need to create scopes for the permissions. These scopes later will be used in Keycloak authorization [1].
+
+This command will create scopes for certain types of permissions.
 
 .. code-block:: bash
 
   airflow keycloak create-scopes
 
-This will create scopes for certain types of permissions.
+This command will create resources for certain types of permissions.
 
 .. code-block:: bash
 
   airflow keycloak create-resources
 
-This will create resources for certain types of permissions.
+Finally, with the command below, we create the permissions using the previously created scopes and resources.
 
 .. code-block:: bash
 
   airflow keycloak create-permissions
-
-Finally we create the permissions using the previously created scopes and resources.
 
 This will create
 
