@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
+import { Box, Heading, Flex, HStack, Skeleton, Separator, Text, VStack } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useMemo } from "react";
@@ -148,46 +148,63 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
-      {translate("common:table.from")}
-      <DateTimeInput
-        onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
-        value={startDate}
-      />
-      {translate("common:table.to")}
-      <DateTimeInput onChange={(event) => handleFilterChange(END_DATE)(event.target.value)} value={endDate} />
-      <SearchBar
-        defaultValue={dagIdPattern}
-        hideAdvanced
-        hotkeyDisabled={true}
-        onChange={handleFilterChange(DAG_ID_PATTERN)}
-        placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
-      />
-      <SearchBar
-        defaultValue={taskIdPattern}
-        hideAdvanced
-        hotkeyDisabled={true}
-        onChange={handleFilterChange(TASK_ID_PATTERN)}
-        placeHolder={translate("common:filters.taskIdPlaceholder")}
-      />
-      {translate("common:dagRun.runType")}
-      <Select.Root
-        borderWidth={0}
-        collection={runTypeOptions}
-        defaultValue={[runType]}
-        onValueChange={(option) => handleFilterChange(RUN_TYPE)(option.value[0] as string)}
-      >
-        <Select.Trigger>
-          <Select.ValueText />
-        </Select.Trigger>
+      <VStack align="start" gap={4} paddingY="4px">
+        <HStack flexWrap="wrap" gap={4}>
+          <Box w="200px">
+            <Text fontSize="xs">{translate("common:table.from")}</Text>
+            <DateTimeInput
+              onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
+              value={startDate}
+            />
+          </Box>
+          <Box w="200px">
+            <Text fontSize="xs">{translate("common:table.to")}</Text>
+            <DateTimeInput
+              onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
+              value={endDate}
+            />
+          </Box>
+          <Box w="200px">
+            <SearchBar
+              defaultValue={dagIdPattern}
+              hideAdvanced
+              hotkeyDisabled={true}
+              onChange={handleFilterChange(DAG_ID_PATTERN)}
+              placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
+            />
+          </Box>
+          <Box w="200px">
+            <SearchBar
+              defaultValue={taskIdPattern}
+              hideAdvanced
+              hotkeyDisabled={true}
+              onChange={handleFilterChange(TASK_ID_PATTERN)}
+              placeHolder={translate("common:filters.taskIdPlaceholder")}
+            />
+          </Box>
+          <Box w="200px">
+            <Text fontSize="xs">{translate("common:dagRun.runType")}</Text>
+            <Select.Root
+              borderWidth={0}
+              collection={runTypeOptions}
+              defaultValue={[runType]}
+              onValueChange={(option) => handleFilterChange(RUN_TYPE)(option.value[0] as string)}
+            >
+              <Select.Trigger>
+                <Select.ValueText />
+              </Select.Trigger>
 
-        <Select.Content>
-          {runTypeOptions.items.map((option) => (
-            <Select.Item item={option} key={option.value[0]}>
-              {option.label}
-            </Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
+              <Select.Content>
+                {runTypeOptions.items.map((option) => (
+                  <Select.Item item={option} key={option.value[0]}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Box>
+        </HStack>
+      </VStack>
       <Separator mt={2.5} />
       <DataTable
         cardDef={cardDef(assetId)}
