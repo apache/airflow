@@ -26,6 +26,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import cache
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
@@ -94,6 +95,34 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+
+
+class TerminalTIState(str, Enum):
+    """States that a Task Instance can be in that indicate it has reached a terminal state."""
+
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
+    UPSTREAM_FAILED = "upstream_failed"
+    REMOVED = "removed"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class IntermediateTIState(str, Enum):
+    """States that a Task Instance can be in that indicate it is not yet in a terminal or running state."""
+
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RESTARTING = "restarting"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    DEFERRED = "deferred"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 TR = TaskReschedule
 
