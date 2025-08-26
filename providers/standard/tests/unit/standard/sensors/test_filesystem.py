@@ -29,10 +29,10 @@ try:
 except ImportError:
     from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
-from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
+from airflow.providers.standard.version_compat import AirflowSensorTimeout, TaskDeferred
 
 pytestmark = pytest.mark.db_test
 

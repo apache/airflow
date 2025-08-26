@@ -24,8 +24,7 @@ from typing import Any
 
 import attrs
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
 

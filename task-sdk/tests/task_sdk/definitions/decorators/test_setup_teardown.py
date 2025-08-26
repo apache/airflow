@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG, setup, task, task_group, teardown
 from airflow.sdk.definitions.decorators.setup_teardown import context_wrapper
+from airflow.sdk.exceptions import AirflowException
 
 
 def make_task(name, type_, setup_=False, teardown_=False):
