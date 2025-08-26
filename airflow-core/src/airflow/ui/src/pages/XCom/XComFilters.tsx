@@ -18,103 +18,44 @@
  */
 import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { FiBarChart } from "react-icons/fi";
-import { MdDateRange, MdNumbers, MdSearch } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { DagIcon } from "src/assets/DagIcon";
-import { TaskIcon } from "src/assets/TaskIcon";
 import { FilterBar, type FilterConfig, type FilterValue } from "src/components/FilterBar";
+import { useFilterConfigs } from "src/constants/filterConfigs";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler } from "src/utils";
 
 export const XComFilters = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
-  const { t: translate } = useTranslation(["browse", "common", "admin"]);
+  const { getFilterConfig } = useFilterConfigs();
 
   const filterConfigs: Array<FilterConfig> = useMemo(() => {
     const configs: Array<FilterConfig> = [
-      {
-        icon: <MdSearch />,
-        key: SearchParamsKeys.KEY_PATTERN,
-        label: translate("admin:columns.key"),
-        placeholder: translate("common:filters.keyPlaceholder"),
-        type: "text",
-      },
-      {
-        icon: <MdDateRange />,
-        key: SearchParamsKeys.LOGICAL_DATE_GTE,
-        label: translate("common:filters.logicalDateFromPlaceholder"),
-        placeholder: translate("common:filters.logicalDateFromPlaceholder"),
-        type: "date",
-      },
-      {
-        icon: <MdDateRange />,
-        key: SearchParamsKeys.LOGICAL_DATE_LTE,
-        label: translate("common:filters.logicalDateToPlaceholder"),
-        placeholder: translate("common:filters.logicalDateToPlaceholder"),
-        type: "date",
-      },
-      {
-        icon: <MdDateRange />,
-        key: SearchParamsKeys.RUN_AFTER_GTE,
-        label: translate("common:filters.runAfterFromPlaceholder"),
-        placeholder: translate("common:filters.runAfterFromPlaceholder"),
-        type: "date",
-      },
-      {
-        icon: <MdDateRange />,
-        key: SearchParamsKeys.RUN_AFTER_LTE,
-        label: translate("common:filters.runAfterToPlaceholder"),
-        placeholder: translate("common:filters.runAfterToPlaceholder"),
-        type: "date",
-      },
+      getFilterConfig(SearchParamsKeys.KEY_PATTERN),
+      getFilterConfig(SearchParamsKeys.LOGICAL_DATE_GTE),
+      getFilterConfig(SearchParamsKeys.LOGICAL_DATE_LTE),
+      getFilterConfig(SearchParamsKeys.RUN_AFTER_GTE),
+      getFilterConfig(SearchParamsKeys.RUN_AFTER_LTE),
     ];
 
     if (dagId === "~") {
-      configs.push({
-        icon: <DagIcon />,
-        key: SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN,
-        label: translate("common:dagName"),
-        placeholder: translate("common:filters.dagDisplayNamePlaceholder"),
-        type: "text",
-      });
+      configs.push(getFilterConfig(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN));
     }
 
     if (runId === "~") {
-      configs.push({
-        icon: <FiBarChart />,
-        key: SearchParamsKeys.RUN_ID_PATTERN,
-        label: translate("common:runId"),
-        placeholder: translate("common:filters.runIdPlaceholder"),
-        type: "text",
-      });
+      configs.push(getFilterConfig(SearchParamsKeys.RUN_ID_PATTERN));
     }
 
     if (taskId === "~") {
-      configs.push({
-        icon: <TaskIcon />,
-        key: SearchParamsKeys.TASK_ID_PATTERN,
-        label: translate("common:taskId"),
-        placeholder: translate("common:filters.taskIdPlaceholder"),
-        type: "text",
-      });
+      configs.push(getFilterConfig(SearchParamsKeys.TASK_ID_PATTERN));
     }
 
     if (mapIndex === "-1") {
-      configs.push({
-        icon: <MdNumbers />,
-        key: SearchParamsKeys.MAP_INDEX,
-        label: translate("common:mapIndex"),
-        min: -1,
-        placeholder: translate("common:filters.mapIndexPlaceholder"),
-        type: "number",
-      });
+      configs.push(getFilterConfig(SearchParamsKeys.MAP_INDEX));
     }
 
     return configs;
-  }, [dagId, mapIndex, runId, taskId, translate]);
+  }, [dagId, mapIndex, runId, taskId, getFilterConfig]);
 
   const { handleFiltersChange, searchParams } = useFiltersHandler(filterConfigs);
 
