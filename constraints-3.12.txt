@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-26T13:55:31.285884
+# This constraints file was automatically generated on 2025-08-26T19:46:46.382972
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -495,7 +495,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.3.0
 ordered-set==4.1.0
-orjson==3.11.2
+orjson==3.11.3
 oss2==2.19.1
 packaging==25.0
 pagerduty==4.0.1
@@ -514,7 +514,7 @@ pgvector==0.4.1
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.7.0
-platformdirs==4.3.8
+platformdirs==4.4.0
 pluggy==1.6.0
 ply==3.11
 polars==1.32.3
