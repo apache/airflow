@@ -637,6 +637,7 @@ class DeferTask(TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
+    next_method: str | None = None
 
     @field_serializer("trigger_kwargs", "next_kwargs", check_fields=True)
     def _serde_kwarg_fields(self, val: str | dict[str, Any] | None, _info):
