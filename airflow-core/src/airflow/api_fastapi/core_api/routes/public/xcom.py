@@ -308,7 +308,7 @@ def create_xcom_entry(
 def update_xcom_entry(
     dag_id: str, task_id: str, dag_run_id: str, xcom_key: str, patch_body: XComUpdateBody, session: SessionDep
 ) -> XComResponseNative:
-    """Update an existing XCom entry, partially if update_mask is provided."""
+    """Update an existing XCom entry."""
     # Find the XCom entry
     xcom_new_value = XComModel.serialize_value(patch_body.value)
     xcom_entry = session.scalar(

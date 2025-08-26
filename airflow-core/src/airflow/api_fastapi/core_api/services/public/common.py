@@ -20,7 +20,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -108,26 +107,16 @@ class PatchUtil:
         Raises:
             HTTPException: If invalid fields are provided in update_mask.
         """
-
         # Always dump without aliases for internal validation
         raw_data = patch_body.model_dump(by_alias=False)
-
-        fields_to_update = patch_body.model_fields_set
+        fields_to_update = set(patch_body.model_fields_set)
         if update_mask:
-            invalid = set(update_mask) - allowed_fields
-            if invalid:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid fields in update_mask: {invalid}",
-                )
-            fields_set = fields_set.intersection(update_mask)
+            fields_to_update = fields_to_update.intersection(update_mask)
 
         if non_update_fields:
-            fields_set = fields_set - non_update_fields
+            fields_to_update = fields_to_update - non_update_fields
 
-        # Validate only the subset of fields we want to update
-        print("Validating data with fields_set:", fields_set, raw_data)
-        validated_data = {key: raw_data[key] for key in fields_set if key in raw_data}
+        validated_data = {key: raw_data[key] for key in fields_to_update if key in raw_data}
 
         data = patch_body.model_dump(include=set(validated_data.keys()), by_alias=True)
 

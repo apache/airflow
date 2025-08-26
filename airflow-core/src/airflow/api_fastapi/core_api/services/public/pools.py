@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -30,6 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.pools import (
+    BasePool,
     PoolBody,
     PoolPatchBody,
 )
@@ -38,17 +41,19 @@ from airflow.models.pool import Pool
 
 
 def update_orm_from_pydantic(
-    old_pool: Pool,
+    pool_name: str,
     patch_body: PoolBody | PoolPatchBody,
     update_mask: list[str] | None,
+    session: SessionDep,
 ) -> Pool:
     """
     Patch an existing Pool instance with provided update fields.
 
     Args:
-        old_pool (Pool): The existing Pool ORM model instance to be updated.
+        pool_name (str): The name of the existing Pool to be updated.
         patch_body (PoolBody): Pydantic model containing the fields to update.
         update_mask (list[str] | None): Specific fields to update. If None, all provided fields will be considered.
+        session (SessionDep): The database session dependency.
 
     Returns:
         Pool: The updated Pool instance.
@@ -57,18 +62,36 @@ def update_orm_from_pydantic(
         HTTPException: If attempting to update disallowed fields on `default_pool`.
     """
     # Special restriction: default pool only allows limited fields to be patched
-    if old_pool.pool == Pool.DEFAULT_POOL_NAME:
+    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
+    if not pool:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
+        )
+    if pool_name == Pool.DEFAULT_POOL_NAME:
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
-            pass
+            # Validate only slots/include_deferred
+            try:
+                patch_body_subset = patch_body.model_dump(
+                    include={"slots", "include_deferred"}, exclude_unset=True, by_alias=True
+                )
+                # Re-run validation with BasePool but only on allowed fields
+                PoolPatchBody.model_validate(patch_body_subset)
+            except ValidationError as e:
+                raise RequestValidationError(errors=e.errors())
         else:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Only slots and include_deferred can be modified on Default Pool",
+                "Only slots and included_deferred can be modified on Default Pool",
             )
+    else:
+        try:
+            BasePool.model_validate(patch_body.model_dump(exclude_unset=True, by_alias=True))
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
 
     # Delegate patch application to the common utility
     return PatchUtil.apply_patch_with_update_mask(
-        model=old_pool,
+        model=pool,
         patch_body=patch_body,
         update_mask=update_mask,
         non_update_fields=None,
@@ -145,10 +168,7 @@ class BulkPoolService(BulkService[PoolBody]):
                 if pool.pool not in update_pool_names:
                     continue
 
-                old_pool = self.session.scalar(select(Pool).filter(Pool.pool == pool.pool).limit(1))
-                if not old_pool:
-                    continue  # Should not happen because we filtered above
-                pool = update_orm_from_pydantic(old_pool, pool, action.update_mask)
+                pool = update_orm_from_pydantic(pool.pool, pool, action.update_mask, self.session)
 
                 results.success.append(str(pool.pool))
 
