@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-25T19:43:42.655088
+# This constraints file was automatically generated on 2025-08-26T13:52:30.683031
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -10,7 +10,7 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 APScheduler==3.11.0
-Authlib==1.6.2
+Authlib==1.6.3
 Deprecated==1.2.18
 Events==0.5
 Flask-AppBuilder==4.6.3
@@ -162,7 +162,7 @@ confluent-kafka==2.11.1
 connexion==2.14.2
 coverage==7.10.5
 crcmod==1.7
-cron-descriptor==1.4.5
+cron_descriptor==2.0.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
@@ -190,7 +190,7 @@ durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
 elasticsearch==8.19.0
-email_validator==2.2.0
+email-validator==2.3.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
@@ -389,7 +389,7 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.4
-mypy-boto3-appflow==1.40.0
+mypy-boto3-appflow==1.40.17
 mypy-boto3-rds==1.40.16
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.0
@@ -574,7 +574,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.12.4
-sentry-sdk==2.35.0
+sentry-sdk==2.35.1
 setproctitle==1.3.6
 shapely==2.1.1
 shellingham==1.5.4
@@ -644,7 +644,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-trove-classifiers==2025.8.6.13
+trove-classifiers==2025.8.26.11
 twine==6.1.0
 typer==0.16.1
 types-Deprecated==1.2.15.20250304
