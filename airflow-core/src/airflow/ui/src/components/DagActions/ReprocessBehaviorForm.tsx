@@ -21,12 +21,14 @@ import type { TFunction } from "i18next";
 import type { ControllerRenderProps } from "react-hook-form";
 
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
 
-interface Props {
-  field: ControllerRenderProps<any, "reprocess_behavior">;
-  translate: TFunction;
-}
+import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
+import type { BackfillFormProps } from "./RunBackfillForm";
+
+type Props = {
+  readonly field: ControllerRenderProps<BackfillFormProps, "reprocess_behavior">;
+  readonly translate: TFunction;
+};
 
 export const ReprocessBehaviorForm = ({ field, translate }: Props) => (
   <RadioCardRoot

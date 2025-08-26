@@ -44,7 +44,7 @@ type RunBackfillFormProps = {
 };
 const today = new Date().toISOString().slice(0, 16);
 
-type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
+export type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation("components");
