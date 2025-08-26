@@ -24,7 +24,7 @@ Please setup your Keycloak instance and required parameters for the Keycloak aut
 Setting up the permissions can easily done using CLI commands.
 It can create the permissions and needed resources easily.
 
-There is two options to create the permissions:
+There are two options to create the permissions:
 
 * Create all permissions in one go using single CLI command
 * Create step by step using the CLI commands
