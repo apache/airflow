@@ -77,6 +77,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                         "batch_id": self.batch_id,
                     }
                 )
+                return
             elif batch.status in {BatchStatus.CANCELLED, BatchStatus.CANCELLING}:
                 yield TriggerEvent(
                     {
@@ -85,6 +86,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                         "batch_id": self.batch_id,
                     }
                 )
+                return
             elif batch.status == BatchStatus.FAILED:
                 yield TriggerEvent(
                     {
@@ -93,6 +95,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                         "batch_id": self.batch_id,
                     }
                 )
+                return
             elif batch.status == BatchStatus.EXPIRED:
                 yield TriggerEvent(
                     {
@@ -101,13 +104,14 @@ class OpenAIBatchTrigger(BaseTrigger):
                         "batch_id": self.batch_id,
                     }
                 )
-
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "message": f"Batch {self.batch_id} has failed.",
-                    "batch_id": self.batch_id,
-                }
-            )
+                return
+            else:
+                yield TriggerEvent(
+                    {
+                        "status": "error",
+                        "message": f"Batch {self.batch_id} has failed.",
+                        "batch_id": self.batch_id,
+                    }
+                )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "batch_id": self.batch_id})
