@@ -108,7 +108,7 @@ export const AssetEvents = ({
 
     return {
       asset_events: filteredAssetEvents,
-      total_entries: data.total_entries,
+      total_entries: filteredAssetEvents.length,
     };
   }, [data, startDate, endDate, dagIdPattern, taskIdPattern, runType]);
 
