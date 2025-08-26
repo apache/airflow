@@ -40,8 +40,8 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Jump: Shift+{{arrow}}",
-    "navigation": "Navigation: {{arrow}}",
+    "jump": "Jump: {{meta}}+{{arrow}}",
+    "navigation": "Navigation: Shift+{{arrow}}",
     "toggleGroup": "Toggle group: Space"
   },
   "overview": {

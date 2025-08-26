@@ -21,8 +21,8 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import type { ArrowKey, NavigationDirection } from "./types";
 
-const ARROW_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"] as const;
-const JUMP_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
+const ARROW_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
+const JUMP_KEYS = ["mod+ArrowDown", "mod+ArrowUp", "mod+ArrowLeft", "mod+ArrowRight"] as const;
 
 type Props = {
   enabled?: boolean;
