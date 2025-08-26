@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections.abc import MutableSequence, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.auth.transport.requests import AuthorizedSession
 from google.cloud.orchestration.airflow.service_v1 import (
     EnvironmentsAsyncClient,
     EnvironmentsClient,
@@ -75,6 +78,34 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
+
+    def make_composer_airflow_api_request(
+        self,
+        method: str,
+        airflow_uri: str,
+        path: str,
+        data: Any | None = None,
+        timeout: float | None = None,
+    ):
+        """
+        Make a request to Cloud Composer environment's web server.
+
+        :param method: The request method to use ('GET', 'OPTIONS', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE').
+        :param airflow_uri: The URI of the Apache Airflow Web UI hosted within this environment.
+        :param path: The path to send the request.
+        :param data: Dictionary, list of tuples, bytes, or file-like object to send in the body of the request.
+        :param timeout: The timeout for this request.
+        """
+        authed_session = AuthorizedSession(self.get_credentials())
+
+        resp = authed_session.request(
+            method=method,
+            url=urljoin(airflow_uri, path),
+            data=data,
+            headers={"Content-Type": "application/json"},
+            timeout=timeout,
+        )
+        return resp
 
     def get_operation(self, operation_name):
         return self.get_environment_client().transport.operations_client.get_operation(name=operation_name)
@@ -407,6 +438,39 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
 
             self.log.info("Waiting for result...")
             time.sleep(poll_interval)
+
+    def trigger_dag_run(
+        self,
+        composer_airflow_uri: str,
+        composer_dag_id: str,
+        composer_dag_conf: dict | None = None,
+        timeout: float | None = None,
+    ) -> dict:
+        """
+        Trigger DAG run for provided Apache Airflow Web UI hosted within Composer environment.
+
+        :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
+        :param composer_dag_id: The ID of DAG which will be triggered.
+        :param composer_dag_conf: Configuration parameters for the DAG run.
+        :param timeout: The timeout for this request.
+        """
+        response = self.make_composer_airflow_api_request(
+            method="POST",
+            airflow_uri=composer_airflow_uri,
+            path=f"/api/v1/dags/{composer_dag_id}/dagRuns",
+            data=json.dumps(
+                {
+                    "conf": composer_dag_conf or {},
+                }
+            ),
+            timeout=timeout,
+        )
+
+        if response.status_code != 200:
+            self.log.error(response.text)
+            response.raise_for_status()
+
+        return response.json()
 
 
 class CloudComposerAsyncHook(GoogleBaseHook):
