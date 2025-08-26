@@ -112,10 +112,7 @@ class PatchUtil:
         # Always dump without aliases for internal validation
         raw_data = patch_body.model_dump(by_alias=False)
 
-        fields_set = set(patch_body.model_fields_set)
-        allowed_fields = set(patch_body.model_fields.keys())
-
-        print(fields_set, update_mask)
+        fields_to_update = patch_body.model_fields_set
         if update_mask:
             invalid = set(update_mask) - allowed_fields
             if invalid:
