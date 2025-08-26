@@ -196,11 +196,12 @@ class HITLOperator(BaseOperator):
         *,
         task_instance: RuntimeTaskInstanceProtocol,
         base_url: str | None = None,
-        options: list[str] | None = None,
+        options: str | list[str] | None = None,
         params: dict[str, Any] | None = None,
     ) -> str:
         """Generate the URL link to the "required actions" page with pre-defined data."""
         query_param: dict[str, Any] = {}
+        options = [options] if isinstance(options, str) else options
         if options:
             if diff := set(options) - set(self.options):
                 raise ValueError(f"options {diff} are not valid options")

@@ -267,7 +267,7 @@ class TestHITLOperator:
         "options, params, expected_query_string",
         [
             (None, None, "?map_index=-1"),
-            (["1"], None, "?_options=1&map_index=-1"),
+            ("1", None, "?_options=1&map_index=-1"),
             (["1", "2"], None, "?_options=1%2C2&map_index=-1"),
             (None, {"input_1": 123}, "?input_1=123&map_index=-1"),
             (
@@ -323,7 +323,7 @@ class TestHITLOperator:
         "options, params, expected_query_string",
         [
             (None, None, "?map_index=-1"),
-            (["1"], None, "?_options=1&map_index=-1"),
+            ("1", None, "?_options=1&map_index=-1"),
             (["1", "2"], None, "?_options=1%2C2&map_index=-1"),
             (None, {"input_1": 123}, "?input_1=123&map_index=-1"),
             (
