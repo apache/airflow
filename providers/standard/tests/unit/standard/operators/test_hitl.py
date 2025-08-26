@@ -296,7 +296,7 @@ class TestHITLOperator:
         expected_url = (
             f"{base_url}/dags/test_dag/runs/test/tasks/hitl_test/required_actions{expected_query_string}"
         )
-
+        task, ti = hitl_task_and_ti_for_generating_link
         url = task.generate_link_to_ui(
             task_instance=ti,
             base_url=base_url,
