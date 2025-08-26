@@ -21,12 +21,12 @@ import { Box, Table } from "@chakra-ui/react";
 
 import { useUiServiceJobs } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { StateBadge } from "src/components/StateBadge";
 
 export const JobsPage = () => {
   const { data, error } = useUiServiceJobs();
 
   // TODO to make it proper
-  // Beautification of state like in Airflow 2
   // Use DataTable as component from Airflow-Core UI
   // Add auto-refresh
   // Add sorting
@@ -59,7 +59,11 @@ export const JobsPage = () => {
                 <Table.Cell>{job.task_id}</Table.Cell>
                 <Table.Cell>{job.map_index}</Table.Cell>
                 <Table.Cell>{job.try_number}</Table.Cell>
-                <Table.Cell>{job.state}</Table.Cell>
+                <Table.Cell>
+                  <StateBadge state={job.state}>
+                    {job.state}
+                  </StateBadge>
+                </Table.Cell>
                 <Table.Cell>{job.queue}</Table.Cell>
                 <Table.Cell>{job.queued_dttm}</Table.Cell>
                 <Table.Cell>{job.edge_worker}</Table.Cell>
