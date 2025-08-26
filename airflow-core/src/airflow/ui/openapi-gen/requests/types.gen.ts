@@ -331,6 +331,10 @@ export type BulkUpdateAction_BulkTaskInstanceBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<BulkTaskInstanceBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -343,6 +347,10 @@ export type BulkUpdateAction_ConnectionBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<ConnectionBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -355,6 +363,10 @@ export type BulkUpdateAction_PoolBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<PoolBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -367,6 +379,10 @@ export type BulkUpdateAction_VariableBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<VariableBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -3029,26 +3045,6 @@ export type GetHitlDetailData = {
 };
 
 export type GetHitlDetailResponse = HITLDetail;
-
-export type UpdateMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-    updateMask?: Array<(string)> | null;
-};
-
-export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
-
-export type GetMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    taskId: string;
-};
-
-export type GetMappedTiHitlDetailResponse = HITLDetail;
 
 export type GetHitlDetailsData = {
     /**
