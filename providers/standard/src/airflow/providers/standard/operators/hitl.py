@@ -20,7 +20,6 @@ import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
@@ -42,6 +41,7 @@ from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class HITLOperator(BaseOperator):
@@ -93,6 +93,13 @@ class HITLOperator(BaseOperator):
         self.validate_defaults()
 
     def validate_options(self) -> None:
+        """
+        Validate the `options` attribute of the instance.
+
+        Raises:
+            ValueError: If `options` is empty.
+            ValueError: If any option contains a comma (`,`), which is not allowed.
+        """
         if not self.options:
             raise ValueError('"options" cannot be empty.')
 
@@ -100,6 +107,12 @@ class HITLOperator(BaseOperator):
             raise ValueError('"," is not allowed in option')
 
     def validate_params(self) -> None:
+        """
+        Validate the `params` attribute of the instance.
+
+        Raises:
+            ValueError: If `"_options"` key is present in `params`, which is not allowed.
+        """
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 
@@ -199,7 +212,24 @@ class HITLOperator(BaseOperator):
         options: str | list[str] | None = None,
         params_input: dict[str, Any] | None = None,
     ) -> str:
-        """Generate the URL link to the "required actions" page with pre-defined data."""
+        """
+        Generate a URL link to the "required actions" page for a specific task instance.
+
+        This URL includes query parameters based on allowed options and parameters.
+
+        Args:
+            task_instance: The task instance to generate the link for.
+            base_url: Optional base URL to use. Defaults to ``api.base_url`` from config.
+            options: Optional subset of allowed options to include in the URL.
+            params_input: Optional subset of allowed params to include in the URL.
+
+        Raises:
+            ValueError: If any provided option or parameter is invalid.
+            ValueError: If no base_url can be determined.
+
+        Returns:
+            The full URL pointing to the required actions page with query parameters.
+        """
         query_param: dict[str, Any] = {}
         options = [options] if isinstance(options, str) else options
         if options:
@@ -237,6 +267,21 @@ class HITLOperator(BaseOperator):
         options: list[str] | None = None,
         params_input: dict[str, Any] | None = None,
     ) -> str:
+        """
+        Generate a "required actions" page URL from a task context.
+
+        Delegates to ``generate_link_to_ui`` using the task and task_instance extracted from
+        the provided context.
+
+        Args:
+            context: The Airflow task context containing 'task' and 'task_instance'.
+            base_url: Optional base URL to use.
+            options: Optional list of allowed options to include.
+            params_input: Optional dictionary of allowed parameters to include.
+
+        Returns:
+            The full URL pointing to the required actions page with query parameters.
+        """
         hitl_op = context["task"]
         if not isinstance(hitl_op, HITLOperator):
             raise ValueError("This method only supports HITLOperator")
