@@ -31,7 +31,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow.exceptions import DownstreamTasksSkipped
-from airflow.models import Trigger
+from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
@@ -54,6 +54,23 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
+
+
+@pytest.fixture
+def hitl_task_and_ti_for_generating_link(dag_maker: DagMaker) -> tuple[HITLOperator, TaskInstance]:
+    with dag_maker("test_dag"):
+        task = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2", "3", "4", "5"],
+            body="This is body",
+            defaults=["1"],
+            respondents="test",
+            multiple=True,
+            params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
+        )
+    dr = dag_maker.create_dagrun()
+    return task, dag_maker.run_ti(task.task_id, dr)
 
 
 class TestHITLOperator:
