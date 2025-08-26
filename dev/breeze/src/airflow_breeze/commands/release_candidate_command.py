@@ -70,8 +70,7 @@ def validate_remote_tracks_apache_airflow(remote_name):
         console_print("Expected patterns: apache/airflow")
         if not confirm_action("Do you want to continue anyway? This is NOT recommended for releases."):
             exit(1)
-    else:
-        console_print(f"[success]Remote '{remote_name}' correctly tracks apache/airflow")
+    console_print(f"[success]Remote '{remote_name}' correctly tracks apache/airflow")
 
 
 def validate_git_status():
@@ -91,8 +90,7 @@ def validate_git_status():
         run_command(["git", "status"])
         if not confirm_action("Do you want to continue with uncommitted changes? This is NOT recommended."):
             exit(1)
-    else:
-        console_print("[success]Working directory is clean")
+    console_print("[success]Working directory is clean")
 
 
 def validate_version_branches_exist(version_branch, remote_name):
@@ -124,16 +122,14 @@ def validate_version_branches_exist(version_branch, remote_name):
         console_print("Available remote branches:")
         run_command(["git", "branch", "-r"])
         exit(1)
-    else:
-        console_print(f"[success]Test branch '{remote_name}/{test_branch}' exists")
+    console_print(f"[success]Test branch '{remote_name}/{test_branch}' exists")
 
     if not stable_branch_exists:
         console_print(f"[error]Stable branch '{remote_name}/{stable_branch}' does not exist!")
         console_print("Available remote branches:")
         run_command(["git", "branch", "-r"])
         exit(1)
-    else:
-        console_print(f"[success]Stable branch '{remote_name}/{stable_branch}' exists")
+    console_print(f"[success]Stable branch '{remote_name}/{stable_branch}' exists")
 
 
 def validate_tag_does_not_exist(version, remote_name):
@@ -152,31 +148,30 @@ def validate_tag_does_not_exist(version, remote_name):
     remote_result = run_command(
         ["git", "ls-remote", "--exit-code", "--tags", remote_name, f"refs/tags/{version}"],
         check=False,
-        capture_output=True,
-        text=True,
     )
 
     tag_exists_locally = bool(local_result.stdout.strip())
     tag_exists_remotely = remote_result.returncode == 0
 
-    if tag_exists_locally or tag_exists_remotely:
-        location = []
-        if tag_exists_locally:
-            location.append("locally")
-        if tag_exists_remotely:
-            location.append("remotely")
-
-        console_print(f"[error]Tag '{version}' already exists {' and '.join(location)}!")
-
-        if tag_exists_locally:
-            console_print(f"Use 'git tag -d {version}' to delete it locally if needed")
-        if tag_exists_remotely:
-            console_print(f"Use 'git push {remote_name} --delete {version}' to delete it remotely if needed")
-
-        if not confirm_action("Do you want to continue anyway? This may cause issues."):
-            exit(1)
-    else:
+    if not tag_exists_locally and not tag_exists_remotely:
         console_print(f"[success]Tag '{version}' does not exist yet")
+        return
+
+    location = []
+    if tag_exists_locally:
+        location.append("locally")
+    if tag_exists_remotely:
+        location.append("remotely")
+
+    console_print(f"[error]Tag '{version}' already exists {' and '.join(location)}!")
+
+    if tag_exists_locally:
+        console_print(f"Use 'git tag -d {version}' to delete it locally if needed")
+    if tag_exists_remotely:
+        console_print(f"Use 'git push {remote_name} --delete {version}' to delete it remotely if needed")
+
+    if not confirm_action("Do you want to continue anyway? This may cause issues."):
+        exit(1)
 
 
 def validate_on_correct_branch_for_tagging(version_branch):
@@ -200,8 +195,7 @@ def validate_on_correct_branch_for_tagging(version_branch):
         console_print("Tags should be created on the stable branch after merging the sync PR.")
         console_print("Make sure the PR merge step completed successfully.")
         exit(1)
-    else:
-        console_print(f"[success]On correct branch '{expected_branch}' for tagging")
+    console_print(f"[success]On correct branch '{expected_branch}' for tagging")
 
 
 def merge_pr(version_branch, remote_name):
