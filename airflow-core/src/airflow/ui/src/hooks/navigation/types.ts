@@ -39,7 +39,7 @@ export type UseNavigationProps = {
 export type UseNavigationReturn = {
   currentIndices: NavigationIndices;
   currentTask: GridTask | undefined;
-  handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
+  handleNavigation: (direction: NavigationDirection) => void;
   mode: NavigationMode;
   setMode: (mode: NavigationMode) => void;
 };

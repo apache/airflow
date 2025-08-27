@@ -43,7 +43,6 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
-import { getMetaKey } from "src/utils";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
@@ -137,8 +136,6 @@ export const PanelButtons = ({
       }
     }
   };
-
-  const metaKey = getMetaKey();
 
   return (
     <Box position="absolute" top={1} width="100%" zIndex={1}>
@@ -301,7 +298,6 @@ export const PanelButtons = ({
             content={
               <Box>
                 <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
-                <Text>{translate("dag:navigation.jump", { arrow: "↑↓←→", meta: metaKey })}</Text>
                 <Text>{translate("dag:navigation.toggleGroup")}</Text>
               </Box>
             }

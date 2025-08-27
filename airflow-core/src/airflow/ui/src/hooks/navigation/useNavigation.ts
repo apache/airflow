@@ -59,17 +59,8 @@ const isValidDirection = (direction: NavigationDirection, mode: NavigationMode):
   }
 };
 
-const getNextIndex = (
-  current: number,
-  direction: number,
-  options: { isJump: boolean; max: number },
-): number => {
-  if (options.isJump) {
-    return direction > 0 ? options.max - 1 : 0;
-  }
-
-  return Math.max(0, Math.min(options.max - 1, current + direction));
-};
+const getNextIndex = (current: number, direction: number, options: { max: number }): number =>
+  Math.max(0, Math.min(options.max - 1, current + direction));
 
 const buildPath = (params: {
   dagId: string;
@@ -132,7 +123,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
   const currentTask = useMemo(() => tasks[currentIndices.taskIndex], [tasks, currentIndices.taskIndex]);
 
   const handleNavigation = useCallback(
-    (direction: NavigationDirection, isJump: boolean = false) => {
+    (direction: NavigationDirection) => {
       if (!enabled || !dagId || !isValidDirection(direction, mode)) {
         return;
       }
@@ -146,7 +137,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
 
       const isAtBoundary = boundaries[direction];
 
-      if (!isJump && isAtBoundary) {
+      if (isAtBoundary) {
         return;
       }
 
@@ -166,11 +157,10 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
 
       if (nav.index === "taskIndex") {
         newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
-          isJump,
           max: nav.max,
         });
       } else {
-        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { isJump, max: nav.max });
+        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { max: nav.max });
       }
 
       const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
