@@ -22,12 +22,11 @@ import { useUiServiceWorker } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 export const WorkerPage = () => {
-  const { data, error } = useUiServiceWorker();
+  const { data, error } = useUiServiceWorker(undefined, { enabled: true, refetchInterval: 5000 });
 
   // TODO to make it proper
   // Beautification of state like in Airflow 2
   // Use DataTable as component from Airflow-Core UI
-  // Add auto-refresh
   // Add actions for maintenance / delete of orphan worker
   // Add sorting
   // Add filtering

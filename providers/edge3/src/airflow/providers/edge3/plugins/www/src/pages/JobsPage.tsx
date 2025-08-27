@@ -22,12 +22,11 @@ import { useUiServiceJobs } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 export const JobsPage = () => {
-  const { data, error } = useUiServiceJobs();
+  const { data, error } = useUiServiceJobs(undefined, { enabled: true, refetchInterval: 5000 });
 
   // TODO to make it proper
   // Beautification of state like in Airflow 2
   // Use DataTable as component from Airflow-Core UI
-  // Add auto-refresh
   // Add sorting
   // Add filtering
   // Add links to see job details / jobs list
