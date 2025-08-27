@@ -43,7 +43,7 @@ class SqsMessageQueueProvider(BaseMessageQueueProvider):
 
     [START sqs_message_queue_provider_description]
 
-    * It uses the ``sqs`` as scheme for identifying SQS queues.
+    * It uses ``sqs`` as scheme for identifying SQS queues.
     * For parameter definitions take a look at :class:`~airflow.providers.amazon.aws.triggers.sqs.SqsSensorTrigger`.
 
     .. code-block:: python
@@ -51,7 +51,6 @@ class SqsMessageQueueProvider(BaseMessageQueueProvider):
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
         from airflow.sdk import Asset, AssetWatcher
 
-        # New scheme-based approach
         trigger = MessageQueueTrigger(
             scheme="sqs",
             # Additional AWS SqsSensorTrigger parameters as needed

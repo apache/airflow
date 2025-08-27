@@ -37,7 +37,7 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
 
     [START kafka_message_queue_provider_description]
 
-    * It uses the ``kafka`` as scheme for identifying Kafka queues.
+    * It uses ``kafka`` as scheme for identifying Kafka queues.
     * For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`.
 
     .. code-block:: python
@@ -45,7 +45,6 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
         from airflow.sdk import Asset, AssetWatcher
 
-        # New scheme-based approach
         trigger = MessageQueueTrigger(
             scheme="kafka",
             # Additional Kafka AwaitMessageTrigger parameters as needed

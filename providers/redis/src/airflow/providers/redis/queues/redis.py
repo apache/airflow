@@ -35,7 +35,7 @@ class RedisPubSubMessageQueueProvider(BaseMessageQueueProvider):
 
     [START redis_message_queue_provider_description]
 
-    * It uses the ``redis+pubsub`` as scheme for identifying Redis queues.
+    * It uses ``redis+pubsub`` as scheme for identifying Redis queues.
     * For parameter definitions take a look at :class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger`.
 
     .. code-block:: python
@@ -43,7 +43,6 @@ class RedisPubSubMessageQueueProvider(BaseMessageQueueProvider):
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
         from airflow.sdk import Asset, AssetWatcher
 
-        # New scheme-based approach
         trigger = MessageQueueTrigger(
             scheme="redis+pubsub",
             # Additional Redis AwaitMessageTrigger parameters as needed
