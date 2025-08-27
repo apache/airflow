@@ -460,6 +460,8 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
+* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
 * @param data.dagRunStartDateGte
 * @param data.dagRunStartDateGt
 * @param data.dagRunStartDateLte
@@ -474,7 +476,8 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
   dagDisplayNamePattern?: string;
@@ -489,6 +492,7 @@ export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { bundleN
   dagRunStartDateLte?: string;
   dagRunState?: string[];
   excludeStale?: boolean;
+  hasAssetSchedule?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -498,7 +502,7 @@ export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { bundleN
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Dag
 * Get basic information about a DAG.
@@ -558,10 +562,13 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 * @param data.bundleVersion
 * @param data.orderBy
 * @param data.isFavorite
+* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
   dagDisplayNamePattern?: string;
@@ -569,6 +576,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { bundl
   dagIds?: string[];
   dagRunsLimit?: number;
   excludeStale?: boolean;
+  hasAssetSchedule?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -578,7 +586,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { bundl
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Latest Run Info
 * Get latest run.

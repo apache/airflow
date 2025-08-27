@@ -7,6 +7,7 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "allOperators": "All Operators",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -25,7 +26,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrency",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
     "description": "Description",
@@ -181,6 +181,7 @@
     "failed": "Failed",
     "no_status": "No Status",
     "none": "No Status",
+    "planned": "Planned",
     "queued": "Queued",
     "removed": "Removed",
     "restarting": "Restarting",
