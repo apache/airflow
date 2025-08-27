@@ -24,6 +24,11 @@ from typing import Any
 
 import oracledb
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 DEFAULT_DB_PORT = 1521
