@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 import oracledb
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
