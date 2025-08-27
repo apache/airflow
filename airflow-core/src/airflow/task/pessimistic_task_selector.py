@@ -21,7 +21,7 @@ from collections.abc import Collection
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, and_, func, select, text, column
+from sqlalchemy import Column, and_, column, func, select, text
 from sqlalchemy.orm import Query, selectinload
 
 from airflow.models import DagRun, TaskInstance
@@ -54,6 +54,7 @@ class LimitWindowDescriptor:
         window (expression.ColumnElement): the window expression itself.
         limit_join_model (Base | None): the model on which we join to get an aditional concurrency limit,
         sometimes it is needed for limits which are outside of dagrun, taskinstance and dag.
+        additional_select_from_previous_query (list[str]): additional fields and columns to select from previous window in order to reduce joins.
     """
 
     running_now_join: CTE
