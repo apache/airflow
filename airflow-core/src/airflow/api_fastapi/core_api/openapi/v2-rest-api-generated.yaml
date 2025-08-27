@@ -3004,6 +3004,26 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: has_asset_schedule
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter DAGs with asset-based scheduling
+          title: Has Asset Schedule
+        description: Filter DAGs with asset-based scheduling
+      - name: asset_dependency
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter DAGs by asset dependency (name or URI)
+          title: Asset Dependency
+        description: Filter DAGs by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -5594,6 +5614,14 @@ paths:
           items:
             type: integer
           title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
       - name: limit
         in: query
         required: false
@@ -6386,6 +6414,14 @@ paths:
           items:
             type: integer
           title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
       - name: limit
         in: query
         required: false
@@ -9584,7 +9620,10 @@ components:
         concurrency:
           type: integer
           title: Concurrency
-          description: Return max_active_tasks as concurrency.
+          description: 'Return max_active_tasks as concurrency.
+
+
+            Deprecated: Use max_active_tasks instead.'
           readOnly: true
         latest_dag_version:
           anyOf:

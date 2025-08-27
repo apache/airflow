@@ -31,7 +31,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow.exceptions import DownstreamTasksSkipped
-from airflow.models import Trigger
+from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
@@ -43,6 +43,8 @@ from airflow.providers.standard.operators.hitl import (
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
 
+from tests_common.test_utils.config import conf_vars
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -52,6 +54,23 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
+
+
+@pytest.fixture
+def hitl_task_and_ti_for_generating_link(dag_maker: DagMaker) -> tuple[HITLOperator, TaskInstance]:
+    with dag_maker("test_dag"):
+        task = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2", "3", "4", "5"],
+            body="This is body",
+            defaults=["1"],
+            respondents="test",
+            multiple=True,
+            params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
+        )
+    dr = dag_maker.create_dagrun()
+    return task, dag_maker.run_ti(task.task_id, dr)
 
 
 class TestHITLOperator:
@@ -65,18 +84,40 @@ class TestHITLOperator:
             multiple=False,
             params=ParamsDict({"input_1": 1}),
         )
-        hitl_op.validate_defaults()
+        hitl_op.validate_options()
 
-    def test_validate_options_with_empty_options(self) -> None:
-        with pytest.raises(ValueError, match='"options" cannot be empty.'):
+    @pytest.mark.parametrize(
+        "options, expected_err_msg",
+        [
+            ([], '"options" cannot be empty.'),
+            (["1,1", "1", "2"], '"," is not allowed in option'),
+        ],
+        ids=["empty", "comma"],
+    )
+    def test_validate_options_with_empty_options(self, options: list[str], expected_err_msg: str) -> None:
+        # validate_options is called during initialization
+        with pytest.raises(ValueError, match=expected_err_msg):
             HITLOperator(
                 task_id="hitl_test",
                 subject="This is subject",
-                options=[],
+                options=options,
                 body="This is body",
                 defaults=["1"],
                 multiple=False,
                 params=ParamsDict({"input_1": 1}),
+            )
+
+    def test_validate_params_with__options(self) -> None:
+        # validate_params is called during initialization
+        with pytest.raises(ValueError, match='"_options" is not allowed in params'):
+            HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=["1", "2"],
+                body="This is body",
+                defaults=["1"],
+                multiple=False,
+                params=ParamsDict({"_options": 1}),
             )
 
     def test_validate_defaults(self) -> None:
@@ -110,6 +151,7 @@ class TestHITLOperator:
         extra_kwargs: dict[str, Any],
         expected_error_msg: str,
     ) -> None:
+        # validate_default is called during initialization
         with pytest.raises(ValueError, match=expected_error_msg):
             HITLOperator(
                 task_id="hitl_test",
@@ -237,6 +279,117 @@ class TestHITLOperator:
                     "params_input": {"no such key": 2, "input": 333},
                 },
             )
+
+    @pytest.mark.parametrize(
+        "options, params_input, expected_query_string",
+        [
+            (None, None, "?map_index=-1"),
+            ("1", None, "?_options=1&map_index=-1"),
+            (["1", "2"], None, "?_options=1%2C2&map_index=-1"),
+            (None, {"input_1": 123}, "?input_1=123&map_index=-1"),
+            (
+                ["3", "4", "5"],
+                {"input_1": 123123, "input_2": 345345},
+                "?_options=3%2C4%2C5&input_1=123123&input_2=345345&map_index=-1",
+            ),
+        ],
+        ids=[
+            "empty",
+            "single-option",
+            "multiple-options",
+            "single-param-input",
+            "multiple-options-and-param-inputs",
+        ],
+    )
+    @pytest.mark.parametrize("base_url", ["http://test", "http://test_2:8080"])
+    def test_generate_link_to_ui(
+        self,
+        base_url: str,
+        options: list[str] | None,
+        params_input: dict[str, Any] | None,
+        expected_query_string: str,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        expected_url = (
+            f"{base_url}/dags/test_dag/runs/test/tasks/hitl_test/required_actions{expected_query_string}"
+        )
+        task, ti = hitl_task_and_ti_for_generating_link
+        url = task.generate_link_to_ui(
+            task_instance=ti,
+            base_url=base_url,
+            options=options,
+            params_input=params_input,
+        )
+        assert url == expected_url
+
+    @pytest.mark.parametrize(
+        "options, params_input, expected_query_string",
+        [
+            (None, None, "?map_index=-1"),
+            ("1", None, "?_options=1&map_index=-1"),
+            (["1", "2"], None, "?_options=1%2C2&map_index=-1"),
+            (None, {"input_1": 123}, "?input_1=123&map_index=-1"),
+            (
+                ["3", "4", "5"],
+                {"input_1": 123123, "input_2": 345345},
+                "?_options=3%2C4%2C5&input_1=123123&input_2=345345&map_index=-1",
+            ),
+        ],
+        ids=[
+            "empty",
+            "single-option",
+            "multiple-options",
+            "single-param-input",
+            "multiple-options-and-param-inputs",
+        ],
+    )
+    @conf_vars({("api", "base_url"): "http://localhost:8080/"})
+    def test_generate_link_fall_back_to_conf_api_base_url(
+        self,
+        options: list[str] | None,
+        params_input: dict[str, Any] | None,
+        expected_query_string: str,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        task, ti = hitl_task_and_ti_for_generating_link
+        expected_url = f"http://localhost:8080/dags/test_dag/runs/test/tasks/hitl_test/required_actions{expected_query_string}"
+
+        url = task.generate_link_to_ui(
+            task_instance=ti,
+            options=options,
+            params_input=params_input,
+        )
+        assert url == expected_url
+
+    @pytest.mark.parametrize(
+        "options, params_input, expected_err_msg",
+        [
+            ([100, "2", 30000], None, "options {.*} are not valid options"),
+            (
+                None,
+                {"input_not_exist": 123, "no_such_key": 123},
+                "params {.*} are not valid params",
+            ),
+        ],
+    )
+    def test_generate_link_to_ui_with_invalid_input(
+        self,
+        options: list[str] | None,
+        params_input: dict[str, Any] | None,
+        expected_err_msg: str,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        task, ti = hitl_task_and_ti_for_generating_link
+        with pytest.raises(ValueError, match=expected_err_msg):
+            task.generate_link_to_ui(task_instance=ti, options=options, params_input=params_input)
+
+    def test_generate_link_to_ui_without_base_url(
+        self,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        task, ti = hitl_task_and_ti_for_generating_link
+        with pytest.raises(ValueError, match="Not able to retrieve base_url"):
+            task.generate_link_to_ui(task_instance=ti)
 
 
 class TestApprovalOperator:
