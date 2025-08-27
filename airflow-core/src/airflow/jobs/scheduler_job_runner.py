@@ -887,12 +887,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ti.dag_id,
                             ti,
                         )
-                        session.execute(
-                            update(TI)
-                            .where(TI.dag_id == ti.dag_id, TI.state == TaskInstanceState.SCHEDULED)
-                            .values(state=TaskInstanceState.FAILED)
-                            .execution_options(synchronize_session="fetch")
-                        )
+                        ti.set_state(TaskInstanceState.FAILED, session=session)
                         continue
                     if TYPE_CHECKING:
                         assert dag
