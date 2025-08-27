@@ -234,10 +234,7 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 @pytest.fixture(autouse=True)
 def trace_sql(request):
     try:
-        from tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
-            count_queries,
-            trace_queries,
-        )
+        from tests_common.test_utils.perf.perf_kit.sqlalchemy import count_queries, trace_queries
     except ImportError:
         yield
         return
