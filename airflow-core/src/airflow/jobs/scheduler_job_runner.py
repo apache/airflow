@@ -881,11 +881,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Get task from the Serialized DAG
                 try:
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                    cls.logger().error(
-                        "DAG '%s' for task instance %s not found in serialized_dag table",
-                        ti.dag_id,
-                        ti,
-                    )
+                    if not dag:
+                        cls.logger().error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            ti.dag_id,
+                            ti,
+                        )
+                        session.execute(
+                            update(TI)
+                            .where(TI.dag_id == ti.dag_id, TI.state == TaskInstanceState.SCHEDULED)
+                            .values(state=TaskInstanceState.FAILED)
+                            .execution_options(synchronize_session="fetch")
+                        )
+                        continue
                     if TYPE_CHECKING:
                         assert dag
                     # TODO (GH-52141): get_task in scheduler needs to return scheduler types
