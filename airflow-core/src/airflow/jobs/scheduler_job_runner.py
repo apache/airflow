@@ -889,8 +889,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         ti.set_state(TaskInstanceState.FAILED, session=session)
                         continue
-                    if TYPE_CHECKING:
-                        assert dag
+
                     # TODO (GH-52141): get_task in scheduler needs to return scheduler types
                     # instead, but currently it inherits SDK's DAG.
                     task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
