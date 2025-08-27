@@ -25,10 +25,7 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import FailureDetails
 
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesResults
-from kubernetes_tests.test_base import (
-    EXECUTOR,
-    BaseK8STest,  # isort:skip (needed to workaround isort bug)
-)
+from kubernetes_tests.test_base import EXECUTOR, BaseK8STest
 
 
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")

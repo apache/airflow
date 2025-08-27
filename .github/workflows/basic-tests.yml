@@ -376,7 +376,7 @@ jobs:
       - name: "Check Airflow RC process command"
         run: >
           breeze release-management start-rc-process
-          --version 3.1.0rc1 --previous-version 3.0.0 --answer yes --dry-run
+          --version 3.1.0rc1 --previous-version 3.0.0 --task-sdk-version 1.0.0rc1 --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
           breeze release-management start-release --release-candidate 3.1.0rc1

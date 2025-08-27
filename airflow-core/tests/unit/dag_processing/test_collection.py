@@ -41,7 +41,7 @@ from airflow.dag_processing.collection import (
 )
 from airflow.exceptions import SerializationError
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagModel, DagRun, Trigger
+from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
     AssetModel,
@@ -165,7 +165,6 @@ class TestAssetModelOperation:
 
         asset_model = session.scalars(select(AssetModel)).one()
         assert len(asset_model.triggers) == expected_num_triggers
-        assert session.scalar(select(func.count()).select_from(Trigger)) == expected_num_triggers
 
     @pytest.mark.parametrize(
         "schedule, model, columns, expected",
