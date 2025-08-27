@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
+from more_itertools import chunked
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import (
@@ -428,3 +429,67 @@ class PostgresHook(DbApiHook):
         if self.enable_log_db_messages:
             for output in conn.notices:
                 self.log.info(output)
+
+    def insert_rows(
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=False,
+        fast_executemany=False,
+        autocommit=False,
+        **kwargs,
+    ):
+        """
+        Insert a collection of tuples into a table using postgres specialized execute_batch method.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
+
+        :param table: Name of the target table
+        :param rows: The rows to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param commit_every: The maximum number of rows to insert in one
+            transaction. Set to 0 to insert all rows in one transaction.
+        :param replace: Whether to replace instead of insert
+        :param executemany: If True, all rows are inserted at once in
+            chunks defined by the commit_every parameter. This only works if all rows
+            have same number of column names, but leads to better performance.
+        :param fast_executemany: If True, the `fast_executemany` parameter will be set on the
+            cursor used by `executemany` which leads to better performance, if supported by driver.
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        """
+        nb_rows = 0
+        with self._create_autocommit_connection(autocommit) as conn:
+            conn.commit()
+            with closing(conn.cursor()) as cur:
+                for chunked_rows in chunked(rows, commit_every):
+                    values = list(
+                        map(
+                            lambda row: self._serialize_cells(row, conn),
+                            chunked_rows,
+                        )
+                    )
+                    sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
+                    self.log.debug("Generated sql: %s", sql)
+
+                    try:
+                        execute_batch(
+                            cur,
+                            sql,
+                            values,
+                            page_size=commit_every
+                        )
+                    except Exception as e:
+                        self.log.error("Generated sql: %s", sql)
+                        self.log.error("Parameters: %s", values)
+                        raise e
+
+                    conn.commit()
+                    nb_rows += len(chunked_rows)
+                    self.log.info("Loaded %s rows into %s so far", nb_rows, table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
