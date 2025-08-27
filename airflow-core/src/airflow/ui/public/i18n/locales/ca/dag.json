@@ -1,0 +1,122 @@
+{
+  "allRuns": "Totes les execucions",
+  "blockingDeps": {
+    "dependency": "Dependència",
+    "reason": "Raó",
+    "title": "Dependències que bloquegen la tasca per ser programada"
+  },
+  "code": {
+    "bundleUrl": "Url de la col·lecció",
+    "noCode": "No s'ha trobat codi",
+    "parsedAt": "Analitzat a:"
+  },
+  "extraLinks": "Enllaços addicionals",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Restablir a l'últim",
+      "toggleGroup": "Alternar grup"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Avançat",
+      "dagDocs": "Documentació del Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "Tots els nivells de registre",
+    "allSources": "Totes les fonts",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Pantalla completa",
+      "tooltip": "Prem {{hotkey}} per a pantalla completa"
+    },
+    "info": "INFO",
+    "noTryNumber": "Sense número d'intent",
+    "settings": "Configuració dels logs",
+    "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "jump": "Saltar: Shift+{{arrow}}",
+    "navigation": "Navegació: {{arrow}}",
+    "toggleGroup": "Alternar grup: Espai"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Execució fallida",
+      "failedRun_other": "Execucions fallides",
+      "failedTask_one": "Tasca fallida",
+      "failedTask_other": "Tasques fallides",
+      "failedTaskInstance_one": "Instància de tasca fallida",
+      "failedTaskInstance_other": "Instàncies de tasca fallides"
+    },
+    "charts": {
+      "assetEvent_one": "Esdeveniment de l'Asset creat",
+      "assetEvent_other": "Esdeveniments de l'Asset creats"
+    },
+    "failedLogs": {
+      "title": "Registres de tasques fallides recents",
+      "viewFullLogs": "Veure els registres complets"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opcions",
+      "showGantt": "Mostrar Gantt",
+      "showGraph": "Mostrar gràfic",
+      "showGrid": "Mostrar quadrícula"
+    },
+    "dagRuns": {
+      "label": "Nombre d'execucions de Dag"
+    },
+    "dependencies": {
+      "label": "Dependències",
+      "options": {
+        "allDagDependencies": "Totes les dependències de Dag",
+        "externalConditions": "Condicions externes",
+        "onlyTasks": "Només tasques"
+      },
+      "placeholder": "Dependències"
+    },
+    "graphDirection": {
+      "label": "Direcció del gràfic"
+    }
+  },
+  "paramsFailed": "No s'han pogut carregar els paràmetres",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "La sol·licitud d'anàlisi del Dag ha fallat. Podria haver-hi sol·licituds d'anàlisi pendents que encara s'han de processar.",
+        "title": "El Dag no s'ha pogut tornar a analitzar"
+      },
+      "success": {
+        "description": "El Dag s'ha de tornar a analitzar aviat.",
+        "title": "Sol·licitud de tornar a analitzar el Dag enviada amb èxit"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Esdeveniments d'Asset",
+    "auditLog": "Registre d'auditoria",
+    "backfills": "Reompliments",
+    "code": "Codi",
+    "details": "Detalls",
+    "logs": "Registres",
+    "mappedTaskInstances_one": "Instància de tasca [{{count}}]",
+    "mappedTaskInstances_other": "Instàncies de tasca [{{count}}]",
+    "overview": "Visió general",
+    "renderedTemplates": "Plantilles renderitzades",
+    "requiredActions": "Accions requerides",
+    "runs": "Execucions",
+    "taskInstances": "Instàncies de tasca",
+    "tasks": "Tasques",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Col·lapsar tots els grups de tasques",
+    "expandAll": "Expandir tots els grups de tasques"
+  }
+}

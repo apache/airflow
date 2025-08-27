@@ -1,0 +1,24 @@
+{
+  "requiredAction_one": "Acció necessària",
+  "requiredAction_other": "Accions necessàries",
+  "requiredActionState": "Estat de l'acció necessària",
+  "response": {
+    "error": "Resposta fallida",
+    "optionsDescription": "Escull les teves opcions per a aquesta instància de tasca",
+    "optionsLabel": "Opcions",
+    "received": "Resposta rebuda a ",
+    "respond": "Respondre",
+    "success": "Resposta de {{taskId}} exitosa",
+    "title": "Instància de tasca humana - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Aprovació rebuda",
+    "approvalRequired": "Aprovació requerida",
+    "choiceReceived": "Elecció rebuda",
+    "choiceRequired": "Elecció requerida",
+    "rejectionReceived": "Rebuig rebut",
+    "responseReceived": "Resposta rebuda",
+    "responseRequired": "Resposta requerida"
+  },
+  "subject": "Assumpte"
+}

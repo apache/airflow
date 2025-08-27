@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Dags consumidors",
+  "createEvent": {
+    "button": "Crear esdeveniment",
+    "manual": {
+      "description": "Crear un esdeveniment manualment per l'Asset",
+      "extra": "Extra d'esdeveniment de l'Asset",
+      "label": "Manual"
+    },
+    "materialize": {
+      "description": "Executa el Dag aigües amunt d'aquest Asset",
+      "descriptionWithDag": "Executa el Dag aigües amunt d'aquest Asset: {{dagName}}",
+      "label": "Materialitzar",
+      "unpauseDag": "Reactivar {{dagName}} a l'executar"
+    },
+    "success": {
+      "manualDescription": "Creació manual d'esdeveniment per l'Asset correcta.",
+      "manualTitle": "Esdeveniment de l'Asset creat",
+      "materializeDescription": "El Dag aigües amunt {{dagId}} s'ha executat correctament.",
+      "materializeTitle": "Materialitzant l'Asset"
+    },
+    "title": "Crear esdeveniment de l'Asset per {{name}}"
+  },
+  "group": "Grup",
+  "lastAssetEvent": "Últim esdeveniment de l'Asset",
+  "name": "Nom",
+  "producingTasks": "Tasques productores",
+  "scheduledDags": "Dags programats",
+  "searchPlaceholder": "Cercar Assets"
+}
