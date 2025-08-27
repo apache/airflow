@@ -28,17 +28,20 @@ import {
   Portal,
   Select,
   VStack,
+  Text,
+  Box,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
+import { LuKeyboard } from "react-icons/lu";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
-import { Button } from "src/components/ui";
+import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 
 import { DagRunSelect } from "./DagRunSelect";
@@ -135,156 +138,174 @@ export const PanelButtons = ({
   };
 
   return (
-    <Flex justifyContent="space-between" position="absolute" top={1} width="100%" zIndex={1}>
-      <ButtonGroup attached size="sm" variant="outline">
-        <IconButton
-          aria-label={translate("dag:panel.buttons.showGrid")}
-          colorPalette="blue"
-          onClick={() => {
-            setDagView("grid");
-            if (dagView === "grid") {
-              handleFocus("grid");
-            }
-          }}
-          title={translate("dag:panel.buttons.showGrid")}
-          variant={dagView === "grid" ? "solid" : "outline"}
-        >
-          <FiGrid />
-        </IconButton>
-        <IconButton
-          aria-label={translate("dag:panel.buttons.showGraph")}
-          colorPalette="blue"
-          onClick={() => {
-            setDagView("graph");
-            if (dagView === "graph") {
-              handleFocus("graph");
-            }
-          }}
-          title={translate("dag:panel.buttons.showGraph")}
-          variant={dagView === "graph" ? "solid" : "outline"}
-        >
-          <MdOutlineAccountTree />
-        </IconButton>
-      </ButtonGroup>
-      <Flex gap={1} mr={3}>
-        <ToggleGroups />
-        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-        <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
-          <Popover.Trigger asChild>
-            <Button size="sm" variant="outline">
-              {translate("dag:panel.buttons.options")}
-              <FiChevronDown size="0.5rem" />
-            </Button>
-          </Popover.Trigger>
-          <Portal>
-            <Popover.Positioner>
-              <Popover.Content>
-                <Popover.Arrow />
-                <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
-                  {dagView === "graph" ? (
-                    <>
-                      <DagVersionSelect />
-                      <DagRunSelect limit={limit} />
-                      <Select.Root
-                        // @ts-expect-error The expected option type is incorrect
-                        collection={getOptions(translate)}
-                        data-testid="dependencies"
-                        onValueChange={handleDepsChange}
-                        size="sm"
-                        value={[dependencies]}
-                      >
-                        <Select.Label fontSize="xs">{translate("dag:panel.dependencies.label")}</Select.Label>
-                        <Select.Control>
-                          <Select.Trigger>
-                            <Select.ValueText placeholder={translate("dag:panel.dependencies.label")} />
-                          </Select.Trigger>
-                          <Select.IndicatorGroup>
-                            <Select.Indicator />
-                          </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Select.Positioner>
-                          <Select.Content>
-                            {getOptions(translate).items.map((option) => (
-                              <Select.Item item={option} key={option.value}>
-                                {option.label}
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Positioner>
-                      </Select.Root>
-                      <Select.Root
-                        // @ts-expect-error The expected option type is incorrect
-                        collection={directionOptions(translate)}
-                        onValueChange={handleDirectionUpdate}
-                        size="sm"
-                        value={[direction]}
-                      >
-                        <Select.Label fontSize="xs">
-                          {translate("dag:panel.graphDirection.label")}
-                        </Select.Label>
-                        <Select.Control>
-                          <Select.Trigger>
-                            <Select.ValueText />
-                          </Select.Trigger>
-                          <Select.IndicatorGroup>
-                            <Select.Indicator />
-                          </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Select.Positioner>
-                          <Select.Content>
-                            {directionOptions(translate).items.map((option) => (
-                              <Select.Item item={option} key={option.value}>
-                                {option.label}
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Positioner>
-                      </Select.Root>
-                    </>
-                  ) : (
-                    <>
-                      <Select.Root
-                        // @ts-expect-error The expected option type is incorrect
-                        collection={displayRunOptions}
-                        data-testid="display-dag-run-options"
-                        onValueChange={handleLimitChange}
-                        size="sm"
-                        value={[limit.toString()]}
-                      >
-                        <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
-                        <Select.Control>
-                          <Select.Trigger>
-                            <Select.ValueText />
-                          </Select.Trigger>
-                          <Select.IndicatorGroup>
-                            <Select.Indicator />
-                          </Select.IndicatorGroup>
-                        </Select.Control>
-                        <Select.Positioner>
-                          <Select.Content>
-                            {displayRunOptions.items.map((option) => (
-                              <Select.Item item={option} key={option.value}>
-                                {option.label}
-                              </Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select.Positioner>
-                      </Select.Root>
-                      {shouldShowToggleButtons ? (
-                        <VStack alignItems="flex-start" px={1}>
-                          <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
-                            {translate("dag:panel.buttons.showGantt")}
-                          </Checkbox>
-                        </VStack>
-                      ) : undefined}
-                    </>
-                  )}
-                </Popover.Body>
-              </Popover.Content>
-            </Popover.Positioner>
-          </Portal>
-        </Popover.Root>
+    <Box position="absolute" top={1} width="100%" zIndex={1}>
+      <Flex flexWrap="wrap" justifyContent="space-between">
+        <ButtonGroup attached size="sm" variant="outline">
+          <IconButton
+            aria-label={translate("dag:panel.buttons.showGrid")}
+            colorPalette="blue"
+            onClick={() => {
+              setDagView("grid");
+              if (dagView === "grid") {
+                handleFocus("grid");
+              }
+            }}
+            title={translate("dag:panel.buttons.showGrid")}
+            variant={dagView === "grid" ? "solid" : "outline"}
+          >
+            <FiGrid />
+          </IconButton>
+          <IconButton
+            aria-label={translate("dag:panel.buttons.showGraph")}
+            colorPalette="blue"
+            onClick={() => {
+              setDagView("graph");
+              if (dagView === "graph") {
+                handleFocus("graph");
+              }
+            }}
+            title={translate("dag:panel.buttons.showGraph")}
+            variant={dagView === "graph" ? "solid" : "outline"}
+          >
+            <MdOutlineAccountTree />
+          </IconButton>
+        </ButtonGroup>
+        <Flex gap={1}>
+          <ToggleGroups />
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+          <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
+            <Popover.Trigger asChild>
+              <Button size="sm" variant="outline">
+                {translate("dag:panel.buttons.options")}
+                <FiChevronDown size="0.5rem" />
+              </Button>
+            </Popover.Trigger>
+            <Portal>
+              <Popover.Positioner>
+                <Popover.Content>
+                  <Popover.Arrow />
+                  <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
+                    {dagView === "graph" ? (
+                      <>
+                        <DagVersionSelect />
+                        <DagRunSelect limit={limit} />
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={getOptions(translate)}
+                          data-testid="dependencies"
+                          onValueChange={handleDepsChange}
+                          size="sm"
+                          value={[dependencies]}
+                        >
+                          <Select.Label fontSize="xs">
+                            {translate("dag:panel.dependencies.label")}
+                          </Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText placeholder={translate("dag:panel.dependencies.label")} />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {getOptions(translate).items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.label}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={directionOptions(translate)}
+                          onValueChange={handleDirectionUpdate}
+                          size="sm"
+                          value={[direction]}
+                        >
+                          <Select.Label fontSize="xs">
+                            {translate("dag:panel.graphDirection.label")}
+                          </Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {directionOptions(translate).items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.label}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                      </>
+                    ) : (
+                      <>
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={displayRunOptions}
+                          data-testid="display-dag-run-options"
+                          onValueChange={handleLimitChange}
+                          size="sm"
+                          value={[limit.toString()]}
+                        >
+                          <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {displayRunOptions.items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.label}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                        {shouldShowToggleButtons ? (
+                          <VStack alignItems="flex-start" px={1}>
+                            <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
+                              {translate("dag:panel.buttons.showGantt")}
+                            </Checkbox>
+                          </VStack>
+                        ) : undefined}
+                      </>
+                    )}
+                  </Popover.Body>
+                </Popover.Content>
+              </Popover.Positioner>
+            </Portal>
+          </Popover.Root>
+        </Flex>
       </Flex>
-    </Flex>
+      {dagView === "grid" && (
+        <Flex color="fg.muted" justifyContent="flex-end" mt={1}>
+          <Tooltip
+            content={
+              <Box>
+                <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
+                <Text>{translate("dag:navigation.toggleGroup")}</Text>
+              </Box>
+            }
+          >
+            <LuKeyboard />
+          </Tooltip>
+        </Flex>
+      )}
+    </Box>
   );
 };
