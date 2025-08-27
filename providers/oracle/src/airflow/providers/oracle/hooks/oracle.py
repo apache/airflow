@@ -20,7 +20,7 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import oracledb
 
