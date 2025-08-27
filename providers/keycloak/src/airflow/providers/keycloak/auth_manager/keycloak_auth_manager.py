@@ -286,6 +286,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         context_attributes = prune_dict(attributes or {})
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
+        elif method == "GET":
+            method = "LIST"
 
         resp = requests.post(
             self._get_token_url(server_url, realm),
