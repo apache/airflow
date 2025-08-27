@@ -40,7 +40,7 @@ export const ReprocessBehaviorForm = ({ field, translate }: Props) => (
     <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
       {translate("backfill.reprocessBehavior")}
     </RadioCardLabel>
-    <HStack>
+    <HStack align="stretch">
       {reprocessBehaviors.map((item) => (
         <RadioCardItem
           colorPalette="blue"
