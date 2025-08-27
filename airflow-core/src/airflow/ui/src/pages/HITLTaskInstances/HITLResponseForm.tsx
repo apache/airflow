@@ -55,7 +55,16 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore("hitl");
   const [searchParams] = useSearchParams();
-  const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams);
+  const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
+
+  const isApprovalTask =
+    hitlDetail.options.includes("Approve") &&
+    hitlDetail.options.includes("Reject") &&
+    hitlDetail.options.length === 2;
+
+  const shouldRenderOptionButton =
+    hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
     dagRunId: hitlDetail.task_instance.dag_run_id,
@@ -115,7 +124,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           <Spacer />
-          {hitlDetail.options.length < 4 && !hitlDetail.multiple ? (
+          {shouldRenderOptionButton || isApprovalTask ? (
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
