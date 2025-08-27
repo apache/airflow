@@ -406,13 +406,15 @@ class TestEmailSmtp:
         """Test that connection host and port override configuration values."""
         monkeypatch.setenv(
             "AIRFLOW_CONN_SMTP_TEST_OVERRIDE",
-            json.dumps({
-                "conn_type": "smtp",
-                "host": "conn.example.com",
-                "port": 2525,
-                "login": "conn-user",
-                "password": "conn-pass"
-            }),
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "conn.example.com",
+                    "port": 2525,
+                    "login": "conn-user",
+                    "password": "conn-pass",
+                }
+            ),
         )
         msg = MIMEMultipart()
         email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_override")
@@ -429,18 +431,16 @@ class TestEmailSmtp:
         """Test connection with SSL and STARTTLS settings in extra field."""
         monkeypatch.setenv(
             "AIRFLOW_CONN_SMTP_EXTRA_SSL",
-            json.dumps({
-                "conn_type": "smtp",
-                "host": "ssl.example.com",
-                "port": 465,
-                "login": "ssl-user",
-                "password": "ssl-pass",
-                "extra": json.dumps({
-                    "ssl": True,
-                    "starttls": False,
-                    "timeout": 60
-                })
-            }),
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "ssl.example.com",
+                    "port": 465,
+                    "login": "ssl-user",
+                    "password": "ssl-pass",
+                    "extra": json.dumps({"ssl": True, "starttls": False, "timeout": 60}),
+                }
+            ),
         )
         mock_smtp_ssl.return_value = mock.Mock()
         msg = MIMEMultipart()
@@ -470,4 +470,3 @@ class TestEmailSmtp:
         )
         # Should not attempt login since no connection found
         assert not mock_smtp.return_value.login.called
-
