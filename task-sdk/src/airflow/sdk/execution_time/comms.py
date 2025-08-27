@@ -49,7 +49,7 @@ Execution API server is because:
 from __future__ import annotations
 
 import itertools
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -205,6 +205,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             return resp  # type: ignore[return-value]
 
         return self._get_response()
+
+    async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
+        """Send a request to the parent without blocking."""
+        raise NotImplementedError
 
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
@@ -891,8 +895,9 @@ class MaskSecret(BaseModel):
 
     # This is needed since calls to `mask_secret` in the Task process will otherwise only add the mask value
     # to the child process, but the redaction happens in the parent.
-
-    value: str | dict | Iterable
+    # We cannot use `string | Iterable | dict here` (would be more intuitive) because bug in Pydantic
+    # https://github.com/pydantic/pydantic/issues/9541 turns iterable into a ValidatorIterator
+    value: JsonValue
     name: str | None = None
     type: Literal["MaskSecret"] = "MaskSecret"
 

@@ -3,6 +3,7 @@ module github.com/apache/airflow/go-sdk
 go 1.24
 
 require (
+	github.com/cappuccinotm/slogx v1.4.2
 	github.com/ivanpirog/coloredcobra v1.0.1
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/spf13/cobra v1.9.1
@@ -19,7 +20,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gomodule/redigo v1.8.9 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect

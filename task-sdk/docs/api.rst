@@ -72,6 +72,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseHook
 
+.. autoapiclass:: airflow.sdk.StartTriggerArgs
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection
@@ -87,6 +89,8 @@ Tasks & Operators
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
 .. autoapiclass:: airflow.sdk.Param
+
+.. autoclass:: airflow.sdk.TriggerRule
 
 Setting Dependencies
 ~~~~~~~~~~~~~~~~~~~~

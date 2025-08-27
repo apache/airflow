@@ -45,7 +45,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -56,6 +56,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
+    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
@@ -65,7 +66,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -78,7 +79,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -236,7 +237,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
-        self._end_active_spans()
+        if self._is_tracing_enabled():
+            self._end_active_spans()
 
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -797,7 +799,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                cls.logger().info("Setting external_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
                 continue
 
             msg = (
@@ -1231,6 +1233,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
+        )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._remove_unreferenced_triggers,
         )
 
         if any(x.is_local for x in self.job.executors):
@@ -1883,7 +1889,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return callback
 
             if (
-                dag_run.scheduled_by_job_id is not None
+                self._is_tracing_enabled()
+                and dag_run.scheduled_by_job_id is not None
                 and dag_run.scheduled_by_job_id != self.job.id
                 and self.active_spans.get("dr:" + str(dag_run.id)) is None
             ):
@@ -2055,6 +2062,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                queued_by_job_id=None,
                 scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)
@@ -2377,6 +2385,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details["External Executor Id"] = ti.external_executor_id
 
         return task_instance_heartbeat_timeout_message_details
+
+    @provide_session
+    def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
+        """Remove triggers that are no longer used by anything."""
+        session.execute(
+            delete(Trigger)
+            .where(
+                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(Deadline.trigger_id)),
+                Trigger.id.not_in(select(TaskInstance.trigger_id)),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

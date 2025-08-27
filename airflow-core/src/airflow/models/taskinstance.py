@@ -564,7 +564,7 @@ class TaskInstance(Base, LoggingMixin):
             "executor": task.executor,
             "executor_config": task.executor_config,
             "operator": task.task_type,
-            "custom_operator_name": getattr(task, "custom_operator_name", None),
+            "custom_operator_name": getattr(task, "operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
@@ -749,7 +749,7 @@ class TaskInstance(Base, LoggingMixin):
         self.executor = task.executor
         self.executor_config = task.executor_config
         self.operator = task.task_type
-        self.custom_operator_name = getattr(task, "custom_operator_name", None)
+        self.custom_operator_name = getattr(task, "operator_name", None)
         # Re-apply cluster policy here so that task default do not overload previous data
         task_instance_mutation_hook(self)
 
@@ -1610,18 +1610,13 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task: SerializedBaseOperator | None = None
-        try:
-            if (orig_task := getattr(ti, "task", None)) and context:
-                # TODO (GH-52141): Move runtime unmap into task runner.
-                task = orig_task.unmap((context, session))
-        except Exception:
-            cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
+        # Use the original task directly - scheduler only needs to check email settings
+        # Actual callbacks are handled by the DAG processor, not the scheduler
+        task = getattr(ti, "task", None)
 
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
-            callbacks = task.on_failure_callback if task else None
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
@@ -1634,7 +1629,6 @@ class TaskInstance(Base, LoggingMixin):
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
-            callbacks = task.on_retry_callback if task else None
 
         try:
             get_listener_manager().hook.on_task_instance_failed(
@@ -1647,7 +1641,6 @@ class TaskInstance(Base, LoggingMixin):
             "ti": ti,
             "email_for_state": email_for_state,
             "task": task,
-            "callbacks": callbacks,
             "context": context,
         }
 
