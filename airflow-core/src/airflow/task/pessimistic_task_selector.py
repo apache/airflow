@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, and_, func, select, text
+from sqlalchemy import Column, and_, func, select, text, column
 from sqlalchemy.orm import Query, selectinload
 
 from airflow.models import DagRun, TaskInstance
@@ -61,6 +61,7 @@ class LimitWindowDescriptor:
     limit_column: Column
     window: expression.ColumnElement
     limit_join_model: Base | None = None
+    additional_select_from_previous_query: list[str] = field(default_factory=list)
 
 
 TI = TaskInstance
@@ -78,7 +79,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
     The query is built in a dynamic manner, meaning, it can be extended easily
     but it might be hard to understand how everything connects.
 
-    Each window checks a single concurrency limit (i.e parallelism, dag max active tasks, for more info visit https://stackoverflow.com/questions/38200666/airflow-parallelism)
+    Each window checks a single concurrency limit (i.e parallelism, dag max active tasks, for more info visit https://stackoverflow.com/questions/56370720/how-to-control-the-parallelism-or-concurrency-of-an-airflow-installation)
 
     as of now, there exist 4 windows that check `mapped_tis_per_task_run_count` which checks for mapped
     tasks, `total_tis_per_dagrun_count` which checks for tis across all dagruns, `tis_per_dag_count` which
@@ -109,7 +110,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         max_tis = additional_params["max_tis"]
 
         query = (
-            select(TI.id)
+            select(TI.id, DR.logical_date)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DR, and_(TI.run_id == DR.run_id, TI.dag_id == DR.dag_id))
             .where(DR.state == DagRunState.RUNNING)
@@ -150,7 +151,13 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             """
             cte_query = query.add_columns(limit.window).cte()
             query = (
-                select(TI.id)
+                select(
+                    TI.id,
+                    *(
+                        getattr(cte_query.c, additional_select)
+                        for additional_select in limit.additional_select_from_previous_query
+                    ),
+                )
                 .join(cte_query, TI.id == cte_query.c.id)
                 .outerjoin(
                     limit.running_now_join,
@@ -161,7 +168,6 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                         )
                     ),
                 )
-                .join(DR, and_(TI.run_id == DR.run_id, TI.dag_id == DR.dag_id))  # done to remove duplicates
             )
             if limit.limit_join_model is not None:
                 query = query.join(limit.limit_join_model)
@@ -183,24 +189,33 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             "pool_active_tasks", [TI.pool], [*EXECUTION_STATES, TaskInstanceState.DEFERRED]
         )
 
+        window_order_by: Collection[Column] = [
+            column("priority_weight"),
+            column("logical_date"),
+            column("map_index"),
+            func.random(),
+        ]
+
+        additional_select_values: list[str] = ["logical_date"]
+
         total_tis_per_dagrun_count = (
             func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id), order_by=priority_order, rows=(None, 0))
+            .over(partition_by=(TI.dag_id, TI.run_id), order_by=window_order_by, rows=(None, 0))
             .label("total_tis_per_dagrun_count")
         )
         tis_per_dag_count = (
             func.row_number()
-            .over(partition_by=(TI.dag_id, TI.task_id), order_by=priority_order, rows=(None, 0))
+            .over(partition_by=(TI.dag_id, TI.task_id), order_by=window_order_by, rows=(None, 0))
             .label("tis_per_dag_count")
         )
         mapped_tis_per_task_run_count = (
             func.row_number()
-            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=priority_order, rows=(None, 0))
+            .over(partition_by=(TI.dag_id, TI.run_id, TI.task_id), order_by=window_order_by, rows=(None, 0))
             .label("mapped_tis_per_dagrun_count")
         )
         pool_slots_taken = (
             func.sum(TI.pool_slots)
-            .over(partition_by=(TI.pool), order_by=priority_order, rows=(None, 0))
+            .over(partition_by=(TI.pool), order_by=window_order_by, rows=(None, 0))
             .label("pool_slots_taken_sum")
         )
 
@@ -217,6 +232,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 ["dag_id", "run_id", "task_id"],
                 TI.max_active_tis_per_dagrun,
                 mapped_tis_per_task_run_count,
+                additional_select_from_previous_query=additional_select_values,
             ),
             LimitWindowDescriptor(
                 running_total_tis_per_dagrun,
@@ -224,12 +240,14 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 DagModel.max_active_tasks,
                 total_tis_per_dagrun_count,
                 TI.dag_model,
+                additional_select_from_previous_query=additional_select_values,
             ),
             LimitWindowDescriptor(
                 running_tis_per_dag,
                 ["dag_id", "task_id"],
                 TI.max_active_tis_per_dag,
                 tis_per_dag_count,
+                additional_select_from_previous_query=additional_select_values,
             ),
             LimitWindowDescriptor(
                 running_tis_per_pool,
@@ -237,6 +255,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 Pool.slots,
                 pool_slots_taken,
                 TI.pool_model,
+                additional_select_from_previous_query=additional_select_values,
             ),
         ]
 
