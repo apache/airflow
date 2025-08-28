@@ -86,7 +86,6 @@ def get_xcom_entry(
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
-        session=session,
         limit=1,
     )
 
@@ -249,7 +248,6 @@ def create_xcom_entry(
         dag_ids=dag_id,
         run_id=dag_run_id,
         map_indexes=request_body.map_index,
-        session=session,
     )
     result = session.execute(already_existing_query.with_only_columns(XComModel.value)).first()
     if result:

@@ -85,7 +85,6 @@ async def xcom_query(
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
-        session=session,
     )
     return query
 
@@ -151,7 +150,6 @@ def get_xcom(
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
-        session=session,
     )
     if params.offset is not None:
         xcom_query = xcom_query.where(XComModel.value.is_not(None)).order_by(None)
@@ -204,7 +202,6 @@ def get_mapped_xcom_by_index(
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
-        session=session,
     )
     xcom_query = xcom_query.order_by(None)
     if offset >= 0:
@@ -250,7 +247,6 @@ def get_mapped_xcom_by_slice(
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
-        session=session,
     )
     query = query.order_by(None)
 
