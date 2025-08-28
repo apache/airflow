@@ -20,7 +20,9 @@ from __future__ import annotations
 import copy
 import os
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
+
+from typing_extensions import NotRequired
 
 if TYPE_CHECKING:
     import jinja2
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
     )
 
 
-class Context(TypedDict):
+class Context(TypedDict, total=False):
     """Jinja2 template context for task rendering."""
 
     conn: Any
