@@ -40,8 +40,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Springen: Umschalttaste+{{arrow}}",
-    "navigation": "Navigation: {{arrow}}",
+    "navigation": "Navigation: Umschalttaste+{{arrow}}",
     "toggleGroup": "Gruppen umschalten: Leertaste"
   },
   "overview": {
@@ -65,6 +64,7 @@
   "panel": {
     "buttons": {
       "options": "Optionen",
+      "showGantt": "Gantt zeigen",
       "showGraph": "Graph zeigen",
       "showGrid": "Gitter zeigen"
     },

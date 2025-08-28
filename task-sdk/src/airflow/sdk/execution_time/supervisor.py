@@ -113,14 +113,13 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     ValidateInletsAndOutlets,
     VariableResult,
-    XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.secrets_masker import mask_secret
+from airflow.sdk.log import mask_secret
 
 try:
     from socket import send_fds
@@ -1202,8 +1201,7 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=xcom_count)
+            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
@@ -1782,7 +1780,7 @@ def supervise(
     :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
-    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+    from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:
         if dry_run and server:

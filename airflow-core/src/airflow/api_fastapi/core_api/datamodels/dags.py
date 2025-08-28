@@ -186,7 +186,11 @@ class DAGDetailsResponse(DAGResponse):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def concurrency(self) -> int:
-        """Return max_active_tasks as concurrency."""
+        """
+        Return max_active_tasks as concurrency.
+
+        Deprecated: Use max_active_tasks instead.
+        """
         return self.max_active_tasks
 
     # Mypy issue https://github.com/python/mypy/issues/1362

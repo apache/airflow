@@ -552,6 +552,33 @@ class TestBranchOperator(BasePythonTest):
         ):
             ti.run()
 
+    def test_none_return_value_should_skip_all_downstream(self):
+        """Test that returning None from callable should skip all downstream tasks."""
+        clear_db_runs()
+        with self.dag_maker(self.dag_id, serialized=True):
+
+            def return_none():
+                return None
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=return_none, **self.default_kwargs())
+            branch_op >> [self.branch_1, self.branch_2]
+
+        dr = self.dag_maker.create_dagrun()
+        if AIRFLOW_V_3_0_1:
+            from airflow.exceptions import DownstreamTasksSkipped
+
+            with pytest.raises(DownstreamTasksSkipped) as dts:
+                self.dag_maker.run_ti(self.task_id, dr)
+
+            # When None is returned, all downstream tasks should be skipped
+            expected_skipped = {("branch_1", -1), ("branch_2", -1)}
+            assert set(dts.value.tasks) == expected_skipped
+        else:
+            self.dag_maker.run_ti(self.task_id, dr)
+            self.assert_expected_task_states(
+                dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.SKIPPED}
+            )
+
     @pytest.mark.parametrize(
         "choice,expected_states",
         [
@@ -1780,6 +1807,28 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             assert op._get_airflow_version_from_target_env() is None
             assert "Something went wrong" in caplog.text
             assert "returned non-zero exit status" in caplog.text
+
+    @mock.patch.object(ExternalPythonOperator, "_get_airflow_version_from_target_env")
+    def test_iter_serializable_context_keys_respects_expect_airflow_false(self, mock_get_airflow_version):
+        """Test that when expect_airflow=False, _get_airflow_version_from_target_env is not called."""
+
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=False
+        )
+
+        keys = set(op._iter_serializable_context_keys())
+
+        mock_get_airflow_version.assert_not_called()
+
+        # BASE keys should always be present
+        base_keys = set(op.BASE_SERIALIZABLE_CONTEXT_KEYS)
+        airflow_keys = set(op.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
+
+        assert base_keys <= keys
+        assert not (airflow_keys & keys), "Airflow keys should not be present when expect_airflow=False"
 
 
 class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):

@@ -38,7 +38,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -370,7 +369,9 @@ def task_test(args, dag: DAG | None = None) -> None:
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
 
-    settings.MASK_SECRETS_IN_LOGS = True
+    from airflow.sdk._shared.secrets_masker import SecretsMasker
+
+    SecretsMasker.enable_log_masking()
 
     handlers = logging.getLogger("airflow.task").handlers
     already_has_stream_handler = False
@@ -404,6 +405,9 @@ def task_test(args, dag: DAG | None = None) -> None:
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
     )
     try:
+        # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
+        from airflow.sdk._shared.secrets_masker import RedactedIO
+
         with redirect_stdout(RedactedIO()):
             _run_task(ti=ti, task=task, run_triggerer=True)
         if ti.state == State.FAILED and args.post_mortem:

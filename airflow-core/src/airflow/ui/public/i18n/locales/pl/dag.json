@@ -40,7 +40,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Przeskocz: Shift+{{arrow}}",
     "navigation": "Przewiń: {{arrow}}",
     "toggleGroup": "Przełącz grupę: Space"
   },
@@ -73,6 +72,7 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
+      "showGantt": "Pokaż diagram Gantta",
       "showGraph": "Pokaż graf",
       "showGrid": "Pokaż siatkę"
     },
