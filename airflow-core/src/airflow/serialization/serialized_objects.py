@@ -716,8 +716,6 @@ class BaseSerialization:
 
         :meta private:
         """
-        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
-
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
@@ -757,9 +755,9 @@ class BaseSerialization:
             return cls._encode(DeadlineAlert.serialize_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
-        elif isinstance(var, (MappedOperator, SchedulerMappedOperator)):
+        elif isinstance(var, MappedOperator):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
-        elif isinstance(var, (BaseOperator, SerializedBaseOperator)):
+        elif isinstance(var, BaseOperator):
             var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
@@ -1357,7 +1355,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         raise AttributeError(f"'{self.task_type}' object has no attribute '{name}'")
 
     @classmethod
-    def serialize_mapped_operator(cls, op: MappedOperator | SchedulerMappedOperator) -> dict[str, Any]:
+    def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
         # Handle expand_input and op_kwargs_expand_input.
         expansion_kwargs = op._get_specified_expand_input()
@@ -1383,11 +1381,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return serialized_op
 
     @classmethod
-    def serialize_operator(cls, op: SdkOperator | SchedulerOperator) -> dict[str, Any]:
+    def serialize_operator(cls, op: SdkOperator) -> dict[str, Any]:
         return cls._serialize_node(op)
 
     @classmethod
-    def _serialize_node(cls, op: SdkOperator | SchedulerOperator) -> dict[str, Any]:
+    def _serialize_node(cls, op: SdkOperator) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
 
