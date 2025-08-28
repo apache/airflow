@@ -1,4 +1,21 @@
 #!/bin/bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # Integration test runner for SeaTunnel provider
 
 set -e
@@ -49,13 +66,13 @@ check_docker_compose() {
 # Function to setup test environment
 setup_environment() {
     print_status "Setting up test environment..."
-    
+
     # Install test dependencies
     if [ -f "requirements.txt" ]; then
         print_status "Installing test dependencies..."
         pip install -r requirements.txt
     fi
-    
+
     # Install the provider package in development mode
     print_status "Installing SeaTunnel provider in development mode..."
     pip install -e ../../
@@ -67,32 +84,32 @@ start_services() {
         print_warning "Skipping Docker setup (SKIP_DOCKER_SETUP=true)"
         return 0
     fi
-    
+
     print_status "Starting SeaTunnel services with version $SEATUNNEL_VERSION..."
-    
+
     # Export version for docker-compose
     export SEATUNNEL_VERSION
-    
+
     # Start services
     docker-compose up -d
-    
+
     # Wait for services to be ready
     print_status "Waiting for SeaTunnel to be ready..."
     max_attempts=30
     attempt=1
-    
+
     while [ $attempt -le $max_attempts ]; do
         if curl -f http://localhost:8083/health > /dev/null 2>&1; then
             print_status "SeaTunnel is ready!"
             break
         fi
-        
+
         if [ $attempt -eq $max_attempts ]; then
             print_error "SeaTunnel failed to start within timeout"
             docker-compose logs
             exit 1
         fi
-        
+
         print_status "Attempt $attempt/$max_attempts - waiting for SeaTunnel..."
         sleep 5
         ((attempt++))
@@ -102,21 +119,21 @@ start_services() {
 # Function to run tests
 run_tests() {
     print_status "Running integration tests..."
-    
+
     # Set test options
     test_args=()
-    
+
     if [ "$VERBOSE" = "true" ]; then
         test_args+=("-v")
     fi
-    
+
     # Add coverage if available
     if command -v pytest-cov &> /dev/null; then
         test_args+=("--cov=airflow_seatunnel_provider")
         test_args+=("--cov-report=html")
         test_args+=("--cov-report=term")
     fi
-    
+
     # Run tests
     pytest "${test_args[@]}" -m "integration" "$TEST_PATTERN"
 }
@@ -189,22 +206,22 @@ main() {
     print_status "Starting SeaTunnel provider integration tests"
     print_status "SeaTunnel version: $SEATUNNEL_VERSION"
     print_status "Test pattern: $TEST_PATTERN"
-    
+
     # Setup trap for cleanup
     trap cleanup EXIT
-    
+
     # Check prerequisites
     if [ "$SKIP_DOCKER_SETUP" != "true" ]; then
         check_docker
         check_docker_compose
     fi
-    
+
     # Setup environment
     setup_environment
-    
+
     # Start services
     start_services
-    
+
     # Run tests
     if run_tests; then
         print_status "All tests passed!"

@@ -15,44 +15,46 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from airflow import DAG
-
-from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
+from airflow.providers.apache.seatunnel.operators.seatunnel_operator import (
+    SeaTunnelOperator,
+)
+from airflow.sdk import DAG
 
 default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    "owner": "airflow",
+    "depends_on_past": False,
+    "email_on_failure": False,
+    "email_on_retry": False,
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
 }
 
 with DAG(
-    'seatunnel_example',
+    "seatunnel_example",
     default_args=default_args,
-    description='A simple example DAG using SeaTunnel',
+    description="A simple example DAG using SeaTunnel",
     schedule=None,
     start_date=datetime.now() - timedelta(days=1),
-    tags=['example', 'seatunnel'],
+    tags=["example", "seatunnel"],
 ) as dag:
-
     # Example 1: Run a job with a config file
     # Make sure to create this file or adjust the path
     seatunnel_task_file = SeaTunnelOperator(
-        task_id='seatunnel_task_file',
-        config_content='seatunnel/config/http2mysql.conf',
-        engine='zeta',  # or 'flink', 'spark'
-        seatunnel_conn_id='seatunnel_default',
+        task_id="seatunnel_task_file",
+        config_file="seatunnel/config/http2mysql.conf",
+        engine="zeta",  # or 'flink', 'spark'
+        seatunnel_conn_id="seatunnel_default",
     )
 
     # Example 2: Run a job with inline configuration
-    # This is a simple job that uses FakeSource to generate data and ConsoleSink to print it
+    # This is a simple job that uses FakeSource to generate data and
+    # ConsoleSink to print it
     seatunnel_task_inline = SeaTunnelOperator(
-        task_id='seatunnel_task_inline',
+        task_id="seatunnel_task_inline",
         config_content="""
 env {
   parallelism = 1
@@ -60,7 +62,8 @@ env {
 }
 
 source {
-  # This is a example source plugin **only for test and demonstrate the feature source plugin**
+  # This is a example source plugin **only for test and demonstrate
+  # the feature source plugin**
   FakeSource {
     plugin_output = "fake"
     parallelism = 1
@@ -82,8 +85,8 @@ sink {
   }
 }
         """,
-        engine='zeta',
-        seatunnel_conn_id='seatunnel_default',
+        engine="zeta",
+        seatunnel_conn_id="seatunnel_default",
     )
 
     # You can define dependencies between tasks

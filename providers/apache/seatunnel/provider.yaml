@@ -30,13 +30,13 @@ versions:
 # Optional: dependencies are taken from pyproject.toml by tooling,
 # but can be kept here for readability.
 dependencies:
-  - apache-airflow>=3.0.0
+  - apache-airflow>=2.3.0
   - requests>=2.25.0
 
 integrations:
   - integration-name: Apache SeaTunnel
     external-doc-url: https://seatunnel.apache.org/
-    logo: /integration-logos/apache/seatunnel.png
+    logo: /docs/integration-logos/seatunnel.svg
     tags: [apache]
 
 operators:

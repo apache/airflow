@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
 # SeaTunnel Provider Integration Tests
 
 This directory contains integration tests for the Apache Airflow SeaTunnel provider. These tests verify the functionality of the provider components against a real SeaTunnel instance.
@@ -57,7 +76,7 @@ Before running the integration tests, ensure you have:
    - Minimum: Python 3.8+ with Airflow 2.3.0+
 
 2. **Docker Environment**:
-   - Docker 20.10+ 
+   - Docker 20.10+
    - Docker Compose 2.0+
    - Available ports: 8080, 8081, 8083
 

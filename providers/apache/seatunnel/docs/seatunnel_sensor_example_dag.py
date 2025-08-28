@@ -15,58 +15,67 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from datetime import datetime, timedelta
 import re
-from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
+from datetime import datetime, timedelta
 
-from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
-from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import SeaTunnelJobSensor
+from airflow.providers.apache.seatunnel.operators.seatunnel_operator import (
+    SeaTunnelOperator,
+)
+from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import (
+    SeaTunnelJobSensor,
+)
+from airflow.sdk import DAG
+from airflow.sdk.definitions.decorators import task
 
 default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    "owner": "airflow",
+    "depends_on_past": False,
+    "email_on_failure": False,
+    "email_on_retry": False,
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
 }
 
-# 定义用于从命令输出中提取job_id的函数
-def extract_job_id(**kwargs):
-    # 从XCom中获取SeaTunnel任务的输出
-    seatunnel_output = kwargs['ti'].xcom_pull(task_ids='start_seatunnel_job')
 
-    # 使用正则表达式寻找job_id，这个模式需要根据实际输出格式调整
-    # 示例正则表达式，假设job_id是以"Job id:"或"Job ID:"或类似格式出现的
-    # 也可能是"Job xxx successfully started"格式
-    job_id_pattern = r'[Jj]ob\s+(?:[Ii][Dd]:\s*)?([a-zA-Z0-9-]+)'
+# Function to extract job_id from command output
+@task
+def extract_job_id():
+    # Get SeaTunnel task output from XCom
+    from airflow.sdk.definitions.context import get_current_context
+
+    context = get_current_context()
+    seatunnel_output = context["ti"].xcom_pull(task_ids="start_seatunnel_job")
+
+    # Use regex to find job_id, adjust this pattern based on actual output format
+    # Example regex assuming job_id appears as "Job id:" or "Job ID:" or similar format
+    # Could also be "Job xxx successfully started" format
+    job_id_pattern = r"[Jj]ob\s+(?:[Ii][Dd]:\s*)?([a-zA-Z0-9-]+)"
 
     match = re.search(job_id_pattern, seatunnel_output)
     if match:
         job_id = match.group(1)
         print(f"Extracted job ID: {job_id}")
         return job_id
-    else:
-        # 如果无法提取job_id，则返回一个默认的错误信息
-        error_msg = "Could not extract job ID from SeaTunnel output"
-        print(error_msg)
-        raise ValueError(error_msg)
+    # If unable to extract job_id, return a default error message
+    error_msg = "Could not extract job ID from SeaTunnel output"
+    print(error_msg)
+    raise ValueError(error_msg)
+
 
 with DAG(
-    'seatunnel_sensor_example',
+    "seatunnel_sensor_example",
     default_args=default_args,
-    description='Example DAG demonstrating the SeaTunnelJobSensor',
+    description="Example DAG demonstrating the SeaTunnelJobSensor",
     schedule=None,
     start_date=datetime.now() - timedelta(days=1),
-    tags=['example', 'seatunnel', 'sensor'],
+    tags=["example", "seatunnel", "sensor"],
 ) as dag:
-
     # First, we start a SeaTunnel job
     # Note: This example works with Zeta engine only, as it exposes a REST API
     start_job = SeaTunnelOperator(
-        task_id='start_seatunnel_job',
+        task_id="start_seatunnel_job",
         config_content="""
 env {
   parallelism = 1
@@ -74,7 +83,8 @@ env {
 }
 
 source {
-  # This is a example source plugin **only for test and demonstrate the feature source plugin**
+  # This is a example source plugin **only for test and demonstrate
+  # the feature source plugin**
   FakeSource {
     plugin_output = "fake"
     parallelism = 1
@@ -96,22 +106,20 @@ sink {
   }
 }
         """,
-        engine='zeta',
-        seatunnel_conn_id='seatunnel_default',
+        engine="zeta",
+        seatunnel_conn_id="seatunnel_default",
     )
 
-    # 添加任务来提取job_id
-    extract_id = PythonOperator(
-        task_id='extract_job_id',
-        python_callable=extract_job_id,
-    )
+    # Add task to extract job_id
+    extract_id = extract_job_id()
 
-    # 使用提取的job_id来监控
+    # Use extracted job_id for monitoring
     wait_for_job = SeaTunnelJobSensor(
-        task_id='wait_for_job_completion',
-        job_id="{{ task_instance.xcom_pull(task_ids='extract_job_id') }}",  # 使用提取后的job_id
-        target_states=['FINISHED'],
-        seatunnel_conn_id='seatunnel_default',
+        task_id="wait_for_job_completion",
+        job_id="{{ task_instance.xcom_pull(task_ids='extract_job_id') }}",
+        # Use the extracted job_id
+        target_states=["FINISHED"],
+        seatunnel_conn_id="seatunnel_default",
         poke_interval=10,  # Check every 10 seconds
         timeout=600,  # Timeout after 10 minutes
     )

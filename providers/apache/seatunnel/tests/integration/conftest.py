@@ -1,12 +1,33 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """
 Pytest configuration for SeaTunnel provider integration tests.
 """
+
+from __future__ import annotations
+
 import os
-import pytest
 import subprocess
 import time
-import requests
 from pathlib import Path
+
+import pytest
+import requests
 
 
 @pytest.fixture(scope="session")
@@ -24,18 +45,18 @@ def seatunnel_service(docker_compose_file):
     # Check if we should skip integration tests
     if os.getenv("SKIP_INTEGRATION_TESTS", "false").lower() == "true":
         pytest.skip("Integration tests are disabled")
-    
+
     # Start the service
     subprocess.run(
         ["docker-compose", "-f", str(docker_compose_file), "up", "-d"],
         check=True,
-        cwd=docker_compose_file.parent
+        cwd=docker_compose_file.parent,
     )
-    
+
     # Wait for service to be ready
     max_retries = 30
     retry_count = 0
-    
+
     while retry_count < max_retries:
         try:
             response = requests.get("http://localhost:8083/status", timeout=5)
@@ -43,25 +64,21 @@ def seatunnel_service(docker_compose_file):
                 break
         except (requests.RequestException, requests.ConnectionError):
             pass
-        
+
         time.sleep(2)
         retry_count += 1
-    
+
     if retry_count >= max_retries:
         # Clean up on failure
         subprocess.run(
-            ["docker-compose", "-f", str(docker_compose_file), "down"],
-            cwd=docker_compose_file.parent
+            ["docker-compose", "-f", str(docker_compose_file), "down"], cwd=docker_compose_file.parent
         )
         pytest.fail("SeaTunnel service failed to start within timeout")
-    
+
     yield
-    
+
     # Cleanup
-    subprocess.run(
-        ["docker-compose", "-f", str(docker_compose_file), "down"],
-        cwd=docker_compose_file.parent
-    )
+    subprocess.run(["docker-compose", "-f", str(docker_compose_file), "down"], cwd=docker_compose_file.parent)
 
 
 @pytest.fixture
@@ -90,19 +107,13 @@ def seatunnel_connection_params():
         "conn_type": "seatunnel",
         "host": "localhost",
         "port": 8083,
-        "extra": '{"seatunnel_home": "/opt/seatunnel"}'
+        "extra": '{"seatunnel_home": "/opt/seatunnel"}',
     }
 
 
 # Markers for different test categories
 def pytest_configure(config):
     """Configure pytest markers."""
-    config.addinivalue_line(
-        "markers", "integration: mark test as integration test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
-    config.addinivalue_line(
-        "markers", "requires_docker: mark test as requiring Docker"
-    )
+    config.addinivalue_line("markers", "integration: mark test as integration test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")
+    config.addinivalue_line("markers", "requires_docker: mark test as requiring Docker")

@@ -19,14 +19,15 @@
 # OVERWRITTEN WHEN PREPARING DOCUMENTATION FOR THE PACKAGES.
 #
 # IF YOU WANT TO MODIFY THIS FILE, YOU SHOULD MODIFY THE TEMPLATE
-# `PROVIDER__INIT__PY_TEMPLATE.py.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
+# `PROVIDER__INIT__PY_TEMPLATE.py.jinja2` IN the
+# `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 #
 from __future__ import annotations
 
 import packaging.version
 
 try:
-    from airflow import __version__ as airflow_version
+    from airflow import __version__ as airflow_version  # type: ignore[attr-defined]
 except ImportError:
     # Fallback for development/testing environments
     airflow_version = "2.3.0"
@@ -51,9 +52,10 @@ def get_provider_info():
         "connection-types": [
             {
                 "connection-type": "apache_seatunnel",
-                "hook-class-name": "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook",
+                "hook-class-name": ("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook"),
             }
         ],
         "extra-links": [],
         "version": __version__,
+        "source-date-epoch": 1735200000,  # 2024-12-26
     }

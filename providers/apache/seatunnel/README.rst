@@ -15,121 +15,130 @@
    specific language governing permissions and limitations
    under the License.
 
-# Apache Airflow Provider for Apache SeaTunnel
+Apache Airflow Provider for Apache SeaTunnel
+============================================
 
-This package provides an Apache Airflow provider for [Apache SeaTunnel](https://seatunnel.apache.org/), a high-performance, distributed data integration tool that supports real-time synchronization of massive data.
+This package provides an Apache Airflow provider for `Apache SeaTunnel <https://seatunnel.apache.org/>`__, a high-performance, distributed data integration tool that supports real-time synchronization of massive data.
 
-## Installation
+Installation
+------------
 
 You can install this provider package using pip:
 
-```bash
-cd /path/to/apache-airflow-provider-apache-seatunnel
-pip install -e .
-```
+.. code-block:: bash
 
-## Features
+   cd /path/to/apache-airflow-provider-apache-seatunnel
+   pip install -e .
+
+Features
+--------
 
 This provider package includes:
 
-* A `SeaTunnelHook` for connecting to Apache SeaTunnel services
-* A `SeaTunnelOperator` for running SeaTunnel jobs
-* A `SeaTunnelJobSensor` for monitoring the status of SeaTunnel jobs (works with Zeta engine only)
+* A ``SeaTunnelHook`` for connecting to Apache SeaTunnel services
+* A ``SeaTunnelOperator`` for running SeaTunnel jobs
+* A ``SeaTunnelJobSensor`` for monitoring the status of SeaTunnel jobs (works with Zeta engine only)
 
-## Usage
+Usage
+-----
 
-### Connection
+Connection
+~~~~~~~~~~
 
 First, create a connection in the Airflow UI with the following parameters:
 
-* **Connection Id**: A unique identifier for your connection (e.g., `seatunnel_default`)
-* **Connection Type**: `Apache SeaTunnel`
-* **Host**: Hostname or IP address of the SeaTunnel server (e.g., `localhost`)
-* **Port**: Port of the SeaTunnel server (e.g., `8083` for the Zeta engine REST API)
+* **Connection Id**: A unique identifier for your connection (e.g., ``seatunnel_default``)
+* **Connection Type**: ``Apache SeaTunnel``
+* **Host**: Hostname or IP address of the SeaTunnel server (e.g., ``localhost``)
+* **Port**: Port of the SeaTunnel server (e.g., ``8083`` for the Zeta engine REST API)
 * **Extra**: JSON-encoded dictionary with additional configurations:
-  ```json
-  {
-    "seatunnel_home": "/path/to/seatunnel"
-  }
-  ```
 
-### Running a SeaTunnel Job
+  .. code-block:: json
 
-You can use the `SeaTunnelOperator` to run a SeaTunnel job:
+     {
+       "seatunnel_home": "/path/to/seatunnel"
+     }
 
-```python
-from airflow import DAG
-from airflow.utils.dates import days_ago
-from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
+Running a SeaTunnel Job
+~~~~~~~~~~~~~~~~~~~~~~~
 
-default_args = {
-    'owner': 'airflow',
-    'start_date': days_ago(1),
-}
+You can use the ``SeaTunnelOperator`` to run a SeaTunnel job:
 
-with DAG(
-    'seatunnel_example',
-    default_args=default_args,
-    schedule=None,
-) as dag:
+.. code-block:: python
 
-    # Run a SeaTunnel job using a configuration file
-    seatunnel_job = SeaTunnelOperator(
-        task_id='seatunnel_job',
-        config_file='/path/to/your/config.conf',
-        engine='zeta',  # 'flink', 'spark', or 'zeta'
-        seatunnel_conn_id='seatunnel_default',
-    )
+   from airflow import DAG
+   from airflow.utils.dates import days_ago
+   from airflow.providers.apache.seatunnel.operators.seatunnel_operator import SeaTunnelOperator
 
-    # Or provide configuration content directly
-    seatunnel_job_inline = SeaTunnelOperator(
-        task_id='seatunnel_job_inline',
-        config_content="""
-env {
-  execution.parallelism = 1
-  job.mode = "BATCH"
-}
+   default_args = {
+       "owner": "airflow",
+       "start_date": days_ago(1),
+   }
 
-source {
-  FakeSource {
-    result_table_name = "fake"
-    field_name = "name,age"
-  }
-}
+   with DAG(
+       "seatunnel_example",
+       default_args=default_args,
+       schedule=None,
+   ) as dag:
 
-transform {
-  sql {
-    sql = "select name,age from fake"
-  }
-}
+       # Run a SeaTunnel job using a configuration file
+       seatunnel_job = SeaTunnelOperator(
+           task_id="seatunnel_job",
+           config_file="/path/to/your/config.conf",
+           engine="zeta",  # 'flink', 'spark', or 'zeta'
+           seatunnel_conn_id="seatunnel_default",
+       )
 
-sink {
-  ConsoleSink {}
-}
-        """,
-        engine='zeta',
-        seatunnel_conn_id='seatunnel_default',
-    )
-```
+       # Or provide configuration content directly
+       seatunnel_job_inline = SeaTunnelOperator(
+           task_id="seatunnel_job_inline",
+           config_content="""
+   env {
+     execution.parallelism = 1
+     job.mode = "BATCH"
+   }
 
-### Monitoring a SeaTunnel Job (Zeta Engine Only)
+   source {
+     FakeSource {
+       result_table_name = "fake"
+       field_name = "name,age"
+     }
+   }
 
-You can use the `SeaTunnelJobSensor` to monitor the status of a SeaTunnel job:
+   transform {
+     sql {
+       sql = "select name,age from fake"
+     }
+   }
 
-```python
-from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import SeaTunnelJobSensor
+   sink {
+     ConsoleSink {}
+   }
+           """,
+           engine="zeta",
+           seatunnel_conn_id="seatunnel_default",
+       )
 
-# Monitor a SeaTunnel job
-monitor_job = SeaTunnelJobSensor(
-    task_id='monitor_job',
-    job_id='job_id_to_monitor',
-    target_states=['FINISHED'],
-    seatunnel_conn_id='seatunnel_default',
-    poke_interval=30,  # Check every 30 seconds
-    timeout=3600,  # Timeout after 1 hour
-)
-```
+Monitoring a SeaTunnel Job (Zeta Engine Only)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-## License
+You can use the ``SeaTunnelJobSensor`` to monitor the status of a SeaTunnel job:
+
+.. code-block:: python
+
+   from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import SeaTunnelJobSensor
+
+   # Monitor a SeaTunnel job
+   monitor_job = SeaTunnelJobSensor(
+       task_id="monitor_job",
+       job_id="job_id_to_monitor",
+       target_states=["FINISHED"],
+       seatunnel_conn_id="seatunnel_default",
+       poke_interval=30,  # Check every 30 seconds
+       timeout=3600,  # Timeout after 1 hour
+   )
+
+License
+-------
 
 Apache License 2.0
