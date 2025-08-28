@@ -52,6 +52,7 @@ from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
+from airflow.sdk.bases.trigger import StartTriggerArgs
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
@@ -83,7 +84,7 @@ from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import (
     ConnectionAccessor,
@@ -109,7 +110,6 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
     from airflow.triggers.base import BaseEventTrigger
-    from airflow.typing_compat import Self
 
     HAS_KUBERNETES: bool
     try:
@@ -1309,7 +1309,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        return link.get_link(self.unmap(None), ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives SerializedBaseOperator
+        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives SerializedBaseOperator
 
     @property
     def task_type(self) -> str:
@@ -1757,9 +1757,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     def get_serialized_fields(self):
         return BaseOperator.get_serialized_fields()
-
-    def unmap(self, resolve: None) -> Self:
-        return self
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """
@@ -2272,8 +2269,6 @@ def _has_kubernetes() -> bool:
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator
-
-        # isort: on
         HAS_KUBERNETES = True
     except ImportError:
         HAS_KUBERNETES = False

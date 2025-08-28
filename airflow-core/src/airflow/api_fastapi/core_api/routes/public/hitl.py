@@ -50,6 +50,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
@@ -181,7 +182,10 @@ def _get_hitl_detail(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL)),
+        Depends(action_logging()),
+    ],
 )
 def update_hitl_detail(
     dag_id: str,

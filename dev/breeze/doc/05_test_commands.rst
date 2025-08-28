@@ -180,11 +180,11 @@ Here is the detailed set of options for the ``breeze testing task-sdk-tests`` co
 Using ``breeze testing airflow-ctl-tests`` command
 ...............................................
 
-The ``breeze testing airflow-ctl-tests`` command allows you to run tests for Airflow CTL without
-initializing database. Airflow CTL should not require a database to start, so this acts as a
-good check to see if the Airflow CTL tests are working properly.
+The ``breeze testing airflow-ctl-tests`` command allows you to run tests for airflowctl without
+initializing database. airflowctl should not require a database to start, so this acts as a
+good check to see if the airflowctl tests are working properly.
 
-Run all Airflow CTL tests:
+Run all airflowctl tests:
 
 .. code-block:: bash
 

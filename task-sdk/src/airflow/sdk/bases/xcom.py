@@ -376,5 +376,6 @@ class BaseXCom:
                 dag_id=dag_id,
                 task_id=task_id,
                 run_id=run_id,
+                map_index=map_index,
             ),
         )

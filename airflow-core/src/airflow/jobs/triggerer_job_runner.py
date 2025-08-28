@@ -43,6 +43,7 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
+from airflow.models import DagBag
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.definitions import enable_lazy_task_expansion
@@ -444,6 +445,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                # TODO: call for help to figure out why this is needed
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -512,7 +518,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
+            from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
         else:
@@ -522,10 +528,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
-
-        reset_secrets_masker()
-
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
@@ -612,6 +614,45 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         trigger set.
         """
         render_log_fname = log_filename_template_renderer()
+        dag_bag = DagBag(collect_dags=False)
+
+        def expand_start_trigger_args(trigger: Trigger) -> Trigger:
+            task = dag_bag.get_dag(trigger.task_instance.dag_id).get_task(trigger.task_instance.task_id)
+            if task.template_fields:
+                trigger.task_instance.refresh_from_task(task)
+                context = trigger.task_instance.get_template_context()
+                task.render_template_fields(context=context)
+                start_trigger_args = task.expand_start_trigger_args(context=context)
+                if start_trigger_args:
+                    trigger.kwargs = start_trigger_args.trigger_kwargs
+            return trigger
+
+        def create_workload(trigger: Trigger) -> workloads.RunTrigger:
+            if trigger.task_instance:
+                log_path = render_log_fname(ti=trigger.task_instance)
+
+                trigger = expand_start_trigger_args(trigger)
+
+                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
+                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+                self.logger_cache[new_id] = TriggerLoggingFactory(
+                    log_path=f"{log_path}.trigger.{self.job.id}.log",
+                    ti=ser_ti,  # type: ignore
+                )
+
+                return workloads.RunTrigger(
+                    classpath=trigger.classpath,
+                    id=new_id,
+                    encrypted_kwargs=trigger.encrypted_kwargs,
+                    ti=ser_ti,
+                    timeout_after=trigger.task_instance.trigger_timeout,
+                )
+            return workloads.RunTrigger(
+                classpath=trigger.classpath,
+                id=new_id,
+                encrypted_kwargs=trigger.encrypted_kwargs,
+                ti=None,
+            )
 
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
@@ -649,26 +690,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
                 continue
 
-            workload = workloads.RunTrigger(
-                classpath=new_trigger_orm.classpath,
-                id=new_id,
-                encrypted_kwargs=new_trigger_orm.encrypted_kwargs,
-                ti=None,
-            )
-            if new_trigger_orm.task_instance:
-                log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-
-                ser_ti = workloads.TaskInstance.model_validate(
-                    new_trigger_orm.task_instance, from_attributes=True
-                )
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log",
-                    ti=ser_ti,  # type: ignore
-                )
-
-                workload.ti = ser_ti
-                workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
+            workload = create_workload(new_trigger_orm)
 
             to_create.append(workload)
 
