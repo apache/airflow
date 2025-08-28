@@ -69,11 +69,32 @@ class TableauJobStatusSensor(BaseSensorOperator):
         :return: True if it succeeded and False if not.
         """
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
-            finish_code = tableau_hook.get_job_status(job_id=self.job_id)
-            self.log.info("Current finishCode is %s (%s)", finish_code.name, finish_code.value)
+            job_details = tableau_hook.get_job_details(job_id=self.job_id)
+            finish_code: TableauJobFinishCode = job_details["finish_code"]
+            job_type: str = job_details["job_type"]
+            object_name: str | None = job_details["object_name"]
+            object_id: str | None = job_details["object_id"]
 
+            # Efficient object descriptor construction
+            object_descriptor = (
+                f"{object_name} ({object_id})" 
+                if object_name and object_id 
+                else object_id or f"job {self.job_id}"
+            )
+
+            # Preserve detailed logging
+            self.log.info(
+                "Job type '%s' on %s has finishCode %s (%s).",
+                job_type,
+                object_descriptor,
+                finish_code.name,
+                finish_code.value,
+            )
+
+            # Streamlined error handling
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
-                message = "The Tableau Refresh Workbook Job failed!"
-                raise TableauJobFailedException(message)
+                raise TableauJobFailedException(
+                    f"The Tableau Refresh Job for {object_descriptor} failed!"
+                )
 
             return finish_code == TableauJobFinishCode.SUCCESS

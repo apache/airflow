@@ -179,6 +179,54 @@ class TableauHook(BaseHook):
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
+    def get_job_details(self, job_id: str) -> dict[str, TableauJobFinishCode | str | None]:
+        """
+        Get the current state and details of a defined Tableau Job.
+
+        This method fetches the job and attempts to identify the associated object
+        (Workbook, Datasource, or Flow) and its name/ID to provide more context
+        than just the job status.
+
+        .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
+
+        :param job_id: The ID of the job to check.
+        :return: A dictionary containing:
+            - 'finish_code': An Enum describing the Tableau job's finish code.
+            - 'job_type': The type of the job (e.g., 'RefreshExtract', 'RunFlow').
+            - 'object_name': The name of the associated object (e.g., workbook/datasource name),
+                           or a generated name for Flows if available.
+            - 'object_id': The ID of the associated object (e.g., workbook/datasource/flow ID) if available.
+        """
+        job = self.server.jobs.get_by_id(job_id)
+        finish_code = TableauJobFinishCode(int(job.finish_code))
+        job_type = job.type
+
+        object_name: str | None = None
+        object_id: str | None = None
+
+        if job.workbook_id:
+            object_name = job.workbook_name
+            object_id = job.workbook_id
+        elif job.datasource_id:
+            object_name = job.datasource_name
+            object_id = job.datasource_id
+        elif job.flow_run and job.flow_run.flow_id:
+            # For flow jobs, the flow_run item contains the flow_id.
+            # The name of the flow itself is not directly available in JobItem.
+            # We use the flow_id as the object_id and create a descriptive object_name.
+            object_id = job.flow_run.flow_id
+            object_name = f"Flow ({object_id})"
+        else:
+            object_name = "Unknown"
+            object_id = job_id
+
+        return {
+            "finish_code": finish_code,
+            "job_type": job_type,
+            "object_name": object_name,
+            "object_id": object_id,
+        }
+
     def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
         """
         Wait until the current state of a defined Tableau Job is target_state or different from PENDING.

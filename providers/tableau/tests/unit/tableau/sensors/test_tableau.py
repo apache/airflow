@@ -38,16 +38,22 @@ class TestTableauJobStatusSensor:
     @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
     def test_poke(self, mock_tableau_hook):
         """
-        Test poke
+        Test poke when job is successful.
         """
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        mock_tableau_hook.get_job_status.return_value = TableauJobFinishCode.SUCCESS
+        # Mock the get_job_details method to return a dictionary
+        mock_tableau_hook.get_job_details.return_value = {
+            "finish_code": TableauJobFinishCode.SUCCESS,
+            "job_type": "RefreshExtract",
+            "object_name": "Test Workbook",
+            "object_id": "workbook_id_123",
+        }
         sensor = TableauJobStatusSensor(**self.kwargs)
 
         job_finished = sensor.poke(context={})
 
         assert job_finished
-        mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)
+        mock_tableau_hook.get_job_details.assert_called_once_with(job_id=sensor.job_id)
 
     @pytest.mark.parametrize(
         "finish_code",
@@ -59,12 +65,20 @@ class TestTableauJobStatusSensor:
     @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
     def test_poke_failed(self, mock_tableau_hook, finish_code):
         """
-        Test poke failed
+        Test poke when job fails or is canceled.
         """
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        mock_tableau_hook.get_job_status.return_value = finish_code
+        # Mock the get_job_details method to return a dictionary with the specific finish_code
+        mock_tableau_hook.get_job_details.return_value = {
+            "finish_code": finish_code,
+            "job_type": "RefreshExtract",
+            "object_name": "Failed Datasource",
+            "object_id": "datasource_id_456",
+        }
         sensor = TableauJobStatusSensor(**self.kwargs)
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException) as excinfo:
             sensor.poke({})
-        mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)
+        # Optionally, assert the exception message if needed, though the original test did not.
+        # For example: assert "The Tableau Refresh Datasource Job for 'Failed Datasource' failed!" in str(excinfo.value)
+        mock_tableau_hook.get_job_details.assert_called_once_with(job_id=sensor.job_id)
