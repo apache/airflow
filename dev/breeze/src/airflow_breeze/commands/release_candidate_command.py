@@ -93,7 +93,7 @@ def validate_git_status():
     console_print("[success]Working directory is clean")
 
 
-def validate_version_branches_exist(version_branch, remote_name):
+def validate_version_branches_exist(version_branch, remote_name, dry_run=False):
     """Validate that the required version branches exist."""
     console_print(f"[info]Validating version branches exist for {version_branch}...")
 
@@ -118,18 +118,30 @@ def validate_version_branches_exist(version_branch, remote_name):
     stable_branch_exists = f"{remote_name}/{stable_branch}" in remote_branches
 
     if not test_branch_exists:
-        console_print(f"[error]Test branch '{remote_name}/{test_branch}' does not exist!")
-        console_print("Available remote branches:")
-        run_command(["git", "branch", "-r"])
-        exit(1)
-    console_print(f"[success]Test branch '{remote_name}/{test_branch}' exists")
+        if dry_run:
+            console_print(
+                f"[warning]Not validating presence of test branch: '{remote_name}/{test_branch}' since its a dry-run"
+            )
+        else:
+            console_print(f"[error]Test branch '{remote_name}/{test_branch}' does not exist!")
+            console_print("Available remote branches:")
+            run_command(["git", "branch", "-r"])
+            exit(1)
+    else:
+        console_print(f"[success]Test branch '{remote_name}/{test_branch}' exists")
 
     if not stable_branch_exists:
-        console_print(f"[error]Stable branch '{remote_name}/{stable_branch}' does not exist!")
-        console_print("Available remote branches:")
-        run_command(["git", "branch", "-r"])
-        exit(1)
-    console_print(f"[success]Stable branch '{remote_name}/{stable_branch}' exists")
+        if dry_run:
+            console_print(
+                f"[warning]Not validating presence of stable branch: '{remote_name}/{stable_branch}' since its a dry-run)"
+            )
+        else:
+            console_print(f"[error]Stable branch '{remote_name}/{stable_branch}' does not exist!")
+            console_print("Available remote branches:")
+            run_command(["git", "branch", "-r"])
+            exit(1)
+    else:
+        console_print(f"[success]Stable branch '{remote_name}/{stable_branch}' exists")
 
 
 def validate_tag_does_not_exist(version, remote_name):
@@ -178,6 +190,10 @@ def validate_on_correct_branch_for_tagging(version_branch):
     """Validate that we're on the correct branch for tagging (stable branch)."""
     console_print("[info]Validating we're on the correct branch for tagging...")
 
+    if get_dry_run():
+        console_print(f"Not really validating we're on branch: v{version_branch}-stable, dry-run mode")
+        return
+
     expected_branch = f"v{version_branch}-stable"
 
     # Check current branch
@@ -200,6 +216,11 @@ def validate_on_correct_branch_for_tagging(version_branch):
 
 def merge_pr(version_branch, remote_name):
     if confirm_action("Do you want to merge the Sync PR?"):
+        if get_dry_run():
+            console_print(
+                f"We would merge Sync PR for version branch: {version_branch}, but not doing it because of dry-run mode"
+            )
+            return
         run_command(
             [
                 "git",
@@ -588,7 +609,7 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
 
     validate_remote_tracks_apache_airflow(remote_name)
     validate_git_status()
-    validate_version_branches_exist(version_branch, remote_name)
+    validate_version_branches_exist(version_branch, remote_name, dry_run=get_dry_run())
     validate_tag_does_not_exist(version, remote_name)
     validate_tag_does_not_exist(f"task-sdk/{task_sdk_version}", remote_name)
 
