@@ -235,4 +235,3 @@ This is achieved via the ``executor_config`` argument to a Task or Operator. Her
     )
 
 The settings you can pass into ``executor_config`` vary by executor, so read the :doc:`individual executor documentation <executor/index>` in order to see what you can set.
-

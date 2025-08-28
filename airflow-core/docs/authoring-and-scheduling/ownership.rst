@@ -33,6 +33,4 @@ In Airflow 2, the list of owners was displayed in the DAG list view, not taking 
 Starting with Airflow 3.1, the owners are displayed in the header of the DAG view.
 Hence, a clickable link (that may be a instant messaging handle or a mailto link) is displayed for any owner matching an item defined in the ``owner_links`` dictionary is converted to a clickable link.
 
-If you don't need the Task level granularity, and want to define a set of owners at the DAG level, you may leverage the :ref:` \`\`default_args\`\` argument <concepts-default-arguments>` to apply the same set of owners to every tasks in the DAG.
-
-
+If you don't need the Task level granularity, and want to define a set of owners at the DAG level, you may leverage the :ref:`default_args argument<concepts-default-arguments>` to apply the same set of owners to every tasks in the DAG.
