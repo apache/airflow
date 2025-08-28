@@ -177,23 +177,14 @@ def _is_template(configuration_description: dict[str, dict[str, Any]], section: 
 
 
 def _default_config_file_path(file_name: str) -> str:
-    """Get path to default config file template."""
-    # This will be overridden by distribution-specific wrappers, but provide a fallback
-    # Try to find config templates relative to this module
-    current_dir = os.path.dirname(__file__)
-    possible_paths = [
-        # Look for config templates in the distribution that's using this shared library
-        os.path.join(current_dir, "..", "..", "..", "..", "config_templates"),
-        os.path.join(current_dir, "config_templates"),
-        # Last resort - assume it's in the current directory
-        file_name,
-    ]
-    for templates_dir in possible_paths:
-        full_path = os.path.join(templates_dir, file_name) if templates_dir != file_name else file_name
-        if os.path.exists(full_path):
-            return full_path
-    # If nothing found, return the filename as-is and let the caller handle FileNotFoundError
-    return file_name
+    """
+    Get path to default config file template.
+
+    This will be overridden by distribution specific wrappers via method injection.
+    """
+    # Simple fallback - look for config_templates relative to this module
+    templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
+    return os.path.join(templates_dir, file_name)
 
 
 def retrieve_configuration_description(
