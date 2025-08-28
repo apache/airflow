@@ -18,7 +18,7 @@
       "previousMonth": "Poprzedni miesiąc",
       "previousYear": "Poprzedni rok"
     },
-    "noData": "Brak dostępnych danych",
+    "noData": "Brak danych",
     "noRuns": "Brak wykonań",
     "totalRuns": "Łączna liczba wykonań",
     "week": "Tydzień {{weekNumber}}",
