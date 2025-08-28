@@ -1293,8 +1293,24 @@
                     ],
                     "default": null
                 },
+                "metadataSecretKey": {
+                    "description": "Key name in the metadata secret (defaults to 'connection').",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "resultBackendSecretKey": {
+                    "description": "Key name in the result backend secret (defaults to 'connection').",
                     "type": [
                         "string",
                         "null"
