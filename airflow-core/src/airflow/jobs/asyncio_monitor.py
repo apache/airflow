@@ -53,13 +53,12 @@ class StallSample:
 
 @dataclasses.dataclass
 class StallIncident:
-    """A coalesced stall incident with start/end, samples, and suspected tasks."""
+    """A coalesced stall incident with start/end, and samples."""
 
     started_at_perf: float
     ended_at_perf: float | None
     threshold: float
     samples: list[StallSample]
-    suspected_tasks: list[str]  # filled on correlation
     # Human-readable timestamps for convenience
     started_at_utc: str = dataclasses.field(default="")
     ended_at_utc: str = dataclasses.field(default="")
@@ -93,7 +92,7 @@ class AsyncioStallMonitor:
 
     def __init__(
         self,
-        loop: asyncio.AbstractEventLoop | None = None,
+        loop: asyncio.AbstractEventLoop,
         *,
         threshold: float = 0.2,  # seconds without heartbeat => stall
         heartbeat_interval: float = 0.1,  # loop posts heartbeat this often
@@ -101,7 +100,7 @@ class AsyncioStallMonitor:
         max_frames: int = 25,  # limit stack frames captured
         history_size: int = 1,  # TODO: increase and make history more useful in the future
     ) -> None:
-        self.loop = loop or asyncio.get_running_loop()
+        self.loop = loop
         self.threshold = float(threshold)
         self.heartbeat_interval = float(heartbeat_interval)
         self.min_report_interval = float(min_report_interval)
@@ -197,7 +196,6 @@ class AsyncioStallMonitor:
                         ended_at_perf=None,
                         threshold=self.threshold,
                         samples=[],
-                        suspected_tasks=[],
                         started_at_utc=_utc_now_str(),
                         ended_at_utc="",
                     )
