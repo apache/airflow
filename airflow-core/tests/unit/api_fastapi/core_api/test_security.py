@@ -84,6 +84,7 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
+    @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_dag_authorized(self, mock_get_auth_manager):
         auth_manager = Mock()
@@ -96,6 +97,7 @@ class TestFastApiSecurity:
 
         auth_manager.is_authorized_dag.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
         auth_manager = Mock()
