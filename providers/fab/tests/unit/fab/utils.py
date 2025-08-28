@@ -27,7 +27,13 @@ import flask
 import pytest
 
 from airflow.models import Log
-from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
+
+try:
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+except ImportError:
+    from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
+
+sensitive_fields = DEFAULT_SENSITIVE_FIELDS
 
 if TYPE_CHECKING:
     import jinja2

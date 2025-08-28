@@ -63,6 +63,7 @@ class TaskInstanceResponse(BaseModel):
     queue: str | None
     priority_weight: int | None
     operator: str | None
+    operator_name: str | None
     queued_dttm: datetime | None = Field(alias="queued_when")
     scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
@@ -106,16 +107,32 @@ class TaskInstancesBatchBody(StrictBaseModel):
     dag_run_ids: list[str] | None = None
     task_ids: list[str] | None = None
     state: list[TaskInstanceState | None] | None = None
+
     run_after_gte: AwareDatetime | None = None
+    run_after_gt: AwareDatetime | None = None
     run_after_lte: AwareDatetime | None = None
+    run_after_lt: AwareDatetime | None = None
+
     logical_date_gte: AwareDatetime | None = None
+    logical_date_gt: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
+    logical_date_lt: AwareDatetime | None = None
+
     start_date_gte: AwareDatetime | None = None
+    start_date_gt: AwareDatetime | None = None
     start_date_lte: AwareDatetime | None = None
+    start_date_lt: AwareDatetime | None = None
+
     end_date_gte: AwareDatetime | None = None
+    end_date_gt: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
+    end_date_lt: AwareDatetime | None = None
+
     duration_gte: float | None = None
+    duration_gt: float | None = None
     duration_lte: float | None = None
+    duration_lt: float | None = None
+
     pool: list[str] | None = None
     queue: list[str] | None = None
     executor: list[str] | None = None
@@ -149,6 +166,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     queue: str | None
     priority_weight: int | None
     operator: str | None
+    custom_operator_name: str | None = Field(alias="operator_name")
     queued_dttm: datetime | None = Field(alias="queued_when")
     scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
