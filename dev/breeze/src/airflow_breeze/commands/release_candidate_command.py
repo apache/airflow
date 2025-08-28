@@ -41,7 +41,6 @@ def validate_remote_tracks_apache_airflow(remote_name):
         check=False,
         capture_output=True,
         text=True,
-        dry_run_override=False,
     )
 
     if result.returncode != 0:
@@ -110,7 +109,6 @@ def validate_version_branches_exist(version_branch, remote_name):
         check=True,
         capture_output=True,
         text=True,
-        dry_run_override=False,
     )
     remote_branches = result.stdout
 
@@ -186,7 +184,6 @@ def validate_on_correct_branch_for_tagging(version_branch):
         check=True,
         capture_output=True,
         text=True,
-        dry_run_override=False,
     )
     current_branch = result.stdout.strip()
 
