@@ -557,6 +557,66 @@ class TestDag:
 
         assert task.test_field == ["{{ ds }}", "some_string"]
 
+    def test_template_searchpath_from_config(self, tmp_path, monkeypatch):
+        # Create a template file
+        template_dir = tmp_path
+        path = template_dir / "searchpath_testfile.template"
+        path.write_text("{{ ds }}")
+
+        # Patch config to include tmp_path as template_searchpath
+        monkeypatch.setenv("AIRFLOW__CORE__TEMPLATE_SEARCHPATH", str(tmp_path))
+
+        with DAG(
+            dag_id="test-dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+        ):
+            task = EmptyOperator(task_id="op1")
+
+        task.test_field = path.name  # only the file name, not full path
+        task.template_fields = ("test_field",)
+        task.template_ext = (".template",)
+        task.resolve_template_files()
+
+        assert task.test_field == "{{ ds }}"
+
+    def test_listof_template_searchpath_from_config(self, tmp_path, monkeypatch):
+        # create two template files in two different directories
+        dir1 = tmp_path / "templates1"
+        dir2 = tmp_path / "templates2"
+        dir1.mkdir()
+        dir2.mkdir()
+
+        template_file1 = dir1 / "file1.txt"
+        template_file2 = dir2 / "file2.txt"
+        template_file1.write_text("Hello from template1")
+        template_file2.write_text("{{ ds }}")
+
+        # Case 1: multiple paths (list of strings)
+
+        monkeypatch.setenv("AIRFLOW__CORE__TEMPLATE_SEARCHPATH", f"{str(dir1)},{str(dir2)}")
+        with DAG(
+            dag_id="test-dag-multi",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+        ):
+            task1 = EmptyOperator(task_id="op1")
+            task2 = EmptyOperator(task_id="op2")
+
+            # Test task1 loads template from dir1
+            task1.test_field = "file1.txt"
+            task1.template_fields = ("test_field",)
+            task1.template_ext = (".txt",)
+            task1.resolve_template_files()
+            assert "Hello" in task1.test_field
+
+            # Test task2 loads template from dir2
+            task2.test_field = "file2.txt"
+            task2.template_fields = ("test_field",)
+            task2.template_ext = (".txt",)
+            task2.resolve_template_files()
+            assert "{{ ds }}" in task2.test_field
+
     def test_create_dagrun_when_schedule_is_none_and_empty_start_date(self, testing_dag_bundle):
         # Check that we don't get an AttributeError 'start_date' for self.start_date when schedule is none
         dag = DAG("dag_with_none_schedule_and_empty_start_date", schedule=None)
