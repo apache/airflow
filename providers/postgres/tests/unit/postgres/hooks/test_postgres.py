@@ -818,8 +818,7 @@ class TestPostgresHookPPG2:
         table = "table"
         rows = [("hello",), ("world",)]
 
-        with mock.patch.object(PostgresHook, "_serialize_cells", side_effect=lambda r, _: r):
-            setup.db_hook.insert_rows(table, rows, fast_executemany=True)
+        setup.db_hook.insert_rows(table, rows, fast_executemany=True)
 
         assert setup.conn.close.call_count == 1
         assert setup.cur.close.call_count == 1
