@@ -637,9 +637,7 @@ class PostgresHook(DbApiHook):
                             chunked_rows,
                         )
                     )
-                    sql = self._generate_insert_sql(
-                        table, values[0], target_fields, replace, **kwargs
-                    )
+                    sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                     self.log.debug("Generated sql: %s", sql)
 
                     try:
