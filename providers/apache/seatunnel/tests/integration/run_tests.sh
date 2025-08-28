@@ -129,7 +129,7 @@ run_tests() {
 
     # Add coverage if available
     if command -v pytest-cov &> /dev/null; then
-        test_args+=("--cov=airflow_seatunnel_provider")
+        test_args+=("--cov=airflow.providers.apache.seatunnel")
         test_args+=("--cov-report=html")
         test_args+=("--cov-report=term")
     fi

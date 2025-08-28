@@ -51,7 +51,7 @@ class TestSeaTunnelIntegrationE2E:
     def test_hook_connection_and_basic_functionality(self, seatunnel_service, seatunnel_connection):
         """Test basic hook functionality with real SeaTunnel instance"""
         with patch(
-            "airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
+            "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
         ) as mock_get_conn:
             mock_get_conn.return_value = seatunnel_connection
 
@@ -102,7 +102,7 @@ sink {
     def test_operator_execute_batch_job(self, seatunnel_service, seatunnel_connection, simple_batch_config):
         """Test executing a batch job using SeaTunnelOperator"""
         with patch(
-            "airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
+            "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
         ) as mock_get_conn:
             mock_get_conn.return_value = seatunnel_connection
 
@@ -377,12 +377,12 @@ class TestSeaTunnelConfigurationValidation:
         connection = Connection(**seatunnel_connection_params)
 
         with patch(
-            "airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
+            "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
         ) as mock_get_conn:
             mock_get_conn.return_value = connection
 
             with patch(
-                "airflow_seatunnel_provider.sensors.seatunnel_sensor.SeaTunnelHook"
+                "airflow.providers.apache.seatunnel.sensors.seatunnel_sensor.SeaTunnelHook"
             ) as mock_hook_class:
                 mock_hook = type("MockHook", (), {"engine": "flink"})()
                 mock_hook_class.return_value = mock_hook

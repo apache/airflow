@@ -45,7 +45,7 @@ class TestSeaTunnelHookIntegration:
     def hook(self, seatunnel_connection):
         """Create a SeaTunnelHook instance for testing"""
         with patch(
-            "airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
+            "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
         ) as mock_get_conn:
             mock_get_conn.return_value = seatunnel_connection
             return SeaTunnelHook(seatunnel_conn_id="seatunnel_test")
@@ -65,7 +65,7 @@ class TestSeaTunnelHookIntegration:
         )
 
         with patch(
-            "airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
+            "airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection"
         ) as mock_get_conn:
             mock_get_conn.return_value = connection
             with pytest.raises(AirflowException, match="SeaTunnel home directory must be specified"):

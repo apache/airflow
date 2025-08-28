@@ -148,6 +148,9 @@ packages = []
 "apache.pinot" = [
     "apache-airflow-providers-apache-pinot>=4.5.1"
 ]
+"apache.seatunnel" = [
+    "apache-airflow-providers-apache-seatunnel"
+]
 "apache.spark" = [
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
@@ -408,6 +411,7 @@ packages = []
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
+    "apache-airflow-providers-apache-seatunnel",
     "apache-airflow-providers-apache-spark>=4.11.1",
     "apache-airflow-providers-apache-tinkerpop>=1.0.0",
     "apache-airflow-providers-apprise>=1.4.1",
@@ -1049,6 +1053,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pig/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/seatunnel/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/seatunnel/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/src",
@@ -1330,6 +1336,7 @@ apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
+apache-airflow-providers-apache-seatunnel = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-apache-tinkerpop = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
@@ -1446,6 +1453,7 @@ members = [
     "providers/apache/livy",
     "providers/apache/pig",
     "providers/apache/pinot",
+    "providers/apache/seatunnel",
     "providers/apache/spark",
     "providers/apache/tinkerpop",
     "providers/apprise",

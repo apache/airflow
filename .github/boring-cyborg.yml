@@ -69,6 +69,9 @@ labelPRBasedOnFilePath:
   provider:apache-pinot:
     - providers/apache/pinot/**
 
+  provider:apache-seatunnel:
+    - providers/apache/seatunnel/**
+
   provider:apache-spark:
     - providers/apache/spark/**
 

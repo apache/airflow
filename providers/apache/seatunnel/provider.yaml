@@ -27,10 +27,12 @@ description: |
 versions:
   - 0.1.0
 
+source-date-epoch: 1735200000
+
 # Optional: dependencies are taken from pyproject.toml by tooling,
 # but can be kept here for readability.
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.10.0
   - requests>=2.25.0
 
 integrations:

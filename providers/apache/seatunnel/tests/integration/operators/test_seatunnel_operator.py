@@ -104,8 +104,8 @@ sink {
                 seatunnel_conn_id="seatunnel_test",
             )
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.run_job")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.run_job")
     def test_execute_with_config_file(self, mock_run_job, mock_get_connection, seatunnel_connection):
         """Test executing operator with config file"""
         mock_get_connection.return_value = seatunnel_connection
@@ -124,9 +124,9 @@ sink {
         assert result == "Job completed successfully"
         mock_run_job.assert_called_once_with(config_file="/path/to/config.conf", engine="zeta")
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.run_job")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.create_temp_config")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.run_job")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.create_temp_config")
     def test_execute_with_config_content(
         self, mock_create_temp, mock_run_job, mock_get_connection, seatunnel_connection
     ):
@@ -178,9 +178,9 @@ sink {
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.run_job")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.create_temp_config")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.run_job")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.create_temp_config")
     @patch("os.path.exists")
     @patch("os.unlink")
     def test_execute_cleanup_temp_file(
@@ -213,9 +213,9 @@ sink {
         # Verify that the temporary file was cleaned up
         mock_unlink.assert_called_once_with("/tmp/test_config.conf")
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.run_job")
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.create_temp_config")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.run_job")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.create_temp_config")
     @patch("os.path.exists")
     @patch("os.unlink")
     def test_execute_cleanup_temp_file_on_exception(

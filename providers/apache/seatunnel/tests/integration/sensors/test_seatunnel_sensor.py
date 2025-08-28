@@ -66,7 +66,7 @@ class TestSeaTunnelJobSensorIntegration:
 
         assert sensor.target_states == ["FINISHED"]
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     def test_poke_non_zeta_engine_raises_error(self, mock_get_connection, seatunnel_connection):
         """Test that sensor raises error for non-zeta engines"""
         mock_get_connection.return_value = seatunnel_connection
@@ -76,7 +76,9 @@ class TestSeaTunnelJobSensorIntegration:
         )
 
         # Patch the hook to use a different engine
-        with patch("airflow_seatunnel_provider.sensors.seatunnel_sensor.SeaTunnelHook") as mock_hook_class:
+        with patch(
+            "airflow.providers.apache.seatunnel.sensors.seatunnel_sensor.SeaTunnelHook"
+        ) as mock_hook_class:
             mock_hook = MagicMock()
             mock_hook.engine = "flink"
             mock_hook_class.return_value = mock_hook
@@ -86,7 +88,7 @@ class TestSeaTunnelJobSensorIntegration:
             with pytest.raises(ValueError, match="SeaTunnelJobSensor only works with the 'zeta' engine"):
                 sensor.poke(context)
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_job_finished_success(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test successful job completion detection"""
@@ -115,7 +117,7 @@ class TestSeaTunnelJobSensorIntegration:
         assert result is True
         mock_get.assert_called_once_with("http://localhost:8083/job-info/test_job_123", timeout=10)
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_job_running(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test job still running detection"""
@@ -143,7 +145,7 @@ class TestSeaTunnelJobSensorIntegration:
 
         assert result is False
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_job_failed(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test job failure detection"""
@@ -171,7 +173,7 @@ class TestSeaTunnelJobSensorIntegration:
         with pytest.raises(Exception, match="SeaTunnel job test_job_123 is in FAILED state"):
             sensor.poke(context)
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_job_canceled(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test job cancellation detection"""
@@ -199,7 +201,7 @@ class TestSeaTunnelJobSensorIntegration:
         with pytest.raises(Exception, match="SeaTunnel job test_job_123 is in CANCELED state"):
             sensor.poke(context)
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_multiple_target_states(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test sensor with multiple target states"""
@@ -227,7 +229,7 @@ class TestSeaTunnelJobSensorIntegration:
 
         assert result is True
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_api_404_error(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test handling of 404 API errors"""
@@ -251,7 +253,7 @@ class TestSeaTunnelJobSensorIntegration:
 
         assert result is False
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_request_exception(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test handling of request exceptions"""
@@ -272,7 +274,7 @@ class TestSeaTunnelJobSensorIntegration:
 
         assert result is False
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_invalid_json_response(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test handling of invalid JSON responses"""
@@ -297,7 +299,7 @@ class TestSeaTunnelJobSensorIntegration:
 
         assert result is False
 
-    @patch("airflow_seatunnel_provider.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
+    @patch("airflow.providers.apache.seatunnel.hooks.seatunnel_hook.SeaTunnelHook.get_connection")
     @patch("requests.get")
     def test_poke_missing_job_status_field(self, mock_get, mock_get_connection, seatunnel_connection):
         """Test handling of responses missing jobStatus field"""
