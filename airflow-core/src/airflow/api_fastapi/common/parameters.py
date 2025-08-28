@@ -690,6 +690,50 @@ class _AssetDependencyFilter(BaseParam[str]):
 QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
 QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
 
+
+class _PendingActionsFilter(BaseParam[bool]):
+    """Filter DAGs by having pending HITL actions (more than 1)."""
+
+    def to_orm(self, select_stmt: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select_stmt
+
+        if self.value:
+            # Join with HITLDetail and TaskInstance to find DAGs with more than 1 pending actions
+            from airflow.models.hitl import HITLDetail
+            from airflow.models.taskinstance import TaskInstance
+
+            pending_actions_count_subquery = (
+                sql_select(func.count(HITLDetail.ti_id))
+                .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+                .where(HITLDetail.response_at.is_(None))
+                .where(TaskInstance.dag_id == DagModel.dag_id)
+                .scalar_subquery()
+            )
+            select_stmt = select_stmt.where(pending_actions_count_subquery > 1)
+        else:
+            # Filter to show only DAGs with 1 or fewer pending actions
+            from airflow.models.hitl import HITLDetail
+            from airflow.models.taskinstance import TaskInstance
+
+            pending_actions_count_subquery = (
+                sql_select(func.count(HITLDetail.ti_id))
+                .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+                .where(HITLDetail.response_at.is_(None))
+                .where(TaskInstance.dag_id == DagModel.dag_id)
+                .scalar_subquery()
+            )
+            select_stmt = select_stmt.where(pending_actions_count_subquery <= 1)
+
+        return select_stmt
+
+    @classmethod
+    def depends(cls, has_pending_actions: bool | None = Query(None)) -> _PendingActionsFilter:
+        return cls().set_value(has_pending_actions)
+
+
+QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
+
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
     FilterParam[DagRunState | None],

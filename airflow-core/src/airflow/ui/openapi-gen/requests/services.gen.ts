@@ -1698,6 +1698,7 @@ export class DagService {
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
      * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+     * @param data.hasPendingActions
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1723,7 +1724,8 @@ export class DagService {
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite,
                 has_asset_schedule: data.hasAssetSchedule,
-                asset_dependency: data.assetDependency
+                asset_dependency: data.assetDependency,
+                has_pending_actions: data.hasPendingActions
             },
             errors: {
                 422: 'Validation Error'
