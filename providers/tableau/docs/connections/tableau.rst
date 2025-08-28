@@ -27,7 +27,7 @@ The Tableau connection type enables the Tableau Integrations.
 Authenticating to Tableau
 -------------------------
 
-There are two ways to connect to Tableau using Airflow.
+There are three ways to connect to Tableau using Airflow.
 
 1. Use `Password and Username Authentication
    <https://tableau.github.io/server-client-python/docs/api-ref#tableauauth-class>`_
