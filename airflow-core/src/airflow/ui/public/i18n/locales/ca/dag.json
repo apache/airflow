@@ -67,7 +67,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Saltar: Shift+{{arrow}}",
     "navigation": "Navegació: {{arrow}}",
     "toggleGroup": "Alternar grup: Espai"
   },

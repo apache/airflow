@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "Totes",
+      "pending": "Pendents",
+      "received": "Revisades"
+    }
+  },
   "requiredAction_one": "Acció necessària",
   "requiredAction_other": "Accions necessàries",
   "requiredActionState": "Estat de l'acció necessària",
