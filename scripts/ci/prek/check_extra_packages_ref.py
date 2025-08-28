@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "hatchling==1.27.0",
+#   "rich>=13.6.0",
+#   "tabulate>=0.9.0",
+# ]
+# ///
 """
 Checks if all the libraries in setup.py are listed in installation.rst file
 """

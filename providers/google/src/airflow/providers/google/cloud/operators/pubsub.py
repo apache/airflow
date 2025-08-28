@@ -890,3 +890,13 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
         return messages_json
+
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        output_dataset = [
+            Dataset(namespace="pubsub", name=f"subscription:{self.project_id}:{self.subscription}")
+        ]
+
+        return OperatorLineage(outputs=output_dataset)

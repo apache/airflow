@@ -67,9 +67,8 @@ When writing a deferrable operators these are the main points to consider:
     from typing import Any
 
     from airflow.configuration import conf
-    from airflow.sdk import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator, Context
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-    from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
@@ -175,13 +174,10 @@ Here's a basic example of how a sensor might trigger deferral:
     from __future__ import annotations
 
     from datetime import timedelta
-    from typing import TYPE_CHECKING, Any
+    from typing import Any
 
-    from airflow.sdk import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator, Context
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-
-    if TYPE_CHECKING:
-        from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
@@ -288,13 +284,9 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from __future__ import annotations
 
     from datetime import timedelta
-    from typing import TYPE_CHECKING, Any
+    from typing import Any
 
-    from airflow.sdk import BaseSensorOperator
-    from airflow.triggers.base import StartTriggerArgs
-
-    if TYPE_CHECKING:
-        from airflow.utils.context import Context
+    from airflow.sdk import BaseSensorOperator, Context, StartTriggerArgs
 
 
     class WaitOneHourSensor(BaseSensorOperator):
@@ -319,13 +311,9 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from __future__ import annotations
 
     from datetime import timedelta
-    from typing import TYPE_CHECKING, Any
+    from typing import Any
 
-    from airflow.sdk import BaseSensorOperator
-    from airflow.triggers.base import StartTriggerArgs
-
-    if TYPE_CHECKING:
-        from airflow.utils.context import Context
+    from airflow.sdk import BaseSensorOperator, Context, StartTriggerArgs
 
 
     class WaitHoursSensor(BaseSensorOperator):
@@ -358,13 +346,9 @@ After the trigger has finished executing, the task may be sent back to the worke
     from __future__ import annotations
 
     from datetime import timedelta
-    from typing import TYPE_CHECKING, Any
+    from typing import Any
 
-    from airflow.sdk import BaseSensorOperator
-    from airflow.triggers.base import StartTriggerArgs
-
-    if TYPE_CHECKING:
-        from airflow.utils.context import Context
+    from airflow.sdk import BaseSensorOperator, Context, StartTriggerArgs
 
 
     class WaitHoursSensor(BaseSensorOperator):

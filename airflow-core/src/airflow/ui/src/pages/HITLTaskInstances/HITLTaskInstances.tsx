@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Heading, Link, createListCollection } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -30,12 +31,15 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { SearchParamsKeys } from "src/constants/searchParams";
-import { useAutoRefresh } from "src/utils";
+import { Select } from "src/components/ui";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
 type TaskInstanceRow = { row: { original: HITLDetail } };
+
+const { OFFSET: OFFSET_PARAM, RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM }: SearchParamsKeysType =
+  SearchParamsKeys;
 
 const taskInstanceColumns = ({
   dagId,
@@ -111,10 +115,6 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_received",
-    header: translate("state.responseReceived"),
-  },
-  {
     accessorKey: "response_at",
     cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
     header: translate("response.received"),
@@ -124,23 +124,47 @@ const taskInstanceColumns = ({
 export const HITLTaskInstances = () => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const responseReceived = searchParams.get(SearchParamsKeys.RESPONSE_RECEIVED);
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  const refetchInterval = useAutoRefresh({});
+  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails({
+    dagId,
+    dagRunId: runId,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
+    responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+    taskId,
+  });
 
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagId,
-      dagRunId: runId,
-      responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
-      taskId,
+  const enabledOptions = createListCollection({
+    items: [
+      { label: translate("filters.response.all"), value: "all" },
+      { label: translate("filters.response.pending"), value: "false" },
+      { label: translate("filters.response.received"), value: "true" },
+    ],
+  });
+
+  const handleResponseChange = useCallback(
+    ({ value }: { value: Array<string> }) => {
+      const [val] = value;
+
+      if (val === undefined || val === "all") {
+        searchParams.delete(RESPONSE_RECEIVED_PARAM);
+      } else {
+        searchParams.set(RESPONSE_RECEIVED_PARAM, val);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      searchParams.delete(OFFSET_PARAM);
+      setSearchParams(searchParams);
     },
-    undefined,
-    {
-      refetchInterval,
-    },
+    [searchParams, setSearchParams, pagination, sorting, setTableURLState],
   );
 
   return (
@@ -150,6 +174,25 @@ export const HITLTaskInstances = () => {
           {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
         </Heading>
       ) : undefined}
+      <Box mt={3}>
+        <Select.Root
+          collection={enabledOptions}
+          maxW="250px"
+          onValueChange={handleResponseChange}
+          value={[responseReceived ?? "all"]}
+        >
+          <Select.Trigger isActive={Boolean(responseReceived)}>
+            <Select.ValueText />
+          </Select.Trigger>
+          <Select.Content>
+            {enabledOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Box>
       <DataTable
         columns={taskInstanceColumns({
           dagId,

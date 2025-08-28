@@ -237,6 +237,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "max_tries": 0,
             "note": None,
             "operator": "EmptyOperator",
+            "operator_name": "EmptyOperator",
             "pid": None,
             "pool": "default_pool",
             "pool_slots": 1,

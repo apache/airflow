@@ -280,7 +280,7 @@ export const DagsList = () => {
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {`${data?.total_entries ?? 0} ${(data?.total_entries ?? 0) === 1 ? translate("dag_one") : translate("dag_other")}`}
+              {`${data?.total_entries ?? 0} ${translate("dag", { count: data?.total_entries ?? 0 })}`}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>

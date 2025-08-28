@@ -18,10 +18,16 @@
 Quick Start
 -----------
 
-Airflow CTL is a command line tool that helps you manage your Airflow deployments.
+Let's first install ``airflowctl`` if you haven't already:
+
+From PyPI: :doc:`/installation/installing-from-pypi`
+
+From source: :doc:`/installation/installing-from-sources`
+
+airflowctl is a command line tool that helps you manage your Airflow deployments.
 It is designed to be easy to use and provides a simple interface for managing your Airflow environment.
 
-To get started, you can use the following command to create a new Airflow CTL environment:
+To get started, you can use the following command to create a new airflowctl environment:
 
 .. code-block:: bash
 
@@ -38,8 +44,8 @@ OR
   export AIRFLOW_CLI_TOKEN=<token>
   airflowctl auth login --api-url <api_url> --env <env_name>
 
-This command will create a new Airflow CTL environment with the specified username and password.
-You can then use the following command to start the Airflow CTL environment:
+This command will create a new airflowctl environment with the specified username and password.
+You can then use the following command to start the airflowctl environment:
 
 .. code-block:: bash
 

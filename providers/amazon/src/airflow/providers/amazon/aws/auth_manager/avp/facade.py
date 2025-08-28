@@ -120,7 +120,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
                 "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
-                    "actionId": get_action_id(entity_type, method),
+                    "actionId": get_action_id(entity_type, method, entity_id),
                 },
                 "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
                 "entities": {"entityList": entity_list},
@@ -281,7 +281,9 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
                 "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
-                    "actionId": get_action_id(request["entity_type"], request["method"]),
+                    "actionId": get_action_id(
+                        request["entity_type"], request["method"], request.get("entity_id")
+                    ),
                 },
                 "resource": {
                     "entityType": get_entity_type(request["entity_type"]),
