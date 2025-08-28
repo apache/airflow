@@ -3063,7 +3063,7 @@ export type GetHitlDetailsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
-    repondedBy?: Array<(string)>;
+    respondedBy?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**

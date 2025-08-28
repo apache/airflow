@@ -1473,8 +1473,8 @@
 <text text-anchor="start" x="2354" y="-2113.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="2197,-2079 2197,-2104 2435,-2104 2435,-2079 2197,-2079"/>
 <text text-anchor="start" x="2202" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_by</text>
-<text text-anchor="start" x="2293" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2298" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(128)]</text>
+<text text-anchor="start" x="2300" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2305" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(128)]</text>
 <polygon fill="none" stroke="black" points="2197,-2054 2197,-2079 2435,-2079 2435,-2054 2197,-2054"/>
 <text text-anchor="start" x="2202" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00">respondents</text>
 <text text-anchor="start" x="2289" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>

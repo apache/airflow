@@ -3571,7 +3571,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'Reponded By'
+            title: 'Responded By'
         },
         response_at: {
             anyOf: [
@@ -3640,7 +3640,7 @@ export const $HITLDetailResponse = {
     properties: {
         responded_by: {
             type: 'string',
-            title: 'Reponded By'
+            title: 'Responded By'
         },
         response_at: {
             type: 'string',
