@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
 )
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
@@ -2005,6 +2006,70 @@ class TestRuntimeTaskInstance:
         assert dr.dag_id == "test_dag"
         assert dr.run_id == "prev_success_run"
         assert dr.state == "success"
+
+    @pytest.mark.parametrize(
+        "map_index",
+        [
+            pytest.param(-1, id="map_index_negative_one"),
+            pytest.param(0, id="map_index_zero"),
+            pytest.param(5, id="map_index_positive"),
+        ],
+    )
+    def test_xcom_clearing_includes_map_index(self, create_runtime_ti, mock_supervisor_comms, map_index):
+        """Test that XCom clearing during task execution properly passes map_index."""
+
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+
+        # Mock the ti_context_from_server to include xcom_keys_to_clear
+        runtime_ti._ti_context_from_server = TIRunContext(
+            dag_run=runtime_ti._ti_context_from_server.dag_run,
+            task_reschedule_count=0,
+            max_tries=1,
+            should_retry=False,
+            xcom_keys_to_clear=["key1", "key2", "key3"],
+        )
+
+        with mock.patch.object(XCom, "delete") as mock_delete:
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            # Verify that XCom.delete was called for each key with the correct map_index
+            expected_calls = [
+                mock.call(
+                    key="key1",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+                mock.call(
+                    key="key2",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+                mock.call(
+                    key="key3",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+            ]
+            mock_delete.assert_has_calls(expected_calls)
+
+    def test_xcom_clearing_without_keys_to_clear(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that no XCom clearing occurs when xcom_keys_to_clear is empty."""
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        assert runtime_ti._ti_context_from_server.xcom_keys_to_clear is None
+
+        with mock.patch.object(XCom, "delete") as mock_delete:
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            mock_delete.assert_not_called()
 
 
 class TestXComAfterTaskExecution:
