@@ -2274,7 +2274,7 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_team_name(dag_id: str, session=NEW_SESSION) -> str | None:
-        """Return the potential team name associated to a Dag."""
+        """Return the team name associated to a Dag or None if it is not owned by a specific team."""
         stmt = (
             select(Team.name)
             .join(DagBundleModel.teams)
