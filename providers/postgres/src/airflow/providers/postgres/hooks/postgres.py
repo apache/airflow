@@ -567,12 +567,6 @@ class PostgresHook(DbApiHook):
         if not self.enable_log_db_messages:
             return
 
-        :param conn: Connection object
-        """
-        if self.enable_log_db_messages:
-            for output in conn.notices:
-                self.log.info(output)
-
         if USE_PSYCOPG3:
             self.log.debug(
                 "With psycopg3, database notices are logged upon creation (via self._notice_handler)."
