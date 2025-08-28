@@ -883,7 +883,7 @@ class AirflowConfigParser(ConfigParser):
 
     def _get_env_var_option(self, section: str, key: str, team_name: str | None = None):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore) OR for team based
-        # configuration must have the format AIRFLOW___{TEAM_NAME}__{SECTION}__{KEY}
+        # configuration must have the format AIRFLOW__{TEAM_NAME}___{SECTION}__{KEY}
         env_var: str = self._env_var_name(section, key, team_name=team_name)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
