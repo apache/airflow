@@ -3,26 +3,26 @@
   "createEvent": {
     "button": "Crear esdeveniment",
     "manual": {
-      "description": "Crear un esdeveniment manualment per l'Asset",
-      "extra": "Extra d'esdeveniment de l'Asset",
+      "description": "Crear manualment un esdeveniment d'Asset",
+      "extra": "Camps suplementaris de l'esdeveniment d'Asset",
       "label": "Manual"
     },
     "materialize": {
-      "description": "Executa el Dag aigües amunt d'aquest Asset",
-      "descriptionWithDag": "Executa el Dag aigües amunt d'aquest Asset: {{dagName}}",
+      "description": "Executa el Dag en amunt d'aquest Asset",
+      "descriptionWithDag": "Executa el Dag en amunt d'aquest Asset: {{dagName}}",
       "label": "Materialitzar",
       "unpauseDag": "Reactivar {{dagName}} a l'executar"
     },
     "success": {
-      "manualDescription": "Creació manual d'esdeveniment per l'Asset correcta.",
-      "manualTitle": "Esdeveniment de l'Asset creat",
-      "materializeDescription": "El Dag aigües amunt {{dagId}} s'ha executat correctament.",
+      "manualDescription": "La creació manual de l'esdeveniment d'Asset ha estat exitosa.",
+      "manualTitle": "Esdeveniment d'Asset creat",
+      "materializeDescription": "El Dag aigües amunt {{dagId}} s'ha executat exitosament.",
       "materializeTitle": "Materialitzant l'Asset"
     },
-    "title": "Crear esdeveniment de l'Asset per {{name}}"
+    "title": "Crear esdeveniment d'Asset per {{name}}"
   },
   "group": "Grup",
-  "lastAssetEvent": "Últim esdeveniment de l'Asset",
+  "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
   "producingTasks": "Tasques productores",
   "scheduledDags": "Dags programats",

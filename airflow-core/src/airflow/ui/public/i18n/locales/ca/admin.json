@@ -46,7 +46,7 @@
       "learnMore": "Aquestes es resolen en temps d'execució i no són visibles a la interfície d'usuari.",
       "title": "No s'ha trobat cap connexió!"
     },
-    "searchPlaceholder": "Buscar connexions",
+    "searchPlaceholder": "Cercar connexions",
     "test": "Provar connexió",
     "testDisabled": "La funció de prova de connexió està desactivada. Si us plau, contacteu amb un administrador per activar-la.",
     "typeMeta": {
@@ -79,9 +79,9 @@
     "columns": {
       "source": "Font"
     },
-    "importError_one": "Errors d'importació de proveïdors",
-    "importError_other": "Errors d'importació de proveïdors",
-    "searchPlaceholder": "Buscar per fitxer"
+    "importError_one": "Error d'importació d'extensió",
+    "importError_other": "Errors d'importació d'extensió",
+    "searchPlaceholder": "Cercar per fitxer"
   },
   "pools": {
     "add": "Afegir pool",
@@ -102,7 +102,7 @@
     "noPoolsFound": "No s'han trobat pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
-    "searchPlaceholder": "Buscar pools",
+    "searchPlaceholder": "Cercar pools",
     "sort": {
       "asc": "Nom (A-Z)",
       "desc": "Nom (Z-A)",
@@ -139,7 +139,7 @@
     },
     "import": {
       "button": "Importar",
-      "conflictResolution": "Seleccionar Variable per resolució de conflictes",
+      "conflictResolution": "Seleccionar resolució de conflicte de variables",
       "errorParsingJsonFile": "Error a l'analitzar el fitxer JSON: Puja un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...}).",
       "options": {
         "fail": {

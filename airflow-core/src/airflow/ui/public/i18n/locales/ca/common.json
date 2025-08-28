@@ -3,7 +3,7 @@
     "Config": "Configuració",
     "Connections": "Connexions",
     "Plugins": "Extensions",
-    "Pools": "Grups",
+    "Pools": "Pools",
     "Providers": "Proveïdors",
     "Variables": "Variables"
   },
@@ -26,38 +26,38 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Recuperar (catchup)",
-    "dagRunTimeout": "Temps d'espera de la execució del DAG",
+    "dagRunTimeout": "Temps d'espera de l'execució del Dag",
     "defaultArgs": "Arguments per defecte",
     "description": "Descripció",
-    "documentation": "Documentació del DAG",
+    "documentation": "Documentació del Dag",
     "fileLocation": "Ubicació del fitxer",
     "hasTaskConcurrencyLimits": "Té límits de concurrència de tasques",
     "lastExpired": "Últim caducat",
-    "lastParsed": "Últim anàlisi",
-    "latestDagVersion": "Última versió del DAG",
+    "lastParsed": "Últim anàlitzat",
+    "latestDagVersion": "Última versió del Dag",
     "latestRun": "Última execució",
     "maxActiveRuns": "Màxim d'execucions actives",
     "maxActiveTasks": "Màxim de tasques actives",
-    "maxConsecutiveFailedDagRuns": "Màxim d'execucions fallides consecutives del DAG",
+    "maxConsecutiveFailedDagRuns": "Màxim d'execucions fallides consecutives del Dag",
     "nextRun": "Propera execució",
     "owner": "Propietari",
     "params": "Paràmetres",
     "schedule": "Programació",
     "tags": "Etiquetes"
   },
-  "dagId": "ID del DAG",
+  "dagId": "ID del Dag",
   "dagRun": {
     "conf": "Configuració",
-    "dagVersions": "Versió/ns del DAG",
+    "dagVersions": "Versió/ns del Dag",
     "dataIntervalEnd": "Fi de l'interval de dades",
     "dataIntervalStart": "Inici de l'interval de dades",
     "lastSchedulingDecision": "Última decisió de programació",
-    "queuedAt": "En cua a les",
+    "queuedAt": "Enviat a cua a les",
     "runAfter": "Executar després de",
     "runType": "Tipus d'execució",
     "sourceAssetEvent": "Esdeveniment d'Asset d'origen",
     "triggeredBy": "Executat per",
-    "triggeringUser": "Nom d'usuari que executa"
+    "triggeringUser": "Nom de l'usuari que executa"
   },
   "dagRun_one": "Execució de Dag",
   "dagRun_other": "Execucions de Dag",
@@ -87,7 +87,7 @@
     "tooltip": "Prem {{hotkey}} per alternar l'expansió"
   },
   "expression": {
-    "all": "Tot",
+    "all": "Tots",
     "and": "I",
     "any": "Qualsevol",
     "or": "O"
@@ -129,7 +129,7 @@
   "noItemsFound": "No s'ha trobat {{modelName}}",
   "note": {
     "add": "Afegir una nota",
-    "dagRun": "Nota de l'execució del DAG",
+    "dagRun": "Nota de l'execució del Dag",
     "label": "Nota",
     "placeholder": "Afegir una nota...",
     "taskInstance": "Nota de la instància de la tasca"
@@ -152,10 +152,10 @@
   },
   "scroll": {
     "direction": {
-      "bottom": "Baix",
-      "top": "Dalt"
+      "bottom": "Avall",
+      "top": "Amunt"
     },
-    "tooltip": "Prem {{hotkey}} per desplaçar-se cap a {{direction}}"
+    "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
   "seconds": "{{count}}s",
   "security": {
@@ -168,9 +168,9 @@
   "selectLanguage": "Seleccionar idioma",
   "showDetailsPanel": "Mostrar panell de detalls",
   "source": {
-    "hide": "Amagar font",
+    "hide": "Amagar origen",
     "hotkey": "s",
-    "show": "Mostrar font"
+    "show": "Mostrar origen"
   },
   "sourceAssetEvent_one": "Esdeveniment d'Asset d'origen",
   "sourceAssetEvent_other": "Esdeveniments d'Asset d'origen",
@@ -189,14 +189,14 @@
     "scheduled": "Programat",
     "skipped": "Saltat",
     "success": "Exitós",
-    "up_for_reschedule": "En reprogramació",
-    "up_for_retry": "En reintentar",
+    "up_for_reschedule": "A reprogramar",
+    "up_for_retry": "A reintentar",
     "upstream_failed": "Fallat aigües amunt"
   },
   "switchToDarkMode": "Canviar a mode fosc",
   "switchToLightMode": "Canviar a mode clar",
   "table": {
-    "completedAt": "Finalitzat a",
+    "completedAt": "Completat a",
     "createdAt": "Creat a",
     "filterByTag": "Filtrar Dags per etiqueta",
     "filterColumns": "Filtrar columnes de la taula",
@@ -223,24 +223,24 @@
   "taskGroup": "Grup de tasques",
   "taskId": "ID de la tasca",
   "taskInstance": {
-    "dagVersion": "Versió del DAG",
+    "dagVersion": "Versió del Dag",
     "executor": "Executor",
     "executorConfig": "Configuració de l'executor",
-    "hostname": "Host",
+    "hostname": "Nom del Host",
     "maxTries": "Màxim de reintents",
     "pid": "PID",
     "pool": "Pool",
     "poolSlots": "Slots de pool",
-    "priorityWeight": "Prioritat (pes)",
+    "priorityWeight": "Pes de prioritat",
     "queue": "Cua",
-    "queuedWhen": "En cua a",
-    "scheduledWhen": "Programat a",
+    "queuedWhen": "Enviat a cua a les",
+    "scheduledWhen": "Programat a les",
     "triggerer": {
       "assigned": "Triggerer assignat",
       "class": "Classe del trigger",
-      "createdAt": "Creació del trigger",
+      "createdAt": "Hora de creació del trigger",
       "id": "ID del trigger",
-      "latestHeartbeat": "Últim batec del triggerer",
+      "latestHeartbeat": "Darrer batec del triggerer",
       "title": "Informació del Triggerer"
     },
     "unixname": "Nom Unix"
@@ -248,15 +248,15 @@
   "taskInstance_one": "Instància de tasca",
   "taskInstance_other": "Instàncies de tasca",
   "timeRange": {
-    "last12Hours": "Últimes 12 hores",
-    "last24Hours": "Últimes 24 hores",
-    "lastHour": "Última hora",
-    "pastWeek": "Última setmana"
+    "last12Hours": "Darreres 12 hores",
+    "last24Hours": "Darreres 24 hores",
+    "lastHour": "Darrera hora",
+    "pastWeek": "Darrera setmana"
   },
   "timestamp": {
-    "hide": "Amagar hores",
+    "hide": "Amagar segell de temps",
     "hotkey": "t",
-    "show": "Mostrar hores"
+    "show": "Mostrar segell de temps"
   },
   "timezone": "Zona horària",
   "timezoneModal": {
@@ -308,8 +308,8 @@
   "user": "Usuari",
   "wrap": {
     "hotkey": "w",
-    "tooltip": "Premeu {{hotkey}} per alternar el wrap",
-    "unwrap": "Desenvolupar",
-    "wrap": "Ajustar"
+    "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",
+    "unwrap": "Desactiva l'ajust de línia",
+    "wrap": "Activa l'ajust de línia"
   }
 }

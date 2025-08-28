@@ -70,9 +70,9 @@
   "search": {
     "advanced": "Cerca avançada",
     "clear": "Netejar cerca",
-    "dags": "Buscar Dags",
+    "dags": "Cercar Dags",
     "hotkey": "+K",
-    "tasks": "Buscar Tasques"
+    "tasks": "Cercar Tasques"
   },
   "sort": {
     "displayName": {

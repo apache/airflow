@@ -14,7 +14,7 @@
     "missingRuns": "Execucions absents",
     "reprocessBehavior": "Comportament de reprocessament",
     "run": "Executar reompliment",
-    "selectDescription": "Executar aquest DAG per a un interval de dates",
+    "selectDescription": "Executar aquest Dag per a un interval de dates",
     "selectLabel": "Reompliment",
     "title": "Execució de reompliment",
     "toaster": {
@@ -94,7 +94,7 @@
     "file": "Fitxer",
     "location": "línia {{line}} a {{name}}"
   },
-  "reparseDag": "Reanalitzar el DAG",
+  "reparseDag": "Reanalitzar el Dag",
   "sortedAscending": "Ordenat de manera ascendent",
   "sortedDescending": "Ordenat de manera descendent",
   "sortedUnsorted": "No ordenat",
