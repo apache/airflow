@@ -162,7 +162,7 @@ class TestHITLTrigger:
         )
 
         assert mock_log.info.call_args == mock.call(
-            "[HITL] user=%s options=%s at %s",
+            "[HITL] responded_by=%s options=%s at %s",
             "test",
             ["3"],
             datetime(2025, 7, 29, 2, 0, 0, tzinfo=utc),
