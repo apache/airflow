@@ -61,6 +61,21 @@ from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
+USE_PSYCOPG3: bool
+try:
+    from importlib.util import find_spec
+
+    import sqlalchemy
+    from packaging.version import Version
+
+    is_psycopg3 = find_spec("psycopg") is not None
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
+
+    USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
+
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
@@ -95,7 +110,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "808787349f22",
+    "3.1.0": "a3c7f2b18d4e",
 }
 
 
@@ -1189,21 +1204,21 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     config = _get_alembic_config()
     # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
-        unitest_mode = conf.getboolean("core", "unit_test_mode")
-        if unitest_mode:
-            try:
-                from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-                dbm = FABDBManager(session)
-                dbm.initdb()
-            except ImportError:
-                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
-                return
-        if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
-            raise AirflowException(
-                "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
-                "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
+        try:
+            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        except ImportError:
+            # Raise the error with a new message
+            raise RuntimeError(
+                "Import error occurred while importing FABDBManager. We need that to exist before we can "
+                "downgrade to <3.0.0"
             )
+        dbm = FABDBManager(session)
+        if hasattr(dbm, "reset_to_2_x"):
+            dbm.reset_to_2_x()
+        else:
+            # Older version before we added that function, it only has a single migration so we can just
+            # created
+            dbm.create_db_from_orm()
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
@@ -1284,15 +1299,28 @@ def create_global_lock(
     dialect = conn.dialect
     try:
         if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+            if USE_PSYCOPG3:
+                # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
+                # The timeout value must be passed as a string of milliseconds.
+                conn.execute(
+                    text("SELECT set_config('lock_timeout', :timeout, false)"),
+                    {"timeout": str(lock_timeout)},
+                )
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
     finally:
         if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
+            if USE_PSYCOPG3:
+                # Use set_config() to reset the timeout to its default (0 = off/wait forever).
+                conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
             (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")

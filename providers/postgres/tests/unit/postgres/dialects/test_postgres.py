@@ -19,29 +19,26 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from sqlalchemy.engine import Inspector
-
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 
 class TestPostgresDialect:
     def setup_method(self):
-        inspector = MagicMock(spc=Inspector)
-        inspector.get_columns.side_effect = lambda table_name, schema: [
-            {"name": "id", "identity": True},
-            {"name": "name"},
-            {"name": "firstname"},
-            {"name": "age"},
-        ]
-
         def get_records(sql, parameters):
             assert isinstance(sql, str)
             assert "hollywood" in parameters, "Missing 'schema' in parameters"
             assert "actors" in parameters, "Missing 'table' in parameters"
-            return [("id",)]
+            if "kcu." in sql:
+                return [("id",)]
+            return [
+                ("id", None, "NO", None, "ALWAYS", "YES"),
+                ("name", None, "YES", None, "NEVER", "NO"),
+                ("firstname", None, "YES", None, "NEVER", "NO"),
+                ("age", None, "YES", None, "NEVER", "NO"),
+            ]
 
-        self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
+        self.test_db_hook = MagicMock(placeholder="?", spec=DbApiHook)
         self.test_db_hook.get_records.side_effect = get_records
         self.test_db_hook.insert_statement_format = "INSERT INTO {} {} VALUES ({})"
         self.test_db_hook.escape_word_format = '"{}"'

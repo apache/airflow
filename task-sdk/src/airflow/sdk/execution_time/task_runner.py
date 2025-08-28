@@ -689,6 +689,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
+        os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
@@ -903,6 +905,7 @@ def run(
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
                     run_id=ti.run_id,
+                    map_index=ti.map_index,
                 )
 
         with set_current_context(context):
@@ -956,9 +959,10 @@ def run(
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
+        ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.FAILED
@@ -973,9 +977,10 @@ def run(
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
+        ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.FAILED
@@ -1002,10 +1007,12 @@ def _handle_current_task_success(
     context: Context,
     ti: RuntimeTaskInstance,
 ) -> tuple[SucceedTask, TaskInstanceState]:
+    end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = end_date
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
-        end_date=datetime.now(tz=timezone.utc),
+        end_date=end_date,
         task_outlets=task_outlets,
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
@@ -1017,11 +1024,15 @@ def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = end_date
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
-    return TaskState(
-        state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
-    ), TaskInstanceState.FAILED
+    return (
+        TaskState(
+            state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
+        ),
+        TaskInstanceState.FAILED,
+    )
 
 
 def _handle_trigger_dag_run(
@@ -1143,11 +1154,95 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
-def _send_task_error_email(to: Iterable[str], ti: RuntimeTaskInstance, exception: BaseException) -> None:
-    from airflow.models.taskinstance import _get_email_subject_content
+def _get_email_subject_content(
+    *,
+    task_instance: RuntimeTaskInstance,
+    exception: BaseException | str | None,
+    log: Logger,
+) -> tuple[str, str, str]:
+    """
+    Get the email subject content for exceptions.
+
+    :param task_instance: the task instance
+    :param exception: the exception sent in the email
+    :param task:
+
+    :meta private:
+    """
+    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
+    from airflow.sdk.definitions.context import Context, render_template_to_string
+
+    exception_html = str(exception).replace("\n", "<br>")
+
+    default_subject = "Airflow alert: {{ti}}"
+    # For reporting purposes, we report based on 1-indexed,
+    # not 0-indexed lists (i.e. Try 1 instead of
+    # Try 0 for the first attempt).
+    default_html_content = (
+        "Try {{try_number}} out of {{max_tries + 1}}<br>"
+        "Exception:<br>{{exception_html}}<br>"
+        'Log: <a href="{{ti.log_url}}">Link</a><br>'
+        "Host: {{ti.hostname}}<br>"
+        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+    )
+
+    default_html_content_err = (
+        "Try {{try_number}} out of {{max_tries + 1}}<br>"
+        "Exception:<br>Failed attempt to attach error logs<br>"
+        'Log: <a href="{{ti.log_url}}">Link</a><br>'
+        "Host: {{ti.hostname}}<br>"
+        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+    )
+
+    additional_context: dict[str, Any] = {
+        "exception": exception,
+        "exception_html": exception_html,
+        "try_number": task_instance.try_number,
+        "max_tries": task_instance.max_tries,
+    }
+
+    # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+    # the flag to the function on task object -- that function can be
+    # overridden, and adding a flag breaks backward compatibility.
+    dag = task_instance.task.get_dag()
+    if dag:
+        jinja_env = dag.get_template_env(force_sandboxed=True)
+    else:
+        jinja_env = SandboxedEnvironment(cache_size=0)
+    jinja_context = task_instance.get_template_context()
+    if not jinja_context:
+        jinja_context = Context()
+    # Add additional fields to the context for email template rendering
+    jinja_context.update(additional_context)  # type: ignore[typeddict-item]
+
+    def render(key: str, content: str) -> str:
+        if conf.has_option("email", key):
+            path = conf.get_mandatory_value("email", key)
+            try:
+                with open(path) as f:
+                    content = f.read()
+            except FileNotFoundError:
+                log.warning("Could not find email template file. Using defaults...", file=path)
+            except OSError:
+                log.exception("Error while using email template. Using defaults...", file=path)
+        return render_template_to_string(jinja_env.from_string(content), jinja_context)
+
+    subject = render("subject_template", default_subject)
+    html_content = render("html_content_template", default_html_content)
+    html_content_err = render("html_content_template", default_html_content_err)
+
+    return subject, html_content, html_content_err
+
+
+def _send_task_error_email(
+    to: Iterable[str],
+    ti: RuntimeTaskInstance,
+    exception: BaseException | str | None,
+    log: Logger,
+) -> None:
     from airflow.utils.email import send_email
 
-    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception)
+    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception, log=log)
     try:
         send_email(to, subject, content)
     except Exception:
@@ -1175,6 +1270,11 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     os.environ.update(airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
+
+    for outlet in task.outlets or ():
+        if isinstance(outlet, Asset):
+            outlet.render_extra_field(context, jinja_env=task.dag.get_template_env())
+            outlet_events[outlet].extra.update(outlet.extra)
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
@@ -1303,7 +1403,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            _send_task_error_email(task.email, ti, error)
+            _send_task_error_email(task.email, ti, error, log)
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
@@ -1313,7 +1413,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
-            _send_task_error_email(task.email, ti, error)
+            _send_task_error_email(task.email, ti, error, log)
 
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())

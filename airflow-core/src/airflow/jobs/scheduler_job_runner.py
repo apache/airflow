@@ -30,9 +30,9 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import and_, delete, desc, exists, func, or_, select, text, tuple_, update
+from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -45,7 +45,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -56,6 +56,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
+    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
@@ -65,7 +66,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -78,7 +79,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -91,10 +92,10 @@ if TYPE_CHECKING:
 
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.sqlalchemy import (
-        CommitProhibitorGuard,
-    )
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
 DR = DagRun
@@ -236,7 +237,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
-        self._end_active_spans()
+        if self._is_tracing_enabled():
+            self._end_active_spans()
 
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -721,6 +723,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         objects = (log_records.popleft() for _ in range(len(log_records)))
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
+    @staticmethod
+    def _is_metrics_enabled():
+        return any(
+            [
+                conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
+                conf.getboolean("metrics", "statsd_on", fallback=False),
+                conf.getboolean("metrics", "otel_on", fallback=False),
+            ]
+        )
+
+    @staticmethod
+    def _is_tracing_enabled():
+        return conf.getboolean("traces", "otel_on")
+
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         return SchedulerJobRunner.process_executor_events(
             executor=executor,
@@ -783,7 +799,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                cls.logger().info("Setting external_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
                 continue
 
             msg = (
@@ -873,7 +889,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     if TYPE_CHECKING:
                         assert dag
-                    task = dag.get_task(ti.task_id)
+                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
+                    # instead, but currently it inherits SDK's DAG.
+                    task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
@@ -1188,15 +1206,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._mark_backfills_complete,
         )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
-            self._emit_pool_metrics,
-        )
+        if self._is_metrics_enabled() or self._is_tracing_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
+                self._emit_pool_metrics,
+            )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
-            self._emit_running_ti_metrics,
-        )
+        if self._is_metrics_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
+                self._emit_running_ti_metrics,
+            )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
@@ -1213,6 +1233,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
+        )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._remove_unreferenced_triggers,
         )
 
         if any(x.is_local for x in self.job.executors):
@@ -1240,7 +1264,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 with create_session() as session:
-                    self._end_spans_of_externally_ended_ops(session)
+                    if self._is_tracing_enabled():
+                        self._end_spans_of_externally_ended_ops(session)
 
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
@@ -1565,7 +1590,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             asset_events = session.scalars(
-                select(AssetEvent).where(
+                select(AssetEvent)
+                .where(
                     or_(
                         AssetEvent.asset_id.in_(
                             select(DagScheduleAssetReference.asset_id).where(
@@ -1581,6 +1607,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     AssetEvent.timestamp <= triggered_date,
                     AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                 )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             ).all()
 
             dag_run = dag.create_dagrun(
@@ -1862,7 +1889,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return callback
 
             if (
-                dag_run.scheduled_by_job_id is not None
+                self._is_tracing_enabled()
+                and dag_run.scheduled_by_job_id is not None
                 and dag_run.scheduled_by_job_id != self.job.id
                 and self.active_spans.get("dr:" + str(dag_run.id)) is None
             ):
@@ -1946,6 +1974,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
                         session=session,
+                        executor=executor,
                     )
                     session.commit()
             except NotImplementedError:
@@ -1961,7 +1990,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-    def _maybe_requeue_stuck_ti(self, *, ti, session):
+    def _maybe_requeue_stuck_ti(self, *, ti, session, executor):
         """
         Requeue task if it has not been attempted too many times.
 
@@ -1986,14 +2015,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
                 ti,
             )
+            msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
                     task_instance=ti.key,
-                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
+                    extra=msg,
                 )
             )
-            ti.set_state(TaskInstanceState.FAILED, session=session)
+
+            try:
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.warning(
+                    "The DAG or task could not be found. If a failure callback exists, it will not be run.",
+                    exc_info=True,
+                )
+            else:
+                if task.on_failure_callback:
+                    if inspect(ti).detached:
+                        ti = session.merge(ti)
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        context_from_server=TIRunContext(
+                            dag_run=ti.dag_run,
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(request)
+            finally:
+                ti.set_state(TaskInstanceState.FAILED, session=session)
+                executor.fail(ti.key)
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
@@ -2002,6 +2062,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                queued_by_job_id=None,
                 scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)
@@ -2324,6 +2385,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details["External Executor Id"] = ti.external_executor_id
 
         return task_instance_heartbeat_timeout_message_details
+
+    @provide_session
+    def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
+        """Remove triggers that are no longer used by anything."""
+        session.execute(
+            delete(Trigger)
+            .where(
+                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(Deadline.trigger_id)),
+                Trigger.id.not_in(select(TaskInstance.trigger_id)),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

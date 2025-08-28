@@ -30,8 +30,6 @@ __deprecated_classes = {
     },
     "task_group": {
         "TaskGroup": "airflow.sdk.TaskGroup",
-        "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
-        "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
     },
     "timezone": {
         # Since we have corrected all uses inside core to use the internal version, anything hitting this
@@ -41,6 +39,19 @@ __deprecated_classes = {
     "decorators": {
         "remove_task_decorator": "airflow.sdk.definitions._internal.decorators.remove_task_decorator",
         "fixup_decorator_warning_stack": "airflow.sdk.definitions._internal.decorators.fixup_decorator_warning_stack",
+    },
+    "timeout": {
+        "timeout": "airflow.sdk.execution_time.timeout.timeout",
+    },
+    "trigger_rule": {"*": "airflow.task.trigger_rule"},
+    "operator_resources": {
+        "*": "airflow.sdk.definitions.operator_resources",
+    },
+    "weight_rule": {
+        "WeightRule": "airflow.task.weight_rule.WeightRule",
+        "DB_SAFE_MINIMUM": "airflow.sdk.bases.operator.DB_SAFE_MINIMUM",
+        "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
+        "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
     },
 }
 

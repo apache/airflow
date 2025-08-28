@@ -39,6 +39,10 @@
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "navigation": "Przewiń: {{arrow}}",
+    "toggleGroup": "Przełącz grupę: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",
@@ -68,6 +72,7 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
+      "showGantt": "Pokaż diagram Gantta",
       "showGraph": "Pokaż graf",
       "showGrid": "Pokaż siatkę"
     },

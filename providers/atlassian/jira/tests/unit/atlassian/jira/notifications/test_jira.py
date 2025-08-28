@@ -19,13 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 from airflow.providers.atlassian.jira.notifications.jira import JiraNotifier, send_jira_notification
-from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
 
 jira_create_issue_payload = dict(
     description="Test operator failed",
@@ -38,10 +33,7 @@ jira_create_issue_payload = dict(
 
 class TestJiraNotifier:
     @mock.patch.object(JiraHook, "get_conn")
-    def test_jira_notifier(self, mock_jira_hook, dag_maker):
-        with dag_maker("test_jira_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_jira_notifier(self, mock_jira_hook, create_dag_without_db):
         notifier = send_jira_notification(
             jira_conn_id="jira_default",
             project_id=10000,
@@ -50,14 +42,11 @@ class TestJiraNotifier:
             issue_type_id=10003,
             labels=["airflow-dag-failure"],
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_jira_notifier")})
         mock_jira_hook.return_value.create_issue.assert_called_once_with(jira_create_issue_payload)
 
     @mock.patch.object(JiraHook, "get_conn")
-    def test_jira_notifier_with_notifier_class(self, mock_jira_hook, dag_maker):
-        with dag_maker("test_jira_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_jira_notifier_with_notifier_class(self, mock_jira_hook, create_dag_without_db):
         notifier = JiraNotifier(
             jira_conn_id="jira_default",
             project_id=10000,
@@ -66,14 +55,11 @@ class TestJiraNotifier:
             issue_type_id=10003,
             labels=["airflow-dag-failure"],
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_jira_notifier")})
         mock_jira_hook.return_value.create_issue.assert_called_once_with(jira_create_issue_payload)
 
     @mock.patch.object(JiraHook, "get_conn")
-    def test_jira_notifier_templated(self, mock_jira_hook, dag_maker):
-        with dag_maker("test_jira_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_jira_notifier_templated(self, mock_jira_hook, create_dag_without_db):
         notifier = send_jira_notification(
             jira_conn_id="jira_default",
             project_id=10000,
@@ -82,7 +68,7 @@ class TestJiraNotifier:
             issue_type_id=10003,
             labels=["airflow-dag-failure"],
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_jira_notifier")})
         mock_jira_hook.return_value.create_issue.assert_called_once_with(
             dict(
                 description="Test operator failed for dag: test_jira_notifier.",

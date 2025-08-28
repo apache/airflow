@@ -127,9 +127,7 @@ export const TaskNode = ({
                 variant="plain"
               >
                 {isOpen ? "- " : "+ "}
-                {childCount !== undefined && childCount > 1
-                  ? translate("graph.taskCount_other", { count: childCount })
-                  : translate("graph.taskCount_one", { count: childCount ?? 0 })}
+                {translate("graph.taskCount", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
           </Box>

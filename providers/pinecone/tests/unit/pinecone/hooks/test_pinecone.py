@@ -19,23 +19,27 @@ from __future__ import annotations
 import os
 from unittest.mock import Mock, patch
 
+import pytest
+
+from airflow.models import Connection
 from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
 
 class TestPineconeHook:
-    def setup_method(self):
-        """Set up the test environment, mocking necessary connections and initializing the
-        PineconeHook object."""
-        with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
-            mock_conn = Mock()
-            mock_conn.host = "pinecone.io"
-            mock_conn.login = "us-west1-gcp"  # Pinecone Environment
-            mock_conn.password = "test_password"  # Pinecone API Key
-            mock_conn.extra_dejson = {"region": "us-east-1", "debug_curl": True}
-            mock_get_connection.return_value = mock_conn
-            self.pinecone_hook = PineconeHook()
-            self.pinecone_hook.conn
-            self.index_name = "test_index"
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                host="pinecone.io",
+                conn_id="pinecone_default",
+                conn_type="pinecone",
+                login="us-west1-gcp",
+                password="test_password",
+                extra='{"region": "us-east-1", "debug_curl": true}',
+            )
+        )
+        self.pinecone_hook = PineconeHook()
+        self.index_name = "test_index"
 
     @patch("airflow.providers.pinecone.hooks.pinecone.Pinecone.Index")
     def test_upsert(self, mock_index):

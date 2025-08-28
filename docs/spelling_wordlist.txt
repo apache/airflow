@@ -34,6 +34,7 @@ airbnb
 Airbyte
 airbyte
 AirflowConfigParser
+airflowctl
 AirflowException
 airflowignore
 ajax
@@ -1370,6 +1371,7 @@ prefetched
 prefetches
 preflight
 prefork
+prek
 Preload
 preloading
 prepend
@@ -1509,6 +1511,7 @@ repos
 repr
 req
 reqs
+requeue
 requeued
 Reserialize
 reserialize

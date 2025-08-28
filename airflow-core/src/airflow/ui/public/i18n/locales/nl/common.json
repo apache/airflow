@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrency",
     "dagRunTimeout": "Dag Run timeout",
     "defaultArgs": "Standaard argumenten",
     "description": "Omschrijving",
@@ -91,6 +90,17 @@
     "and": "En",
     "any": "Elk",
     "or": "Of"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filter op Dag",
+    "keyPlaceholder": "Filter op XCom sleutel",
+    "logicalDateFromPlaceholder": "Van logische datum",
+    "logicalDateToPlaceholder": "Tot logische datum",
+    "mapIndexPlaceholder": "Filter op Map Index",
+    "runAfterFromPlaceholder": "Van Run na",
+    "runAfterToPlaceholder": "Tot Run na",
+    "runIdPlaceholder": "Filter op Run ID",
+    "taskIdPlaceholder": "Filter op Task ID"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
@@ -208,6 +218,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Task groep",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag versie",

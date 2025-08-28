@@ -245,17 +245,15 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.8.8"
+AIRFLOW_UV_VERSION = "0.8.13"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.1.0"
-PRE_COMMIT_VERSION = "4.3.0"
-PRE_COMMIT_UV_VERSION = "4.1.4"
+PREK_VERSION = "0.1.3"
 HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
-# no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
-# pre-commit environment and this is done with node, no python installation is needed.
+# prek environment and this is done with node, no python installation is needed.
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -264,7 +262,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  pre-commit=={PRE_COMMIT_VERSION} pre-commit-uv=={PRE_COMMIT_UV_VERSION}
+  prek=={PREK_VERSION}
 COPY . /opt/airflow
 """
 
@@ -356,7 +354,7 @@ def _build_local_build_image():
     AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH.unlink(missing_ok=True)
     dockerignore_content = AIRFLOW_DOCKERIGNORE_PATH.read_text()
     dockerignore_content = dockerignore_content + textwrap.dedent("""
-        # Include git in the build context - we need to get git version and pre-commit configuration
+        # Include git in the build context - we need to get git version and prek configuration
         # And clients python code to be included in the context
         !.git
         !.pre-commit-config.yaml
@@ -586,7 +584,10 @@ def _prepare_non_core_distributions(
     distribution_path: Path,
     distribution_name: str,
     distribution_pretty_name: str,
+    full_distribution_pretty_name: str | None = None,
 ):
+    if full_distribution_pretty_name is not None:
+        distribution_pretty_name = full_distribution_pretty_name
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -680,13 +681,15 @@ def _prepare_non_core_distributions(
         with apply_version_suffix_to_non_provider_pyproject_tomls(
             version_suffix=version_suffix,
             init_file_path=init_file_path,
-            pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
+            pyproject_toml_paths=[root_path / "pyproject.toml"],
         ) as pyproject_toml_paths:
             debug_pyproject_tomls(pyproject_toml_paths)
             _build_package_with_docker(
                 build_distribution_format=distribution_format,
             )
-    get_console().print(f"[success]Successfully prepared Airflow {distribution_pretty_name} packages")
+    get_console().print(
+        f"[success]Successfully prepared {f'Airflow {distribution_pretty_name}' if not full_distribution_pretty_name else full_distribution_pretty_name} packages"
+    )
 
 
 @release_management.command(
@@ -719,7 +722,7 @@ def prepare_task_sdk_distributions(
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
-    help="Prepare sdist/whl distributions of Airflow CTL.",
+    help="Prepare sdist/whl distributions of airflowctl.",
 )
 @option_distribution_format
 @option_version_suffix
@@ -741,7 +744,8 @@ def prepare_airflow_ctl_distributions(
         init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
         distribution_name="airflow-ctl",
-        distribution_pretty_name="CTL",
+        distribution_pretty_name="",
+        full_distribution_pretty_name="airflowctl",
     )
 
 
@@ -795,12 +799,12 @@ def provider_action_summary(description: str, message_type: MessageType, package
 @click.option(
     "--skip-changelog",
     is_flag=True,
-    help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
+    help="Skip changelog generation. This is used in prek that updates build-files only.",
 )
 @click.option(
     "--skip-readme",
     is_flag=True,
-    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+    help="Skip readme generation. This is used in prek that updates build-files only.",
 )
 @option_verbose
 def prepare_provider_documentation(
