@@ -355,6 +355,13 @@ def clear_db_dag_bundles():
         session.query(DagBundleModel).delete()
 
 
+def clear_db_teams():
+    with create_session() as session:
+        from airflow.models.team import Team
+
+        session.query(Team).delete()
+
+
 def clear_dag_specific_permissions():
     if "FabAuthManager" not in conf.get("core", "auth_manager"):
         return
