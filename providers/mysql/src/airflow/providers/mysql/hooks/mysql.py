@@ -349,8 +349,8 @@ class MySqlHook(DbApiHook):
 
             .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
         """
-        with self._get_cursor(commit=True) as cursor:
-            cursor.execute(
+        with self._get_cursor(commit=True) as cur:
+            cur.execute(
                 f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
                 (tmp_file, duplicate_key_handling, extra_options),
             )
