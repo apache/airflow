@@ -16,7 +16,7 @@
     "columns": {
       "connectionId": "ID de connexió",
       "connectionType": "Tipus de connexió",
-      "host": "Amfitrió",
+      "host": "Host",
       "port": "Port"
     },
     "connection_one": "Connexió",
@@ -53,7 +53,7 @@
       "error": "No s'ha pogut recuperar la informació del tipus de connexió",
       "standardFields": {
         "description": "Descripció",
-        "host": "Amfitrió",
+        "host": "Host",
         "login": "Inici de sessió",
         "password": "Contrasenya",
         "port": "Port",

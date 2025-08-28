@@ -225,7 +225,7 @@
     "dagVersion": "Versió del DAG",
     "executor": "Executor",
     "executorConfig": "Configuració de l'executor",
-    "hostname": "Amfitrió",
+    "hostname": "Host",
     "maxTries": "Màxim de reintents",
     "pid": "PID",
     "pool": "Pool",
