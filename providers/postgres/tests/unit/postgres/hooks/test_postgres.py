@@ -812,6 +812,28 @@ class TestPostgresHookPPG2:
         sql = f"INSERT INTO {table}  VALUES (%s)"
         setup.cur.executemany.assert_any_call(sql, rows)
 
+    @mock.patch("psycopg2.extras.execute_batch")
+    def test_insert_rows_fast_executemany(self, mock_execute_batch, postgres_hook_setup):
+        setup = postgres_hook_setup
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        setup.db_hook.insert_rows(table, rows, fast_executemany=True)
+
+        assert setup.conn.close.call_count == 1
+        assert setup.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        assert setup.conn.commit.call_count == commit_count
+
+        sql, values, page_size = mock_execute_batch.call_args[0]
+        assert sql == f"INSERT INTO {table}  VALUES (%s)"
+        assert values == [("hello",), ("world",)]
+        assert page_size == 1000
+
+        # executemany should NOT be called in this mode
+        setup.cur.executemany.assert_not_called()
+
     def test_insert_rows_replace(self, postgres_hook_setup):
         setup = postgres_hook_setup
         table = "table"
