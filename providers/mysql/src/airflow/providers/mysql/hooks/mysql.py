@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import quote_plus, urlencode
 
@@ -243,39 +244,55 @@ class MySqlHook(DbApiHook):
 
         raise ValueError("Unknown MySQL client name provided!")
 
+    @contextmanager
+    def _get_cursor(self, commit: bool = True):
+        """
+        Provide a context manager for a database cursor and connection.
+
+        This context manager handles the creation and closing of both the connection
+        and its cursor. It also handles committing the transaction if specified.
+
+        :param commit: Whether to commit the transaction upon successful completion.
+        :yield: A database cursor.
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        try:
+            yield cursor
+            if commit:
+                conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
         import re
 
-        conn = self.get_conn()
-        cur = conn.cursor()
-
         if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
             raise ValueError(f"Invalid table name: {table}")
 
-        cur.execute(
-            f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`",
-            (tmp_file,),
-        )
-        conn.commit()
-        conn.close()
+        with self._get_cursor(commit=True) as cur:
+            cur.execute(
+                f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`",
+                (tmp_file,),
+            )
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
         import re
 
-        conn = self.get_conn()
-        cur = conn.cursor()
-
         if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
             raise ValueError(f"Invalid table name: {table}")
 
-        cur.execute(
-            f"SELECT * INTO OUTFILE %s FROM `{table}`",
-            (tmp_file,),
-        )
-        conn.commit()
-        conn.close()
+        with self._get_cursor(commit=True) as cur:
+            cur.execute(
+                f"SELECT * INTO OUTFILE %s FROM `{table}`",
+                (tmp_file,),
+            )
 
     @staticmethod
     def _serialize_cell(cell: object, conn: Connection | None = None) -> Any:
@@ -332,17 +349,11 @@ class MySqlHook(DbApiHook):
 
             .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
         """
-        conn = self.get_conn()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
-            (tmp_file, duplicate_key_handling, extra_options),
-        )
-
-        cursor.close()
-        conn.commit()
-        conn.close()
+        with self._get_cursor(commit=True) as cursor:
+            cursor.execute(
+                f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
+                (tmp_file, duplicate_key_handling, extra_options),
+            )
 
     def get_openlineage_database_info(self, connection):
         """Return MySQL specific information for OpenLineage."""
