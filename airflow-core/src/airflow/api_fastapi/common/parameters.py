@@ -961,11 +961,11 @@ QueryHITLDetailRespondedByFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.reponded_by,
+            HITLDetail.responded_by,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="reponded_by",
+            filter_name="responded_by",
         )
     ),
 ]

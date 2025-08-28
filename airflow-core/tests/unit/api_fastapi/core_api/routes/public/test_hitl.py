@@ -171,7 +171,7 @@ def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> lis
                 response_at=utcnow(),
                 chosen_options=[str(i)],
                 params_input={"input": i},
-                user_id="test",
+                responded_by="test",
             )
             for i, ti in enumerate(sample_tis[5:])
         ]
@@ -211,7 +211,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "chosen_options": None,
         "response_received": False,
         "subject": "This is subject",
-        "user_id": None,
+        "responded_by": None,
         "task_instance": {
             "dag_display_name": DAG_ID,
             "dag_id": DAG_ID,
@@ -317,7 +317,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
-            "user_id": "test",
+            "responded_by": "test",
             "response_at": "2025-07-03T00:00:00Z",
         }
 
@@ -346,7 +346,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
-            "user_id": "test",
+            "responded_by": "test",
             "response_at": "2025-07-03T00:00:00Z",
         }
 
@@ -447,7 +447,7 @@ class TestUpdateHITLDetailEndpoint:
         expected_response = {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
-            "user_id": "test",
+            "responded_by": "test",
             "response_at": "2025-07-03T00:00:00Z",
         }
         assert response.status_code == 200
@@ -572,7 +572,7 @@ class TestGetHITLDetailsEndpoint:
             ({"body_search": "this is"}, 8),
             ({"response_received": False}, 5),
             ({"response_received": True}, 3),
-            ({"user_id": ["test"]}, 3),
+            ({"responded_by": ["test"]}, 3),
         ],
         ids=[
             "dag_id_pattern_hitl_dag",
@@ -587,7 +587,7 @@ class TestGetHITLDetailsEndpoint:
             "body",
             "response_not_received",
             "response_received",
-            "user_id",
+            "responded_by",
         ],
     )
     def test_should_respond_200_with_existing_response_and_query(

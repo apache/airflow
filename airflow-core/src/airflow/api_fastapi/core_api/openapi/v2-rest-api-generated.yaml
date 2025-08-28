@@ -8119,14 +8119,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: user_id
+      - name: reponded_by
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: User Id
+          title: Reponded By
       - name: subject_search
         in: query
         required: false
@@ -10761,11 +10761,11 @@ components:
             type: array
           - type: 'null'
           title: Respondents
-        user_id:
+        reponded_by:
           anyOf:
           - type: string
           - type: 'null'
-          title: User Id
+          title: Reponded By
         response_at:
           anyOf:
           - type: string
@@ -10812,9 +10812,9 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        user_id:
+        reponded_by:
           type: string
-          title: User Id
+          title: Reponded By
         response_at:
           type: string
           format: date-time
@@ -10831,7 +10831,7 @@ components:
           title: Params Input
       type: object
       required:
-      - user_id
+      - reponded_by
       - response_at
       - chosen_options
       title: HITLDetailResponse
