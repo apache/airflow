@@ -24,7 +24,6 @@ import stat
 import sys
 import warnings
 from base64 import b64encode
-from configparser import ConfigParser
 from typing import TYPE_CHECKING, Any
 
 # Import shared configuration parser and utilities
@@ -36,7 +35,6 @@ from airflow._shared.configuration import (
 
 # Import private utility functions from parser module directly
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
-from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -84,37 +82,6 @@ class ConfigModifications:
         self.default_updates[(section, option)] = new_default
 
 
-def _default_config_file_path(file_name: str) -> str:
-    templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
-    return os.path.join(templates_dir, file_name)
-
-
-def retrieve_configuration_description(
-    include_airflow: bool = True,
-    include_providers: bool = True,
-    selected_provider: str | None = None,
-) -> dict[str, dict[str, Any]]:
-    """
-    Read Airflow configuration description from YAML file.
-
-    :param include_airflow: Include Airflow configs
-    :param include_providers: Include provider configs
-    :param selected_provider: If specified, include selected provider only
-    :return: Python dictionary containing configs & their info
-    """
-    base_configuration_description: dict[str, dict[str, Any]] = {}
-    if include_airflow:
-        with open(_default_config_file_path("config.yml")) as config_file:
-            base_configuration_description.update(yaml.safe_load(config_file))
-    if include_providers:
-        from airflow.providers_manager import ProvidersManager
-
-        for provider, config in ProvidersManager().provider_configs:
-            if not selected_provider or provider == selected_provider:
-                base_configuration_description.update(config)
-    return base_configuration_description
-
-
 def get_airflow_home() -> str:
     """Get path to Airflow Home."""
     return expand_env_var(os.environ.get("AIRFLOW_HOME", "~/airflow"))
@@ -138,55 +105,25 @@ def _generate_fernet_key() -> str:
     return Fernet.generate_key().decode()
 
 
-def create_default_config_parser(configuration_description: dict[str, dict[str, Any]]) -> ConfigParser:
-    """
-    Create default config parser based on configuration description.
+def retrieve_configuration_description(
+    include_airflow: bool = True,
+    include_providers: bool = True,
+    selected_provider: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    import warnings
 
-    It creates ConfigParser with all default values retrieved from the configuration description and
-    expands all the variables from the global and local variables defined in this module.
+    warnings.warn(
+        "Using `retrieve_configuration_description` from `airflow.configuration` is deprecated and will be removed in a future version. "
+        "Use `conf.retrieve_configuration_description` instead.",
+        category=DeprecationWarning,
+        stacklevel=1,
+    )
 
-    :param configuration_description: configuration description - retrieved from config.yaml files
-        following the schema defined in "config.yml.schema.json" in the config_templates folder.
-    :return: Default Config Parser that can be used to read configuration values from.
-    """
-    parser = ConfigParser()
-    all_vars = get_all_expansion_variables()
-    for section, section_desc in configuration_description.items():
-        parser.add_section(section)
-        options = section_desc["options"]
-        for key in options:
-            default_value = options[key]["default"]
-            is_template = options[key].get("is_template", False)
-            if default_value is not None:
-                if is_template or not isinstance(default_value, str):
-                    parser.set(section, key, default_value)
-                else:
-                    parser.set(section, key, default_value.format(**all_vars))
-    return parser
-
-
-def create_provider_config_fallback_defaults() -> ConfigParser:
-    """
-    Create fallback defaults.
-
-    This parser contains provider defaults for Airflow configuration, containing fallback default values
-    that might be needed when provider classes are being imported - before provider's configuration
-    is loaded.
-
-    Unfortunately airflow currently performs a lot of stuff during importing and some of that might lead
-    to retrieving provider configuration before the defaults for the provider are loaded.
-
-    Those are only defaults, so if you have "real" values configured in your configuration (.cfg file or
-    environment variables) those will be used as usual.
-
-    NOTE!! Do NOT attempt to remove those default fallbacks thinking that they are unnecessary duplication,
-    at least not until we fix the way how airflow imports "do stuff". This is unlikely to succeed.
-
-    You've been warned!
-    """
-    config_parser = ConfigParser()
-    config_parser.read(_default_config_file_path("provider_config_fallback_defaults.cfg"))
-    return config_parser
+    return conf.retrieve_configuration_description(
+        include_airflow=include_airflow,
+        include_providers=include_providers,
+        selected_provider=selected_provider,
+    )
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
@@ -272,10 +209,6 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
 def inject_core_parser_helpers():
     import airflow._shared.configuration.parser as shared_parser
 
-    shared_parser._default_config_file_path = _default_config_file_path
-    shared_parser.retrieve_configuration_description = retrieve_configuration_description
-    shared_parser.create_default_config_parser = create_default_config_parser
-    shared_parser.create_provider_config_fallback_defaults = create_provider_config_fallback_defaults
     shared_parser.get_all_expansion_variables = get_all_expansion_variables
 
 
@@ -286,7 +219,11 @@ def initialize_config() -> AirflowConfigParser:
     Called for you automatically as part of the Airflow boot process.
     """
     inject_core_parser_helpers()
-    airflow_config_parser = AirflowConfigParser()
+
+    # Get the path to core's config templates
+    config_templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
+
+    airflow_config_parser = AirflowConfigParser(config_templates_dir=config_templates_dir)
     if airflow_config_parser.getboolean("core", "unit_test_mode"):
         airflow_config_parser.load_test_config()
     else:
@@ -311,24 +248,7 @@ def make_group_other_inaccessible(file_path: str):
         )
 
 
-def ensure_secrets_loaded(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
-) -> list[BaseSecretsBackend]:
-    """
-    Ensure that all secrets backends are loaded.
-
-    If the secrets_backend_list contains only 2 default backends, reload it.
-    """
-    # Check if the secrets_backend_list contains only 2 default backends.
-
-    # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to DEFAULT_SECRETS_SEARCH_PATH.
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
-        return initialize_secrets_backends(default_backends=default_backends)
-    return secrets_backend_list
-
-
-def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend | None:
+def get_custom_secret_backend(worker_mode: bool = False):
     """
     Get Secret Backend if defined in airflow.cfg.
 
@@ -339,7 +259,6 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
     kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
 
     secrets_backend_cls = conf.getimport(section=section, key=key)
-
     if not secrets_backend_cls:
         if worker_mode:
             # if we find no secrets backend for worker, return that of secrets backend
@@ -366,6 +285,23 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
         backend_kwargs = {}
 
     return secrets_backend_cls(**backend_kwargs)
+
+
+def ensure_secrets_loaded(
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+) -> list[BaseSecretsBackend]:
+    """
+    Ensure that all secrets backends are loaded.
+
+    If the secrets_backend_list contains only 2 default backends, reload it.
+    """
+    # Check if the secrets_backend_list contains only 2 default backends.
+
+    # Check if we are loading the backends for worker too by checking if the default_backends is equal
+    # to DEFAULT_SECRETS_SEARCH_PATH.
+    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+        return initialize_secrets_backends(default_backends=default_backends)
+    return secrets_backend_list
 
 
 def initialize_secrets_backends(

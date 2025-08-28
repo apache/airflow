@@ -47,10 +47,7 @@ from urllib.parse import urlsplit
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
-from airflow.utils.module_loading import import_string
-
-# Shared configuration dependencies will be imported by each distribution
-# These imports will be provided by each distribution
+from .exceptions import AirflowConfigException
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +130,6 @@ def run_command(command: str) -> str:
 
     if process.returncode != 0:
         # Import exception dynamically to avoid circular imports
-        from .exceptions import AirflowConfigException
 
         raise AirflowConfigException(
             f"Cannot execute {command}. Error code is: {process.returncode}. "
@@ -141,27 +137,6 @@ def run_command(command: str) -> str:
         )
 
     return output
-
-
-def _get_config_value_from_secret_backend(config_key: str) -> str | None:
-    """Get Config option values from Secret Backend."""
-    try:
-        # This will be provided by each distribution
-        from airflow.configuration import get_custom_secret_backend
-
-        secrets_client = get_custom_secret_backend()
-        if not secrets_client:
-            return None
-        return secrets_client.get_config(config_key)
-    except Exception as e:
-        from .exceptions import AirflowConfigException
-
-        raise AirflowConfigException(
-            "Cannot retrieve config from alternative secrets backend. "
-            "Make sure it is configured properly and that the Backend "
-            "is accessible.\n"
-            f"{e}"
-        )
 
 
 def _is_template(configuration_description: dict[str, dict[str, Any]], section: str, key: str) -> bool:
@@ -174,62 +149,6 @@ def _is_template(configuration_description: dict[str, dict[str, Any]], section: 
     :return: True if the config is a template
     """
     return configuration_description.get(section, {}).get(key, {}).get("is_template", False)
-
-
-def _default_config_file_path(file_name: str) -> str:
-    """
-    Get path to default config file template.
-
-    This will be overridden by distribution specific wrappers via method injection.
-    """
-    # Simple fallback - look for config_templates relative to this module
-    templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
-    return os.path.join(templates_dir, file_name)
-
-
-def retrieve_configuration_description(
-    include_airflow: bool = True,
-    include_providers: bool = True,
-    selected_provider: str | None = None,
-) -> dict[str, dict[str, Any]]:
-    """
-    Read Airflow configuration description from YAML file.
-
-    :param include_airflow: Include Airflow configs
-    :param include_providers: Include provider configs
-    :param selected_provider: If specified, include selected provider only
-    :return: Python dictionary containing configs & their info
-    """
-    base_configuration_description: dict[str, dict[str, Any]] = {}
-    if include_airflow:
-        # Import yaml here to avoid circular imports at module level
-        try:
-            from airflow.utils import yaml
-        except ImportError:
-            # Fallback to standard yaml if airflow.utils.yaml not available
-            import yaml
-
-        try:
-            with open(_default_config_file_path("config.yml")) as config_file:
-                base_configuration_description.update(yaml.safe_load(config_file))
-        except FileNotFoundError:
-            # If config.yml is not found, return empty description
-            # This will be handled by distribution-specific wrappers
-            pass
-
-    if include_providers:
-        # Provider loading handled by distribution-specific wrappers to avoid circular dependencies
-        try:
-            from airflow.providers_manager import ProvidersManager
-
-            for provider, config in ProvidersManager().provider_configs:
-                if not selected_provider or provider == selected_provider:
-                    base_configuration_description.update(config)
-        except ImportError:
-            # Provider manager not available - skip provider configs
-            pass
-
-    return base_configuration_description
 
 
 def get_all_expansion_variables() -> dict[str, Any]:
@@ -264,49 +183,26 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     return parser
 
 
-def create_provider_config_fallback_defaults() -> ConfigParser:
+def _import_string(dotted_path: str):
     """
-    Create fallback defaults.
+    Import a dotted module path and return the attribute/class designated by the last name in the path.
 
-    This parser contains provider defaults for Airflow configuration, containing fallback default values
-    that might be needed when provider classes are being imported - before provider's configuration
-    is loaded.
-
-    Unfortunately airflow currently performs a lot of stuff during importing and some of that might lead
-    to retrieving provider configuration before the defaults for the provider are loaded.
-
-    Those are only defaults, so if you have "real" values configured in your configuration (.cfg file or
-    environment variables) those will be used as usual.
-
-    NOTE!! Do NOT attempt to remove those default fallbacks thinking that they are unnecessary duplication,
-    at least not until we fix the way how airflow imports "do stuff". This is unlikely to succeed.
-
-    You've been warned!
+    Raise ImportError if the import failed.
     """
-    config_parser = ConfigParser()
+    # TODO: Add support for nested classes. Currently, it only works for top-level classes.
+    from importlib import import_module
+
     try:
-        config_parser.read(_default_config_file_path("provider_config_fallback_defaults.cfg"))
-    except FileNotFoundError:
-        # If file doesn't exist, return empty parser
-        pass
-    return config_parser
+        module_path, class_name = dotted_path.rsplit(".", 1)
+    except ValueError:
+        raise ImportError(f"{dotted_path} doesn't look like a module path")
 
+    module = import_module(module_path)
 
-# WeightRule placeholder - will be provided by each distribution
-class WeightRule:
-    """Placeholder for WeightRule class."""
-
-    @staticmethod
-    def all_weight_rules():
-        # This will be provided by each distribution's wrapper
-        # For now, return a sensible fallback
-        try:
-            from airflow.task.weight_rule import WeightRule as RealWeightRule
-
-            return RealWeightRule.all_weight_rules()
-        except ImportError:
-            # Fallback if weight rule not available
-            return ["downstream", "upstream", "absolute"]
+    try:
+        return getattr(module, class_name)
+    except AttributeError:
+        raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -324,12 +220,14 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(
         self,
+        config_templates_dir: str,
         default_config: str | None = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.configuration_description = retrieve_configuration_description(include_providers=False)
+        self.config_templates_dir = config_templates_dir
+        self.configuration_description = self.retrieve_configuration_description(include_providers=False)
         self.upgraded_values = {}
         # For those who would like to use a different data structure to keep defaults:
         # We have to keep the default values in a ConfigParser rather than in any other
@@ -337,13 +235,85 @@ class AirflowConfigParser(ConfigParser):
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
         self._default_values = create_default_config_parser(self.configuration_description)
-        self._provider_config_fallback_default_values = create_provider_config_fallback_defaults()
+        self._provider_config_fallback_default_values = self.create_provider_config_fallback_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
         self._update_logging_deprecated_template_to_one_from_defaults()
         self.is_validated = False
         self._suppress_future_warnings = False
         self._providers_configuration_loaded = False
+
+    def _get_config_file_path(self, file_name: str) -> str:
+        """
+        Get path to config file template.
+
+        :param file_name: Name of the config file
+        :return: Full path to the config file
+        """
+        return os.path.join(self.config_templates_dir, file_name)
+
+    def retrieve_configuration_description(
+        self,
+        include_airflow: bool = True,
+        include_providers: bool = True,
+        selected_provider: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Read Airflow configuration description from YAML file.
+
+        :param include_airflow: Include Airflow configs
+        :param include_providers: Include provider configs
+        :param selected_provider: If specified, include selected provider only
+        :return: Python dictionary containing configs & their info
+        """
+        base_configuration_description: dict[str, dict[str, Any]] = {}
+        if include_airflow:
+            from airflow.utils import yaml
+
+            try:
+                with open(self._get_config_file_path("config.yml")) as config_file:
+                    base_configuration_description.update(yaml.safe_load(config_file))
+            except FileNotFoundError:
+                # If config.yml is not found, return empty description
+                # This will be handled by distribution-specific wrappers
+                pass
+
+        if include_providers:
+            # Provider loading handled by distribution-specific wrappers to avoid circular dependencies
+            from airflow.providers_manager import ProvidersManager
+
+            for provider, config in ProvidersManager().provider_configs:
+                if not selected_provider or provider == selected_provider:
+                    base_configuration_description.update(config)
+
+        return base_configuration_description
+
+    def create_provider_config_fallback_defaults(self) -> ConfigParser:
+        """
+        Create fallback defaults.
+
+        This parser contains provider defaults for Airflow configuration, containing fallback default values
+        that might be needed when provider classes are being imported - before provider's configuration
+        is loaded.
+
+        Unfortunately airflow currently performs a lot of stuff during importing and some of that might lead
+        to retrieving provider configuration before the defaults for the provider are loaded.
+
+        Those are only defaults, so if you have "real" values configured in your configuration (.cfg file or
+        environment variables) those will be used as usual.
+
+        NOTE!! Do NOT attempt to remove those default fallbacks thinking that they are unnecessary duplication,
+        at least not until we fix the way how airflow imports "do stuff". This is unlikely to succeed.
+
+        You've been warned!
+        """
+        config_parser = ConfigParser()
+        try:
+            config_parser.read(self._get_config_file_path("provider_config_fallback_defaults.cfg"))
+        except FileNotFoundError:
+            # If file doesn't exist, return empty parser
+            pass
+        return config_parser
 
     def _update_logging_deprecated_template_to_one_from_defaults(self):
         default = self.get_default_value("logging", "log_filename_template")
@@ -393,8 +363,6 @@ class AirflowConfigParser(ConfigParser):
                     )
                 self._default_values.set(section, key, value)
             if errors:
-                from .exceptions import AirflowConfigException
-
                 raise AirflowConfigException(
                     f"The string config passed as default contains variables. "
                     f"This is not supported. String config: {config_string}"
@@ -521,7 +489,7 @@ class AirflowConfigParser(ConfigParser):
 
     _available_logging_levels = ["CRITICAL", "FATAL", "ERROR", "WARN", "WARNING", "INFO", "DEBUG"]
     enums_options = {
-        ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
+        ("core", "default_task_weight_rule"): ["absolute", "downstream", "upstream"],
         ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],
         ("core", "mp_start_method"): multiprocessing.get_all_start_methods(),
         ("dag_processor", "file_parsing_sort_mode"): [
@@ -863,7 +831,7 @@ class AirflowConfigParser(ConfigParser):
         It does not restore configuration for providers. If you want to restore configuration for
         providers, you need to call ``load_providers_configuration`` method.
         """
-        self.configuration_description = retrieve_configuration_description(include_providers=False)
+        self.configuration_description = self.retrieve_configuration_description(include_providers=False)
         self._default_values = create_default_config_parser(self.configuration_description)
         self._providers_configuration_loaded = False
 
@@ -920,8 +888,6 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value."""
-        from .exceptions import AirflowConfigException
-
         for (section_key, option_key), enum_options in self.enums_options.items():
             if self.has_option(section_key, option_key):
                 value = self.get(section_key, option_key, fallback=None)
@@ -937,8 +903,6 @@ class AirflowConfigParser(ConfigParser):
 
         Some features in storing rendered fields require SQLite >= 3.15.0.
         """
-        from .exceptions import AirflowConfigException
-
         if "sqlite" not in self.get("database", "sql_alchemy_conn"):
             return
 
@@ -977,8 +941,6 @@ class AirflowConfigParser(ConfigParser):
         from airflow._shared.secrets_masker import mask_secret as mask_secret_core
         from airflow.sdk.log import mask_secret as mask_secret_sdk
 
-        from .exceptions import AirflowConfigException
-
         for section, key in self.sensitive_config_values:
             try:
                 with self.suppress_future_warnings():
@@ -1012,12 +974,10 @@ class AirflowConfigParser(ConfigParser):
         if env_var_secret_path in os.environ:
             # if this is a valid secret path...
             if (section, key) in self.sensitive_config_values:
-                return _get_config_value_from_secret_backend(os.environ[env_var_secret_path])
+                return self._get_config_value_from_secret_backend(os.environ[env_var_secret_path])
         return None
 
     def _get_cmd_option(self, section: str, key: str):
-        from .exceptions import AirflowConfigException
-
         fallback_key = key + "_cmd"
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
@@ -1056,7 +1016,7 @@ class AirflowConfigParser(ConfigParser):
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
                 secrets_path = super().get(section, fallback_key)
-                return _get_config_value_from_secret_backend(secrets_path)
+                return self._get_config_value_from_secret_backend(secrets_path)
         return None
 
     def _get_secret_option_from_config_sources(
@@ -1072,7 +1032,7 @@ class AirflowConfigParser(ConfigParser):
                         secrets_path = secrets_path_value
                     else:
                         secrets_path = secrets_path_value[0]
-                    return _get_config_value_from_secret_backend(secrets_path)
+                    return self._get_config_value_from_secret_backend(secrets_path)
         return None
 
     def get_mandatory_value(self, section: str, key: str, **kwargs) -> str:
@@ -1102,8 +1062,6 @@ class AirflowConfigParser(ConfigParser):
         _extra_stacklevel: int = 0,
         **kwargs,
     ) -> str | None:
-        from .exceptions import AirflowConfigException
-
         section = section.lower()
         key = key.lower()
         warning_emitted = False
@@ -1304,8 +1262,6 @@ class AirflowConfigParser(ConfigParser):
         return None
 
     def getboolean(self, section: str, key: str, **kwargs) -> bool:  # type: ignore[override]
-        from .exceptions import AirflowConfigException
-
         val = str(self.get(section, key, _extra_stacklevel=1, **kwargs)).lower().strip()
         if "#" in val:
             val = val.split("#")[0].strip()
@@ -1319,8 +1275,6 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def getint(self, section: str, key: str, **kwargs) -> int:  # type: ignore[override]
-        from .exceptions import AirflowConfigException
-
         val = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if val is None:
             raise AirflowConfigException(
@@ -1336,8 +1290,6 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
-        from .exceptions import AirflowConfigException
-
         val = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if val is None:
             raise AirflowConfigException(
@@ -1353,8 +1305,6 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def getlist(self, section: str, key: str, delimiter=",", **kwargs):
-        from .exceptions import AirflowConfigException
-
         val = self.get(section, key, **kwargs)
         if val is None:
             if "fallback" in kwargs:
@@ -1379,14 +1329,12 @@ class AirflowConfigParser(ConfigParser):
 
         :return: The object or None, if the option is empty
         """
-        from .exceptions import AirflowConfigException
-
         full_qualified_path = self.get(section=section, key=key, **kwargs)
         if not full_qualified_path:
             return None
 
         try:
-            return import_string(full_qualified_path)
+            return _import_string(full_qualified_path)
         except ImportError as e:
             log.warning(e)
             raise AirflowConfigException(
@@ -1402,8 +1350,6 @@ class AirflowConfigParser(ConfigParser):
 
         ``fallback`` is *not* JSON parsed but used verbatim when no config value is given.
         """
-        from .exceptions import AirflowConfigException
-
         try:
             data = self.get(section=section, key=key, fallback=None, _extra_stacklevel=1, **kwargs)
         except (NoSectionError, NoOptionError):
@@ -1431,8 +1377,6 @@ class AirflowConfigParser(ConfigParser):
         :raises AirflowConfigException: raised because ValueError or OverflowError
         :return: datetime.timedelta(seconds=<config_value>) or None
         """
-        from .exceptions import AirflowConfigException
-
         val = self.get(section, key, fallback=fallback, _extra_stacklevel=1, **kwargs)
 
         if val:
@@ -1540,8 +1484,6 @@ class AirflowConfigParser(ConfigParser):
 
         :param section: section from the config
         """
-        from .exceptions import AirflowConfigException
-
         if not self.has_section(section) and not self._default_values.has_section(section):
             return None
         if self._default_values.has_section(section):
@@ -1979,7 +1921,7 @@ class AirflowConfigParser(ConfigParser):
         global FERNET_KEY, AIRFLOW_HOME, JWT_SECRET_KEY
         from cryptography.fernet import Fernet
 
-        unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
+        unit_test_config_file = pathlib.Path(self.config_templates_dir) / "unit_tests.cfg"
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
         with StringIO(unit_test_config) as test_config_file:
@@ -2027,8 +1969,6 @@ class AirflowConfigParser(ConfigParser):
         log.debug("Loading providers configuration")
         from airflow.providers_manager import ProvidersManager
 
-        from .exceptions import AirflowConfigException
-
         self.restore_core_default_configuration()
         for provider, config in ProvidersManager().already_initialized_provider_configs:
             for provider_section, provider_section_content in config.items():
@@ -2060,6 +2000,61 @@ class AirflowConfigParser(ConfigParser):
             # no problem if cache is not set yet
             del self.sensitive_config_values
         self._providers_configuration_loaded = True
+
+    # TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
+    def get_custom_secret_backend(self, worker_mode: bool = False):
+        """
+        Get Secret Backend if defined in airflow.cfg.
+
+        Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
+        """
+        section = "workers" if worker_mode else "secrets"
+        key = "secrets_backend" if worker_mode else "backend"
+        kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
+
+        secrets_backend_cls = self.getimport(section=section, key=key)
+
+        if not secrets_backend_cls:
+            if worker_mode:
+                # if we find no secrets backend for worker, return that of secrets backend
+                secrets_backend_cls = self.getimport(section="secrets", key="backend")
+                if not secrets_backend_cls:
+                    return None
+                # When falling back to secrets backend, use its kwargs
+                kwargs_key = "backend_kwargs"
+                section = "secrets"
+            else:
+                return None
+
+        try:
+            backend_kwargs = self.getjson(section=section, key=kwargs_key)
+            if not backend_kwargs:
+                backend_kwargs = {}
+            elif not isinstance(backend_kwargs, dict):
+                raise ValueError("not a dict")
+        except AirflowConfigException:
+            log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
+            backend_kwargs = {}
+        except ValueError:
+            log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
+            backend_kwargs = {}
+
+        return secrets_backend_cls(**backend_kwargs)
+
+    def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
+        """Get Config option values from Secret Backend."""
+        try:
+            secrets_client = self.get_custom_secret_backend()
+            if not secrets_client:
+                return None
+            return secrets_client.get_config(config_key)
+        except Exception as e:
+            raise AirflowConfigException(
+                "Cannot retrieve config from alternative secrets backend. "
+                "Make sure it is configured properly and that the Backend "
+                "is accessible.\n"
+                f"{e}"
+            )
 
     @staticmethod
     def _warn_deprecate(
