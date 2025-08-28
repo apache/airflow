@@ -43,6 +43,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/livy/src
       - ../../../empty:/opt/airflow/providers/apache/pig/src
       - ../../../empty:/opt/airflow/providers/apache/pinot/src
+      - ../../../empty:/opt/airflow/providers/apache/seatunnel/src
       - ../../../empty:/opt/airflow/providers/apache/spark/src
       - ../../../empty:/opt/airflow/providers/apache/tinkerpop/src
       - ../../../empty:/opt/airflow/providers/apprise/src

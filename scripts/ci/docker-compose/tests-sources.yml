@@ -55,6 +55,7 @@ services:
       - ../../../providers/apache/livy/tests:/opt/airflow/providers/apache/livy/tests
       - ../../../providers/apache/pig/tests:/opt/airflow/providers/apache/pig/tests
       - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
+      - ../../../providers/apache/seatunnel/tests:/opt/airflow/providers/apache/seatunnel/tests
       - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
       - ../../../providers/apache/tinkerpop/tests:/opt/airflow/providers/apache/tinkerpop/tests
       - ../../../providers/apprise/tests:/opt/airflow/providers/apprise/tests
