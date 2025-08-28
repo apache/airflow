@@ -84,21 +84,6 @@ class ConfigModifications:
         self.default_updates[(section, option)] = new_default
 
 
-# _parse_sqlite_version now imported from shared library
-
-
-# expand_env_var now imported from shared library
-
-
-# run_command now imported from shared library
-
-
-# _get_config_value_from_secret_backend now imported from shared library
-
-
-# _is_template now imported from shared library
-
-
 def _default_config_file_path(file_name: str) -> str:
     templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
     return os.path.join(templates_dir, file_name)
@@ -128,9 +113,6 @@ def retrieve_configuration_description(
             if not selected_provider or provider == selected_provider:
                 base_configuration_description.update(config)
     return base_configuration_description
-
-
-# AirflowConfigParser class now imported from shared library
 
 
 def get_airflow_home() -> str:
