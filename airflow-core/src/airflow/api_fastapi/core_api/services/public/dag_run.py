@@ -26,13 +26,16 @@ from typing import TYPE_CHECKING, Any
 import attrs
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
-from airflow.utils.session import create_session, create_session_async
+from airflow.utils.session import create_session_async
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
+
+session = SessionDep()
 
 
 @attrs.define
@@ -49,14 +52,13 @@ class DagRunWaiter:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
     def _serialize_xcoms(self) -> dict[str, Any]:
-        with create_session() as session:
-            xcom_query = XComModel.get_many(
-                run_id=self.run_id,
-                key=XCOM_RETURN_KEY,
-                task_ids=self.result_task_ids,
-                dag_ids=self.dag_id,
-            )
-            xcom_query = session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index)).all()
+        xcom_query = XComModel.get_many(
+            run_id=self.run_id,
+            key=XCOM_RETURN_KEY,
+            task_ids=self.result_task_ids,
+            dag_ids=self.dag_id,
+        )
+        xcom_query = session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index)).all()
 
         def _group_xcoms(g: Iterator[XComModel]) -> Any:
             entries = list(g)

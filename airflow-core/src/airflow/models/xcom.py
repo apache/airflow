@@ -246,7 +246,6 @@ class XComModel(TaskInstanceDependencies):
         session.flush()
 
     @classmethod
-    @provide_session
     def get_many(
         cls,
         *,
@@ -257,7 +256,6 @@ class XComModel(TaskInstanceDependencies):
         map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
-        session: Session = NEW_SESSION,
     ) -> Select:
         """
         Composes a query to get one or more XCom entries.

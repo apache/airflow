@@ -24,7 +24,11 @@ import pytest
 import airflow.models.xcom
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.utils import timezone  # type: ignore[attr-defined]
+except ImportError:
+    from airflow.sdk import timezone
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
@@ -146,7 +150,6 @@ class TestXComObjectStorageBackend:
                     dag_ids=task_instance.dag_id,
                     task_ids=task_instance.task_id,
                     run_id=task_instance.run_id,
-                    session=session,
                 ).with_only_columns(XComModel.value)
             ).first()
             data = XComModel.deserialize_value(res)
@@ -205,7 +208,6 @@ class TestXComObjectStorageBackend:
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
-                session=session,
             )
             assert str(p) == XComModel.deserialize_value(
                 session.execute(qry.with_only_columns(XComModel.value)).first()
@@ -264,7 +266,6 @@ class TestXComObjectStorageBackend:
                     dag_ids=task_instance.dag_id,
                     task_ids=task_instance.task_id,
                     run_id=task_instance.run_id,
-                    session=session,
                 ).with_only_columns(XComModel.value)
             ).first()
             data = XComModel.deserialize_value(res)
@@ -342,7 +343,6 @@ class TestXComObjectStorageBackend:
                     dag_ids=task_instance.dag_id,
                     task_ids=task_instance.task_id,
                     run_id=task_instance.run_id,
-                    session=session,
                 ).with_only_columns(XComModel.value)
             ).first()
         elif AIRFLOW_V_3_0_PLUS:
@@ -418,7 +418,6 @@ class TestXComObjectStorageBackend:
                     dag_ids=task_instance.dag_id,
                     task_ids=task_instance.task_id,
                     run_id=task_instance.run_id,
-                    session=session,
                 ).with_only_columns(XComModel.value)
             ).first()
             data = XComModel.deserialize_value(res)

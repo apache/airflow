@@ -1947,7 +1947,6 @@ class TaskInstance(Base, LoggingMixin):
             task_ids=task_ids,
             map_indexes=map_indexes,
             include_prior_dates=include_prior_dates,
-            session=session,
         )
 
         # NOTE: Since we're only fetching the value field and not the whole

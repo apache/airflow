@@ -216,7 +216,6 @@ class TestXComGet:
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
-                session=session,
             ).with_only_columns(XComModel.value)
         ).first()
         assert XComModel.deserialize_value(stored_value) == {"key": "value"}
@@ -265,7 +264,6 @@ class TestXComGet:
                 task_ids="task_1",
                 dag_ids="dag",
                 include_prior_dates=True,
-                session=session,
             ).with_only_columns(XComModel.value)
         ).first()
         assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
@@ -281,7 +279,6 @@ class TestXComGet:
                 task_ids="task_1",
                 dag_ids="dag",
                 include_prior_dates=True,
-                session=session,
             ).with_only_columns(XComModel.value)
         ).first()
         assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
@@ -298,7 +295,6 @@ class TestXComGet:
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
-                session=session,
             )
         ).all()
         assert len(stored_xcoms) == 1
@@ -319,7 +315,6 @@ class TestXComGet:
                 dag_ids=task_instance.dag_id,
                 task_ids=["task_1", "task_2"],
                 run_id=task_instance.run_id,
-                session=session,
             )
         ).all()
         sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
@@ -345,7 +340,6 @@ class TestXComGet:
                 dag_ids="dag",
                 task_ids="task_1",
                 include_prior_dates=True,
-                session=session,
             )
         ).all()
 
@@ -363,7 +357,6 @@ class TestXComGet:
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
-                session=session,
             )
 
 
@@ -490,7 +483,6 @@ class TestXComRoundTrip:
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
-                session=session,
             ).with_only_columns(XComModel.value)
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)

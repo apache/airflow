@@ -414,7 +414,6 @@ class TestXComsSetEndpoint:
                 dag_ids=ti.dag_id,
                 task_ids=ti.task_id,
                 run_id=ti.run_id,
-                session=session,
             ).with_only_columns(XComModel.value)
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
