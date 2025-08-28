@@ -18,14 +18,15 @@
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiClipboard, FiZap, FiClock } from "react-icons/fi";
+import { FiClipboard, FiZap } from "react-icons/fi";
 
-import { useDashboardServiceDagStats, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useDashboardServiceDagStats } from "openapi/queries";
+import { PendingActionsButton } from "src/components/PendingActionsButton";
+import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
 import { PluginImportErrors } from "./PluginImportErrors";
-import { StatsCard } from "./StatsCard";
 
 export const Stats = () => {
   const refetchInterval = useAutoRefresh({});
@@ -33,21 +34,10 @@ export const Stats = () => {
     refetchInterval,
   });
 
-  const { data: hitlStatsData } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      responseReceived: false,
-    },
-    undefined,
-    {
-      refetchInterval,
-    },
-  );
-
   const failedDagsCount = statsData?.failed_dag_count ?? 0;
   const queuedDagsCount = statsData?.queued_dag_count ?? 0;
   const runningDagsCount = statsData?.running_dag_count ?? 0;
   const activeDagsCount = statsData?.active_dag_count ?? 0;
-  const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
   const { t: translate } = useTranslation("dashboard");
 
   return (
@@ -60,16 +50,7 @@ export const Stats = () => {
       </Flex>
 
       <HStack gap={4}>
-        {hitlTIsCount > 0 ? (
-          <StatsCard
-            colorScheme="failed"
-            count={hitlTIsCount}
-            icon={<FiClock />}
-            isLoading={isStatsLoading}
-            label={translate("stats.requiredActions")}
-            link="required_actions?response_received=false"
-          />
-        ) : undefined}
+        <PendingActionsButton />
 
         <StatsCard
           colorScheme="failed"

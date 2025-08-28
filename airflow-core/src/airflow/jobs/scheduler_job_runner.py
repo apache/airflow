@@ -56,6 +56,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
+    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
@@ -65,7 +66,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -1233,6 +1234,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
         )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._remove_unreferenced_triggers,
+        )
 
         if any(x.is_local for x in self.job.executors):
             bundle_cleanup_mgr = BundleUsageTrackingManager()
@@ -2380,6 +2385,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details["External Executor Id"] = ti.external_executor_id
 
         return task_instance_heartbeat_timeout_message_details
+
+    @provide_session
+    def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
+        """Remove triggers that are no longer used by anything."""
+        session.execute(
+            delete(Trigger)
+            .where(
+                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(Deadline.trigger_id)),
+                Trigger.id.not_in(select(TaskInstance.trigger_id)),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

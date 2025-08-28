@@ -68,7 +68,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "跳躍: Shift+{{arrow}}",
     "navigation": "導航: {{arrow}}",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },

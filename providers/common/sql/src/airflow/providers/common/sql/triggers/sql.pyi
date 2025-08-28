@@ -27,10 +27,7 @@
 #
 # You can read more in the README_API.md file
 #
-"""
-Definition of the public interface for airflow.providers.common.sql.triggers.sql
-isort:skip_file
-"""
+"""Definition of the public interface for airflow.providers.common.sql.triggers.sql."""
 
 from collections.abc import AsyncIterator
 from typing import Any

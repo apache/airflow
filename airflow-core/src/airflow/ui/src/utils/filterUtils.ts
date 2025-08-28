@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { create } from "zustand";
 
-export const useGridStore = create<{ isGridFocused: boolean; setIsGridFocused: (value: boolean) => void }>(
-  (set) => ({
-    // isGridFocused is shared between different pages (Run, GroupInstance, MappedInstance, TaskInstance, etc.).
-    // This will avoid many prop drilling and allow proper refocus of the grid when navigating between these pages via grid links.
-    isGridFocused: false,
-    setIsGridFocused: (value: boolean) => set({ isGridFocused: value }),
-  }),
-);
+export const getFilterCount = (filters: Record<string, unknown>): number =>
+  Object.values(filters).reduce((count: number, value) => {
+    if (Array.isArray(value)) {
+      return count + (value.length > 0 ? 1 : 0);
+    }
+
+    return count + (value !== null && value !== undefined ? 1 : 0);
+  }, 0);

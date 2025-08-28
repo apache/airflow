@@ -51,7 +51,11 @@ class DeadlineCallbackTrigger(BaseTrigger):
         try:
             callback = import_string(self.callback_path)
             yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.RUNNING})
-            result = await callback(**self.callback_kwargs)
+
+            # TODO: get airflow context
+            context: dict = {}
+
+            result = await callback(**self.callback_kwargs, context=context)
             log.info("Deadline callback completed with return value: %s", result)
             yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
         except Exception as e:

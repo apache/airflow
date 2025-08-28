@@ -2269,8 +2269,6 @@ def _has_kubernetes() -> bool:
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator
-
-        # isort: on
         HAS_KUBERNETES = True
     except ImportError:
         HAS_KUBERNETES = False

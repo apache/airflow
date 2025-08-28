@@ -84,7 +84,6 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         </Text>
       ) : undefined}
       <Accordion.Root
-        collapsible
         defaultValue={[hitlDetail.subject]}
         mb={4}
         mt={4}

@@ -26,6 +26,7 @@ import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
+import { getFilterCount } from "src/utils/filterUtils";
 
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
@@ -40,32 +41,6 @@ const {
   TAGS: TAGS_PARAM,
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
-
-type FilterOptions = {
-  selectedTags: Array<string>;
-  showFavorites: string | null;
-  showPaused: string | null;
-  state: string | null;
-};
-
-const getFilterCount = ({ selectedTags, showFavorites, showPaused, state }: FilterOptions) => {
-  let count = 0;
-
-  if (state !== null) {
-    count += 1;
-  }
-  if (showPaused !== null) {
-    count += 1;
-  }
-  if (selectedTags.length > 0) {
-    count += 1;
-  }
-  if (showFavorites !== null) {
-    count += 1;
-  }
-
-  return count;
-};
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();

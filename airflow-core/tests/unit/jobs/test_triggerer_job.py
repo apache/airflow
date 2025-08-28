@@ -43,7 +43,6 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
@@ -54,7 +53,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook
+from airflow.sdk import BaseHook, BaseOperator
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
