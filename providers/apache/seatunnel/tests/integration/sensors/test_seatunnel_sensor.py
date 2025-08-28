@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.apache.seatunnel.sensors.seatunnel_sensor import (
     SeaTunnelJobSensor,
 )

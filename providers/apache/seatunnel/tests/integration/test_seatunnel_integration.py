@@ -26,7 +26,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.apache.seatunnel.hooks.seatunnel_hook import (
     SeaTunnelHook,
 )
@@ -211,7 +211,7 @@ sink {
 
         from datetime import datetime, timedelta
 
-        from airflow import DAG
+        from airflow.sdk import DAG
 
         default_args = {
             "owner": "test",
