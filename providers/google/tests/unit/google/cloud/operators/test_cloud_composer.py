@@ -319,6 +319,12 @@ class TestCloudComposerRunAirflowCLICommandOperator:
     @mock.patch(COMPOSER_STRING.format("ExecuteAirflowCommandResponse.to_dict"))
     @mock.patch(COMPOSER_STRING.format("CloudComposerHook"))
     def test_execute(self, mock_hook, to_dict_mode) -> None:
+        mock_hook.return_value.wait_command_execution_result.return_value = {
+            "exit_info": {"exit_code": 0},
+            "output": [
+                {"content": "test"},
+            ],
+        }
         op = CloudComposerRunAirflowCLICommandOperator(
             task_id=TASK_ID,
             project_id=TEST_GCP_PROJECT,
