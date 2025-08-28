@@ -73,7 +73,7 @@ Before running the integration tests, ensure you have:
 1. **Python Environment**:
    - Python 3.12 (recommended)
    - Apache Airflow 3.0.3 (tested and recommended)
-   - Minimum: Python 3.8+ with Airflow 2.3.0+
+   - Minimum: Python 3.8+ with Airflow 2.10.0+
 
 2. **Docker Environment**:
    - Docker 20.10+

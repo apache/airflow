@@ -194,7 +194,7 @@ sink {
 
 #### GitHub Actions CI/CD
 
-*   **Multi-version Testing**: Python 3.8-3.11, Airflow 2.3.0-2.5.0
+*   **Multi-version Testing**: Python 3.8-3.11, Airflow 2.10.0+
 *   **Daily Automated Testing**: Runs at 2 AM UTC daily
 *   **Code Coverage**: Integrated with Codecov
 *   **Safety Scanning**: Vulnerability scanning with Trivy
@@ -264,7 +264,7 @@ docker-compose down -v
 ### Airflow version
 
 *   **Recommended Version**: 3.0.3 (tested)
-*   **Minimum Requirements**: 2.3.0
+*   **Minimum Requirements**: 2.10.0
 *   **Python Version**: 3.12+ (recommended), 3.8-3.11 (compatible)
 
 ## Best Practices

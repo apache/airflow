@@ -1,5 +1,5 @@
 # Fixed versions for testing compatibility
-apache-airflow>=2.3.0,<2.8.0
+apache-airflow>=2.10.0
 pendulum>=2.1.2,<3.0.0
 pytest>=6.0.0
 pytest-mock>=3.0.0

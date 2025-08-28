@@ -85,12 +85,12 @@ for the minimum Airflow version supported) via
 Requirements
 ''''''''''''
 
-The minimum Apache Airflow version supported by this provider package is ``2.3.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.10.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.3.0``
+``apache-airflow``  ``>=2.10.0``
 ``requests``        ``>=2.25.0``
 ==================  ==================
 

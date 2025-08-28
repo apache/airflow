@@ -8,7 +8,7 @@ docker>=5.0.0
 testcontainers>=3.4.0
 
 # Airflow dependencies
-apache-airflow>=2.3.0
+apache-airflow>=2.10.0
 apache-airflow[test]
 
 # Provider dependencies
