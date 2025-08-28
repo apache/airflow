@@ -48,7 +48,7 @@ class HITLDetail(Base):
 
     # Response Content Detail
     response_at = Column(UtcDateTime, nullable=True)
-    user_id = Column(String(128), nullable=True)
+    reponded_by = Column(String(128), nullable=True)
     chosen_options = Column(
         sqlalchemy_jsonfield.JSONField(json=json),
         nullable=True,

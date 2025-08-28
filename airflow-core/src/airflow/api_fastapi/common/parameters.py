@@ -961,7 +961,7 @@ QueryHITLDetailUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.user_id,
+            HITLDetail.reponded_by,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
