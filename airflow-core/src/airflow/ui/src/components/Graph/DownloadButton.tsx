@@ -16,62 +16,81 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import { IconButton } from "@chakra-ui/react";
-import { Panel, useReactFlow, getNodesBounds, getViewportForBounds } from "@xyflow/react";
+import { Panel, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
-import { useTranslation } from "react-i18next";
 import { FiDownload } from "react-icons/fi";
 
 import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ name }: { readonly name: string }) => {
-  const { t: translate } = useTranslation("components");
-  const { getNodes, getZoom } = useReactFlow();
+  const { fitView } = useReactFlow();
 
-  const onClick = () => {
-    const nodesBounds = getNodesBounds(getNodes());
+  const onClick = async () => {
+    // Ensure the graph fits before taking screenshot
+    fitView({ duration: 0, padding: 0.1 });
 
-    // Method obtained from https://reactflow.dev/examples/misc/download-image
-    const container = document.querySelector(".react-flow__viewport");
+    // Small delay to let layout stabilize
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    if (container instanceof HTMLElement) {
-      const dimensions = { height: container.clientHeight, width: container.clientWidth };
-      const zoom = getZoom();
-      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, zoom, zoom, 2);
+    const viewport = document.querySelector(".react-flow__viewport") as HTMLElement;
 
-      toPng(container, {
-        height: dimensions.height,
-        style: {
-          height: `${dimensions.height}px`,
-          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-          width: `${dimensions.width}px`,
-        },
-        width: dimensions.width,
-      })
-        .then((dataUrl) => {
-          const downloadLink = document.createElement("a");
+    if (!viewport) {
+      toaster.create({ description: "Graph element not found." });
 
-          downloadLink.setAttribute("download", `${name}-graph.png`);
-          downloadLink.setAttribute("href", dataUrl);
-          downloadLink.click();
-        })
-        .catch(() => {
-          toaster.create({
-            description: translate("graph.downloadImageError"),
-            title: translate("graph.downloadImageErrorTitle"),
-            type: "error",
-          });
-        });
+      return;
+    }
+
+    try {
+      const dataUrl = await toPng(viewport, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+      });
+
+      const link = document.createElement("a");
+
+      link.download = `${name}-graph.png`;
+      link.href = dataUrl;
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } catch {
+      toaster.create({
+        description: "An error occurred while generating the image.",
+        title: "Download Failed",
+        type: "error",
+      });
     }
   };
 
   return (
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
       <IconButton
-        aria-label={translate("graph.downloadImage")}
-        onClick={onClick}
+        aria-label="Download graph image"
+        onClick={() => {
+          void onClick(); // explicitly mark as fire-and-forget
+        }}
         size="xs"
-        title={translate("graph.downloadImage")}
+        title="Download graph image"
         variant="ghost"
       >
         <FiDownload />
