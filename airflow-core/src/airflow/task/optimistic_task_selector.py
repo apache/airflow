@@ -431,11 +431,13 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 "Not executing %s since the task concurrency per DAG run for this task has been reached.",
                 task_instance,
             )
-            starved_tasks_task_dagrun_concurrency.add((
-                task_instance.dag_id,
-                task_instance.run_id,
-                task_instance.task_id,
-            ))
+            starved_tasks_task_dagrun_concurrency.add(
+                (
+                    task_instance.dag_id,
+                    task_instance.run_id,
+                    task_instance.task_id,
+                )
+            )
             return False
 
         return True
