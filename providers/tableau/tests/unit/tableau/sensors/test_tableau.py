@@ -77,7 +77,7 @@ class TestTableauJobStatusSensor:
         }
         sensor = TableauJobStatusSensor(**self.kwargs)
 
-        with pytest.raises(AirflowException) as excinfo:
+        with pytest.raises(AirflowException):
             sensor.poke({})
         # Optionally, assert the exception message if needed, though the original test did not.
         # For example: assert "The Tableau Refresh Datasource Job for 'Failed Datasource' failed!" in str(excinfo.value)

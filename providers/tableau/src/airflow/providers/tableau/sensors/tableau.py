@@ -77,8 +77,8 @@ class TableauJobStatusSensor(BaseSensorOperator):
 
             # Efficient object descriptor construction
             object_descriptor = (
-                f"{object_name} ({object_id})" 
-                if object_name and object_id 
+                f"{object_name} ({object_id})"
+                if object_name and object_id
                 else object_id or f"job {self.job_id}"
             )
 
@@ -93,8 +93,6 @@ class TableauJobStatusSensor(BaseSensorOperator):
 
             # Streamlined error handling
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
-                raise TableauJobFailedException(
-                    f"The Tableau Refresh Job for {object_descriptor} failed!"
-                )
+                raise TableauJobFailedException(f"The Tableau Refresh Job for {object_descriptor} failed!")
 
             return finish_code == TableauJobFinishCode.SUCCESS
