@@ -104,6 +104,27 @@ If needed, you can include an extra dictionary in an asset:
 
 This can be used to supply custom description to the asset, such as who has ownership to the target file, or what the file is for. The extra information does not affect an asset's identity.
 
+You can also use Jinja templating in the extra dictionary to enrich the asset with runtime information, such as the execution date of the task that emits events of the asset:
+
+.. code-block::
+
+    BashOperator(
+        task_id="write_example_asset",
+        bash_command="echo 'writing...'",
+        outlets=Asset(
+            "asset_example",
+            extra={
+                "static_extra": "value",
+                "dag_id": "{{ dag.dag_id }}",
+                "nested_extra": {
+                    "run_id": "{{ run_id }}",
+                    "logical_date": "{{ ds }}",
+                }
+            }
+        ),
+    )
+
+
 .. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
 
 Creating a task to emit asset events

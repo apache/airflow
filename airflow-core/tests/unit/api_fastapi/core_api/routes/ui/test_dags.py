@@ -147,3 +147,28 @@ class TestGetDagRuns(TestPublicDagEndpoint):
     def test_latest_run_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "query_params, expected_dag_count",
+        [
+            ({"has_asset_schedule": True}, 3),
+            ({"has_asset_schedule": False}, 2),
+            ({"asset_dependency": "test_asset"}, 1),
+            ({"asset_dependency": "dataset"}, 1),
+            ({"asset_dependency": "bucket"}, 1),
+            ({"asset_dependency": "s3://"}, 1),
+            ({"asset_dependency": "nonexistent"}, 0),
+            ({"has_asset_schedule": True, "asset_dependency": "test_asset"}, 1),  # Combined filters
+            ({"has_asset_schedule": False, "asset_dependency": "test_asset"}, 0),  # No match
+        ],
+    )
+    def test_asset_filtering(self, test_client, query_params, expected_dag_count, session):
+        """Test asset-based filtering on the UI DAGs endpoint."""
+
+        self._create_asset_test_data(session)
+
+        response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == expected_dag_count
+        assert len(body["dags"]) == expected_dag_count

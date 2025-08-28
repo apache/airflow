@@ -40,8 +40,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Springen: Umschalttaste+{{arrow}}",
-    "navigation": "Navigation: {{arrow}}",
+    "navigation": "Navigation: Umschalttaste+{{arrow}}",
     "toggleGroup": "Gruppen umschalten: Leertaste"
   },
   "overview": {
