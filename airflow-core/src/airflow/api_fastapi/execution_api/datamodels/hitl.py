@@ -51,7 +51,7 @@ class HITLDetailResponse(BaseModel):
     """Schema for the response part of a Human-in-the-loop detail for a specific task instance."""
 
     response_received: bool
-    user_id: str | None
+    responded_by: str | None
     response_at: datetime | None
     # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
@@ -62,7 +62,7 @@ class HITLDetailResponse(BaseModel):
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
             response_at=hitl_detail.response_at,
-            user_id=hitl_detail.user_id,
+            responded_by=hitl_detail.responded_by,
             chosen_options=hitl_detail.chosen_options,
             params_input=hitl_detail.params_input or {},
         )

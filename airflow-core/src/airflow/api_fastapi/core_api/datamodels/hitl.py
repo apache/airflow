@@ -37,7 +37,7 @@ class UpdateHITLDetailPayload(BaseModel):
 class HITLDetailResponse(BaseModel):
     """Response of updating a Human-in-the-loop detail."""
 
-    user_id: str
+    responded_by: str
     response_at: datetime
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
@@ -58,7 +58,7 @@ class HITLDetail(BaseModel):
     respondents: list[str] | None = None
 
     # Response Content Detail
-    user_id: str | None = None
+    responded_by: str | None = None
     response_at: datetime | None = None
     chosen_options: list[str] | None = None
     params_input: dict[str, Any] = Field(default_factory=dict)

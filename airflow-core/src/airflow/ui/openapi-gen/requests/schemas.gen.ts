@@ -3563,7 +3563,7 @@ export const $HITLDetail = {
             ],
             title: 'Respondents'
         },
-        user_id: {
+        responded_by: {
             anyOf: [
                 {
                     type: 'string'
@@ -3572,7 +3572,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'User Id'
+            title: 'Responded By'
         },
         response_at: {
             anyOf: [
@@ -3639,9 +3639,9 @@ export const $HITLDetailCollection = {
 
 export const $HITLDetailResponse = {
     properties: {
-        user_id: {
+        responded_by: {
             type: 'string',
-            title: 'User Id'
+            title: 'Responded By'
         },
         response_at: {
             type: 'string',
@@ -3663,7 +3663,7 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['user_id', 'response_at', 'chosen_options'],
+    required: ['responded_by', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
 } as const;

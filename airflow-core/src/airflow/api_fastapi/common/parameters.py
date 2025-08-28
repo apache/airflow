@@ -957,15 +957,15 @@ QueryHITLDetailResponseReceivedFilter = Annotated[
         )
     ),
 ]
-QueryHITLDetailUserIdFilter = Annotated[
+QueryHITLDetailRespondedByFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.user_id,
+            HITLDetail.responded_by,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="user_id",
+            filter_name="responded_by",
         )
     ),
 ]

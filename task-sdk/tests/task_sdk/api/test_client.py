@@ -1302,7 +1302,7 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "user_id": "admin",
+                        "responded_by": "admin",
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1319,7 +1319,7 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.user_id == "admin"
+        assert result.responded_by == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
     def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
@@ -1333,7 +1333,7 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "user_id": "admin",
+                        "responded_by": "admin",
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1346,5 +1346,5 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.user_id == "admin"
+        assert result.responded_by == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

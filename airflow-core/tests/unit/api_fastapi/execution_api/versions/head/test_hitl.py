@@ -50,7 +50,7 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
     "response_at": None,
     "chosen_options": None,
-    "user_id": None,
+    "responded_by": None,
     "params_input": {},
     "response_received": False,
 }
@@ -93,7 +93,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
                 "params_input": {"input_1": 2},
                 "response_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
                 "chosen_options": ["Reject"],
-                "user_id": "Fallback to defaults",
+                "responded_by": "Fallback to defaults",
             },
         },
     ],
@@ -170,7 +170,7 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
         "response_at": "2025-07-03T00:00:00Z",
         "chosen_options": ["Reject"],
         "response_received": True,
-        "user_id": "Fallback to defaults",
+        "responded_by": "Fallback to defaults",
     }
 
 
