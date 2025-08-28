@@ -31,11 +31,11 @@ from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
     QueryHITLDetailDagRunIdFilter,
+    QueryHITLDetailRespondedByFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
     QueryHITLDetailTaskIdFilter,
     QueryHITLDetailTaskIdPatternSearch,
-    QueryHITLDetailUserIdFilter,
     QueryLimit,
     QueryOffset,
     QueryTIStateFilter,
@@ -122,18 +122,18 @@ def _update_hitl_detail(
         )
 
     if hitl_detail_model.respondents:
-        user_id = user.get_id()
-        if isinstance(user_id, int):
+        reponded_by = user.get_id()
+        if isinstance(reponded_by, int):
             # FabAuthManager (ab_user) store user id as integer, but common interface is string type
-            user_id = str(user_id)
-        if user_id not in hitl_detail_model.respondents:
-            log.error("User=%s is not a respondent for the task", user_id)
+            reponded_by = str(reponded_by)
+        if reponded_by not in hitl_detail_model.respondents:
+            log.error("User=%s is not a respondent for the task", reponded_by)
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
-                f"User={user_id} is not a respondent for the task.",
+                f"User={reponded_by} is not a respondent for the task.",
             )
 
-    hitl_detail_model.user_id = user.get_id()
+    hitl_detail_model.reponded_by = user.get_id()
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
@@ -269,7 +269,7 @@ def get_hitl_details(
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
-    user_id: QueryHITLDetailUserIdFilter,
+    responded_by: QueryHITLDetailRespondedByFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
 ) -> HITLDetailCollection:
@@ -292,7 +292,7 @@ def get_hitl_details(
             ti_state,
             # hitl detail related filter
             response_received,
-            user_id,
+            responded_by,
             subject_patten,
             body_patten,
         ],
