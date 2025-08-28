@@ -59,17 +59,8 @@ const isValidDirection = (direction: NavigationDirection, mode: NavigationMode):
   }
 };
 
-const getNextIndex = (
-  current: number,
-  direction: number,
-  options: { isJump: boolean; max: number },
-): number => {
-  if (options.isJump) {
-    return direction > 0 ? options.max - 1 : 0;
-  }
-
-  return Math.max(0, Math.min(options.max - 1, current + direction));
-};
+const getNextIndex = (current: number, direction: number, options: { max: number }): number =>
+  Math.max(0, Math.min(options.max - 1, current + direction));
 
 const buildPath = (params: {
   dagId: string;
@@ -106,14 +97,9 @@ const buildPath = (params: {
   }
 };
 
-export const useNavigation = ({
-  enabled = true,
-  onEscapePress,
-  onToggleGroup,
-  runs,
-  tasks,
-}: UseNavigationProps): UseNavigationReturn => {
+export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
   const [mode, setMode] = useState<NavigationMode>("TI");
 
@@ -137,7 +123,7 @@ export const useNavigation = ({
   const currentTask = useMemo(() => tasks[currentIndices.taskIndex], [tasks, currentIndices.taskIndex]);
 
   const handleNavigation = useCallback(
-    (direction: NavigationDirection, isJump: boolean = false) => {
+    (direction: NavigationDirection) => {
       if (!enabled || !dagId || !isValidDirection(direction, mode)) {
         return;
       }
@@ -151,7 +137,7 @@ export const useNavigation = ({
 
       const isAtBoundary = boundaries[direction];
 
-      if (!isJump && isAtBoundary) {
+      if (isAtBoundary) {
         return;
       }
 
@@ -171,11 +157,10 @@ export const useNavigation = ({
 
       if (nav.index === "taskIndex") {
         newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
-          isJump,
           max: nav.max,
         });
       } else {
-        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { isJump, max: nav.max });
+        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { max: nav.max });
       }
 
       const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
@@ -191,14 +176,20 @@ export const useNavigation = ({
         const path = buildPath({ dagId, mapIndex, mode, run, task });
 
         navigate(path, { replace: true });
+
+        const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
+
+        // Set the focus to the grid link to allow a user to continue tabbing through with the keyboard
+        if (grid) {
+          (grid as HTMLLinkElement).focus();
+        }
       }
     },
     [currentIndices, dagId, enabled, mapIndex, mode, runs, tasks, navigate],
   );
 
   useKeyboardNavigation({
-    enabled: enabled && Boolean(dagId),
-    onEscapePress,
+    enabled,
     onNavigate: handleNavigation,
     onToggleGroup: currentTask?.isGroup && onToggleGroup ? () => onToggleGroup(currentTask.id) : undefined,
   });
@@ -206,7 +197,6 @@ export const useNavigation = ({
   return {
     currentIndices,
     currentTask,
-    enabled: enabled && Boolean(dagId),
     handleNavigation,
     mode,
     setMode,

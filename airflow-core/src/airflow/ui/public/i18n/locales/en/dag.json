@@ -67,8 +67,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Jump: Shift+{{arrow}}",
-    "navigation": "Navigation: {{arrow}}",
+    "navigation": "Navigation: Shift+{{arrow}}",
     "toggleGroup": "Toggle group: Space"
   },
   "overview": {
