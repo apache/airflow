@@ -829,6 +829,8 @@ class TriggerRunner:
 
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
+    monitor_stall: bool = conf.getboolean("triggerer", "enable_stall_monitor")
+    stall_monitor_threshold: float = conf.getint("triggerer", "stall_monitor_threshold")
 
     comms_decoder: TriggerCommsDecoder
 
@@ -856,15 +858,16 @@ class TriggerRunner:
         # Make sure comms are initialized before allowing any Triggers to run
         await self.init_comms()
 
-        loop = asyncio.get_running_loop()
-        self._stall_monitor = AsyncioStallMonitor(
-            loop=loop,
-            threshold=0.30,  # consider loop "stalled" if no heartbeat for ≥300ms
-            heartbeat_interval=0.10,  # post heartbeat every 100ms
-            min_report_interval=0.70,  # coalesce long stalls; update at most every 700ms
-            max_frames=30,  # bound captured stack depth
-        )
-        self._stall_monitor.start()
+        if self.monitor_stall:
+            loop = asyncio.get_running_loop()
+            self._stall_monitor = AsyncioStallMonitor(
+                loop=loop,
+                threshold=self.stall_monitor_threshold,
+                heartbeat_interval=0.10,  # post heartbeat every 100ms
+                min_report_interval=0.70,  # coalesce long stalls; update at most every 700ms
+                max_frames=30,  # bound captured stack depth
+            )
+            self._stall_monitor.start()
 
         last_status = time.monotonic()
         try:

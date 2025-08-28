@@ -101,13 +101,14 @@ class AsyncioStallMonitor:
         max_frames: int = 25,  # limit stack frames captured
         history_size: int = 1,  # TODO: increase and make history more useful in the future
     ) -> None:
-        self.loop = loop or asyncio.get_event_loop()
+        self.loop = loop or asyncio.get_running_loop()
         self.threshold = float(threshold)
         self.heartbeat_interval = float(heartbeat_interval)
         self.min_report_interval = float(min_report_interval)
         self.max_frames = int(max_frames)
 
         self._hb_perf: float = perf_counter()
+        self._hb_handle: asyncio.Handle | None = None
         self._running = False
         self._thread: threading.Thread | None = None
         self._loop_thread_ident: int | None = None
@@ -128,8 +129,8 @@ class AsyncioStallMonitor:
 
         self.loop.call_soon(_capture_thread_ident)
 
-        # Kick off the heartbeat loop
-        self.loop.call_soon(self._heartbeat)
+        # Kick off the heartbeat loop (keep the handle so we can cancel later)
+        self._hb_handle = self.loop.call_soon(self._heartbeat)
 
         # Start watchdog thread
         self._thread = threading.Thread(target=self._watchdog, name="asyncio-stall-watchdog", daemon=True)
@@ -143,6 +144,29 @@ class AsyncioStallMonitor:
     def stop(self) -> None:
         self._running = False
         log.info("AsyncioStallMonitor stopping...")
+        # Cancel any scheduled heartbeat callback to avoid stray timers
+        handle = self._hb_handle
+        self._hb_handle = None
+        if handle is not None:
+            with contextlib.suppress(Exception):
+                handle.cancel()
+        if self._incident is not None:
+            self._incident.ended_at_perf = perf_counter()
+            self._incident.ended_at_utc = _utc_now_str()
+            incident = self._incident
+            self._incident = None
+            with self._lock:
+                self.history.append(incident)
+            log.warning(
+                "Event loop stall ended (monitor stop). Duration: %.3fs.", incident.duration() or -1.0
+            )
+        # Join the watchdog so we know it's really gone
+        t = self._thread
+        self._thread = None
+        if t and t.is_alive():
+            t.join(timeout=self.heartbeat_interval * 2)
+
+        log.info("AsyncioStallMonitor stopped.")
 
     def __enter__(self):
         self.start()
@@ -191,7 +215,7 @@ class AsyncioStallMonitor:
                     self._incident.ended_at_utc = _utc_now_str()
                     incident = self._incident
                     self._incident = None
-                    self._post_incident_correlation(incident)
+                    self._post_incident_store(incident)
 
     def _sample_and_log(self, now_perf: float, *, phase: str) -> None:
         stack_text = self._capture_loop_stack_bounded()
@@ -226,10 +250,10 @@ class AsyncioStallMonitor:
         except Exception:
             return None
 
-    def _post_incident_correlation(self, incident: StallIncident) -> None:
-        """Schedule correlation inside the loop thread, then store history and log a summary."""
+    def _post_incident_store(self, incident: StallIncident) -> None:
+        """Schedule incident store and log a summary."""
 
-        def correlate_and_store():
+        def log_and_store():
             with self._lock:
                 self.history.append(incident)
 
@@ -241,4 +265,4 @@ class AsyncioStallMonitor:
 
         # Use thread-safe scheduling since we're in a background thread
         with contextlib.suppress(RuntimeError):
-            self.loop.call_soon_threadsafe(correlate_and_store)
+            self.loop.call_soon_threadsafe(log_and_store)
