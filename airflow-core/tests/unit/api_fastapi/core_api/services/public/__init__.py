@@ -14,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
-
-
-def test_get_entity_type():
-    assert get_entity_type(AvpEntities.VARIABLE) == "Airflow::Variable"
-
-
-def test_get_action_id_get():
-    assert get_action_id(AvpEntities.VARIABLE, "GET", "1") == "Variable.GET"
-
-
-def test_get_action_id_post():
-    assert get_action_id(AvpEntities.VARIABLE, "POST", None) == "Variable.POST"
-
-
-def test_get_action_id_list():
-    assert get_action_id(AvpEntities.VARIABLE, "GET", None) == "Variable.LIST"
