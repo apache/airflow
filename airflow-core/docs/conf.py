@@ -32,7 +32,7 @@ from packaging.version import Version, parse as parse_version
 import airflow
 from airflow.api_fastapi.auth.managers.simple.openapi import __file__ as sam_openapi_file
 from airflow.api_fastapi.core_api.openapi import __file__ as main_openapi_file
-from airflow.configuration import retrieve_configuration_description
+from airflow.configuration import conf
 from docs.utils.conf_constants import (
     AIRFLOW_CORE_DOC_STATIC_PATH,
     AIRFLOW_CORE_DOCKER_COMPOSE_PATH,
@@ -241,7 +241,7 @@ airflow_version: Version = parse_version(
     ).groups(0)[0]
 )
 
-config_descriptions = retrieve_configuration_description(include_providers=False)
+config_descriptions = conf.retrieve_configuration_description(include_providers=False)
 configs, deprecated_options = get_configs_and_deprecations(airflow_version, config_descriptions)
 
 jinja_contexts = {
