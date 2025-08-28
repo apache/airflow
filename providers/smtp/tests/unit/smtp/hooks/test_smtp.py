@@ -22,8 +22,10 @@ import os
 import smtplib
 import tempfile
 from email.mime.application import MIMEApplication
-from unittest.mock import Mock, call, patch
+from unittest import mock
+from unittest.mock import AsyncMock, Mock, call, patch
 
+import aiosmtplib
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -85,28 +87,39 @@ class TestSmtpHook:
             )
         )
 
+    @pytest.mark.parametrize(
+        "conn_id, use_ssl, expected_port, create_context",
+        [
+            pytest.param("smtp_default", True, 465, True, id="ssl-connection"),
+            pytest.param("smtp_nonssl", False, 587, False, id="non-ssl-connection"),
+        ],
+    )
     @patch(smtplib_string)
     @patch("ssl.create_default_context")
-    def test_connect_and_disconnect(self, create_default_context, mock_smtplib):
-        mock_conn = _create_fake_smtp(mock_smtplib)
+    def test_connect_and_disconnect(
+        self, create_default_context, mock_smtplib, conn_id, use_ssl, expected_port, create_context
+    ):
+        """Test sync connection with different configurations."""
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=use_ssl)
 
-        with SmtpHook():
-            pass
-        assert create_default_context.called
-        mock_smtplib.SMTP_SSL.assert_called_once_with(
-            host="smtp_server_address", port=465, timeout=30, context=create_default_context.return_value
-        )
-        mock_conn.login.assert_called_once_with("smtp_user", "smtp_password")
-        assert mock_conn.close.call_count == 1
-
-    @patch(smtplib_string)
-    def test_connect_and_disconnect_via_nonssl(self, mock_smtplib):
-        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=False)
-
-        with SmtpHook(smtp_conn_id="smtp_nonssl"):
+        with SmtpHook(smtp_conn_id=conn_id):
             pass
 
-        mock_smtplib.SMTP.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
+        if create_context:
+            assert create_default_context.called
+            mock_smtplib.SMTP_SSL.assert_called_once_with(
+                host="smtp_server_address",
+                port=expected_port,
+                timeout=30,
+                context=create_default_context.return_value,
+            )
+        else:
+            mock_smtplib.SMTP.assert_called_once_with(
+                host="smtp_server_address",
+                port=expected_port,
+                timeout=30,
+            )
+
         mock_conn.login.assert_called_once_with("smtp_user", "smtp_password")
         assert mock_conn.close.call_count == 1
 
@@ -432,3 +445,165 @@ class TestSmtpHook:
                 )
 
         assert not mock_conn.auth.called
+
+
+@pytest.mark.asyncio
+class TestSmtpHookAsync:
+    """Tests for async functionality in SmtpHook."""
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="smtp_default",
+                conn_type="smtp",
+                host="smtp_server_address",
+                login="smtp_user",
+                password="smtp_password",
+                port=465,
+                extra=json.dumps(dict(from_email="from", ssl_context="default")),
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="smtp_nonssl",
+                conn_type="smtp",
+                host="smtp_server_address",
+                login="smtp_user",
+                password="smtp_password",
+                port=587,
+                extra=json.dumps(dict(disable_ssl=True, from_email="from")),
+            )
+        )
+
+    @pytest.fixture
+    def mock_smtp_client(self):
+        """Create a mock SMTP client with async capabilities."""
+        mock_client = AsyncMock(spec=aiosmtplib.SMTP)
+        mock_client.starttls = AsyncMock()
+        mock_client.auth_login = AsyncMock()
+        mock_client.sendmail = AsyncMock()
+        mock_client.quit = AsyncMock()
+        return mock_client
+
+    @pytest.fixture
+    def mock_smtp(self, mock_smtp_client):
+        """Set up the SMTP mock with context manager."""
+        with mock.patch("airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP") as mock_smtp:
+            mock_smtp.return_value = mock_smtp_client
+            yield mock_smtp
+
+    @pytest.fixture
+    def mock_get_connection(self):
+        """Mock the async connection retrieval."""
+        with mock.patch("airflow.sdk.bases.hook.BaseHook.aget_connection") as mock_conn:
+
+            async def async_get_connection(conn_id):
+                from airflow.sdk.definitions.connection import Connection
+
+                return Connection.from_json(os.environ[f"AIRFLOW_CONN_{conn_id.upper()}"])
+
+            mock_conn.side_effect = async_get_connection
+            yield mock_conn
+
+    @staticmethod
+    def _create_fake_async_smtp(mock_smtp):
+        mock_client = AsyncMock(spec=aiosmtplib.SMTP)
+        mock_client.starttls = AsyncMock()
+        mock_client.auth_login = AsyncMock()
+        mock_client.sendmail = AsyncMock()
+        mock_client.quit = AsyncMock()
+        mock_smtp.return_value = mock_client
+        return mock_client
+
+    @pytest.mark.parametrize(
+        "conn_id, expected_port, expected_ssl",
+        [
+            pytest.param("smtp_nonssl", 587, False, id="non-ssl-connection"),
+            pytest.param("smtp_default", 465, True, id="ssl-connection"),
+        ],
+    )
+    async def test_async_connection(
+        self, mock_smtp, mock_smtp_client, mock_get_connection, conn_id, expected_port, expected_ssl
+    ):
+        """Test async connection with different configurations."""
+        async with SmtpHook(smtp_conn_id=conn_id) as hook:
+            assert hook is not None
+
+        mock_smtp.assert_called_once_with(
+            hostname="smtp_server_address",
+            port=expected_port,
+            timeout=30,
+            use_tls=expected_ssl,
+            start_tls=None if expected_ssl else True,
+        )
+
+        if expected_ssl:
+            assert mock_smtp_client.starttls.await_count == 1
+
+        assert mock_smtp_client.auth_login.await_count == 1
+        mock_smtp_client.auth_login.assert_awaited_once_with("smtp_user", "smtp_password")
+
+    @pytest.mark.asyncio
+    async def test_async_send_email(self, mock_smtp, mock_smtp_client, mock_get_connection):
+        """Test async email sending functionality."""
+        async with SmtpHook() as hook:
+            await hook.asend_email_smtp(
+                to="to@example.com",
+                subject="test subject",
+                html_content="test content",
+            )
+
+        assert mock_smtp_client.sendmail.called
+        #  The async version of sendmail only supports positional arguments
+        #  for some reason, so we have to check these by positional args
+        call_args = mock_smtp_client.sendmail.await_args.args
+        assert call_args[0] == "from"  # sender is first positional arg
+        assert call_args[1] == ["to@example.com"]  # recipients is the second positional arg
+        assert "Subject: test subject" in call_args[2]  # message is the third positional arg
+
+    @pytest.mark.asyncio
+    async def test_async_send_email_with_retries(self, mock_smtp, mock_smtp_client, mock_get_connection):
+        """Test async email sending with connection retries."""
+        mock_smtp_client.sendmail.side_effect = [
+            aiosmtplib.errors.SMTPServerDisconnected("Server disconnected"),
+            aiosmtplib.errors.SMTPServerDisconnected("Server disconnected"),
+            None,  # Success on third try
+        ]
+
+        async with SmtpHook() as hook:
+            await hook.asend_email_smtp(
+                to="to@example.com",
+                subject="test subject",
+                html_content="test content",
+            )
+
+        assert mock_smtp_client.sendmail.await_count == 3
+
+    async def test_async_send_email_max_retries(self, mock_smtp, mock_smtp_client, mock_get_connection):
+        """Test async email sending with max retries exceeded."""
+        mock_smtp_client.sendmail.side_effect = aiosmtplib.errors.SMTPServerDisconnected(
+            "Server disconnected"
+        )
+
+        with pytest.raises(aiosmtplib.errors.SMTPServerDisconnected):
+            async with SmtpHook() as hook:
+                await hook.asend_email_smtp(
+                    to="to@example.com",
+                    subject="test subject",
+                    html_content="test content",
+                )
+
+        assert mock_smtp_client.sendmail.await_count == 5  # Default retry limit
+
+    async def test_async_send_email_dryrun(self, mock_smtp, mock_smtp_client, mock_get_connection):
+        """Test async email sending in dryrun mode."""
+        async with SmtpHook() as hook:
+            await hook.asend_email_smtp(
+                to="to@example.com",
+                subject="test subject",
+                html_content="test content",
+                dryrun=True,
+            )
+
+        mock_smtp_client.sendmail.assert_not_awaited()
