@@ -508,7 +508,7 @@ class DagModelOperation(NamedTuple):
                 )
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
-            dm.timetable_type = f"{dag.timetable.__class__.__module__}.{dag.timetable.__class__.__name__}"
+            dm.timetable_type = dag.timetable.type_name
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version
 
