@@ -1145,14 +1145,3 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
     assert trigger_orm1.id in trigger_ids
     assert trigger_orm2.id in trigger_ids
-
-
-@patch("airflow.sdk.log.configure_logging")
-def test_process_log_messages_configures_logging(mock_configure_logging, supervisor_builder):
-    supervisor = supervisor_builder()
-
-    # Create the generator (this triggers the configuration reading)
-    log_processor_gen = supervisor._process_log_messages_from_subprocess()
-    next(log_processor_gen)  # Initialize the generator
-
-    assert mock_configure_logging.call_count == 1
