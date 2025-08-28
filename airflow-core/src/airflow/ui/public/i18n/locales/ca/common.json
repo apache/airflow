@@ -7,6 +7,7 @@
     "Providers": "Proveïdors",
     "Variables": "Variables"
   },
+  "allOperators": "Tots els operadors",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Esdeveniment d'Asset",
@@ -25,7 +26,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Recuperar (catchup)",
-    "concurrency": "Concurrència",
     "dagRunTimeout": "Temps d'espera de la execució del DAG",
     "defaultArgs": "Arguments per defecte",
     "description": "Descripció",
@@ -181,6 +181,7 @@
     "failed": "Fallat",
     "no_status": "Sense estat",
     "none": "Sense estat",
+    "planned": "Planificat",
     "queued": "En cua",
     "removed": "Eliminat",
     "restarting": "Reiniciant",

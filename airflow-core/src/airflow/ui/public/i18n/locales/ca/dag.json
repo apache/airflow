@@ -5,6 +5,33 @@
     "reason": "Raó",
     "title": "Dependències que bloquegen la tasca per ser programada"
   },
+  "calendar": {
+    "daily": "Diari",
+    "hourly": "Horari",
+    "legend": {
+      "less": "Menys",
+      "more": "Més"
+    },
+    "navigation": {
+      "nextMonth": "Proper mes",
+      "nextYear": "Proper any",
+      "previousMonth": "Mes anterior",
+      "previousYear": "Any anterior"
+    },
+    "noData": "No hi ha dades disponibles",
+    "noRuns": "No hi ha execucions",
+    "totalRuns": "Total d'execucions",
+    "week": "Setmana {{weekNumber}}",
+    "weekdays": {
+      "friday": "DV",
+      "monday": "DL",
+      "saturday": "DS",
+      "sunday": "DG",
+      "thursday": "DJ",
+      "tuesday": "DT",
+      "wednesday": "DC"
+    }
+  },
   "code": {
     "bundleUrl": "Url de la col·lecció",
     "noCode": "No s'ha trobat codi",
@@ -102,6 +129,7 @@
     "assetEvents": "Esdeveniments d'Asset",
     "auditLog": "Registre d'auditoria",
     "backfills": "Reompliments",
+    "calendar": "Calendari",
     "code": "Codi",
     "details": "Detalls",
     "logs": "Registres",
