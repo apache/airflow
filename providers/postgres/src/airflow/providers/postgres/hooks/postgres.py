@@ -596,7 +596,7 @@ class PostgresHook(DbApiHook):
         **kwargs,
     ):
         """
-        Insert a collection of tuples into a table using postgres specialized execute_batch method.
+        Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
         done in a new transaction.
@@ -610,11 +610,28 @@ class PostgresHook(DbApiHook):
         :param executemany: If True, all rows are inserted at once in
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
-        :param fast_executemany: If True, the `fast_executemany` parameter will be set on the
-            cursor used by `executemany` which leads to better performance, if supported by driver.
+        :param fast_executemany: If True, rows will be inserted using an optimized
+            bulk execution strategy (``psycopg2.extras.execute_batch``). This can
+            significantly improve performance for large inserts. If set to False,
+            the method falls back to the default implementation from
+            ``DbApiHook.insert_rows``.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
+        # if fast_executemany is disabled, defer to default implementation of insert_rows in DbApiHook
+        if not fast_executemany:
+            return super().insert_rows(
+                table,
+                rows,
+                target_fields=target_fields,
+                commit_every=commit_every,
+                replace=replace,
+                executemany=executemany,
+                autocommit=autocommit,
+                **kwargs,
+            )
+
+        # if fast_executemany is enabled, use optimized execute_batch from psycopg
         nb_rows = 0
         with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
@@ -626,16 +643,13 @@ class PostgresHook(DbApiHook):
                             chunked_rows,
                         )
                     )
-                    sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
+                    sql = self._generate_insert_sql(
+                        table, values[0], target_fields, replace, **kwargs
+                    )
                     self.log.debug("Generated sql: %s", sql)
 
                     try:
-                        execute_batch(
-                            cur,
-                            sql,
-                            values,
-                            page_size=commit_every
-                        )
+                        execute_batch(cur, sql, values, page_size=commit_every)
                     except Exception as e:
                         self.log.error("Generated sql: %s", sql)
                         self.log.error("Parameters: %s", values)
