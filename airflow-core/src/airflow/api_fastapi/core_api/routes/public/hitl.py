@@ -64,7 +64,7 @@ def _get_task_instance(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int,
+    map_index: int | None,
 ) -> TI:
     query = select(TI).where(
         TI.dag_id == dag_id,
@@ -166,7 +166,7 @@ def _get_hitl_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int,
+    map_index: int | None = None,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance = _get_task_instance(
