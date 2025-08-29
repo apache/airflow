@@ -300,7 +300,7 @@ class MappedOperator(AbstractOperator):
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
-    _task_type: str
+    task_type: str
     _operator_name: str
     start_trigger_args: StartTriggerArgs | None
     start_from_trigger: bool
@@ -334,7 +334,7 @@ class MappedOperator(AbstractOperator):
         return id(self)
 
     def __repr__(self):
-        return f"<Mapped({self._task_type}): {self.task_id}>"
+        return f"<Mapped({self.task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
         from airflow.sdk.definitions.xcom_arg import XComArg
@@ -355,10 +355,9 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return (frozenset(attrs.fields_dict(MappedOperator)) | {"task_type"}) - {
+        return (frozenset(attrs.fields_dict(MappedOperator))) - {
             "_is_empty",
             "_can_skip_downstream",
-            "_task_type",
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
@@ -367,12 +366,11 @@ class MappedOperator(AbstractOperator):
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",
+            "operator_class",
+            "_needs_expansion",
+            "partial_kwargs",
+            "operator_extra_links",
         }
-
-    @property
-    def task_type(self) -> str:
-        """Implementing Operator."""
-        return self._task_type
 
     @property
     def operator_name(self) -> str:
@@ -613,6 +611,26 @@ class MappedOperator(AbstractOperator):
     @on_skipped_callback.setter
     def on_skipped_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
         self.partial_kwargs["on_skipped_callback"] = value or []
+
+    @property
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.on_skipped_callback)
 
     @property
     def run_as_user(self) -> str | None:
