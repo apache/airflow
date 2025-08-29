@@ -771,6 +771,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.SUCCESS,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
+                TaskInstanceState.RESTARTING,
             ):
                 tis_with_right_state.append(ti_key)
 
@@ -859,6 +860,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.SCHEDULED,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
+                TaskInstanceState.RESTARTING,
             )
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
@@ -916,6 +918,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                     )
                     executor.send_callback(request)
+
+                # Handle cleared tasks that were successfully terminated by executor
+                if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
+                    cls.logger().info(
+                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.", ti
+                    )
+                    # Adjust max_tries to allow retry beyond normal limits (like clearing does)
+                    ti.max_tries = ti.try_number + ti.task.retries
+                    ti.set_state(None)
+                    continue
+
                 ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
