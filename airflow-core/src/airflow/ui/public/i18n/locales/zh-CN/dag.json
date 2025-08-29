@@ -1,0 +1,122 @@
+{
+  "allRuns": "所有执行",
+  "blockingDeps": {
+    "dependency": "依赖 (Dependencies)",
+    "reason": "原因",
+    "title": "依赖 (Dependencies) 阻碍任务调度"
+  },
+  "code": {
+    "bundleUrl": "套件包链接",
+    "noCode": "找不到代码",
+    "parsedAt": "解析时间："
+  },
+  "extraLinks": "额外链接",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "重置为最新",
+      "toggleGroup": "切换分组状态"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "高级功能",
+      "dagDocs": "DAG 文档"
+    }
+  },
+  "logs": {
+    "allLevels": "所有日志等级",
+    "allSources": "所有来源",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "全屏",
+      "tooltip": "按下 {{hotkey}} 进入全屏"
+    },
+    "info": "INFO",
+    "noTryNumber": "没有尝试次数",
+    "settings": "日志设置",
+    "viewInExternal": "在 {{name}} 中查看日志(尝试 {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "jump": "跳跃: Shift+{{arrow}}",
+    "navigation": "导航: {{arrow}}",
+    "toggleGroup": "展开/收起分组: 空格键"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "失败的执行",
+      "failedRun_other": "失败的执行",
+      "failedTask_one": "失败的任务",
+      "failedTask_other": "失败的任务",
+      "failedTaskInstance_one": "失败的任务实例",
+      "failedTaskInstance_other": "失败的任务实例"
+    },
+    "charts": {
+      "assetEvent_one": "已创建资源事件",
+      "assetEvent_other": "已创建资源事件"
+    },
+    "failedLogs": {
+      "title": "最近失败任务的日志",
+      "viewFullLogs": "查看完整日志"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "选项",
+      "showGantt": "显示甘特图",
+      "showGraph": "显示图表",
+      "showGrid": "显示网格"
+    },
+    "dagRuns": {
+      "label": "DAG 执行次数"
+    },
+    "dependencies": {
+      "label": "依赖 (Dependencies)",
+      "options": {
+        "allDagDependencies": "所有 DAG 相依性",
+        "externalConditions": "外部条件",
+        "onlyTasks": "仅限任务"
+      },
+      "placeholder": "依赖 (Dependencies)"
+    },
+    "graphDirection": {
+      "label": "图表方向"
+    }
+  },
+  "paramsFailed": "加载参数失败",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "DAG 解析请求失败。可能还有待处理的解析请求。",
+        "title": "DAG 重新解析失败"
+      },
+      "success": {
+        "description": "DAG 即将重新解析。",
+        "title": "已成功提交重新解析请求"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "资源事件",
+    "auditLog": "审计日志",
+    "backfills": "回填",
+    "code": "代码",
+    "details": "详细信息",
+    "logs": "日志",
+    "mappedTaskInstances_one": "任务实例 [{{count}}]",
+    "mappedTaskInstances_other": "任务实例 [{{count}}]",
+    "overview": "总览",
+    "renderedTemplates": "渲染后的模板",
+    "requiredActions": "待响应的任务实例",
+    "runs": "执行记录",
+    "taskInstances": "任务实例",
+    "tasks": "任务",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "收起所有任务分组",
+    "expandAll": "展开所有任务分组"
+  }
+}
