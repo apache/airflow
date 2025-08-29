@@ -29,6 +29,7 @@ import certifi
 import httpx
 import msgspec
 import structlog
+from airflowctl.api.datamodels.generated import DAGRunClearBody
 from pydantic import BaseModel
 from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
@@ -631,6 +632,7 @@ class DagRunOperations:
         conf: dict | None = None,
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
+        reset_mode: str = "all",
     ) -> OKResponse | ErrorResponse:
         """Trigger a DAG run via the API server."""
         body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
@@ -643,7 +645,7 @@ class DagRunOperations:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
                     log.info("DAG Run already exists; Resetting DAG Run.", dag_id=dag_id, run_id=run_id)
-                    return self.clear(run_id=run_id, dag_id=dag_id)
+                    return self.clear(run_id=run_id, dag_id=dag_id, reset_mode=reset_mode)
 
                 log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
@@ -651,9 +653,12 @@ class DagRunOperations:
 
         return OKResponse(ok=True)
 
-    def clear(self, dag_id: str, run_id: str) -> OKResponse:
+    def clear(self, dag_id: str, run_id: str, reset_mode: str) -> OKResponse:
         """Clear a DAG run via the API server."""
-        self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
+        body = DAGRunClearBody(only_failed=reset_mode == "only_failed")
+        self.client.post(
+            f"dags/{dag_id}/dagRuns/{run_id}/clear", content=body.model_dump_json(exclude_defaults=True)
+        )
         # TODO: Error handling
         return OKResponse(ok=True)
 
