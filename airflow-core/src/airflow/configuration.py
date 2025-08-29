@@ -860,14 +860,14 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow._shared.secrets_masker import mask_secret as mask_secret_core
-
         try:
+            from airflow._shared.secrets_masker import mask_secret as mask_secret_core
             from airflow.sdk.log import mask_secret as mask_secret_sdk
         except ImportError:
             # Fallback for older Airflow versions where the SDK secret masker
             # lived under `sdk.execution_time.secrets_masker`. Kept for
             # backward compatibility.
+            mask_secret_core = None
             mask_secret_sdk = None
 
         for section, key in self.sensitive_config_values:
@@ -882,7 +882,7 @@ class AirflowConfigParser(ConfigParser):
                 )
                 continue
             mask_secret_core(value)
-            if mask_secret_sdk:
+            if mask_secret_sdk is not None:
                 mask_secret_sdk(value)
 
     def _env_var_name(self, section: str, key: str) -> str:

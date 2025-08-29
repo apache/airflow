@@ -438,7 +438,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 # lived under `sdk.execution_time.secrets_masker`. Kept for
                 # backward compatibility.
                 from airflow.sdk.execution_time.secrets_masker import (
-                    mask_secret,  # type: ignore[attr-defined]
+                    mask_secret,  # type: ignore[no-redef]
                 )
             mask_secret(msg.value, msg.name)
         else:
