@@ -1351,27 +1351,21 @@ class SQLInsertRowsOperator(BaseSQLOperator):
     @cached_property
     def columns(self):
         if self._columns is None:
-            self._columns = self.get_db_hook().dialect.get_column_names(
-                self.table_name_with_schema
-            )
+            self._columns = self.get_db_hook().dialect.get_column_names(self.table_name_with_schema)
         return self._columns
 
     @property
     def column_names(self) -> list[str]:
         if self.ignored_columns:
-            return [
-                column for column in self.columns if column not in self.ignored_columns
-            ]
+            return [column for column in self.columns if column not in self.ignored_columns]
         return self.columns
 
     def _process_rows(self, context: Context):
         return self._rows_processor(context, self.rows)  # type: ignore
 
     def execute(self, context: Context) -> Any:
-        if self.rows is None:
-            raise AirflowSkipException(
-                f"Skipping task {self.task_id} because rows is None."
-            )
+        if not self.rows:
+            raise AirflowSkipException(f"Skipping task {self.task_id} because no rows.")
 
         self.log.debug("Table: %s", self.table_name_with_schema)
         self.log.debug("Column names: %s", self.column_names)
