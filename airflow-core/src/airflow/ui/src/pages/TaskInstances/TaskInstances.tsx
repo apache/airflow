@@ -88,40 +88,36 @@ const getColumns = ({
   taskId?: string;
   translate: TFunction;
 } & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => [
-  ...(Boolean(dagId)
-    ? [
-        {
-          accessorKey: "select",
-          cell: ({ row }: TaskInstanceRow) => (
-            <Checkbox
-              borderWidth={1}
-              checked={selectedRows.get(
-                `${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}${SEPARATOR}${row.original.map_index}`,
-              )}
-              colorPalette="blue"
-              onCheckedChange={(event) =>
-                onRowSelect(
-                  `${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}${SEPARATOR}${row.original.map_index}`,
-                  Boolean(event.checked),
-                )
-              }
-            />
-          ),
-          enableSorting: false,
-          header: () => (
-            <Checkbox
-              borderWidth={1}
-              checked={allRowsSelected}
-              colorPalette="blue"
-              onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-            />
-          ),
-          meta: {
-            skeletonWidth: 10,
-          },
-        },
-      ]
-    : []),
+  {
+    accessorKey: "select",
+    cell: ({ row }: TaskInstanceRow) => (
+      <Checkbox
+        borderWidth={1}
+        checked={selectedRows.get(
+          `${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}${SEPARATOR}${row.original.map_index}`,
+        )}
+        colorPalette="blue"
+        onCheckedChange={(event) =>
+          onRowSelect(
+            `${row.original.dag_run_id}${SEPARATOR}${row.original.task_id}${SEPARATOR}${row.original.map_index}`,
+            Boolean(event.checked),
+          )
+        }
+      />
+    ),
+    enableSorting: false,
+    header: () => (
+      <Checkbox
+        borderWidth={1}
+        checked={allRowsSelected}
+        colorPalette="blue"
+        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      />
+    ),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
   ...(Boolean(dagId)
     ? []
     : [

@@ -25,13 +25,16 @@ import {
   useTaskInstanceServiceBulkTaskInstances,
   UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
+import type { TaskInstanceResponse } from "openapi/requests";
 import { toaster } from "src/components/ui";
 
 type Props = {
-  readonly dagId: string;
-  readonly dagRunId: string;
+  readonly dagId?: string;
+  readonly dagRunId?: string;
   readonly onSuccessConfirm: VoidFunction;
 };
+
+const SEPARATOR = "SEPARATOR";
 
 export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
@@ -41,7 +44,9 @@ export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }
   const onSuccess = async (responseData: { delete?: { errors: Array<unknown>; success: Array<string> } }) => {
     const queryKeys = [
       [useTaskInstanceServiceGetTaskInstancesKey],
-      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
+      dagId === undefined || dagRunId === undefined
+        ? []
+        : [UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId })],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
@@ -78,5 +83,48 @@ export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }
     onSuccess,
   });
 
-  return { error, isPending, mutate };
+  const deleteTaskInstances = (entities: Array<TaskInstanceResponse>) => {
+    if (Boolean(dagId) && Boolean(dagRunId) && dagId !== undefined && dagRunId !== undefined) {
+      mutate({
+        dagId,
+        dagRunId,
+        requestBody: {
+          actions: [
+            {
+              action: "delete",
+              entities: entities.map((ti) => ({ map_index: ti.map_index, task_id: ti.task_id })),
+            },
+          ],
+        },
+      });
+    } else {
+      // cross dag run
+      const groupedByDagRunTIs: Record<string, Array<TaskInstanceResponse>> = {};
+
+      entities.forEach((ti) => {
+        (groupedByDagRunTIs[`${ti.dag_id}${SEPARATOR}${ti.dag_run_id}`] ??= []).push(ti);
+      });
+
+      Object.entries(groupedByDagRunTIs).forEach(([key, groupTIs]) => {
+        const [groupDagId, groupDagRunId] = key.split(SEPARATOR);
+
+        if (groupDagId !== undefined && groupDagRunId !== undefined) {
+          mutate({
+            dagId: groupDagId,
+            dagRunId: groupDagRunId,
+            requestBody: {
+              actions: [
+                {
+                  action: "delete",
+                  entities: groupTIs.map((ti) => ({ map_index: ti.map_index, task_id: ti.task_id })),
+                },
+              ],
+            },
+          });
+        }
+      });
+    }
+  };
+
+  return { deleteTaskInstances, error, isPending };
 };
