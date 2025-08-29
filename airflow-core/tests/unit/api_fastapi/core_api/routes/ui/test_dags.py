@@ -17,12 +17,17 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from airflow.models import DagRun
+from airflow.models.hitl import HITLDetail
+from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -35,6 +40,9 @@ from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG5_ID,
     TestDagEndpoint as TestPublicDagEndpoint,
 )
+
+if TYPE_CHECKING:
+    from tests_common.pytest_plugin import TaskInstance
 
 pytestmark = pytest.mark.db_test
 
@@ -115,6 +123,75 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 if previous_run_after:
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
+
+    def test_should_return_200_with_hitl(
+        self,
+        test_client: TestClient,
+        create_task_instance: TaskInstance,
+        session: Session,
+    ):
+        # 3 Dags (test_dag0 created here and test_dag1, test_dag2 created in setup_dag_runs)
+        # 5 task instances in test_dag0
+        TI_COUNT = 5
+        tis = [
+            create_task_instance(
+                dag_id="test_dag0",
+                run_id=f"hitl_run_{ti_i}",
+                task_id=f"test_task_{ti_i}",
+                session=session,
+            )
+            for ti_i in range(TI_COUNT)
+        ]
+        session.add_all(tis)
+        session.commit()
+
+        # test_dag_0 has 3 HITL details not responded, 2 already responded
+        # test_dag_0 has 3 HITL details that have not been responded to, while 2 have already received responses.
+        hitl_detail_models = [
+            HITLDetail(
+                ti_id=tis[i].id,
+                options=["Approve", "Reject"],
+                subject=f"This is subject {i}",
+                defaults=["Approve"],
+            )
+            for i in range(3)
+        ] + [
+            HITLDetail(
+                ti_id=tis[i].id,
+                options=["Approve", "Reject"],
+                subject=f"This is subject {i}",
+                defaults=["Approve"],
+                response_at=utcnow(),
+                chosen_options=["Approve"],
+                user_id="test",
+            )
+            for i in range(3, 5)
+        ]
+        session.add_all(hitl_detail_models)
+        session.commit()
+
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+
+        response = test_client.get("/dags", params={"has_pending_actions": True})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert body["dags"][0]["pending_actions"] == [
+            {
+                "task_instance": mock.ANY,
+                "options": ["Approve", "Reject"],
+                "subject": f"This is subject {i}",
+                "defaults": ["Approve"],
+                "multiple": False,
+                "params": {},
+                "params_input": {},
+                "response_received": False,
+            }
+            for i in range(3)
+        ]
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})
