@@ -6,6 +6,7 @@
       "received": "Reviewed"
     }
   },
+  "needsReview": "Needs Review",
   "requiredAction_one": "Required Action",
   "requiredAction_other": "Required Actions",
   "requiredActionState": "Required Action State",
@@ -27,5 +28,7 @@
     "responseReceived": "Response Received",
     "responseRequired": "Response Required"
   },
-  "subject": "Subject"
+  "subject": "Subject",
+  "tooltip_one": "{{count}} task need review",
+  "tooltip_other": "{{count}} tasks need review"
 }

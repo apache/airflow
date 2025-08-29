@@ -42,7 +42,7 @@ import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay"
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { PendingActionsBadge } from "src/components/PendingActionsBadge";
+import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -145,7 +145,7 @@ const createColumns = (
   {
     accessorKey: "pending_actions",
     cell: ({ row: { original: dag } }) => (
-      <PendingActionsBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
+      <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
     ),
     enableSorting: false,
     header: "",
@@ -180,7 +180,7 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, PENDING_HITL, TAGS, TAGS_MATCH_MODE } =
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, NEEDS_REVIEW, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
   SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
@@ -207,7 +207,7 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
-  const pendingReviews = searchParams.get(PENDING_HITL);
+  const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
