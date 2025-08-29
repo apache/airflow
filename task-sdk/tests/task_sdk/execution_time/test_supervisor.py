@@ -181,7 +181,6 @@ class TestSupervisor:
     )
     def test_supervise(
         self,
-        patched_secrets_masker,
         server,
         dry_run,
         expectation,
