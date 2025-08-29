@@ -1504,10 +1504,11 @@ export const prefetchUseStructureServiceStructureData = (queryClient: QueryClien
 * @param data.runAfterGt
 * @param data.runAfterLte
 * @param data.runAfterLt
+* @param data.runType
 * @returns GridNodeResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
+export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -1516,7 +1517,8 @@ export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, 
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }) });
+  runType?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }) });
 /**
 * Get Grid Runs
 * Get info about a run for the grid.
@@ -1529,10 +1531,11 @@ export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, 
 * @param data.runAfterGt
 * @param data.runAfterLte
 * @param data.runAfterLt
+* @param data.runType
 * @returns GridRunsResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
+export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -1541,7 +1544,8 @@ export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { da
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }) });
+  runType?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }) });
 /**
 * Get Grid Ti Summaries
 * Get states for TIs / "groups" of TIs.

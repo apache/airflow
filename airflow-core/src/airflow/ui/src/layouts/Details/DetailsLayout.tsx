@@ -28,6 +28,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
+import type { DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -59,6 +60,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [runTypeFilter, setRunTypeFilter] = useLocalStorage<Array<DagRunType> | null>(
+    `run_type_filter-${dagId}`,
+    null,
+  );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
   const { fitView, getZoom } = useReactFlow();
@@ -123,8 +128,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 dagView={dagView}
                 limit={limit}
                 panelGroupRef={panelGroupRef}
+                runTypeFilter={runTypeFilter}
                 setDagView={setDagView}
                 setLimit={setLimit}
+                setRunTypeFilter={setRunTypeFilter}
                 setShowGantt={setShowGantt}
                 showGantt={showGantt}
               />
@@ -132,7 +139,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 <Graph />
               ) : (
                 <HStack gap={0}>
-                  <Grid limit={limit} showGantt={Boolean(runId) && showGantt} />
+                  <Grid limit={limit} runType={runTypeFilter} showGantt={Boolean(runId) && showGantt} />
                   {showGantt ? <Gantt limit={limit} /> : undefined}
                 </HStack>
               )}

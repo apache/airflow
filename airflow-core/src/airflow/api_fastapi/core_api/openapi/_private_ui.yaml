@@ -652,6 +652,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
       responses:
         '200':
           description: Successful Response
@@ -759,6 +767,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
       responses:
         '200':
           description: Successful Response

@@ -40,10 +40,13 @@ import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
+import type { DagRunType } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
+import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { dagRunTypeOptions } from "src/constants/stateOptions";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
@@ -52,8 +55,10 @@ type Props = {
   readonly dagView: string;
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
+  readonly runTypeFilter: Array<DagRunType> | null;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+  readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<Array<DagRunType> | null>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly showGantt: boolean;
 };
@@ -86,8 +91,10 @@ export const PanelButtons = ({
   dagView,
   limit,
   panelGroupRef,
+  runTypeFilter,
   setDagView,
   setLimit,
+  setRunTypeFilter,
   setShowGantt,
   showGantt,
 }: Props) => {
@@ -119,6 +126,16 @@ export const PanelButtons = ({
   ) => {
     if (event.value[0] !== undefined) {
       setDirection(event.value[0] as Direction);
+    }
+  };
+
+  const handleRunTypeChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
+    const [val] = event.value;
+
+    if (val === undefined || val === "all") {
+      setRunTypeFilter(null);
+    } else {
+      setRunTypeFilter([val as DagRunType]);
     }
   };
 
@@ -287,6 +304,40 @@ export const PanelButtons = ({
                               {displayRunOptions.items.map((option) => (
                                 <Select.Item item={option} key={option.value}>
                                   {option.label}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={dagRunTypeOptions}
+                          data-testid="run-type-filter"
+                          onValueChange={handleRunTypeChange}
+                          size="sm"
+                          value={[runTypeFilter?.[0] ?? "all"]}
+                        >
+                          <Select.Label>{translate("dag:panel.runTypeFilter.label")}</Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText />
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {dagRunTypeOptions.items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.value === "all" ? (
+                                    translate(option.label)
+                                  ) : (
+                                    <Flex gap={1}>
+                                      <RunTypeIcon runType={option.value as DagRunType} />
+                                      {translate(option.label)}
+                                    </Flex>
+                                  )}
                                 </Select.Item>
                               ))}
                             </Select.Content>
