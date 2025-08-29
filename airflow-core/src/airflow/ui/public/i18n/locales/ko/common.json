@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "캐치업",
-    "concurrency": "동시 샐행 수",
     "dagRunTimeout": "Dag 실행 제한 시간",
     "defaultArgs": "기본 인자",
     "description": "설명",

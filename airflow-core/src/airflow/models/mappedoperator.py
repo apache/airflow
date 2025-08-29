@@ -59,11 +59,12 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.sdk import BaseOperatorLink, Context, StartTriggerArgs
+    from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.triggers.base import StartTriggerArgs
 
     Operator: TypeAlias = "SerializedBaseOperator | MappedOperator"
 

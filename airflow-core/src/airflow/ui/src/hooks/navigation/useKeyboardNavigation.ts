@@ -21,13 +21,11 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import type { ArrowKey, NavigationDirection } from "./types";
 
-const ARROW_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"] as const;
-const JUMP_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
+const ARROW_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shift+ArrowRight"] as const;
 
 type Props = {
   enabled?: boolean;
-  onEscapePress?: () => void;
-  onNavigate: (direction: NavigationDirection, isJump?: boolean) => void;
+  onNavigate: (direction: NavigationDirection) => void;
   onToggleGroup?: () => void;
 };
 
@@ -46,32 +44,24 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
   }
 };
 
-export const useKeyboardNavigation = ({
-  enabled = true,
-  onEscapePress,
-  onNavigate,
-  onToggleGroup,
-}: Props) => {
+export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGroup }: Props) => {
   const createKeyHandler = useCallback(
-    (isJump: boolean) => (event: KeyboardEvent) => {
+    () => (event: KeyboardEvent) => {
       const direction = mapKeyToDirection(event.key as ArrowKey);
 
       event.preventDefault();
       event.stopPropagation();
 
-      onNavigate(direction, isJump);
+      onNavigate(direction);
     },
     [onNavigate],
   );
 
-  const handleNormalKeyPress = createKeyHandler(false);
-  const handleJumpKeyPress = createKeyHandler(true);
+  const handleNormalKeyPress = createKeyHandler();
 
   const hotkeyOptions = { enabled, preventDefault: true };
 
   useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, hotkeyOptions, [onNavigate]);
-  useHotkeys(JUMP_KEYS.join(","), handleJumpKeyPress, hotkeyOptions, [onNavigate]);
 
   useHotkeys("space", () => onToggleGroup?.(), hotkeyOptions, [onToggleGroup]);
-  useHotkeys("escape", () => onEscapePress?.(), hotkeyOptions, [onEscapePress]);
 };

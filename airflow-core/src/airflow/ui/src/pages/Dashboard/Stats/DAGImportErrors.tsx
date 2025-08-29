@@ -23,9 +23,9 @@ import { LuFileWarning } from "react-icons/lu";
 import { useImportErrorServiceGetImportErrors } from "openapi/queries/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
+import { StatsCard } from "src/components/StatsCard";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
-import { StatsCard } from "./StatsCard";
 
 export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();

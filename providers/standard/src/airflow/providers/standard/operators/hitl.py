@@ -20,26 +20,28 @@ import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.sdk.bases.notifier import BaseNotifier
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
-
 from collections.abc import Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
+from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
+from airflow.configuration import conf
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
+from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class HITLOperator(BaseOperator):
@@ -87,11 +89,32 @@ class HITLOperator(BaseOperator):
         self.respondents = [respondents] if isinstance(respondents, str) else respondents
 
         self.validate_options()
+        self.validate_params()
         self.validate_defaults()
 
     def validate_options(self) -> None:
+        """
+        Validate the `options` attribute of the instance.
+
+        Raises:
+            ValueError: If `options` is empty.
+            ValueError: If any option contains a comma (`,`), which is not allowed.
+        """
         if not self.options:
             raise ValueError('"options" cannot be empty.')
+
+        if any("," in option for option in self.options):
+            raise ValueError('"," is not allowed in option')
+
+    def validate_params(self) -> None:
+        """
+        Validate the `params` attribute of the instance.
+
+        Raises:
+            ValueError: If `"_options"` key is present in `params`, which is not allowed.
+        """
+        if "_options" in self.params:
+            raise ValueError('"_options" is not allowed in params')
 
     def validate_defaults(self) -> None:
         """
@@ -180,6 +203,95 @@ class HITLOperator(BaseOperator):
             and set(self.serialized_params.keys()) ^ set(params_input)
         ):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
+
+    def generate_link_to_ui(
+        self,
+        *,
+        task_instance: RuntimeTaskInstanceProtocol,
+        base_url: str | None = None,
+        options: str | list[str] | None = None,
+        params_input: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Generate a URL link to the "required actions" page for a specific task instance.
+
+        This URL includes query parameters based on allowed options and parameters.
+
+        Args:
+            task_instance: The task instance to generate the link for.
+            base_url: Optional base URL to use. Defaults to ``api.base_url`` from config.
+            options: Optional subset of allowed options to include in the URL.
+            params_input: Optional subset of allowed params to include in the URL.
+
+        Raises:
+            ValueError: If any provided option or parameter is invalid.
+            ValueError: If no base_url can be determined.
+
+        Returns:
+            The full URL pointing to the required actions page with query parameters.
+        """
+        query_param: dict[str, Any] = {}
+        options = [options] if isinstance(options, str) else options
+        if options:
+            if diff := set(options) - set(self.options):
+                raise ValueError(f"options {diff} are not valid options")
+            query_param["_options"] = ",".join(options)
+
+        if params_input:
+            if diff := set(params_input.keys()) - set(self.params.keys()):
+                raise ValueError(f"params {diff} are not valid params")
+            query_param.update(params_input)
+
+        if not (base_url := base_url or conf.get("api", "base_url", fallback=None)):
+            raise ValueError("Not able to retrieve base_url")
+
+        query_param["map_index"] = task_instance.map_index
+
+        parsed_base_url: ParseResult = urlparse(base_url)
+        return urlunparse(
+            (
+                parsed_base_url.scheme,
+                parsed_base_url.netloc,
+                f"/dags/{task_instance.dag_id}/runs/{task_instance.run_id}/tasks/{task_instance.task_id}/required_actions",
+                "",
+                urlencode(query_param) if query_param else "",
+                "",
+            )
+        )
+
+    @staticmethod
+    def generate_link_to_ui_from_context(
+        *,
+        context: Context,
+        base_url: str | None = None,
+        options: list[str] | None = None,
+        params_input: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Generate a "required actions" page URL from a task context.
+
+        Delegates to ``generate_link_to_ui`` using the task and task_instance extracted from
+        the provided context.
+
+        Args:
+            context: The Airflow task context containing 'task' and 'task_instance'.
+            base_url: Optional base URL to use.
+            options: Optional list of allowed options to include.
+            params_input: Optional dictionary of allowed parameters to include.
+
+        Returns:
+            The full URL pointing to the required actions page with query parameters.
+        """
+        hitl_op = context["task"]
+        if not isinstance(hitl_op, HITLOperator):
+            raise ValueError("This method only supports HITLOperator")
+
+        return hitl_op.generate_link_to_ui(
+            task_instance=context["task_instance"],
+            base_url=base_url,
+            options=options,
+            params_input=params_input,
+        )
 
 
 class ApprovalOperator(HITLOperator, SkipMixin):

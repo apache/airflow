@@ -14,20 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any
+import pytest
+
+from airflow.providers.fab.auth_manager.models import User
+
+pytestmark = pytest.mark.db_test
 
 
-@dataclass
-class StartTriggerArgs:
-    """Arguments required for start task execution from triggerer."""
-
-    trigger_cls: str
-    next_method: str
-    trigger_kwargs: dict[str, Any] | None = None
-    next_kwargs: dict[str, Any] | None = None
-    timeout: timedelta | None = None
+@pytest.mark.parametrize(
+    "user_id, expected_id",
+    [
+        (999, "999"),
+        ("999", "999"),
+    ],
+)
+def test_get_id_returns_str(user_id: int | str, expected_id: str) -> None:
+    """
+    Ensure get_id() always returns a string representation of the id.
+    """
+    user = User()
+    user.id = user_id
+    result = user.get_id()
+    assert isinstance(result, str), f"Expected str, got {type(result)}"
+    assert result == expected_id

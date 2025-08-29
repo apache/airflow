@@ -1207,6 +1207,24 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 5,
                 id="test_try_number_filter",
             ),
+            pytest.param(
+                [
+                    {"operator": "FirstOperator"},
+                    {"operator": "FirstOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "SecondOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                    {"operator": "ThirdOperator"},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"operator": ["FirstOperator", "SecondOperator"]},
+                5,
+                id="test operator type filter filter",
+            ),
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")

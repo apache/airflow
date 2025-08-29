@@ -43,6 +43,7 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -50,14 +51,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models import Deadline
-from airflow.models.asset import (
-    AssetActive,
-    AssetAliasModel,
-    AssetDagRunQueue,
-    AssetEvent,
-    AssetModel,
-)
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -65,15 +59,16 @@ from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.models.deadline import DeadlineCallbackState
+from airflow.models.deadline import Deadline, DeadlineCallbackState
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import task
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.sdk import Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.deadline import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
@@ -98,6 +93,7 @@ from tests_common.test_utils.db import (
     clear_db_pools,
     clear_db_runs,
     clear_db_serialized_dags,
+    clear_db_triggers,
     set_default_pool_slots,
 )
 from tests_common.test_utils.mock_executor import MockExecutor
@@ -196,6 +192,7 @@ class TestSchedulerJob:
         clear_db_jobs()
         clear_db_assets()
         clear_db_deadline()
+        clear_db_triggers()
 
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
@@ -6467,6 +6464,56 @@ class TestSchedulerJob:
         assert active == []
         assert orphaned == [asset1]
         assert [asset.updated_at for asset in orphaned] == updated_at_timestamps
+
+    @pytest.mark.parametrize(
+        "paused, stale, expected_classpath",
+        [
+            pytest.param(
+                False,
+                False,
+                "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                id="active",
+            ),
+            pytest.param(False, True, None, id="stale"),
+            pytest.param(True, False, None, id="paused"),
+            pytest.param(True, False, None, id="stale-paused"),
+        ],
+    )
+    def test_delete_unreferenced_triggers(self, dag_maker, session, paused, stale, expected_classpath):
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        classpath, kwargs = DateTimeTrigger(timezone.utcnow()).serialize()
+        asset1 = Asset(
+            name="test_asset_1",
+            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
+        )
+        with dag_maker(dag_id="dag", schedule=[asset1], session=session) as dag:
+            EmptyOperator(task_id="task")
+        dags = {"dag": dag}
+
+        def _update_references() -> None:
+            asset_op = AssetModelOperation.collect(dags)
+            orm_assets = asset_op.sync_assets(session=session)
+            session.flush()
+            asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+            asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+            asset_op.add_asset_trigger_references(orm_assets, session=session)
+            session.flush()
+
+        # Initial setup.
+        orm_dags = DagModelOperation({"dag": dag}, "testing", None).add_dags(session=session)
+        _update_references()
+        assert session.scalars(select(Trigger.classpath)).one() == classpath
+
+        # Simulate dag state change.
+        orm_dags["dag"].is_paused = paused
+        orm_dags["dag"].is_stale = stale
+        _update_references()
+        assert session.scalars(select(Trigger.classpath)).one() == classpath
+
+        # Unreferenced trigger should be removed.
+        self.job_runner._remove_unreferenced_triggers(session=session)
+        assert session.scalars(select(Trigger.classpath)).one_or_none() == expected_classpath
 
     def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

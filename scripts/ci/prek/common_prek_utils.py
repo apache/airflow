@@ -191,6 +191,7 @@ def run_command_via_breeze_shell(
     project_name: str = "prek",
     skip_environment_initialization: bool = True,
     warn_image_upgrade_needed: bool = False,
+    enable_pseudo_terminal: bool = False,
     **other_popen_kwargs,
 ) -> subprocess.CompletedProcess:
     extra_env = extra_env or {}
@@ -208,7 +209,7 @@ def run_command_via_breeze_shell(
         "--skip-image-upgrade-check",
         # Note: The terminal is disabled - because prek is run inside git without a pseudo-terminal
         "--tty",
-        "disabled",
+        "enabled" if enable_pseudo_terminal else "disabled",
     ]
     if warn_image_upgrade_needed:
         subprocess_cmd.append("--warn-image-upgrade-needed")

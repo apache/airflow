@@ -557,6 +557,8 @@ export type DAGDetailsResponse = {
     readonly file_token: string;
     /**
      * Return max_active_tasks as concurrency.
+     *
+     * Deprecated: Use max_active_tasks instead.
      */
     readonly concurrency: number;
     /**
@@ -2354,6 +2356,10 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    /**
+     * Filter DAGs by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
@@ -2374,6 +2380,10 @@ export type GetDagsData = {
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    /**
+     * Filter DAGs with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2456,6 +2466,10 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    /**
+     * Filter DAGs by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
@@ -2469,6 +2483,10 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    /**
+     * Filter DAGs with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2568,6 +2586,7 @@ export type GetMappedTaskInstancesData = {
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
+    operator?: Array<(string)>;
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
@@ -2665,6 +2684,7 @@ export type GetTaskInstancesData = {
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
+    operator?: Array<(string)>;
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;

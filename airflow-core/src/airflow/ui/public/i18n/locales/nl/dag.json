@@ -40,7 +40,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Verspringen: Shift+{{arrow}}",
     "navigation": "Navigatie: {{arrow}}",
     "toggleGroup": "Groep in-/uitklappen: Spatie"
   },

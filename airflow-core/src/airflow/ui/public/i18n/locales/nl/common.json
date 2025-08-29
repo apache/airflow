@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrency",
     "dagRunTimeout": "Dag Run timeout",
     "defaultArgs": "Standaard argumenten",
     "description": "Omschrijving",
