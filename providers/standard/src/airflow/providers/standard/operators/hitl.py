@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import logging
 
+from hatch.cli import self
+
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -350,9 +352,44 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
 
     inherits_from_skipmixin = True
 
+    def __init__(self, *, options_mapping: dict[str, str] | None = None, **kwargs) -> None:
+        super().__init__(
+            **kwargs,
+        )
+        self.options_mapping = options_mapping or {}
+
+        self.validate_options_mapping()
+
+    def validate_options_mapping(self) -> None:
+        """
+        Ensure provided options_mapping keys are valid option labels and values are strings.
+        """
+        if not self.options_mapping:
+            return
+
+        # Validate that the choice options are keys in the mapping are the same
+        invalid_keys = set(self.options_mapping.keys()) - set(self.options)
+        if invalid_keys:
+            raise ValueError(
+                f"`options_mapping` contains keys that are not in `options`: {sorted(invalid_keys)}"
+            )
+
+        # validate that all values are strings
+        invalid_entries = {
+            k: (v, type(v).__name__) for k, v in self.options_mapping.items() if not isinstance(v, str)
+        }
+        if invalid_entries:
+            raise ValueError(
+                f"`options_mapping` values must be strings (task_ids).\nInvalid entries: {invalid_entries}"
+            )
+
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """Execute the operator and branch based on chosen options."""
         ret = super().execute_complete(context=context, event=event)
         chosen_options = ret["chosen_options"]
+
+        # Map options to task IDs using the mapping, fallback to original option
+        chosen_options = [self.options_mapping.get(option, option) for option in chosen_options]
         return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 
