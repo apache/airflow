@@ -214,3 +214,21 @@ class State:
     A list of states indicating that a task can be adopted or reset by a scheduler job
     if it was queued by another scheduler job that is not running anymore.
     """
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved classes."""
+    if name == "JobState":
+        import warnings
+
+        from airflow.jobs.job import JobState
+
+        warnings.warn(
+            "The `airflow.utils.state.JobState` attribute is deprecated and will be removed in a future version. "
+            "Please use `airflow.jobs.job.JobState` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return JobState
+
+    raise AttributeError(f"module 'airflow.utils.state' has no attribute '{name}'")

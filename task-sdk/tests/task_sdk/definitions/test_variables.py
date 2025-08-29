@@ -91,7 +91,7 @@ class TestVariables:
 
 
 class TestVariableFromSecrets:
-    def test_var_get_from_secrets_found(self, mock_supervisor_comms, tmp_path):
+    def test_var_get_from_secrets_found(self, mock_supervisor_comms, patched_secrets_masker, tmp_path):
         """Tests getting a variable from secrets backend."""
         path = tmp_path / "var.env"
         path.write_text("VAR_A=some_value")
@@ -109,7 +109,9 @@ class TestVariableFromSecrets:
             assert retrieved_var is not None
             assert retrieved_var == "some_value"
 
-    def test_var_get_from_secrets_found_with_deserialize(self, mock_supervisor_comms, tmp_path):
+    def test_var_get_from_secrets_found_with_deserialize(
+        self, mock_supervisor_comms, tmp_path, patched_secrets_masker
+    ):
         """Tests getting a variable from secrets backend when deserialize_json is provided."""
         path = tmp_path / "var.json"
         dict_data = {"num1": 23, "num2": 42}
@@ -154,7 +156,7 @@ class TestVariableFromSecrets:
             mock_mask_secret.assert_called_with("super-secret", "secret")
 
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
-    def test_get_variable_env_var(self, mock_env_get, mock_supervisor_comms):
+    def test_get_variable_env_var(self, mock_env_get, mock_supervisor_comms, patched_secrets_masker):
         """Tests getting a variable from environment variable."""
         mock_env_get.return_value = "fake_value"
         Variable.get(key="fake_var_key")
@@ -170,7 +172,9 @@ class TestVariableFromSecrets:
         "airflow.secrets.local_filesystem.LocalFilesystemBackend.get_variable",
     )
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
-    def test_backend_fallback_to_env_var(self, mock_get_variable, mock_env_get, mock_supervisor_comms):
+    def test_backend_fallback_to_env_var(
+        self, mock_get_variable, mock_env_get, mock_supervisor_comms, patched_secrets_masker
+    ):
         """Tests if variable retrieval falls back to environment variable backend if not found in secrets backend."""
         mock_get_variable.return_value = None
         mock_env_get.return_value = "fake_value"

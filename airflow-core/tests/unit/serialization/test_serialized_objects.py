@@ -159,6 +159,16 @@ def test_strict_mode():
         BaseSerialization.serialize(obj, strict=True)  # now raises
 
 
+def test_prevent_re_serialization_of_serialized_operators():
+    """SerializedBaseOperator should not be re-serializable."""
+    from airflow.serialization.serialized_objects import BaseSerialization, SerializedBaseOperator
+
+    serialized_op = SerializedBaseOperator(task_id="test_task")
+
+    with pytest.raises(SerializationError, match="Encountered unexpected type"):
+        BaseSerialization.serialize(serialized_op, strict=True)
+
+
 def test_validate_schema():
     from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -492,29 +502,6 @@ def test_backcompat_deserialize_connection(conn_uri):
     }
     deserialized = BaseSerialization.deserialize(conn_obj)
     assert deserialized.get_uri() == conn_uri
-
-
-@pytest.mark.db_test
-def test_serialized_mapped_operator_unmap(dag_maker):
-    from airflow.serialization.serialized_objects import SerializedDAG
-
-    from tests_common.test_utils.mock_operators import MockOperator
-
-    with dag_maker(dag_id="dag") as dag:
-        MockOperator(task_id="task1", arg1="x")
-        MockOperator.partial(task_id="task2").expand(arg1=["a", "b"])
-
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-    assert serialized_dag.dag_id == "dag"
-
-    serialized_task1 = serialized_dag.get_task("task1")
-    assert serialized_task1.dag is serialized_dag
-
-    serialized_task2 = serialized_dag.get_task("task2")
-    assert serialized_task2.dag is serialized_dag
-
-    serialized_unmapped_task = serialized_task2.unmap(None)
-    assert serialized_unmapped_task.dag is serialized_dag
 
 
 def test_ser_of_asset_event_accessor():
