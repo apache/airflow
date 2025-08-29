@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-29T10:07:01.088892
+# This constraints file was automatically generated on 2025-08-29T17:27:13.148319
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -275,7 +275,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.1
 connexion==2.14.2
-coverage==7.10.5
+coverage==7.10.6
 crcmod==1.7
 cron_descriptor==2.0.5
 croniter==6.0.0
@@ -329,10 +329,10 @@ fsspec==2025.7.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
 gcloud-aio-bigquery==7.1.0
-gcloud-aio-storage==9.5.0
+gcloud-aio-storage==9.6.0
 gcsfs==2025.7.0
 geomet==0.2.1.post1
-gevent==25.8.1
+gevent==25.8.2
 gitdb==4.0.12
 google-ads==28.0.0
 google-analytics-admin==0.24.1
@@ -436,7 +436,7 @@ iniconfig==2.1.0
 inputimeout==1.0.4
 ipdb==0.13.13
 ipykernel==6.30.1
-ipython==9.4.0
+ipython==9.5.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -754,7 +754,7 @@ thrift==0.16.0
 tiktoken==0.11.0
 time-machine==2.19.0
 tinycss2==1.4.0
-tokenizers==0.21.4
+tokenizers==0.22.0
 tomli_w==1.2.0
 tomlkit==0.13.3
 tornado==6.5.2
@@ -820,7 +820,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.8
+ydb==3.21.9
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
