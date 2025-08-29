@@ -317,7 +317,7 @@ export const PanelButtons = ({
                           size="sm"
                           value={[runTypeFilter?.[0] ?? "all"]}
                         >
-                          <Select.Label>{translate("dag:panel.runTypeFilter.label")}</Select.Label>
+                          <Select.Label>{translate("dag:panel.runType.label")}</Select.Label>
                           <Select.Control>
                             <Select.Trigger>
                               <Select.ValueText />
