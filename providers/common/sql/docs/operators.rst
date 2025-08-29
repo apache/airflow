@@ -205,7 +205,7 @@ The example below shows how to instantiate the SQLInsertRowsOperator task.
     :start-after: [START howto_operator_sql_insert_rows]
     :end-before: [END howto_operator_sql_insert_rows]
 
-.. _howto/operator:SQLInsertRowsOperator:
+.. _howto/operator:GenericTransfer:
 
 Generic Transfer
 ~~~~~~~~~~~~~~~~
