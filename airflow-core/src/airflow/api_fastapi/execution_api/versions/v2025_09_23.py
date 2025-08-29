@@ -28,3 +28,12 @@ class AddDagVersionIdField(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("dag_version_id").didnt_exist,)
+
+
+class AcceptNullXComSetValue(VersionChange):
+    """Allow POST /xcoms/... value body to be JSON null in addition to JSON strings/objects/arrays."""
+
+    description = __doc__
+    # This is a backward-compatible relaxation of input validation; older clients are unaffected.
+    # No response transformation is needed when downgrading.
+    instructions_to_migrate_to_previous_version = ()
