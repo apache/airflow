@@ -1263,7 +1263,7 @@ class DAG:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
-                                _run_task(ti=ti, task=task, run_triggerer=True)
+                                _run_task(ti=ti, task=task, run_triggerer=True, session=session)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -1279,7 +1279,7 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti, task, run_triggerer=False):
+def _run_task(*, ti, task, run_triggerer=False, session=None):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1320,8 +1320,6 @@ def _run_task(*, ti, task, run_triggerer=False):
             ti.task = taskrun_result.ti.task
 
             if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                from airflow.utils.session import create_session
-
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(State.QUEUED)
@@ -1334,7 +1332,7 @@ def _run_task(*, ti, task, run_triggerer=False):
                 log.info("[DAG TEST] Trigger completed")
 
                 # Set the state to SCHEDULED so that the task can be resumed.
-                with create_session() as session:
+                if session is not None:
                     ti.state = State.SCHEDULED
                     session.add(ti)
 
