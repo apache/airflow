@@ -10,7 +10,7 @@
     "dagProcessor": "Dag Feldolgozó",
     "health": "Állapot",
     "healthy": "Egészséges",
-    "lastHeartbeat": "Utolsó szívverés",
+    "lastHeartbeat": "Legutóbbi életjel",
     "metaDatabase": "MetaAdatbázis",
     "scheduler": "Ütemező",
     "status": "Státusz",
@@ -40,6 +40,6 @@
     "runningDags": "Futó Dag-ek",
     "stats": "Statisztika"
   },
-  "uri": "Uri",
+  "uri": "URI",
   "welcome": "Üdvözöljük"
 }
