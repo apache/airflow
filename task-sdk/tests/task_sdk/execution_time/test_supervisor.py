@@ -2361,9 +2361,6 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             },
         )
 
-    mock_masker = mocker.Mock()
-    mocker.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=mock_masker)
-
     with conf_vars(
         {
             ("logging", "remote_logging"): str(remote_logging),

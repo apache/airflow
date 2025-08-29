@@ -151,7 +151,7 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
         "commands": ["task-sdk-tests", "task-sdk-integration-tests"],
     },
     {
-        "name": "Airflow CTL Tests",
+        "name": "airflowctl Tests",
         "commands": ["airflow-ctl-tests"],
     },
     {

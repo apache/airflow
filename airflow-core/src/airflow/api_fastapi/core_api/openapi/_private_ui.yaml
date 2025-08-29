@@ -250,6 +250,26 @@ paths:
           - type: boolean
           - type: 'null'
           title: Is Favorite
+      - name: has_asset_schedule
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter DAGs with asset-based scheduling
+          title: Has Asset Schedule
+        description: Filter DAGs with asset-based scheduling
+      - name: asset_dependency
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter DAGs by asset dependency (name or URI)
+          title: Asset Dependency
+        description: Filter DAGs by asset dependency (name or URI)
       responses:
         '200':
           description: Successful Response
@@ -597,6 +617,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -606,6 +635,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       responses:
         '200':
           description: Successful Response
@@ -686,6 +724,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -695,6 +742,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       responses:
         '200':
           description: Successful Response
@@ -830,6 +886,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -839,6 +904,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       responses:
         '200':
           description: Successful Response

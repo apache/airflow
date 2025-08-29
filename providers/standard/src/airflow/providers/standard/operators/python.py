@@ -1076,7 +1076,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self._get_airflow_version_from_target_env():
+        if self.expect_airflow and self._get_airflow_version_from_target_env():
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
         elif self._is_pendulum_installed_in_target_env():

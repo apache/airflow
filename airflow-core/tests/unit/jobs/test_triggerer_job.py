@@ -43,7 +43,6 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
@@ -54,7 +53,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook
+from airflow.sdk import BaseHook, BaseOperator
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -656,6 +655,8 @@ class CustomTrigger(BaseTrigger):
 
         from airflow.sdk import Variable
         from airflow.sdk.execution_time.xcom import XCom
+
+        # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
         from airflow.sdk.log import mask_secret
 
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
