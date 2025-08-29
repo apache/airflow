@@ -26,9 +26,13 @@
     "xcoms": "XComs"
   },
   "bulkAction": {
-    "success": {
-      "description": "{{count}} {{type}}{{action}}成功。鍵：{{keys}}",
-      "title": "{{action}}{{type}}請求成功"
+    "delete": {
+      "taskInstance": {
+        "success": {
+          "description": "已成功刪除 {{count}} 個任務實例。鍵：{{keys}}",
+          "title": "已提交刪除任務實例請求"
+        }
+      }
     }
   },
   "collapseDetailsPanel": "收起詳細資訊",
