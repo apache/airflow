@@ -114,7 +114,7 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
 
 
 class _FavoriteFilter(BaseParam[bool]):
-    """Filter DAGs by favorite status."""
+    """Filter Dags by favorite status."""
 
     def __init__(self, user_id: str, value: T | None = None, skip_none: bool = True) -> None:
         super().__init__(skip_none=skip_none)
@@ -607,7 +607,7 @@ def float_range_filter_factory(
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[str | None, AfterValidator(_safe_parse_datetime_optional)]
 
-# DAG
+# Dag
 QueryLimit = Annotated[LimitFilter, Depends(LimitFilter.depends)]
 QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter.depends)]
 QueryPausedFilter = Annotated[
@@ -638,7 +638,7 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
-    """Filter DAGs that have asset-based scheduling."""
+    """Filter Dags that have asset-based scheduling."""
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -647,22 +647,22 @@ class _HasAssetScheduleFilter(BaseParam[bool]):
         asset_ref_subquery = sql_select(DagScheduleAssetReference.dag_id).distinct()
 
         if self.value:
-            # Filter DAGs that have asset-based scheduling
+            # Filter Dags that have asset-based scheduling
             return select.where(DagModel.dag_id.in_(asset_ref_subquery))
 
-        # Filter DAGs that do NOT have asset-based scheduling
+        # Filter Dags that do NOT have asset-based scheduling
         return select.where(DagModel.dag_id.notin_(asset_ref_subquery))
 
     @classmethod
     def depends(
         cls,
-        has_asset_schedule: bool | None = Query(None, description="Filter DAGs with asset-based scheduling"),
+        has_asset_schedule: bool | None = Query(None, description="Filter Dags with asset-based scheduling"),
     ) -> _HasAssetScheduleFilter:
         return cls().set_value(has_asset_schedule)
 
 
 class _AssetDependencyFilter(BaseParam[str]):
-    """Filter DAGs by specific asset dependencies."""
+    """Filter Dags by specific asset dependencies."""
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -681,7 +681,7 @@ class _AssetDependencyFilter(BaseParam[str]):
     def depends(
         cls,
         asset_dependency: str | None = Query(
-            None, description="Filter DAGs by asset dependency (name or URI)"
+            None, description="Filter Dags by asset dependency (name or URI)"
         ),
     ) -> _AssetDependencyFilter:
         return cls().set_value(asset_dependency)
@@ -692,14 +692,14 @@ QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDep
 
 
 class _PendingActionsFilter(BaseParam[bool]):
-    """Filter DAGs by having pending HITL actions (more than 1)."""
+    """Filter Dags by having pending HITL actions (more than 1)."""
 
     def to_orm(self, select_stmt: Select) -> Select:
         if self.value is None and self.skip_none:
             return select_stmt
 
         if self.value:
-            # Join with HITLDetail and TaskInstance to find DAGs with more than 1 pending actions
+            # Join with HITLDetail and TaskInstance to find Dags with more than 1 pending actions
             from airflow.models.hitl import HITLDetail
             from airflow.models.taskinstance import TaskInstance
 
@@ -712,7 +712,7 @@ class _PendingActionsFilter(BaseParam[bool]):
             )
             select_stmt = select_stmt.where(pending_actions_count_subquery > 1)
         else:
-            # Filter to show only DAGs with 1 or fewer pending actions
+            # Filter to show only Dags with 1 or fewer pending actions
             from airflow.models.hitl import HITLDetail
             from airflow.models.taskinstance import TaskInstance
 
@@ -792,7 +792,7 @@ QueryDagRunRunTypesFilter = Annotated[
     ),
 ]
 
-# DAGTags
+# DagTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
 ]
