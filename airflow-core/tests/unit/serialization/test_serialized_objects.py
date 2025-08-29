@@ -159,6 +159,16 @@ def test_strict_mode():
         BaseSerialization.serialize(obj, strict=True)  # now raises
 
 
+def test_prevent_re_serialization_of_serialized_operators():
+    """SerializedBaseOperator should not be re-serializable."""
+    from airflow.serialization.serialized_objects import BaseSerialization, SerializedBaseOperator
+
+    serialized_op = SerializedBaseOperator(task_id="test_task")
+
+    with pytest.raises(SerializationError, match="Encountered unexpected type"):
+        BaseSerialization.serialize(serialized_op, strict=True)
+
+
 def test_validate_schema():
     from airflow.serialization.serialized_objects import BaseSerialization
 

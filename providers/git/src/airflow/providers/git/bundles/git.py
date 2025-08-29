@@ -93,6 +93,7 @@ class GitDagBundle(BaseDagBundle):
             with cm:
                 self._clone_bare_repo_if_required()
                 self._ensure_version_in_bare_repo()
+            self.bare_repo.close()
 
             self._clone_repo_if_required()
             self.repo.git.checkout(self.tracking_ref)
@@ -104,6 +105,7 @@ class GitDagBundle(BaseDagBundle):
                 self.repo.head.reset(index=True, working_tree=True)
             else:
                 self.refresh()
+            self.repo.close()
 
     def initialize(self) -> None:
         if not self.repo_url:
@@ -161,7 +163,8 @@ class GitDagBundle(BaseDagBundle):
         )
 
     def get_current_version(self) -> str:
-        return self.repo.head.commit.hexsha
+        with self.repo as repo:
+            return repo.head.commit.hexsha
 
     @property
     def path(self) -> Path:
@@ -184,6 +187,7 @@ class GitDagBundle(BaseDagBundle):
             cm = self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
         with cm:
             self.bare_repo.remotes.origin.fetch(refspecs)
+            self.bare_repo.close()
 
     def refresh(self) -> None:
         if self.version:
@@ -202,6 +206,7 @@ class GitDagBundle(BaseDagBundle):
                 else:
                     target = self.tracking_ref
                 self.repo.head.reset(target, index=True, working_tree=True)
+                self.repo.close()
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
