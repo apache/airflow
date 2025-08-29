@@ -9314,6 +9314,91 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         }
                     }
+                },
+                "bundleConfigs": {
+                    "description": "List of DAG-bundle loader configurations",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "default": null,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "type",
+                            "args"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Unique human-friendly identifier"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "airflow.providers.git.bundles.git.GitDagBundle",
+                                    "airflow.dag_processing.bundles.local.LocalDagBundle"
+                                ],
+                                "description": "Fully-qualified class implementing the bundle loader"
+                            },
+                            "args": {
+                                "description": "Keyword arguments passed to the bundle loader",
+                                "oneOf": [
+                                    {
+                                        "title": "GitDagBundle keyword arguments",
+                                        "type": "object",
+                                        "required": [
+                                            "trackingRef"
+                                        ],
+                                        "properties": {
+                                            "repoUrl": {
+                                                "type": "string",
+                                                "description": "Explicit Git repository URL to override the connection's host",
+                                                "default": null
+                                            },
+                                            "trackingRef": {
+                                                "type": "string",
+                                                "description": "Branch or tag for this DAG bundle"
+                                            },
+                                            "subdir": {
+                                                "type": "string",
+                                                "description": "Subdirectory within the repository where the DAGs are stored",
+                                                "default": null
+                                            },
+                                            "gitConnId": {
+                                                "type": "string",
+                                                "description": "Connection ID for SSH/token based connection to the repository",
+                                                "default": null
+                                            },
+                                            "refreshInterval": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "description": "How often (in seconds) to re-sync the repo"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    },
+                                    {
+                                        "title": "LocalDagBundle keyword arguments",
+                                        "type": "object",
+                                        "required": [
+                                            "path"
+                                        ],
+                                        "properties": {
+                                            "path": {
+                                                "type": "string",
+                                                "description": "Absolute path to a local directory with DAG files"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        }
+                    }
                 }
             }
         },

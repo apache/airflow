@@ -554,6 +554,27 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+{{- define "airflow_dag_bundles" -}}
+  {{- if .Values.dags.bundleConfigs }}
+    {{- $bundles := list -}}
+    {{- range $cfg := .Values.dags.bundleConfigs }}
+      {{- $args := dict -}}
+      {{- range $key, $value := (default dict $cfg.args) }}
+        {{- $converted := regexReplaceAll "([a-z0-9])([A-Z])" $key "${1}_${2}" | lower -}}
+        {{- $_ := set $args $converted $value -}}
+      {{- end -}}
+
+      {{- $bundles = append $bundles (dict
+        "name"      (required "dags.bundleConfigs[].name is required"  $cfg.name)
+        "classpath" (required "dags.bundleConfigs[].type is required"  $cfg.type)
+        "kwargs"    $args) -}}
+    {{- end -}}
+    {{- toJson $bundles }}
+  {{- else }}
+    []
+  {{- end }}
+{{- end }}
+
 {{- define "airflow_dags" -}}
   {{- if .Values.dags.mountPath }}
     {{- if .Values.dags.gitSync.enabled }}
