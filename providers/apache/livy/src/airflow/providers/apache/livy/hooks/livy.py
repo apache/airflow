@@ -559,7 +559,7 @@ class LivyAsyncHook(HttpAsyncHook):
                     url,
                     json=data if self.method in ("POST", "PATCH") else None,
                     params=data if self.method == "GET" else None,
-                    headers=headers,
+                    headers=_headers or None,
                     auth=auth,
                     **extra_options,
                 )
