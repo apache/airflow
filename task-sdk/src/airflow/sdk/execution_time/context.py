@@ -21,7 +21,7 @@ import contextlib
 import functools
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 import attrs
 import structlog
@@ -61,6 +61,7 @@ if TYPE_CHECKING:
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.typing_compat import Self
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
