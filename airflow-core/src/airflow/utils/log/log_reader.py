@@ -93,7 +93,7 @@ class TaskLogReader:
         if try_number is None:
             try_number = ti.try_number
 
-        for key in ("end_of_log", "max_offset", "offset", "log_pos"):
+        for key in ("end_of_log", "max_offset", "offset"):
             # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
             metadata.pop(key, None)  # type: ignore[misc]
         empty_iterations = 0
