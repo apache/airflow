@@ -35,8 +35,6 @@ from airflow.utils.state import State
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
 
-session = SessionDep()
-
 
 @attrs.define
 class DagRunWaiter:
@@ -46,6 +44,7 @@ class DagRunWaiter:
     run_id: str
     interval: float
     result_task_ids: list[str] | None
+    session: SessionDep
 
     async def _get_dag_run(self) -> DagRun:
         async with create_session_async() as session:
@@ -58,7 +57,7 @@ class DagRunWaiter:
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_query = session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index)).all()
+        xcom_query = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index)).all()
 
         def _group_xcoms(g: Iterator[XComModel]) -> Any:
             entries = list(g)
