@@ -296,26 +296,18 @@ class AirflowConfigParser(ConfigParser):
         :param selected_provider: If specified, include selected provider only
         :return: Python dictionary containing configs & their info
         """
+        from airflow.utils import yaml
+
         base_configuration_description: dict[str, dict[str, Any]] = {}
         if include_airflow:
-            from airflow.utils import yaml
-
-            try:
-                with open(self._get_config_file_path("config.yml")) as config_file:
-                    base_configuration_description.update(yaml.safe_load(config_file))
-            except FileNotFoundError:
-                # If config.yml is not found, return empty description
-                # This will be handled by distribution-specific wrappers
-                pass
-
+            with open(self._get_config_file_path("config.yml")) as config_file:
+                base_configuration_description.update(yaml.safe_load(config_file))
         if include_providers:
-            # Provider loading handled by distribution-specific wrappers to avoid circular dependencies
             from airflow.providers_manager import ProvidersManager
 
             for provider, config in ProvidersManager().provider_configs:
                 if not selected_provider or provider == selected_provider:
                     base_configuration_description.update(config)
-
         return base_configuration_description
 
     def create_provider_config_fallback_defaults(self) -> ConfigParser:
@@ -2293,13 +2285,13 @@ def get_custom_secret_backend(worker_mode: bool = False):
 
 def find_config_templates_dir() -> str:
     """Find the config_templates directory with existing config.yml."""
-    # From shared/configuration/src/airflow_shared/configuration/parser.py
-    # Go up 6 levels: parser.py -> configuration -> airflow_shared -> src -> airflow_shared -> shared -> repo_root
-    shared_dir = pathlib.Path(__file__).parent.parent.parent.parent.parent.parent
-    config_templates_dir = shared_dir / "airflow-core" / "src" / "airflow" / "config_templates"
+    here = pathlib.Path(__file__).resolve()
 
-    if config_templates_dir.exists():
-        return str(config_templates_dir)
+    for parent in here.parents:
+        candidate = parent / "airflow-core" / "src" / "airflow" / "config_templates"
+        if (candidate / "config.yml").exists():
+            return str(candidate)
+
     return ""
 
 
