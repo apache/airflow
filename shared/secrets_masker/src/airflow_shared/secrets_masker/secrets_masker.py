@@ -73,7 +73,7 @@ SECRETS_TO_SKIP_MASKING = {"airflow"}
 @cache
 def get_min_secret_length() -> int:
     """Get minimum length for a secret to be considered for masking from airflow.cfg."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     return conf.getint("logging", "min_length_masked_secret", fallback=5)
 
@@ -81,7 +81,7 @@ def get_min_secret_length() -> int:
 @cache
 def get_sensitive_variables_fields():
     """Get comma-separated sensitive Variable Fields from airflow.cfg."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     sensitive_fields = DEFAULT_SENSITIVE_FIELDS.copy()
     sensitive_variable_fields = conf.get("core", "sensitive_var_conn_names")
@@ -530,7 +530,7 @@ class SecretsMasker(logging.Filter):
 
         This lives in a function here to be cached and only hit the config once.
         """
-        from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
         return conf.getimport("logging", "secret_mask_adapter", fallback=None)
 
@@ -541,7 +541,7 @@ class SecretsMasker(logging.Filter):
 
         This lives in a function here to be cached and only hit the config once.
         """
-        from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
         return conf.getboolean("core", "unit_test_mode")
 

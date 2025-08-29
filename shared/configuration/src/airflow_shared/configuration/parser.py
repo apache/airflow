@@ -48,6 +48,9 @@ from urllib.parse import urlsplit
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
+# TODO: Fix import to be from shared secrets backend when we do that
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+
 from .exceptions import AirflowConfigException
 
 log = logging.getLogger(__name__)
@@ -2002,46 +2005,6 @@ class AirflowConfigParser(ConfigParser):
             del self.sensitive_config_values
         self._providers_configuration_loaded = True
 
-    # TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
-    def get_custom_secret_backend(self, worker_mode: bool = False):
-        """
-        Get Secret Backend if defined in airflow.cfg.
-
-        Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
-        """
-        section = "workers" if worker_mode else "secrets"
-        key = "secrets_backend" if worker_mode else "backend"
-        kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
-
-        secrets_backend_cls = self.getimport(section=section, key=key)
-
-        if not secrets_backend_cls:
-            if worker_mode:
-                # if we find no secrets backend for worker, return that of secrets backend
-                secrets_backend_cls = self.getimport(section="secrets", key="backend")
-                if not secrets_backend_cls:
-                    return None
-                # When falling back to secrets backend, use its kwargs
-                kwargs_key = "backend_kwargs"
-                section = "secrets"
-            else:
-                return None
-
-        try:
-            backend_kwargs = self.getjson(section=section, key=kwargs_key)
-            if not backend_kwargs:
-                backend_kwargs = {}
-            elif not isinstance(backend_kwargs, dict):
-                raise ValueError("not a dict")
-        except AirflowConfigException:
-            log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
-            backend_kwargs = {}
-        except ValueError:
-            log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
-            backend_kwargs = {}
-
-        return secrets_backend_cls(**backend_kwargs)
-
     def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
         """Get Config option values from Secret Backend."""
         try:
@@ -2218,6 +2181,92 @@ def initialize_config() -> AirflowConfigParser:
     return airflow_config_parser
 
 
+# TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
+def ensure_secrets_loaded(
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+):
+    """
+    Ensure that all secrets backends are loaded.
+
+    If the secrets_backend_list contains only 2 default backends, reload it.
+    """
+    # Check if the secrets_backend_list contains only 2 default backends.
+
+    # Check if we are loading the backends for worker too by checking if the default_backends is equal
+    # to DEFAULT_SECRETS_SEARCH_PATH.
+    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+        return initialize_secrets_backends(default_backends=default_backends)
+    return secrets_backend_list
+
+
+# TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
+def initialize_secrets_backends(
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+):
+    """
+    Initialize secrets backend.
+
+    * import secrets backend classes
+    * instantiate them and return them in a list
+    """
+    backend_list = []
+    worker_mode = False
+    if default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+        worker_mode = True
+
+    custom_secret_backend = get_custom_secret_backend(worker_mode)
+
+    if custom_secret_backend is not None:
+        backend_list.append(custom_secret_backend)
+
+    for class_name in default_backends:
+        secrets_backend_cls = _import_string(class_name)
+        backend_list.append(secrets_backend_cls())
+
+    return backend_list
+
+
+# TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
+def get_custom_secret_backend(self, worker_mode: bool = False):
+    """
+    Get Secret Backend if defined in airflow.cfg.
+
+    Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
+    """
+    section = "workers" if worker_mode else "secrets"
+    key = "secrets_backend" if worker_mode else "backend"
+    kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
+
+    secrets_backend_cls = self.getimport(section=section, key=key)
+
+    if not secrets_backend_cls:
+        if worker_mode:
+            # if we find no secrets backend for worker, return that of secrets backend
+            secrets_backend_cls = self.getimport(section="secrets", key="backend")
+            if not secrets_backend_cls:
+                return None
+            # When falling back to secrets backend, use its kwargs
+            kwargs_key = "backend_kwargs"
+            section = "secrets"
+        else:
+            return None
+
+    try:
+        backend_kwargs = self.getjson(section=section, key=kwargs_key)
+        if not backend_kwargs:
+            backend_kwargs = {}
+        elif not isinstance(backend_kwargs, dict):
+            raise ValueError("not a dict")
+    except AirflowConfigException:
+        log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
+        backend_kwargs = {}
+    except ValueError:
+        log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
+        backend_kwargs = {}
+
+    return secrets_backend_cls(**backend_kwargs)
+
+
 def find_config_templates_dir() -> str:
     """Find the config_templates directory with existing config.yml."""
     # From shared/configuration/src/airflow_shared/configuration/parser.py
@@ -2238,3 +2287,4 @@ FERNET_KEY = ""
 JWT_SECRET_KEY = ""
 
 conf: AirflowConfigParser = initialize_config()
+secrets_backend_list = initialize_secrets_backends()

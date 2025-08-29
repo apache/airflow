@@ -58,7 +58,7 @@ __all__ = [
     "AssetWatcher",
 ]
 
-from airflow.configuration import conf
+from airflow.sdk.configuration import conf
 
 log = logging.getLogger(__name__)
 

@@ -29,12 +29,9 @@ from airflow._shared.configuration import (
 )
 
 # Import private utility functions from parser module directly
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-    from airflow.secrets import BaseSecretsBackend
 
 log = logging.getLogger(__name__)
 
@@ -122,49 +119,6 @@ def get_custom_secret_backend(worker_mode: bool = False):
     return secrets_backend_cls(**backend_kwargs)
 
 
-def ensure_secrets_loaded(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
-) -> list[BaseSecretsBackend]:
-    """
-    Ensure that all secrets backends are loaded.
-
-    If the secrets_backend_list contains only 2 default backends, reload it.
-    """
-    # Check if the secrets_backend_list contains only 2 default backends.
-
-    # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to DEFAULT_SECRETS_SEARCH_PATH.
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
-        return initialize_secrets_backends(default_backends=default_backends)
-    return secrets_backend_list
-
-
-def initialize_secrets_backends(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
-) -> list[BaseSecretsBackend]:
-    """
-    Initialize secrets backend.
-
-    * import secrets backend classes
-    * instantiate them and return them in a list
-    """
-    backend_list = []
-    worker_mode = False
-    if default_backends != DEFAULT_SECRETS_SEARCH_PATH:
-        worker_mode = True
-
-    custom_secret_backend = get_custom_secret_backend(worker_mode)
-
-    if custom_secret_backend is not None:
-        backend_list.append(custom_secret_backend)
-
-    for class_name in default_backends:
-        secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
-
-    return backend_list
-
-
 def initialize_auth_manager() -> BaseAuthManager:
     """
     Initialize auth manager.
@@ -190,6 +144,7 @@ from airflow._shared.configuration import (  # noqa: E402, F401
     FERNET_KEY,
     JWT_SECRET_KEY,
     conf,
+    secrets_backend_list,
 )
 
 # Set up dags folder for unit tests
@@ -211,5 +166,4 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
 
-secrets_backend_list = initialize_secrets_backends()
 conf.validate()

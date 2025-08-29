@@ -33,13 +33,16 @@ from .parser import (
     ConfigSourcesType,
     ConfigType,
     conf,
+    ensure_secrets_loaded,
     expand_env_var,
     find_config_templates_dir,
     get_all_expansion_variables,
     initialize_config,
+    initialize_secrets_backends,
     load_standard_airflow_configuration,
     make_group_other_inaccessible,
     run_command,
+    secrets_backend_list,
     write_default_airflow_configuration_if_needed,
 )
 
@@ -65,4 +68,7 @@ __all__ = [
     "AIRFLOW_CONFIG",
     "JWT_SECRET_KEY",
     "FERNET_KEY",
+    "secrets_backend_list",
+    "initialize_secrets_backends",
+    "ensure_secrets_loaded",
 ]

@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.sdk.configuration import conf
 
 # Constants for resources (megabytes are the base unit)
 MB = 1
