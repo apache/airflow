@@ -17,12 +17,12 @@
 # under the License.
 set -euxo pipefail
 
-cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
+cd "$(dirname "${BASH_SOURCE[0]}")/../../"
 
 PYTHON_ARG=""
 
 PIP_VERSION="25.2"
-UV_VERSION="0.8.13"
+UV_VERSION="0.8.14"
 if [[ ${PYTHON_VERSION=} != "" ]]; then
     PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
 fi
@@ -32,4 +32,4 @@ python -m pip install "uv==${UV_VERSION}"
 uv tool uninstall apache-airflow-breeze >/dev/null 2>&1 || true
 # shellcheck disable=SC2086
 uv tool install ${PYTHON_ARG} --force --editable ./dev/breeze/
-echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
+echo '/home/runner/.local/bin' >>"${GITHUB_PATH}"
