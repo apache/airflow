@@ -331,7 +331,20 @@ export const PanelButtons = ({
                           <Select.Label>{translate("dag:panel.runType.label")}</Select.Label>
                           <Select.Control>
                             <Select.Trigger>
-                              <Select.ValueText />
+                              <Select.ValueText>
+                                {(runTypeFilter?.[0] ?? "all") === "all"
+                                  ? translate("dags:filters.allRunTypes")
+                                  : runTypeFilter?.[0] !== undefined && (
+                                      <Flex gap={1}>
+                                        <RunTypeIcon runType={runTypeFilter[0]} />
+                                        {translate(
+                                          dagRunTypeOptions.items.find(
+                                            (item) => item.value === runTypeFilter[0],
+                                          )?.label ?? "",
+                                        )}
+                                      </Flex>
+                                    )}
+                              </Select.ValueText>
                             </Select.Trigger>
                             <Select.IndicatorGroup>
                               <Select.Indicator />
