@@ -1587,19 +1587,22 @@ class DAG(TaskSDKDag, LoggingMixin):
             session=session,
         )
 
-        if self.deadline and isinstance(self.deadline.reference, DeadlineReference.TYPES.DAGRUN):
-            session.add(
-                Deadline(
-                    deadline_time=self.deadline.reference.evaluate_with(
-                        session=session,
-                        interval=self.deadline.interval,
-                        dag_id=self.dag_id,
-                        run_id=run_id,
-                    ),
-                    callback=self.deadline.callback,
-                    dagrun_id=orm_dagrun.id,
-                )
-            )
+        if self.deadline:
+            deadlines = self.deadline if isinstance(self.deadline, list) else [self.deadline]
+            for deadline in deadlines:
+                if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
+                    session.add(
+                        Deadline(
+                            deadline_time=deadline.reference.evaluate_with(
+                                session=session,
+                                interval=deadline.interval,
+                                dag_id=self.dag_id,
+                                run_id=run_id,
+                            ),
+                            callback=deadline.callback,
+                            dagrun_id=orm_dagrun.id,
+                        )
+                    )
 
         return orm_dagrun
 
@@ -2009,12 +2012,25 @@ class DagModel(Base):
     @property
     def deadline(self):
         """Get the deserialized deadline alert."""
-        return DeadlineAlert.deserialize_deadline_alert(self._deadline) if self._deadline else None
+        if self._deadline is None:
+            return None
+        if isinstance(self._deadline, list):
+            return [DeadlineAlert.deserialize_deadline_alert(item) for item in self._deadline]
+        return DeadlineAlert.deserialize_deadline_alert(self._deadline)
 
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
-        self._deadline = value if isinstance(value, dict) else value.serialize_deadline_alert()
+        if value is None:
+            self._deadline = None
+        elif isinstance(value, list):
+            self._deadline = [
+                item if isinstance(item, dict) else item.serialize_deadline_alert() for item in value
+            ]
+        elif isinstance(value, dict):
+            self._deadline = value
+        else:
+            self._deadline = value.serialize_deadline_alert()
 
     @property
     def timezone(self):
