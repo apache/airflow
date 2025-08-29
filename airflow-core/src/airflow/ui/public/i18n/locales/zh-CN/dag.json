@@ -5,6 +5,33 @@
     "reason": "原因",
     "title": "依赖 (Dependencies) 阻碍任务调度"
   },
+  "calendar": {
+    "daily": "每日",
+    "hourly": "每小时",
+    "legend": {
+      "less": "更少",
+      "more": "更多"
+    },
+    "navigation": {
+      "nextMonth": "下个月",
+      "nextYear": "下一年",
+      "previousMonth": "上个月",
+      "previousYear": "上一年"
+    },
+    "noData": "无数据",
+    "noRuns": "未执行",
+    "totalRuns": "总执行",
+    "week": "第 {{weekNumber}} 周",
+    "weekdays": {
+      "friday": "周五",
+      "monday": "周一",
+      "saturday": "周六",
+      "sunday": "周日",
+      "thursday": "周四",
+      "tuesday": "周二",
+      "wednesday": "周三"
+    }
+  },
   "code": {
     "bundleUrl": "套件包链接",
     "noCode": "找不到代码",
@@ -40,7 +67,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "跳跃: Shift+{{arrow}}",
     "navigation": "导航: {{arrow}}",
     "toggleGroup": "展开/收起分组: 空格键"
   },
@@ -66,8 +92,8 @@
     "buttons": {
       "options": "选项",
       "showGantt": "显示甘特图",
-      "showGraph": "显示图表",
-      "showGrid": "显示网格"
+      "showGraphShortcut": "显示图表（按 g）",
+      "showGridShortcut": "显示网格（按 g）"
     },
     "dagRuns": {
       "label": "DAG 执行次数"
@@ -102,6 +128,7 @@
     "assetEvents": "资源事件",
     "auditLog": "审计日志",
     "backfills": "回填",
+    "calendar": "日历",
     "code": "代码",
     "details": "详细信息",
     "logs": "日志",

@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "全部",
+      "pending": "待响应",
+      "received": "已响应"
+    }
+  },
   "requiredAction_one": "待响应的任务实例",
   "requiredAction_other": "待响应的任务实例",
   "requiredActionState": "待响应的任务实例状态",

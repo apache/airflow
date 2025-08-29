@@ -7,6 +7,7 @@
     "Providers": "Providers",
     "Variables": "变量"
   },
+  "allOperators": "全部操作器",
   "asset_one": "资源",
   "asset_other": "资源",
   "assetEvent_one": "资源事件",
@@ -25,7 +26,6 @@
   "dag_other": "DAGs",
   "dagDetails": {
     "catchup": "自动回填",
-    "concurrency": "并发数",
     "dagRunTimeout": "DAG 执行超时",
     "defaultArgs": "默认参数",
     "description": "描述",
@@ -181,6 +181,7 @@
     "failed": "失败",
     "no_status": "无状态",
     "none": "无状态",
+    "planned": "已计划",
     "queued": "排队中",
     "removed": "已移除",
     "restarting": "重启中",
