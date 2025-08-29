@@ -36,7 +36,7 @@ type Props = {
 
 const DeleteTaskInstancesButton = ({ clearSelections, dagId, dagRunId, deleteKeys }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { isPending, mutate } = useBulkDeleteTaskInstances({
+  const { deleteTaskInstances, isPending } = useBulkDeleteTaskInstances({
     dagId,
     dagRunId,
     onSuccessConfirm: () => {
@@ -54,47 +54,6 @@ const DeleteTaskInstancesButton = ({ clearSelections, dagId, dagRunId, deleteKey
   const title = translate("dags:runAndTaskActions.delete.dialog.title", { type });
   const warningText = translate("dags:runAndTaskActions.delete.dialog.warning", { type });
   const deleteButtonText = translate("dags:runAndTaskActions.delete.button", { type });
-
-  const handleDelete = () => {
-    if (dagId && dagRunId) {
-      mutate({
-        dagId,
-        dagRunId,
-        requestBody: {
-          actions: [
-            {
-              action: "delete",
-              entities: deleteKeys.map((ti) => ({ map_index: ti.map_index, task_id: ti.task_id })),
-            },
-          ],
-        },
-      });
-    } else {
-      // cross dag run
-      const groupedByDagRunTIs: Record<string, Array<TaskInstanceResponse>> = {};
-
-      deleteKeys.forEach((ti) => {
-        (groupedByDagRunTIs[ti.dag_run_id] ??= []).push(ti);
-      });
-
-      Object.entries(groupedByDagRunTIs).forEach(([groupDagRunId, groupTIs]) => {
-        if (dagId && groupDagRunId) {
-          mutate({
-            dagId,
-            dagRunId: groupDagRunId,
-            requestBody: {
-              actions: [
-                {
-                  action: "delete",
-                  entities: groupTIs.map((ti) => ({ map_index: ti.map_index, task_id: ti.task_id })),
-                },
-              ],
-            },
-          });
-        }
-      });
-    }
-  };
 
   const affectedTasks = {
     task_instances: deleteKeys,
@@ -125,7 +84,7 @@ const DeleteTaskInstancesButton = ({ clearSelections, dagId, dagRunId, deleteKey
               <Button onClick={onClose} variant="outline">
                 {translate("common:modal.cancel")}
               </Button>
-              <Button colorPalette="red" loading={isPending} onClick={handleDelete}>
+              <Button colorPalette="red" loading={isPending} onClick={() => deleteTaskInstances(deleteKeys)}>
                 <FiTrash2 style={{ marginRight: 8 }} />
                 {deleteButtonText}
               </Button>
