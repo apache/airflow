@@ -157,7 +157,33 @@ def _is_template(configuration_description: dict[str, dict[str, Any]], section: 
 
 def get_all_expansion_variables() -> dict[str, Any]:
     """Get all variables available for configuration expansion."""
-    return {k: v for d in [globals(), locals()] for k, v in d.items() if not k.startswith("_")}
+    # Use pathlib for cleaner path handling
+    current_file = pathlib.Path(__file__)
+    repo_root = current_file.parent.parent.parent.parent.parent.parent
+
+    # Set up dags folder for unit tests
+    _TEST_DAGS_FOLDER = repo_root / "airflow-core" / "tests" / "unit" / "dags"
+    if _TEST_DAGS_FOLDER.exists():
+        TEST_DAGS_FOLDER = str(_TEST_DAGS_FOLDER)
+    else:
+        TEST_DAGS_FOLDER = os.path.join(AIRFLOW_HOME, "dags")
+
+    # Set up plugins folder for unit tests
+    _TEST_PLUGINS_FOLDER = repo_root / "airflow-core" / "tests" / "unit" / "plugins"
+    if _TEST_PLUGINS_FOLDER.exists():
+        TEST_PLUGINS_FOLDER = str(_TEST_PLUGINS_FOLDER)
+    else:
+        TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
+
+    return {
+        "AIRFLOW_HOME": AIRFLOW_HOME,
+        "AIRFLOW_CONFIG": AIRFLOW_CONFIG,
+        "FERNET_KEY": FERNET_KEY,
+        "JWT_SECRET_KEY": JWT_SECRET_KEY,
+        "SECRET_KEY": SECRET_KEY,
+        "TEST_DAGS_FOLDER": TEST_DAGS_FOLDER,
+        "TEST_PLUGINS_FOLDER": TEST_PLUGINS_FOLDER,
+    }
 
 
 def create_default_config_parser(configuration_description: dict[str, dict[str, Any]]) -> ConfigParser:
@@ -2166,8 +2192,6 @@ def initialize_config() -> AirflowConfigParser:
     """
     config_templates_dir = find_config_templates_dir()
 
-    print("Config templates dir:", config_templates_dir)
-
     airflow_config_parser = AirflowConfigParser(config_templates_dir=config_templates_dir)
     if airflow_config_parser.getboolean("core", "unit_test_mode"):
         airflow_config_parser.load_test_config()
@@ -2227,7 +2251,7 @@ def initialize_secrets_backends(
 
 
 # TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
-def get_custom_secret_backend(self, worker_mode: bool = False):
+def get_custom_secret_backend(worker_mode: bool = False):
     """
     Get Secret Backend if defined in airflow.cfg.
 
@@ -2237,12 +2261,12 @@ def get_custom_secret_backend(self, worker_mode: bool = False):
     key = "secrets_backend" if worker_mode else "backend"
     kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
 
-    secrets_backend_cls = self.getimport(section=section, key=key)
+    secrets_backend_cls = conf.getimport(section=section, key=key)
 
     if not secrets_backend_cls:
         if worker_mode:
             # if we find no secrets backend for worker, return that of secrets backend
-            secrets_backend_cls = self.getimport(section="secrets", key="backend")
+            secrets_backend_cls = conf.getimport(section="secrets", key="backend")
             if not secrets_backend_cls:
                 return None
             # When falling back to secrets backend, use its kwargs
@@ -2252,7 +2276,7 @@ def get_custom_secret_backend(self, worker_mode: bool = False):
             return None
 
     try:
-        backend_kwargs = self.getjson(section=section, key=kwargs_key)
+        backend_kwargs = conf.getjson(section=section, key=kwargs_key)
         if not backend_kwargs:
             backend_kwargs = {}
         elif not isinstance(backend_kwargs, dict):
