@@ -22,7 +22,11 @@ import os
 from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
 
-from typing_extensions import NotRequired
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
+
 
 if TYPE_CHECKING:
     import jinja2
