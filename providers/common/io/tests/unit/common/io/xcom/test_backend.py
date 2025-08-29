@@ -24,11 +24,7 @@ import pytest
 import airflow.models.xcom
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.sdk import timezone
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
@@ -373,7 +369,26 @@ class TestXComObjectStorageBackend:
             ti_key=task_instance.key,
         )
 
-        assert value == {"key": "superlargevalue" * 100}
+        if AIRFLOW_V_3_0_PLUS:
+            # Airflow 3.x backend deserializes automatically
+            assert value == {"key": "superlargevalue" * 100}
+        else:
+            # Airflow 2.x returns a file URI (path to compressed object)
+            assert isinstance(value, str)
+            assert value.endswith(".gz") or value.endswith(".gzip")
+
+            # Manually load and deserialize
+            import gzip
+            import json
+            from pathlib import Path
+            from urllib.parse import urlparse
+
+            # Convert file:// URI -> actual file path
+            file_path = Path(urlparse(value).path)
+            with gzip.open(file_path, "rt", encoding="utf-8") as f:
+                decompressed = json.load(f)
+
+            assert decompressed == {"key": "superlargevalue" * 100}
 
     @pytest.mark.parametrize(
         "value, expected_value",
