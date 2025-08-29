@@ -25,6 +25,7 @@ import threading
 import time
 import traceback
 from collections import deque
+from enum import Enum
 from time import perf_counter
 from types import FrameType
 from typing import TYPE_CHECKING
@@ -41,6 +42,13 @@ logger = logging.getLogger(__name__)
 
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name=__name__)
+
+
+class Phase(str, Enum):
+    """Phase of stall detection."""
+
+    START = "start"
+    UPDATE = "update"
 
 
 @dataclasses.dataclass
@@ -200,11 +208,11 @@ class AsyncioStallMonitor:
                         ended_at_utc="",
                     )
                     self._last_report_perf = 0.0
-                    self._sample_and_log(now, phase="start")
+                    self._sample_and_log(now, phase=Phase.START)
 
                 # During stall: periodic updates
                 elif now - self._last_report_perf >= self.min_report_interval:
-                    self._sample_and_log(now, phase="update")
+                    self._sample_and_log(now, phase=Phase.UPDATE)
 
             else:
                 # No stall *or* stall ended: close & correlate if needed
@@ -224,7 +232,7 @@ class AsyncioStallMonitor:
         if self._incident:
             self._incident.samples.append(sample)
 
-        if phase == "start":
+        if phase == Phase.START:
             log.warning("Event loop stall detected (gap≥%.3fs). Captured loop stack.", self.threshold)
         else:
             log.warning(
