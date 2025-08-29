@@ -612,7 +612,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         @provide_session
         def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger:
             if trigger.task_instance:
-                dag_fileloc = DagModel.get_current(dag_id=trigger.task_instance.dag_id, session=session).fileloc
+                dag_fileloc = DagModel.get_current(
+                    dag_id=trigger.task_instance.dag_id, session=session
+                ).fileloc
 
                 log_path = render_log_fname(ti=trigger.task_instance)
 
@@ -653,7 +655,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             cancel_trigger_ids = self.running_triggers - requested_trigger_ids
             # Bulk-fetch new trigger records
             new_triggers = Trigger.bulk_fetch(new_trigger_ids, session=session)
-            trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations(session=session)
+            trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations(
+                session=session
+            )
             to_create: list[workloads.RunTrigger] = []
             # Add in new triggers
             for new_id in new_trigger_ids:
@@ -668,7 +672,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # row was updated by either Trigger.submit_event or Trigger.submit_failure
                 # and can happen when a single trigger Job is being run on multiple TriggerRunners
                 # in a High-Availability setup.
-                if new_trigger_orm.task_instance is None and new_id not in trigger_ids_with_non_task_associations:
+                if (
+                    new_trigger_orm.task_instance is None
+                    and new_id not in trigger_ids_with_non_task_associations
+                ):
                     log.info(
                         (
                             "TaskInstance Trigger is None. It was likely updated by another trigger job. "
@@ -989,7 +996,9 @@ class TriggerRunner:
 
                             for start_trigger_arg in templated_start_trigger_args:
                                 rendered_start_trigger_arg = getattr(task, start_trigger_arg)
-                                self.log.debug("rendered %s: %s", start_trigger_arg, rendered_start_trigger_arg)
+                                self.log.debug(
+                                    "rendered %s: %s", start_trigger_arg, rendered_start_trigger_arg
+                                )
                                 deserialised_kwargs[start_trigger_arg] = rendered_start_trigger_arg
 
                     trigger_instance = trigger_class(**deserialised_kwargs)
