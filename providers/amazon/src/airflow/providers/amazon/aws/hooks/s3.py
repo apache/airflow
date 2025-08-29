@@ -28,7 +28,7 @@ import os
 import re
 import shutil
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -929,9 +929,9 @@ class S3Hook(AwsBaseHook):
         bucket_name: str | None = None,
         page_size: int | None = None,
         max_items: int | None = None,
-    ) -> list:
+    ) -> Iterator:
         """
-        List metadata objects in a bucket under prefix.
+        Yield metadata objects in a bucket under prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -940,7 +940,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param page_size: pagination size
         :param max_items: maximum items to return
-        :return: a list of metadata of objects
+        :return: an Iterator of metadata of objects
         """
         config = {
             "PageSize": page_size,
@@ -957,11 +957,10 @@ class S3Hook(AwsBaseHook):
             params["RequestPayer"] = "requester"
         response = paginator.paginate(**params)
 
-        files = []
+        # Rather than returning a list and loading all keys into memory, we'll iterate over the results
         for page in response:
             if "Contents" in page:
-                files += page["Contents"]
-        return files
+                yield from page["Contents"]
 
     @unify_bucket_name_and_key
     @provide_bucket_name
