@@ -534,6 +534,7 @@ repos:
         files: >
             (?x)
             ^airflow-ctl.*\.py$|
+            ^providers/fab.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
