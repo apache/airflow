@@ -184,8 +184,11 @@ def initialize_auth_manager() -> BaseAuthManager:
 
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
 # "~/airflow" and "$AIRFLOW_HOME/airflow.cfg" respectively as defaults.
-from airflow._shared.configuration import (  # noqa: E402
+from airflow._shared.configuration import (  # noqa: E402, F401
+    AIRFLOW_CONFIG,
     AIRFLOW_HOME,
+    FERNET_KEY,
+    JWT_SECRET_KEY,
     conf,
 )
 
