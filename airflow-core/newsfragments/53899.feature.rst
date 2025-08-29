@@ -8,12 +8,12 @@ SMTP email configuration is now more flexible and supports both legacy config an
 
 ```python
 send_email_task = EmailOperator(
-    conn_id='smtp_default',
-    task_id='send_report_by_email',
-    to=['user@example.com'],
-    subject='Report',
-    html_content='Here is your report.',
-    files=['/tmp/report.xlsx']
+    conn_id="smtp_default",
+    task_id="send_report_by_email",
+    to=["user@example.com"],
+    subject="Report",
+    html_content="Here is your report.",
+    files=["/tmp/report.xlsx"],
 )
 ```
 
