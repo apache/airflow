@@ -39,6 +39,7 @@ TEST_EXEC_CMD_INFO = {
     "error": "test_error",
 }
 TEST_COMPOSER_DAG_ID = "test_dag_id"
+TEST_COMPOSER_DAG_RUN_ID = "scheduled__2024-05-22T11:10:00+00:00"
 TEST_START_DATE = datetime(2024, 3, 22, 11, 0, 0)
 TEST_END_DATE = datetime(2024, 3, 22, 12, 0, 0)
 TEST_STATES = ["success"]
@@ -81,6 +82,7 @@ def dag_run_trigger(mock_conn):
         region=TEST_LOCATION,
         environment_id=TEST_ENVIRONMENT_ID,
         composer_dag_id=TEST_COMPOSER_DAG_ID,
+        composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
         start_date=TEST_START_DATE,
         end_date=TEST_END_DATE,
         allowed_states=TEST_STATES,
@@ -136,6 +138,7 @@ class TestCloudComposerDAGRunTrigger:
                 "region": TEST_LOCATION,
                 "environment_id": TEST_ENVIRONMENT_ID,
                 "composer_dag_id": TEST_COMPOSER_DAG_ID,
+                "composer_dag_run_id": TEST_COMPOSER_DAG_RUN_ID,
                 "start_date": TEST_START_DATE,
                 "end_date": TEST_END_DATE,
                 "allowed_states": TEST_STATES,
