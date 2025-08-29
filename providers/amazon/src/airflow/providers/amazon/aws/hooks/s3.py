@@ -957,7 +957,6 @@ class S3Hook(AwsBaseHook):
             params["RequestPayer"] = "requester"
         response = paginator.paginate(**params)
 
-        # Rather than returning a list and loading all keys into memory, we'll iterate over the results
         for page in response:
             if "Contents" in page:
                 yield from page["Contents"]
