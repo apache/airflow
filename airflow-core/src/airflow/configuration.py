@@ -144,6 +144,7 @@ from airflow._shared.configuration import (  # noqa: E402, F401
     FERNET_KEY,
     JWT_SECRET_KEY,
     conf,
+    ensure_secrets_loaded,
     secrets_backend_list,
 )
 
