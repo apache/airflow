@@ -29,15 +29,15 @@ type Props = {
   readonly pendingActions: Array<HITLDetail>;
 };
 
-export const PendingActionsBadge = ({ dagId, pendingActions }: Props) => {
-  const { t: translate } = useTranslation("dags");
+export const NeedsReviewBadge = ({ dagId, pendingActions }: Props) => {
+  const { t: translate } = useTranslation("hitl");
 
   if (pendingActions.length === 0) {
     return undefined;
   }
 
   return (
-    <Tooltip content={translate("pendingActionsBadge.tooltip", { count: pendingActions.length })}>
+    <Tooltip content={translate("tooltip_other", { count: pendingActions.length })}>
       <RouterLink to={`/dags/${dagId}/required_actions?response_received=false`}>
         <StateBadge colorPalette="deferred" fontSize="md" variant="solid">
           <LuUserRoundPen />

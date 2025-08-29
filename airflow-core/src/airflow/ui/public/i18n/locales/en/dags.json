@@ -29,9 +29,6 @@
     "triggeringUserNameFilter": "Search by Triggering User"
   },
   "ownerLink": "Owner link for {{owner}}",
-  "pendingActionsBadge": {
-    "tooltip": "{{count}} tasks need review"
-  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",
