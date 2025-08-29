@@ -59,7 +59,8 @@ if sys.platform == "win32":
 # very easily cause import cycles in the conf init/validate code (since downstream code from
 # those functions likely import settings).
 # configuration is therefore initted early here, simply by importing it.
-from airflow import configuration, settings
+from airflow import settings
+from airflow._shared import configuration
 
 __all__ = [
     "__version__",

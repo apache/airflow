@@ -2203,6 +2203,8 @@ def initialize_config() -> AirflowConfigParser:
     """
     config_templates_dir = find_config_templates_dir()
 
+    print("Config templates dir:", config_templates_dir)
+
     airflow_config_parser = AirflowConfigParser(config_templates_dir=config_templates_dir)
     if airflow_config_parser.getboolean("core", "unit_test_mode"):
         airflow_config_parser.load_test_config()
@@ -2218,7 +2220,9 @@ def initialize_config() -> AirflowConfigParser:
 
 def find_config_templates_dir() -> str:
     """Find the config_templates directory with existing config.yml."""
-    shared_dir = pathlib.Path(__file__).parent.parent.parent.parent.parent
+    # From shared/configuration/src/airflow_shared/configuration/parser.py
+    # Go up 6 levels: parser.py -> configuration -> airflow_shared -> src -> airflow_shared -> shared -> repo_root
+    shared_dir = pathlib.Path(__file__).parent.parent.parent.parent.parent.parent
     config_templates_dir = shared_dir / "airflow-core" / "src" / "airflow" / "config_templates"
 
     if config_templates_dir.exists():
@@ -2226,10 +2230,10 @@ def find_config_templates_dir() -> str:
     return ""
 
 
-config_templates_dir = find_config_templates_dir()
 AIRFLOW_HOME = expand_env_var(os.environ.get("AIRFLOW_HOME", "~/airflow"))
 AIRFLOW_CONFIG = os.environ.get("AIRFLOW_CONFIG") or os.path.join(AIRFLOW_HOME, "airflow.cfg")
 
+SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""
 JWT_SECRET_KEY = ""
 

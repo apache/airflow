@@ -18,19 +18,14 @@ from __future__ import annotations
 
 import logging
 import os
-import pathlib
 import re
-import stat
 import sys
 import warnings
-from base64 import b64encode
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 # Import shared configuration parser and utilities
 from airflow._shared.configuration import (
     AirflowConfigException,
-    AirflowConfigParser,
-    expand_env_var,
 )
 
 # Import private utility functions from parser module directly
@@ -82,170 +77,10 @@ class ConfigModifications:
         self.default_updates[(section, option)] = new_default
 
 
-def get_airflow_home() -> str:
-    """Get path to Airflow Home."""
-    return expand_env_var(os.environ.get("AIRFLOW_HOME", "~/airflow"))
-
-
-def get_airflow_config(airflow_home: str) -> str:
-    """Get Path to airflow.cfg path."""
-    airflow_config_var = os.environ.get("AIRFLOW_CONFIG")
-    if airflow_config_var is None:
-        return os.path.join(airflow_home, "airflow.cfg")
-    return expand_env_var(airflow_config_var)
-
-
-def get_all_expansion_variables() -> dict[str, Any]:
-    return {k: v for d in [globals(), locals()] for k, v in d.items() if not k.startswith("_")}
-
-
 def _generate_fernet_key() -> str:
     from cryptography.fernet import Fernet
 
     return Fernet.generate_key().decode()
-
-
-def retrieve_configuration_description(
-    include_airflow: bool = True,
-    include_providers: bool = True,
-    selected_provider: str | None = None,
-) -> dict[str, dict[str, Any]]:
-    import warnings
-
-    warnings.warn(
-        "Using `retrieve_configuration_description` from `airflow.configuration` is deprecated and will be removed in a future version. "
-        "Use `conf.retrieve_configuration_description` instead.",
-        category=DeprecationWarning,
-        stacklevel=1,
-    )
-
-    return conf.retrieve_configuration_description(
-        include_airflow=include_airflow,
-        include_providers=include_providers,
-        selected_provider=selected_provider,
-    )
-
-
-def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    global FERNET_KEY, JWT_SECRET_KEY
-    airflow_config = pathlib.Path(AIRFLOW_CONFIG)
-    if airflow_config.is_dir():
-        msg = (
-            "Airflow config expected to be a path to the configuration file, "
-            f"but got a directory {airflow_config.__fspath__()!r}."
-        )
-        raise IsADirectoryError(msg)
-    if not airflow_config.exists():
-        log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
-        config_directory = airflow_config.parent
-        if not config_directory.exists():
-            if not config_directory.is_relative_to(AIRFLOW_HOME):
-                msg = (
-                    f"Config directory {config_directory.__fspath__()!r} not exists "
-                    f"and it is not relative to AIRFLOW_HOME {AIRFLOW_HOME!r}. "
-                    "Please create this directory first."
-                )
-                raise FileNotFoundError(msg) from None
-            log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
-            config_directory.mkdir(parents=True, exist_ok=True)
-        if conf.get("core", "fernet_key", fallback=None) in (None, ""):
-            # We know that FERNET_KEY is not set, so we can generate it, set as global key
-            # and also write it to the config file so that same key will be used next time
-            FERNET_KEY = _generate_fernet_key()
-            conf.configuration_description["core"]["options"]["fernet_key"]["default"] = FERNET_KEY
-
-        JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
-        conf.configuration_description["api_auth"]["options"]["jwt_secret"]["default"] = JWT_SECRET_KEY
-        pathlib.Path(airflow_config.__fspath__()).touch()
-        make_group_other_inaccessible(airflow_config.__fspath__())
-        with open(airflow_config, "w") as file:
-            conf.write(
-                file,
-                include_sources=False,
-                include_env_vars=True,
-                include_providers=True,
-                extra_spacing=True,
-                only_defaults=True,
-            )
-    return conf
-
-
-def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigParser):
-    """
-    Load standard airflow configuration.
-
-    In case it finds that the configuration file is missing, it will create it and write the default
-    configuration values there, based on defaults passed, and will add the comments and examples
-    from the default configuration.
-
-    :param airflow_config_parser: parser to which the configuration will be loaded
-
-    """
-    global AIRFLOW_HOME
-    log.info("Reading the config from %s", AIRFLOW_CONFIG)
-    airflow_config_parser.read(AIRFLOW_CONFIG)
-    if airflow_config_parser.has_option("core", "AIRFLOW_HOME"):
-        msg = (
-            "Specifying both AIRFLOW_HOME environment variable and airflow_home "
-            "in the config file is deprecated. Please use only the AIRFLOW_HOME "
-            "environment variable and remove the config file entry."
-        )
-        if "AIRFLOW_HOME" in os.environ:
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
-        elif airflow_config_parser.get("core", "airflow_home") == AIRFLOW_HOME:
-            warnings.warn(
-                "Specifying airflow_home in the config file is deprecated. As you "
-                "have left it at the default value you should remove the setting "
-                "from your airflow.cfg and suffer no change in behaviour.",
-                category=DeprecationWarning,
-                stacklevel=1,
-            )
-        else:
-            # there
-            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
-
-
-def inject_core_parser_helpers():
-    import airflow._shared.configuration.parser as shared_parser
-
-    shared_parser.get_all_expansion_variables = get_all_expansion_variables
-
-
-def initialize_config() -> AirflowConfigParser:
-    """
-    Load the Airflow config files.
-
-    Called for you automatically as part of the Airflow boot process.
-    """
-    inject_core_parser_helpers()
-
-    # Get the path to core's config templates
-    config_templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
-
-    airflow_config_parser = AirflowConfigParser(config_templates_dir=config_templates_dir)
-    if airflow_config_parser.getboolean("core", "unit_test_mode"):
-        airflow_config_parser.load_test_config()
-    else:
-        load_standard_airflow_configuration(airflow_config_parser)
-        # If the user set unit_test_mode in the airflow.cfg, we still
-        # want to respect that and then load the default unit test configuration
-        # file on top of it.
-        if airflow_config_parser.getboolean("core", "unit_test_mode"):
-            airflow_config_parser.load_test_config()
-    return airflow_config_parser
-
-
-def make_group_other_inaccessible(file_path: str):
-    try:
-        permissions = os.stat(file_path)
-        os.chmod(file_path, permissions.st_mode & (stat.S_IRUSR | stat.S_IWUSR))
-    except Exception as e:
-        log.warning(
-            "Could not change permissions of config file to be group/other inaccessible. "
-            "Continuing with original permissions: %s",
-            e,
-        )
 
 
 def get_custom_secret_backend(worker_mode: bool = False):
@@ -349,8 +184,10 @@ def initialize_auth_manager() -> BaseAuthManager:
 
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
 # "~/airflow" and "$AIRFLOW_HOME/airflow.cfg" respectively as defaults.
-AIRFLOW_HOME = get_airflow_home()
-AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
+from airflow._shared.configuration import (  # noqa: E402
+    AIRFLOW_HOME,
+    conf,
+)
 
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
@@ -371,10 +208,5 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
 
-SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
-FERNET_KEY = ""  # Set only if needed when generating a new file
-JWT_SECRET_KEY = ""
-
-conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
 conf.validate()
