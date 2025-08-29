@@ -42,7 +42,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + 
 airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
 airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
 airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
-airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl # +@majorosdonat
+airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl @potiuk # +@majorosdonat
 airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @0ne-stone
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
