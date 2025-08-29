@@ -189,7 +189,7 @@ def get_dags(
 
     recent_dag_runs = session.execute(recent_dag_runs_select)
 
-    # Fetch pending HITL actions for each DAG
+    # Fetch pending HITL actions for each Dag
     pending_actions_select = (
         select(
             HITLDetail,
@@ -205,8 +205,7 @@ def get_dags(
 
     # Group pending actions by dag_id
     pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
-    for row in pending_actions:
-        hitl_detail, dag_id = row
+    for hitl_detail, dag_id in pending_actions:
         pending_actions_by_dag_id[dag_id].append(hitl_detail)
 
     # aggregate rows by dag_id

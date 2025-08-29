@@ -694,38 +694,30 @@ QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDep
 class _PendingActionsFilter(BaseParam[bool]):
     """Filter Dags by having pending HITL actions (more than 1)."""
 
-    def to_orm(self, select_stmt: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
-            return select_stmt
+            return select
+
+        from airflow.models.hitl import HITLDetail
+        from airflow.models.taskinstance import TaskInstance
+
+        # Join with HITLDetail and TaskInstance to find Dags
+        pending_actions_count_subquery = (
+            sql_select(func.count(HITLDetail.ti_id))
+            .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .where(HITLDetail.response_at.is_(None))
+            .where(TaskInstance.dag_id == DagModel.dag_id)
+            .scalar_subquery()
+        )
 
         if self.value:
-            # Join with HITLDetail and TaskInstance to find Dags with more than 1 pending actions
-            from airflow.models.hitl import HITLDetail
-            from airflow.models.taskinstance import TaskInstance
-
-            pending_actions_count_subquery = (
-                sql_select(func.count(HITLDetail.ti_id))
-                .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-                .where(HITLDetail.response_at.is_(None))
-                .where(TaskInstance.dag_id == DagModel.dag_id)
-                .scalar_subquery()
-            )
-            select_stmt = select_stmt.where(pending_actions_count_subquery > 1)
+            #  with more than 1 pending actions
+            where_clause = pending_actions_count_subquery > 1
         else:
             # Filter to show only Dags with 1 or fewer pending actions
-            from airflow.models.hitl import HITLDetail
-            from airflow.models.taskinstance import TaskInstance
+            where_clause = pending_actions_count_subquery <= 1
 
-            pending_actions_count_subquery = (
-                sql_select(func.count(HITLDetail.ti_id))
-                .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-                .where(HITLDetail.response_at.is_(None))
-                .where(TaskInstance.dag_id == DagModel.dag_id)
-                .scalar_subquery()
-            )
-            select_stmt = select_stmt.where(pending_actions_count_subquery <= 1)
-
-        return select_stmt
+        return select.where(where_clause)
 
     @classmethod
     def depends(cls, has_pending_actions: bool | None = Query(None)) -> _PendingActionsFilter:
