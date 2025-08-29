@@ -23,7 +23,7 @@ from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
 
 try:
-    from typing import NotRequired
+    from typing import NotRequired  # type: ignore[attr-defined]
 except ImportError:
     from typing_extensions import NotRequired
 
