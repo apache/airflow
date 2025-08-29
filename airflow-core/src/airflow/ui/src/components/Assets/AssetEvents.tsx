@@ -19,7 +19,6 @@
 import { Box, Heading, Flex, HStack, Skeleton, Separator, Text, VStack } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
@@ -28,12 +27,12 @@ import { DateTimeInput } from "src/components/DateTimeInput";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFilterSearchParams } from "src/utils/useFilterSearchParams";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
 import { SearchBar } from "../SearchBar";
 import { AssetEvent } from "./AssetEvent";
+import { useSearchParamFilters } from "./utils/useSearchParamFilters";
 
 const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
   card: ({ row }) => <AssetEvent assetId={assetId} event={row} />,
@@ -69,48 +68,8 @@ export const AssetEvents = ({
       { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
-  const runTypes = ["", "asset_triggered", "backfill", "manual", "scheduled"];
-  const runTypeOptions = createListCollection({
-    items: runTypes.map((type) => ({
-      label: type === "" ? translate(`common:expression.all`) : translate(`common:runTypes.${type}`),
-      value: type,
-    })),
-  });
-  const { DAG_ID_PATTERN, END_DATE, RUN_TYPE, START_DATE, TASK_ID_PATTERN } = SearchParamsKeys;
-  const { dagIdPattern, endDate, handleFilterChange, runType, startDate, taskIdPattern } =
-    useFilterSearchParams();
-  const filteredData = useMemo(() => {
-    if (!data) {
-      return {
-        asset_events: [],
-        total_entries: 0,
-      };
-    }
-    const filteredAssetEvents = data.asset_events.filter((event) => {
-      if (startDate !== "" && new Date(startDate) > new Date(event.timestamp)) {
-        return false;
-      }
-      if (endDate !== "" && new Date(endDate) < new Date(event.timestamp)) {
-        return false;
-      }
-      if (dagIdPattern !== "" && !event.source_dag_id?.includes(dagIdPattern)) {
-        return false;
-      }
-      if (taskIdPattern !== "" && !event.source_task_id?.includes(taskIdPattern)) {
-        return false;
-      }
-      if (runType !== "" && !event.source_run_id?.startsWith(`${runType}__`)) {
-        return false;
-      }
-
-      return true;
-    });
-
-    return {
-      asset_events: filteredAssetEvents,
-      total_entries: filteredAssetEvents.length,
-    };
-  }, [data, startDate, endDate, dagIdPattern, taskIdPattern, runType]);
+  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
+  const { dagId, endDate, handleFilterChange, startDate, taskId } = useSearchParamFilters();
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
@@ -167,43 +126,22 @@ export const AssetEvents = ({
           <Box w="200px">
             <Text fontSize="xs">{translate("common:filters.dagDisplayNamePlaceholder")}</Text>
             <SearchBar
-              defaultValue={dagIdPattern}
+              defaultValue={dagId}
               hideAdvanced
               hotkeyDisabled={true}
-              onChange={handleFilterChange(DAG_ID_PATTERN)}
+              onChange={handleFilterChange(DAG_ID)}
               placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
             />
           </Box>
           <Box w="200px">
             <Text fontSize="xs">{translate("common:filters.taskIdPlaceholder")}</Text>
             <SearchBar
-              defaultValue={taskIdPattern}
+              defaultValue={taskId}
               hideAdvanced
               hotkeyDisabled={true}
-              onChange={handleFilterChange(TASK_ID_PATTERN)}
+              onChange={handleFilterChange(TASK_ID)}
               placeHolder={translate("common:filters.taskIdPlaceholder")}
             />
-          </Box>
-          <Box w="200px">
-            <Text fontSize="xs">{translate("common:dagRun.runType")}</Text>
-            <Select.Root
-              borderWidth={0}
-              collection={runTypeOptions}
-              defaultValue={[runType]}
-              onValueChange={(option) => handleFilterChange(RUN_TYPE)(option.value[0] as string)}
-            >
-              <Select.Trigger>
-                <Select.ValueText />
-              </Select.Trigger>
-
-              <Select.Content>
-                {runTypeOptions.items.map((option) => (
-                  <Select.Item item={option} key={option.value[0]}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
           </Box>
         </HStack>
       </VStack>
@@ -211,7 +149,7 @@ export const AssetEvents = ({
       <DataTable
         cardDef={cardDef(assetId)}
         columns={[]}
-        data={filteredData.asset_events}
+        data={data?.asset_events ?? []}
         displayMode="card"
         initialState={tableUrlState}
         isLoading={isLoading}
@@ -219,7 +157,7 @@ export const AssetEvents = ({
         noRowsMessage={translate("noAssetEvents")}
         onStateChange={setTableUrlState}
         skeletonCount={5}
-        total={filteredData.total_entries}
+        total={data?.total_entries}
       />
     </Box>
   );

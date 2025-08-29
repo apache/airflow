@@ -21,15 +21,14 @@ import { useSearchParams } from "react-router-dom";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-export const useFilterSearchParams = () => {
+export const useSearchParamFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { DAG_ID_PATTERN, END_DATE, RUN_TYPE, START_DATE, TASK_ID_PATTERN } = SearchParamsKeys;
+  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
 
   const startDate = searchParams.get(START_DATE) ?? "";
   const endDate = searchParams.get(END_DATE) ?? "";
-  const dagIdPattern = searchParams.get(DAG_ID_PATTERN) ?? "";
-  const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? "";
-  const runType = searchParams.get(RUN_TYPE) ?? "";
+  const dagId = searchParams.get(DAG_ID) ?? "";
+  const taskId = searchParams.get(TASK_ID) ?? "";
 
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
@@ -44,11 +43,10 @@ export const useFilterSearchParams = () => {
   );
 
   return {
-    dagIdPattern,
+    dagId,
     endDate,
     handleFilterChange,
-    runType,
     startDate,
-    taskIdPattern,
+    taskId,
   };
 };
