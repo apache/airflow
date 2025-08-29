@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "Összes",
+      "pending": "Függőben",
+      "received": "Fogadva"
+    }
+  },
   "requiredAction_one": "Szükséges művelet",
   "requiredAction_other": "Szükséges műveletek",
   "requiredActionState": "Szükséges művelet állapota",

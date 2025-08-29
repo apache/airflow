@@ -5,6 +5,33 @@
     "reason": "Ok",
     "title": "Függőségek, amelyek blokkolják a feladat ütemezését"
   },
+  "calendar": {
+    "daily": "Napi",
+    "hourly": "Óránkénti",
+    "legend": {
+      "less": "Kevesebb",
+      "more": "Több"
+    },
+    "navigation": {
+      "nextMonth": "Következő hónap",
+      "nextYear": "Következő év",
+      "previousMonth": "Előző hónap",
+      "previousYear": "Előző év"
+    },
+    "noData": "Nincs elérhető adat",
+    "noRuns": "Nincs futás",
+    "totalRuns": "Összes futás",
+    "week": "Hét {{weekNumber}}",
+    "weekdays": {
+      "friday": "Péntek",
+      "monday": "Hétfő",
+      "saturday": "Szombat",
+      "sunday": "Vasárnap",
+      "thursday": "Csütörtök",
+      "tuesday": "Kedd",
+      "wednesday": "Szerda"
+    }
+  },
   "code": {
     "bundleUrl": "Csomag URL",
     "noCode": "Nem található kód",
@@ -40,7 +67,6 @@
     "warning": "FIGYELMEZTETÉS"
   },
   "navigation": {
-    "jump": "Ugrás: Shift+{{arrow}}",
     "navigation": "Navigáció: {{arrow}}",
     "toggleGroup": "Csoport váltása: Szóköz"
   },
@@ -65,8 +91,9 @@
   "panel": {
     "buttons": {
       "options": "Beállítások",
-      "showGraph": "Gráf megjelenítése",
-      "showGrid": "Rács megjelenítése"
+      "showGantt": "Gantt-diagram megjelenítése",
+      "showGraphShortcut": "Gráf megjelenítése (Press g)",
+      "showGridShortcut": "Rács megjelenítése (Press g)"
     },
     "dagRuns": {
       "label": "Dag futások száma"
@@ -101,6 +128,7 @@
     "assetEvents": "Adatkészlet események",
     "auditLog": "Audit napló",
     "backfills": "Backfill-ek",
+    "calendar": "Naptár",
     "code": "Kód",
     "details": "Részletek",
     "logs": "Naplók",

@@ -7,6 +7,7 @@
     "Providers": "Szolgáltatók",
     "Variables": "Változók"
   },
+  "allOperators": "Összes adatkészlet",
   "asset_one": "Adatkészlet",
   "asset_other": "Adatkészletek",
   "assetEvent_one": "Adatkészlet esemény",
@@ -22,10 +23,9 @@
   "createdAssetEvent_one": "Létrehozott adatkészlet esemény",
   "createdAssetEvent_other": "Létrehozott adatkészlet események",
   "dag_one": "Dag",
-  "dag_other": "Dagek",
+  "dag_other": "Dag-ek",
   "dagDetails": {
     "catchup": "Bepótlás",
-    "concurrency": "Párhuzamosság",
     "dagRunTimeout": "Dag futási időkorlát",
     "defaultArgs": "Alapértelmezett argumentumok",
     "description": "Leírás",
@@ -181,6 +181,7 @@
     "failed": "Sikertelen",
     "no_status": "Nincs állapot",
     "none": "Nincs állapot",
+    "planned": "Tervezett",
     "queued": "Sorban áll",
     "removed": "Eltávolítva",
     "restarting": "Újraindítás",
