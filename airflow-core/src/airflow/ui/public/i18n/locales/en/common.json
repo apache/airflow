@@ -26,9 +26,13 @@
     "xcoms": "XComs"
   },
   "bulkAction": {
-    "success": {
-      "description": "{{count}} {{type}} {{action}} successfully. Keys: {{keys}}",
-      "title": "{{action}} {{type}} Request Successful"
+    "delete": {
+      "taskInstance": {
+        "success": {
+          "description": "{{count}} task instances deleted successfully. Keys: {{keys}}",
+          "title": "Delete Task Instances Request Successful"
+        }
+      }
     }
   },
   "collapseAllExtra": "Collapse all extra json",
