@@ -64,6 +64,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     `run_type_filter-${dagId}`,
     null,
   );
+  const [triggeringUserFilter, setTriggeringUserFilter] = useLocalStorage<string | null>(
+    `triggering_user_filter-${dagId}`,
+    null,
+  );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
   const { fitView, getZoom } = useReactFlow();
@@ -133,13 +137,20 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 setLimit={setLimit}
                 setRunTypeFilter={setRunTypeFilter}
                 setShowGantt={setShowGantt}
+                setTriggeringUserFilter={setTriggeringUserFilter}
                 showGantt={showGantt}
+                triggeringUserFilter={triggeringUserFilter}
               />
               {dagView === "graph" ? (
                 <Graph />
               ) : (
                 <HStack gap={0}>
-                  <Grid limit={limit} runType={runTypeFilter} showGantt={Boolean(runId) && showGantt} />
+                  <Grid
+                    limit={limit}
+                    runType={runTypeFilter}
+                    showGantt={Boolean(runId) && showGantt}
+                    triggeringUser={triggeringUserFilter}
+                  />
                   {showGantt ? <Gantt limit={limit} /> : undefined}
                 </HStack>
               )}

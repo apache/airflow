@@ -22,7 +22,15 @@ import { useGridServiceGetGridRuns } from "openapi/queries";
 import type { DagRunType } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const useGridRuns = ({ limit, runType }: { limit: number; runType?: Array<DagRunType> | null }) => {
+export const useGridRuns = ({
+  limit,
+  runType,
+  triggeringUser,
+}: {
+  limit: number;
+  runType?: Array<DagRunType> | null;
+  triggeringUser?: string | null;
+}) => {
   const { dagId = "" } = useParams();
 
   const defaultRefetchInterval = useAutoRefresh({ dagId });
@@ -33,6 +41,7 @@ export const useGridRuns = ({ limit, runType }: { limit: number; runType?: Array
       limit,
       orderBy: ["-run_after"],
       runType: runType ?? undefined,
+      triggeringUser: triggeringUser ?? undefined,
     },
     undefined,
     {

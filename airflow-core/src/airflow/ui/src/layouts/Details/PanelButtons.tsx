@@ -30,6 +30,7 @@ import {
   VStack,
   Text,
   Box,
+  Input,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -60,7 +61,9 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<Array<DagRunType> | null>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | null>>;
   readonly showGantt: boolean;
+  readonly triggeringUserFilter: string | null;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -96,7 +99,9 @@ export const PanelButtons = ({
   setLimit,
   setRunTypeFilter,
   setShowGantt,
+  setTriggeringUserFilter,
   showGantt,
+  triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -137,6 +142,12 @@ export const PanelButtons = ({
     } else {
       setRunTypeFilter([val as DagRunType]);
     }
+  };
+
+  const handleTriggeringUserChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value.trim();
+
+    setTriggeringUserFilter(value === "" ? null : value);
   };
 
   const handleFocus = (view: string) => {
@@ -343,6 +354,17 @@ export const PanelButtons = ({
                             </Select.Content>
                           </Select.Positioner>
                         </Select.Root>
+                        <VStack alignItems="flex-start">
+                          <Text fontSize="xs" mb={1}>
+                            {translate("dag:panel.triggeringUser.label")}
+                          </Text>
+                          <Input
+                            onChange={handleTriggeringUserChange}
+                            placeholder={translate("dag:panel.triggeringUser.placeholder")}
+                            size="sm"
+                            value={triggeringUserFilter ?? ""}
+                          />
+                        </VStack>
                         {shouldShowToggleButtons ? (
                           <VStack alignItems="flex-start" px={1}>
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">

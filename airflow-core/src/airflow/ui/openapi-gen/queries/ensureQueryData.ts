@@ -1491,10 +1491,11 @@ export const ensureUseStructureServiceStructureDataData = (queryClient: QueryCli
 * @param data.runAfterLte
 * @param data.runAfterLt
 * @param data.runType
+* @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns GridNodeResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }: {
+export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -1504,7 +1505,8 @@ export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient
   runAfterLt?: string;
   runAfterLte?: string;
   runType?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }) });
+  triggeringUser?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }) });
 /**
 * Get Grid Runs
 * Get info about a run for the grid.
@@ -1518,10 +1520,11 @@ export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient
 * @param data.runAfterLte
 * @param data.runAfterLt
 * @param data.runType
+* @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns GridRunsResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }: {
+export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -1531,7 +1534,8 @@ export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { 
   runAfterLt?: string;
   runAfterLte?: string;
   runType?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType }) });
+  triggeringUser?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }) });
 /**
 * Get Grid Ti Summaries
 * Get states for TIs / "groups" of TIs.
