@@ -109,6 +109,9 @@
     },
     "graphDirection": {
       "label": "Graph Direction"
+    },
+    "runTypeFilter": {
+      "label": "Run Type Filter"
     }
   },
   "paramsFailed": "Failed to load params",

@@ -3868,6 +3868,7 @@ export class GridService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.runType
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -3885,7 +3886,8 @@ export class GridService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                run_type: data.runType
             },
             errors: {
                 400: 'Bad Request',
@@ -3907,6 +3909,7 @@ export class GridService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.runType
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -3924,7 +3927,8 @@ export class GridService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                run_type: data.runType
             },
             errors: {
                 400: 'Bad Request',

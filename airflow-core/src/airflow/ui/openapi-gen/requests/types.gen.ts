@@ -3138,6 +3138,7 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
 };
 
 export type GetDagStructureResponse = Array<GridNodeResponse>;
@@ -3151,6 +3152,7 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
 };
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
