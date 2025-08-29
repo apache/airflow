@@ -1302,7 +1302,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         self,
         *,
         table_name: str,
-        conn_id: str,
+        conn_id: str | None = None,
         schema: str | None = None,
         database: str | None = None,
         columns: Iterable[str] | None = None,
