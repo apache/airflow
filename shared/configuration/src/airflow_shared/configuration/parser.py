@@ -250,13 +250,16 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(
         self,
-        config_templates_dir: str,
+        config_templates_dir: str = "",
         default_config: str | None = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.config_templates_dir = config_templates_dir
+        if config_templates_dir:
+            self.config_templates_dir = config_templates_dir
+        else:
+            self.config_templates_dir = find_config_templates_dir()
         self.configuration_description = self.retrieve_configuration_description(include_providers=False)
         self.upgraded_values = {}
         # For those who would like to use a different data structure to keep defaults:
@@ -2026,7 +2029,7 @@ class AirflowConfigParser(ConfigParser):
     def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
         """Get Config option values from Secret Backend."""
         try:
-            secrets_client = self.get_custom_secret_backend()
+            secrets_client = get_custom_secret_backend()
             if not secrets_client:
                 return None
             return secrets_client.get_config(config_key)

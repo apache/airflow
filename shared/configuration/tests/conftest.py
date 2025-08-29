@@ -19,13 +19,8 @@ from __future__ import annotations
 import contextlib
 import os
 
-from airflow_shared.configuration import AirflowConfigParser
-
 os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
-
-pytest_plugins = "tests_common.pytest_plugin"
-
-conf: AirflowConfigParser = AirflowConfigParser(config_templates_dir="")
+os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 
 
 @contextlib.contextmanager
