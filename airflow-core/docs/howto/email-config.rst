@@ -141,12 +141,12 @@ Example:
     from airflow.operators.email import EmailOperator
 
     send_email_task = EmailOperator(
-        task_id='send_report_by_email',
-        conn_id='smtp_default',
-        to=['user@example.com'],
-        subject='Your Report',
-        html_content='Here is your report.',
-        files=['/tmp/report.xlsx']
+        task_id="send_report_by_email",
+        conn_id="smtp_default",
+        to=["user@example.com"],
+        subject="Your Report",
+        html_content="Here is your report.",
+        files=["/tmp/report.xlsx"],
     )
 
 Airflow will use the SMTP credentials and parameters defined in the ``smtp_default`` connection. If the ``conn_id`` is not provided, it will fall back to using the configuration in ``airflow.cfg``.
