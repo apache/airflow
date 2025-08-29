@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from .exceptions import AirflowConfigException
 from .parser import (
+    AIRFLOW_CONFIG,
+    AIRFLOW_HOME,
     ENV_VAR_PREFIX,
     AirflowConfigParser,
     ConfigModifications,
@@ -28,9 +30,14 @@ from .parser import (
     ConfigSectionSourcesType,
     ConfigSourcesType,
     ConfigType,
+    conf,
     expand_env_var,
     get_all_expansion_variables,
+    initialize_config,
+    load_standard_airflow_configuration,
+    make_group_other_inaccessible,
     run_command,
+    write_default_airflow_configuration_if_needed,
 )
 
 __all__ = [
@@ -45,4 +52,11 @@ __all__ = [
     "expand_env_var",
     "run_command",
     "get_all_expansion_variables",
+    "conf",
+    "initialize_config",
+    "load_standard_airflow_configuration",
+    "write_default_airflow_configuration_if_needed",
+    "make_group_other_inaccessible",
+    "AIRFLOW_HOME",
+    "AIRFLOW_CONFIG",
 ]
