@@ -57,16 +57,11 @@ export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }
         });
       } else if (Array.isArray(success) && success.length > 0) {
         toaster.create({
-          description: translate("bulkAction.success.description", {
-            action: translate("delete"),
+          description: translate("bulkAction.delete.taskInstance.success.description", {
             count: success.length,
             keys: success.join(", "),
-            type: translate("taskInstance", { count: success.length }),
           }),
-          title: translate("bulkAction.success.title", {
-            action: translate("delete"),
-            type: translate("taskInstance", { count: success.length }),
-          }),
+          title: translate("bulkAction.delete.taskInstance.success.title"),
           type: "success",
         });
         onSuccessConfirm();
