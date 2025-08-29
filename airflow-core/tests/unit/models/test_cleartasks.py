@@ -713,7 +713,6 @@ class TestClearTasks:
             bundle_version="v2",
         ) as dag:
             EmptyOperator(task_id="0")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="dag_maker", bundle_version="v2")
         new_dag_version = DagVersion.get_latest_version(dag.dag_id)
 
         assert old_dag_version.id != new_dag_version.id

@@ -64,19 +64,11 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk import (
-        DAG,
-        BaseOperator,
-        BaseOperatorLink,
-        Context,
-        StartTriggerArgs,
-        TaskGroup,
-        TriggerRule,
-        XComArg,
-    )
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule, XComArg
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
 
@@ -825,7 +817,7 @@ class MappedOperator(AbstractOperator):
 
         This method is for allowing mapped operator to start execution from triggerer.
         """
-        from airflow.sdk.bases.trigger import StartTriggerArgs
+        from airflow.triggers.base import StartTriggerArgs
 
         if not self.start_trigger_args:
             return None

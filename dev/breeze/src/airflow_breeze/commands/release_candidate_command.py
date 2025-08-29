@@ -583,11 +583,13 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     os.chdir(AIRFLOW_ROOT_PATH)
     airflow_repo_root = os.getcwd()
 
-    validate_remote_tracks_apache_airflow(remote_name)
-    validate_git_status()
-    validate_version_branches_exist(version_branch, remote_name)
-    validate_tag_does_not_exist(version, remote_name)
-    validate_tag_does_not_exist(f"task-sdk/{task_sdk_version}", remote_name)
+    if not get_dry_run():
+        console_print("[info]Skipping validations in dry-run mode")
+        validate_remote_tracks_apache_airflow(remote_name)
+        validate_git_status()
+        validate_version_branches_exist(version_branch, remote_name)
+        validate_tag_does_not_exist(version, remote_name)
+        validate_tag_does_not_exist(f"task-sdk/{task_sdk_version}", remote_name)
 
     # List the above variables and ask for confirmation
     console_print()
@@ -610,7 +612,8 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     #
     # # Tag & clean the repo
     # Validate we're on the correct branch before tagging
-    validate_on_correct_branch_for_tagging(version_branch)
+    if not get_dry_run():
+        validate_on_correct_branch_for_tagging(version_branch)
     git_tag(version, f"Apache Airflow {version}")
     git_tag(f"task-sdk/{task_sdk_version}", f"Airflow Task SDK {task_sdk_version}")
     git_clean()
