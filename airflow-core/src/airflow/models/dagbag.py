@@ -63,11 +63,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
-try:
-    from airflow.sdk.exceptions import AirflowDagCycleException
-except ImportError:
-    from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
-
 if TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -538,6 +533,11 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
+
+        try:
+            from airflow.sdk.exceptions import AirflowDagCycleException
+        except ImportError:
+            from airflow.exceptions import AirflowDagCycleException  # type: ignore[no-redef]
 
         try:
             prev_dag = self.dags.get(dag.dag_id)

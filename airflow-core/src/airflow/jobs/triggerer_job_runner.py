@@ -438,9 +438,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if isinstance(var, VariableResponse):
                 # TODO: call for help to figure out why this is needed
                 if var.value:
-                    from airflow.sdk.log import mask_secret
-
-                    mask_secret(var.value, var.key)
+                    try:
+                        from airflow.sdk.log import mask_secret
+                    except ImportError:
+                        # Fallback for older Airflow versions where the SDK secret masker
+                        # lived under `sdk.execution_time.secrets_masker`. Kept for
+                        # backward compatibility.
+                        from airflow.sdk.execution_time.secrets_masker import (
+                            mask_secret,  # type: ignore[attr-defined]
+                        )
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -509,9 +515,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
-            from airflow.sdk.log import mask_secret
+            try:
+                from airflow.sdk.log import mask_secret
 
-            mask_secret(msg.value, msg.name)
+                mask_secret(msg.value, msg.name)
+            except ImportError:
+                # SDK version doesn't have mask_secret (< 1.1.0), skip masking
+                pass
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

@@ -431,8 +431,15 @@ class DagFileProcessorProcess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-            from airflow.sdk.log import mask_secret
-
+            try:
+                from airflow.sdk.log import mask_secret
+            except ImportError:
+                # Fallback for older Airflow versions where the SDK secret masker
+                # lived under `sdk.execution_time.secrets_masker`. Kept for
+                # backward compatibility.
+                from airflow.sdk.execution_time.secrets_masker import (
+                    mask_secret,  # type: ignore[attr-defined]
+                )
             mask_secret(msg.value, msg.name)
         else:
             log.error("Unhandled request", msg=msg)
