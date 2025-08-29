@@ -618,9 +618,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
                 log_path = render_log_fname(ti=trigger.task_instance)
 
-                ser_ti = workloads.TaskInstance.model_validate(
-                    trigger.task_instance, from_attributes=True
-                )
+                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
 
                 # When producing logs from TIs, include the job id producing the logs to disambiguate it.
                 self.logger_cache[new_id] = TriggerLoggingFactory(
@@ -985,7 +983,9 @@ class TriggerRunner:
 
                     if task.start_trigger_args:
                         # Find intersection between start_trigger_args and template_fields
-                        templated_start_trigger_args = set(task.start_trigger_args.trigger_kwargs.keys()).intersection(set(task.template_fields or []))
+                        templated_start_trigger_args = set(
+                            task.start_trigger_args.trigger_kwargs.keys()
+                        ).intersection(set(task.template_fields or []))
 
                         self.log.debug("templated_start_trigger_args: %s", templated_start_trigger_args)
 
