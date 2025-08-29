@@ -830,7 +830,7 @@ class TriggerRunner:
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
     monitor_stall: bool = conf.getboolean("triggerer", "enable_stall_monitor")
-    stall_monitor_threshold: float = conf.getint("triggerer", "stall_monitor_threshold")
+    stall_monitor_threshold: float = conf.getfloat("triggerer", "stall_monitor_threshold")
 
     comms_decoder: TriggerCommsDecoder
 
