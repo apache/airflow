@@ -32,7 +32,7 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.version_compat import XCOM_RETURN_KEY, BaseOperator
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY, BaseOperator
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -109,6 +109,7 @@ class MSGraphAsyncOperator(BaseOperator):
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
 
+    start_from_trigger = AIRFLOW_V_3_1_PLUS
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -162,27 +163,55 @@ class MSGraphAsyncOperator(BaseOperator):
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
+        if self.start_from_trigger:
+            try:
+                from airflow.triggers.base import StartTriggerArgs
+
+                self.start_trigger_args = StartTriggerArgs(
+                    trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+                    trigger_kwargs=dict(
+                        url=self.url,
+                        response_type=self.response_type,
+                        path_parameters=self.path_parameters,
+                        url_template=self.url_template,
+                        method=self.method,
+                        query_parameters=self.query_parameters,
+                        headers=self.headers,
+                        data=self.data,
+                        conn_id=self.conn_id,
+                        timeout=self.timeout,
+                        proxies=self.proxies,
+                        scopes=self.scopes,
+                        api_version=self.api_version,
+                        serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+                    ),
+                    next_method=self.execute_complete.__name__,
+                )
+            except ImportError:
+                self.start_from_trigger = False
 
     def execute(self, context: Context) -> None:
-        self.defer(
-            trigger=MSGraphTrigger(
-                url=self.url,
-                response_type=self.response_type,
-                path_parameters=self.path_parameters,
-                url_template=self.url_template,
-                method=self.method,
-                query_parameters=self.query_parameters,
-                headers=self.headers,
-                data=self.data,
-                conn_id=self.conn_id,
-                timeout=self.timeout,
-                proxies=self.proxies,
-                scopes=self.scopes,
-                api_version=self.api_version,
-                serializer=type(self.serializer),
-            ),
-            method_name=self.execute_complete.__name__,
-        )
+        if not self.start_from_trigger:
+            self.defer(
+                trigger=MSGraphTrigger(
+                    url=self.url,
+                    response_type=self.response_type,
+                    path_parameters=self.path_parameters,
+                    url_template=self.url_template,
+                    method=self.method,
+                    query_parameters=self.query_parameters,
+                    headers=self.headers,
+                    data=self.data,
+                    conn_id=self.conn_id,
+                    timeout=self.timeout,
+                    proxies=self.proxies,
+                    scopes=self.scopes,
+                    api_version=self.api_version,
+                    serializer=type(self.serializer),
+                ),
+                method_name=self.execute_complete.__name__,
+            )
+        return
 
     def execute_complete(
         self,
@@ -228,14 +257,14 @@ class MSGraphAsyncOperator(BaseOperator):
                     self.trigger_next_link(
                         response=response, method_name=self.execute_complete.__name__, context=context
                     )
-                except TaskDeferred as exception:
+                except TaskDeferred as task_deferred:
                     self.append_result(
                         results=results,
                         result=result,
                         append_result_as_list_if_absent=True,
                     )
                     self.push_xcom(context=context, value=results)
-                    raise exception
+                    raise task_deferred
 
                 if not results:
                     return result
