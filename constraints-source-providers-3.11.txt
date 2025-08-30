@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-30T13:49:20.404783
+# This constraints file was automatically generated on 2025-08-30T07:44:54.192912
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -45,7 +45,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.10
 adal==1.2.7
-adlfs==2025.8.0
+adlfs==2024.12.0
 aenum==3.1.16
 aiobotocore==2.24.1
 aiofiles==24.1.0
@@ -640,13 +640,13 @@ tokenizers==0.22.0
 tomli_w==1.2.0
 tomlkit==0.13.3
 tornado==6.5.2
-towncrier==25.8.0
+towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
 trove-classifiers==2025.8.26.11
 twine==6.1.0
-typer==0.17.3
+typer==0.16.1
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250809
 types-PyMySQL==1.1.0.20250822
