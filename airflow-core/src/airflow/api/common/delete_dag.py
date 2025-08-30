@@ -88,34 +88,4 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
         .execution_options(synchronize_session="fetch")
     )
 
-    # Clean up DAG-specific permissions
-    _cleanup_dag_permissions(dag_id, session)
-
     return count
-
-
-def _cleanup_dag_permissions(dag_id: str, session: Session) -> None:
-    """
-    Clean up DAG-specific permissions from the auth manager.
-
-    This delegates the cleanup to the appropriate auth manager implementation.
-    """
-    try:
-        from airflow.api_fastapi.app import get_auth_manager
-
-        auth_manager = get_auth_manager()
-        if hasattr(auth_manager, "cleanup_dag_permissions"):
-            auth_manager.cleanup_dag_permissions(dag_id, session)
-            log.info("Successfully cleaned up DAG permissions for dag_id: %s", dag_id)
-        else:
-            log.debug(
-                "Auth manager %s does not support DAG permission cleanup, skipping",
-                type(auth_manager).__name__,
-            )
-    except Exception as e:
-        # If auth manager is not available or fails, silently skip cleanup
-        # This ensures DAG deletion continues even if permission cleanup fails
-        log.warning(
-            "Failed to clean up DAG permissions for dag_id %s: %s. DAG deletion will continue.", dag_id, e
-        )
-        pass
