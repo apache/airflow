@@ -260,7 +260,7 @@ class AirflowConfigParser(ConfigParser):
             self.config_templates_dir = config_templates_dir
         else:
             self.config_templates_dir = find_config_templates_dir()
-        self.configuration_description = self.retrieve_configuration_description(include_providers=False)
+        self.configuration_description = retrieve_configuration_description(include_providers=False)
         self.upgraded_values = {}
         # For those who would like to use a different data structure to keep defaults:
         # We have to keep the default values in a ConfigParser rather than in any other
@@ -2274,8 +2274,11 @@ def retrieve_configuration_description(
     from airflow.utils import yaml
 
     base_configuration_description: dict[str, dict[str, Any]] = {}
+
+    config_yaml_path = os.path.join(find_config_templates_dir(), "config.yml")
+
     if include_airflow:
-        with open(conf._get_config_file_path("config.yml")) as config_file:
+        with open(config_yaml_path) as config_file:
             base_configuration_description.update(yaml.safe_load(config_file))
     if include_providers:
         from airflow.providers_manager import ProvidersManager
