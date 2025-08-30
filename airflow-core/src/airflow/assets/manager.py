@@ -198,7 +198,9 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        cls.notify_asset_changed(asset=asset_model.to_public())
+        _asset = asset_model.to_public()
+        _asset.extra.update(extra or {})
+        cls.notify_asset_changed(asset=_asset)
 
         Stats.incr("asset.updates")
 
