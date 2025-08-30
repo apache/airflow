@@ -26,7 +26,7 @@ This section covers the fundamental concepts that Dag authors need to understand
 
 Terminology
 -----------
-- **Task**: a Python function (decorated with ``@task``) or Operator invocation representing a unit of work in a Dags.
+- **Task**: a Python function (decorated with ``@task``) or Operator invocation representing a unit of work in a Dag.
 - **Task Execution**: the runtime machinery that executes user tasks in isolated subprocesses, managed via the Supervisor and Execution API.
 
 Task Lifecycle
