@@ -18,11 +18,11 @@
 Backfill
 ========
 
-Backfill is when you create runs for past dates of a dag.  Airflow provides a mechanism
-to do this through the CLI and REST API.  You provide a dag, a start date, and an end date,
-and Airflow will create runs in the range according to the dag's schedule.
+Backfill is when you create runs for past dates of a Dag.  Airflow provides a mechanism
+to do this through the CLI and REST API.  You provide a Dag, a start date, and an end date,
+and Airflow will create runs in the range according to the Dag's schedule.
 
-Backfill does not make sense for dags that don't have a time-based schedule.
+Backfill does not make sense for Dags that don't have a time-based schedule.
 
 Control over data reprocessing
 ------------------------------
@@ -38,9 +38,9 @@ If the latest run is still running or is queued, we do not create another run, n
 Concurrency control
 -------------------
 
-You can set ``max_active_runs`` on a backfill and it will control how many dag runs in
+You can set ``max_active_runs`` on a backfill and it will control how many Dag runs in
 the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently
-the DAG ``max_active_runs`` setting.
+the Dag ``max_active_runs`` setting.
 
 Run ordering
 ------------
@@ -74,7 +74,7 @@ For CLI, below is an example command:
 
 For UI, follow the following steps:
 
-1. Navigate to a DAG's Details page and click **Trigger**.
+1. Navigate to a Dag's Details page and click **Trigger**.
 2. In the pop-up window, select **Backfill**.
 3. Fill in the form:
 
@@ -83,7 +83,7 @@ For UI, follow the following steps:
    - **Max active runs**: limit concurrent backfill runs for this backfill.
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
-   - If the DAG is paused, you can **Unpause** it in the same window.
+   - If the Dag is paused, you can **Unpause** it in the same window.
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)

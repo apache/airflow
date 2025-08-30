@@ -29,7 +29,7 @@ Asset Definitions
 What is an "Asset"?
 --------------------
 
-An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer dags.
+An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer Dags.
 
 `Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define assets:
 
@@ -147,7 +147,7 @@ Once an asset is defined, tasks can be created to emit events against it by spec
     with DAG(dag_id="example_asset", schedule="@daily"):
         PythonOperator(task_id="example_asset", outlets=[example_asset], python_callable=_write_example_asset)
 
-This is quite a lot of boilerplate. Airflow provides a shorthand for this simple but most common case of *creating a DAG with one single task that emits events of one asset*. The code block below is exactly equivalent to the one above:
+This is quite a lot of boilerplate. Airflow provides a shorthand for this simple but most common case of *creating a Dag with one single task that emits events of one asset*. The code block below is exactly equivalent to the one above:
 
 .. code-block:: python
 
@@ -222,7 +222,7 @@ Each value in the ``inlet_events`` mapping is a sequence-like object that orders
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------
 
-Since an ``@asset`` is simply a wrapper around a dag with a task and an asset, it is quite easy to read and ``@asset`` in a ``@task`` or a classic operator. For example, the above ``post_process_s3_file`` can also be written as a task (inside a dag, omitted here for brevity):
+Since an ``@asset`` is simply a wrapper around a Dag with a task and an asset, it is quite easy to read and ``@asset`` in a ``@task`` or a classic operator. For example, the above ``post_process_s3_file`` can also be written as a task (inside a Dag, omitted here for brevity):
 
 .. code-block:: python
 
@@ -300,7 +300,7 @@ The shorthand for this is ``@asset.multi``:
 
 Dynamic data events emitting and asset creation through AssetAlias
 -----------------------------------------------------------------------
-An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for DAG executions based on asset updates.
+An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for Dag executions based on asset updates.
 
 How to use AssetAlias
 ~~~~~~~~~~~~~~~~~~~~~~~
