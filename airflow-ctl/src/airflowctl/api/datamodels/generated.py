@@ -530,7 +530,7 @@ class HITLDetailResponse(BaseModel):
     Response of updating a Human-in-the-loop detail.
     """
 
-    user_id: Annotated[str, Field(title="User Id")]
+    responded_by: Annotated[str, Field(title="Responded By")]
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
@@ -1826,7 +1826,7 @@ class HITLDetail(BaseModel):
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
-    user_id: Annotated[str | None, Field(title="User Id")] = None
+    responded_by: Annotated[str | None, Field(title="Responded By")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
