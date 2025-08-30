@@ -30,6 +30,7 @@ import {
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
+import { PendingActionsButton } from "src/components/PendingActionsButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -75,6 +76,7 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
+      <PendingActionsButton dagId={dagId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}

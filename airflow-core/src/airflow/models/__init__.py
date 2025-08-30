@@ -68,6 +68,7 @@ def import_all_models():
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.models.team
     import airflow.models.xcom
 
 
@@ -111,6 +112,7 @@ __lazy_imports = {
     "SkipMixin": "airflow.models.skipmixin",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
+    "Team": "airflow.models.team",
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
     "XCom": "airflow.sdk.execution_time.xcom",

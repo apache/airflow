@@ -90,15 +90,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Tooltip content={translate("common:showDetailsPanel")}>
             <IconButton
               aria-label={translate("common:showDetailsPanel")}
-              bg="bg.surface"
-              borderRadius="full"
+              bg="fg.subtle"
+              borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
               boxShadow="md"
-              cursor="pointer"
-              left={direction === "rtl" ? 0 : undefined}
+              left={direction === "rtl" ? "-5px" : undefined}
               onClick={() => setIsRightPanelCollapsed(false)}
               position="absolute"
-              right={direction === "ltr" ? 0 : undefined}
-              size="sm"
+              right={direction === "ltr" ? "-5px" : undefined}
+              size="2xs"
               top="50%"
               zIndex={10}
             >
@@ -160,25 +159,31 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   justifyContent="center"
                   position="relative"
                   w={0.5}
-                >
+                  // onClick={(e) => console.log(e)}
+                />
+              </PanelResizeHandle>
+
+              {/* Collapse button positioned next to the resize handle */}
+
+              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Box display="flex" flexDirection="column" h="100%" position="relative">
                   <Tooltip content={translate("common:collapseDetailsPanel")}>
                     <IconButton
                       aria-label={translate("common:collapseDetailsPanel")}
-                      bg="bg.surface"
-                      borderRadius="full"
+                      bg="fg.subtle"
+                      borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
                       boxShadow="md"
-                      cursor="pointer"
+                      left={direction === "ltr" ? "-5px" : undefined}
                       onClick={() => setIsRightPanelCollapsed(true)}
-                      size="xs"
+                      position="absolute"
+                      right={direction === "rtl" ? "-5px" : undefined}
+                      size="2xs"
+                      top="50%"
                       zIndex={2}
                     >
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
                   </Tooltip>
-                </Box>
-              </PanelResizeHandle>
-              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
-                <Box display="flex" flexDirection="column" h="100%">
                   {children}
                   {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                     <>

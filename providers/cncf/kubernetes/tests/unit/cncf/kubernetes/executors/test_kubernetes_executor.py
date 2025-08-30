@@ -38,6 +38,8 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
+    KubernetesResults,
+    KubernetesWatch,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
     AirflowKubernetesScheduler,
@@ -374,6 +376,16 @@ class TestKubernetesExecutor:
                 State.FAILED,
                 id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry failed)",
             ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "the object has been modified; please apply your changes to the latest version and try again"}',
+                    status=409,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="409 conflict",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
@@ -682,7 +694,8 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=1)
             executor.running = {key}
-            executor._change_state(key, State.RUNNING, "pod_name", "default")
+            results = KubernetesResults(key, State.RUNNING, "pod_name", "default", "resource_version", None)
+            executor._change_state(results)
             assert executor.event_buffer[key][0] == State.RUNNING
             assert executor.running == {key}
         finally:
@@ -700,7 +713,8 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
             executor.running = {key}
-            executor._change_state(key, State.SUCCESS, "pod_name", "default")
+            results = KubernetesResults(key, State.SUCCESS, "pod_name", "default", "resource_version", None)
+            executor._change_state(results)
             assert executor.event_buffer[key][0] == State.SUCCESS
             assert executor.running == set()
             mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
@@ -725,7 +739,10 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=3)
             executor.running = {key}
-            executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
+            results = KubernetesResults(
+                key, State.FAILED, "pod_id", "test-namespace", "resource_version", None
+            )
+            executor._change_state(results)
             assert executor.event_buffer[key][0] == State.FAILED
             assert executor.running == set()
             mock_delete_pod.assert_not_called()
@@ -757,7 +774,8 @@ class TestKubernetesExecutor:
             ti = create_task_instance(state=ti_state)
             key = ti.key
             executor.running = {key}
-            executor._change_state(key, None, "pod_name", "default")
+            results = KubernetesResults(key, None, "pod_name", "default", "resource_version", None)
+            executor._change_state(results)
             assert executor.event_buffer[key][0] == ti_state
             assert executor.running == set()
             mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
@@ -776,7 +794,8 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
             executor.running = {key}
-            executor._change_state(key, ADOPTED, "pod_name", "default")
+            results = KubernetesResults(key, ADOPTED, "pod_name", "default", "resource_version", None)
+            executor._change_state(results)
             assert len(executor.event_buffer) == 0
             assert len(executor.running) == 0
             mock_delete_pod.assert_not_called()
@@ -792,7 +811,8 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=1)
             executor.running = set()
-            executor._change_state(key, State.SUCCESS, "pod_name", "default")
+            results = KubernetesResults(key, State.SUCCESS, "pod_name", "default", "resource_version", None)
+            executor._change_state(results)
             assert executor.event_buffer.get(key) is None
             assert executor.running == set()
         finally:
@@ -840,7 +860,10 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
             executor.running = {key}
-            executor._change_state(key, State.SUCCESS, "pod_name", "test-namespace")
+            results = KubernetesResults(
+                key, State.SUCCESS, "pod_name", "test-namespace", "resource_version", None
+            )
+            executor._change_state(results)
             assert executor.event_buffer[key][0] == State.SUCCESS
             assert executor.running == set()
             mock_delete_pod.assert_not_called()
@@ -866,7 +889,10 @@ class TestKubernetesExecutor:
         try:
             key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=2)
             executor.running = {key}
-            executor._change_state(key, State.FAILED, "pod_name", "test-namespace")
+            results = KubernetesResults(
+                key, State.FAILED, "pod_name", "test-namespace", "resource_version", None
+            )
+            executor._change_state(results)
             assert executor.event_buffer[key][0] == State.FAILED
             assert executor.running == set()
             mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="test-namespace")
@@ -1482,7 +1508,7 @@ class TestKubernetesJobWatcher:
 
     def assert_watcher_queue_called_once_with_state(self, state):
         self.watcher.watcher_queue.put.assert_called_once_with(
-            (
+            KubernetesWatch(
                 self.pod.metadata.name,
                 self.watcher.namespace,
                 state,
@@ -1719,7 +1745,7 @@ class TestKubernetesJobWatcher:
 
         self._run()
         self.watcher.watcher_queue.put.assert_called_once_with(
-            (
+            KubernetesWatch(
                 self.pod.metadata.name,
                 self.watcher.namespace,
                 ADOPTED,

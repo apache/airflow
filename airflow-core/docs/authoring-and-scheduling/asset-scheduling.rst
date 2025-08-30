@@ -182,12 +182,20 @@ Example:
 Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one asset given to the DAG, and the first of one AssetEvent for that asset. An implementation can be quite complex if you have multiple assets, potentially with multiple AssetEvents.
 
 
-Manipulating queued asset events through REST API
----------------------------------------------------
+Event-driven scheduling
+-------------------------
+
+Asset-based scheduling triggered by other DAGs (internal event-driven scheduling) does not cover all use cases.
+Often you also need to trigger DAGs from **external events** such as system signals, messages, or real-time data changes.
+Airflow supports two main approaches for external event-driven scheduling:
+
+Push-based scheduling (REST API)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. versionadded:: 2.9
 
-In this example, the DAG ``waiting_for_asset_1_and_2`` will be triggered when tasks update both assets "asset-1" and "asset-2". Once "asset-1" is updated, Airflow creates a record. This ensures that Airflow knows to trigger the DAG when "asset-2" is updated. We call such records queued asset events.
+External systems can **push asset events into Airflow** using the REST API.
+For example, the DAG ``waiting_for_asset_1_and_2`` will be triggered when tasks update both assets "asset-1" and "asset-2". Once "asset-1" is updated, Airflow creates a record. This ensures that Airflow knows to trigger the DAG when "asset-2" is updated. These records are called *queued asset events*.
 
 .. code-block:: python
 
@@ -199,7 +207,7 @@ In this example, the DAG ``waiting_for_asset_1_and_2`` will be triggered when ta
         ...
 
 
-``queuedEvent`` API endpoints are introduced to manipulate such records.
+``queuedEvent`` API endpoints are available to manipulate these records:
 
 * Get a queued asset event for a DAG: ``/assets/queuedEvent/{uri}``
 * Get queued asset events for a DAG: ``/dags/{dag_id}/assets/queuedEvent``
@@ -208,7 +216,19 @@ In this example, the DAG ``waiting_for_asset_1_and_2`` will be triggered when ta
 * Get queued asset events for an asset: ``/dags/{dag_id}/assets/queuedEvent/{uri}``
 * Delete queued asset events for an asset: ``DELETE /dags/{dag_id}/assets/queuedEvent/{uri}``
 
- For how to use REST API and the parameters needed for these endpoints, please refer to :doc:`Airflow API </stable-rest-api-ref>`.
+For details on usage and parameters, see :doc:`Airflow API </stable-rest-api-ref>`.
+
+Pull-based scheduling (Asset Watchers)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Instead of relying on external systems to push events, Airflow can **pull** from external event sources directly.
+This is done using ``AssetWatcher`` classes and triggers compatible with event-driven scheduling.
+
+* An ``AssetWatcher`` monitors an external source such as a queue or storage system.
+* When a relevant event occurs, it updates the corresponding asset and triggers DAG execution.
+* Only triggers that inherit from ``BaseEventTrigger`` are compatible, to avoid infinite rescheduling scenarios.
+
+For more details and examples, see :doc:`event-scheduling`.
 
 Advanced asset scheduling with conditional expressions
 --------------------------------------------------------

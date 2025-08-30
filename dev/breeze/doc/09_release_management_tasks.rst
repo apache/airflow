@@ -765,7 +765,7 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
   :alt: Breeze release-management prepare-task-sdk-distributions
 
 
-Preparing Airflow ctl distributions
+Preparing airflowctl distributions
 """""""""""""""""""""""""""""""""""
 
 You can prepare Airflow distributions using Breeze:
@@ -776,7 +776,7 @@ You can prepare Airflow distributions using Breeze:
 
 This prepares Airflow Task SDK .whl package in the dist folder.
 
-Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Airflow ctl distributions,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of the airflowctl distributions,
 default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
 .. code-block:: bash
