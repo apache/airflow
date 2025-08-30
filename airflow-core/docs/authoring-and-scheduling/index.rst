@@ -33,6 +33,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
     connections
     dynamic-task-mapping
     assets
+    ownership
 
 .. _scheduling-section:
 

@@ -686,7 +686,6 @@ This is especially useful if your tasks are built dynamically from configuration
     Here's a [url](www.airbnb.com)
     """
 
-
 Packaging dags
 --------------
 

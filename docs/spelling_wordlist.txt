@@ -244,6 +244,7 @@ celltags
 centric
 cfg
 cgi
+cgitb
 Cgroups
 cgroups
 cgroupspy
@@ -1967,6 +1968,7 @@ utilise
 Utils
 utils
 uuid
+uv
 V1JobList
 validator
 validators
