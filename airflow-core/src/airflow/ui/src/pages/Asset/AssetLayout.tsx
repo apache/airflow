@@ -25,6 +25,7 @@ import { useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { useSearchParamFilters } from "src/components/Assets/utils/useSearchParamFilters";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar } from "src/components/ui";
@@ -42,6 +43,7 @@ export const AssetLayout = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
+  const { dagId, endDate, startDate, taskId } = useSearchParamFilters();
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
@@ -65,6 +67,10 @@ export const AssetLayout = () => {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      sourceDagId: dagId || undefined,
+      sourceTaskId: taskId || undefined,
+      timestampGte: startDate || undefined,
+      timestampLte: endDate || undefined,
     },
     undefined,
     { enabled: Boolean(asset?.id) },
