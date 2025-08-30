@@ -92,8 +92,8 @@
     "buttons": {
       "options": "Opcions",
       "showGantt": "Mostrar Gantt",
-      "showGraph": "Mostrar gràfic (prem g)",
-      "showGrid": "Mostrar quadrícula (prem g)"
+      "showGraphShortcut": "Mostrar gràfic (prem g)",
+      "showGridShortcut": "Mostrar quadrícula (prem g)"
     },
     "dagRuns": {
       "label": "Nombre d'execucions de Dag"
