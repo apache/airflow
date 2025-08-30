@@ -104,19 +104,22 @@ class FakeElasticsearch(Elasticsearch):
                                 "file": {
                                     "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
                                     "dag_id=example_bash_operator'"
-                                    "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
+                                    "/run_id=run_run/task_id=run_after_loop/attempt=1.log"
                                 },
                                 "offset": 0,
                             },
                             "log.offset": 1688888863907337472,
-                            "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
+                            "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
                             "message": "Dependencies all met for "
                             "dep_context=non-requeueable deps "
                             "ti=<TaskInstance: "
-                            "example_bash_operator.run_after_loop "
-                            "owen_run_run [queued]>",
+                            "example_bash_operator.run_after_loop ",
                             "task_id": "run_after_loop",
                             "try_number": "1",
+                            "event": "Dependencies all met for "
+                            "dep_context=non-requeueable deps "
+                            "ti=<TaskInstance: "
+                            "example_bash_operator.run_after_loop ",
                         },
                         "_type": "_doc",
                     },
@@ -139,13 +142,14 @@ class FakeElasticsearch(Elasticsearch):
                                 "file": {
                                     "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
                                     "dag_id=example_bash_operator"
-                                    "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
+                                    "/run_id=run_run/task_id=run_after_loop/attempt=1.log"
                                 },
                                 "offset": 988,
                             },
                             "log.offset": 1688888863917961216,
-                            "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
+                            "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
                             "message": "Starting attempt 1 of 1",
+                            "event": "Starting attempt 1 of 1",
                             "task_id": "run_after_loop",
                             "try_number": "1",
                         },
@@ -170,17 +174,20 @@ class FakeElasticsearch(Elasticsearch):
                                 "file": {
                                     "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
                                     "dag_id=example_bash_operator"
-                                    "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
+                                    "/run_id=run_run/task_id=run_after_loop/attempt=1.log"
                                 },
                                 "offset": 1372,
                             },
                             "log.offset": 1688888863928218880,
-                            "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
+                            "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
                             "message": "Executing <Task(BashOperator): "
                             "run_after_loop> on 2023-07-09 "
                             "07:47:32+00:00",
                             "task_id": "run_after_loop",
                             "try_number": "1",
+                            "event": "Executing <Task(BashOperator): "
+                            "run_after_loop> on 2023-07-09 "
+                            "07:47:32+00:00",
                         },
                         "_type": "_doc",
                     },
@@ -479,7 +486,6 @@ class FakeElasticsearch(Elasticsearch):
         # TODO: support allow_no_indices query parameter
         matches = set()
         for target in targets:
-            print(f"Loop over:::target = {target}")
             if target in ("_all", ""):
                 matches.update(self.__documents_dict)
             elif "*" in target:
@@ -499,7 +505,6 @@ class FakeElasticsearch(Elasticsearch):
         else:
             # Is it the correct exception to use ?
             raise ValueError("Invalid param 'index'")
-
         generator = (target for index in searchable_indexes for target in index.split(","))
         return list(self._validate_search_targets(generator, query=query))
 
