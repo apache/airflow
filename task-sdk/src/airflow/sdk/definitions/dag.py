@@ -250,7 +250,7 @@ def _default_task_group(instance: DAG) -> TaskGroup:
 @attrs.define(repr=False, field_transformer=_all_after_dag_id_to_kw_only, slots=False)
 class DAG:
     """
-    A dag (directed acyclic graph) is a collection of tasks with directional dependencies.
+    A dag is a collection of tasks with directional dependencies.
 
     A dag also has a schedule, a start date and an end date (optional).  For each schedule,
     (say daily or hourly), the DAG needs to run each individual tasks as their dependencies

@@ -101,7 +101,7 @@ Dags are nothing without :doc:`tasks` to run, and those will usually come in the
 Task Dependencies
 ~~~~~~~~~~~~~~~~~
 
-A Task/Operator does not usually live alone; it has dependencies on other tasks (those *upstream* of it), and other tasks depend on it (those *downstream* of it). Declaring these dependencies between tasks is what makes up the Dag structure (the *edges* of the *directed acyclic graph*).
+A Task/Operator does not usually live alone; it has dependencies on other tasks (those *upstream* of it), and other tasks depend on it (those *downstream* of it). Declaring these dependencies between tasks is what makes up the Dag structure.
 
 There are two main ways to declare individual task dependencies. The recommended one is to use the ``>>`` and ``<<`` operators::
 
