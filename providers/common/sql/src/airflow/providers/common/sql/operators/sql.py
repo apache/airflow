@@ -1257,8 +1257,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
 class SQLInsertRowsOperator(BaseSQLOperator):
     """
-    Insert rows (e.g. a collection of tuples) into a database table directly from an XCom or Python data
-    structure.
+    Insert rows (e.g. a collection of tuples) into a database table directly from an XCom or Python data structure.
 
     :param table: the name of the table in which the rows will be inserted (templated).
     :param conn_id: the connection ID used to connect to the database
