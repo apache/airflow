@@ -171,7 +171,7 @@ Remote Debugging in IDE
 One of the possibilities (albeit only easy if you have a paid version of IntelliJ IDEs for example) with
 Breeze is an option to run remote debugging in your IDE graphical interface.
 
-When you run tests, airflow, example DAGs, even if you run them using unit tests, they are run in a separate
+When you run tests, airflow, example Dags, even if you run them using unit tests, they are run in a separate
 container. This makes it a little harder to use with IDE built-in debuggers.
 Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
 See additional details on

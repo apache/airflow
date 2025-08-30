@@ -42,7 +42,7 @@ includes:
   rendered correctly for various configuration parameters.
 
 * `System tests <testing/system_tests.rst>`__ are automatic tests that use external systems like
-  Google Cloud and AWS. These tests are intended for an end-to-end DAG execution.
+  Google Cloud and AWS. These tests are intended for an end-to-end Dag execution.
 
 You can also run other kinds of tests when you are developing airflow packages:
 
@@ -52,7 +52,7 @@ You can also run other kinds of tests when you are developing airflow packages:
 * `Python client tests <testing/python_client_tests.rst>`__ are tests we run to check if the Python API
   client works correctly.
 
-* `DAG testing <testing/dag_testing.rst>`__ is a document that describes how to test DAGs in a local environment
+* `Dag testing <testing/dag_testing.rst>`__ is a document that describes how to test Dags in a local environment
   with ``dag.test()``.
 
 ------
