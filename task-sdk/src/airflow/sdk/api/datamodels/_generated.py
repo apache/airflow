@@ -137,7 +137,7 @@ class DagRunState(str, Enum):
 
 class DagRunStateResponse(BaseModel):
     """
-    Schema for Dag Run State response.
+    Schema for DAG Run State response.
     """
 
     state: DagRunState
@@ -341,7 +341,7 @@ class TerminalStateNonSuccess(str, Enum):
 
 class TriggerDAGRunPayload(BaseModel):
     """
-    Schema for Trigger Dag Run API request.
+    Schema for Trigger DAG Run API request.
     """
 
     model_config = ConfigDict(
