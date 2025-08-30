@@ -30,6 +30,7 @@ import {
   VStack,
   Text,
   Box,
+  Input,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -40,10 +41,13 @@ import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
+import type { DagRunType } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
+import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { dagRunTypeOptions } from "src/constants/stateOptions";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
@@ -52,10 +56,14 @@ type Props = {
   readonly dagView: string;
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
+  readonly runTypeFilter: Array<DagRunType> | null;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+  readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<Array<DagRunType> | null>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | null>>;
   readonly showGantt: boolean;
+  readonly triggeringUserFilter: string | null;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -86,10 +94,14 @@ export const PanelButtons = ({
   dagView,
   limit,
   panelGroupRef,
+  runTypeFilter,
   setDagView,
   setLimit,
+  setRunTypeFilter,
   setShowGantt,
+  setTriggeringUserFilter,
   showGantt,
+  triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -120,6 +132,22 @@ export const PanelButtons = ({
     if (event.value[0] !== undefined) {
       setDirection(event.value[0] as Direction);
     }
+  };
+
+  const handleRunTypeChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
+    const [val] = event.value;
+
+    if (val === undefined || val === "all") {
+      setRunTypeFilter(null);
+    } else {
+      setRunTypeFilter([val as DagRunType]);
+    }
+  };
+
+  const handleTriggeringUserChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value.trim();
+
+    setTriggeringUserFilter(value === "" ? null : value);
   };
 
   const handleFocus = (view: string) => {
@@ -292,6 +320,64 @@ export const PanelButtons = ({
                             </Select.Content>
                           </Select.Positioner>
                         </Select.Root>
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={dagRunTypeOptions}
+                          data-testid="run-type-filter"
+                          onValueChange={handleRunTypeChange}
+                          size="sm"
+                          value={[runTypeFilter?.[0] ?? "all"]}
+                        >
+                          <Select.Label>{translate("common:dagRun.runType")}</Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText>
+                                {(runTypeFilter?.[0] ?? "all") === "all"
+                                  ? translate("dags:filters.allRunTypes")
+                                  : runTypeFilter?.[0] !== undefined && (
+                                      <Flex gap={1}>
+                                        <RunTypeIcon runType={runTypeFilter[0]} />
+                                        {translate(
+                                          dagRunTypeOptions.items.find(
+                                            (item) => item.value === runTypeFilter[0],
+                                          )?.label ?? "",
+                                        )}
+                                      </Flex>
+                                    )}
+                              </Select.ValueText>
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {dagRunTypeOptions.items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.value === "all" ? (
+                                    translate(option.label)
+                                  ) : (
+                                    <Flex gap={1}>
+                                      <RunTypeIcon runType={option.value as DagRunType} />
+                                      {translate(option.label)}
+                                    </Flex>
+                                  )}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                        <VStack alignItems="flex-start">
+                          <Text fontSize="xs" mb={1}>
+                            {translate("common:dagRun.triggeringUser")}
+                          </Text>
+                          <Input
+                            onChange={handleTriggeringUserChange}
+                            placeholder={translate("common:filters.triggeringUserPlaceholder")}
+                            size="sm"
+                            value={triggeringUserFilter ?? ""}
+                          />
+                        </VStack>
                         {shouldShowToggleButtons ? (
                           <VStack alignItems="flex-start" px={1}>
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
