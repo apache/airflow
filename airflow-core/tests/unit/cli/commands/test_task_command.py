@@ -174,8 +174,13 @@ class TestCliTasks:
         Output should be filtered by SecretsMasker.
         """
         # TODO: revisit during https://github.com/apache/airflow/issues/54658
-        from airflow.sdk.log import mask_secret
-
+        try:
+            from airflow.sdk.log import mask_secret
+        except ImportError:
+            # Fallback for older Airflow versions where the SDK secret masker
+            # lived under `sdk.execution_time.secrets_masker`. Kept for
+            # backward compatibility.
+            from airflow.sdk.execution_time.secrets_masker import mask_secret  # type: ignore[attr-defined]
         password = "somepassword1234!"
         mask_secret(password)
 
