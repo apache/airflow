@@ -137,7 +137,7 @@ class BaseExecutor(LoggingMixin):
 
         return generator
 
-    def __init__(self, parallelism: int = PARALLELISM, team_id: str | None = None):
+    def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -145,7 +145,7 @@ class BaseExecutor(LoggingMixin):
         get_signing_args()
 
         self.parallelism: int = parallelism
-        self.team_id: str | None = team_id
+        self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}

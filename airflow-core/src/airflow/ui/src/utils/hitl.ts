@@ -33,10 +33,51 @@ const getChosenOptionsValue = (hitlDetail: HITLDetail) => {
   return hitlDetail.multiple ? sourceValues : sourceValues?.[0];
 };
 
-export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction): ParamsSpec => {
-  const paramsDict: ParamsSpec = {};
+export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail: HITLDetail) => {
+  const preloadedHITLParams: Record<string, number | string> = Object.fromEntries(
+    [...searchParams.entries()]
+      .filter(([key]) => key !== "_options")
+      .map(([key, value]) => [key, isNaN(Number(value)) ? value : Number(value)]),
+  );
 
-  if (hitlDetail.options.length > 4 || hitlDetail.multiple) {
+  const options = searchParams.get("_options") ?? "";
+  let preloadedHITLOptions: Array<string> = [];
+
+  if (options) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(options)) as Array<string>;
+
+      preloadedHITLOptions = Array.isArray(decoded) ? decoded : [];
+    } catch {
+      preloadedHITLOptions = [];
+    }
+  }
+
+  // Filter the preloaded options to only include the options that are in the hitlDetail.options
+  const filteredPreloadedHITLOptions: Array<string> | string | undefined = preloadedHITLOptions.filter(
+    (option) => hitlDetail.options.includes(option),
+  );
+
+  return {
+    preloadedHITLOptions: filteredPreloadedHITLOptions,
+    preloadedHITLParams,
+  };
+};
+
+export const getHITLParamsDict = (
+  hitlDetail: HITLDetail,
+  translate: TFunction,
+  searchParams: URLSearchParams,
+): ParamsSpec => {
+  const paramsDict: ParamsSpec = {};
+  const { preloadedHITLOptions, preloadedHITLParams } = getPreloadHITLFormData(searchParams, hitlDetail);
+  const isApprovalTask =
+    hitlDetail.options.includes("Approve") &&
+    hitlDetail.options.includes("Reject") &&
+    hitlDetail.options.length === 2;
+  const shouldRenderOptionDropdown = preloadedHITLOptions.length > 0 && !isApprovalTask;
+
+  if (shouldRenderOptionDropdown || hitlDetail.options.length > 4 || hitlDetail.multiple) {
     paramsDict.chosen_options = {
       description: translate("hitl:response.optionsDescription"),
       schema: {
@@ -56,7 +97,10 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
         values_display: undefined,
       },
 
-      value: getChosenOptionsValue(hitlDetail),
+      // If the task is not multiple, we only show the first option
+      value:
+        getChosenOptionsValue(hitlDetail) ??
+        (hitlDetail.multiple ? preloadedHITLOptions : preloadedHITLOptions[0]),
     };
   }
 
@@ -84,7 +128,7 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
           type: valueType,
           values_display: undefined,
         },
-        value,
+        value: preloadedHITLParams[key] ?? value,
       };
     });
   }

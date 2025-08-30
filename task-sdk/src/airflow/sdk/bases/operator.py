@@ -89,7 +89,6 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
-    from airflow.sdk.bases.trigger import StartTriggerArgs
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.operator_resources import Resources
@@ -97,7 +96,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.typing_compat import Self
 
     TaskPreExecuteHook = Callable[[Context], None]
@@ -917,11 +916,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "wait_for_downstream",
         "priority_weight",
         "execution_timeout",
-        "on_execute_callback",
-        "on_failure_callback",
-        "on_success_callback",
-        "on_retry_callback",
-        "on_skipped_callback",
+        "has_on_execute_callback",
+        "has_on_failure_callback",
+        "has_on_success_callback",
+        "has_on_retry_callback",
+        "has_on_skipped_callback",
         "do_xcom_push",
         "multiple_outputs",
         "allow_nested_operators",
@@ -945,6 +944,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped: bool = False
+
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (
@@ -1477,6 +1479,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_failure_fail_dagrun",
                     "task_group",
                     "_task_type",
+                    "operator_extra_links",
+                    "on_execute_callback",
+                    "on_failure_callback",
+                    "on_success_callback",
+                    "on_retry_callback",
+                    "on_skipped_callback",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",
@@ -1496,6 +1504,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_needs_expansion",
                     "start_from_trigger",
                     "max_retry_delay",
+                    "has_on_execute_callback",
+                    "has_on_failure_callback",
+                    "has_on_success_callback",
+                    "has_on_retry_callback",
+                    "has_on_skipped_callback",
                 }
             )
             DagContext.pop()
@@ -1631,6 +1644,31 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             if content and isinstance(content, str):
                 self.log.info("Rendering template for %s", f)
                 self.log.info(content)
+
+    @property
+    def has_on_execute_callback(self) -> bool:
+        """Return True if the task has execute callbacks."""
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        """Return True if the task has failure callbacks."""
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        """Return True if the task has success callbacks."""
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        """Return True if the task has retry callbacks."""
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        """Return True if the task has skipped callbacks."""
+        return bool(self.on_skipped_callback)
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

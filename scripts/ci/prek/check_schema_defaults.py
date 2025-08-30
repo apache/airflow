@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,20 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "packaging>=25",
+# ]
+# ///
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_prek_utils import (
+    initialize_breeze_prek,
+    run_command_via_breeze_shell,
+    validate_cmd_result,
+)
 
-@dataclass
-class StartTriggerArgs:
-    """Arguments required for start task execution from triggerer."""
+initialize_breeze_prek(__name__, __file__)
 
-    trigger_cls: str
-    next_method: str
-    trigger_kwargs: dict[str, Any] | None = None
-    next_kwargs: dict[str, Any] | None = None
-    timeout: timedelta | None = None
+cmd_result = run_command_via_breeze_shell(
+    ["python3", "/opt/airflow/scripts/in_container/run_schema_defaults_check.py"],
+    backend="sqlite",
+    warn_image_upgrade_needed=True,
+)
+
+validate_cmd_result(cmd_result, include_ci_env_check=True)

@@ -377,7 +377,9 @@ class TestSalesforceHook:
         )
 
         mock_describe_object.assert_called_once_with(obj_name)
-        mock_data_frame.return_value.to_json.assert_called_once_with(filename, "records", date_unit="s")
+        mock_data_frame.return_value.to_json.assert_called_once_with(
+            filename, orient="records", date_unit="s"
+        )
         pd.testing.assert_frame_equal(
             data_frame, pd.DataFrame({"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]})
         )
@@ -396,7 +398,7 @@ class TestSalesforceHook:
         )
 
         mock_data_frame.return_value.to_json.assert_called_once_with(
-            filename, "records", lines=True, date_unit="s"
+            filename, orient="records", lines=True, date_unit="s"
         )
         pd.testing.assert_frame_equal(
             data_frame,

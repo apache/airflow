@@ -5,6 +5,33 @@
     "reason": "Grund",
     "title": "Abhängigkeiten die die Planung des Task blockieren"
   },
+  "calendar": {
+    "daily": "Täglich",
+    "hourly": "Stündlich",
+    "legend": {
+      "less": "Weniger",
+      "more": "Mehr"
+    },
+    "navigation": {
+      "nextMonth": "Nächster Monat",
+      "nextYear": "Nächstes Jahr",
+      "previousMonth": "Vorheriger Monat",
+      "previousYear": "Vorheriges Jahr"
+    },
+    "noData": "Keine Daten verfügbar",
+    "noRuns": "Keine Läufe",
+    "totalRuns": "Gesamtzahl der Läufe",
+    "week": "Kalenderwoche {{weekNumber}}",
+    "weekdays": {
+      "friday": "Freitag",
+      "monday": "Montag",
+      "saturday": "Samstag",
+      "sunday": "Sonntag",
+      "thursday": "Donnerstag",
+      "tuesday": "Dienstag",
+      "wednesday": "Mittwoch"
+    }
+  },
   "code": {
     "bundleUrl": "Bündel Url",
     "noCode": "Kein Programmcode gefunden",
@@ -65,8 +92,8 @@
     "buttons": {
       "options": "Optionen",
       "showGantt": "Gantt zeigen",
-      "showGraph": "Graph zeigen",
-      "showGrid": "Gitter zeigen"
+      "showGraphShortcut": "Graph zeigen (Taste g)",
+      "showGridShortcut": "Gitter zeigen (Taste g)"
     },
     "dagRuns": {
       "label": "Anzahl von Dag Läufen"
@@ -101,6 +128,7 @@
     "assetEvents": "Ereignisse zu Datensets (Asset)",
     "auditLog": "Prüf-Log",
     "backfills": "Auffüllungen",
+    "calendar": "Kalender",
     "code": "Programmcode",
     "details": "Details",
     "logs": "Protokolle",

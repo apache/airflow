@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.18.0
+  node: 22.19.0
   golang: 1.24.0
 minimum_prek_version: '0.1.3'
 exclude: ^.*/.*_vendor/
@@ -419,7 +419,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.12.8']
+        additional_dependencies: ['ruff==0.12.11']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -534,6 +534,7 @@ repos:
         files: >
             (?x)
             ^airflow-ctl.*\.py$|
+            ^providers/fab.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
@@ -1539,6 +1540,7 @@ repos:
           ^airflow-core/tests/unit/core/test_configuration\.py$|
           ^airflow-core/tests/unit/models/test_renderedtifields\.py$|
           ^airflow-core/tests/unit/models/test_variable\.py$
+
       - id: check-sdk-imports
         name: Check for SDK imports in core files
         entry: ./scripts/ci/prek/check_sdk_imports.py
@@ -1637,3 +1639,10 @@ repos:
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
+      - id: check-schema-defaults
+        name: Check schema defaults match server-side defaults
+        entry: ./scripts/ci/prek/check_schema_defaults.py
+        language: python
+        files: ^airflow-core/src/airflow/serialization/schema\.json$|^airflow-core/src/airflow/serialization/serialized_objects\.py$
+        pass_filenames: false
+        require_serial: true
