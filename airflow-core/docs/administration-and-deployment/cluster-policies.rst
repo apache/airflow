@@ -127,7 +127,7 @@ Examples
 --------
 
 Dag policies
-============
+~~~~~~~~~~~~
 
 This policy checks if each Dag has at least one tag defined:
 
