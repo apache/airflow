@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import logging
 
-from hatch.cli import self
-
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
