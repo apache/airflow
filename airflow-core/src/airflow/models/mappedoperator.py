@@ -77,7 +77,7 @@ def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
 )
 # TODO (GH-52141): Duplicate DAGNode in the scheduler.
 class MappedOperator(DAGNode):
-    """Object representing a mapped operator in a DAG."""
+    """Object representing a mapped operator in a Dag."""
 
     # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
     operator_class: dict[str, Any]
@@ -299,7 +299,7 @@ class MappedOperator(DAGNode):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Fields to extract from JSON-Serialized DAG."""
+        """Fields to extract from JSON-Serialized Dag."""
         return frozenset(
             {
                 "_disallow_kwargs_override",

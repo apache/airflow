@@ -187,7 +187,7 @@ class TriggerRuleDep(BaseTIDep):
                 return None
             return ti.get_relevant_upstream_map_indexes(
                 # TODO (GH-52141): task_dict in scheduler should contain
-                # scheduler types instead, but currently it inherits SDK's DAG.
+                # scheduler types instead, but currently it inherits SDK's Dag.
                 upstream=cast("MappedOperator | SerializedBaseOperator", ti.task.dag.task_dict[upstream_id]),
                 ti_count=expanded_ti_count,
                 session=session,

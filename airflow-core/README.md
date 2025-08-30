@@ -18,4 +18,4 @@
  -->
 
 This is a core airflow package that contains the functionality of Apache Airflow components:
-scheduler, API server, dag file processor and triggerer.
+scheduler, API server, Dag file processor and triggerer.

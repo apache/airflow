@@ -113,7 +113,7 @@ def dag_edges(dag: DAG):
     setup_teardown_edges = set()
 
     # TODO (GH-52141): 'roots' in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
+    # instead, but currently it inherits SDK's Dag.
     tasks_to_trace = cast("list[Operator]", dag.roots)
     while tasks_to_trace:
         tasks_to_trace_next: list[Operator] = []

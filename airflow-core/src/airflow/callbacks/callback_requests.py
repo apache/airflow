@@ -85,7 +85,7 @@ class DagRunContext(BaseModel):
 
 
 class DagCallbackRequest(BaseCallbackRequest):
-    """A Class with information about the success/failure DAG callback to be executed."""
+    """A Class with information about the success/failure Dag callback to be executed."""
 
     dag_id: str
     run_id: str

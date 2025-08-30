@@ -121,7 +121,7 @@ NonScopedSession: sessionmaker
 async_engine: AsyncEngine
 AsyncSession: Callable[..., SAAsyncSession]
 
-# The JSON library to use for DAG Serialization and De-Serialization
+# The JSON library to use for Dag Serialization and De-Serialization
 json = json
 
 # Display alerts on the dashboard
@@ -249,7 +249,7 @@ def configure_vars():
     # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
     # If the flag is set to False, we remove all handlers from the root logger
     # and add all handlers from 'airflow.task' logger to the root Logger. This is done
-    # to get all the logs from the print & log statements in the DAG files before a task is run
+    # to get all the logs from the print & log statements in the Dag files before a task is run
     # The handlers are restored after the task completes execution.
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
@@ -679,14 +679,14 @@ KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
 
-# Updating serialized DAG can not be faster than a minimum interval to reduce database
+# Updating serialized Dag can not be faster than a minimum interval to reduce database
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint("core", "min_serialized_dag_update_interval", fallback=30)
 
 # If set to True, serialized DAGs is compressed before writing to DB,
 COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
 
-# Fetching serialized DAG can not be faster than a minimum interval to reduce database
+# Fetching serialized Dag can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint("core", "min_serialized_dag_fetch_interval", fallback=10)
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG table in database."""
+"""Serialized Dag table in database."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ log = logging.getLogger(__name__)
 
 
 class _DagDependenciesResolver:
-    """Resolver that resolves dag dependencies to include asset id and assets link to asset aliases."""
+    """Resolver that resolves Dag dependencies to include asset id and assets link to asset aliases."""
 
     def __init__(self, dag_id_dependencies: Sequence[tuple[str, dict]], session: Session) -> None:
         self.dag_id_dependencies = dag_id_dependencies
@@ -550,7 +550,7 @@ class SerializedDagModel(Base):
 
     @property
     def dag(self) -> SerializedDAG:
-        """The DAG deserialized from the ``data`` column."""
+        """The Dag deserialized from the ``data`` column."""
         SerializedDAG._load_operator_extra_links = self.load_op_links
         if isinstance(self.data, dict):
             data = self.data

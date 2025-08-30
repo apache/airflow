@@ -22,7 +22,7 @@ from airflow.utils.session import provide_session
 
 
 class DagUnpausedDep(BaseTIDep):
-    """Determines whether a task's DAG is not paused."""
+    """Determines whether a task's Dag is not paused."""
 
     NAME = "Dag Not Paused"
     IGNORABLE = True

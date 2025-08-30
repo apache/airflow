@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG and BaseOperator."""
+"""Serialized Dag and BaseOperator."""
 
 # TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
 # ruff: noqa: RET505
@@ -1030,7 +1030,7 @@ class BaseSerialization:
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
-        """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
+        """Serialize Params dict for a Dag or task as a list of tuples to ensure ordering."""
         serialized_params = []
         for k, v in params.items():
             if isinstance(params, ParamsDict):
@@ -1049,7 +1049,7 @@ class BaseSerialization:
 
     @classmethod
     def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
-        """Deserialize a DAG's Params dict."""
+        """Deserialize a Dag's Params dict."""
         if isinstance(encoded_params, collections.abc.Mapping):
             # in 2.9.2 or earlier params were serialized as JSON objects
             encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
@@ -1193,7 +1193,7 @@ class DependencyDetector:
 
     @staticmethod
     def detect_dag_dependencies(dag: SdkDag | None) -> Iterable[DagDependency]:
-        """Detect dependencies set directly on the DAG object."""
+        """Detect dependencies set directly on the Dag object."""
         if not dag:
             return
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
@@ -1774,7 +1774,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @classmethod
     def detect_dependencies(cls, op: SdkOperator) -> set[DagDependency]:
-        """Detect between DAG dependencies for the operator."""
+        """Detect between Dag dependencies for the operator."""
         dependency_detector = DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
         return deps
@@ -2275,7 +2275,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def serialize_dag(cls, dag: SdkDag) -> dict:
-        """Serialize a DAG into a JSON object."""
+        """Serialize a Dag into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
@@ -2311,7 +2311,7 @@ class SerializedDAG(DAG, BaseSerialization):
     def deserialize_dag(
         cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
     ) -> SerializedDAG:
-        """Deserializes a DAG from a JSON object."""
+        """Deserializes a Dag from a JSON object."""
         if "dag_id" not in encoded_dag:
             raise RuntimeError(
                 "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
@@ -2558,7 +2558,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
-        """Deserializes a python dict in to the DAG and operators it contains."""
+        """Deserializes a python dict in to the Dag and operators it contains."""
         ver = serialized_obj.get("__version", "<not present>")
         if ver not in (1, 2):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")

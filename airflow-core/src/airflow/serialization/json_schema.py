@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""jsonschema for validating serialized DAG and operator."""
+"""jsonschema for validating serialized Dag and operator."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ class Validator(Protocol):
 
 
 def load_dag_schema_dict() -> dict:
-    """Load & return Json Schema for DAG as Python dict."""
+    """Load & return Json Schema for Dag as Python dict."""
     schema_file_name = "schema.json"
     schema_file = pkgutil.get_data(__name__, schema_file_name)
 
@@ -67,7 +67,7 @@ def load_dag_schema_dict() -> dict:
 
 
 def load_dag_schema() -> Validator:
-    """Load & Validate Json Schema for DAG."""
+    """Load & Validate Json Schema for Dag."""
     import jsonschema
 
     schema = load_dag_schema_dict()

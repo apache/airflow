@@ -101,7 +101,7 @@ class DepContext:
                     continue
                 with contextlib.suppress(TaskNotFound):
                     # TODO (GH-52141): get_task in scheduler should contain scheduler
-                    # types instead, but currently it inherits SDK's DAG.
+                    # types instead, but currently it inherits SDK's Dag.
                     ti.task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
             self.finished_tis = finished_tis
         else:

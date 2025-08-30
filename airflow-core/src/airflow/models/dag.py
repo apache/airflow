@@ -460,7 +460,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
-        """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
+        """Look for outdated Dag level actions in Dag access_controls and replace them with updated actions."""
         if access_control is None:
             return None
         updated_access_control = {}
@@ -707,7 +707,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
-        """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
+        """Return a boolean indicating whether the max_active_tasks limit for this Dag has been reached."""
         TI = TaskInstance
         total_tasks = session.scalar(
             select(func.count(TI.task_id)).where(
@@ -719,27 +719,27 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is active."""
+        """Return a boolean indicating whether this Dag is active."""
         return session.scalar(select(~DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_stale(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is stale."""
+        """Return a boolean indicating whether this Dag is stale."""
         return session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is paused."""
+        """Return a boolean indicating whether this Dag is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_bundle_name(self, session=NEW_SESSION) -> str | None:
-        """Return the bundle name this DAG is in."""
+        """Return the bundle name this Dag is in."""
         return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_bundle_version(self, session=NEW_SESSION) -> str | None:
-        """Return the bundle version that was seen when this dag was processed."""
+        """Return the bundle version that was seen when this Dag was processed."""
         return session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)
@@ -801,7 +801,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @provide_session
     def get_latest_logical_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
-        """Return the latest date for which at least one dag run exists."""
+        """Return the latest date for which at least one Dag run exists."""
         return session.scalar(select(func.max(DagRun.logical_date)).where(DagRun.dag_id == self.dag_id))
 
     @provide_session
@@ -1761,7 +1761,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     @classmethod
     def from_sdk_dag(cls, dag: TaskSDKDag) -> DAG:
-        """Create a new (Scheduler) DAG object from a TaskSDKDag."""
+        """Create a new (Scheduler) Dag object from a TaskSDKDag."""
         if not isinstance(dag, TaskSDKDag):
             return dag
 
@@ -1825,7 +1825,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
 
 class DagTag(Base):
-    """A tag name per dag, to allow quick filtering in the DAG view."""
+    """A tag name per Dag, to allow quick filtering in the Dag view."""
 
     __tablename__ = "dag_tag"
     name = Column(String(TAG_MAX_LEN), primary_key=True)
@@ -1870,7 +1870,7 @@ class DagOwnerAttributes(Base):
 
 
 class DagModel(Base):
-    """Table containing DAG properties."""
+    """Table containing Dag properties."""
 
     __tablename__ = "dag"
     """
@@ -2042,11 +2042,11 @@ class DagModel(Base):
         )
 
     def get_is_paused(self, *, session: Session | None = None) -> bool:
-        """Provide interface compatibility to 'DAG'."""
+        """Provide interface compatibility to 'Dag'."""
         return self.is_paused
 
     def get_is_active(self, *, session: Session | None = None) -> bool:
-        """Provide interface compatibility to 'DAG'."""
+        """Provide interface compatibility to 'Dag'."""
         return not self.is_stale
 
     @staticmethod

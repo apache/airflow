@@ -121,12 +121,12 @@ core:
       default: "32"
     max_active_tasks_per_dag:
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        The maximum number of task instances allowed to run concurrently in each Dag. To calculate
+        the number of tasks that is running concurrently for a Dag, add up the number of running
+        tasks for all Dag runs of the Dag. This is configurable at the Dag level with ``max_active_tasks``,
         which is defaulted as ``[core] max_active_tasks_per_dag``.
 
-        An example scenario when this would be useful is when you want to stop a new dag with an early
+        An example scenario when this would be useful is when you want to stop a new Dag with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
       type: integer
@@ -141,8 +141,8 @@ core:
       default: "True"
     max_active_runs_per_dag:
       description: |
-        The maximum number of active DAG runs per DAG. The scheduler will not create more DAG runs
-        if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
+        The maximum number of active Dag runs per Dag. The scheduler will not create more Dag runs
+        if it reaches the limit. This is configurable at the Dag level with ``max_active_runs``,
         which is defaulted as ``[core] max_active_runs_per_dag``.
       version_added: ~
       type: integer
@@ -150,8 +150,8 @@ core:
       default: "16"
     max_consecutive_failed_dag_runs_per_dag:
       description: |
-        (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
-        This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
+        (experimental) The maximum number of consecutive Dag failures before Dag is automatically paused.
+        This is also configurable per Dag level with ``max_consecutive_failed_dag_runs``,
         which is defaulted as ``[core] max_consecutive_failed_dag_runs_per_dag``.
         If not specified, then the value is considered as 0,
         meaning that the dags are never paused out by default.
@@ -173,7 +173,7 @@ core:
       example: "fork"
     load_examples:
       description: |
-        Whether to load the DAG examples that ship with Airflow. It's good to
+        Whether to load the Dag examples that ship with Airflow. It's good to
         get started, but you probably want to set this to ``False`` in a production
         environment
       version_added: ~
@@ -298,14 +298,14 @@ core:
         The pattern syntax used in the
         `.airflowignore
         <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#airflowignore>`__
-        files in the DAG directories. Valid values are ``regexp`` or ``glob``.
+        files in the Dag directories. Valid values are ``regexp`` or ``glob``.
       version_added: 2.3.0
       type: string
       example: ~
       default: "glob"
     default_task_retries:
       description: |
-        The number of retries each task is going to have by default. Can be overridden at dag or task level.
+        The number of retries each task is going to have by default. Can be overridden at Dag or task level.
       version_added: 1.10.6
       type: integer
       example: ~
@@ -313,7 +313,7 @@ core:
     default_task_retry_delay:
       description: |
         The number of seconds each task is going to wait by default between retries. Can be overridden at
-        dag or task level.
+        Dag or task level.
       version_added: 2.4.0
       type: integer
       example: ~
@@ -321,7 +321,7 @@ core:
     max_task_retry_delay:
       description: |
         The maximum delay (in seconds) each task is going to wait by default between retries.
-        This is a global setting and cannot be overridden at task or DAG level.
+        This is a global setting and cannot be overridden at task or Dag level.
       version_added: 2.6.0
       type: integer
       default: "86400"
@@ -352,7 +352,7 @@ core:
       default: ""
     min_serialized_dag_update_interval:
       description: |
-        Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
+        Updating serialized Dag can not be faster than a minimum interval to reduce database write rate.
       version_added: 1.10.7
       type: integer
       example: ~
@@ -363,7 +363,7 @@ core:
 
         .. note::
 
-            This will disable the DAG dependencies view
+            This will disable the Dag dependencies view
       version_added: 2.3.0
       type: boolean
       example: ~

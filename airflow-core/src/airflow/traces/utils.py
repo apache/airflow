@@ -60,7 +60,7 @@ def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> st
 
 
 def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
-    """Generate dag's root span id using dag_run."""
+    """Generate Dag's root span id using dag_run."""
     if dag_run.start_date is None:
         return NO_TRACE_ID
 

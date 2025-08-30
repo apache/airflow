@@ -266,7 +266,7 @@ def list_py_file_paths(
 
 
 def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
-    """Find file paths of all DAG files."""
+    """Find file paths of all Dag files."""
     file_paths = []
 
     for file_path in find_path_from_directory(directory, ".airflowignore"):

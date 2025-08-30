@@ -185,7 +185,7 @@ class Timetable(Protocol):
     """
 
     active_runs_limit: int | None = None
-    """Maximum active runs that can be active at one time for a DAG.
+    """Maximum active runs that can be active at one time for a Dag.
 
     This is called during DAG initialization, and the return value is used as
     the DAG's default ``max_active_runs``. This should generally return *None*,
@@ -194,7 +194,7 @@ class Timetable(Protocol):
     """
 
     asset_condition: BaseAsset = _NullAsset()
-    """The asset condition that triggers a DAG using this timetable.
+    """The asset condition that triggers a Dag using this timetable.
 
     If this is not *None*, this should be an asset, or a combination of, that
     controls the DAG's asset triggers.

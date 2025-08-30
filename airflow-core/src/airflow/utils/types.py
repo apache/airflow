@@ -62,8 +62,8 @@ class DagRunTriggeredByType(enum.Enum):
 
     CLI = "cli"  # for the trigger subcommand of the CLI: airflow dags trigger
     OPERATOR = "operator"  # for the TriggerDagRunOperator
-    REST_API = "rest_api"  # for triggering the DAG via RESTful API
-    UI = "ui"  # for clicking the `Trigger DAG` button
+    REST_API = "rest_api"  # for triggering the Dag via RESTful API
+    UI = "ui"  # for clicking the `Trigger Dag` button
     TEST = "test"  # for dag.test()
     TIMETABLE = "timetable"  # for timetable based triggering
     ASSET = "asset"  # for asset_triggered run type
