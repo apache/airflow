@@ -25,14 +25,11 @@ from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
     AddDagRunStateFieldAndPreviousEndpoint,
     AddIncludePriorDatesToGetXComSlice,
 )
-from airflow.api_fastapi.execution_api.versions.v2025_09_23 import (
-    AcceptNullXComSetValue,
-    AddDagVersionIdField,
-)
+from airflow.api_fastapi.execution_api.versions.v2025_09_23 import AddDagVersionIdField
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2025-09-23", AddDagVersionIdField, AcceptNullXComSetValue),
+    Version("2025-09-23", AddDagVersionIdField),
     Version(
         "2025-08-10",
         AddDagRunStateFieldAndPreviousEndpoint,
