@@ -63,7 +63,6 @@ RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
     "name": "airflowctl release commands",
     "commands": [
         "prepare-airflow-ctl-distributions",
-        "prepare-airflow-ctl-tarball",
     ],
 }
 
@@ -95,6 +94,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--version",
+                "--distribution-name",
             ],
         }
     ],
@@ -115,14 +115,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
-            ],
-        }
-    ],
-    "breeze release-management prepare-airflow-ctl-tarball": [
-        {
-            "name": "Package flags",
-            "options": [
-                "--version",
             ],
         }
     ],
