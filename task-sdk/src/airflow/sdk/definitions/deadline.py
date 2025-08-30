@@ -286,6 +286,7 @@ class DeadlineReference:
         DAGRUN_CREATED = (
             ReferenceModels.DagRunLogicalDateDeadline,
             ReferenceModels.FixedDatetimeDeadline,
+            ReferenceModels.AverageRuntimeDeadline,
         )
 
         # Deadlines that should be created when the DagRun is queued.
@@ -298,6 +299,7 @@ class DeadlineReference:
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
     DAGRUN_QUEUED_AT: DeadlineReferenceType = ReferenceModels.DagRunQueuedAtDeadline()
+    AVERAGE_RUNTIME: DeadlineReferenceType = ReferenceModels.AverageRuntimeDeadline()
 
     @classmethod
     def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:

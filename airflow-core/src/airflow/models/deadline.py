@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -365,6 +365,31 @@ class ReferenceModels:
             from airflow.models import DagRun
 
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
+
+    class AverageRuntimeDeadline(BaseDeadlineReference):
+        """A deadline that calculates the average runtime from past DAG runs."""
+
+        required_kwargs = {"dag_id"}
+
+        @provide_session
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
+            from airflow.models import DagRun
+
+            dag_id = kwargs["dag_id"]
+
+            # Query for completed DAG runs with both start and end dates
+            query = session.query(
+                func.avg(func.extract("epoch", DagRun.end_date - DagRun.start_date))
+            ).filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+
+            avg_seconds = query.scalar()
+            if avg_seconds is None:
+                logger.info("No completed DAG runs found for dag_id: %s, defaulting to 0 seconds", dag_id)
+                avg_seconds = 0
+            else:
+                logger.info("Average runtime for dag_id %s: %.2f seconds", dag_id, avg_seconds)
+
+            return timezone.utcnow() + timedelta(seconds=avg_seconds)
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
