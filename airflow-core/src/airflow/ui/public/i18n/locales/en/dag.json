@@ -84,6 +84,8 @@
       "assetEvent_other": "Created Asset Events"
     },
     "failedLogs": {
+      "hideLogs": "Hide Logs",
+      "showLogs": "Show Logs",
       "title": "Recent Failed Task Logs",
       "viewFullLogs": "View full logs"
     }
