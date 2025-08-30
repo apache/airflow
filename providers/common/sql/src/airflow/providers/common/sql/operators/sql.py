@@ -1307,7 +1307,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         database: str | None = None,
         columns: Iterable[str] | None = None,
         ignored_columns: Iterable[str] | None = None,
-        rows: list[Any] | XComArg = None,
+        rows: list[Any] | XComArg | None = None,
         rows_processor: Callable[[Any, Context], Any] = lambda rows, **context: rows,
         preoperator: str | list[str] | None = None,
         postoperator: str | list[str] | None = None,
