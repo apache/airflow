@@ -109,13 +109,6 @@
     },
     "graphDirection": {
       "label": "Graph Direction"
-    },
-    "runType": {
-      "label": "Run Type"
-    },
-    "triggeringUser": {
-      "label": "Triggering User Name",
-      "placeholder": "Enter user name to filter..."
     }
   },
   "paramsFailed": "Failed to load params",
