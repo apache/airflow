@@ -56,13 +56,12 @@ from airflow.exceptions import (
 )
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import AssetAlias, BaseHook, teardown
+from airflow.sdk import DAG, AssetAlias, BaseHook, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -156,6 +155,9 @@ serialized_simple_dag_ground_truth = {
             "downstream_task_ids": [],
         },
         "is_paused_upon_creation": False,
+        "max_active_runs": 16,
+        "max_active_tasks": 16,
+        "max_consecutive_failed_dag_runs": 0,
         "dag_id": "simple_dag",
         "deadline": None,
         "catchup": False,
@@ -256,7 +258,7 @@ serialized_simple_dag_ground_truth = {
                             ],
                         }
                     },
-                }
+                },
             },
         },
         "edge_info": {},
@@ -336,8 +338,14 @@ def make_user_defined_macro_filter_dag():
         (2) templates with function macros have been rendered before serialization.
     """
 
+    # TODO (GH-52141): Since the worker would not have access to the database in
+    # production anyway, we should rewrite this test to better match reality.
     def compute_last_dagrun(dag: DAG):
-        return dag.get_last_dagrun(include_manually_triggered=True)
+        from airflow.models.dag import get_last_dagrun
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            return get_last_dagrun(dag.dag_id, session=session, include_manually_triggered=True)
 
     default_args = {"start_date": datetime(2019, 7, 10)}
     dag = DAG(
@@ -661,7 +669,7 @@ class TestStringifiedDAGs:
         roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
 
-    def validate_deserialized_dag(self, serialized_dag: DAG, dag: DAG):
+    def validate_deserialized_dag(self, serialized_dag: SerializedDAG, dag: DAG):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
@@ -1347,6 +1355,7 @@ class TestStringifiedDAGs:
 
         # The parameters we add manually in Serialization need to be ignored
         ignored_keys: set = {
+            "_processor_dags_folder",
             "tasks",
             "has_on_success_callback",
             "has_on_failure_callback",
@@ -3026,6 +3035,9 @@ def test_handle_v1_serdag():
                 "downstream_task_ids": [],
             },
             "is_paused_upon_creation": False,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "_dag_id": "simple_dag",
             "deadline": None,
             "doc_md": "### DAG Tutorial Documentation",

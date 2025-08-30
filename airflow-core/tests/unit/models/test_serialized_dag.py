@@ -27,7 +27,7 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags as example_dags_module
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
-from airflow.models.dag import DAG as SchedulerDAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
@@ -44,6 +44,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -62,7 +63,7 @@ def make_example_dags(module):
     dagbag = DagBag(module.__path__[0])
 
     dags = [LazyDeserializedDAG(data=SerializedDAG.to_dict(dag)) for dag in dagbag.dags.values()]
-    SchedulerDAG.bulk_write_to_db("testing", None, dags)
+    SerializedDAG.bulk_write_to_db("testing", None, dags)
     return dagbag.dags
 
 
@@ -109,12 +110,12 @@ class TestSerializedDagModel:
 
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=my_callable)
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test1")
+
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda x: None)
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         assert len(session.query(DagVersion).all()) == 2
 
@@ -125,9 +126,9 @@ class TestSerializedDagModel:
                 pass
 
             my_callable()
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
+
         with dag_maker("dag2") as dag:
 
             @task_decorator
@@ -135,6 +136,7 @@ class TestSerializedDagModel:
                 pass
 
             my_callable2()
+
         SDM.write_dag(dag, bundle_name="testing")
 
         assert len(session.query(DagVersion).all()) == 4
@@ -146,8 +148,7 @@ class TestSerializedDagModel:
         dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
         assert dag_updated is True
 
-        # SchedulerDAG is created to create dagrun
-        dag = SchedulerDAG.from_sdk_dag(dag=example_bash_op_dag)
+        dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(example_bash_op_dag))
         dag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
@@ -299,26 +300,22 @@ class TestSerializedDagModel:
         # first dag
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun()
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         # second dag
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
 
         # Total serdags should be 4
         assert session.scalar(select(func.count()).select_from(SDM)) == 4
@@ -402,8 +399,7 @@ class TestSerializedDagModel:
             schedule=[Asset.ref(uri=asset_uri), Asset.ref(uri="test://no-such-asset/")],
         ) as dag:
             BashOperator(task_id="any", bash_command="sleep 5")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
 
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dependencies == {
@@ -448,8 +444,7 @@ class TestSerializedDagModel:
             schedule=[AssetAlias(name="alias_1"), AssetAlias(name="alias_2")],
         ) as dag:
             BashOperator(task_id="any", bash_command="sleep 5")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
 
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dependencies == {

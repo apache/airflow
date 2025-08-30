@@ -76,7 +76,6 @@ from airflow.serialization.serialized_objects import (
     SerializedDAG,
     create_scheduler_operator,
 )
-from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.state import DagRunState, State
@@ -598,90 +597,6 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
-
-
-@pytest.mark.db_test
-@pytest.mark.parametrize(
-    "create_dag_run_kwargs",
-    (
-        {},
-        {
-            "data_interval": None,
-            "logical_date": pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-        },
-        {"data_interval": None, "logical_date": None},
-    ),
-    ids=["post-AIP-39", "pre-AIP-39-should-infer", "pre-AIP-39"],
-)
-def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, session):
-    """Test whether LazyDeserializedDAG can correctly get dag run data_interval
-
-    post-AIP-39: the dag run itself contains both data_interval start and data_interval end, and thus can
-        be retrieved directly
-    pre-AIP-39-should-infer: the dag run itself has neither data_interval_start nor data_interval_end,
-        and thus needs to infer the data_interval from its timetable
-    pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
-        is none. it should return data_interval as none
-    """
-    with dag_maker(dag_id="test_dag", session=session, serialized=False) as dag:
-        BaseOperator(task_id="test_task")
-    session.commit()
-
-    dr = dag_maker.create_dagrun(**create_dag_run_kwargs)
-    ser_dict = SerializedDAG.to_dict(dag)
-    deser_dag = LazyDeserializedDAG(data=ser_dict)
-    if "logical_date" in create_dag_run_kwargs and create_dag_run_kwargs["logical_date"] is None:
-        data_interval = deser_dag.get_run_data_interval(dr)
-        assert data_interval is None
-    else:
-        data_interval = deser_dag.get_run_data_interval(dr)
-        assert data_interval == DataInterval(
-            start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
-            end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-        )
-
-
-def test_get_task_assets():
-    asset1 = Asset("1")
-    with DAG("testdag") as source_dag:
-        a = BashOperator(task_id="a", outlets=[asset1], bash_command="echo u")
-        b = BashOperator(task_id="b", inlets=[asset1], bash_command="echo v")
-        c = BashOperator.partial(task_id="c", inlets=[asset1]).expand(bash_command=["echo w", "echo x"])
-        d = BashOperator.partial(task_id="d", outlets=[asset1]).expand(bash_command=["echo y", "echo z"])
-        a >> b >> c >> d
-
-    deser_dag = LazyDeserializedDAG(data=SerializedDAG.to_dict(source_dag))
-    assert sorted(deser_dag.get_task_assets()) == [
-        ("a", asset1),
-        ("b", asset1),
-        ("c", asset1),
-        ("d", asset1),
-    ]
-
-
-def test_lazy_dag_run_interval_wrong_dag():
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
-
-    with pytest.raises(ValueError, match="different DAGs"):
-        lazy.get_run_data_interval(DAG_RUN)
-
-
-def test_lazy_dag_run_interval_missing_interval():
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
-
-    with pytest.raises(ValueError, match="Unsure how to deserialize version '<not present>'"):
-        lazy.get_run_data_interval(DAG_RUN)
-
-
-def test_lazy_dag_run_interval_success():
-    run = DAG_RUN
-    run.data_interval_start = datetime(2025, 1, 1)
-    run.data_interval_end = datetime(2025, 1, 2)
-
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
-    interval = lazy.get_run_data_interval(run)
-
-    assert isinstance(interval, DataInterval)
 
 
 def test_hash_property():
