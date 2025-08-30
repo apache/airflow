@@ -164,7 +164,7 @@ class BackfillDagRunExceptionReason(str, Enum):
 
 
 class BackfillDagRun(Base):
-    """Mapping table between backfill run and dag run."""
+    """Mapping table between backfill run and Dag run."""
 
     __tablename__ = "backfill_dag_run"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -404,7 +404,7 @@ def _get_info_list(
 
 
 def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal, run_on_latest=False):
-    """Clear the existing DAG run and update backfill metadata."""
+    """Clear the existing Dag run and update backfill metadata."""
     from sqlalchemy.sql import update
 
     from airflow.models import DagRun

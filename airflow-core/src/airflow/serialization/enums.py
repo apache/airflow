@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Enums for DAG serialization."""
+"""Enums for Dag serialization."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class Encoding(str, Enum):
 # Supported types for encoding. primitives and list are not encoded.
 @unique
 class DagAttributeTypes(str, Enum):
-    """Enum of supported attribute types of DAG."""
+    """Enum of supported attribute types of Dag."""
 
     DAG = "dag"
     ASSET_EVENT_ACCESSORS = "asset_event_accessors"

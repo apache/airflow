@@ -202,7 +202,7 @@ class DagRun(Base, LoggingMixin):
         ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
         nullable=True,
     )
-    """The id of the dag version column that was in effect at dag run creation time.
+    """The id of the Dag version column that was in effect at dag run creation time.
 
     :meta private:
     """
@@ -362,7 +362,7 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def dag_versions(self) -> list[DagVersion]:
-        """Return the DAG versions associated with the TIs of this DagRun."""
+        """Return the Dag versions associated with the TIs of this DagRun."""
         # when the dag is in a versioned bundle, we keep the dag version fixed
         if self.bundle_version:
             return [self.created_dag_version] if self.created_dag_version is not None else []
@@ -376,7 +376,7 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def version_number(self) -> int | None:
-        """Return the DAG version number associated with the latest TI of this DagRun."""
+        """Return the Dag version number associated with the latest TI of this DagRun."""
         dag_versions = self.dag_versions
         if dag_versions:
             return dag_versions[-1].version_number
@@ -759,7 +759,7 @@ class DagRun(Base, LoggingMixin):
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Return the task instances for this dag run."""
+        """Return the task instances for this Dag run."""
         tis = (
             select(TI)
             .options(joinedload(TI.dag_run))
@@ -796,7 +796,7 @@ class DagRun(Base, LoggingMixin):
             .limit(max_consecutive_failed_dag_runs)
             .all()
         )
-        """ Marking dag as paused, if needed"""
+        """ Marking Dag as paused, if needed"""
         to_be_paused = len(dag_runs) >= max_consecutive_failed_dag_runs and all(
             dag_run.state == DagRunState.FAILED for dag_run in dag_runs
         )
@@ -1380,7 +1380,7 @@ class DagRun(Base, LoggingMixin):
         return ti
 
     def handle_dag_callback(self, dag: SDKDAG, success: bool = True, reason: str = "success"):
-        """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
+        """Only needed for `Dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
             DagRun as DRDataModel,
             TaskInstance as TIDataModel,
@@ -1958,7 +1958,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
-        """Return the latest DagRun for each DAG."""
+        """Return the latest DagRun for each Dag."""
         subquery = (
             select(cls.dag_id, func.max(cls.logical_date).label("logical_date"))
             .group_by(cls.dag_id)

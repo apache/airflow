@@ -226,7 +226,7 @@ def process_subdir(subdir: str | None):
 
 
 def get_dag_by_file_location(dag_id: str):
-    """Return DAG of a given dag_id by looking up file location."""
+    """Return Dag of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
     from airflow.models import DagBag, DagModel
 
@@ -313,7 +313,7 @@ def get_dag(
 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
-    """Return DAG(s) matching a given regex or dag_id."""
+    """Return Dag(s) matching a given regex or dag_id."""
     from airflow.models import DagBag
 
     bundle_names = bundle_names or []

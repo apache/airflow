@@ -173,7 +173,7 @@ class XComNotFound(AirflowException):
 
 
 class AirflowDagDuplicatedIdException(AirflowException):
-    """Raise when a DAG's ID is already used by another DAG."""
+    """Raise when a Dag's ID is already used by another Dag."""
 
     def __init__(self, dag_id: str, incoming: str, existing: str) -> None:
         super().__init__(dag_id, incoming, existing)
@@ -186,11 +186,11 @@ class AirflowDagDuplicatedIdException(AirflowException):
 
 
 class AirflowClusterPolicyViolation(AirflowException):
-    """Raise when there is a violation of a Cluster Policy in DAG definition."""
+    """Raise when there is a violation of a Cluster Policy in Dag definition."""
 
 
 class AirflowClusterPolicySkipDag(AirflowException):
-    """Raise when skipping dag is needed in Cluster Policy."""
+    """Raise when skipping Dag is needed in Cluster Policy."""
 
 
 class AirflowClusterPolicyError(AirflowException):
@@ -198,23 +198,23 @@ class AirflowClusterPolicyError(AirflowException):
 
 
 class AirflowTimetableInvalid(AirflowException):
-    """Raise when a DAG has an invalid timetable."""
+    """Raise when a Dag has an invalid timetable."""
 
 
 class DagNotFound(AirflowNotFoundException):
-    """Raise when a DAG is not available in the system."""
+    """Raise when a Dag is not available in the system."""
 
 
 class DagCodeNotFound(AirflowNotFoundException):
-    """Raise when a DAG code is not available in the system."""
+    """Raise when a Dag code is not available in the system."""
 
 
 class DagRunNotFound(AirflowNotFoundException):
-    """Raise when a DAG Run is not available in the system."""
+    """Raise when a Dag Run is not available in the system."""
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
-    """Raise when creating a DAG run for DAG which already has DAG run entry."""
+    """Raise when creating a Dag run for Dag which already has Dag run entry."""
 
     def __init__(self, dag_run: DagRun) -> None:
         super().__init__(f"A DAG Run already exists for DAG {dag_run.dag_id} with run id {dag_run.run_id}")
@@ -240,7 +240,7 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
 
 class DuplicateTaskIdFound(AirflowException):
-    """Raise when a Task with duplicate task_id is defined in the same DAG."""
+    """Raise when a Task with duplicate task_id is defined in the same Dag."""
 
 
 class TaskAlreadyInTaskGroup(AirflowException):
@@ -265,7 +265,7 @@ class SerializationError(AirflowException):
 
 
 class ParamValidationError(AirflowException):
-    """Raise when DAG params is invalid."""
+    """Raise when Dag params is invalid."""
 
 
 class TaskNotFound(AirflowNotFoundException):

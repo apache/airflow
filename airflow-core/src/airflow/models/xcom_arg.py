@@ -220,7 +220,7 @@ def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
 
 
 def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
-    """DAG serialization interface."""
+    """Dag serialization interface."""
     klass = _XCOM_ARG_TYPES[data.get("type", "")]
     return klass._deserialize(data, dag)
 

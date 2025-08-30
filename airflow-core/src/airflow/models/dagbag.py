@@ -261,7 +261,7 @@ class DagBag(LoggingMixin):
         return self.dags.get(dag_id)
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-        """Given a path to a python module or zip file, import the module and look for dag objects within."""
+        """Given a path to a python module or zip file, import the module and look for Dag objects within."""
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
@@ -641,7 +641,7 @@ def sync_bag_to_db(
     *,
     session: Session = NEW_SESSION,
 ) -> None:
-    """Save attributes about list of DAG to the DB."""
+    """Save attributes about list of Dag to the DB."""
     import airflow.models.dag
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
@@ -720,7 +720,7 @@ class DBDagBag:
                 yield dag
 
     def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> DAG | None:
-        """Get the latest version of a dag by its id."""
+        """Get the latest version of a Dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 
         if not (serdag := SerializedDagModel.get(dag_id, session=session)):
@@ -735,7 +735,7 @@ def generate_md5_hash(context):
 
 
 class DagPriorityParsingRequest(Base):
-    """Model to store the dag parsing requests that will be prioritized when parsing files."""
+    """Model to store the Dag parsing requests that will be prioritized when parsing files."""
 
     __tablename__ = "dag_priority_parsing_request"
 

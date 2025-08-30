@@ -22,7 +22,7 @@
 This folder contains DAGs for Airflow unit testing. These files contain defects that prevent the default
 Python interpreter from loading this file.
 
-To access a DAG in this folder, use the following code inside a unit test.
+To access a Dag in this folder, use the following code inside a unit test.
 
 ```python
 TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dags_corrupted")

@@ -101,10 +101,10 @@ class _DataIntervalTimetable(Timetable):
                 return None
             start = earliest
         else:  # There's a previous run.
-            # Alignment is needed when DAG has new schedule interval.
+            # Alignment is needed when Dag has new schedule interval.
             align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
             if earliest is not None:
-                # Catchup is False or DAG has new start date in the future.
+                # Catchup is False or Dag has new start date in the future.
                 # Make sure we get the later one.
                 start = max(align_last_data_interval_end, earliest)
             else:
@@ -166,7 +166,7 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         return max(new_start, self._align_to_next(earliest))
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        # Get the last complete period before run_after, e.g. if a DAG run is
+        # Get the last complete period before run_after, e.g. if a Dag run is
         # scheduled at each midnight, the data interval of a manually triggered
         # run at 1am 25th is between 0am 24th and 0am 25th.
         end = self._align_to_prev(run_after)

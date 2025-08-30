@@ -22,7 +22,7 @@ from airflow.utils.session import provide_session
 
 
 class DagTISlotsAvailableDep(BaseTIDep):
-    """Determines whether a DAG maximum number of running tasks has been reached."""
+    """Determines whether a Dag maximum number of running tasks has been reached."""
 
     NAME = "Task Instance Slots Available"
     IGNORABLE = True

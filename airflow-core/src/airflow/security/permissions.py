@@ -106,7 +106,7 @@ PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RES
 
 
 def resource_name(root_dag_id: str, resource: str) -> str:
-    """Return the resource name for a DAG id."""
+    """Return the resource name for a Dag id."""
     if root_dag_id in RESOURCE_DETAILS_MAP.keys():
         return root_dag_id
     if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
