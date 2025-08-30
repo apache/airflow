@@ -60,6 +60,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
+    PERMISSIONS_CLEANUP_COMMAND,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
@@ -211,6 +212,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 subcommands=ROLES_COMMANDS,
             ),
             SYNC_PERM_COMMAND,  # not in a command group
+            PERMISSIONS_CLEANUP_COMMAND,  # single command for permissions cleanup
         ]
         # If Airflow version is 3.0.0 or higher, add the fab-db command group
         if packaging.version.parse(
@@ -651,17 +653,6 @@ class FabAuthManager(BaseAuthManager[User]):
         if not user:
             return []
         return getattr(user, "perms") or []
-
-    def cleanup_dag_permissions(self, dag_id: str, session: Session) -> None:
-        """
-        Clean up DAG-specific permissions from Flask-AppBuilder tables.
-
-        :param dag_id: the DAG ID to clean up permissions for
-        :param session: database session
-        """
-        from airflow.providers.fab.auth_manager.dag_permissions import cleanup_dag_permissions
-
-        cleanup_dag_permissions(dag_id=dag_id, session=session)
 
     def _sync_appbuilder_roles(self):
         """
