@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import time
 from collections.abc import Generator, Iterator
@@ -50,6 +51,14 @@ class TaskLogReader:
 
     STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 10
     """Number of empty loop iterations before stopping the stream"""
+
+    @staticmethod
+    def get_no_log_state_message(ti) -> str:
+        """Return a standardized no-log message for a given TI state."""
+        return {
+            TaskInstanceState.SKIPPED: "Task was skipped — no logs available.",
+            TaskInstanceState.UPSTREAM_FAILED: "Task did not run because upstream task(s) failed.",
+        }.get(ti.state, "No logs available for this task.")
 
     def read_log_chunks(
         self,
@@ -92,6 +101,22 @@ class TaskLogReader:
         """
         if try_number is None:
             try_number = ti.try_number
+
+        # Handle no-log cases before hitting read_log_chunks
+        if try_number == 0:
+            state_message = self.get_no_log_state_message(ti)
+            response: dict[str, list[dict[str, str | None]] | None] = {
+                "content": [
+                    {
+                        "event": state_message,
+                        "level": "info",
+                        "timestamp": None,
+                    }
+                ],
+                "continuation_token": None,
+            }
+            yield json.dumps(response) + "\n"
+            return
 
         for key in ("end_of_log", "max_offset", "offset", "log_pos"):
             # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations

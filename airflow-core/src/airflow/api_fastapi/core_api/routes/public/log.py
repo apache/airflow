@@ -38,6 +38,7 @@ from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_acce
 from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.utils.log.file_task_handler import StructuredLogMessage
 from airflow.utils.log.log_reader import TaskLogReader
 
 task_instances_log_router = AirflowRouter(
@@ -159,6 +160,12 @@ def get_log(
 
     # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
     structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)  # type: ignore[arg-type]
+    if try_number == 0:
+        state_message = task_log_reader.get_no_log_state_message(ti)
+        structured_log_stream = (
+            StructuredLogMessage(timestamp=None, event=state_message) for _ in structured_log_stream
+        )
+
     encoded_token = None
     if not out_metadata.get("end_of_log", False):
         encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
