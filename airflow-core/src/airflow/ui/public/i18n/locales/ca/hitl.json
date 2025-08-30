@@ -6,9 +6,9 @@
       "received": "Revisades"
     }
   },
-  "requiredAction_one": "Acció necessària",
-  "requiredAction_other": "Accions necessàries",
-  "requiredActionState": "Estat de l'acció necessària",
+  "requiredAction_one": "Acció requerida",
+  "requiredAction_other": "Accions requerides",
+  "requiredActionState": "Estat de l'acció requerida",
   "response": {
     "error": "Resposta fallida",
     "optionsDescription": "Escull les teves opcions per a aquesta instància de tasca",

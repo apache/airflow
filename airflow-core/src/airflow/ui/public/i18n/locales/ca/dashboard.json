@@ -2,16 +2,16 @@
   "favorite": {
     "favoriteDags_one": "Primer {{count}} Dag favorit",
     "favoriteDags_other": "Primers {{count}} Dags favorits",
-    "noDagRuns": "No hi ha DagRuns per a aquest dag encara.",
-    "noFavoriteDags": "No hi ha favorits encara. Fes clic a la icona d'estrella al costat d'un Dag a la llista per afegir-lo als teus favorits."
+    "noDagRuns": "No hi ha execucions per a aquest Dag encara.",
+    "noFavoriteDags": "No hi ha favorits encara. Fes clic a la icona d'estrella al costat d'un Dag a la llista per a afegir-lo als teus favorits."
   },
   "group": "Grup",
   "health": {
     "dagProcessor": "Processador de Dags",
-    "health": "Salut",
-    "healthy": "Bo",
+    "health": "Estat de salut",
+    "healthy": "Saludable",
     "lastHeartbeat": "Últim batec",
-    "metaDatabase": "MetaDatabase",
+    "metaDatabase": "Base de dades meta",
     "scheduler": "Programador",
     "status": "Estat",
     "triggerer": "Triggerer",
@@ -22,7 +22,7 @@
     "dagImportError_one": "Error d'importació de Dag",
     "dagImportError_other": "Errors d'importació de Dag",
     "searchByFile": "Cerca per fitxer",
-    "timestamp": "Hora"
+    "timestamp": "Segell de temps"
   },
   "managePools": "Gestionar Pools",
   "noAssetEvents": "No s'han trobat esdeveniments d'Asset.",

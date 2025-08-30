@@ -13,14 +13,14 @@
     "favorite": {
       "all": "Tots",
       "favorite": "Favorits",
-      "unfavorite": "Desfavorits"
+      "unfavorite": "No favorits"
     },
     "paused": {
-      "active": "Actiu",
+      "active": "Actius",
       "all": "Tots",
-      "paused": "Pausat"
+      "paused": "Pausats"
     },
-    "runIdPatternFilter": "Cerca Dag Runs",
+    "runIdPatternFilter": "Cerca execucions de Dag",
     "triggeringUserNameFilter": "Cerca per Usuari que executa"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
@@ -30,10 +30,10 @@
       "title": "Tasques afectades: {{count}}"
     },
     "clear": {
-      "button": "Netejar {{type}}",
-      "buttonTooltip": "Prem shift+c per a netejar",
-      "error": "No s'ha pogut netejar {{type}}",
-      "title": "Netejar {{type}}"
+      "button": "Rellançar {{type}}",
+      "buttonTooltip": "Prem shift+c per a rellançar",
+      "error": "No s'ha pogut rellançar {{type}}",
+      "title": "Rellançar {{type}}"
     },
     "delete": {
       "button": "Eliminar {{type}}",
@@ -45,7 +45,7 @@
       "error": "Error eliminant {{type}}",
       "success": {
         "description": "La sol·licitud d'eliminació del {{type}} ha estat exitosa.",
-        "title": "{{type}} eliminat correctament"
+        "title": "{{type}} eliminat exitosament"
       }
     },
     "markAs": {
@@ -58,9 +58,9 @@
     },
     "options": {
       "downstream": "Aigües avall",
-      "existingTasks": "Netejar tasques existents",
+      "existingTasks": "Rellançar tasques existents",
       "future": "Futur",
-      "onlyFailed": "Netejar només tasques fallides",
+      "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
@@ -76,8 +76,8 @@
   },
   "sort": {
     "displayName": {
-      "asc": "Ordenar per nom (A-Z)",
-      "desc": "Ordenar per nom (Z-A)"
+      "asc": "Ordenar per nom mostrat (A-Z)",
+      "desc": "Ordenar per nom mostrat (Z-A)"
     },
     "lastRunStartDate": {
       "asc": "Ordenar per data d'inici de l'última execució (Més antic-Més recent)",
@@ -91,7 +91,7 @@
       "asc": "Ordenar per pròxima execució del Dag (Més antic-Més recent)",
       "desc": "Ordenar per pròxima execució del Dag (Més recent-Més antic)"
     },
-    "placeholder": "Ordenar per {{field}}"
+    "placeholder": "Ordenar per"
   },
-  "unfavoriteDag": "Desfavoritar Dag"
+  "unfavoriteDag": "Desmarcar el Dag com a favorit"
 }

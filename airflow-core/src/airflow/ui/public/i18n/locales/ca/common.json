@@ -178,7 +178,7 @@
   "state": "Estat",
   "states": {
     "deferred": "Diferit",
-    "failed": "Fallat",
+    "failed": "Fallit",
     "no_status": "Sense estat",
     "none": "Sense estat",
     "planned": "Planificat",
@@ -191,7 +191,7 @@
     "success": "Exitós",
     "up_for_reschedule": "A reprogramar",
     "up_for_retry": "A reintentar",
-    "upstream_failed": "Fallat aigües amunt"
+    "upstream_failed": "Fallit aigües amunt"
   },
   "switchToDarkMode": "Canviar a mode fosc",
   "switchToLightMode": "Canviar a mode clar",

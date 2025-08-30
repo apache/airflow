@@ -3,7 +3,7 @@
   "blockingDeps": {
     "dependency": "Dependència",
     "reason": "Raó",
-    "title": "Dependències que bloquegen la tasca per ser programada"
+    "title": "Dependències que bloquegen la programació de la tasca"
   },
   "calendar": {
     "daily": "Diari",
@@ -53,8 +53,8 @@
   "logs": {
     "allLevels": "Tots els nivells de registre",
     "allSources": "Totes les fonts",
-    "critical": "CRITICAL",
-    "debug": "DEBUG",
+    "critical": "CRÍTIC",
+    "debug": "DEPURACIÓ",
     "error": "ERROR",
     "fullscreen": {
       "button": "Pantalla completa",
@@ -62,12 +62,12 @@
     },
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
-    "settings": "Configuració dels logs",
+    "settings": "Configuració dels registres",
     "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
-    "warning": "WARNING"
+    "warning": "ADVERTIMENT"
   },
   "navigation": {
-    "navigation": "Navegació: {{arrow}}",
+    "navigation": "Navegació: Shift+{{arrow}}",
     "toggleGroup": "Alternar grup: Espai"
   },
   "overview": {
@@ -80,8 +80,8 @@
       "failedTaskInstance_other": "Instàncies de tasca fallides"
     },
     "charts": {
-      "assetEvent_one": "Esdeveniment de l'Asset creat",
-      "assetEvent_other": "Esdeveniments de l'Asset creats"
+      "assetEvent_one": "Esdeveniment d'Asset creat",
+      "assetEvent_other": "Esdeveniments d'Asset creats"
     },
     "failedLogs": {
       "title": "Registres de tasques fallides recents",
@@ -92,8 +92,8 @@
     "buttons": {
       "options": "Opcions",
       "showGantt": "Mostrar Gantt",
-      "showGraph": "Mostrar gràfic",
-      "showGrid": "Mostrar quadrícula"
+      "showGraph": "Mostrar gràfic (prem g)",
+      "showGrid": "Mostrar quadrícula (prem g)"
     },
     "dagRuns": {
       "label": "Nombre d'execucions de Dag"
