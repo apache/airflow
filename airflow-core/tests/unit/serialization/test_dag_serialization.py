@@ -565,7 +565,7 @@ class TestStringifiedDags:
             SerializedDAG.to_dict(dag)
 
         message = (
-            "Failed to serialize DAG 'simple_dag': Timetable class "
+            "Failed to serialize Dag 'simple_dag': Timetable class "
             "'tests_common.test_utils.timetables.CustomSerializationTimetable' "
             "is not registered or "
             "you have a top level database access that disrupted the session. "
@@ -2362,7 +2362,7 @@ class TestStringifiedDags:
             AirflowException,
             match=re.escape(
                 dedent(
-                    """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
+                    """Failed to serialize Dag 'test_dag': Cannot template BaseOperator field:
                         'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('execution_timeout', 'run_as_user')"""
                 )
             ),
