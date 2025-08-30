@@ -828,7 +828,7 @@ class AirflowConfigParser(ConfigParser):
         It does not restore configuration for providers. If you want to restore configuration for
         providers, you need to call ``load_providers_configuration`` method.
         """
-        self.configuration_description = self.retrieve_configuration_description(include_providers=False)
+        self.configuration_description = retrieve_configuration_description(include_providers=False)
         self._default_values = create_default_config_parser(self.configuration_description)
         self._providers_configuration_loaded = False
 
