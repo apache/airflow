@@ -441,8 +441,6 @@ class TestXComObjectStorageBackend:
                 .with_entities(XComModel.value)
                 .first()
             )
-            print(res)
-            print(type(res))
             data = XComModel.deserialize_value(res)
         else:
             res = (
