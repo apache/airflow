@@ -269,7 +269,7 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["slots"]},
-                {"slots": 150},
+                {"slots": 150, "name": Pool.DEFAULT_POOL_NAME, "include_deferred": True},
                 200,
                 {
                     "deferred_slots": 0,
@@ -570,7 +570,14 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "entities": [{"name": "pool2", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool2",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -583,7 +590,14 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "entities": [{"name": "pool4", "slots": 20, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool4",
+                                    "slots": 20,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "skip",
                         }
                     ]
@@ -596,7 +610,14 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "entities": [{"name": "pool4", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool4",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -613,6 +634,29 @@ class TestBulkPools(TestPoolsEndpoint):
                     }
                 },
                 id="test_update_not_found",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "name": "pool1",
+                                    "slots": 50,
+                                    "description": "Updated description",
+                                    "include_deferred": False,
+                                }
+                            ],
+                            "update_mask": ["slots", "description"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {"success": ["pool1"], "errors": []},
+                },
+                id="test_update_with_valid_update_mask",
             ),
             pytest.param(
                 {"actions": [{"action": "delete", "entities": ["pool1"], "action_on_non_existence": "skip"}]},
@@ -649,7 +693,14 @@ class TestBulkPools(TestPoolsEndpoint):
                         },
                         {
                             "action": "update",
-                            "entities": [{"name": "pool1", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool1",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         },
                         {"action": "delete", "entities": ["pool2"], "action_on_non_existence": "skip"},
@@ -672,7 +723,14 @@ class TestBulkPools(TestPoolsEndpoint):
                         },
                         {
                             "action": "update",
-                            "entities": [{"name": "pool1", "slots": 100, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool1",
+                                    "slots": 100,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         },
                         {"action": "delete", "entities": ["pool4"], "action_on_non_existence": "skip"},
@@ -703,7 +761,14 @@ class TestBulkPools(TestPoolsEndpoint):
                         },
                         {
                             "action": "update",
-                            "entities": [{"name": "pool5", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool5",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "skip",
                         },
                         {"action": "delete", "entities": ["pool5"], "action_on_non_existence": "skip"},
@@ -727,7 +792,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool5", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool5",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -754,7 +824,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool1", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool1",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -768,7 +843,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool8", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool8",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -783,7 +863,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool9", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool9",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -815,6 +900,41 @@ class TestBulkPools(TestPoolsEndpoint):
                     "delete": {"success": ["pool2"], "errors": []},
                 },
                 id="test_repeated_actions",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [{"name": "pool6", "slots": 5, "description": "Initial Description"}],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "name": "pool6",
+                                    "slots": 50,
+                                    "description": "Masked Update Description",
+                                    "include_deferred": False,
+                                }
+                            ],
+                            "update_mask": ["slots"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["pool6"],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": ["pool6"], "errors": []},
+                    "update": {"success": ["pool6"], "errors": []},
+                    "delete": {"success": ["pool6"], "errors": []},
+                },
+                id="test_dependent_actions_with_update_mask",
             ),
         ],
     )

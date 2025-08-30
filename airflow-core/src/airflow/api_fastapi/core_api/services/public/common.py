@@ -72,3 +72,56 @@ class BulkService(Generic[T], ABC):
     def handle_bulk_delete(self, action: BulkDeleteAction[T], results: BulkActionResponse) -> None:
         """Bulk delete entities."""
         raise NotImplementedError
+
+
+class PatchUtil:
+    """
+    Utility class for applying patch operations with support for update masks.
+
+    This helper is used to update only selected fields of a Pydantic model instance,
+    while ensuring:
+      - Only fields present in the update_mask are modified.
+      - Non-updatable fields can be excluded explicitly.
+      - Both raw field names and aliases are handled correctly.
+    """
+
+    @staticmethod
+    def apply_patch_with_update_mask(
+        model,
+        patch_body,
+        update_mask: list[str] | None,
+        non_update_fields: set[str] | None = None,
+    ):
+        """
+        Apply a patch to the given model using the provided update mask.
+
+        Args:
+            model: The model instance to update.
+            patch_body: Pydantic model containing patch data.
+            update_mask (list[str] | None): Optional list of fields to update.
+            non_update_fields (set[str] | None): Fields that should not be updated.
+
+        Returns:
+            The updated model instance.
+
+        Raises:
+            HTTPException: If invalid fields are provided in update_mask.
+        """
+        # Always dump without aliases for internal validation
+        raw_data = patch_body.model_dump(by_alias=False)
+        fields_to_update = set(patch_body.model_fields_set)
+        if update_mask:
+            fields_to_update = fields_to_update.intersection(update_mask)
+
+        if non_update_fields:
+            fields_to_update = fields_to_update - non_update_fields
+
+        validated_data = {key: raw_data[key] for key in fields_to_update if key in raw_data}
+
+        data = patch_body.model_dump(include=set(validated_data.keys()), by_alias=True)
+
+        # Update the model with the validated data
+        for key, value in data.items():
+            setattr(model, key, value)
+
+        return model
