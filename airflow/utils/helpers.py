@@ -22,22 +22,27 @@ import itertools
 import re
 import signal
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
+import pendulum
 from lazy_object_proxy import Proxy
 
+from airflow import macros
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.templates import SandboxedEnvironment
+from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
+from airflow.utils.timezone import coerce_datetime, from_timestamp
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
-    from airflow.utils.context import Context
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
@@ -303,7 +308,77 @@ def render_template_to_string(template: jinja2.Template, context: Context) -> st
 
 def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, cast(MutableMapping[str, Any], context), native=True)
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=True)
+
+
+def simulate_parse_time_data_interval(dag: DAG | None) -> tuple[pendulum.DateTime, pendulum.DateTime]:
+    """Simulate data interval for parsing-time using DAG timetable if available."""
+    from airflow.utils import timezone
+
+    now = cast("timezone.DateTime", timezone.utcnow())
+    if dag:
+        try:
+            inferred = dag.timetable.infer_manual_data_interval(run_after=now)
+            if inferred and hasattr(inferred, "start") and hasattr(inferred, "end"):
+                start = coerce_datetime(inferred.start)
+                end = coerce_datetime(inferred.end)
+                if start and end:
+                    return start, end
+        except Exception:
+            pass
+    return now - timedelta(days=1), now
+
+
+def create_parse_time_context(dag: DAG | None) -> dict[str, Any]:
+    """Minimal context for parse-time rendering (no hardcoded ds/ts strings)."""
+    data_interval_start, data_interval_end = simulate_parse_time_data_interval(dag)
+    logical_date = data_interval_end
+    return {
+        "macros": macros,
+        "data_interval_start": data_interval_start,
+        "data_interval_end": data_interval_end,
+        "execution_date": logical_date,
+        "logical_date": logical_date,
+    }
+
+
+def dry_render_datetime_template(
+    value: Any, field_name: str, dag: DAG | None, task_id: str | None
+) -> datetime:
+    """
+    Dry-render potentially templated datetime value using DAG env/context.
+
+    :raises: Exception on render/parse failure.
+    """
+    if isinstance(value, (pendulum.DateTime, datetime)):
+        return coerce_datetime(value)
+    if isinstance(value, (int, float)):
+        v = float(value)
+        if v > 1e12:
+            v /= 1000.0
+        return from_timestamp(v)
+    if isinstance(value, str):
+        if "{{" in value or "{%" in value:
+            env = dag.get_template_env(force_sandboxed=True) if dag else SandboxedEnvironment(cache_size=0)
+            template = env.from_string(value)
+            _ctx = create_parse_time_context(dag)
+            rendered = render_template_to_string(
+                template,
+                Context(
+                    macros=_ctx["macros"],
+                    data_interval_start=_ctx["data_interval_start"],
+                    data_interval_end=_ctx["data_interval_end"],
+                    execution_date=_ctx["execution_date"],
+                    logical_date=_ctx["logical_date"],
+                ),
+            )
+        else:
+            rendered = value
+    else:
+        rendered = value
+
+    tz = dag.timezone if dag and hasattr(dag, "timezone") else "UTC"
+    return coerce_datetime(cast("datetime", pendulum.parse(rendered, tz=tz)))
 
 
 def exactly_one(*args) -> bool:

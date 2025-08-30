@@ -482,7 +482,12 @@ class DagBag(LoggingMixin):
                 pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[dag.fileloc] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             else:
                 found_dags.append(dag)

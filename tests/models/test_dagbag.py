@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 from unittest.mock import patch
 
+import pendulum as _pendulum
 import pytest
 import time_machine
 from packaging import version as packaging_version
@@ -44,6 +45,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import timezone as tz
+from airflow.utils.helpers import dry_render_datetime_template as _dry
 from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
 from tests import cluster_policies
@@ -158,7 +160,8 @@ class TestDagBag:
 
     def test_process_file_duplicated_dag_id(self, tmp_path):
         """Loading a DAG with ID that already existed in a DAG bag should result in an import error."""
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+        with conf_vars({("core", "dagbag_import_error_tracebacks"): "False"}):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
         def create_dag():
             from airflow.decorators import dag
@@ -1166,7 +1169,8 @@ class TestDagBag:
         dag_id = "test_missing_owner"
         err_cls_name = "AirflowClusterPolicyViolation"
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        with conf_vars({("core", "dagbag_import_error_tracebacks"): "False"}):
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -1188,7 +1192,8 @@ class TestDagBag:
         dag_id = "test_nonstring_owner"
         err_cls_name = "AirflowClusterPolicyViolation"
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        with conf_vars({("core", "dagbag_import_error_tracebacks"): "False"}):
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -1271,3 +1276,93 @@ class TestDagBag:
         assert len(captured_warnings) == 2
         assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
         assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"
+
+    def test_dagbag_marks_import_error_for_string_start_end_dates_on_task(self):
+        """
+        Assigning templated strings to task.start_date/end_date should mark DAG broken at parse time.
+        Expect an AttributeError from timezone.convert_to_utc (value.utcoffset on str).
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_string_dates.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+
+        assert "string_start_end_dates_dag" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+        err = dagbag.import_errors[dag_file]
+        assert "AttributeError" in err or "utcoffset" in err
+
+    def test_dagbag_marks_import_error_for_bad_templated_dates_in_args_via_dry_render(self):
+        """
+        Invalid date templates in args should be dry-rendered at parse time and cause a broken DAG
+        with a clear SerializationError referencing the bad value.
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_dry_render_bad.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+
+        assert "dry_render_bad_dag" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+        err = dagbag.import_errors[dag_file]
+        assert "Failed to parse start_date as datetime" in err or "not-a-date" in err
+
+    def test_dagbag_marks_import_error_for_string_template_fields_with_templated_args(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_bad_tf_string.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert "bad_tf_string_dag" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+
+    def test_dagbag_marks_import_error_for_bad_templated_dates_in_args_equals_form(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_args_equals_bad.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert "args_equals_bad" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+
+    def test_dagbag_marks_import_error_for_bad_templated_dates_in_args_dict_form(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_args_dict_bad.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert "args_dict_bad" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+
+    def test_dagbag_marks_import_error_when_template_fields_missing_args(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_missing_args_tf.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert "missing_args_tf" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+
+    def test_dagbag_parses_ok_for_valid_templated_dates_in_args_with_tuple_template_fields(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_dry_render_good.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert "dry_render_good" in dagbag.dags
+        assert dag_file not in dagbag.import_errors
+
+    def test_dagbag_marks_import_error_for_bad_templated_dates_in_args_tuple_form(self):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_args_tuple_bad.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        assert "args_tuple_bad" not in dagbag.dags
+        assert dag_file in dagbag.import_errors
+
+    def test_dagbag_import_error_full_traceback_toggle(self, monkeypatch):
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_validation_dry_render_bad.py")
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag.dagbag_import_error_tracebacks = True
+        dagbag.dagbag_import_error_traceback_depth = 1000
+        dagbag.process_file(dag_file, only_if_updated=False)
+        assert dag_file in dagbag.import_errors
+        assert "Traceback" in dagbag.import_errors[dag_file] or 'File "' in dagbag.import_errors[dag_file]
+
+
+def test_helpers_direct_datetime_branch():
+    dt = _pendulum.datetime(2023, 1, 1, tz="UTC")
+    got = _dry(dt, "start_date", dag=None, task_id=None)
+    assert got == dt
+
+
+def test_helpers_ms_timestamp_branch():
+    ts_ms = 1_600_000_000_000  # corresponds to 2020-09-13T12:26:40Z
+    got = _dry(ts_ms, "start_date", dag=None, task_id=None)
+    assert int(got.timestamp()) == 1_600_000_000
+
+
+def test_helpers_dag_none_utc_fallback_branch():
+    got = _dry("2021-01-01", "start_date", dag=None, task_id=None)
+    utc_offset = got.utcoffset()
+    assert utc_offset is not None
+    assert utc_offset.total_seconds() == 0
