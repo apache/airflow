@@ -56,7 +56,7 @@ Inherited from :class:`~airflow.providers.common.messaging.triggers.msg_queue.Me
 Wait for a message in a queue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Below is an example of how you can configure an Airflow DAG to be triggered by a message in Redis.
+Below is an example of how you can configure an Airflow Dag to be triggered by a message in Redis.
 
 .. exampleinclude:: /../tests/system/redis/example_dag_message_queue_trigger.py
     :language: python

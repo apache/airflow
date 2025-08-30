@@ -52,7 +52,7 @@ Inherited from :class:`~airflow.providers.common.messaging.triggers.msg_queue.Me
 Wait for a message in a queue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Below is an example of how you can configure an Airflow DAG to be triggered by a message in Apache Kafka.
+Below is an example of how you can configure an Airflow Dag to be triggered by a message in Apache Kafka.
 
 .. exampleinclude:: /../tests/system/apache/kafka/example_dag_kafka_message_queue_trigger.py
     :language: python
@@ -69,7 +69,7 @@ How it works
 The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
 asset.
 
-3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
+3. **Event-Driven Dag**: Instead of running on a fixed schedule, the Dag executes when the asset receives an update
 (e.g., a new message in the queue).
 
 For how to use the trigger, refer to the documentation of the

@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-spark/|version|/providers/apache/spark/tests/system/apache/spark>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-spark/|version|/providers/apache/spark/tests/system/apache/spark>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-spark/>
     Installing from sources <installing-providers-from-sources>
 
