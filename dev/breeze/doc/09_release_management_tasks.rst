@@ -78,6 +78,13 @@ tarball for.
 
      breeze release-management prepare-airflow-tarball --version 2.8.0rc1
 
+You can also specify distribution name which distribution of Airflow you are preparing the tarball for.
+By default it is "airflow".
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball --version 2.8.0rc1 --distribution-name airflowctl
+
 .. image:: ./images/output_release-management_prepare-airflow-tarball.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-tarball.svg
   :width: 100%

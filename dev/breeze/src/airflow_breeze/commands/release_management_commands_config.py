@@ -94,6 +94,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--version",
+                "--distribution-name",
             ],
         }
     ],
