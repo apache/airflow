@@ -1278,7 +1278,6 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         `insert_rows` method. This allows you to configure options such as `replace`, `executemany`,
         `fast_executemany`, and `autocommit`.
 
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SQLInsertRowsOperator`
