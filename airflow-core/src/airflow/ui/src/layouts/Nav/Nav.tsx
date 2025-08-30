@@ -24,12 +24,11 @@ import { NavLink } from "react-router-dom";
 import {
   useAuthLinksServiceGetAuthMenus,
   useVersionServiceGetVersion,
-  usePluginServiceGetPlugins,
+  useConfigServiceGetConfigs,
 } from "openapi/queries";
-import type { ExternalViewResponse } from "openapi/requests/types.gen";
+import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
-import type { NavItemResponse } from "src/utils/types";
 
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
@@ -44,19 +43,19 @@ const existingCategories = ["user", "docs", "admin", "browse"];
 
 // Function to categorize navigation items in a single pass
 const categorizeNavItems = (
-  items: Array<NavItemResponse>,
+  items: Array<AppBuilderMenuItemResponse>,
 ): {
-  adminItems: Array<NavItemResponse>;
-  browseItems: Array<NavItemResponse>;
-  docsItems: Array<NavItemResponse>;
-  topNavItems: Array<NavItemResponse>;
-  userItems: Array<NavItemResponse>;
+  adminItems: Array<AppBuilderMenuItemResponse>;
+  browseItems: Array<AppBuilderMenuItemResponse>;
+  docsItems: Array<AppBuilderMenuItemResponse>;
+  topNavItems: Array<AppBuilderMenuItemResponse>;
+  userItems: Array<AppBuilderMenuItemResponse>;
 } => {
-  const adminItems: Array<NavItemResponse> = [];
-  const browseItems: Array<NavItemResponse> = [];
-  const docsItems: Array<NavItemResponse> = [];
-  const topNavItems: Array<NavItemResponse> = [];
-  const userItems: Array<NavItemResponse> = [];
+  const adminItems: Array<AppBuilderMenuItemResponse> = [];
+  const browseItems: Array<AppBuilderMenuItemResponse> = [];
+  const docsItems: Array<AppBuilderMenuItemResponse> = [];
+  const topNavItems: Array<AppBuilderMenuItemResponse> = [];
+  const userItems: Array<AppBuilderMenuItemResponse> = [];
 
   items.forEach((item) => {
     const category = item.category?.toLowerCase();
@@ -90,40 +89,14 @@ const categorizeNavItems = (
 export const Nav = () => {
   const { data } = useVersionServiceGetVersion();
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
-  const { data: pluginData } = usePluginServiceGetPlugins();
+  const { data: config } = useConfigServiceGetConfigs();
   const { t: translate } = useTranslation("common");
 
-  // Get both external views and react apps with nav destination
-  const navItems: Array<NavItemResponse> =
-    pluginData?.plugins
-      .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
-      .filter((item) => item.destination === "nav") ?? [];
+  // Get plugin menu items from config
+  const navItems = config?.plugins_extra_menu_items ?? [];
 
-  // Categorize all navigation items in a single pass
+  // Categorize navigation items
   const { adminItems, browseItems, docsItems, topNavItems, userItems } = categorizeNavItems(navItems);
-
-  // Check for legacy views
-  const hasLegacyViews =
-    (
-      pluginData?.plugins
-        .flatMap((plugin) => plugin.appbuilder_views)
-        // Only include legacy views that have a visible link in the menu. No menu items views
-        // are accessible via direct URLs.
-        .filter((view) => typeof view.name === "string" && view.name.length > 0) ?? []
-    ).length >= 1;
-
-  // Add legacy views if they exist
-  const navItemsWithLegacy = hasLegacyViews
-    ? [
-        ...topNavItems,
-        {
-          destination: "nav",
-          href: "/pluginsv2",
-          name: translate("nav.legacyFabViews"),
-          url_route: "legacy-fab-views",
-        } as ExternalViewResponse,
-      ]
-    : topNavItems;
 
   return (
     <VStack
@@ -173,7 +146,7 @@ export const Nav = () => {
           externalViews={adminItems}
         />
         <SecurityButton />
-        <PluginMenus navItems={navItemsWithLegacy} />
+        <PluginMenus navItems={topNavItems} />
       </Flex>
       <Flex flexDir="column">
         <DocsButton
