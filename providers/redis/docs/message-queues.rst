@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -15,9 +15,18 @@
     specific language governing permissions and limitations
     under the License.
 
-Redis Message Queue
-===================
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
 
+
+Redis Message Queue
+====================
+
+.. contents::
+   :local:
+   :depth: 2
 
 Redis Queue Provider
 --------------------
@@ -25,48 +34,47 @@ Redis Queue Provider
 Implemented by :class:`~airflow.providers.redis.queues.redis.RedisPubSubMessageQueueProvider`
 
 
-The Redis Queue Provider is a message queue provider that uses
+The Redis Queue Provider is a :class:`~airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider` that uses
 Redis as the underlying message queue system.
-It allows you to send and receive messages using Redis in your Airflow workflows.
-The provider supports Redis channels.
+It allows you to send and receive messages using Redis channels in your Airflow workflows with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
-The queue must be matching this regex:
 
-.. exampleinclude::/../src/airflow/providers/redis/queues/redis.py
-   :language: python
-   :dedent: 0
-   :start-after: [START queue_regexp]
-   :end-before: [END queue_regexp]
+.. include:: /../src/airflow/providers/redis/queues/redis.py
+    :start-after: [START redis_message_queue_provider_description]
+    :end-before: [END redis_message_queue_provider_description]
 
-Queue URI Format:
 
-.. code-block:: text
+.. _howto/triggers:RedisMessageQueueTrigger:
 
-   redis://<host>:<port>/<channel_list>
+Redis Message Queue Trigger
+---------------------------
 
-Where:
+Implemented by :class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger`
 
-- ``host``: Redis server hostname
-- ``port``: Redis server port
-- ``channel_list``: Comma-separated list of Redis channels to subscribe to
+Inherited from :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger`
 
-The ``queue`` parameter is used to configure the underlying
-:class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger` class and
-passes all kwargs directly to the trigger constructor, if provided.
-
-Channels can also be specified via the Queue URI instead of the ``channels`` kwarg. The provider will extract channels from the URI as follows:
-
-.. exampleinclude:: /../src/airflow/providers/redis/queues/redis.py
-   :language: python
-   :dedent: 0
-   :start-after: [START extract_channels]
-   :end-before: [END extract_channels]
-
+Wait for a message in a queue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Below is an example of how you can configure an Airflow DAG to be triggered by a message in Redis.
 
 .. exampleinclude:: /../tests/system/redis/example_dag_message_queue_trigger.py
-   :language: python
-   :dedent: 0
-   :start-after: [START howto_trigger_message_queue]
-   :end-before: [END howto_trigger_message_queue]
+    :language: python
+    :start-after: [START howto_trigger_message_queue]
+    :end-before: [END howto_trigger_message_queue]
+
+
+How it works
+------------
+
+1. **Redis Message Queue Trigger**: The ``AwaitMessageTrigger`` listens for messages from Redis channel(s).
+
+2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the Redis queue in this example.
+The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
+asset.
+
+3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
+(e.g., a new message in the queue).
+
+For how to use the trigger, refer to the documentation of the
+:ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
