@@ -92,7 +92,7 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
       ) : (
         <Text>{renderTextWithLinks(valueFormatted)}</Text>
       )}
-      {xcomValue === undefined ? undefined : (
+      {xcomValue === undefined || xcomValue === null ? undefined : (
         <ClipboardRoot value={valueFormatted}>
           <ClipboardIconButton />
         </ClipboardRoot>
