@@ -693,7 +693,7 @@ All Tests are inside ./tests directory.
 
    root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
-   platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/local/bin/python
+   platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/python/bin/python
    cachedir: .pytest_cache
    rootdir: /opt/airflow
    configfile: pyproject.toml

@@ -246,7 +246,7 @@ Below is the sample output of the ``airflow info`` command:
     uname           | uname_result(system='Linux', node='85cd7ab7018e', release='4.19.76-linuxkit', version='#1 SMP Tue May 26 11:42:35 UTC 2020', machine='x86_64', processor='')
     locale          | ('en_US', 'UTF-8')
     python_version  | 3.9.6 (default, Nov 25 2020, 02:47:44)  [GCC 8.3.0]
-    python_location | /usr/local/bin/python
+    python_location | /usr/python/bin/python
 
     Tools info
     git             | git version 2.20.1
