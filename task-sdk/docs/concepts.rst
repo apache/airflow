@@ -26,7 +26,7 @@ This section covers the fundamental concepts that Dag authors need to understand
 
 Terminology
 -----------
-- **Task**: a Python function (decorated with ``@task``) or Operator invocation representing a unit of work in a DAG.
+- **Task**: a Python function (decorated with ``@task``) or Operator invocation representing a unit of work in a Dag.
 - **Task Execution**: the runtime machinery that executes user tasks in isolated subprocesses, managed via the Supervisor and Execution API.
 
 Task Lifecycle
@@ -39,7 +39,7 @@ Understanding the task lifecycle helps Dag authors write more effective tasks an
 - **Subprocess Launch**: The worker's Supervisor process spawns a dedicated subprocess (Task Runner) for the task instance, isolating its execution.
 - **Run API Call**: The Supervisor sends a ``POST /run`` call to the Execution API to mark the task as running; the API server responds with a ``TIRunContext`` containing essential runtime information including:
 
-  - **``dag_run``**: Complete DAG run information (logical date, data intervals, configuration, etc.)
+  - **``dag_run``**: Complete Dag run information (logical date, data intervals, configuration, etc.)
   - **``max_tries``**: Maximum number of retry attempts allowed for this task instance
   - **``should_retry``**: Boolean flag indicating whether the task should enter retry state or fail immediately on error
   - **``task_reschedule_count``**: Number of times this task has been rescheduled
