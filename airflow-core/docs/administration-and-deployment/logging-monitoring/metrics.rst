@@ -176,22 +176,22 @@ Name                                                                   Descripti
 ``scheduler.critical_section_busy``                                    Count of times a scheduler process tried to get a lock on the critical
                                                                        section (needed to send tasks to the executor) and found it locked by
                                                                        another process.
-``ti.start.<dag_id>.<task_id>``                                        Number of started task in a given dag. Similar to <job_name>_start but for task
-``ti.start``                                                           Number of started task in a given dag. Similar to <job_name>_start but for task.
+``ti.start.<dag_id>.<task_id>``                                        Number of started task in a given Dag. Similar to <job_name>_start but for task
+``ti.start``                                                           Number of started task in a given Dag. Similar to <job_name>_start but for task.
                                                                        Metric with dag_id and task_id tagging.
-``ti.finish.<dag_id>.<task_id>.<state>``                               Number of completed task in a given dag. Similar to <job_name>_end but for task
-``ti.finish``                                                          Number of completed task in a given dag. Similar to <job_name>_end but for task
+``ti.finish.<dag_id>.<task_id>.<state>``                               Number of completed task in a given Dag. Similar to <job_name>_end but for task
+``ti.finish``                                                          Number of completed task in a given Dag. Similar to <job_name>_end but for task
                                                                        Metric with dag_id and task_id tagging.
 ``dag.callback_exceptions``                                            Number of exceptions raised from Dag callbacks. When this happens, it
                                                                        means Dag callback is not working. Metric with dag_id tagging
 ``celery.task_timeout_error``                                          Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
 ``celery.execute_command.failure``                                     Number of non-zero exit code from Celery task.
-``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given dag (i.e. task no longer exists in Dag).
-``task_removed_from_dag``                                              Number of tasks removed for a given dag (i.e. task no longer exists in Dag).
+``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given Dag (i.e. task no longer exists in Dag).
+``task_removed_from_dag``                                              Number of tasks removed for a given Dag (i.e. task no longer exists in Dag).
                                                                        Metric with dag_id and run_type tagging.
-``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
+``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given Dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to Dag file)
-``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
+``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given Dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to Dag file).
                                                                        Metric with dag_id and run_type tagging.
 ``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
@@ -249,8 +249,8 @@ Name                                                 Description
 ``triggerer.capacity_left.<hostname>``               Capacity left on a triggerer to run triggers (described by hostname)
 ``triggerer.capacity_left``                          Capacity left on a triggerer to run triggers (described by hostname).
                                                      Metric with hostname tagging.
-``ti.running.<queue>.<dag_id>.<task_id>``            Number of running tasks in a given dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
-``ti.running``                                       Number of running tasks in a given dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+``ti.running.<queue>.<dag_id>.<task_id>``            Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+``ti.running``                                       Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
                                                      Metric with queue, dag_id and task_id tagging.
 ==================================================== ========================================================================
 

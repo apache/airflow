@@ -64,7 +64,7 @@ Tags
 ======================================= ==================================================
 Name                                    Description
 ======================================= ==================================================
-``dag_id``                              Dag name of the dag that failed
+``dag_id``                              Dag name of the Dag that failed
 ``task_id``                             Task name of the task that failed
 ``data_interval_start``                 Start of data interval when the task failed
 ``data_interval_end``                   End of data interval when the task failed

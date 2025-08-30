@@ -49,7 +49,7 @@ A minimal Airflow installation consists of the following components:
   a configuration property of the *scheduler*, not a separate component and runs within the scheduler
   process. There are several executors available out of the box, and you can also write your own.
 
-* A *dag processor*, which parses Dag files and serializes them into the
+* A *Dag processor*, which parses Dag files and serializes them into the
   *metadata database*. More about processing Dag files can be found in
   :doc:`/administration-and-deployment/dagfile-processing`
 
@@ -80,7 +80,7 @@ performance in your Airflow:
   found in :doc:`/authoring-and-scheduling/deferring`.
 
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
-  packages). Plugins are read by the *scheduler*, *dag processor*, *triggerer* and *webserver*. More about
+  packages). Plugins are read by the *scheduler*, *Dag processor*, *triggerer* and *webserver*. More about
   plugins can be found in :doc:`/administration-and-deployment/plugins`.
 
 Deploying Airflow components
@@ -97,7 +97,7 @@ environment - where various components can run on different machines, with diffe
 and can be scaled by running multiple instances of the components above.
 
 The separation of components also allow for increased security, by isolating the components from each other
-and by allowing to perform different tasks. For example separating *dag processor* from *scheduler*
+and by allowing to perform different tasks. For example separating *Dag processor* from *scheduler*
 allows to make sure that the *scheduler* does not have access to the *Dag files* and cannot execute
 code provided by *Dag author*.
 
@@ -177,7 +177,7 @@ Separate Dag processing architecture
 ....................................
 
 In a more complex installation where security and isolation are important, you'll also see the
-standalone *dag processor* component that allows to separate *scheduler* from accessing *Dag files*.
+standalone *Dag processor* component that allows to separate *scheduler* from accessing *Dag files*.
 This is suitable if the deployment focus is on isolation between parsed tasks. While Airflow does not yet
 support full multi-tenant features, it can be used to make sure that **Dag author** provided code is never
 executed in the context of the scheduler.
@@ -187,7 +187,7 @@ executed in the context of the scheduler.
 .. note::
 
     When Dag file is changed there can be cases where the scheduler and the worker will see different
-    versions of the Dag until both components catch up. You can avoid the issue by making sure dag is
+    versions of the Dag until both components catch up. You can avoid the issue by making sure Dag is
     deactivated during deployment and reactivate once finished. If needed, the cadence of sync and scan
     of Dag folder can be configured. Please make sure you really know what you are doing if you change
     the configurations.

@@ -168,7 +168,7 @@ While both Dag constructors get called when the file is accessed, only ``dag_1``
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
-You can also provide an ``.airflowignore`` file inside your dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
+You can also provide an ``.airflowignore`` file inside your Dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 In the case where the ``.airflowignore`` does not meet your needs and you want a more flexible way to control if a python file needs to be parsed by airflow, you can plug your callable by setting ``might_contain_dag_callable`` in the config file.
 Note, this callable will replace the default Airflow heuristic, i.e. checking if the strings ``airflow`` and ``dag`` (case-insensitively) are present in the python file.

@@ -136,7 +136,7 @@ The following file formats are supported:
 By default, Airflow looks for Dags in the directory specified by the ``dags_folder`` option in the
 ``[core]`` section of the ``airflow.cfg`` file. You can select a new directory with the ``--subdir`` argument.
 
-Display dag structure
+Display Dag structure
 ---------------------
 
 Sometimes you will work on Dags that contain complex dependencies. It is helpful then to preview

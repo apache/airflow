@@ -23,7 +23,7 @@ Airflow has feature that allows to add listener for monitoring and tracking
 the task state using Plugins.
 
 This is a simple example listener plugin of Airflow that helps to track the task
-state and collect useful metadata information about the task, dag run and dag.
+state and collect useful metadata information about the task, Dag run and dag.
 
 This is an example plugin for Airflow that allows to create listener plugin of Airflow.
 This plugin works by using SQLAlchemy's event mechanism. It watches
@@ -41,9 +41,9 @@ Using this plugin, following events can be listened:
     * task instance is in running state.
     * task instance is in success state.
     * task instance is in failure state.
-    * dag run is in running state.
-    * dag run is in success state.
-    * dag run is in failure state.
+    * Dag run is in running state.
+    * Dag run is in success state.
+    * Dag run is in failure state.
     * on start before event like Airflow job, scheduler
     * before stop for event like Airflow job, scheduler
 
@@ -82,7 +82,7 @@ This example listens when the task instance is in running state
 
 Similarly, code to listen after task_instance success and failure can be implemented.
 
-This example listens when the dag run is change to failed state
+This example listens when the Dag run is change to failed state
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python

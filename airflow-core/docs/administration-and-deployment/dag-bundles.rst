@@ -129,7 +129,7 @@ Abstract Methods
 The following methods are abstract and must be implemented in your custom bundle class:
 
 **path**
-    This property should return a ``Path`` to the directory where the dag files for this bundle are stored.
+    This property should return a ``Path`` to the directory where the Dag files for this bundle are stored.
     Airflow uses this property to locate the Dag files for processing.
 
 **get_current_version**

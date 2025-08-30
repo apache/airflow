@@ -23,13 +23,13 @@ Debugging Airflow Dags
 Testing Dags with dag.test()
 -----------------------------
 
-To debug Dags in an IDE, you can set up the ``dag.test`` command in your dag file and run through your Dag in a single
+To debug Dags in an IDE, you can set up the ``dag.test`` command in your Dag file and run through your Dag in a single
 serialized python process.
 
 This approach can be used with any supported database (including a local SQLite database) and will
 *fail fast* as all tasks run in a single process.
 
-To set up ``dag.test``, add these two lines to the bottom of your dag file:
+To set up ``dag.test``, add these two lines to the bottom of your Dag file:
 
 .. code-block:: python
 
@@ -50,7 +50,7 @@ Conditionally skipping tasks
 If you don't wish to execute some subset of tasks in your local environment (e.g. dependency check sensors or cleanup steps),
 you can automatically mark them successful supplying a pattern matching their ``task_id`` in the ``mark_success_pattern`` argument.
 
-In the following example, testing the dag won't wait for either of the upstream Dags to complete. Instead, testing data
+In the following example, testing the Dag won't wait for either of the upstream Dags to complete. Instead, testing data
 is manually ingested. The cleanup step is also skipped, making the intermediate csv is available for inspection.
 
 .. code-block:: python
@@ -74,7 +74,7 @@ Debugging Airflow Dags on the command line
 ==========================================
 
 With the same two line addition as mentioned in the above section, you can now easily debug a Dag using pdb as well.
-Run ``python -m pdb <path to dag file>.py`` for an interactive debugging experience on the command line.
+Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experience on the command line.
 
 .. code-block:: bash
 

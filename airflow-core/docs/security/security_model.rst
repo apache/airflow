@@ -206,7 +206,7 @@ The Deployment Manager might isolate the code execution provided by Dag authors 
 Scheduler and API Server by making sure that the Scheduler and API Server don't even
 have access to the Dag Files. Generally speaking - no Dag author provided code should ever be
 executed in the Scheduler or API Server process. This means the deployment manager can exclude credentials
-needed for dag bundles on the Scheduler and API Server - but the bundles must still be configured on those
+needed for Dag bundles on the Scheduler and API Server - but the bundles must still be configured on those
 components.
 
 Allowing Dag authors to execute selected code in Scheduler and API Server
@@ -216,7 +216,7 @@ There are a number of functionalities that allow the Dag author to use pre-regis
 executed in the Scheduler or API Server process - for example they can choose custom Timetables, UI plugins,
 Connection UI Fields, Operator extra links, macros, listeners - all of those functionalities allow the
 Dag author to choose the code that will be executed in the Scheduler or API Server process. However this
-should not be arbitrary code that Dag author can add dag bundles. All those functionalities are
+should not be arbitrary code that Dag author can add Dag bundles. All those functionalities are
 only available via ``plugins`` and ``providers`` mechanisms where the code that is executed can only be
 provided by installed packages (or in case of plugins it can also be added to PLUGINS folder where Dag
 authors should not have write access to). PLUGINS_FOLDER is a legacy mechanism coming from Airflow 1.10

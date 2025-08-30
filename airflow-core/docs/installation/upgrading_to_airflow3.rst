@@ -109,7 +109,7 @@ Some changes can be automatically fixed. To do so, run the following command:
     ruff check dags/ --select AIR301 --fix --preview
 
 
-Some of the fixes are marked as unsafe. Unsafe fixes usually do not break dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
+Some of the fixes are marked as unsafe. Unsafe fixes usually do not break Dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
 To trigger these fixes, run the following command:
 
 .. code-block:: bash
@@ -183,7 +183,7 @@ In Airflow 3, the Webserver has become a generic API server. The API server can 
 
     airflow api-server
 
-The dag processor must now be started independently, even for local or development setups:
+The Dag processor must now be started independently, even for local or development setups:
 
 .. code-block:: bash
 
