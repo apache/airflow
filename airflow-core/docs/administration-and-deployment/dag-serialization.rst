@@ -119,3 +119,140 @@ define a ``json`` variable in local Airflow settings (``airflow_local_settings.p
 
 See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
 configure local settings.
+
+
+.. _dag-serialization-defaults:
+
+DAG Serialization with Default Values (Airflow 3.1+)
+------------------------------------------------------
+
+Starting with Airflow 3.1, DAG serialization establishes a versioned contract between Task SDKs
+and Airflow server components (Scheduler & API-Server). Combined with the Task Execution API, this
+decouples client and server components, enabling independent deployments and upgrades while maintaining
+backward compatibility and automatic default value resolution.
+
+How Default Values Work
+~~~~~~~~~~~~~~~~~~~~~~~
+
+When Airflow processes DAGs, it applies default values in a specific order of precedence for the server:
+
+1. **Schema defaults**: Built-in Airflow defaults (lowest priority)
+2. **Client defaults**: SDK-specific defaults
+3. **DAG default_args**: DAG-level settings (existing behavior)
+4. **Partial arguments**: MappedOperator shared values
+5. **Task values**: Explicit task settings (highest priority)
+
+This means you can set defaults at different levels and more specific settings will override
+more general ones.
+
+JSON Structure
+~~~~~~~~~~~~~~
+
+Serialized DAGs now include a ``client_defaults`` section that contains common default values:
+
+.. code-block:: json
+
+    {
+      "__version": 2,
+      "client_defaults": {
+        "tasks": {
+          "retry_delay": 300.0,
+          "owner": "data_team"
+        }
+      },
+      "dag": {
+        "dag_id": "example_dag",
+        "default_args": {
+          "retries": 3
+        },
+        "tasks": [{
+          "task_id": "example_task",
+          "task_type": "BashOperator",
+          "_task_module": "airflow.operators.bash",
+          "bash_command": "echo hello",
+          "owner": "specific_owner"
+        }]
+      }
+    }
+
+How Values Are Applied
+~~~~~~~~~~~~~~~~~~~~~~
+
+In the example above, the task ``example_task`` will have these final values:
+
+- **retry_delay**: 300.0 (from client_defaults.tasks)
+- **owner**: "data_team" (from client_defaults.tasks)
+- **retries**: 3 (from dag.default_args, overrides client_defaults)
+- **bash_command**: "echo hello" (explicit task value)
+- **pool**: "default_pool" (from schema defaults)
+
+The system automatically fills in any missing values by walking up the hierarchy.
+
+MappedOperator Default Handling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+MappedOperators (dynamic task mapping) also participate in the default value system:
+
+.. code-block:: python
+
+    # DAG Definition
+    BashOperator.partial(task_id="mapped_task", retries=2, owner="team_lead").expand(
+        bash_command=["echo 1", "echo 2", "echo 3"]
+    )
+
+In this example, each of the three generated task instances will inherit:
+
+- **retries**: 2 (from partial arguments)
+- **owner**: "team_lead" (from partial arguments)
+- **pool**: "default_pool" (from client_defaults, since not specified in partial)
+- **bash_command**: "echo 1", "echo 2", or "echo 3" respectively (from expand)
+
+Independent Deployment Architecture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Decoupled Components:**
+The serialization contract, combined with the Task Execution API, enables complete separation between:
+
+- **Server Components** (Scheduler, API-Server): Handle orchestration, don't run user code
+- **Client Components** (Task SDK, DAG processing): Run user code in isolated environments
+
+**Key Benefits:**
+
+- **Independent upgrades**: Upgrade server components without touching user environments
+- **Version compatibility**: Single server version supports multiple SDK versions simultaneously
+- **Deployment flexibility**: Server and client components can be deployed and scaled separately
+- **Security isolation**: User code runs only in client environments, never on server components
+- **Multi-language SDK support**: Any language can implement a compliant Task SDK
+
+**SDK Requirements:**
+Any Task SDK implementation must:
+
+1. **Follow published schemas**:
+   - DAG serialization: Produce JSON that validates against schema. Example: ``https://airflow.apache.org/schemas/dag-serialization/v2.json``
+   - Task execution: Support runtime communication via Execution API schema. Example: ``https://airflow.apache.org/schemas/execution-api/2025-05-20.json``
+2. **Include client_defaults**: Optionally, provide SDK-specific defaults in the ``client_defaults.tasks`` section
+3. **Use proper versioning**: Include ``__version`` field to indicate serialization format
+
+**Server Guarantees:**
+As long as SDKs conform to both schema contracts, Airflow server components will:
+
+- Correctly deserialize DAGs from any compliant SDK
+- Support task execution communication during runtime
+- Apply appropriate default values according to the hierarchy
+- Maintain compatibility across SDK versions and languages
+
+Implementation Status
+~~~~~~~~~~~~~~~~~~~~~
+
+**Current State (Airflow 3.1):**
+The serialization contract establishes the foundation for client/server decoupling. While some
+server components still contain Task SDK code (and vice versa), the contract ensures that:
+
+- **Schema compliance** enables independent deployment when components are separated
+- **Version compatibility** works regardless of code coupling
+- **Deployment separation** is architecturally supported even if not yet fully implemented
+
+**Future Evolution:**
+Complete code decoupling between server and client components is planned for future releases.
+The schema contract provides the stable interface that will remain consistent as this evolution
+continues.

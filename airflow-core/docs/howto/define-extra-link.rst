@@ -143,7 +143,7 @@ Console, but if we wanted to change that link we could do:
 
         name = "BigQuery Dataset"
         key = "bigquery_dataset"
-        format_str = BIGQUERY_DATASET_LINK
+        format_str = BIGQUERY_DATASET_LINK_FMT
 
         @staticmethod
         def persist(

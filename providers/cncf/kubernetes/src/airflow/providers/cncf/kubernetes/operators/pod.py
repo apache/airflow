@@ -235,6 +235,11 @@ class KubernetesPodOperator(BaseOperator):
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
     :param trigger_kwargs: additional keyword parameters passed to the trigger
+    :param container_name_log_prefix_enabled: if True, will prefix container name to each log line.
+        Default to True.
+    :param log_formatter: custom log formatter function that takes two string arguments:
+        the first string is the container_name and the second string is the message_to_log.
+        The function should return a formatted string. If None, the default formatting will be used.
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -343,6 +348,8 @@ class KubernetesPodOperator(BaseOperator):
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -438,6 +445,8 @@ class KubernetesPodOperator(BaseOperator):
         self._progress_callback = progress_callback
         self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
+        self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
+        self.log_formatter = log_formatter
 
     @cached_property
     def _incluster_namespace(self):
@@ -751,6 +760,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     init_containers=self.init_container_logs,
                     follow_logs=True,
+                    container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                    log_formatter=self.log_formatter,
                 )
         except kubernetes.client.exceptions.ApiException as exc:
             self._handle_api_exception(exc, pod)
@@ -767,6 +778,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     containers=self.container_logs,
                     follow_logs=True,
+                    container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                    log_formatter=self.log_formatter,
                 )
             if not self.get_logs or (
                 self.container_logs is not True and self.base_container_name not in self.container_logs
@@ -915,6 +928,8 @@ class KubernetesPodOperator(BaseOperator):
                         container_name=self.base_container_name,
                         follow=follow,
                         since_time=last_log_time,
+                        container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                        log_formatter=self.log_formatter,
                     )
 
                     self.invoke_defer_method(pod_log_status.last_log_time)

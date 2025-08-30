@@ -76,6 +76,7 @@ from airflow.models.asset import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
     TaskInstance,
@@ -83,6 +84,7 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
+from airflow.models.team import Team
 from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
@@ -2268,6 +2270,18 @@ class DagModel(Base):
         # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns
         # an empty dict as there's no asset info to get. This method should thus return None.
         return get_asset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
+
+    @staticmethod
+    @provide_session
+    def get_team_name(dag_id: str, session=NEW_SESSION) -> str | None:
+        """Return the team name associated to a Dag or None if it is not owned by a specific team."""
+        stmt = (
+            select(Team.name)
+            .join(DagBundleModel.teams)
+            .join(DagModel, DagModel.bundle_name == DagBundleModel.name)
+            .where(DagModel.dag_id == dag_id)
+        )
+        return session.scalar(stmt)
 
 
 STATICA_HACK = True

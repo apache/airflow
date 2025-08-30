@@ -63,6 +63,20 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
+    async def aget_connection(cls, conn_id: str) -> Connection:
+        """
+        Get connection (async), given connection id.
+
+        :param conn_id: connection id
+        :return: connection
+        """
+        from airflow.sdk.definitions.connection import Connection
+
+        conn = await Connection.async_get(conn_id)
+        log.debug("Connection Retrieved '%s' (via task-sdk)", conn.conn_id)
+        return conn
+
+    @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
         """
         Return default hook for this connection id.
