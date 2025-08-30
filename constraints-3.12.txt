@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-29T13:53:20.278538
+# This constraints file was automatically generated on 2025-08-30T13:52:36.268609
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -65,7 +65,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.10
 adal==1.2.7
-adlfs==2024.12.0
+adlfs==2025.8.0
 aenum==3.1.16
 aiobotocore==2.24.1
 aiofiles==24.1.0
@@ -308,10 +308,10 @@ fsspec==2025.7.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
 gcloud-aio-bigquery==7.1.0
-gcloud-aio-storage==9.5.0
+gcloud-aio-storage==9.6.0
 gcsfs==2025.7.0
 geomet==0.2.1.post1
-gevent==25.8.1
+gevent==25.8.2
 gitdb==4.0.12
 google-ads==28.0.0
 google-analytics-admin==0.24.1
@@ -579,7 +579,7 @@ reactivex==4.0.4
 redis==5.3.1
 redshift-connector==2.1.7
 referencing==0.36.2
-regex==2025.7.34
+regex==2025.8.29
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -650,7 +650,7 @@ tornado==6.5.2
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-typer==0.16.1
+typer==0.17.3
 types-protobuf==6.30.2.20250822
 types-pytz==2025.2.0.20250809
 types-requests==2.32.4.20250809
@@ -687,7 +687,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.8
+ydb==3.21.9
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
