@@ -182,10 +182,10 @@ Depending on the size of your Airflow instance, you may want to adjust the follo
     # The maximum number of server connections to the result backend database from PgBouncer
     resultBackendPoolSize: 5
 
-Webserver Secret Key
---------------------
+API/Webserver Secret Key
+------------------------
 
-You should set a static webserver secret key when deploying with this chart as it will help ensure
+You should set a static API (Airflow 3+) or webserver (Airflow <3) secret key when deploying with this chart as it will help ensure
 your Airflow components only restart when necessary.
 
 .. warning::
@@ -202,22 +202,22 @@ Now add the secret to your values file:
 
 .. code-block:: yaml
 
-    webserverSecretKey: <secret_key>
+    apiSecretKey: <secret_key>
 
-Alternatively, create a Kubernetes Secret and use ``webserverSecretKeySecretName``:
+Alternatively, create a Kubernetes Secret and use ``apiSecretKeySecretName``:
 
 .. code-block:: yaml
 
-    webserverSecretKeySecretName: my-webserver-secret
+    apiSecretKeySecretName: my-api-secret
     # where the random key is under `webserver-secret-key` in the k8s Secret
 
 Example to create a Kubernetes Secret from ``kubectl``:
 
 .. code-block:: bash
 
-    kubectl create secret generic my-webserver-secret --from-literal="webserver-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+    kubectl create secret generic my-api-secret --from-literal="api-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
 
-The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+The API secret is also used to authorize requests to Celery workers when logs are retrieved. The token
 generated using the secret key has a short expiry time though - make sure that time on ALL the machines
 that you run Airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
