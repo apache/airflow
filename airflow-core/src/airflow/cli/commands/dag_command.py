@@ -126,7 +126,7 @@ def dag_unpause(args) -> None:
 
 @providers_configuration_loaded
 def set_is_paused(is_paused: bool, args) -> None:
-    """Set is_paused for DAG by a given dag_id."""
+    """Set is_paused for Dag by a given dag_id."""
     should_apply = True
     with create_session() as session:
         query = select(DagModel)
@@ -141,13 +141,13 @@ def set_is_paused(is_paused: bool, args) -> None:
         matched_dags = session.scalars(query).all()
 
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        print(f"No {'un' if is_paused else ''}paused Dags were found")
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
         dags_ids = [dag.dag_id for dag in matched_dags]
         question = (
-            f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
+            f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} Dags:\n"
             f"{','.join(dags_ids)}"
             f"\n\nAre you sure? [y/n]"
         )
@@ -167,7 +167,7 @@ def set_is_paused(is_paused: bool, args) -> None:
 
 @providers_configuration_loaded
 def dag_dependencies_show(args) -> None:
-    """Display DAG dependencies, save to file or show as imgcat image."""
+    """Display Dag dependencies, save to file or show as imgcat image."""
     deduplicated_dag_dependencies = {
         dag_id: list(set(dag_dependencies))
         for dag_id, dag_dependencies in SerializedDagModel.get_dag_dependencies().items()
@@ -191,7 +191,7 @@ def dag_dependencies_show(args) -> None:
 
 @providers_configuration_loaded
 def dag_show(args) -> None:
-    """Display DAG or saves its graphic representation to the file."""
+    """Display Dag or saves its graphic representation to the file."""
     dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
     dot = render_dag(dag)
     filename = args.save
@@ -297,7 +297,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
     """
-    Return the next logical datetime of a DAG at the command line.
+    Return the next logical datetime of a Dag at the command line.
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
@@ -310,13 +310,13 @@ def dag_next_execution(args) -> None:
         ).one()
 
     if last_parsed_dag.get_is_paused():
-        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
+        print("[INFO] Please be reminded this Dag is PAUSED now.", file=sys.stderr)
 
     def print_execution_interval(interval: DataInterval | None):
         if interval is None:
             print(
                 "[WARN] No following schedule can be found. "
-                "This DAG may have schedule interval '@once' or `None`.",
+                "This Dag may have schedule interval '@once' or `None`.",
                 file=sys.stderr,
             )
             print(None)
@@ -399,7 +399,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
     def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
-        """Filter DAGs based on the specified bundle name, if provided."""
+        """Filter Dags based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
 
@@ -421,7 +421,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 @provide_session
 def dag_details(args, session: Session = NEW_SESSION):
-    """Get DAG details given a DAG id."""
+    """Get Dag details given a Dag id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
@@ -598,7 +598,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
 @providers_configuration_loaded
 @provide_session
 def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
-    """Execute one single DagRun for a given DAG and logical date."""
+    """Execute one single DagRun for a given Dag and logical date."""
     run_conf = None
     if args.conf:
         try:
@@ -652,7 +652,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @providers_configuration_loaded
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
-    """Serialize a DAG instance."""
+    """Serialize a Dag instance."""
     manager = DagBundlesManager()
     manager.sync_bundles_to_db(session=session)
     session.commit()

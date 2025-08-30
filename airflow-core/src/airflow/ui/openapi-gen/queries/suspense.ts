@@ -256,9 +256,9 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <TData = Common.Da
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData, ...options });
 /**
 * Get Dag Runs
-* Get all DAG Runs.
+* Get all Dag Runs.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.limit
@@ -383,7 +383,7 @@ export const useDagStatsServiceGetDagStatsSuspense = <TData = Common.DagStatsSer
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey), queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData, ...options });
 /**
 * Get Dag Reports
-* Get DAG report.
+* Get Dag report.
 * @param data The data for the request.
 * @param data.subdir
 * @returns unknown Successful Response
@@ -427,7 +427,7 @@ export const useConfigServiceGetConfigValueSuspense = <TData = Common.ConfigServ
 export const useConfigServiceGetConfigsSuspense = <TData = Common.ConfigServiceGetConfigsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey), queryFn: () => ConfigService.getConfigs() as TData, ...options });
 /**
 * List Dag Warnings
-* Get a list of DAG warnings.
+* Get a list of Dag warnings.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.warningType
@@ -446,7 +446,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <TData = Common.DagWa
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
 * Get Dags
-* Get all DAGs.
+* Get all Dags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -460,8 +460,8 @@ export const useDagWarningServiceListDagWarningsSuspense = <TData = Common.DagWa
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
-* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @param data.dagRunStartDateGte
 * @param data.dagRunStartDateGt
 * @param data.dagRunStartDateLte
@@ -527,7 +527,7 @@ export const useDagServiceGetDagDetailsSuspense = <TData = Common.DagServiceGetD
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey), queryFn: () => DagService.getDagDetails({ dagId }) as TData, ...options });
 /**
 * Get Dag Tags
-* Get all DAG tags.
+* Get all Dag tags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -544,7 +544,7 @@ export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagT
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey), queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData, ...options });
 /**
 * Get Dags
-* Get DAGs with recent DagRun.
+* Get Dags with recent DagRun.
 * @param data The data for the request.
 * @param data.dagRunsLimit
 * @param data.limit
@@ -562,8 +562,8 @@ export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagT
 * @param data.bundleVersion
 * @param data.orderBy
 * @param data.isFavorite
-* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -865,8 +865,8 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <TData = Comm
 * Get Task Instances
 * Get list of task instances.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-* and DAG runs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all Dags
+* and Dag runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1183,7 +1183,7 @@ export const useXcomServiceGetXcomEntrySuspense = <TData = Common.XcomServiceGet
 * Get Xcom Entries
 * Get all XCom entries.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1299,9 +1299,9 @@ export const useDagVersionServiceGetDagVersionSuspense = <TData = Common.DagVers
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData, ...options });
 /**
 * Get Dag Versions
-* Get all DAG Versions.
+* Get all Dag Versions.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.limit
@@ -1452,7 +1452,7 @@ export const useDashboardServiceHistoricalMetricsSuspense = <TData = Common.Dash
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey), queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData, ...options });
 /**
 * Dag Stats
-* Return basic DAG stats with counts of DAGs in various states.
+* Return basic Dag stats with counts of Dags in various states.
 * @returns DashboardDagStatsResponse Successful Response
 * @throws ApiError
 */
@@ -1554,7 +1554,7 @@ export const useGridServiceGetGridTiSummariesSuspense = <TData = Common.GridServ
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }, queryKey), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) as TData, ...options });
 /**
 * Get Calendar
-* Get calendar data for a DAG including historical and planned DAG runs.
+* Get calendar data for a Dag including historical and planned Dag runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.granularity

@@ -52,7 +52,7 @@ def get_dag_reports(
     subdir: str,
     readable_dags_filter: ReadableDagsFilterDep,
 ):
-    """Get DAG report."""
+    """Get Dag report."""
     fullpath = os.path.normpath(subdir)
     if not fullpath.startswith(settings.DAGS_FOLDER):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "subdir should be subpath of DAGS_FOLDER settings")

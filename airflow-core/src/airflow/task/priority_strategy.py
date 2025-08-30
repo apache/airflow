@@ -50,8 +50,8 @@ class PriorityWeightStrategy(ABC):
         """
         Deserialize a priority weight strategy from data.
 
-        This is called when a serialized DAG is deserialized. ``data`` will be whatever
-        was returned by ``serialize`` during DAG serialization. The default
+        This is called when a serialized Dag is deserialized. ``data`` will be whatever
+        was returned by ``serialize`` during Dag serialization. The default
         implementation constructs the priority weight strategy without any arguments.
         """
         return cls(**data)
@@ -60,9 +60,9 @@ class PriorityWeightStrategy(ABC):
         """
         Serialize the priority weight strategy for JSON encoding.
 
-        This is called during DAG serialization to store priority weight strategy information
+        This is called during Dag serialization to store priority weight strategy information
         in the database. This should return a JSON-serializable dict that will be fed into
-        ``deserialize`` when the DAG is deserialized. The default implementation returns
+        ``deserialize`` when the Dag is deserialized. The default implementation returns
         an empty dict.
         """
         return {}

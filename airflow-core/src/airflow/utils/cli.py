@@ -265,7 +265,7 @@ def get_dag(
     bundle_names: list | None, dag_id: str, from_db: bool = False, dagfile_path: str | None = None
 ) -> DAG:
     """
-    Return DAG of a given dag_id.
+    Return Dag of a given dag_id.
 
     First we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured

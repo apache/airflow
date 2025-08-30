@@ -50,7 +50,7 @@ pytestmark = pytest.mark.db_test
 
 # To move it to a shared module.
 def make_example_dags(module):
-    """Loads DAGs from a module for test."""
+    """Loads Dags from a module for test."""
     from airflow.models.dagbundle import DagBundleModel
     from airflow.utils.session import create_session
 
@@ -91,7 +91,7 @@ class TestSerializedDagModel:
         return example_dags
 
     def test_write_dag(self, testing_dag_bundle):
-        """DAGs can be written into database"""
+        """Dags can be written into database"""
         example_dags = self._write_example_dags()
 
         with create_session() as session:
@@ -180,7 +180,7 @@ class TestSerializedDagModel:
         assert dag_updated is True
 
     def test_read_dags(self):
-        """DAGs can be read from database."""
+        """Dags can be read from database."""
         example_dags = self._write_example_dags()
         serialized_dags = SDM.read_all_dags()
         assert len(example_dags) == len(serialized_dags)
@@ -197,7 +197,7 @@ class TestSerializedDagModel:
 
         dag = example_dags.get("example_bash_operator")
 
-        # DAGs are serialized and deserialized to access create_dagrun object
+        # Dags are serialized and deserialized to access create_dagrun object
         sdag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag))
         sdag.create_dagrun(
             run_id="test1",

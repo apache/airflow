@@ -256,9 +256,9 @@ export const useDagRunServiceGetUpstreamAssetEvents = <TData = Common.DagRunServ
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData, ...options });
 /**
 * Get Dag Runs
-* Get all DAG Runs.
+* Get all Dag Runs.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.limit
@@ -383,7 +383,7 @@ export const useDagStatsServiceGetDagStats = <TData = Common.DagStatsServiceGetD
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey), queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData, ...options });
 /**
 * Get Dag Reports
-* Get DAG report.
+* Get Dag report.
 * @param data The data for the request.
 * @param data.subdir
 * @returns unknown Successful Response
@@ -427,7 +427,7 @@ export const useConfigServiceGetConfigValue = <TData = Common.ConfigServiceGetCo
 export const useConfigServiceGetConfigs = <TData = Common.ConfigServiceGetConfigsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey), queryFn: () => ConfigService.getConfigs() as TData, ...options });
 /**
 * List Dag Warnings
-* Get a list of DAG warnings.
+* Get a list of Dag warnings.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.warningType
@@ -446,7 +446,7 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
 * Get Dags
-* Get all DAGs.
+* Get all Dags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -460,8 +460,8 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
-* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @param data.dagRunStartDateGte
 * @param data.dagRunStartDateGt
 * @param data.dagRunStartDateLte
@@ -527,7 +527,7 @@ export const useDagServiceGetDagDetails = <TData = Common.DagServiceGetDagDetail
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey), queryFn: () => DagService.getDagDetails({ dagId }) as TData, ...options });
 /**
 * Get Dag Tags
-* Get all DAG tags.
+* Get all Dag tags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -544,7 +544,7 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey), queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData, ...options });
 /**
 * Get Dags
-* Get DAGs with recent DagRun.
+* Get Dags with recent DagRun.
 * @param data The data for the request.
 * @param data.dagRunsLimit
 * @param data.limit
@@ -562,8 +562,8 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 * @param data.bundleVersion
 * @param data.orderBy
 * @param data.isFavorite
-* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -865,8 +865,8 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * Get Task Instances
 * Get list of task instances.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-* and DAG runs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all Dags
+* and Dag runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1183,7 +1183,7 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * Get Xcom Entries
 * Get all XCom entries.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1299,9 +1299,9 @@ export const useDagVersionServiceGetDagVersion = <TData = Common.DagVersionServi
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData, ...options });
 /**
 * Get Dag Versions
-* Get all DAG Versions.
+* Get all Dag Versions.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.limit
@@ -1452,7 +1452,7 @@ export const useDashboardServiceHistoricalMetrics = <TData = Common.DashboardSer
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey), queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData, ...options });
 /**
 * Dag Stats
-* Return basic DAG stats with counts of DAGs in various states.
+* Return basic Dag stats with counts of Dags in various states.
 * @returns DashboardDagStatsResponse Successful Response
 * @throws ApiError
 */
@@ -1554,7 +1554,7 @@ export const useGridServiceGetGridTiSummaries = <TData = Common.GridServiceGetGr
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }, queryKey), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) as TData, ...options });
 /**
 * Get Calendar
-* Get calendar data for a DAG including historical and planned DAG runs.
+* Get calendar data for a Dag including historical and planned Dag runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.granularity
@@ -1588,7 +1588,7 @@ export const useAssetServiceCreateAssetEvent = <TData = Common.AssetServiceCreat
 }, TContext>({ mutationFn: ({ requestBody }) => AssetService.createAssetEvent({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Materialize Asset
-* Materialize an asset by triggering a DAG run that produces it.
+* Materialize an asset by triggering a Dag run that produces it.
 * @param data The data for the request.
 * @param data.assetId
 * @returns DAGRunResponse Successful Response
@@ -1696,7 +1696,7 @@ export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTrigge
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Get List Dag Runs Batch
-* Get a list of DAG Runs.
+* Get a list of Dag Runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.requestBody
@@ -1712,7 +1712,7 @@ export const useDagRunServiceGetListDagRunsBatch = <TData = Common.DagRunService
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.getListDagRunsBatch({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Favorite Dag
-* Mark the DAG as favorite.
+* Mark the Dag as favorite.
 * @param data The data for the request.
 * @param data.dagId
 * @returns void Successful Response
@@ -1725,7 +1725,7 @@ export const useDagServiceFavoriteDag = <TData = Common.DagServiceFavoriteDagMut
 }, TContext>({ mutationFn: ({ dagId }) => DagService.favoriteDag({ dagId }) as unknown as Promise<TData>, ...options });
 /**
 * Unfavorite Dag
-* Unmark the DAG as favorite.
+* Unmark the Dag as favorite.
 * @param data The data for the request.
 * @param data.dagId
 * @returns void Successful Response
@@ -1857,7 +1857,7 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
 }, TContext>({ mutationFn: ({ backfillId }) => BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>, ...options });
 /**
 * Reparse Dag File
-* Request re-parsing a DAG file.
+* Request re-parsing a Dag file.
 * @param data The data for the request.
 * @param data.fileToken
 * @returns null Successful Response
@@ -1902,7 +1902,7 @@ export const useConnectionServiceBulkConnections = <TData = Common.ConnectionSer
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dag Run
-* Modify a DAG Run.
+* Modify a Dag Run.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1924,7 +1924,7 @@ export const useDagRunServicePatchDagRun = <TData = Common.DagRunServicePatchDag
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) => DagRunService.patchDagRun({ dagId, dagRunId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dags
-* Patch multiple DAGs.
+* Patch multiple Dags.
 * @param data The data for the request.
 * @param data.requestBody
 * @param data.updateMask
@@ -2291,7 +2291,7 @@ export const useConnectionServiceDeleteConnection = <TData = Common.ConnectionSe
 }, TContext>({ mutationFn: ({ connectionId }) => ConnectionService.deleteConnection({ connectionId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Dag Run
-* Delete a DAG Run entry.
+* Delete a Dag Run entry.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId

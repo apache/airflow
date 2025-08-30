@@ -111,7 +111,7 @@ def generate_dag_processor_airflow_diagram():
         )
 
         deployment_manager_1 = User("Deployment\nManager\nTeam 1")
-        dag_author_1 = User("DAG Author\nTeam 1")
+        dag_author_1 = User("Dag Author\nTeam 1")
 
         with Cluster("Team 1 Airflow Deployment", graph_attr={"bgcolor": "#AAAABB", "fontsize": "22"}):
             with Cluster("No DB access"):
@@ -120,12 +120,12 @@ def generate_dag_processor_airflow_diagram():
                     triggerer_1 = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 with Cluster("Parsing"):
                     dag_processors_1 = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                dag_files_1 = Custom("DAG Bundles\nTeam 1", MULTIPLE_FILES_IMAGE.as_posix())
+                dag_files_1 = Custom("Dag Bundles\nTeam 1", MULTIPLE_FILES_IMAGE.as_posix())
                 plugins_and_packages_1 = Custom("Plugins\n& Packages\nTenant 1", PACKAGES_IMAGE.as_posix())
         operations_user_1 = User("Operations User\nTeam 1")
 
         deployment_manager_2 = User("Deployment\nManager\nTeam 2")
-        dag_author_2 = User("DAG Author\nTeam 2")
+        dag_author_2 = User("Dag Author\nTeam 2")
 
         with Cluster("Team 2 Airflow Deployment", graph_attr={"fontsize": "22"}):
             with Cluster("No DB access"):
@@ -134,7 +134,7 @@ def generate_dag_processor_airflow_diagram():
                     triggerer_2 = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 with Cluster("Parsing"):
                     dag_processors_2 = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                dag_files_2 = Custom("DAG Bundles\nTeam 2", MULTIPLE_FILES_IMAGE.as_posix())
+                dag_files_2 = Custom("Dag Bundles\nTeam 2", MULTIPLE_FILES_IMAGE.as_posix())
                 plugins_and_packages_2 = Custom("Plugins\n& Packages\nTeam 2", PACKAGES_IMAGE.as_posix())
         operations_user_2 = User("Operations User\nTeam 2")
 

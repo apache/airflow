@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Unit tests for stringified DAGs."""
+"""Unit tests for stringified Dags."""
 
 from __future__ import annotations
 
@@ -248,7 +248,7 @@ serialized_simple_dag_ground_truth = {
                 "test_role": {
                     "__type": "dict",
                     "__var": {
-                        "DAGs": {
+                        "Dags": {
                             "__type": "set",
                             "__var": [
                                 permissions.ACTION_CAN_READ,
@@ -327,7 +327,7 @@ def make_simple_dag():
 
 def make_user_defined_macro_filter_dag():
     """
-    Make DAGs with user defined macros and filters using locally defined methods.
+    Make Dags with user defined macros and filters using locally defined methods.
 
     For Webserver, we do not include ``user_defined_macros`` & ``user_defined_filters``.
 
@@ -376,7 +376,7 @@ def get_excluded_patterns() -> Generator[str, None, None]:
 
 
 def collect_dags(dag_folder=None):
-    """Collects DAGs to test."""
+    """Collects Dags to test."""
     dags = {}
     import_errors = {}
     dags.update({"simple_dag": make_simple_dag()})
@@ -436,8 +436,8 @@ def timetable_plugin(monkeypatch):
     )
 
 
-class TestStringifiedDAGs:
-    """Unit tests for stringified DAGs."""
+class TestStringifiedDags:
+    """Unit tests for stringified Dags."""
 
     def setup_method(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -574,7 +574,7 @@ class TestStringifiedDAGs:
         assert str(ctx.value) == message
 
     def prepare_ser_dags_for_comparison(self, actual, expected):
-        """Verify serialized DAGs match the ground truth."""
+        """Verify serialized Dags match the ground truth."""
         assert actual["dag"]["fileloc"].split("/")[-1] == "test_dag_serialization.py"
         actual["dag"]["fileloc"] = None
 
@@ -627,7 +627,7 @@ class TestStringifiedDAGs:
         dags, _ = collect_dags("airflow/example_dags")
         assert set(stringified_dags.keys()) == set(dags.keys())
 
-        # Verify deserialized DAGs.
+        # Verify deserialized Dags.
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
@@ -641,7 +641,7 @@ class TestStringifiedDAGs:
             ]
         )
 
-        # Verify deserialized DAGs.
+        # Verify deserialized Dags.
         for dag in dags.values():
             serialized_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
             self.validate_deserialized_dag(serialized_dag, dag)
@@ -663,7 +663,7 @@ class TestStringifiedDAGs:
 
     def validate_deserialized_dag(self, serialized_dag: DAG, dag: DAG):
         """
-        Verify that all example DAGs work with DAG Serialization by
+        Verify that all example Dags work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
         exclusion_list = {
@@ -1033,7 +1033,7 @@ class TestStringifiedDAGs:
     )
     def test_dag_params_roundtrip(self, val, expected_val):
         """
-        Test that params work both on Serialized DAGs & Tasks
+        Test that params work both on Serialized Dags & Tasks
         """
         if expected_val == ParamValidationError:
             with pytest.raises(ParamValidationError):
@@ -1117,7 +1117,7 @@ class TestStringifiedDAGs:
     )
     def test_task_params_roundtrip(self, val, expected_val):
         """
-        Test that params work both on Serialized DAGs & Tasks
+        Test that params work both on Serialized Dags & Tasks
         """
         dag = DAG(dag_id="simple_dag", schedule=None)
         if expected_val == ParamValidationError:
@@ -1340,7 +1340,7 @@ class TestStringifiedDAGs:
 
     def test_dag_serialized_fields_with_schema(self):
         """
-        Additional Properties are disabled on DAGs. This test verifies that all the
+        Additional Properties are disabled on Dags. This test verifies that all the
         keys in DAG.get_serialized_fields are listed in Schema definition.
         """
         dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
@@ -2799,7 +2799,7 @@ def test_taskflow_expand_serde():
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
     # here so we don't need to duplicate tests between pickled and non-pickled
-    # DAGs everywhere else.
+    # Dags everywhere else.
     pickled = pickle.loads(pickle.dumps(deserialized))
     assert pickled.op_kwargs_expand_input == _ExpandInputRef(
         key="dict-of-lists",
@@ -2889,7 +2889,7 @@ def test_taskflow_expand_kwargs_serde(strict):
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
     # here so we don't need to duplicate tests between pickled and non-pickled
-    # DAGs everywhere else.
+    # Dags everywhere else.
     pickled = pickle.loads(pickle.dumps(deserialized))
     assert pickled.op_kwargs_expand_input == _ExpandInputRef(
         "list-of-dicts",
@@ -3136,7 +3136,7 @@ def test_handle_v1_serdag():
                     "test_role": {
                         "__type": "dict",
                         "__var": {
-                            "DAGs": {
+                            "Dags": {
                                 "__type": "set",
                                 "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
                             }
@@ -3454,7 +3454,7 @@ def test_task_callback_properties_exist():
     ],
 )
 def test_task_callback_backward_compatibility(old_callback_name, new_callback_name):
-    """Test that old serialized DAGs with on_*_callback keys are correctly converted to has_on_*_callback."""
+    """Test that old serialized Dags with on_*_callback keys are correctly converted to has_on_*_callback."""
 
     old_serialized_task = {
         "is_setup": False,

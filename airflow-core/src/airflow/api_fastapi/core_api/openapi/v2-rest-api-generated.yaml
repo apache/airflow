@@ -436,7 +436,7 @@ paths:
       tags:
       - Asset
       summary: Materialize Asset
-      description: Materialize an asset by triggering a DAG run that produces it.
+      description: Materialize an asset by triggering a Dag run that produces it.
       operationId: materialize_asset
       security:
       - OAuth2PasswordBearer: []
@@ -1715,7 +1715,7 @@ paths:
       tags:
       - DagRun
       summary: Delete Dag Run
-      description: Delete a DAG Run entry.
+      description: Delete a Dag Run entry.
       operationId: delete_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -1770,7 +1770,7 @@ paths:
       tags:
       - DagRun
       summary: Patch Dag Run
-      description: Modify a DAG Run.
+      description: Modify a Dag Run.
       operationId: patch_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -1963,11 +1963,11 @@ paths:
       tags:
       - DagRun
       summary: Get Dag Runs
-      description: 'Get all DAG Runs.
+      description: 'Get all Dag Runs.
 
 
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
-        all DAGs.'
+        all Dags.'
       operationId: get_dag_runs
       security:
       - OAuth2PasswordBearer: []
@@ -2410,7 +2410,7 @@ paths:
       tags:
       - DagRun
       summary: Get List Dag Runs Batch
-      description: Get a list of DAG Runs.
+      description: Get a list of Dag Runs.
       operationId: get_list_dag_runs_batch
       security:
       - OAuth2PasswordBearer: []
@@ -2604,7 +2604,7 @@ paths:
       tags:
       - DagReport
       summary: Get Dag Reports
-      description: Get DAG report.
+      description: Get Dag report.
       operationId: get_dag_reports
       security:
       - OAuth2PasswordBearer: []
@@ -2814,7 +2814,7 @@ paths:
       tags:
       - DagWarning
       summary: List Dag Warnings
-      description: Get a list of DAG warnings.
+      description: Get a list of Dag warnings.
       operationId: list_dag_warnings
       security:
       - OAuth2PasswordBearer: []
@@ -2892,7 +2892,7 @@ paths:
       tags:
       - DAG
       summary: Get Dags
-      description: Get all DAGs.
+      description: Get all Dags.
       operationId: get_dags
       security:
       - OAuth2PasswordBearer: []
@@ -3011,9 +3011,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -3021,9 +3021,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -3151,7 +3151,7 @@ paths:
       tags:
       - DAG
       summary: Patch Dags
-      description: Patch multiple DAGs.
+      description: Patch multiple Dags.
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
@@ -3514,7 +3514,7 @@ paths:
       tags:
       - DAG
       summary: Favorite Dag
-      description: Mark the DAG as favorite.
+      description: Mark the Dag as favorite.
       operationId: favorite_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3558,7 +3558,7 @@ paths:
       tags:
       - DAG
       summary: Unfavorite Dag
-      description: Unmark the DAG as favorite.
+      description: Unmark the Dag as favorite.
       operationId: unfavorite_dag
       security:
       - OAuth2PasswordBearer: []
@@ -4810,7 +4810,7 @@ paths:
 
 
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to
-        retrieve XCom entries for all DAGs.'
+        retrieve XCom entries for all Dags.'
       operationId: get_xcom_entries
       security:
       - OAuth2PasswordBearer: []
@@ -6114,9 +6114,9 @@ paths:
 
 
         This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve
-        Task Instances for all DAGs
+        Task Instances for all Dags
 
-        and DAG runs.'
+        and Dag runs.'
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
@@ -7603,9 +7603,9 @@ paths:
   /api/v2/parseDagFile/{file_token}:
     put:
       tags:
-      - DAG Parsing
+      - Dag Parsing
       summary: Reparse Dag File
-      description: Request re-parsing a DAG file.
+      description: Request re-parsing a Dag file.
       operationId: reparse_dag_file
       security:
       - OAuth2PasswordBearer: []
@@ -7654,7 +7654,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag Tags
-      description: Get all DAG tags.
+      description: Get all Dag tags.
       operationId: get_dag_tags
       security:
       - OAuth2PasswordBearer: []
@@ -7782,11 +7782,11 @@ paths:
       tags:
       - DagVersion
       summary: Get Dag Versions
-      description: 'Get all DAG Versions.
+      description: 'Get all Dag Versions.
 
 
-        This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
-        for all DAGs.'
+        This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions
+        for all Dags.'
       operationId: get_dag_versions
       security:
       - OAuth2PasswordBearer: []
@@ -9424,7 +9424,7 @@ components:
       - dags
       - total_entries
       title: DAGCollectionResponse
-      description: DAG Collection serializer for responses.
+      description: Dag Collection serializer for responses.
     DAGDetailsResponse:
       properties:
         dag_id:
@@ -9674,7 +9674,7 @@ components:
       - concurrency
       - latest_dag_version
       title: DAGDetailsResponse
-      description: Specific serializer for DAG Details responses.
+      description: Specific serializer for Dag Details responses.
     DAGPatchBody:
       properties:
         is_paused:
@@ -9829,7 +9829,7 @@ components:
       - owners
       - file_token
       title: DAGResponse
-      description: DAG serializer for responses.
+      description: Dag serializer for responses.
     DAGRunClearBody:
       properties:
         dry_run:
@@ -9849,7 +9849,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunClearBody
-      description: DAG Run serializer for clear endpoint body.
+      description: Dag Run serializer for clear endpoint body.
     DAGRunCollectionResponse:
       properties:
         dag_runs:
@@ -9865,7 +9865,7 @@ components:
       - dag_runs
       - total_entries
       title: DAGRunCollectionResponse
-      description: DAG Run Collection serializer for responses.
+      description: Dag Run Collection serializer for responses.
     DAGRunPatchBody:
       properties:
         state:
@@ -9881,7 +9881,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunPatchBody
-      description: DAG Run Serializer for PATCH requests.
+      description: Dag Run Serializer for PATCH requests.
     DAGRunPatchStates:
       type: string
       enum:
@@ -9889,7 +9889,7 @@ components:
       - success
       - failed
       title: DAGRunPatchStates
-      description: Enum for DAG Run states when updating a DAG Run.
+      description: Enum for Dag Run states when updating a Dag Run.
     DAGRunResponse:
       properties:
         dag_run_id:
@@ -10009,7 +10009,7 @@ components:
       - bundle_version
       - dag_display_name
       title: DAGRunResponse
-      description: DAG Run serializer for responses.
+      description: Dag Run serializer for responses.
     DAGRunsBatchBody:
       properties:
         order_by:
@@ -10142,7 +10142,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody
-      description: List DAG Runs body for batch endpoint.
+      description: List Dag Runs body for batch endpoint.
     DAGSourceResponse:
       properties:
         content:
@@ -10168,7 +10168,7 @@ components:
       - version_number
       - dag_display_name
       title: DAGSourceResponse
-      description: DAG Source serializer for responses.
+      description: Dag Source serializer for responses.
     DAGTagCollectionResponse:
       properties:
         tags:
@@ -10184,7 +10184,7 @@ components:
       - tags
       - total_entries
       title: DAGTagCollectionResponse
-      description: DAG Tags Collection serializer for responses.
+      description: Dag Tags Collection serializer for responses.
     DAGVersionCollectionResponse:
       properties:
         dag_versions:
@@ -10200,7 +10200,7 @@ components:
       - dag_versions
       - total_entries
       title: DAGVersionCollectionResponse
-      description: DAG Version Collection serializer for responses.
+      description: Dag Version Collection serializer for responses.
     DAGWarningCollectionResponse:
       properties:
         dag_warnings:
@@ -10216,7 +10216,7 @@ components:
       - dag_warnings
       - total_entries
       title: DAGWarningCollectionResponse
-      description: DAG warning collection serializer for responses.
+      description: Dag warning collection serializer for responses.
     DAGWarningResponse:
       properties:
         dag_id:
@@ -10242,7 +10242,7 @@ components:
       - timestamp
       - dag_display_name
       title: DAGWarningResponse
-      description: DAG Warning serializer for responses.
+      description: Dag Warning serializer for responses.
     DagProcessorInfoResponse:
       properties:
         status:
@@ -10371,7 +10371,7 @@ components:
       - created_at
       - updated_at
       title: DagScheduleAssetReference
-      description: DAG schedule reference serializer for assets.
+      description: Dag schedule reference serializer for assets.
     DagStatsCollectionResponse:
       properties:
         dags:
@@ -10387,7 +10387,7 @@ components:
       - dags
       - total_entries
       title: DagStatsCollectionResponse
-      description: DAG Stats Collection serializer for responses.
+      description: Dag Stats Collection serializer for responses.
     DagStatsResponse:
       properties:
         dag_id:
@@ -10407,7 +10407,7 @@ components:
       - dag_display_name
       - stats
       title: DagStatsResponse
-      description: DAG Stats serializer for responses.
+      description: Dag Stats serializer for responses.
     DagStatsStateResponse:
       properties:
         state:
@@ -10438,7 +10438,7 @@ components:
       - dag_id
       - dag_display_name
       title: DagTagResponse
-      description: DAG Tag serializer for responses.
+      description: Dag Tag serializer for responses.
     DagVersionResponse:
       properties:
         id:
@@ -10492,7 +10492,7 @@ components:
       - asset conflict
       - non-existent pool
       title: DagWarningType
-      description: 'Enum for DAG warning types.
+      description: 'Enum for Dag warning types.
 
 
         This is the set of allowable values for the ``warning_type`` field
@@ -12392,7 +12392,7 @@ components:
       required:
       - logical_date
       title: TriggerDAGRunPostBody
-      description: Trigger DAG Run Serializer for POST body.
+      description: Trigger Dag Run Serializer for POST body.
     TriggerResponse:
       properties:
         id:

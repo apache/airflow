@@ -105,9 +105,9 @@ class FileLoadStat(NamedTuple):
 
     :param file: Loaded file.
     :param duration: Time spent on process file.
-    :param dag_num: Total number of DAGs loaded in this file.
+    :param dag_num: Total number of Dags loaded in this file.
     :param task_num: Total number of Tasks loaded in this file.
-    :param dags: DAGs names loaded in this file.
+    :param dags: Dags names loaded in this file.
     :param warning_num: Total number of warnings captured from processing this file.
     """
 
@@ -153,7 +153,7 @@ class DagBag(LoggingMixin):
     profiles. What would have been system level settings are now dagbag level so
     that one system can run multiple, independent settings sets.
 
-    :param dag_folder: the folder to scan to find DAGs
+    :param dag_folder: the folder to scan to find Dags
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :param safe_mode: when ``False``, scans all python modules for dags.
@@ -196,7 +196,7 @@ class DagBag(LoggingMixin):
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
-        # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
+        # Only used by SchedulerJob to compare the dag_hash to identify change in Dags
         self.dags_hash: dict[str, str] = {}
 
         self.known_pools = known_pools
@@ -220,25 +220,25 @@ class DagBag(LoggingMixin):
     @property
     def dag_ids(self) -> list[str]:
         """
-        Get DAG ids.
+        Get Dag ids.
 
-        :return: a list of DAG IDs in this bag
+        :return: a list of Dag IDs in this bag
         """
         return list(self.dags)
 
     @provide_session
     def get_dag(self, dag_id, session: Session = None):
         """
-        Get the DAG out of the dictionary, and refreshes it if expired.
+        Get the Dag out of the dictionary, and refreshes it if expired.
 
-        :param dag_id: DAG ID
+        :param dag_id: Dag ID
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
 
         dag = self.dags.get(dag_id)
 
-        # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
+        # If Dag Model is absent, we can't check last_expired property. Is the Dag not yet synchronized?
         if (orm_dag := DagModel.get_current(dag_id, session=session)) is None:
             return dag
 
@@ -368,7 +368,7 @@ class DagBag(LoggingMixin):
             # Don't want to spam user with skip messages
             if not self.has_logged:
                 self.has_logged = True
-                self.log.info("File %s assumed to contain no DAGs. Skipping.", filepath)
+                self.log.info("File %s assumed to contain no Dags. Skipping.", filepath)
             return []
 
         self.log.debug("Importing %s", filepath)
@@ -417,7 +417,7 @@ class DagBag(LoggingMixin):
 
         timeout_msg = (
             f"DagBag import timeout for {filepath} after {dagbag_import_timeout}s.\n"
-            "Please take a look at these docs to improve your DAG import time:\n"
+            "Please take a look at these docs to improve your Dag import time:\n"
             f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
             f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
         )
@@ -445,7 +445,7 @@ class DagBag(LoggingMixin):
                     if not self.has_logged:
                         self.has_logged = True
                         self.log.info(
-                            "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
+                            "File %s:%s assumed to contain no Dags. Skipping.", filepath, zip_info.filename
                         )
                     continue
 
@@ -507,7 +507,7 @@ class DagBag(LoggingMixin):
 
     def bag_dag(self, dag: DAG):
         """
-        Add the DAG into the bag.
+        Add the Dag into the bag.
 
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
@@ -526,7 +526,7 @@ class DagBag(LoggingMixin):
                 if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
                     raise AirflowException(
                         "Listeners are not supported with end_from_trigger=True for deferrable operators. "
-                        "Task %s in DAG %s has end_from_trigger=True with listeners from plugins. "
+                        "Task %s in Dag %s has end_from_trigger=True with listeners from plugins. "
                         "Set end_from_trigger=False to use listeners.",
                         task.task_id,
                         dag.dag_id,
@@ -548,7 +548,7 @@ class DagBag(LoggingMixin):
                     existing=self.dags[dag.dag_id].fileloc,
                 )
             self.dags[dag.dag_id] = dag
-            self.log.debug("Loaded DAG %s", dag)
+            self.log.debug("Loaded Dag %s", dag)
         except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception("Exception bagging dag: %s", dag.dag_id)
@@ -625,7 +625,7 @@ class DagBag(LoggingMixin):
         -------------------------------------------------------------------
         DagBag loading stats for {dag_folder}
         -------------------------------------------------------------------
-        Number of DAGs: {dag_num}
+        Number of Dags: {dag_num}
         Total task number: {task_num}
         DagBag parsing time: {duration}\n{table}
         """
@@ -745,9 +745,9 @@ class DagPriorityParsingRequest(Base):
     id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
 
     bundle_name = Column(StringID(), nullable=False)
-    # The location of the file containing the DAG object
+    # The location of the file containing the Dag object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
-    # packaged DAG, it will point to the subpath of the DAG within the
+    # packaged DAG, it will point to the subpath of the Dag within the
     # associated zip.
     relative_fileloc = Column(String(2000), nullable=False)
 

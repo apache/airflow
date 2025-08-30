@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating ``TimeDeltaSensor``, that defers and doesn't occupy a worker slot while it waits
+Example Dag demonstrating ``TimeDeltaSensor``, that defers and doesn't occupy a worker slot while it waits
 """
 
 from __future__ import annotations

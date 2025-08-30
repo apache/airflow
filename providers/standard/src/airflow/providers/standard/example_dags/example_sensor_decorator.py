@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the usage of the sensor decorator."""
+"""Example Dag demonstrating the usage of the sensor decorator."""
 
 from __future__ import annotations
 

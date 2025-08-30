@@ -44,7 +44,7 @@ pytestmark = pytest.mark.db_test
 
 
 def make_example_dags(module):
-    """Loads DAGs from a module for test."""
+    """Loads Dags from a module for test."""
     # TODO: AIP-66 dedup with tests/models/test_serdag
     from airflow.models.dagbundle import DagBundleModel
     from airflow.utils.session import create_session

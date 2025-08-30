@@ -53,7 +53,7 @@ class GetRequestOperator(BaseOperator):
 )
 def example_dag_decorator(url: str = "http://httpbin.org/get"):
     """
-    DAG to get IP address and echo it via BashOperator.
+    Dag to get IP address and echo it via BashOperator.
 
     :param url: URL to get IP address from. Defaults to "http://httpbin.org/get".
     """

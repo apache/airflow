@@ -287,7 +287,7 @@ class TestAssetConditionWithTimetable:
             session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id))
         session.commit()
 
-        # Fetch and evaluate asset triggers for all DAGs affected by asset events
+        # Fetch and evaluate asset triggers for all Dags affected by asset events
         records = session.scalars(select(AssetDagRunQueue)).all()
         dag_statuses = defaultdict(lambda: defaultdict(bool))
         for record in records:

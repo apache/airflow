@@ -128,7 +128,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
 
 class BaseEventTrigger(BaseTrigger):
     """
-    Base class for triggers used to schedule DAGs based on external events.
+    Base class for triggers used to schedule Dags based on external events.
 
     ``BaseEventTrigger`` is a subclass of ``BaseTrigger`` designed to identify triggers compatible with
     event-driven scheduling.

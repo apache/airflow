@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Plugin to demonstrate timetable registration and accommodate example DAGs."""
+"""Plugin to demonstrate timetable registration and accommodate example Dags."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ class AfterWorkdayTimetable(Timetable):
         elif (earliest := restriction.earliest) is None:
             return None  # No start_date. Don't schedule.
         elif not restriction.catchup:
-            # If the DAG has catchup=False, today is the earliest to consider.
+            # If the Dag has catchup=False, today is the earliest to consider.
             next_start = max(earliest, DateTime.combine(Date.today(), Time.min, tzinfo=UTC))
         elif earliest.time() != Time.min:
             # If earliest does not fall on midnight, skip to the next day.

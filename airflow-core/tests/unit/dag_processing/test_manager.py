@@ -444,7 +444,7 @@ class TestDagFileProcessorManager:
 
     def test_scan_stale_dags(self, testing_dag_bundle):
         """
-        Ensure that DAGs are marked inactive when the file is parsed but the
+        Ensure that Dags are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
         """
         manager = DagFileProcessorManager(

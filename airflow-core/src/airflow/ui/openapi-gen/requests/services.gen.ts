@@ -167,7 +167,7 @@ export class AssetService {
     
     /**
      * Materialize Asset
-     * Materialize an asset by triggering a DAG run that produces it.
+     * Materialize an asset by triggering a Dag run that produces it.
      * @param data The data for the request.
      * @param data.assetId
      * @returns DAGRunResponse Successful Response
@@ -852,7 +852,7 @@ export class DagRunService {
     
     /**
      * Delete Dag Run
-     * Delete a DAG Run entry.
+     * Delete a Dag Run entry.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -879,7 +879,7 @@ export class DagRunService {
     
     /**
      * Patch Dag Run
-     * Modify a DAG Run.
+     * Modify a Dag Run.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -967,9 +967,9 @@ export class DagRunService {
     
     /**
      * Get Dag Runs
-     * Get all DAG Runs.
+     * Get all Dag Runs.
      *
-     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.limit
@@ -1110,7 +1110,7 @@ export class DagRunService {
     
     /**
      * Get List Dag Runs Batch
-     * Get a list of DAG Runs.
+     * Get a list of Dag Runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1240,7 +1240,7 @@ export class DagStatsService {
 export class DagReportService {
     /**
      * Get Dag Reports
-     * Get DAG report.
+     * Get Dag report.
      * @param data The data for the request.
      * @param data.subdir
      * @returns unknown Successful Response
@@ -1344,7 +1344,7 @@ export class ConfigService {
 export class DagWarningService {
     /**
      * List Dag Warnings
-     * Get a list of DAG warnings.
+     * Get a list of Dag warnings.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.warningType
@@ -1378,7 +1378,7 @@ export class DagWarningService {
 export class DagService {
     /**
      * Get Dags
-     * Get all DAGs.
+     * Get all Dags.
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
@@ -1392,8 +1392,8 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
@@ -1449,7 +1449,7 @@ export class DagService {
     
     /**
      * Patch Dags
-     * Patch multiple DAGs.
+     * Patch multiple Dags.
      * @param data The data for the request.
      * @param data.requestBody
      * @param data.updateMask
@@ -1600,7 +1600,7 @@ export class DagService {
     
     /**
      * Favorite Dag
-     * Mark the DAG as favorite.
+     * Mark the Dag as favorite.
      * @param data The data for the request.
      * @param data.dagId
      * @returns void Successful Response
@@ -1624,7 +1624,7 @@ export class DagService {
     
     /**
      * Unfavorite Dag
-     * Unmark the DAG as favorite.
+     * Unmark the Dag as favorite.
      * @param data The data for the request.
      * @param data.dagId
      * @returns void Successful Response
@@ -1649,7 +1649,7 @@ export class DagService {
     
     /**
      * Get Dag Tags
-     * Get all DAG tags.
+     * Get all Dag tags.
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
@@ -1678,7 +1678,7 @@ export class DagService {
     
     /**
      * Get Dags
-     * Get DAGs with recent DagRun.
+     * Get Dags with recent DagRun.
      * @param data The data for the request.
      * @param data.dagRunsLimit
      * @param data.limit
@@ -1696,8 +1696,8 @@ export class DagService {
      * @param data.bundleVersion
      * @param data.orderBy
      * @param data.isFavorite
-     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2291,8 +2291,8 @@ export class TaskInstanceService {
      * Get Task Instances
      * Get list of task instances.
      *
-     * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-     * and DAG runs.
+     * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all Dags
+     * and Dag runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3113,7 +3113,7 @@ export class XcomService {
      * Get Xcom Entries
      * Get all XCom entries.
      *
-     * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3429,7 +3429,7 @@ export class VariableService {
 export class DagParsingService {
     /**
      * Reparse Dag File
-     * Request re-parsing a DAG file.
+     * Request re-parsing a Dag file.
      * @param data The data for the request.
      * @param data.fileToken
      * @returns null Successful Response
@@ -3482,9 +3482,9 @@ export class DagVersionService {
     
     /**
      * Get Dag Versions
-     * Get all DAG Versions.
+     * Get all Dag Versions.
      *
-     * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.limit
@@ -3807,7 +3807,7 @@ export class DashboardService {
     
     /**
      * Dag Stats
-     * Return basic DAG stats with counts of DAGs in various states.
+     * Return basic Dag stats with counts of Dags in various states.
      * @returns DashboardDagStatsResponse Successful Response
      * @throws ApiError
      */
@@ -3975,7 +3975,7 @@ export class GridService {
 export class CalendarService {
     /**
      * Get Calendar
-     * Get calendar data for a DAG including historical and planned DAG runs.
+     * Get calendar data for a Dag including historical and planned Dag runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.granularity

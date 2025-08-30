@@ -172,12 +172,12 @@ def get_xcom(
         if params.offset is None:
             message = (
                 f"XCom with {key=} map_index={params.map_index} not found for "
-                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+                f"task {task_id!r} in Dag run {run_id!r} of {dag_id!r}"
             )
         else:
             message = (
                 f"XCom with {key=} offset={params.offset} not found for "
-                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+                f"task {task_id!r} in Dag run {run_id!r} of {dag_id!r}"
             )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -214,7 +214,7 @@ def get_mapped_xcom_by_index(
 
     if (result := xcom_query.limit(1).first()) is None:
         message = (
-            f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+            f"XCom with {key=} {offset=} not found for task {task_id!r} in Dag run {run_id!r} of {dag_id!r}"
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -397,7 +397,7 @@ def set_xcom(
 
     dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
     if dag_run_id is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG run not found on DAG {dag_id} with ID {run_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag run not found on Dag {dag_id} with ID {run_id}")
 
     # Remove duplicate XComs and insert a new one.
     session.execute(

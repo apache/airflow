@@ -52,7 +52,7 @@ class SchedulerXComArg:
 
         The implementation should be the inverse function to ``serialize``,
         implementing given a data dict converted from this XComArg derivative,
-        how the original XComArg should be created. DAG serialization relies on
+        how the original XComArg should be created. Dag serialization relies on
         additional information added in ``serialize_xcom_arg`` to dispatch data
         dicts to the correct ``_deserialize`` information, so this function does
         not need to validate whether the incoming data contains correct keys.

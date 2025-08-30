@@ -123,9 +123,9 @@ def get_dag_structure(
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
 
-    # Retrieve, sort the previous DAG Runs
+    # Retrieve, sort the previous Dag Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
-    # This comparison is to fall back to DAG timetable when no order_by is provided
+    # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
@@ -216,7 +216,7 @@ def get_grid_runs(
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    # Retrieve, sort the previous DAG Runs
+    # Retrieve, sort the previous Dag Runs
     base_query = select(
         DagRun.dag_id,
         DagRun.run_id,
@@ -228,7 +228,7 @@ def get_grid_runs(
         DagRun.run_type,
     ).where(DagRun.dag_id == dag_id)
 
-    # This comparison is to fall back to DAG timetable when no order_by is provided
+    # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
         latest_dag = latest_serdag.dag

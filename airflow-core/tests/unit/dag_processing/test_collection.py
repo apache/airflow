@@ -439,7 +439,7 @@ class TestUpdateDagParsingResults:
         assert serialized_dags_count == 0
 
     def test_serialized_dags_are_written_to_db_on_sync(self, testing_dag_bundle, session):
-        """Test DAGs are Serialized and written to DB when parsing result is updated"""
+        """Test Dags are Serialized and written to DB when parsing result is updated"""
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert serialized_dags_count == 0
 

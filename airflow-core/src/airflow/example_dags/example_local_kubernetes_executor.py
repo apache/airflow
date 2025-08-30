@@ -36,7 +36,7 @@ worker_container_tag = conf.get("kubernetes_executor", "worker_container_tag")
 try:
     from kubernetes.client import models as k8s
 except ImportError:
-    log.warning("Could not import DAGs in example_local_kubernetes_executor.py", exc_info=True)
+    log.warning("Could not import Dags in example_local_kubernetes_executor.py", exc_info=True)
     log.warning("Install Kubernetes dependencies with: pip install apache-airflow[cncf.kubernetes]")
     k8s = None
 

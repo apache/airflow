@@ -59,7 +59,7 @@ class DepContext:
         side effects).
     :param ignore_all_deps: Whether or not the context should ignore all ignorable
         dependencies. Overrides the other ignore_* parameters
-    :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
+    :param ignore_depends_on_past: Ignore depends_on_past parameter of Dags (e.g. for
         Backfills)
     :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
     :param ignore_in_retry_period: Ignore the retry period for task instances
@@ -92,7 +92,7 @@ class DepContext:
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
 
          :param dag_run: The DagRun for which to find finished tasks
-         :return: A list of all the finished tasks of this DAG and logical_date
+         :return: A list of all the finished tasks of this Dag and logical_date
         """
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)

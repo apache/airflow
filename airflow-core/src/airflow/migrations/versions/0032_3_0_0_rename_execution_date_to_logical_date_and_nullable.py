@@ -94,7 +94,7 @@ def _move_offending_dagruns():
     # end up with an empty offending table. Leave a note for the user to drop it
     # themselves after review.
     if offline:
-        op.execute(f"-- TODO: DAG runs unable to be downgraded are moved to {offending_table_name}.")
+        op.execute(f"-- TODO: Dag runs unable to be downgraded are moved to {offending_table_name}.")
         op.execute(f"-- TODO: Table {offending_table_name} can be removed after contained data are reviewed.")
 
     # Remove offending rows so we can continue downgrade.

@@ -160,7 +160,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     """
     Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
+    This should not be directly used anywhere, but only set if a Dag is triggered by assets.
 
     :meta private:
     """

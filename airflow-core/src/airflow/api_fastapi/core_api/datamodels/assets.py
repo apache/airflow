@@ -26,7 +26,7 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
 class DagScheduleAssetReference(StrictBaseModel):
-    """DAG schedule reference serializer for assets."""
+    """Dag schedule reference serializer for assets."""
 
     dag_id: str
     created_at: datetime

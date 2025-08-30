@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 # [START custom_priority_weight_strategy]
 class DecreasingPriorityStrategy(PriorityWeightStrategy):
-    """A priority weight strategy that decreases the priority weight with each attempt of the DAG task."""
+    """A priority weight strategy that decreases the priority weight with each attempt of the Dag task."""
 
     def get_weight(self, ti: TaskInstance):
         return max(3 - ti.try_number + 1, 1)

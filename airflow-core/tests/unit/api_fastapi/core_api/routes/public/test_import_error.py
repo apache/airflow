@@ -216,7 +216,7 @@ class TestGetImportError:
         mock_is_authorized_dag.assert_called_once_with(method="GET", user=mock.ANY)
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
         assert response.status_code == 403
-        assert response.json() == {"detail": "You do not have read permission on any of the DAGs in the file"}
+        assert response.json() == {"detail": "You do not have read permission on any of the Dags in the file"}
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_error__user_dont_have_read_permission_to_read_all_dags_in_file(
@@ -233,7 +233,7 @@ class TestGetImportError:
             "import_error_id": import_error_id,
             "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
             "filename": FILENAME1,
-            "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
+            "stack_trace": "REDACTED - you do not have read permission on all Dags in the file",
             "bundle_name": BUNDLE_NAME,
         }
 
@@ -348,7 +348,7 @@ class TestGetImportErrors:
             pytest.param(True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file"),
             pytest.param(
                 False,
-                "REDACTED - you do not have read permission on all DAGs in the file",
+                "REDACTED - you do not have read permission on all Dags in the file",
                 id="user_does_not_have_read_access_to_all_dags_in_current_file",
             ),
         ],

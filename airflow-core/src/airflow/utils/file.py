@@ -208,7 +208,7 @@ def _find_path_from_directory(
             dirpath = (Path(root) / sd).resolve()
             if dirpath in patterns_by_dir:
                 raise RuntimeError(
-                    "Detected recursive loop when walking DAG directory "
+                    "Detected recursive loop when walking Dag directory "
                     f"{base_dir_path}: {dirpath} has appeared more than once."
                 )
             patterns_by_dir.update({dirpath: patterns.copy()})
@@ -250,7 +250,7 @@ def list_py_file_paths(
 
     :param directory: the directory to traverse
     :param safe_mode: whether to use a heuristic to determine whether a file
-        contains Airflow DAG definitions. If not provided, use the
+        contains Airflow Dag definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
     :return: a list of paths to Python files in the specified directory
@@ -286,7 +286,7 @@ COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
     """
-    Check whether a Python file contains Airflow DAGs.
+    Check whether a Python file contains Airflow Dags.
 
     When safe_mode is off (with False value), this function always returns True.
 
@@ -305,11 +305,11 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile
 
 def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool:
     """
-    Heuristic that guesses whether a Python file contains an Airflow DAG definition.
+    Heuristic that guesses whether a Python file contains an Airflow Dag definition.
 
     :param file_path: Path to the file to be checked.
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
-    :return: True, if file might contain DAGs.
+    :return: True, if file might contain Dags.
     """
     if zip_file:
         with zip_file.open(file_path) as current_file:

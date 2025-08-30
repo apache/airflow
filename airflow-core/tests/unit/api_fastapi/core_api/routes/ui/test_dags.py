@@ -163,7 +163,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         ],
     )
     def test_asset_filtering(self, test_client, query_params, expected_dag_count, session):
-        """Test asset-based filtering on the UI DAGs endpoint."""
+        """Test asset-based filtering on the UI Dags endpoint."""
 
         self._create_asset_test_data(session)
 

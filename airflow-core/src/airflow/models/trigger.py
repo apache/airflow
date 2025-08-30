@@ -74,7 +74,7 @@ class Trigger(Base):
 
     Triggers are a workload that run in an asynchronous event loop shared with
     other Triggers, and fire off events that will unpause deferred Tasks,
-    start linked DAGs, etc.
+    start linked Dags, etc.
 
     They are persisted into the database and then re-hydrated into a
     "triggerer" process, where many are run at once. We model it so that
@@ -82,7 +82,7 @@ class Trigger(Base):
     deduplication logic to use.
 
     Rows will be evicted from the database when the triggerer detects no
-    active Tasks/DAGs using them. Events are not stored in the database;
+    active Tasks/Dags using them. Events are not stored in the database;
     when an Event is fired, the triggerer will directly push its data to the
     appropriate Task/DAG.
     """
@@ -364,7 +364,7 @@ class Trigger(Base):
         result: list[int] = []
 
         # Add triggers associated to deadlines first, then tasks, then assets
-        # It prioritizes deadline triggers, then DAGs over event driven scheduling which is fair
+        # It prioritizes deadline triggers, then Dags over event driven scheduling which is fair
         queries = [
             # Deadline triggers
             select(cls.id).where(cls.deadline.has()).order_by(cls.created_date),

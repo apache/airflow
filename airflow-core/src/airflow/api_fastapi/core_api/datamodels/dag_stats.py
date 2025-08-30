@@ -31,7 +31,7 @@ class DagStatsStateResponse(BaseModel):
 
 
 class DagStatsResponse(BaseModel):
-    """DAG Stats serializer for responses."""
+    """Dag Stats serializer for responses."""
 
     dag_id: str
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
@@ -39,7 +39,7 @@ class DagStatsResponse(BaseModel):
 
 
 class DagStatsCollectionResponse(BaseModel):
-    """DAG Stats Collection serializer for responses."""
+    """Dag Stats Collection serializer for responses."""
 
     dags: list[DagStatsResponse]
     total_entries: int

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
+"""Example Dag demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def create_test_pipeline(suffix, trigger_rule):
 
     :param str suffix: Suffix to append to the operator task_ids
     :param str trigger_rule: TriggerRule for the join task
-    :param DAG dag_: The DAG to run the operators on
+    :param Dag dag_: The Dag to run the operators on
     """
     skip_operator = EmptySkipOperator(task_id=f"skip_operator_{suffix}")
     always_true = EmptyOperator(task_id=f"always_true_{suffix}")

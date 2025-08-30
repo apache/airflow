@@ -25,7 +25,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class ParseImportError(Base):
-    """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
+    """Stores all Import Errors which are recorded when parsing Dags and displayed on the Webserver."""
 
     __tablename__ = "import_error"
     id = Column(Integer, primary_key=True)

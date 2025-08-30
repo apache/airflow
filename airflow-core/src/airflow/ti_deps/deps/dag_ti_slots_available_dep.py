@@ -33,6 +33,6 @@ class DagTISlotsAvailableDep(BaseTIDep):
             yield self._failing_status(
                 reason=(
                     f"The maximum number of running tasks ({ti.task.dag.max_active_tasks}) for "
-                    f"this task's DAG '{ti.dag_id}' has been reached."
+                    f"this task's Dag '{ti.dag_id}' has been reached."
                 )
             )

@@ -139,7 +139,7 @@ class DagRun(Base, LoggingMixin):
     """
     Invocation instance of a DAG.
 
-    A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
+    A Dag run can be created by the scheduler (i.e. scheduled runs), or by an
     external trigger (i.e. manual runs).
     """
 
@@ -724,9 +724,9 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find_duplicate(cls, dag_id: str, run_id: str, *, session: Session = NEW_SESSION) -> DagRun | None:
         """
-        Return an existing run for the DAG with a specific run_id.
+        Return an existing run for the Dag with a specific run_id.
 
-        *None* is returned if no such DAG run is found.
+        *None* is returned if no such Dag run is found.
 
         :param dag_id: the dag_id to find duplicates for
         :param run_id: defines the run id for this dag run
@@ -805,7 +805,7 @@ class DagRun(Base, LoggingMixin):
             from airflow.models.dag import DagModel
 
             self.log.info(
-                "Pausing DAG %s because last %s DAG runs failed.",
+                "Pausing Dag %s because last %s Dag runs failed.",
                 self.dag_id,
                 max_consecutive_failed_dag_runs,
             )
@@ -829,7 +829,7 @@ class DagRun(Base, LoggingMixin):
             )
         else:
             self.log.debug(
-                "Limit of consecutive DAG failed dag runs is not reached, DAG %s will not be paused.",
+                "Limit of consecutive Dag failed dag runs is not reached, Dag %s will not be paused.",
                 self.dag_id,
             )
 
@@ -884,8 +884,8 @@ class DagRun(Base, LoggingMixin):
         """
         Return the task instance specified by task_id for this dag run.
 
-        :param dag_id: the DAG id
-        :param dag_run_id: the DAG run id
+        :param dag_id: the Dag id
+        :param dag_run_id: the Dag run id
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
@@ -900,7 +900,7 @@ class DagRun(Base, LoggingMixin):
         :return: DAG
         """
         if not self.dag:
-            raise AirflowException(f"The DAG (.dag) for {self} needs to be set")
+            raise AirflowException(f"The Dag (.dag) for {self} needs to be set")
 
         return self.dag
 
@@ -935,7 +935,7 @@ class DagRun(Base, LoggingMixin):
         """
         Return the previous SCHEDULED DagRun, if there is one.
 
-        :param dag_run_id: the DAG run ID
+        :param dag_run_id: the Dag run ID
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
@@ -983,7 +983,7 @@ class DagRun(Base, LoggingMixin):
 
         # Explicitly set the value type to Union[...] to avoid a mypy error.
         attributes: dict[str, AttributeValueType] = {
-            "airflow.category": "DAG runs",
+            "airflow.category": "Dag runs",
             "airflow.dag_run.dag_id": str(self.dag_id),
             "airflow.dag_run.logical_date": str(self.logical_date),
             "airflow.dag_run.run_id": str(self.run_id),
@@ -1193,7 +1193,7 @@ class DagRun(Base, LoggingMixin):
             # and last consecutive failures are more
             if dag.max_consecutive_failed_dag_runs > 0:
                 self.log.debug(
-                    "Checking consecutive failed DAG runs for DAG %s, limit is %s",
+                    "Checking consecutive failed Dag runs for Dag %s, limit is %s",
                     self.dag_id,
                     dag.max_consecutive_failed_dag_runs,
                 )
@@ -1569,10 +1569,10 @@ class DagRun(Base, LoggingMixin):
         Emit the true scheduling delay stats.
 
         The true scheduling delay stats is defined as the time when the first
-        task in DAG starts minus the expected DAG run datetime.
+        task in Dag starts minus the expected Dag run datetime.
 
         This helper method is used in ``update_state`` when the state of the
-        DAG run is updated to a completed status (either success or failure).
+        Dag run is updated to a completed status (either success or failure).
         It finds the first started task within the DAG, calculates the run's
         expected start time based on the logical date and timetable, and gets
         the delay from the difference of these two values.
@@ -1581,7 +1581,7 @@ class DagRun(Base, LoggingMixin):
         cleared, so the second task's start date will be used), but we can get
         rid of the outliers on the stats side through dashboards tooling.
 
-        Note that the stat will only be emitted for scheduler-triggered DAG runs
+        Note that the stat will only be emitted for scheduler-triggered Dag runs
         (i.e. when ``run_type`` is *SCHEDULED* and ``clear_number`` is equal to 0).
         """
         if self.state == TaskInstanceState.RUNNING:
@@ -1642,7 +1642,7 @@ class DagRun(Base, LoggingMixin):
 
         It will set state to removed or add the task if required.
 
-        :param dag_version_id: The DAG version ID
+        :param dag_version_id: The Dag version ID
         :param session: Sqlalchemy ORM Session
         """
         from airflow.settings import task_instance_mutation_hook
@@ -1688,11 +1688,11 @@ class DagRun(Base, LoggingMixin):
         """
         Check for removed tasks/restored/missing tasks.
 
-        :param dag: DAG object corresponding to the dagrun
+        :param dag: Dag object corresponding to the dagrun
         :param ti_mutation_hook: task_instance_mutation_hook function
         :param session: Sqlalchemy ORM Session
 
-        :return: Task IDs in the DAG run
+        :return: Task IDs in the Dag run
 
         """
         from airflow.models.expandinput import NotFullyPopulated
@@ -1710,7 +1710,7 @@ class DagRun(Base, LoggingMixin):
 
                 should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
-                    self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
+                    self.log.info("Restoring task '%s' which was previously removed from Dag '%s'", ti, dag)
                     Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
                     # Same metric with tagging
                     Stats.incr("task_restored_to_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
@@ -1833,7 +1833,7 @@ class DagRun(Base, LoggingMixin):
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
 
-        :param tasks: Tasks to create jobs for in the DAG run
+        :param tasks: Tasks to create jobs for in the Dag run
         :param task_creator: Function to create task instances
         """
         from airflow.models.expandinput import NotFullyPopulated
@@ -1866,7 +1866,7 @@ class DagRun(Base, LoggingMixin):
         """
         Create the necessary task instances from the given tasks.
 
-        :param dag_id: DAG ID associated with the dagrun
+        :param dag_id: Dag ID associated with the dagrun
         :param tasks: the tasks to create the task instances from
         :param created_counts: a dictionary of number of tasks -> total ti created by the task creator
         :param hook_is_noop: whether the task_instance_mutation_hook is noop

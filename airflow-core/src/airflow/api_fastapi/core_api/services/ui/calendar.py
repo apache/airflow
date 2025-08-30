@@ -57,12 +57,12 @@ class CalendarService:
         granularity: Literal["hourly", "daily"] = "daily",
     ) -> CalendarTimeRangeCollectionResponse:
         """
-        Get calendar data for a DAG including historical and planned runs.
+        Get calendar data for a Dag including historical and planned runs.
 
         Args:
-            dag_id: The DAG ID
+            dag_id: The Dag ID
             session: Database session
-            dag: The DAG object
+            dag: The Dag object
             logical_date: Date range filter
             granularity: Time granularity ("hourly" or "daily")
 
@@ -91,7 +91,7 @@ class CalendarService:
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> tuple[list[CalendarTimeRangeResponse], list[Row]]:
-        """Get historical DAG runs from the database."""
+        """Get historical Dag runs from the database."""
         dialect = session.bind.dialect.name
 
         time_expression = self._get_time_truncation_expression(DagRun.logical_date, granularity, dialect)
@@ -131,7 +131,7 @@ class CalendarService:
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
-        """Get planned DAG runs based on the DAG's timetable."""
+        """Get planned Dag runs based on the DAG's timetable."""
         if not self._should_calculate_planned_runs(dag, raw_dag_states):
             return []
 
@@ -226,7 +226,7 @@ class CalendarService:
                 restriction=restriction,
             )
 
-            if curr_info is None:  # No more DAG runs to schedule
+            if curr_info is None:  # No more Dag runs to schedule
                 break
             if curr_info.logical_date <= prev_logical_date:  # Timetable not progressing, stopping
                 break

@@ -146,15 +146,15 @@ ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
 ARG_LOGICAL_DATE = Arg(("-l", "--logical-date"), help="The logical date of the DAG", type=parsedate)
 ARG_LOGICAL_DATE_OPTIONAL = Arg(
-    ("logical_date",), nargs="?", help="The logical date of the DAG (optional)", type=parsedate
+    ("logical_date",), nargs="?", help="The logical date of the Dag (optional)", type=parsedate
 )
 ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
-    ("logical_date_or_run_id",), help="The logical date of the DAG or run_id of the DAGRun"
+    ("logical_date_or_run_id",), help="The logical date of the Dag or run_id of the DAGRun"
 )
 ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL = Arg(
     ("logical_date_or_run_id",),
     nargs="?",
-    help="The logical date of the DAG or run_id of the DAGRun (optional)",
+    help="The logical date of the Dag or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_BUNDLE_NAME = Arg(
@@ -162,7 +162,7 @@ ARG_BUNDLE_NAME = Arg(
         "-B",
         "--bundle-name",
     ),
-    help=("The name of the DAG bundle to use; may be provided more than once"),
+    help=("The name of the Dag bundle to use; may be provided more than once"),
     type=str,
     default=None,
     action="append",
@@ -233,7 +233,7 @@ ARG_SKIP_SERVE_LOGS = Arg(
 ARG_LIST_LOCAL = Arg(
     ("-l", "--local"),
     action="store_true",
-    help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
+    help="Shows local parsed Dags and their import errors, ignores content serialized in DB",
 )
 
 # list_dag_runs
@@ -243,7 +243,7 @@ ARG_NO_BACKFILL = Arg(
 dagrun_states = tuple(state.value for state in DagRunState)
 ARG_DR_STATE = Arg(
     ("--state",),
-    help="Only list the DAG runs corresponding to the state",
+    help="Only list the Dag runs corresponding to the state",
     metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
@@ -369,7 +369,7 @@ ARG_DAGFILE_PATH = Arg(
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
     help=(
-        "After completing the backfill, shows the diagram for current DAG Run.\n"
+        "After completing the backfill, shows the diagram for current Dag Run.\n"
         "\n"
         "The diagram is in DOT language\n"
     ),
@@ -379,17 +379,17 @@ ARG_IMGCAT_DAGRUN = Arg(
     ("--imgcat-dagrun",),
     help=(
         "After completing the dag run, prints a diagram on the screen for the "
-        "current DAG Run using the imgcat tool.\n"
+        "current Dag Run using the imgcat tool.\n"
     ),
     action="store_true",
 )
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
-    help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
+    help="After completing the backfill, saves the diagram for current Dag Run to the indicated file.\n\n",
 )
 ARG_USE_EXECUTOR = Arg(
     ("--use-executor",),
-    help="Use an executor to test the DAG. By default it runs the DAG without an executor. "
+    help="Use an executor to test the DAG. By default it runs the Dag without an executor. "
     "If set, it uses the executor configured in the environment.",
     action="store_true",
 )
@@ -967,7 +967,7 @@ BACKFILL_COMMANDS = (
     ActionCommand(
         name="create",
         help="Create a backfill for a dag.",
-        description="Run subsections of a DAG for a specified date range.",
+        description="Run subsections of a Dag for a specified date range.",
         func=lazy_load_command("airflow.cli.commands.backfill_command.create_backfill"),
         args=(
             ARG_BACKFILL_DAG,
@@ -985,19 +985,19 @@ BACKFILL_COMMANDS = (
 DAGS_COMMANDS = (
     ActionCommand(
         name="details",
-        help="Get DAG details given a DAG id",
+        help="Get Dag details given a Dag id",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_details"),
         args=(ARG_DAG_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list",
-        help="List all the DAGs",
+        help="List all the Dags",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
         args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME, ARG_LIST_LOCAL),
     ),
     ActionCommand(
         name="list-import-errors",
-        help="List all the DAGs that have import errors",
+        help="List all the Dags that have import errors",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_import_errors"),
         args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_LIST_LOCAL),
     ),
@@ -1009,9 +1009,9 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="list-runs",
-        help="List DAG runs given a DAG id",
+        help="List Dag runs given a Dag id",
         description=(
-            "List DAG runs given a DAG id. If state option is given, it will only search for all the "
+            "List Dag runs given a Dag id. If state option is given, it will only search for all the "
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
@@ -1054,8 +1054,8 @@ DAGS_COMMANDS = (
         name="pause",
         help="Pause DAG(s)",
         description=(
-            "Pause one or more DAGs. This command allows to halt the execution of specified DAGs, "
-            "disabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs by "
+            "Pause one or more Dags. This command allows to halt the execution of specified Dags, "
+            "disabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple Dags by "
             "treating the `--dag-id` as a regex pattern."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_pause"),
@@ -1065,8 +1065,8 @@ DAGS_COMMANDS = (
         name="unpause",
         help="Resume paused DAG(s)",
         description=(
-            "Resume one or more DAGs. This command allows to restore the execution of specified "
-            "DAGs, enabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs "
+            "Resume one or more Dags. This command allows to restore the execution of specified "
+            "Dags, enabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple Dags "
             "treating the `--dag-id` as a regex pattern."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_unpause"),
@@ -1075,7 +1075,7 @@ DAGS_COMMANDS = (
     ActionCommand(
         name="trigger",
         help=(
-            "Trigger a new DAG run. If DAG is paused then dagrun state will remain queued, "
+            "Trigger a new Dag run. If Dag is paused then dagrun state will remain queued, "
             "and the task won't run."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
@@ -1120,7 +1120,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="show-dependencies",
-        help="Displays DAGs with their dependencies",
+        help="Displays Dags with their dependencies",
         description=(
             "The --imgcat option only works in iTerm.\n"
             "\n"
@@ -1149,16 +1149,16 @@ DAGS_COMMANDS = (
         name="test",
         help="Execute one single DagRun",
         description=(
-            "Execute one single DagRun for a given DAG and logical date.\n"
+            "Execute one single DagRun for a given Dag and logical date.\n"
             "\n"
-            "You can test a DAG in three ways:\n"
+            "You can test a Dag in three ways:\n"
             "1. Using default bundle:\n"
             "   airflow dags test <DAG_ID>\n"
             "\n"
-            "2. Using a specific bundle if multiple DAG bundles are configured:\n"
+            "2. Using a specific bundle if multiple Dag bundles are configured:\n"
             "   airflow dags test <DAG_ID> --bundle-name <BUNDLE_NAME> (or -B <BUNDLE_NAME>)\n"
             "\n"
-            "3. Using a specific DAG file:\n"
+            "3. Using a specific Dag file:\n"
             "   airflow dags test <DAG_ID> --dagfile-path <PATH> (or -f <PATH>)\n"
             "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
@@ -1166,7 +1166,7 @@ DAGS_COMMANDS = (
             "For more information, see: https://www.iterm2.com/documentation-images.html\n"
             "\n"
             "If --save-dagrun is used, then, after completing the backfill, saves the diagram "
-            "for current DAG Run to the indicated file.\n"
+            "for current Dag Run to the indicated file.\n"
             "The file format is determined by the file extension. "
             "For more information about supported format, "
             "see: https://www.graphviz.org/doc/info/output.html\n"
@@ -1194,10 +1194,10 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="reserialize",
-        help="Reserialize DAGs by parsing the DagBag files",
+        help="Reserialize Dags by parsing the DagBag files",
         description=(
-            "Reserialize DAGs in the metadata DB. This can be "
-            "particularly useful if your serialized DAGs become out of sync with the Airflow "
+            "Reserialize Dags in the metadata DB. This can be "
+            "particularly useful if your serialized Dags become out of sync with the Airflow "
             "version you are using."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_reserialize"),
@@ -1807,7 +1807,7 @@ DB_MANAGERS_COMMANDS = (
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
-        help="Manage DAGs",
+        help="Manage Dags",
         subcommands=DAGS_COMMANDS,
     ),
     GroupCommand(
@@ -2010,7 +2010,7 @@ def _remove_dag_id_opt(command: ActionCommand):
 dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
-        help="Manage DAGs",
+        help="Manage Dags",
         subcommands=[
             _remove_dag_id_opt(sp)
             for sp in DAGS_COMMANDS

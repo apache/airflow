@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Utility code that writes DAGs in bulk into the database.
+Utility code that writes Dags in bulk into the database.
 
 This should generally only be called by internal methods such as
 ``DagBag._sync_to_db``, ``DAG.bulk_write_to_db``.
@@ -79,7 +79,7 @@ def _create_orm_dags(
         orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
-        log.info("Creating ORM DAG for %s", dag.dag_id)
+        log.info("Creating ORM Dag for %s", dag.dag_id)
         session.add(orm_dag)
         yield orm_dag
 
@@ -135,7 +135,7 @@ class _RunInfo(NamedTuple):
 
         :param dags: dict of dags to query
         """
-        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        # Skip these queries entirely if no Dags can be scheduled to save time.
         if not any(dag.timetable.can_be_scheduled for dag in dags.values()):
             return cls({}, {})
 
@@ -206,7 +206,7 @@ def _serialize_dag_capturing_errors(
     except OperationalError:
         raise
     except Exception:
-        log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
+        log.exception("Failed to write serialized Dag dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
         return [
             (
@@ -217,10 +217,10 @@ def _serialize_dag_capturing_errors(
 
 
 def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
-    """Sync DAG specific permissions."""
+    """Sync Dag specific permissions."""
     dag_id = dag.dag_id
 
-    log.debug("Syncing DAG permissions: %s to the DB", dag_id)
+    log.debug("Syncing Dag permissions: %s to the DB", dag_id)
     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 
     security_manager = ApplessAirflowSecurityManager(session=session)
@@ -342,7 +342,7 @@ def update_dag_parsing_results_in_db(
     warning_types: tuple[DagWarningType] = (DagWarningType.NONEXISTENT_POOL,),
 ):
     """
-    Update everything to do with DAG parsing in the DB.
+    Update everything to do with Dag parsing in the DB.
 
     This function will create or update rows in the following tables:
 
@@ -350,10 +350,10 @@ def update_dag_parsing_results_in_db(
     - SerializedDagModel (`serialized_dag` table)
     - ParseImportError (including with any errors as a result of serialization, not just parsing)
     - DagWarning
-    - DAG Permissions
+    - Dag Permissions
 
     This function will not remove any rows for dags not passed in. It will remove parse errors and warnings
-    from dags/dag files that are passed in. In order words, if a DAG is passed in with a fileloc of `a.py`
+    from dags/dag files that are passed in. In order words, if a Dag is passed in with a fileloc of `a.py`
     then all warnings and errors related to this file will be removed.
 
     ``import_errors`` will be updated in place with an new errors
@@ -372,7 +372,7 @@ def update_dag_parsing_results_in_db(
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
                 DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
-                # Write Serialized DAGs to DB, capturing errors
+                # Write Serialized Dags to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
                         _serialize_dag_capturing_errors(
@@ -387,7 +387,7 @@ def update_dag_parsing_results_in_db(
             import_errors.update(dict(serialize_errors))
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
-        # TODO: This won't clear errors for files that exist that no longer contain DAGs. Do we need to pass
+        # TODO: This won't clear errors for files that exist that no longer contain Dags. Do we need to pass
         # in the list of file parsed?
 
         good_dag_filelocs = {
@@ -404,24 +404,24 @@ def update_dag_parsing_results_in_db(
     except Exception:
         log.exception("Error logging import errors!")
 
-    # Record DAG warnings in the metadatabase.
+    # Record Dag warnings in the metadatabase.
     try:
         _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
     except Exception:
-        log.exception("Error logging DAG warnings.")
+        log.exception("Error logging Dag warnings.")
 
     session.flush()
 
 
 class DagModelOperation(NamedTuple):
-    """Collect DAG objects and perform database operations for them."""
+    """Collect Dag objects and perform database operations for them."""
 
     dags: dict[str, MaybeSerializedDAG]
     bundle_name: str
     bundle_version: str | None
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
-        """Find existing DagModel objects from DAG objects."""
+        """Find existing DagModel objects from Dag objects."""
         stmt = (
             select(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
@@ -621,7 +621,7 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
 
 
 class AssetModelOperation(NamedTuple):
-    """Collect asset/alias objects from DAGs and perform database operations for them."""
+    """Collect asset/alias objects from Dags and perform database operations for them."""
 
     schedule_asset_references: dict[str, list[Asset]]
     schedule_asset_alias_references: dict[str, list[AssetAlias]]
@@ -888,7 +888,7 @@ class AssetModelOperation(NamedTuple):
         active_assets = _find_active_assets(self.assets, session=session) if self.assets else {}
 
         for name_uri, asset in self.assets.items():
-            # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
+            # If the asset belong to a Dag not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
                 [_encode_trigger(watcher.trigger) for watcher in asset.watchers]
                 if name_uri in active_assets
@@ -906,7 +906,7 @@ class AssetModelOperation(NamedTuple):
                 BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
             }
 
-            # Optimization: no diff between the DB and DAG definitions, no update needed
+            # Optimization: no diff between the DB and Dag definitions, no update needed
             if trigger_hash_from_asset == trigger_hash_from_asset_model:
                 continue
 

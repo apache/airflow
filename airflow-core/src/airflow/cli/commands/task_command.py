@@ -71,9 +71,9 @@ log = logging.getLogger(__name__)
 
 def _generate_temporary_run_id() -> str:
     """
-    Generate a ``run_id`` for a DAG run that will be created temporarily.
+    Generate a ``run_id`` for a Dag run that will be created temporarily.
 
-    This is used mostly by ``airflow task test`` to create a DAG run that will
+    This is used mostly by ``airflow task test`` to create a Dag run that will
     be deleted after the task is run.
     """
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
@@ -87,16 +87,16 @@ def _get_dag_run(
     session: Session | None = None,
 ) -> tuple[DagRun, bool]:
     """
-    Try to retrieve a DAG run from a string representing either a run ID or logical date.
+    Try to retrieve a Dag run from a string representing either a run ID or logical date.
 
-    This checks DAG runs like this:
+    This checks Dag runs like this:
 
-    1. If the input ``logical_date_or_run_id`` matches a DAG run ID, return the run.
+    1. If the input ``logical_date_or_run_id`` matches a Dag run ID, return the run.
     2. Try to parse the input as a date. If that works, and the resulting
-       date matches a DAG run's logical date, return the run.
+       date matches a Dag run's logical date, return the run.
     3. If ``create_if_necessary`` is *False* and the input works for neither of
        the above, raise ``DagRunNotFound``.
-    4. Try to create a new DAG run. If the input looks like a date, use it as
+    4. Try to create a new Dag run. If the input looks like a date, use it as
        the logical date; otherwise use it as a run ID and set the logical date
        to the current time.
     """
@@ -283,7 +283,7 @@ def task_state(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
-    """List the tasks within a DAG at the command line."""
+    """List the tasks within a Dag at the command line."""
     dag = dag or get_dag(args.bundle_name, args.dag_id)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))

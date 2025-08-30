@@ -96,13 +96,13 @@ def _config_bundles(bundles: dict[str, Path | str]):
 
 @pytest.fixture
 def configure_dag_bundles():
-    """Configure arbitrary DAG bundles with the provided paths"""
+    """Configure arbitrary Dag bundles with the provided paths"""
     return _config_bundles
 
 
 @pytest.fixture
 def configure_testing_dag_bundle():
-    """Configure a "testing" DAG bundle with the provided path"""
+    """Configure a "testing" Dag bundle with the provided path"""
 
     @contextmanager
     def _config_bundle(path_to_parse: Path | str):

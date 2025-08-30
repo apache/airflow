@@ -36,11 +36,11 @@ if TYPE_CHECKING:
 
 class DagWarning(Base):
     """
-    A table to store DAG warnings.
+    A table to store Dag warnings.
 
-    DAG warnings are problems that don't rise to the level of failing the DAG parse
+    Dag warnings are problems that don't rise to the level of failing the Dag parse
     but which users should nonetheless be warned about. These warnings are recorded
-    when parsing DAG and displayed on the Webserver in a flash message.
+    when parsing Dag and displayed on the Webserver in a flash message.
     """
 
     dag_id = Column(StringID(), primary_key=True)
@@ -94,7 +94,7 @@ class DagWarning(Base):
 
 class DagWarningType(str, Enum):
     """
-    Enum for DAG warning types.
+    Enum for Dag warning types.
 
     This is the set of allowable values for the ``warning_type`` field
     in the DagWarning model.

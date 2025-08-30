@@ -1052,7 +1052,7 @@ class TestDagRun:
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_next_dagruns_to_examine_only_unpaused(self, session, state, testing_dag_bundle):
         """
-        Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
+        Check that "next_dagruns_to_examine" ignores runs from paused/inactive Dags
         and gets running/queued dagruns
         """
         dag = DAG(dag_id="test_dags", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)

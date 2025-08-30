@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that shows the complex DAG structure.
+Example Airflow Dag that shows the complex Dag structure.
 """
 
 from __future__ import annotations

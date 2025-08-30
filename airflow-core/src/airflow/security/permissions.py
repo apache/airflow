@@ -36,7 +36,7 @@ RESOURCE_BACKFILL = "Backfills"
 RESOURCE_BROWSE_MENU = "Browse"
 RESOURCE_CONFIG = "Configurations"
 RESOURCE_CONNECTION = "Connections"
-RESOURCE_DAG = "DAGs"
+RESOURCE_DAG = "Dags"
 RESOURCE_DAG_CODE = "DAG Code"
 RESOURCE_DAG_DEPENDENCIES = "DAG Dependencies"
 RESOURCE_DAG_PREFIX = "DAG:"
@@ -116,7 +116,7 @@ def resource_name(root_dag_id: str, resource: str) -> str:
 
 def resource_name_for_dag(root_dag_id: str) -> str:
     """
-    Return the resource name for a DAG id.
+    Return the resource name for a Dag ID.
 
     Note: This function is kept for backwards compatibility.
     """

@@ -63,7 +63,7 @@ class DagVersionResponse(BaseModel):
 
 
 class DAGVersionCollectionResponse(BaseModel):
-    """DAG Version Collection serializer for responses."""
+    """Dag Version Collection serializer for responses."""
 
     dag_versions: list[DagVersionResponse]
     total_entries: int

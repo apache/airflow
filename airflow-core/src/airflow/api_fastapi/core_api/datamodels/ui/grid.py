@@ -35,7 +35,7 @@ class LightGridTaskInstanceSummary(BaseModel):
 
 
 class GridTISummaries(BaseModel):
-    """DAG Run model for the Grid UI."""
+    """Dag Run model for the Grid UI."""
 
     run_id: str
     dag_id: str

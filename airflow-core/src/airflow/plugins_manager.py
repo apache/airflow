@@ -83,7 +83,7 @@ priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None
 """
 Mapping of class names to class of OperatorLinks registered by plugins.
 
-Used by the DAG serialization code to only allow specific classes to be created
+Used by the Dag serialization code to only allow specific classes to be created
 during deserialization
 """
 PLUGINS_ATTRIBUTES_TO_DUMP = {

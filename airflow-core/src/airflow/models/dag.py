@@ -249,7 +249,7 @@ def _create_orm_dagrun(
         )
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     if not dag_version:
-        raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
+        raise AirflowException(f"Cannot create DagRun for Dag {dag.dag_id} because the dag is not serialized")
 
     run = DagRun(
         dag_id=dag.dag_id,
@@ -309,7 +309,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     are met. Certain tasks have the property of depending on their own past, meaning that
     they can't run until their previous schedule (and upstream tasks) are completed.
 
-    DAGs essentially act as namespaces for tasks. A task_id can only be
+    Dags essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
 
     Note that if you plan to use time zones all the dates provided should be pendulum
@@ -333,11 +333,11 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill. If this is not provided, backfilling must be done
         manually with an explicit time range.
-    :param end_date: A date beyond which your DAG won't run, leave to None
+    :param end_date: A date beyond which your Dag won't run, leave to None
         for open-ended scheduling.
     :param template_searchpath: This list of folders (non-relative)
         defines where jinja will look for your templates. Order matters.
-        Note that jinja/airflow includes the path of your DAG file by
+        Note that jinja/airflow includes the path of your Dag file by
         default
     :param template_undefined: Template undefined type.
     :param user_defined_macros: a dictionary of macros that will be exposed
@@ -356,25 +356,25 @@ class DAG(TaskSDKDag, LoggingMixin):
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
         `default_args`, the actual value will be `False`.
-    :param params: a dictionary of DAG level parameters that are made
+    :param params: a dictionary of Dag level parameters that are made
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :param max_active_tasks: the number of task instances allowed to run
         concurrently
-    :param max_active_runs: maximum number of active DAG runs, beyond this
-        number of DAG runs in a running state, the scheduler won't create
-        new active DAG runs
-    :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed DAG runs,
+    :param max_active_runs: maximum number of active Dag runs, beyond this
+        number of Dag runs in a running state, the scheduler won't create
+        new active Dag runs
+    :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed Dag runs,
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param deadline: Optional Deadline Alert for the DAG.
-        Specifies a time by which the DAG run should be complete, either in the form of a static datetime
+        Specifies a time by which the Dag run should be complete, either in the form of a static datetime
         or calculated relative to a reference timestamp.  If the deadline passes before completion, the
         provided callback is triggered.
 
-        **Example**: To set the deadline for one hour after the DAG run starts you could use ::
+        **Example**: To set the deadline for one hour after the Dag run starts you could use ::
 
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
@@ -389,8 +389,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
-        or it can specify the resource name if there is a DAGs Run resource, e.g.,
-        "{'role1': {'DAG Runs': {'can_create'}}, 'role2': {'DAGs': {'can_read', 'can_edit', 'can_delete'}}"
+        or it can specify the resource name if there is a Dags Run resource, e.g.,
+        "{'role1': {'Dag Runs': {'can_create'}}, 'role2': {'Dags': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -413,15 +413,15 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
-    :param tags: List of tags to help filtering DAGs in the UI.
-    :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
+    :param tags: List of tags to help filtering Dags in the UI.
+    :param owner_links: Dict of owners and their links, that will be clickable on the Dags view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
-    :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_fast: Fails currently running tasks when task in DAG fails.
+    :param auto_register: Automatically register this Dag when it is used in a ``with`` block
+    :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail fast dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail fast dag has a non default trigger rule.
-    :param dag_display_name: The display name of the DAG which appears on the UI.
+    :param dag_display_name: The display name of the Dag which appears on the UI.
     """
 
     partial: bool = False
@@ -468,7 +468,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             updated_access_control[role] = updated_access_control.get(role, {})
             if isinstance(perms, (set, list)):
                 # Support for old-style access_control where only the actions are specified
-                updated_access_control[role]["DAGs"] = set(perms)
+                updated_access_control[role]["Dags"] = set(perms)
             else:
                 updated_access_control[role] = perms
         return updated_access_control
@@ -487,7 +487,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         if self.dag_id != dag_model.dag_id:
-            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {dag_model.dag_id}")
+            raise ValueError(f"Arguments refer to different Dags: {self.dag_id} != {dag_model.dag_id}")
         if dag_model.next_dagrun is None:  # Next run not scheduled.
             return None
         data_interval = dag_model.next_dagrun_data_interval
@@ -513,7 +513,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         if run.dag_id is not None and run.dag_id != self.dag_id:
-            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
+            raise ValueError(f"Arguments refer to different Dags: {self.dag_id} != {run.dag_id}")
         data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
         if data_interval is not None:
             return data_interval
@@ -544,10 +544,10 @@ class DAG(TaskSDKDag, LoggingMixin):
             end = cast("DeltaDataIntervalTimetable", self.timetable)._get_next(start)
         # Contributors: When the exception below is raised, you might want to
         # add an 'elif' block here to handle custom timetables. Stop! The bug
-        # you're looking for is instead at when the DAG run (represented by
+        # you're looking for is instead at when the Dag run (represented by
         # logical_date) was created. See GH-31969 for an example:
         # * Wrong fix: GH-32074 (modifies this function).
-        # * Correct fix: GH-32118 (modifies the DAG run creation code).
+        # * Correct fix: GH-32118 (modifies the Dag run creation code).
         else:
             raise ValueError(f"Not a valid timetable: {self.timetable!r}")
         return DataInterval(start, end)
@@ -594,7 +594,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
         except Exception:
             self.log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
+                "Failed to fetch run info after data interval %s for Dag %r",
                 data_interval,
                 self.dag_id,
             )
@@ -636,7 +636,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         ``earliest``, even if it does not fall on the logical timetable schedule.
         The default is ``True``.
 
-        Example: A DAG is scheduled to run every midnight (``0 0 * * *``). If
+        Example: A Dag is scheduled to run every midnight (``0 0 * * *``). If
         ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
         ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
         if ``align=True``.
@@ -657,7 +657,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
         except Exception:
             self.log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
+                "Failed to fetch run info after data interval %s for Dag %r",
                 None,
                 self.dag_id,
             )
@@ -685,7 +685,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                 )
             except Exception:
                 self.log.exception(
-                    "Failed to fetch run info after data interval %s for DAG %r",
+                    "Failed to fetch run info after data interval %s for Dag %r",
                     info.data_interval if info else "<NONE>",
                     self.dag_id,
                 )
@@ -745,7 +745,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @methodtools.lru_cache(maxsize=None)
     @classmethod
     def get_serialized_fields(cls):
-        """Stringified DAGs and operators contain exactly these fields."""
+        """Stringified Dags and operators contain exactly these fields."""
         return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder"}
 
     def get_active_runs(self):
@@ -768,7 +768,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Return the dag run for a given run_id if it exists, otherwise none.
 
-        :param dag_id: The dag_id of the DAG to find.
+        :param dag_id: The dag_id of the Dag to find.
         :param run_id: The run_id of the DagRun to find.
         :param session:
         :return: The DagRun if found, otherwise None.
@@ -817,7 +817,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         The returned list may contain exactly ``num`` task instances
         corresponding to any DagRunType. It can have less if there are
-        less than ``num`` scheduled DAG runs before ``base_date``.
+        less than ``num`` scheduled Dag runs before ``base_date``.
         """
         logical_dates: list[Any] = session.execute(
             select(DagRun.logical_date)
@@ -1381,7 +1381,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
-        :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+        :param run_on_latest_version: whether to run on latest serialized Dag and Bundle version
         :param session: The sqlalchemy session to use
         :param dag_bag: The DagBag used to find the dags (Optional)
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
@@ -1513,7 +1513,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
-        Create a run for this DAG to run its tasks.
+        Create a run for this Dag to run its tasks.
 
         :param run_id: ID of the dag_run
         :param logical_date: date of execution
@@ -1525,7 +1525,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param creating_job_id: ID of the job creating this DagRun
         :param backfill_id: ID of the backfill run if one exists
         :param session: Unused. Only added in compatibility with database isolation mode
-        :return: The created DAG run.
+        :return: The created Dag run.
 
         :meta private:
         """
@@ -1561,7 +1561,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if run_type == DagRunType.MANUAL:
             if (inferred_run_type := DagRunType.from_run_id(run_id)) != DagRunType.MANUAL:
                 raise ValueError(
-                    f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
+                    f"A {run_type.value} Dag run cannot use ID {run_id!r} since it "
                     f"is reserved for {inferred_run_type.value} runs"
                 )
 
@@ -1617,7 +1617,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB.
 
-        :param dags: the DAG objects to save to the DB
+        :param dags: the Dag objects to save to the DB
         :return: None
         """
         if not dags:
@@ -1625,7 +1625,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
-        log.info("Sync %s DAGs", len(dags))
+        log.info("Sync %s Dags", len(dags))
         dag_op = DagModelOperation(
             bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
         )
@@ -1654,7 +1654,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def sync_to_db(self, session=NEW_SESSION):
         """
-        Save attributes about this DAG to the DB.
+        Save attributes about this Dag to the DB.
 
         :return: None
         """
@@ -1667,9 +1667,9 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def deactivate_unknown_dags(active_dag_ids, session=NEW_SESSION):
         """
-        Given a list of known DAGs, deactivate any other DAGs that are marked as active in the ORM.
+        Given a list of known Dags, deactivate any other Dags that are marked as active in the ORM.
 
-        :param active_dag_ids: list of DAG IDs that are active
+        :param active_dag_ids: list of Dag IDs that are active
         :return: None
         """
         if not active_dag_ids:
@@ -1683,18 +1683,18 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def deactivate_stale_dags(expiration_date, session=NEW_SESSION):
         """
-        Deactivate any DAGs that were last touched by the scheduler before the expiration date.
+        Deactivate any Dags that were last touched by the scheduler before the expiration date.
 
-        These DAGs were likely deleted.
+        These Dags were likely deleted.
 
-        :param expiration_date: set inactive DAGs that were touched before this time
+        :param expiration_date: set inactive Dags that were touched before this time
         :return: None
         """
         for dag in session.scalars(
             select(DagModel).where(DagModel.last_parsed_time < expiration_date, ~DagModel.is_stale)
         ):
             log.info(
-                "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
+                "Deactivating Dag ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id,
                 dag.last_parsed_time.isoformat(),
             )
@@ -1709,8 +1709,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         Return the number of task instances in the given DAG.
 
         :param session: ORM session
-        :param dag_id: ID of the DAG to get the task concurrency of
-        :param run_id: ID of the DAG run to get the task concurrency of
+        :param dag_id: ID of the Dag to get the task concurrency of
+        :param run_id: ID of the Dag run to get the task concurrency of
         :param task_ids: A list of valid task IDs for the given DAG
         :param states: A list of states to filter by if supplied
         :return: The number of running tasks
@@ -1845,7 +1845,7 @@ class DagOwnerAttributes(Base):
     """
     Table defining different owner attributes.
 
-    For example, a link for an owner that will be passed as a hyperlink to the "DAGs" view.
+    For example, a link for an owner that will be passed as a hyperlink to the "Dags" view.
     """
 
     __tablename__ = "dag_owner_attributes"
@@ -1877,25 +1877,25 @@ class DagModel(Base):
     These items are stored in the database for state related information.
     """
     dag_id = Column(StringID(), primary_key=True)
-    # A DAG can be paused from the UI / DB
+    # A Dag can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
-    # Whether that DAG was seen on the last DagBag load
+    # Whether that Dag was seen on the last DagBag load
     is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
-    # Time when the DAG last received a refresh signal
+    # Time when the Dag last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
-    # The location of the file containing the DAG object
+    # The location of the file containing the Dag object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
-    # packaged DAG, it will point to the subpath of the DAG within the
+    # packaged DAG, it will point to the subpath of the Dag within the
     # associated zip.
     fileloc = Column(String(2000))
     relative_fileloc = Column(String(2000))
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=False)
-    # The version of the bundle the last time the DAG was processed
+    # The version of the bundle the last time the Dag was processed
     bundle_version = Column(String(200), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
@@ -1909,11 +1909,11 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
     # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    # DAG deadline information
+    # Dag deadline information
     _deadline = Column("deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
-    # Dag owner links for DAGs view
+    # Dag owner links for Dags view
     dag_owner_links = relationship(
         "DagOwnerAttributes", cascade="all, delete, delete-orphan", backref=backref("dag")
     )
@@ -1987,7 +1987,7 @@ class DagModel(Base):
             )
 
         if self.has_task_concurrency_limits is None:
-            # Be safe -- this will be updated later once the DAG is parsed
+            # Be safe -- this will be updated later once the Dag is parsed
             self.has_task_concurrency_limits = True
 
     def __repr__(self):
@@ -2077,7 +2077,7 @@ class DagModel(Base):
         """
         Pause/Un-pause a DAG.
 
-        :param is_paused: Is the DAG paused
+        :param is_paused: Is the Dag paused
         :param session: session
         """
         filter_query = [
@@ -2117,13 +2117,13 @@ class DagModel(Base):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
+        Set ``is_active=False`` on the Dags for which the Dag files have been removed.
 
         :param bundle_name: bundle for filelocs
         :param rel_filelocs: relative filelocs for bundle
         :param session: ORM Session
         """
-        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
+        log.debug("Deactivating Dags (for which Dag files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls)
             .where(
@@ -2161,7 +2161,7 @@ class DagModel(Base):
             try:
                 return evaluator.run(cond, statuses)
             except AttributeError:
-                log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
+                log.warning("dag '%s' has old serialization; skipping Dag run creation.", dag_id)
                 return None
 
         # this loads all the ADRQ records.... may need to limit num dags
@@ -2236,7 +2236,7 @@ class DagModel(Base):
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
-        :param dag: The DAG object
+        :param dag: The Dag object
         :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
             if not yet scheduled.
         """
@@ -2307,19 +2307,19 @@ def _get_or_create_dagrun(
     session: Session,
 ) -> DagRun:
     """
-    Create a DAG run, replacing an existing instance if needed to prevent collisions.
+    Create a Dag run, replacing an existing instance if needed to prevent collisions.
 
     This function is only meant to be used by :meth:`DAG.test` as a helper function.
 
-    :param dag: DAG to be used to find run.
+    :param dag: Dag to be used to find run.
     :param conf: Configuration to pass to newly created run.
     :param start_date: Start date of new run.
     :param logical_date: Logical date for finding an existing run.
-    :param run_id: Run ID for the new DAG run.
+    :param run_id: Run ID for the new Dag run.
     :param triggered_by: the entity which triggers the dag_run
     :param triggering_user_name: the user name who triggers the dag_run
 
-    :return: The newly created DAG run.
+    :return: The newly created Dag run.
     """
     dr: DagRun = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)

@@ -126,9 +126,9 @@ class XComModel(TaskInstanceDependencies):
 
         .. note:: This **will not** purge any data from a custom XCom backend.
 
-        :param dag_id: ID of DAG to clear the XCom for.
+        :param dag_id: ID of Dag to clear the XCom for.
         :param task_id: ID of task to clear the XCom for.
-        :param run_id: ID of DAG run to clear the XCom for.
+        :param run_id: ID of Dag run to clear the XCom for.
         :param map_index: If given, only clear XCom from this particular mapped
             task. The default ``None`` clears *all* XComs from the task.
         :param session: Database session. If not given, a new session will be
@@ -172,9 +172,9 @@ class XComModel(TaskInstanceDependencies):
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
+        :param dag_id: Dag ID.
         :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
+        :param run_id: Dag run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         :param session: Database session. If not given, a new session will be
@@ -190,7 +190,7 @@ class XComModel(TaskInstanceDependencies):
 
         dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
         if dag_run_id is None:
-            raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
+            raise ValueError(f"Dag run not found on Dag {dag_id!r} with ID {run_id!r}")
 
         # Seamlessly resolve LazySelectSequence to a list. This intends to work
         # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
@@ -198,7 +198,7 @@ class XComModel(TaskInstanceDependencies):
         # implications, and this avoids leaking the implementation detail.
         if isinstance(value, LazySelectSequence):
             warning_message = (
-                "Coercing mapped lazy proxy %s from task %s (DAG %s, run %s) "
+                "Coercing mapped lazy proxy %s from task %s (Dag %s, run %s) "
                 "to list, which may degrade performance. Review resource "
                 "requirements for this operation, and call list() to suppress "
                 "this message. See Dynamic Task Mapping documentation for "
@@ -265,17 +265,17 @@ class XComModel(TaskInstanceDependencies):
         This function returns an SQLAlchemy query of full XCom objects. If you
         just want one stored value, use :meth:`get_one` instead.
 
-        :param run_id: DAG run ID for the task.
+        :param run_id: Dag run ID for the task.
         :param key: A key for the XComs. If provided, only XComs with matching
             keys will be returned. Pass *None* (default) to remove the filter.
         :param task_ids: Only XComs from task with matching IDs will be pulled.
             Pass *None* (default) to remove the filter.
-        :param dag_ids: Only pulls XComs from specified DAGs. Pass *None*
+        :param dag_ids: Only pulls XComs from specified Dags. Pass *None*
             (default) to remove the filter.
         :param map_indexes: Only XComs from matching map indexes will be pulled.
             Pass *None* (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XComs from the
-            specified DAG run are returned. If *True*, all matching XComs are
+            specified Dag run are returned. If *True*, all matching XComs are
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.

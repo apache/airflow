@@ -1033,7 +1033,7 @@ class TestSchedulerJob:
         session.close()
 
     def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
-        """Check that task instances of missing DAGs are failed"""
+        """Check that task instances of missing Dags are failed"""
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag"
         task_id_1 = "dummy"
         task_id_2 = "dummydummy"
@@ -3093,7 +3093,7 @@ class TestSchedulerJob:
 
     def test_scheduler_start_date(self, testing_dag_bundle):
         """
-        Test that the scheduler respects start_dates, even when DAGs have run
+        Test that the scheduler respects start_dates, even when Dags have run
         """
         dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
         with create_session() as session:
@@ -3655,7 +3655,7 @@ class TestSchedulerJob:
         @provide_session
         def do_schedule(session):
             # Use a empty file since the above mock will return the
-            # expected DAGs. Also specify only a single file so that it doesn't
+            # expected Dags. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
             scheduler_job = Job(executor=executor)
             self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
@@ -6260,7 +6260,7 @@ class TestSchedulerJob:
     def test_should_mark_empty_task_as_success(self, testing_dag_bundle):
         dag_file = Path(__file__).parents[1] / "dags/test_only_empty_tasks.py"
 
-        # Write DAGs to dag and serialized_dag table
+        # Write Dags to dag and serialized_dag table
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         sync_bag_to_db(dagbag, "testing", None)
 
@@ -6947,7 +6947,7 @@ class TestSchedulerJobQueriesCount:
         [
             (21, 1, 1),  # One DAG with one task per DAG file.
             (21, 1, 5),  # One DAG with five tasks per DAG file.
-            (148, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
+            (148, 10, 10),  # 10 Dags with 10 tasks per DAG file.
         ],
     )
     def test_execute_queries_count_with_harvested_dags(
@@ -7031,7 +7031,7 @@ class TestSchedulerJobQueriesCount:
             ([25, 28, 32, 36], 1, 5, "1d", "30m", "binary_tree"),
             ([25, 28, 32, 36], 1, 5, "1d", "30m", "star"),
             ([25, 28, 32, 36], 1, 5, "1d", "30m", "grid"),
-            # 10 DAGs with 10 tasks per DAG file.
+            # 10 Dags with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
             ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),

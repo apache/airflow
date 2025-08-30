@@ -112,7 +112,7 @@ class TestGenerateDagWithLatestRunQuery:
         return dag_model, dagrun
 
     def test_includes_queued_run_without_start_date(self, dag_with_queued_run, session):
-        """DAGs with QUEUED runs and null start_date should be included when no filters are applied, and joined DagRun state must not be None."""
+        """Dags with QUEUED runs and null start_date should be included when no filters are applied, and joined DagRun state must not be None."""
         dag_model, _ = dag_with_queued_run
         query = generate_dag_with_latest_run_query(
             max_run_filters=[],
@@ -130,7 +130,7 @@ class TestGenerateDagWithLatestRunQuery:
     def test_includes_queued_run_when_ordering_by_state(
         self, dag_with_queued_run, dag_with_running_run, session
     ):
-        """DAGs with QUEUED runs and null start_date, and RUNNING runs must all have joined DagRun info not None."""
+        """Dags with QUEUED runs and null start_date, and RUNNING runs must all have joined DagRun info not None."""
         queued_dag_model, _ = dag_with_queued_run
         running_dag_model, _ = dag_with_running_run
 
@@ -156,7 +156,7 @@ class TestGenerateDagWithLatestRunQuery:
     def test_includes_queued_run_when_ordering_by_start_date(
         self, dag_with_queued_run, dag_with_running_run, session
     ):
-        """DAGs with QUEUED runs and RUNNING runs must all have joined DagRun info not None when ordering by start_date."""
+        """Dags with QUEUED runs and RUNNING runs must all have joined DagRun info not None when ordering by start_date."""
         queued_dag_model, _ = dag_with_queued_run
         running_dag_model, _ = dag_with_running_run
 
@@ -229,9 +229,9 @@ class TestGenerateDagWithLatestRunQuery:
         self, dag_with_queued_run, dag_with_running_run, session
     ):
         """
-        Verifies that DAGs with null start_date are properly joined in the query.
+        Verifies that Dags with null start_date are properly joined in the query.
 
-        If a WHERE clause filters out null start_dates, these DAGs would be excluded.
+        If a WHERE clause filters out null start_dates, these Dags would be excluded.
         This test ensures they are still present and joined correctly.
         """
 
@@ -258,7 +258,7 @@ class TestGenerateDagWithLatestRunQuery:
             elif dag_model.dag_id == running_dag_model.dag_id:
                 running_dag_result = row
 
-        # Assert both DAGs are present
+        # Assert both Dags are present
         assert queued_dag_result is not None, f"Queued DAG {queued_dag_model.dag_id} should be in results"
         assert running_dag_result is not None, f"Running DAG {running_dag_model.dag_id} should be in results"
 

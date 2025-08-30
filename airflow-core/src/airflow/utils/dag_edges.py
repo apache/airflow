@@ -40,7 +40,7 @@ def dag_edges(dag: DAG):
     all edges are directed onto the proxy nodes. This is to cut down the number of edges on
     the graph.
 
-    For example: A DAG with TaskGroups group1 and group2:
+    For example: A Dag with TaskGroups group1 and group2:
         group1: task1, task2, task3
         group2: task4, task5, task6
 

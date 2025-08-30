@@ -116,7 +116,7 @@ class TestDagEndpoint:
         session.add(DagTag(dag_id=DAG3_ID, name="tag_1"))
 
     def _create_asset_test_data(self, session=None):
-        """Create test assets and asset-scheduled DAGs."""
+        """Create test assets and asset-scheduled Dags."""
         # Create assets
         asset1 = AssetModel(uri="test://asset1", name="test_asset_1", group="test-group")
         asset2 = AssetModel(uri="s3://bucket/dataset", name="dataset_asset", group="test-group")
@@ -143,7 +143,7 @@ class TestDagEndpoint:
             has_import_errors=False,
         )
 
-        # Create DAGs with asset dependencies
+        # Create Dags with asset dependencies
         asset_dep_dag = DagModel(
             dag_id=ASSET_DEP_DAG_ID,
             bundle_name="dag_maker",
@@ -240,7 +240,7 @@ class TestDagEndpoint:
 
 
 class TestGetDags(TestDagEndpoint):
-    """Unit tests for Get DAGs."""
+    """Unit tests for Get Dags."""
 
     @pytest.mark.parametrize(
         "query_params, expected_total_entries, expected_ids",
@@ -470,7 +470,7 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_filter_favorites(
         self, session, test_client, setup_favorites, expected_total_entries, expected_ids
     ):
-        """Test filtering DAGs by is_favorite=true."""
+        """Test filtering Dags by is_favorite=true."""
         for dag_id in setup_favorites:
             session.add(DagFavorite(user_id="test", dag_id=dag_id))
         session.commit()
@@ -582,7 +582,7 @@ class TestPatchDag(TestDagEndpoint):
 
 
 class TestPatchDags(TestDagEndpoint):
-    """Unit tests for Patch DAGs."""
+    """Unit tests for Patch Dags."""
 
     @pytest.mark.parametrize(
         "query_params, body, expected_status_code, expected_ids, expected_paused_ids",

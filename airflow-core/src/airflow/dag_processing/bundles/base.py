@@ -230,9 +230,9 @@ class BundleUsageTrackingManager:
 
 class BaseDagBundle(ABC):
     """
-    Base class for DAG bundles.
+    Base class for Dag bundles.
 
-    DAG bundles are used both by the DAG processor and by a worker when running a task. These usage
+    Dag bundles are used both by the Dag processor and by a worker when running a task. These usage
     patterns are different, however.
 
     When running a task, we know what version of the bundle we need (assuming the bundle supports versioning).
@@ -240,13 +240,13 @@ class BaseDagBundle(ABC):
     that bundle version. This also means, that on a single worker, it's possible that multiple versions of the same
     bundle are used at the same time.
 
-    In contrast, the DAG processor uses a bundle to keep the DAGs from that bundle up to date. There will not be
-    multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
+    In contrast, the Dag processor uses a bundle to keep the Dags from that bundle up to date. There will not be
+    multiple versions of the same bundle in use at the same time. The Dag processor will always use the latest version.
 
-    :param name: String identifier for the DAG bundle
+    :param name: String identifier for the Dag bundle
     :param refresh_interval: How often the bundle should be refreshed from the source in seconds
         (Optional - defaults to [dag_processor] refresh_interval)
-    :param version: Version of the DAG bundle (Optional)
+    :param version: Version of the Dag bundle (Optional)
     """
 
     supports_versioning: bool = False
@@ -278,7 +278,7 @@ class BaseDagBundle(ABC):
         """
         Initialize the bundle.
 
-        This method is called by the DAG processor and worker before the bundle is used,
+        This method is called by the Dag processor and worker before the bundle is used,
         and allows for deferring expensive operations until that point in time. This will
         only be called when Airflow needs the bundle files on disk - some uses only need
         to call the `view_url` method, which can run without initializing the bundle.
@@ -296,7 +296,7 @@ class BaseDagBundle(ABC):
         bundle_path = self.path
         if not bundle_path.exists():
             log.warning(
-                "Bundle '%s' path does not exist: %s. This may cause DAG loading issues.",
+                "Bundle '%s' path does not exist: %s. This may cause Dag loading issues.",
                 self.name,
                 bundle_path,
             )
@@ -307,14 +307,14 @@ class BaseDagBundle(ABC):
         """
         Path for this bundle.
 
-        Airflow will use this path to find/load/execute the DAGs from the bundle.
+        Airflow will use this path to find/load/execute the Dags from the bundle.
         After `initialize` has been called, all dag files in the bundle should be accessible from this path.
         """
 
     @abstractmethod
     def get_current_version(self) -> str | None:
         """
-        Retrieve a string that represents the version of the DAG bundle.
+        Retrieve a string that represents the version of the Dag bundle.
 
         Airflow can use this value to retrieve this same bundle version later.
         """

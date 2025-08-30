@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating a workflow with nested branching. The join tasks are created with
+Example Dag demonstrating a workflow with nested branching. The join tasks are created with
 ``none_failed_min_one_success`` trigger rule such that they are skipped whenever their corresponding
 branching tasks are skipped.
 """

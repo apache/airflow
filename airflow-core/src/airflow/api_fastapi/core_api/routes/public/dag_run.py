@@ -125,7 +125,7 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
     ],
 )
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
-    """Delete a DAG Run entry."""
+    """Delete a Dag Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
 
     if dag_run is None:
@@ -158,7 +158,7 @@ def patch_dag_run(
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
-    """Modify a DAG Run."""
+    """Modify a Dag Run."""
     dag_run = session.scalar(
         select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
     )
@@ -350,14 +350,14 @@ def get_dag_runs(
     ],
 ) -> DAGRunCollectionResponse:
     """
-    Get all DAG Runs.
+    Get all Dag Runs.
 
-    This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+    This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
     """
     query = select(DagRun)
 
     if dag_id != "~":
-        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
+        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
     dag_run_select, total_entries = paginated_select(
@@ -411,12 +411,12 @@ def trigger_dag_run(
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
 
     if dm.has_import_errors:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+            f"Dag with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
     try:
@@ -509,7 +509,7 @@ def get_list_dag_runs_batch(
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
 ) -> DAGRunCollectionResponse:
-    """Get a list of DAG Runs."""
+    """Get a list of Dag Runs."""
     dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
         Range(

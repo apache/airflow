@@ -94,7 +94,7 @@ class AccessView(Enum):
 
 
 class DagAccessEntity(Enum):
-    """Enum of DAG entities the user tries to access."""
+    """Enum of Dag entities the user tries to access."""
 
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating setting up inter-DAG dependencies using ExternalTaskSensor and
+Example Dag demonstrating setting up inter-Dag dependencies using ExternalTaskSensor and
 ExternalTaskMarker.
 
 In this example, child_task1 in example_external_task_marker_child depends on parent_task in

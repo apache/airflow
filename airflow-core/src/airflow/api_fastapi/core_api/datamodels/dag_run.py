@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 
 class DAGRunPatchStates(str, Enum):
-    """Enum for DAG Run states when updating a DAG Run."""
+    """Enum for Dag Run states when updating a Dag Run."""
 
     QUEUED = DagRunState.QUEUED
     SUCCESS = DagRunState.SUCCESS
@@ -44,14 +44,14 @@ class DAGRunPatchStates(str, Enum):
 
 
 class DAGRunPatchBody(StrictBaseModel):
-    """DAG Run Serializer for PATCH requests."""
+    """Dag Run Serializer for PATCH requests."""
 
     state: DAGRunPatchStates | None = None
     note: str | None = Field(None, max_length=1000)
 
 
 class DAGRunClearBody(StrictBaseModel):
-    """DAG Run serializer for clear endpoint body."""
+    """Dag Run serializer for clear endpoint body."""
 
     dry_run: bool = True
     only_failed: bool = False
@@ -62,7 +62,7 @@ class DAGRunClearBody(StrictBaseModel):
 
 
 class DAGRunResponse(BaseModel):
-    """DAG Run serializer for responses."""
+    """Dag Run serializer for responses."""
 
     dag_run_id: str = Field(validation_alias="run_id")
     dag_id: str
@@ -87,14 +87,14 @@ class DAGRunResponse(BaseModel):
 
 
 class DAGRunCollectionResponse(BaseModel):
-    """DAG Run Collection serializer for responses."""
+    """Dag Run Collection serializer for responses."""
 
     dag_runs: list[DAGRunResponse]
     total_entries: int
 
 
 class TriggerDAGRunPostBody(StrictBaseModel):
-    """Trigger DAG Run Serializer for POST body."""
+    """Trigger Dag Run Serializer for POST body."""
 
     dag_run_id: str | None = None
     data_interval_start: AwareDatetime | None = None
@@ -153,7 +153,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
 
 
 class DAGRunsBatchBody(StrictBaseModel):
-    """List DAG Runs body for batch endpoint."""
+    """List Dag Runs body for batch endpoint."""
 
     order_by: str | None = None
     page_offset: NonNegativeInt = 0

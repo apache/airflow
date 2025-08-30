@@ -256,9 +256,9 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: Quer
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) });
 /**
 * Get Dag Runs
-* Get all DAG Runs.
+* Get all Dag Runs.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.limit
@@ -383,7 +383,7 @@ export const prefetchUseDagStatsServiceGetDagStats = (queryClient: QueryClient, 
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }), queryFn: () => DagStatsService.getDagStats({ dagIds }) });
 /**
 * Get Dag Reports
-* Get DAG report.
+* Get Dag report.
 * @param data The data for the request.
 * @param data.subdir
 * @returns unknown Successful Response
@@ -427,7 +427,7 @@ export const prefetchUseConfigServiceGetConfigValue = (queryClient: QueryClient,
 export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(), queryFn: () => ConfigService.getConfigs() });
 /**
 * List Dag Warnings
-* Get a list of DAG warnings.
+* Get a list of Dag warnings.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.warningType
@@ -446,7 +446,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) });
 /**
 * Get Dags
-* Get all DAGs.
+* Get all Dags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -460,8 +460,8 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
-* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @param data.dagRunStartDateGte
 * @param data.dagRunStartDateGt
 * @param data.dagRunStartDateLte
@@ -527,7 +527,7 @@ export const prefetchUseDagServiceGetDagDetails = (queryClient: QueryClient, { d
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }), queryFn: () => DagService.getDagDetails({ dagId }) });
 /**
 * Get Dag Tags
-* Get all DAG tags.
+* Get all Dag tags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -544,7 +544,7 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }), queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) });
 /**
 * Get Dags
-* Get DAGs with recent DagRun.
+* Get Dags with recent DagRun.
 * @param data The data for the request.
 * @param data.dagRunsLimit
 * @param data.limit
@@ -562,8 +562,8 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 * @param data.bundleVersion
 * @param data.orderBy
 * @param data.isFavorite
-* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -865,8 +865,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient:
 * Get Task Instances
 * Get list of task instances.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-* and DAG runs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all Dags
+* and Dag runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1183,7 +1183,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * Get Xcom Entries
 * Get all XCom entries.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1299,9 +1299,9 @@ export const prefetchUseDagVersionServiceGetDagVersion = (queryClient: QueryClie
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }), queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) });
 /**
 * Get Dag Versions
-* Get all DAG Versions.
+* Get all Dag Versions.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.limit
@@ -1452,7 +1452,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (queryClient: QueryC
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }), queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) });
 /**
 * Dag Stats
-* Return basic DAG stats with counts of DAGs in various states.
+* Return basic Dag stats with counts of Dags in various states.
 * @returns DashboardDagStatsResponse Successful Response
 * @throws ApiError
 */
@@ -1554,7 +1554,7 @@ export const prefetchUseGridServiceGetGridTiSummaries = (queryClient: QueryClien
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) });
 /**
 * Get Calendar
-* Get calendar data for a DAG including historical and planned DAG runs.
+* Get calendar data for a Dag including historical and planned Dag runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.granularity

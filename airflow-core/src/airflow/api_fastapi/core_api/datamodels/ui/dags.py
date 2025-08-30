@@ -23,14 +23,14 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 
 
 class DAGWithLatestDagRunsResponse(DAGResponse):
-    """DAG with latest dag runs response serializer."""
+    """Dag with latest dag runs response serializer."""
 
     asset_expression: dict | None
     latest_dag_runs: list[DAGRunResponse]
 
 
 class DAGWithLatestDagRunsCollectionResponse(BaseModel):
-    """DAG with latest dag runs collection response serializer."""
+    """Dag with latest dag runs collection response serializer."""
 
     total_entries: int
     dags: list[DAGWithLatestDagRunsResponse]

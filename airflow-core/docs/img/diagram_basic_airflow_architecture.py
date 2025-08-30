@@ -68,7 +68,7 @@ def generate_basic_airflow_diagram():
     ):
         user = User("Airflow User")
 
-        dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix())
+        dag_files = Custom("Dag files", MULTIPLE_FILES_IMAGE.as_posix())
         user >> Edge(color="brown", style="solid", reverse=False, label="author\n\n") >> dag_files
 
         with Cluster("Parsing, Scheduling & Executing"):

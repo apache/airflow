@@ -79,7 +79,7 @@ def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
 def wait_for_dag_run_and_check_span_status(
     dag_id: str, run_id: str, max_wait_time: int, span_status: str | None
 ):
-    # max_wait_time, is the timeout for the DAG run to complete. The value is in seconds.
+    # max_wait_time, is the timeout for the Dag run to complete. The value is in seconds.
     start_time = timezone.utcnow().timestamp()
 
     while timezone.utcnow().timestamp() - start_time < max_wait_time:
@@ -98,10 +98,10 @@ def wait_for_dag_run_and_check_span_status(
                 continue
 
             dag_run_state = dag_run.state
-            log.debug("DAG Run state: %s.", dag_run_state)
+            log.debug("Dag Run state: %s.", dag_run_state)
 
             dag_run_span_status = dag_run.span_status
-            log.debug("DAG Run span status: %s.", dag_run_span_status)
+            log.debug("Dag Run span status: %s.", dag_run_span_status)
 
             if dag_run_state in [State.SUCCESS, State.FAILED]:
                 break
@@ -648,7 +648,7 @@ class TestOtelIntegration:
     @classmethod
     def serialize_and_get_dags(cls) -> dict[str, DAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
-        # Load DAGs from the dag directory.
+        # Load Dags from the dag directory.
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
 
         dag_ids = dag_bag.dag_ids
@@ -660,9 +660,9 @@ class TestOtelIntegration:
                 dag = dag_bag.get_dag(dag_id)
                 dag_dict[dag_id] = dag
 
-                assert dag is not None, f"DAG with ID {dag_id} not found."
+                assert dag is not None, f"Dag with ID {dag_id} not found."
 
-                # Sync the DAG to the database.
+                # Sync the Dag to the database.
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.models.dagbundle import DagBundleModel
 

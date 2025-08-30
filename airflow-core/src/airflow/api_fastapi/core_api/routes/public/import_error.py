@@ -52,7 +52,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 
-REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all DAGs in the file"
+REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all Dags in the file"
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
 
 
@@ -80,7 +80,7 @@ def get_import_error(
     auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if can_read_all_dags:
-        # Early return if the user has access to all DAGs
+        # Early return if the user has access to all Dags
         return error
 
     readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
@@ -88,14 +88,14 @@ def get_import_error(
     file_dag_ids = set(
         session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
     )
-    # Can the user read any DAGs in the file?
+    # Can the user read any Dags in the file?
     if not readable_dag_ids.intersection(file_dag_ids):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "You do not have read permission on any of the DAGs in the file",
+            "You do not have read permission on any of the Dags in the file",
         )
 
-    # Check if user has read access to all the DAGs defined in the file
+    # Check if user has read access to all the Dags defined in the file
     if not file_dag_ids.issubset(readable_dag_ids):
         error.stacktrace = REDACTED_STACKTRACE
     return error
@@ -141,14 +141,14 @@ def get_import_errors(
     auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if can_read_all_dags:
-        # Early return if the user has access to all DAGs
+        # Early return if the user has access to all Dags
         import_errors = session.scalars(import_errors_select).all()
         return ImportErrorCollectionResponse(
             import_errors=import_errors,
             total_entries=total_entries,
         )
 
-    # if the user doesn't have access to all DAGs, only display errors from visible DAGs
+    # if the user doesn't have access to all Dags, only display errors from visible Dags
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
     # Build a cte that fetches dag_ids for each file location
     visible_files_cte = (
@@ -185,7 +185,7 @@ def get_import_errors(
 
     import_errors = []
     for import_error, file_dag_ids in import_errors_result:
-        # Check if user has read access to all the DAGs defined in the file
+        # Check if user has read access to all the Dags defined in the file
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
                 "method": "GET",

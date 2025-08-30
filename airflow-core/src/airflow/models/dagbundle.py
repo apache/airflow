@@ -28,7 +28,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 class DagBundleModel(Base, LoggingMixin):
     """
-    A table for storing DAG bundle metadata.
+    A table for storing Dag bundle metadata.
 
     We track the following information about each bundle, as it can be useful for
     informational purposes and for debugging:

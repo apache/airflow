@@ -102,7 +102,7 @@ __all__ = [
 
 class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     """
-    Run active triggers in asyncio and update their dependent tests/DAGs once their events have fired.
+    Run active triggers in asyncio and update their dependent tests/Dags once their events have fired.
 
     It runs as two threads:
      - The main thread does DB calls/checkins

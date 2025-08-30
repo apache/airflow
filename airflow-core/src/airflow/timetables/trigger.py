@@ -127,12 +127,12 @@ class _TriggerTimetable(Timetable):
 
 class DeltaTriggerTimetable(DeltaMixin, _TriggerTimetable):
     """
-    Timetable that triggers DAG runs according to a cron expression.
+    Timetable that triggers Dag runs according to a cron expression.
 
     This is different from ``DeltaDataIntervalTimetable``, where the delta value
-    specifies the *data interval* of a DAG run. With this timetable, the data
+    specifies the *data interval* of a Dag run. With this timetable, the data
     intervals are specified independently. Also for the same reason, this
-    timetable kicks off a DAG run immediately at the start of the period,
+    timetable kicks off a Dag run immediately at the start of the period,
     instead of needing to wait for one data interval to pass.
 
     :param delta: How much time to wait between each run.
@@ -167,12 +167,12 @@ class DeltaTriggerTimetable(DeltaMixin, _TriggerTimetable):
 
 class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     """
-    Timetable that triggers DAG runs according to a cron expression.
+    Timetable that triggers Dag runs according to a cron expression.
 
     This is different from ``CronDataIntervalTimetable``, where the cron
-    expression specifies the *data interval* of a DAG run. With this timetable,
+    expression specifies the *data interval* of a Dag run. With this timetable,
     the data intervals are specified independently from the cron expression.
-    Also for the same reason, this timetable kicks off a DAG run immediately at
+    Also for the same reason, this timetable kicks off a Dag run immediately at
     the start of the period (similar to POSIX cron), instead of needing to wait
     for one data interval to pass.
 
@@ -183,12 +183,12 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     :param interval: timedelta that defines the data interval start. Default 0.
 
     *run_immediately* controls, if no *start_time* is given to the DAG, when
-    the first run of the DAG should be scheduled. It has no effect if there
+    the first run of the Dag should be scheduled. It has no effect if there
     already exist runs for this DAG.
 
-    * If *True*, always run immediately the most recent possible DAG run.
+    * If *True*, always run immediately the most recent possible Dag run.
     * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible DAG run
+    * If passed a ``timedelta``, will run the most recent possible Dag run
       if that run's ``data_interval_end`` is within timedelta of now.
     * If *None*, the timedelta is calculated as 10% of the time between the
       most recent past scheduled time and the next scheduled time. E.g. if
@@ -256,10 +256,10 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
 
 class MultipleCronTriggerTimetable(Timetable):
     """
-    Timetable that triggers DAG runs according to multiple cron expressions.
+    Timetable that triggers Dag runs according to multiple cron expressions.
 
     This combines multiple ``CronTriggerTimetable`` instances underneath, and
-    triggers a DAG run whenever one of the timetables want to trigger a run.
+    triggers a Dag run whenever one of the timetables want to trigger a run.
 
     Only at most one run is triggered for any given time, even if more than one
     timetable fires at the same time.

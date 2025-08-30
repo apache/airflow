@@ -326,7 +326,7 @@ class AssetActive(Base):
     """
     Collection of active assets.
 
-    An asset is considered active if it is declared by the user in any DAG files.
+    An asset is considered active if it is declared by the user in any Dag files.
     AssetModel entries that are not active (also called orphaned in some parts
     of the code base) are still kept in the database, but have their corresponding
     entries in this table removed. This ensures we keep all possible history on

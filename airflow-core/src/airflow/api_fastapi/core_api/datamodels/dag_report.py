@@ -23,7 +23,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DagReportResponse(BaseModel):
-    """DAG Report serializer for responses."""
+    """Dag Report serializer for responses."""
 
     file: str
     duration: timedelta
@@ -34,7 +34,7 @@ class DagReportResponse(BaseModel):
 
 
 class DagReportCollectionResponse(BaseModel):
-    """DAG Report Collection serializer for responses."""
+    """Dag Report Collection serializer for responses."""
 
     dag_reports: list[DagReportResponse]
     total_entries: int

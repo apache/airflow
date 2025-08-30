@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating the usage of ``@task.branch`` TaskFlow API decorator with depends_on_past=True,
+Example Dag demonstrating the usage of ``@task.branch`` TaskFlow API decorator with depends_on_past=True,
 where tasks may be run or skipped on alternating runs.
 """
 

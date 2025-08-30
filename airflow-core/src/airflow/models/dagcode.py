@@ -46,9 +46,9 @@ log = logging.getLogger(__name__)
 
 class DagCode(Base):
     """
-    A table for DAGs code.
+    A table for Dags code.
 
-    dag_code table contains code of DAG files synchronized by scheduler.
+    dag_code table contains code of Dag files synchronized by scheduler.
 
     For details on dag serialization see SerializedDagModel
     """
@@ -80,13 +80,13 @@ class DagCode(Base):
         """
         Write code into database.
 
-        :param fileloc: file path of DAG to sync
+        :param fileloc: file path of Dag to sync
         :param session: ORM Session
         """
-        log.debug("Writing DAG file %s into DagCode table", fileloc)
+        log.debug("Writing Dag file %s into DagCode table", fileloc)
         dag_code = DagCode(dag_version, fileloc, cls.get_code_from_file(fileloc))
         session.add(dag_code)
-        log.debug("DAG file %s written into DagCode table", fileloc)
+        log.debug("Dag file %s written into DagCode table", fileloc)
         return dag_code
 
     @classmethod
@@ -150,7 +150,7 @@ class DagCode(Base):
         """
         Get the select object to get the latest dagcode.
 
-        :param dag_id: The DAG ID.
+        :param dag_id: The Dag ID.
         :return: The select object.
         """
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
@@ -161,7 +161,7 @@ class DagCode(Base):
         """
         Get the latest dagcode.
 
-        :param dag_id: The DAG ID.
+        :param dag_id: The Dag ID.
         :param session: The database session.
         :return: The latest dagcode or None if not found.
         """
@@ -171,7 +171,7 @@ class DagCode(Base):
     @provide_session
     def update_source_code(cls, dag_id: str, fileloc: str, session: Session = NEW_SESSION) -> None:
         """
-        Check if the source code of the DAG has changed and update it if needed.
+        Check if the source code of the Dag has changed and update it if needed.
 
         :param dag_id: Dag ID
         :param fileloc: The path of code file to read the code from

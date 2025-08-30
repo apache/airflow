@@ -182,7 +182,7 @@ class AirflowDagDuplicatedIdException(AirflowException):
         self.existing = existing
 
     def __str__(self) -> str:
-        return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
+        return f"Ignoring Dag {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
 class AirflowClusterPolicyViolation(AirflowException):
@@ -217,7 +217,7 @@ class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a Dag run for Dag which already has Dag run entry."""
 
     def __init__(self, dag_run: DagRun) -> None:
-        super().__init__(f"A DAG Run already exists for DAG {dag_run.dag_id} with run id {dag_run.run_id}")
+        super().__init__(f"A Dag Run already exists for Dag {dag_run.dag_id} with run id {dag_run.run_id}")
         self.dag_run = dag_run
 
     def serialize(self):

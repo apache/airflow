@@ -20,7 +20,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DAGRunTypes(BaseModel):
-    """DAG Run Types for responses."""
+    """Dag Run Types for responses."""
 
     backfill: int
     scheduled: int
@@ -29,7 +29,7 @@ class DAGRunTypes(BaseModel):
 
 
 class DAGRunStates(BaseModel):
-    """DAG Run States for responses."""
+    """Dag Run States for responses."""
 
     queued: int
     running: int
@@ -64,7 +64,7 @@ class HistoricalMetricDataResponse(BaseModel):
 
 
 class DashboardDagStatsResponse(BaseModel):
-    """Dashboard DAG Stats serializer for responses."""
+    """Dashboard Dag Stats serializer for responses."""
 
     active_dag_count: int
     failed_dag_count: int

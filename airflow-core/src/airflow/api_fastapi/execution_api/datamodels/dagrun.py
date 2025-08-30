@@ -25,7 +25,7 @@ from airflow.utils.state import DagRunState
 
 
 class TriggerDAGRunPayload(StrictBaseModel):
-    """Schema for Trigger DAG Run API request."""
+    """Schema for Trigger Dag Run API request."""
 
     logical_date: UtcDateTime | None = None
     conf: dict = Field(default_factory=dict)
@@ -33,6 +33,6 @@ class TriggerDAGRunPayload(StrictBaseModel):
 
 
 class DagRunStateResponse(BaseModel):
-    """Schema for DAG Run State response."""
+    """Schema for Dag Run State response."""
 
     state: DagRunState

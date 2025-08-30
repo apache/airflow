@@ -265,16 +265,16 @@ class _DagDependenciesResolver:
 
 class SerializedDagModel(Base):
     """
-    A table for serialized DAGs.
+    A table for serialized Dags.
 
-    serialized_dag table is a snapshot of DAG files synchronized by scheduler.
+    serialized_dag table is a snapshot of Dag files synchronized by scheduler.
     This feature is controlled by:
 
     * ``[core] min_serialized_dag_update_interval = 30`` (s):
-      serialized DAGs are updated in DB when a file gets processed by scheduler,
-      to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
+      serialized Dags are updated in DB when a file gets processed by scheduler,
+      to reduce DB write rate, there is a minimal interval of updating serialized Dags.
     * ``[dag_processor] refresh_interval = 300`` (s):
-      interval of deleting serialized DAGs in DB when the files are deleted, suggest
+      interval of deleting serialized Dags in DB when the files are deleted, suggest
       to use a smaller interval such as 60
     * ``[core] compress_serialized_dags``:
       whether compressing the dag data to the Database.
@@ -389,9 +389,9 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> bool:
         """
-        Serialize a DAG and writes it into database.
+        Serialize a Dag and writes it into database.
 
-        If the record already exists, it checks if the Serialized DAG changed or not. If it is
+        If the record already exists, it checks if the Serialized Dag changed or not. If it is
         changed, it updates the record, ignores otherwise.
 
         :param dag: a DAG to be written into database
@@ -402,9 +402,9 @@ class SerializedDagModel(Base):
 
         :returns: Boolean indicating if the DAG was written to the DB
         """
-        # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
+        # Checks if (Current Time - Time when the Dag was written to DB) < min_update_interval
         # If Yes, does nothing
-        # If No or the DAG does not exists, updates / writes Serialized DAG to DB
+        # If No or the Dag does not exists, updates / writes Serialized Dag to DB
         if min_update_interval is not None:
             if session.scalar(
                 select(literal(True))
@@ -416,7 +416,7 @@ class SerializedDagModel(Base):
             ):
                 return False
 
-        log.debug("Checking if DAG (%s) changed", dag.dag_id)
+        log.debug("Checking if Dag (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
         serialized_dag_hash = session.scalars(
             select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
@@ -428,17 +428,17 @@ class SerializedDagModel(Base):
             and dag_version
             and dag_version.bundle_name == bundle_name
         ):
-            log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
+            log.debug("Serialized Dag (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
         if dag_version and not dag_version.task_instances:
-            # This is for dynamic DAGs that the hashes changes often. We should update
+            # This is for dynamic Dags that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
             latest_ser_dag = cls.get(dag.dag_id, session=session)
             if TYPE_CHECKING:
                 assert latest_ser_dag is not None
-            # Update the serialized DAG with the new_serialized_dag
+            # Update the serialized Dag with the new_serialized_dag
             latest_ser_dag._data = new_serialized_dag._data
             latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
             latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
@@ -476,11 +476,11 @@ class SerializedDagModel(Base):
         cls, *, dag_ids: list[str], session: Session = NEW_SESSION
     ) -> list[SerializedDagModel]:
         """
-        Get the latest serialized dags of given DAGs.
+        Get the latest serialized dags of given Dags.
 
-        :param dag_ids: The list of DAG IDs.
+        :param dag_ids: The list of Dag IDs.
         :param session: The database session.
-        :return: The latest serialized dag of the DAGs.
+        :return: The latest serialized dag of the Dags.
         """
         # Subquery to get the latest serdag per dag_id
         latest_serdag_subquery = (
@@ -503,10 +503,10 @@ class SerializedDagModel(Base):
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """
-        Read all DAGs in serialized_dag table.
+        Read all Dags in serialized_dag table.
 
         :param session: ORM Session
-        :returns: a dict of DAGs read from database
+        :returns: a dict of Dags read from database
         """
         latest_serialized_dag_subquery = (
             session.query(cls.dag_id, func.max(cls.created_at).label("max_created"))
@@ -531,7 +531,7 @@ class SerializedDagModel(Base):
                 dags[row.dag_id] = dag
             else:
                 log.warning(
-                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG with '%s' dag_id",
+                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised Dag with '%s' dag_id",
                     row.dag_id,
                     dag.dag_id,
                 )
@@ -557,16 +557,16 @@ class SerializedDagModel(Base):
         elif isinstance(self.data, str):
             data = json.loads(self.data)
         else:
-            raise ValueError("invalid or missing serialized DAG data")
+            raise ValueError("invalid or missing serialized Dag data")
         return SerializedDAG.from_dict(data)
 
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
         """
-        Check a DAG exist in serialized_dag table.
+        Check a Dag exist in serialized_dag table.
 
-        :param dag_id: the DAG to check
+        :param dag_id: the Dag to check
         :param session: ORM Session
         """
         return session.scalar(select(literal(True)).where(cls.dag_id == dag_id).limit(1)) is not None
@@ -585,7 +585,7 @@ class SerializedDagModel(Base):
         """
         Get the SerializedDAG for the given dag ID.
 
-        :param dag_id: the DAG to fetch
+        :param dag_id: the Dag to fetch
         :param session: ORM Session
         """
         return session.scalar(cls.latest_item_select_object(dag_id))
@@ -594,9 +594,9 @@ class SerializedDagModel(Base):
     @provide_session
     def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
         """
-        Get the date when the Serialized DAG associated to DAG was last updated in serialized_dag table.
+        Get the date when the Serialized Dag associated to Dag was last updated in serialized_dag table.
 
-        :param dag_id: DAG ID
+        :param dag_id: Dag ID
         :param session: ORM Session
         """
         return session.scalar(
@@ -607,7 +607,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_max_last_updated_datetime(cls, session: Session = NEW_SESSION) -> datetime | None:
         """
-        Get the maximum date when any DAG was last updated in serialized_dag table.
+        Get the maximum date when any Dag was last updated in serialized_dag table.
 
         :param session: ORM Session
         """
@@ -617,11 +617,11 @@ class SerializedDagModel(Base):
     @provide_session
     def get_latest_version_hash(cls, dag_id: str, session: Session = NEW_SESSION) -> str | None:
         """
-        Get the latest DAG version for a given DAG ID.
+        Get the latest Dag version for a given Dag ID.
 
-        :param dag_id: DAG ID
+        :param dag_id: Dag ID
         :param session: ORM Session
-        :return: DAG Hash, or None if the DAG is not found
+        :return: Dag Hash, or None if the Dag is not found
         """
         return session.scalar(
             select(cls.dag_hash).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
@@ -635,12 +635,12 @@ class SerializedDagModel(Base):
         session: Session,
     ) -> tuple[str, datetime] | None:
         """
-        Get the latest version for a DAG ID and the date it was last updated in serialized_dag table.
+        Get the latest version for a Dag ID and the date it was last updated in serialized_dag table.
 
         :meta private:
-        :param dag_id: DAG ID
+        :param dag_id: Dag ID
         :param session: ORM Session
-        :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
+        :return: A tuple of Dag Hash and last updated datetime, or None if the Dag is not found
         """
         return session.execute(
             select(cls.dag_hash, cls.created_at)
@@ -653,7 +653,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
-        Get the dependencies between DAGs.
+        Get the dependencies between Dags.
 
         :param session: ORM Session
         """

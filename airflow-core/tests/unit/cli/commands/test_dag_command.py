@@ -478,21 +478,21 @@ class TestCliDags:
         with stdout_capture as temp_stdout:
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No unpaused DAGs were found"
+        assert out == "No unpaused Dags were found"
 
     def test_unpause_non_existing_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
         with stdout_capture as temp_stdout:
             dag_command.dag_unpause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No paused DAGs were found"
+        assert out == "No paused Dags were found"
 
     def test_unpause_already_unpaused_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
         with stdout_capture as temp_stdout:
             dag_command.dag_unpause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No paused DAGs were found"
+        assert out == "No paused Dags were found"
 
     def test_pausing_already_paused_dag_do_not_error(self, stdout_capture):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--yes"])
@@ -500,7 +500,7 @@ class TestCliDags:
             dag_command.dag_pause(args)
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
-        assert out == "No unpaused DAGs were found"
+        assert out == "No unpaused Dags were found"
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
@@ -950,7 +950,7 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
-        """Test that example DAGs are excluded when bundle names are passed."""
+        """Test that example Dags are excluded when bundle names are passed."""
         from airflow.utils.cli import get_dag
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):

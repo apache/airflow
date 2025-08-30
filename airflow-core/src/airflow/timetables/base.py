@@ -87,16 +87,16 @@ class DataInterval(NamedTuple):
 
 class TimeRestriction(NamedTuple):
     """
-    Restriction on when a DAG can be scheduled for a run.
+    Restriction on when a Dag can be scheduled for a run.
 
     Specifically, the run must not be earlier than ``earliest``, nor later than
     ``latest``. If ``catchup`` is *False*, the run must also not be earlier than
     the current time, i.e. "missed" schedules are not backfilled.
 
-    These values are generally set on the DAG or task's ``start_date``,
+    These values are generally set on the Dag or task's ``start_date``,
     ``end_date``, and ``catchup`` arguments.
 
-    Both ``earliest`` and ``latest``, if not *None*, are inclusive; a DAG run
+    Both ``earliest`` and ``latest``, if not *None*, are inclusive; a Dag run
     can happen exactly at either point of time. They are guaranteed to be aware
     (i.e. contain timezone information) for ``TimeRestriction`` instances
     created by Airflow.
@@ -181,15 +181,15 @@ class Timetable(Protocol):
     run_ordering: Sequence[str] = ("data_interval_end", "logical_date")
     """How runs triggered from this timetable should be ordered in UI.
 
-    This should be a list of field names on the DAG run object.
+    This should be a list of field names on the Dag run object.
     """
 
     active_runs_limit: int | None = None
     """Maximum active runs that can be active at one time for a Dag.
 
-    This is called during DAG initialization, and the return value is used as
+    This is called during Dag initialization, and the return value is used as
     the DAG's default ``max_active_runs``. This should generally return *None*,
-    but there are good reasons to limit DAG run parallelism in some cases, such
+    but there are good reasons to limit Dag run parallelism in some cases, such
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
@@ -205,8 +205,8 @@ class Timetable(Protocol):
         """
         Deserialize a timetable from data.
 
-        This is called when a serialized DAG is deserialized. ``data`` will be
-        whatever was returned by ``serialize`` during DAG serialization. The
+        This is called when a serialized Dag is deserialized. ``data`` will be
+        whatever was returned by ``serialize`` during Dag serialization. The
         default implementation constructs the timetable without any arguments.
         """
         return cls()
@@ -215,9 +215,9 @@ class Timetable(Protocol):
         """
         Serialize the timetable for JSON encoding.
 
-        This is called during DAG serialization to store timetable information
+        This is called during Dag serialization to store timetable information
         in the database. This should return a JSON-serializable dict that will
-        be fed into ``deserialize`` when the DAG is deserialized. The default
+        be fed into ``deserialize`` when the Dag is deserialized. The default
         implementation returns an empty dict.
         """
         return {}
@@ -246,7 +246,7 @@ class Timetable(Protocol):
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """
-        When a DAG run is manually triggered, infer a data interval for it.
+        When a Dag run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
         be when the user triggers the run. The default implementation raises
@@ -267,7 +267,7 @@ class Timetable(Protocol):
 
         :param last_automated_data_interval: The data interval of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).
-        :param restriction: Restriction to apply when scheduling the DAG run.
+        :param restriction: Restriction to apply when scheduling the Dag run.
             See documentation of :class:`TimeRestriction` for details.
 
         :return: Information on when the next DagRun can be scheduled. None
@@ -288,8 +288,8 @@ class Timetable(Protocol):
         """
         Generate a unique run ID.
 
-        :param run_type: The type of DAG run.
+        :param run_type: The type of Dag run.
         :param run_after: the datetime before which to Dag cannot run.
-        :param data_interval: The data interval of the DAG run.
+        :param data_interval: The data interval of the Dag run.
         """
         return run_type.generate_run_id(suffix=run_after.isoformat())

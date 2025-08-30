@@ -62,7 +62,7 @@ def get_dag_source(
     if not dag_version:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"The source code of the DAG {dag_id}, version_number {version_number} was not found",
+            f"The source code of the Dag {dag_id}, version_number {version_number} was not found",
         )
     if not dag_version.dag_code:
         raise HTTPException(

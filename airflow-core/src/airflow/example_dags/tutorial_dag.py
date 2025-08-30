@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-### DAG Tutorial Documentation
-This DAG is demonstrating an Extract -> Transform -> Load pipeline
+### Dag Tutorial Documentation
+This Dag is demonstrating an Extract -> Transform -> Load pipeline
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ import pendulum
 # Operators; we need this to operate!
 from airflow.providers.standard.operators.python import PythonOperator
 
-# The DAG object; we'll need this to instantiate a DAG
+# The Dag object; we'll need this to instantiate a DAG
 from airflow.sdk import DAG
 
 # [END import_module]
@@ -45,7 +45,7 @@ with DAG(
     # You can override them on a per-task basis during operator initialization
     default_args={"retries": 2},
     # [END default_args]
-    description="DAG tutorial",
+    description="Dag tutorial",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,

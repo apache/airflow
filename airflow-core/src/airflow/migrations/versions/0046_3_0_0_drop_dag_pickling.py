@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Drop DAG pickling.
+Drop Dag pickling.
 
 Revision ID: d03e4a635aa3
 Revises: d8cd3297971e
@@ -41,7 +41,7 @@ airflow_version = "3.0.0"
 
 
 def upgrade():
-    """Drop DAG pickling."""
+    """Drop Dag pickling."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("pickle_id")
         batch_op.drop_column("last_pickled")
@@ -50,7 +50,7 @@ def upgrade():
 
 
 def downgrade():
-    """Re-Add DAG pickling."""
+    """Re-Add Dag pickling."""
     import dill
 
     with op.batch_alter_table("dag", schema=None) as batch_op:

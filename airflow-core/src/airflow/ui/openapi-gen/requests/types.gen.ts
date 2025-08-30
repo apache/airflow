@@ -478,7 +478,7 @@ export type CreateAssetEventsBody = {
 };
 
 /**
- * DAG Collection serializer for responses.
+ * Dag Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
     dags: Array<DAGResponse>;
@@ -486,7 +486,7 @@ export type DAGCollectionResponse = {
 };
 
 /**
- * Specific serializer for DAG Details responses.
+ * Specific serializer for Dag Details responses.
  */
 export type DAGDetailsResponse = {
     dag_id: string;
@@ -559,7 +559,7 @@ export type DAGPatchBody = {
 };
 
 /**
- * DAG serializer for responses.
+ * Dag serializer for responses.
  */
 export type DAGResponse = {
     dag_id: string;
@@ -593,7 +593,7 @@ export type DAGResponse = {
 };
 
 /**
- * DAG Run serializer for clear endpoint body.
+ * Dag Run serializer for clear endpoint body.
  */
 export type DAGRunClearBody = {
     dry_run?: boolean;
@@ -605,7 +605,7 @@ export type DAGRunClearBody = {
 };
 
 /**
- * DAG Run Collection serializer for responses.
+ * Dag Run Collection serializer for responses.
  */
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
@@ -613,7 +613,7 @@ export type DAGRunCollectionResponse = {
 };
 
 /**
- * DAG Run Serializer for PATCH requests.
+ * Dag Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
     state?: DAGRunPatchStates | null;
@@ -621,12 +621,12 @@ export type DAGRunPatchBody = {
 };
 
 /**
- * Enum for DAG Run states when updating a DAG Run.
+ * Enum for Dag Run states when updating a Dag Run.
  */
 export type DAGRunPatchStates = 'queued' | 'success' | 'failed';
 
 /**
- * DAG Run serializer for responses.
+ * Dag Run serializer for responses.
  */
 export type DAGRunResponse = {
     dag_run_id: string;
@@ -654,7 +654,7 @@ export type DAGRunResponse = {
 };
 
 /**
- * List DAG Runs body for batch endpoint.
+ * List Dag Runs body for batch endpoint.
  */
 export type DAGRunsBatchBody = {
     order_by?: string | null;
@@ -681,7 +681,7 @@ export type DAGRunsBatchBody = {
 };
 
 /**
- * DAG Source serializer for responses.
+ * Dag Source serializer for responses.
  */
 export type DAGSourceResponse = {
     content: string | null;
@@ -691,7 +691,7 @@ export type DAGSourceResponse = {
 };
 
 /**
- * DAG Tags Collection serializer for responses.
+ * Dag Tags Collection serializer for responses.
  */
 export type DAGTagCollectionResponse = {
     tags: Array<(string)>;
@@ -699,7 +699,7 @@ export type DAGTagCollectionResponse = {
 };
 
 /**
- * DAG Version Collection serializer for responses.
+ * Dag Version Collection serializer for responses.
  */
 export type DAGVersionCollectionResponse = {
     dag_versions: Array<DagVersionResponse>;
@@ -707,7 +707,7 @@ export type DAGVersionCollectionResponse = {
 };
 
 /**
- * DAG warning collection serializer for responses.
+ * Dag warning collection serializer for responses.
  */
 export type DAGWarningCollectionResponse = {
     dag_warnings: Array<DAGWarningResponse>;
@@ -715,7 +715,7 @@ export type DAGWarningCollectionResponse = {
 };
 
 /**
- * DAG Warning serializer for responses.
+ * Dag Warning serializer for responses.
  */
 export type DAGWarningResponse = {
     dag_id: string;
@@ -767,7 +767,7 @@ export type DagRunTriggeredByType = 'cli' | 'operator' | 'rest_api' | 'ui' | 'te
 export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'asset_triggered';
 
 /**
- * DAG schedule reference serializer for assets.
+ * Dag schedule reference serializer for assets.
  */
 export type DagScheduleAssetReference = {
     dag_id: string;
@@ -776,7 +776,7 @@ export type DagScheduleAssetReference = {
 };
 
 /**
- * DAG Stats Collection serializer for responses.
+ * Dag Stats Collection serializer for responses.
  */
 export type DagStatsCollectionResponse = {
     dags: Array<DagStatsResponse>;
@@ -784,7 +784,7 @@ export type DagStatsCollectionResponse = {
 };
 
 /**
- * DAG Stats serializer for responses.
+ * Dag Stats serializer for responses.
  */
 export type DagStatsResponse = {
     dag_id: string;
@@ -801,7 +801,7 @@ export type DagStatsStateResponse = {
 };
 
 /**
- * DAG Tag serializer for responses.
+ * Dag Tag serializer for responses.
  */
 export type DagTagResponse = {
     name: string;
@@ -824,7 +824,7 @@ export type DagVersionResponse = {
 };
 
 /**
- * Enum for DAG warning types.
+ * Enum for Dag warning types.
  *
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
@@ -1460,7 +1460,7 @@ export type TimeDelta = {
 };
 
 /**
- * Trigger DAG Run Serializer for POST body.
+ * Trigger Dag Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
     dag_run_id?: string | null;
@@ -1652,7 +1652,7 @@ export type CalendarTimeRangeCollectionResponse = {
 };
 
 /**
- * Represents a summary of DAG runs for a specific calendar time range.
+ * Represents a summary of Dag runs for a specific calendar time range.
  */
 export type CalendarTimeRangeResponse = {
     date: string;
@@ -1715,7 +1715,7 @@ export type ConnectionHookMetaData = {
 };
 
 /**
- * DAG Run serializer for responses.
+ * Dag Run serializer for responses.
  */
 export type DAGRunLightResponse = {
     id: number;
@@ -1729,7 +1729,7 @@ export type DAGRunLightResponse = {
 };
 
 /**
- * DAG Run States for responses.
+ * Dag Run States for responses.
  */
 export type DAGRunStates = {
     queued: number;
@@ -1739,7 +1739,7 @@ export type DAGRunStates = {
 };
 
 /**
- * DAG Run Types for responses.
+ * Dag Run Types for responses.
  */
 export type DAGRunTypes = {
     backfill: number;
@@ -1749,7 +1749,7 @@ export type DAGRunTypes = {
 };
 
 /**
- * DAG with latest dag runs collection response serializer.
+ * Dag with latest dag runs collection response serializer.
  */
 export type DAGWithLatestDagRunsCollectionResponse = {
     total_entries: number;
@@ -1757,7 +1757,7 @@ export type DAGWithLatestDagRunsCollectionResponse = {
 };
 
 /**
- * DAG with latest dag runs response serializer.
+ * Dag with latest dag runs response serializer.
  */
 export type DAGWithLatestDagRunsResponse = {
     dag_id: string;
@@ -1795,7 +1795,7 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
- * Dashboard DAG Stats serializer for responses.
+ * Dashboard Dag Stats serializer for responses.
  */
 export type DashboardDagStatsResponse = {
     active_dag_count: number;
@@ -1847,7 +1847,7 @@ export type GridRunsResponse = {
 };
 
 /**
- * DAG Run model for the Grid UI.
+ * Dag Run model for the Grid UI.
  */
 export type GridTISummaries = {
     run_id: string;
@@ -2341,7 +2341,7 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2365,7 +2365,7 @@ export type GetDagsData = {
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
@@ -2451,7 +2451,7 @@ export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2468,7 +2468,7 @@ export type GetDagsUiData = {
     dagRunsLimit?: number;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;

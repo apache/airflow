@@ -117,7 +117,7 @@ def dag_stats(
     session: SessionDep,
     readable_dags_filter: ReadableDagsFilterDep,
 ) -> DashboardDagStatsResponse:
-    """Return basic DAG stats with counts of DAGs in various states."""
+    """Return basic Dag stats with counts of Dags in various states."""
     permitted_dag_ids = readable_dags_filter.value
     latest_dates_subq = (
         select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))

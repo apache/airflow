@@ -662,7 +662,7 @@ def test_get_task_assets():
 def test_lazy_dag_run_interval_wrong_dag():
     lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
 
-    with pytest.raises(ValueError, match="different DAGs"):
+    with pytest.raises(ValueError, match="different Dags"):
         lazy.get_run_data_interval(DAG_RUN)
 
 
