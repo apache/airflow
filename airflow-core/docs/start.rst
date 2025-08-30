@@ -89,7 +89,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 5. Access the Airflow UI:
 
-   Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` DAG in the home page.
+   Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` Dag in the home page.
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
@@ -104,7 +104,7 @@ from the ``standalone`` command we use here to running the components
 separately. You can read more in :doc:`/administration-and-deployment/production-deployment`.
 
 Here are a few commands that will trigger a few task instances. You should
-be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
+be able to see the status of the jobs change in the ``example_bash_operator`` Dag as you
 run the commands below.
 
 .. code-block:: bash
