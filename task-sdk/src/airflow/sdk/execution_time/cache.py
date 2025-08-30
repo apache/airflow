@@ -20,8 +20,8 @@ from __future__ import annotations
 import datetime
 import multiprocessing
 
-from airflow.configuration import conf
 from airflow.sdk import timezone
+from airflow.sdk.configuration import conf
 
 
 class SecretCache:

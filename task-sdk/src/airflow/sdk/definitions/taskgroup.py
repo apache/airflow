@@ -36,6 +36,7 @@ from airflow.exceptions import (
     TaskAlreadyInTaskGroup,
 )
 from airflow.sdk import TriggerRule
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import AirflowDagCycleException
 

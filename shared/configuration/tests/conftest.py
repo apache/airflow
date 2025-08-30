@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -20,12 +19,13 @@ from __future__ import annotations
 import contextlib
 import os
 
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
+os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
+
 
 @contextlib.contextmanager
 def conf_vars(overrides):
-    from airflow import settings
-    from airflow_shared.configuration import conf
-
+    global conf
     original = {}
     original_env_vars = {}
     for (section, key), value in overrides.items():
@@ -44,7 +44,6 @@ def conf_vars(overrides):
         else:
             if conf.has_section(section):
                 conf.remove_option(section, key)
-    settings.configure_vars()
     try:
         yield
     finally:
@@ -58,30 +57,3 @@ def conf_vars(overrides):
                     conf.remove_option(section, key)
         for env, value in original_env_vars.items():
             os.environ[env] = value
-        settings.configure_vars()
-
-
-@contextlib.contextmanager
-def env_vars(overrides):
-    """
-    Temporarily patches env vars, restoring env as it was after context exit.
-
-    Example:
-        with env_vars({'AIRFLOW_CONN_AWS_DEFAULT': 's3://@'}):
-            # now we have an aws default connection available
-    """
-    orig_vars = {}
-    new_vars = []
-    for env, value in overrides.items():
-        if env in os.environ:
-            orig_vars[env] = os.environ.pop(env, "")
-        else:
-            new_vars.append(env)
-        os.environ[env] = value
-    try:
-        yield
-    finally:
-        for env, value in orig_vars.items():
-            os.environ[env] = value
-        for env in new_vars:
-            os.environ.pop(env)
