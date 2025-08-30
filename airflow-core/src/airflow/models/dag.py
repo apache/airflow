@@ -468,7 +468,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             updated_access_control[role] = updated_access_control.get(role, {})
             if isinstance(perms, (set, list)):
                 # Support for old-style access_control where only the actions are specified
-                updated_access_control[role]["Dags"] = set(perms)
+                updated_access_control[role]["DAGs"] = set(perms)
             else:
                 updated_access_control[role] = perms
         return updated_access_control
