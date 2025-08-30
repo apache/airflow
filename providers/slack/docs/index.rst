@@ -51,7 +51,7 @@
     :caption: References
 
     Python API <_api/airflow/providers/slack/index>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-slack/|version|/providers/slack/tests/system/slack>
+    Example Dags <https://github.com/apache/airflow/tree/providers-slack/|version|/providers/slack/tests/system/slack>
 
 .. toctree::
     :hidden:

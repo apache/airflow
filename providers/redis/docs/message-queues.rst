@@ -63,7 +63,7 @@ Channels can also be specified via the Queue URI instead of the ``channels`` kwa
    :end-before: [END extract_channels]
 
 
-Below is an example of how you can configure an Airflow DAG to be triggered by a message in Redis.
+Below is an example of how you can configure an Airflow Dag to be triggered by a message in Redis.
 
 .. exampleinclude:: /../tests/system/redis/example_dag_message_queue_trigger.py
    :language: python

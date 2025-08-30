@@ -38,7 +38,7 @@ An example of Listing all Documents in **students** collection can be implemente
     :end-before: [END howto_aql_operator_arangodb]
 
 You can also provide file template (.sql) to load query, remember path is relative to **dags/** folder, if you want to provide any other path
-please provide **template_searchpath** while creating **DAG** object,
+please provide **template_searchpath** while creating **Dag** object,
 
 .. exampleinclude:: /../../arangodb/src/airflow/providers/arangodb/example_dags/example_arangodb.py
     :language: python
