@@ -285,34 +285,6 @@ class AirflowConfigParser(ConfigParser):
         """
         return os.path.join(self.config_templates_dir, file_name)
 
-    def retrieve_configuration_description(
-        self,
-        include_airflow: bool = True,
-        include_providers: bool = True,
-        selected_provider: str | None = None,
-    ) -> dict[str, dict[str, Any]]:
-        """
-        Read Airflow configuration description from YAML file.
-
-        :param include_airflow: Include Airflow configs
-        :param include_providers: Include provider configs
-        :param selected_provider: If specified, include selected provider only
-        :return: Python dictionary containing configs & their info
-        """
-        from airflow.utils import yaml
-
-        base_configuration_description: dict[str, dict[str, Any]] = {}
-        if include_airflow:
-            with open(self._get_config_file_path("config.yml")) as config_file:
-                base_configuration_description.update(yaml.safe_load(config_file))
-        if include_providers:
-            from airflow.providers_manager import ProvidersManager
-
-            for provider, config in ProvidersManager().provider_configs:
-                if not selected_provider or provider == selected_provider:
-                    base_configuration_description.update(config)
-        return base_configuration_description
-
     def create_provider_config_fallback_defaults(self) -> ConfigParser:
         """
         Create fallback defaults.
@@ -2284,6 +2256,34 @@ def get_custom_secret_backend(worker_mode: bool = False):
         backend_kwargs = {}
 
     return secrets_backend_cls(**backend_kwargs)
+
+
+def retrieve_configuration_description(
+    include_airflow: bool = True,
+    include_providers: bool = True,
+    selected_provider: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """
+    Read Airflow configuration description from YAML file.
+
+    :param include_airflow: Include Airflow configs
+    :param include_providers: Include provider configs
+    :param selected_provider: If specified, include selected provider only
+    :return: Python dictionary containing configs & their info
+    """
+    from airflow.utils import yaml
+
+    base_configuration_description: dict[str, dict[str, Any]] = {}
+    if include_airflow:
+        with open(conf._get_config_file_path("config.yml")) as config_file:
+            base_configuration_description.update(yaml.safe_load(config_file))
+    if include_providers:
+        from airflow.providers_manager import ProvidersManager
+
+        for provider, config in ProvidersManager().provider_configs:
+            if not selected_provider or provider == selected_provider:
+                base_configuration_description.update(config)
+    return base_configuration_description
 
 
 def find_config_templates_dir() -> str:

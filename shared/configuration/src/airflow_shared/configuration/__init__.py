@@ -41,6 +41,7 @@ from .parser import (
     initialize_secrets_backends,
     load_standard_airflow_configuration,
     make_group_other_inaccessible,
+    retrieve_configuration_description,
     run_command,
     secrets_backend_list,
     write_default_airflow_configuration_if_needed,
@@ -71,4 +72,5 @@ __all__ = [
     "secrets_backend_list",
     "initialize_secrets_backends",
     "ensure_secrets_loaded",
+    "retrieve_configuration_description",
 ]

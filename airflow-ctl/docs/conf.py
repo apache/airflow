@@ -54,7 +54,7 @@ from docs.utils.conf_constants import (
 from packaging.version import Version, parse as parse_version
 
 import airflowctl
-from airflow.configuration import conf
+from airflow.configuration import retrieve_configuration_description
 
 PACKAGE_NAME = "apache-airflow-ctl"
 PACKAGE_VERSION = airflowctl.__version__
@@ -200,7 +200,7 @@ airflowctl_version: Version = parse_version(
 )
 
 
-config_descriptions = conf.retrieve_configuration_description(include_providers=False)
+config_descriptions = retrieve_configuration_description(include_providers=False)
 configs, deprecated_options = get_configs_and_deprecations(airflowctl_version, config_descriptions)
 
 jinja_contexts = {
