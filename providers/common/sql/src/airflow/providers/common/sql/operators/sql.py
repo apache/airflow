@@ -23,8 +23,6 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
-import jinja2
-
 from airflow import XComArg
 from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import SkipMixin
@@ -34,6 +32,8 @@ from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
