@@ -179,6 +179,11 @@ class TestS3RemoteLogIO:
             self.subject.write("text", url)
             mock_error.assert_called_once_with("Could not write logs to %s", url, exc_info=True)
 
+    def test_stream(self):
+        """Test that the stream method raises NotImplementedError."""
+        with pytest.raises(NotImplementedError):
+            self.subject.stream("some/log/path", self.ti)
+
 
 @pytest.mark.db_test
 class TestS3TaskHandler:
