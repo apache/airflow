@@ -326,6 +326,7 @@ def set_xcom(
     run_id: str,
     task_id: str,
     key: Annotated[str, StringConstraints(min_length=1)],
+    session: SessionDep,
     value: Annotated[
         JsonValue,
         Body(
@@ -345,8 +346,7 @@ def set_xcom(
                 },
             },
         ),
-    ],
-    session: SessionDep,
+    ] = None,
     map_index: Annotated[int, Query()] = -1,
     mapped_length: Annotated[
         int | None, Query(description="Number of mapped tasks this value expands into")
