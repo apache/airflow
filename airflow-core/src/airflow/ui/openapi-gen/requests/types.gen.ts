@@ -2368,6 +2368,7 @@ export type GetDagsData = {
      * Filter DAGs with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2471,6 +2472,7 @@ export type GetDagsUiData = {
      * Filter DAGs with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;

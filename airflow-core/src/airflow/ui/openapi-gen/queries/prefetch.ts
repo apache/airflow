@@ -457,6 +457,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.excludeStale
 * @param data.paused
+* @param data.hasImportErrors
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
@@ -476,7 +477,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -493,6 +494,7 @@ export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { assetDe
   dagRunState?: string[];
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
+  hasImportErrors?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -502,7 +504,7 @@ export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { assetDe
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Dag
 * Get basic information about a DAG.
@@ -557,6 +559,7 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.excludeStale
 * @param data.paused
+* @param data.hasImportErrors
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
@@ -567,7 +570,7 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -577,6 +580,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { asset
   dagRunsLimit?: number;
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
+  hasImportErrors?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -586,7 +590,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { asset
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Latest Run Info
 * Get latest run.
