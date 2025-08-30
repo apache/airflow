@@ -328,7 +328,7 @@ export const PanelButtons = ({
                           size="sm"
                           value={[runTypeFilter?.[0] ?? "all"]}
                         >
-                          <Select.Label>{translate("dag:panel.runType.label")}</Select.Label>
+                          <Select.Label>{translate("common:dagRun.runType")}</Select.Label>
                           <Select.Control>
                             <Select.Trigger>
                               <Select.ValueText>
@@ -369,11 +369,11 @@ export const PanelButtons = ({
                         </Select.Root>
                         <VStack alignItems="flex-start">
                           <Text fontSize="xs" mb={1}>
-                            {translate("dag:panel.triggeringUser.label")}
+                            {translate("common:dagRun.triggeringUser")}
                           </Text>
                           <Input
                             onChange={handleTriggeringUserChange}
-                            placeholder={translate("dag:panel.triggeringUser.placeholder")}
+                            placeholder={translate("common:filters.triggeringUserPlaceholder")}
                             size="sm"
                             value={triggeringUserFilter ?? ""}
                           />
