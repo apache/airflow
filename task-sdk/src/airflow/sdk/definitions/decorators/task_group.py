@@ -19,8 +19,8 @@
 Implements the ``@task_group`` function decorator.
 
 When the decorated function is called, a task group will be created to represent
-a collection of closely related tasks on the same DAG that should be grouped
-together when the DAG is displayed graphically.
+a collection of closely related tasks on the same Dag that should be grouped
+together when the Dag is displayed graphically.
 """
 
 from __future__ import annotations
