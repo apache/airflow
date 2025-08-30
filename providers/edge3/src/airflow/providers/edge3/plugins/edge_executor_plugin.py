@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -49,8 +49,8 @@ if AIRFLOW_V_3_0_PLUS:
 
         return {
             "app": create_edge_worker_api_app(),
-            "url_prefix": "/edge_worker/v1",
-            "name": "Airflow Edge Worker API",
+            "url_prefix": "/edge_worker",
+            "name": "Airflow Edge Worker",
         }
 
 else:
@@ -232,9 +232,49 @@ class EdgeExecutorPlugin(AirflowPlugin):
 
     name = "edge_executor"
     if EDGE_EXECUTOR_ACTIVE and RUNNING_ON_APISERVER:
+        if AIRFLOW_V_3_1_PLUS:
+            fastapi_apps = [_get_api_endpoint()]
+            react_apps = [
+                {
+                    "name": "Edge Worker",
+                    "bundle_url": "/edge_worker/static/main.umd.cjs",
+                    "destination": "nav",
+                    "url_route": "edge_worker",
+                    "category": "admin",
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                },
+                {
+                    "name": "Edge Worker Jobs",
+                    "bundle_url": "/edge_worker/static/main.umd.cjs",
+                    "url_route": "edge_jobs",
+                    "category": "admin",
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                },
+            ]
+            external_views = [
+                {
+                    "name": "Edge Worker API docs",
+                    "href": "/edge_worker/docs",
+                    "destination": "nav",
+                    "category": "docs",
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                    "url_route": "edge_worker_api_docs",
+                }
+            ]
         if AIRFLOW_V_3_0_PLUS:
+            # Airflow 3.0 does not know about react_apps, so we only provide the API endpoint
             fastapi_apps = [_get_api_endpoint()]
         else:
+            appbuilder_menu_items = [
+                {
+                    "name": "Edge Worker API docs",
+                    "href": "/edge_worker/v1/ui",
+                    "category": "Docs",
+                }
+            ]
             appbuilder_views = [
                 {
                     "name": "Edge Worker Jobs",
