@@ -201,7 +201,7 @@ You are using a dynamically generated {{ $serverKind }} secret key, which can le
 unnecessary restarts of your Airflow components.
 
 Information on how to set a static {{ $serverKind }} secret key can be found here:
-https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api%2Fwebserver-secret-key
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
 
 {{- end }}
 

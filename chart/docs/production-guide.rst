@@ -182,11 +182,14 @@ Depending on the size of your Airflow instance, you may want to adjust the follo
     # The maximum number of server connections to the result backend database from PgBouncer
     resultBackendPoolSize: 5
 
-API/Webserver Secret Key
-------------------------
+API Secret Key
+---------------
 
-You should set a static API (Airflow 3+) or webserver (Airflow <3) secret key when deploying with this chart as it will help ensure
+You should set a static API secret key when deploying with this chart as it will help ensure
 your Airflow components only restart when necessary.
+
+.. note::
+  This section also applies to the webserver for Airflow <3 -- simply replace "API" with "webserver."
 
 .. warning::
   You should use a different secret key for every instance you run, as this key is used to sign
