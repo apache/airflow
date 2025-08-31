@@ -83,8 +83,8 @@ export const createChartOptions = ({
   translate,
 }: ChartOptionsParams) => {
   const isRunning = selectedRun?.state === "running";
-  const effectiveEndDate = isRunning && !selectedRun?.end_date 
-    ? new Date().toISOString() 
+  const effectiveEndDate = isRunning && !selectedRun?.end_date
+    ? new Date().toISOString()
     : selectedRun?.end_date;
 
   return ({

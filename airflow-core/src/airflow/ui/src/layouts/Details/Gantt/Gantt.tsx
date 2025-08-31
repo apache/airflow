@@ -126,12 +126,12 @@ export const Gantt = ({ limit }: Props) => {
 
   useEffect(() => {
     const hasRunningTasks = taskInstancesData?.task_instances?.some((ti) => isStatePending(ti.state));
-    
+
     if (hasRunningTasks) {
       const interval = setInterval(() => {
         setTick(prev => prev + 1);
       }, 3000);
-      
+
       return () => clearInterval(interval);
     }
   }, [taskInstancesData]);
@@ -167,10 +167,10 @@ export const Gantt = ({ limit }: Props) => {
 
           if (taskInstance) {
             const isTaskRunning = taskInstance.state === "running";
-            const endTime = isTaskRunning && !taskInstance.end_date 
-              ? new Date().toISOString() 
+            const endTime = isTaskRunning && !taskInstance.end_date
+              ? new Date().toISOString()
               : taskInstance.end_date;
-            
+
             return {
               isGroup: false,
               isMapped: node.is_mapped,
