@@ -36,6 +36,7 @@ import { type GetColumnsParams, useRowSelection } from "src/components/DataTable
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import MarkTaskInstancesAsButton from "src/components/MarkAs/TaskInstances/MarkTaskInstancesAsButton";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
@@ -386,9 +387,31 @@ export const TaskInstances = () => {
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip
-            content={`${translate("common:modal.delete.button")} ${translate(
-              `common:${selectedRows.size > 1 ? "taskInstance_other" : "taskInstance_one"}`,
-            )}`}
+            content={`${translate("dags:runAndTaskActions.markAs.button")} ${translate("taskInstance", { count: selectedRows.size })}`}
+            disabled={selectedRows.size === 0}
+          >
+            <MarkTaskInstancesAsButton
+              clearSelections={clearSelections}
+              dagId={dagId ?? ""}
+              dagRunId={runId ?? ""}
+              patchKeys={
+                [...selectedRows.keys()]
+                  .map((id) => {
+                    const [dagRunId, currentTaskId, mapIndex] = id.split(SEPARATOR);
+
+                    return data?.task_instances.find(
+                      (ti) =>
+                        ti.dag_run_id === dagRunId &&
+                        ti.task_id === currentTaskId &&
+                        ti.map_index === Number(mapIndex ?? -1),
+                    );
+                  })
+                  .filter(Boolean) as Array<TaskInstanceResponse>
+              }
+            />
+          </Tooltip>
+          <Tooltip
+            content={`${translate("common:modal.delete.button")} ${translate("taskInstance", { count: selectedRows.size })}`}
             disabled={selectedRows.size === 0}
           >
             <DeleteTaskInstancesButton
