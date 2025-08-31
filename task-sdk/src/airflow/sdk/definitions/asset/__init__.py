@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import operator
@@ -703,3 +704,16 @@ class AssetAliasEvent(attrs.AttrsInstance):
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
     extra: dict[str, Any]
+
+
+@attrs.define
+class AssetEvent(attrs.AttrsInstance):
+    """Representation of an asset event created from an asset change."""
+
+    asset_key: AssetUniqueKey
+    timestamp: datetime.datetime
+    extra: dict[str, Any]
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+    source_task_id: str | None = None
+    source_map_index: int | None = None

@@ -808,3 +808,16 @@ class AssetEvent(Base):
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
+
+    def to_public(self):
+        from airflow.sdk.definitions.asset import AssetEvent, AssetUniqueKey
+
+        return AssetEvent(
+            asset_key=AssetUniqueKey(name=self.name, uri=self.uri),
+            timestamp=self.timestamp,
+            extra=self.extra,
+            source_dag_id=self.source_dag_id,
+            source_run_id=self.source_run_id,
+            source_task_id=self.source_task_id,
+            source_map_index=self.source_map_index,
+        )

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -26,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
+from airflow.models import TaskInstance
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -36,6 +38,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
+from airflow_shared.timezones import timezone
 
 from unit.listeners import asset_listener
 
@@ -56,8 +59,13 @@ def clear_assets():
 
 @pytest.fixture
 def mock_task_instance():
-    # TODO: Fixme - some mock_task_instance is needed here
-    return None
+    task_instance = mock.MagicMock(spec=TaskInstance)
+    task_instance.dag_id = "test_dag"
+    task_instance.task_id = "test_task"
+    task_instance.run_id = "test_run"
+    task_instance.map_index = -1
+    task_instance.execution_date = "2025-01-01T00:00:00Z"
+    return task_instance
 
 
 def create_mock_dag():
@@ -182,12 +190,26 @@ class TestAssetManager:
         asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
 
-        asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset, session=session, extra={"foo": "bar"}
+        )
         session.flush()
 
         # Ensure the listener was notified
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
+
+        # Ensure we've created an asset event
+        assert len(asset_listener.created_events) == 1
+        created_event = asset_listener.created_events[0]
+        assert created_event.asset_key.uri == asset.uri
+        assert created_event.source_dag_id == mock_task_instance.dag_id
+        assert created_event.source_task_id == mock_task_instance.task_id
+        assert created_event.source_run_id == mock_task_instance.run_id
+        assert created_event.source_map_index == mock_task_instance.map_index
+        assert created_event.timestamp < timezone.utcnow()
+        assert created_event.timestamp > timezone.utcnow() + timedelta(minutes=-1)
+        assert created_event.extra == {"foo": "bar"}
 
     def test_create_assets_notifies_asset_listener(self, session):
         asset_manager = AssetManager()

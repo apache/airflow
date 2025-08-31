@@ -44,7 +44,12 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetEvent as PublicAssetEvent,
+        AssetUniqueKey,
+    )
 
 log = structlog.get_logger(__name__)
 
@@ -160,6 +165,8 @@ class AssetManager(LoggingMixin):
         session.add(asset_event)
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
 
+        cls.notify_asset_event_created(event=asset_event.to_public())
+
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
         }
@@ -229,6 +236,14 @@ class AssetManager(LoggingMixin):
         """Run applicable notification actions when an asset is changed."""
         try:
             get_listener_manager().hook.on_asset_changed(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
+
+    @staticmethod
+    def notify_asset_event_created(event: PublicAssetEvent):
+        """Run applicable notification actions when an asset event is created."""
+        try:
+            get_listener_manager().hook.on_asset_event_created(event=event)
         except Exception:
             log.exception("error calling listener")
 
