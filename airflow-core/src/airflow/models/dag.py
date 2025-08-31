@@ -302,7 +302,7 @@ def _convert_max_consecutive_failed_dag_runs(val: int) -> int:
 @attrs.define(hash=False, repr=False, eq=False, slots=False)
 class DAG(TaskSDKDag, LoggingMixin):
     """
-    A dag (directed acyclic graph) is a collection of tasks with directional dependencies.
+    A dag is a collection of tasks with directional dependencies.
 
     A dag also has a schedule, a start date and an end date (optional).  For each schedule,
     (say daily or hourly), the DAG needs to run each individual tasks as their dependencies

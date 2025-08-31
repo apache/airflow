@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
+    Example Dags <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-vertica/>
     Installing from sources <installing-providers-from-sources>
 
