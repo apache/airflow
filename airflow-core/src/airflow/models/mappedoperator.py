@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions.operator_resources import Resources
-    from airflow.sdk.definitions.param import ParamsDict
+    from airflow.serialization.definitions.param import SerializedParamsDict
     from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -92,7 +92,7 @@ class MappedOperator(DAGNode):
 
     # Needed for serialization.
     task_id: str
-    params: ParamsDict | dict = attrs.field(init=False, factory=dict)
+    params: SerializedParamsDict | dict = attrs.field(init=False, factory=dict)
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
