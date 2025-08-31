@@ -81,7 +81,13 @@ export const createChartOptions = ({
   selectedRun,
   selectedTimezone,
   translate,
-}: ChartOptionsParams) => ({
+}: ChartOptionsParams) => {
+  const isRunning = selectedRun?.state === "running";
+  const effectiveEndDate = isRunning && !selectedRun?.end_date 
+    ? new Date().toISOString() 
+    : selectedRun?.end_date;
+
+  return ({
   animation: {
     duration: 100,
   },
@@ -146,7 +152,7 @@ export const createChartOptions = ({
         color: gridColor,
         display: true,
       },
-      max: formatDate(selectedRun?.end_date, selectedTimezone),
+      max: formatDate(effectiveEndDate, selectedTimezone),
       min: formatDate(selectedRun?.start_date, selectedTimezone),
       position: "top" as const,
       stacked: true,
@@ -170,4 +176,5 @@ export const createChartOptions = ({
       },
     },
   },
-});
+  });
+};
