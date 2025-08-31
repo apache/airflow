@@ -1745,7 +1745,7 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow_when_bu
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG DEPENDENCY_CACHE_EPOCH="9"
+ARG DEPENDENCY_CACHE_EPOCH="10"
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
