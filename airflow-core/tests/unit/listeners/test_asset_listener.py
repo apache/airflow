@@ -41,8 +41,8 @@ def clean_listener_manager():
 @pytest.mark.db_test
 @provide_session
 def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
-    asset_uri = "test://asset/"
-    asset_name = "test_asset_uri"
+    asset_uri = "test://asset1/"
+    asset_name = "test_asset1_uri"
     asset_group = "test-group"
     asset = Asset(uri=asset_uri, name=asset_name, group=asset_group)
     asset_model = AssetModel(uri=asset_uri, name=asset_name, group=asset_group)
@@ -68,8 +68,8 @@ def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_oper
 @pytest.mark.db_test
 @provide_session
 def test_asset_listener_on_asset_event_created_gets_calls(create_task_instance_of_operator, session):
-    asset_uri = "test://asset/"
-    asset_name = "test_asset_uri"
+    asset_uri = "test://asset2/"
+    asset_name = "test_asset2_uri"
     asset_group = "test-group"
     asset_extra = {
         "static": "some-value",

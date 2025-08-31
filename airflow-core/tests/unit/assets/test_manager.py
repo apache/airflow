@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import itertools
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
@@ -38,7 +38,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
-from airflow_shared.timezones import timezone
 
 from unit.listeners import asset_listener
 
@@ -207,8 +206,8 @@ class TestAssetManager:
         assert created_event.source_task_id == mock_task_instance.task_id
         assert created_event.source_run_id == mock_task_instance.run_id
         assert created_event.source_map_index == mock_task_instance.map_index
-        assert created_event.timestamp < timezone.utcnow()
-        assert created_event.timestamp > timezone.utcnow() + timedelta(minutes=-1)
+        assert created_event.timestamp < datetime.now(timezone.utc)
+        assert created_event.timestamp > datetime.now(timezone.utc) - timedelta(minutes=1)
         assert created_event.extra == {"foo": "bar"}
 
     def test_create_assets_notifies_asset_listener(self, session):
