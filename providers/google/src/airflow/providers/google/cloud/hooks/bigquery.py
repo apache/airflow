@@ -28,7 +28,7 @@ import time
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
 import pendulum
@@ -1296,13 +1296,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
-    def get_exec_date(self, context: Context) -> datetime:
+    def get_exec_date(self, context: Context) -> pendulum.DateTime:
         date = context.get("logical_date", None)
         if AIRFLOW_V_3_0_PLUS and date is None:
-            if dr := context.get("dag_run"):
-                if dr.run_after:
-                    date = pendulum.instance(dr.run_after)
-        return date if date is not None else datetime.now(tz=timezone.utc)
+            dag_run = context.get("dag_run")
+            if dag_run and hasattr(dag_run, "run_after"):
+                date = pendulum.instance(dag_run.run_after)
+        return date if date is not None else pendulum.now("UTC")
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
