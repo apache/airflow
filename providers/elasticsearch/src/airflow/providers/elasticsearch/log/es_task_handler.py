@@ -356,11 +356,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             #
             # In Airflow 3.x, the "message" field is renamed to "event".
             # We check the correct attribute depending on the Airflow major version.
-            if AIRFLOW_V_3_0_PLUS:
-                end_mark_found = any(x[-1].event == self.end_of_log_mark for x in logs_by_host.values())
-            else:
-                end_mark_found = any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values())
-
+            end_mark_found = any(
+                self._get_log_message(x[-1]) == self.end_of_log_mark for x in logs_by_host.values()
+            )
             if end_mark_found:
                 metadata["end_of_log"] = True
 
@@ -405,10 +403,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             #
             # In Airflow 3.x, the "message" field is renamed to "event".
             # We check the correct attribute depending on the Airflow major version.
-            if AIRFLOW_V_3_0_PLUS:
-                log_range = (len(hits) - 1) if hits[-1].event == self.end_of_log_mark else len(hits)
-            else:
-                log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            log_range = (
+                (len(hits) - 1) if self._get_log_message(hits[-1]) == self.end_of_log_mark else len(hits)
+            )
             return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
@@ -460,9 +457,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         #
         # In Airflow 3.x, the "message" field is renamed to "event".
         # We check the correct attribute depending on the Airflow major version.
-        if AIRFLOW_V_3_0_PLUS:
-            return hit.event
-        return hit.message
+        return self._get_log_message(hit)
 
     def emit(self, record):
         if self.handler:
@@ -606,6 +601,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # callback should get the Hit class if "from_es" is not defined
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
+
+    def _get_log_message(self, hit: Hit) -> str:
+        """Get log message from hit, supporting both Airflow 2.x and 3.x formats."""
+        if hasattr(hit, "event"):
+            return hit.event
+        if hasattr(hit, "message"):
+            return hit.message
+        return ""
 
 
 @attrs.define(kw_only=True)
