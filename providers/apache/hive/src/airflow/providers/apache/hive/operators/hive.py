@@ -143,7 +143,7 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context["ti"]
-            logical_date = context["logical_date"]
+            logical_date = context.get("logical_date", None)
             if logical_date is None:
                 raise RuntimeError("logical_date is None")
             hostname = ti.hostname or ""
