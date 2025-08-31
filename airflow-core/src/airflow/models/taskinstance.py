@@ -1741,13 +1741,13 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
 
+        from airflow.exceptions import NotMapped
         from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
             TIRunContext,
         )
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.sdk.definitions.param import process_params
         from airflow.sdk.execution_time.context import InletEventsAccessors
         from airflow.utils.context import (
