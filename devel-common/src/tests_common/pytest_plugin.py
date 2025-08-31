@@ -234,10 +234,7 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 @pytest.fixture(autouse=True)
 def trace_sql(request):
     try:
-        from tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
-            count_queries,
-            trace_queries,
-        )
+        from tests_common.test_utils.perf.perf_kit.sqlalchemy import count_queries, trace_queries
     except ImportError:
         yield
         return
@@ -952,7 +949,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if type is not None:
                 return
 
-            dag.clear(session=self.session)
             if AIRFLOW_V_3_0_PLUS:
                 dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
             else:

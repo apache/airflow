@@ -79,6 +79,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
+from airflow.models.dag_version import DagVersion
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -222,7 +223,6 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
-
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
@@ -281,6 +281,13 @@ def clear_task_instances(
                 dr.start_date = timezone.utcnow()
                 if run_on_latest_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                    dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                    if dag_version:
+                        # Change the dr.created_dag_version_id so the scheduler doesn't reject this
+                        # version when it sets the dag_run.dag
+                        dr.created_dag_version_id = dag_version.id
+                        dr.dag = dr_dag
+                        dr.verify_integrity(session=session, dag_version_id=dag_version.id)
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
