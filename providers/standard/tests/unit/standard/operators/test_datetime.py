@@ -28,11 +28,15 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -61,7 +65,6 @@ class TestBranchDateTimeOperator:
             "branch_datetime_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule=INTERVAL,
-            serialized=True,
         ) as dag:
             self.dag = dag
             self.branch_1 = EmptyOperator(task_id="branch_1")

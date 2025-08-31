@@ -1270,14 +1270,16 @@ class TaskInstance(Base, LoggingMixin):
         **kwargs: Any,
     ) -> None:
         """Only kept for tests."""
-        from airflow.sdk.definitions.dag import _run_task
-
         if mark_success:
             self.set_state(TaskInstanceState.SUCCESS)
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self, task=self.task)
+        from airflow.sdk.definitions.dag import _run_task
+        from airflow.utils.cli import get_bagged_dag
+
+        real_task = get_bagged_dag(bundle_names=None, dag_id=self.dag_id).get_task(self.task_id)
+        taskrun_result = _run_task(ti=self, task=real_task)
         if taskrun_result is not None and taskrun_result.error:
             raise taskrun_result.error
         return None
@@ -1446,18 +1448,6 @@ class TaskInstance(Base, LoggingMixin):
         raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance (only kept for tests)."""
-        # This method is only used in ti.run and dag.test and task.test.
-        # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
-        from airflow.serialization.serialized_objects import SerializedDAG
-
-        original_task = self.task
-        if TYPE_CHECKING:
-            assert original_task is not None
-            assert original_task.dag is not None
-
-        self.task = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag)).task_dict[
-            original_task.task_id
-        ]
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
@@ -1470,10 +1460,8 @@ class TaskInstance(Base, LoggingMixin):
             pool=pool,
             session=session,
         )
-        self.task = original_task
         if not res:
             return
-
         self._run_raw_task(mark_success=mark_success)
 
     @classmethod

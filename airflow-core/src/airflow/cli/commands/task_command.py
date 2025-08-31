@@ -37,17 +37,11 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
-from airflow.sdk.definitions.param import ParamsDict
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import SerializedDAG, create_scheduler_operator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import (
-    get_bagged_dag,
-    get_dag_by_file_location,
-    get_dags,
-    suppress_logs_and_warning,
-)
+from airflow.utils.cli import get_bagged_dag, get_dag_by_file_location, get_dags, suppress_logs_and_warning
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -82,7 +76,7 @@ def _generate_temporary_run_id() -> str:
 
 def _get_dag_run(
     *,
-    dag: DAG,
+    dag: SerializedDAG,
     create_if_necessary: CreateIfNecessary,
     logical_date_or_run_id: str | None = None,
     session: Session | None = None,
@@ -144,9 +138,8 @@ def _get_dag_run(
         )
         return dag_run, True
     if create_if_necessary == "db":
-        scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))  # type: ignore[arg-type]
         dag_run = get_or_create_dagrun(
-            dag=scheduler_dag,
+            dag=dag,
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
@@ -372,6 +365,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     # up to the normal airflow handler.
 
     from airflow.sdk._shared.secrets_masker import SecretsMasker
+    from airflow.sdk.definitions.param import ParamsDict
 
     SecretsMasker.enable_log_masking()
 
@@ -389,22 +383,23 @@ def task_test(args, dag: DAG | None = None) -> None:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
+    if not dag:
+        dag = get_bagged_dag(args.bundle_name, args.dag_id)
+    if TYPE_CHECKING:
+        assert dag
 
-    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    task = cast("Operator", dag.get_task(task_id=args.task_id))
+    task = dag.get_task(task_id=args.task_id)
 
     # Add CLI provided task_params to task.params
-    if args.task_params:
-        passed_in_params = json.loads(args.task_params)
-        task.params.update(passed_in_params)
-
-    if task.params and isinstance(task.params, ParamsDict):
+    task.params.update(json.loads(args.task_params))
+    if isinstance(task.params, ParamsDict):
         task.params.validate()
 
     ti, dr_created = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
+        create_scheduler_operator(task),
+        args.map_index,
+        logical_date_or_run_id=args.logical_date_or_run_id,
+        create_if_necessary="db",
     )
     try:
         # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
