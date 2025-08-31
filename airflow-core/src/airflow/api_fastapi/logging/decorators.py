@@ -98,6 +98,9 @@ def action_logging(event: str | None = None):
             request_body = {}
             masked_body_json = {}
 
+        if request_body.get("dry_run"):
+            return
+
         fields_skip_logging = {
             "csrf_token",
             "_csrf_token",
