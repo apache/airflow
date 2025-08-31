@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import datetime
+import json
+import re
 from unittest import mock
 
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -32,6 +34,7 @@ from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsListWorkflowsOperator,
     WorkflowsUpdateWorkflowOperator,
 )
+from airflow.utils.hashlib_wrapper import md5
 
 BASE_PATH = "airflow.providers.google.cloud.operators.workflows.{}"
 LOCATION = "europe-west1"
@@ -85,6 +88,39 @@ class TestWorkflowsCreateWorkflowOperator:
         )
 
         assert result == mock_object.to_dict.return_value
+
+    def test_execute_wihout_workflow_id(self):
+        import pendulum
+
+        from airflow.models.dagrun import DagRun
+
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.definitions.context import Context
+        else:
+            from airflow.utils.context import Context
+        op = WorkflowsCreateWorkflowOperator(
+            task_id="test_task",
+            workflow=WORKFLOW,
+            workflow_id="",
+            location=LOCATION,
+            project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hash_base = json.dumps(WORKFLOW, sort_keys=True)
+        date = pendulum.datetime(2025, 1, 1)
+        ctx = Context(logical_date=date)
+        expected = md5(f"airflow_{op.dag_id}_test_task_{date.isoformat()}_{hash_base}".encode()).hexdigest()
+        assert op._workflow_id(ctx) == re.sub(r"[:\-+.]", "_", expected)
+
+        if AIRFLOW_V_3_0_PLUS:
+            ctx = Context(dag_run=DagRun(run_after=date))
+            assert op._workflow_id(ctx) == re.sub(r"[:\-+.]", "_", expected)
 
 
 class TestWorkflowsUpdateWorkflowOperator:
