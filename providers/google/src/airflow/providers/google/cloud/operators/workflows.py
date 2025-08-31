@@ -121,9 +121,8 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
         # we use hash of whole information
         date = context.get("logical_date", None)
         if AIRFLOW_V_3_0_PLUS and date is None:
-            if dr := context.get("dag_run"):
-                if dr.run_after:
-                    date = pendulum.instance(dr.run_after)
+            if dag_run := context.get("dag_run"):
+                date = pendulum.instance(dag_run.run_after)
         exec_date = date if date is not None else datetime.datetime.now(tz=datetime.timezone.utc)
         exec_date_iso = exec_date.isoformat()
         base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date_iso}_{hash_base}"

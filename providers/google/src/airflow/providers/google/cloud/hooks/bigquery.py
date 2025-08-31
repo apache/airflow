@@ -1299,8 +1299,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_exec_date(self, context: Context) -> pendulum.DateTime:
         date = context.get("logical_date", None)
         if AIRFLOW_V_3_0_PLUS and date is None:
-            dag_run = context.get("dag_run")
-            if dag_run and hasattr(dag_run, "run_after"):
+            if dag_run := context.get("dag_run"):
                 date = pendulum.instance(dag_run.run_after)
         return date if date is not None else pendulum.now("UTC")
 
