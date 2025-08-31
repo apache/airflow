@@ -20,6 +20,7 @@ import collections
 import contextlib
 import functools
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
@@ -507,8 +508,8 @@ class OutletEventAccessors(
 
 @attrs.define(init=False)
 class InletEventsAccessor(Sequence["AssetEventResult"]):
-    _after: str | None
-    _before: str | None
+    _after: str | datetime | None
+    _before: str | datetime | None
     _ascending: bool
     _limit: int | None
     _asset_name: str | None
@@ -556,7 +557,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        query_dict = {
+        query_dict: dict[str, Any] = {
             "after": self._after,
             "before": self._before,
             "ascending": self._ascending,
@@ -591,14 +592,20 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     def __len__(self) -> int:
         return len(self._asset_events)
 
-    def __getitem__(self, index: int) -> AssetEventResult:
-        return self._asset_events[index]
+    @overload
+    def __getitem__(self, key: int) -> AssetEventResult: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[AssetEventResult]: ...
+
+    def __getitem__(self, key: int | slice) -> AssetEventResult | Sequence[AssetEventResult]:
+        return self._asset_events[key]
 
 
 @attrs.define(init=False)
 class InletEventsAccessors(
     Mapping["int | Asset | AssetAlias | AssetRef", Any],
-    _AssetEventAccessorsMixin[list["AssetEventResult"]],
+    _AssetEventAccessorsMixin[Sequence["AssetEventResult"]],
 ):
     """Lazy mapping of inlet asset event accessors."""
 
