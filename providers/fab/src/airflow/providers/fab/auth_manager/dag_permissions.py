@@ -54,13 +54,14 @@ def cleanup_dag_permissions(dag_id: str, session: Session | None = None) -> None
 
 def _cleanup_dag_permissions_impl(dag_id: str, session: Session) -> None:
     """Implement DAG permissions cleanup."""
+    from sqlalchemy import select
+
     from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
 
     # Clean up specific DAG permissions
     dag_resource_name = f"{RESOURCE_DAG_PREFIX}{dag_id}"
-    dag_resources = (
-        session.query(Resource)
-        .filter(
+    dag_resources = session.scalars(
+        select(Resource).filter(
             Resource.name.in_(
                 [
                     dag_resource_name,  # DAG:dag_id
@@ -69,8 +70,7 @@ def _cleanup_dag_permissions_impl(dag_id: str, session: Session) -> None:
                 ]
             )
         )
-        .all()
-    )
+    ).all()
     log.info("Cleaning up DAG-specific permissions for dag_id: %s", dag_id)
 
     if not dag_resources:
@@ -79,26 +79,32 @@ def _cleanup_dag_permissions_impl(dag_id: str, session: Session) -> None:
     dag_resource_ids = [resource.id for resource in dag_resources]
 
     # Find all permissions associated with these resources
-    dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
+    dag_permissions = session.scalars(
+        select(Permission).filter(Permission.resource_id.in_(dag_resource_ids))
+    ).all()
 
     if not dag_permissions:
         # Delete resources even if no permissions exist
-        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+        from sqlalchemy import delete
+
+        session.execute(delete(Resource).where(Resource.id.in_(dag_resource_ids)))
         return
 
     dag_permission_ids = [permission.id for permission in dag_permissions]
 
     # Delete permission-role associations first (foreign key constraint)
-    session.query(assoc_permission_role).filter(
-        assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
-    ).delete(synchronize_session=False)
+    from sqlalchemy import delete
 
-    # Delete permissions
-    session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
-        synchronize_session=False
+    session.execute(
+        delete(assoc_permission_role).where(
+            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
+        )
     )
 
+    # Delete permissions
+    session.execute(delete(Permission).where(Permission.resource_id.in_(dag_resource_ids)))
+
     # Delete resources (ab_view_menu entries)
-    session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+    session.execute(delete(Resource).where(Resource.id.in_(dag_resource_ids)))
 
     log.info("Cleaned up %d DAG-specific permissions", len(dag_permissions))

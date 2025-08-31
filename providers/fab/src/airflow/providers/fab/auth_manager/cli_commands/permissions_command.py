@@ -27,6 +27,8 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def permissions_cleanup(args):
     """Clean up DAG permissions in Flask-AppBuilder tables."""
+    from sqlalchemy import select
+
     from airflow.models import DagModel
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
     from airflow.providers.fab.auth_manager.models import Resource
@@ -36,18 +38,16 @@ def permissions_cleanup(args):
     with get_application_builder() as _:
         with create_session() as session:
             # Get all existing DAG IDs from DagModel
-            existing_dag_ids = {dag.dag_id for dag in session.query(DagModel).all()}
+            existing_dag_ids = {dag.dag_id for dag in session.scalars(select(DagModel)).all()}
 
             # Get all DAG-related resources from FAB tables
-            dag_resources = (
-                session.query(Resource)
-                .filter(
+            dag_resources = session.scalars(
+                select(Resource).filter(
                     Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")
                     | Resource.name.like("DAG Run:%")
                     | Resource.name.like("Task Instance:%")
                 )
-                .all()
-            )
+            ).all()
 
             orphaned_resources = []
             orphaned_dag_ids = set()
