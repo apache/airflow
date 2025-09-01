@@ -501,7 +501,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
-    """Test running a DAG with templated task."""
+    """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(
@@ -606,7 +606,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
 def test_startup_and_run_dag_with_rtif(
     mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine, mock_supervisor_comms
 ):
-    """Test startup of a DAG with various rendered templated fields."""
+    """Test startup of a Dag with various rendered templated fields."""
 
     class CustomOperator(BaseOperator):
         template_fields = tuple(task_params.keys())
@@ -801,7 +801,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
 def test_startup_and_run_dag_with_templated_fields(
     command, rendered_command, create_runtime_ti, time_machine
 ):
-    """Test startup of a DAG with various templated fields."""
+    """Test startup of a Dag with various templated fields."""
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(task_id="templated_task", bash_command=command)
@@ -892,10 +892,10 @@ def test_run_basic_failed(
 
 def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch, test_dags_dir):
     """
-    Test that the DAG parsing context is correctly set during the startup process.
+    Test that the Dag parsing context is correctly set during the startup process.
 
-    This test verifies that the DAG and task IDs are correctly set in the parsing context
-    when a DAG is started up.
+    This test verifies that the Dag and task IDs are correctly set in the parsing context
+    when a Dag is started up.
     """
     dag_id = "dag_parsing_context_test"
     task_id = "conditional_task"
@@ -912,8 +912,8 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
 
     mock_supervisor_comms._get_response.return_value = what
 
-    # Set the environment variable for DAG bundles
-    # We use the DAG defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
+    # Set the environment variable for Dag bundles
+    # We use the Dag defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
     dag_bundle_val = json.dumps(
         [
             {
@@ -927,7 +927,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
     ti, _, _ = startup()
 
-    # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
+    # Presence of `conditional_task` below means Dag ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
     assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
 
@@ -1220,7 +1220,7 @@ class TestRuntimeTaskInstance:
         task = BaseOperator(task_id="hello")
         dag_id = "basic_task"
 
-        # Assign task to DAG
+        # Assign task to Dag
         get_inline_dag(dag_id=dag_id, task=task)
 
         ti_id = uuid7()

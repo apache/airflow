@@ -53,6 +53,7 @@ export const DagsFilters = () => {
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
+  const isQueued = state === "queued";
   const isSuccess = state === "success";
 
   const [pattern, setPattern] = useState("");
@@ -178,6 +179,7 @@ export const DagsFilters = () => {
         <StateFilters
           isAll={isAll}
           isFailed={isFailed}
+          isQueued={isQueued}
           isRunning={isRunning}
           isSuccess={isSuccess}
           onStateChange={handleStateChange}
