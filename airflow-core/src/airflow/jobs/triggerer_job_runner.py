@@ -831,6 +831,7 @@ class TriggerRunner:
     log: FilteringBoundLogger = structlog.get_logger()
     monitor_stall: bool = conf.getboolean("triggerer", "enable_stall_monitor")
     stall_monitor_threshold: float = conf.getfloat("triggerer", "stall_monitor_threshold")
+    watchdog = None
 
     comms_decoder: TriggerCommsDecoder
 
@@ -868,10 +869,17 @@ class TriggerRunner:
                 max_frames=30,  # bound captured stack depth
             )
             self._stall_monitor.start()
+        else:
+            self.watchdog = asyncio.create_task(self.block_watchdog())
 
         last_status = time.monotonic()
         try:
             while not self.stop:
+                if not self.monitor_stall:
+                    # Raise exceptions from the tasks
+                    if self.watchdog and self.watchdog.done():
+                        self.watchdog.result()
+
                 # Run core logic
 
                 finished_ids = await self.cleanup_finished_triggers()
@@ -899,6 +907,9 @@ class TriggerRunner:
             except Exception:
                 # don't let monitor teardown mask real exceptions
                 pass
+            if self.watchdog:
+                # Wait for supporting tasks to complete
+                await self.watchdog
 
     async def init_comms(self):
         """
@@ -1078,6 +1089,32 @@ class TriggerRunner:
             raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
         self.to_create.extend(resp.to_create)
         self.to_cancel.extend(resp.to_cancel)
+
+    async def block_watchdog(self):
+        """
+        Watchdog loop that detects blocking (badly-written) triggers.
+
+        Triggers should be well-behaved async coroutines and await whenever
+        they need to wait; this loop tries to run every 100ms to see if
+        there are badly-written triggers taking longer than that and blocking
+        the event loop.
+        Unfortunately, we can't tell what trigger is blocking things, but
+        we can at least detect the top-level problem.
+        """
+        while not self.stop:
+            last_run = time.monotonic()
+            await asyncio.sleep(0.1)
+            # We allow a generous amount of buffer room for now, since it might
+            # be a busy event loop.
+            time_elapsed = time.monotonic() - last_run
+            if time_elapsed > 0.2:
+                await self.log.ainfo(
+                    "Triggerer's async thread was blocked for %.2f seconds, "
+                    "likely by a badly-written trigger. Set PYTHONASYNCIODEBUG=1 "
+                    "to get more information on overrunning coroutines.",
+                    time_elapsed,
+                )
+                Stats.incr("triggers.blocked_main_thread")
 
     async def run_trigger(self, trigger_id, trigger):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""

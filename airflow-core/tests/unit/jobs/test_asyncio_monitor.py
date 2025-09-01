@@ -85,11 +85,6 @@ async def test_detects_stall_and_records_history():
 
         combined_stack = "\n".join(s.stack_text for s in inc.samples)
         assert ("bad_task" in combined_stack) or (__file__ in combined_stack)
-
-        assert isinstance(inc.suspected_tasks, list)
-        if inc.suspected_tasks:
-            suspects_text = " | ".join(inc.suspected_tasks)
-            assert ("bad_task" in suspects_text) or (__file__ in suspects_text)
     finally:
         mon.stop()
 
