@@ -77,7 +77,7 @@ async def empty_callback_for_deadline():
 
 @pytest.fixture(scope="module")
 def dagbag():
-    from airflow.models.dagbag import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     return DagBag(include_examples=True)
 
