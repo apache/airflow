@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from subprocess import run
 
 if __name__ == "__main__":
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         print(f"Error: Invalid date format in pre-commit config. {e}", file=sys.stderr)
         sys.exit(1)
 
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(timezone(timedelta(hours=-12))).date()
 
     if freeze_start <= today <= freeze_end:
         changed_files = [
@@ -52,7 +52,14 @@ if __name__ == "__main__":
                 f"{args.freeze_end_date}.",
                 file=sys.stderr,
             )
-            print("Changes to English translation files are not allowed during this period.", file=sys.stderr)
+            print(
+                "Changes to English translation files (except for _freeze_exemptions.json) are not allowed during this period.",
+                file=sys.stderr,
+            )
+            print(
+                "You may instead add the changes to _freeze_exemptions.json, and by the end of the freeze period, we will merge them back to the original files.",
+                file=sys.stderr,
+            )
             print("The following files have staged changes:", file=sys.stderr)
             for file_path in changed_files:
                 print(f"  - {file_path}", file=sys.stderr)
