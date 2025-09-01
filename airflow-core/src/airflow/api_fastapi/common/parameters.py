@@ -448,28 +448,6 @@ class _OwnersFilter(BaseParam[list[str]]):
         return cls().set_value(owners)
 
 
-class _TimetableTypesFilter(BaseParam[list[str]]):
-    """Filter on timetable type."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
-
-        if not self.value:  # No filter provided
-            return select
-
-        conditions = [DagModel.timetable_type == t_type for t_type in self.value]
-
-        return select.where(or_(*conditions))
-
-    @classmethod
-    def depends(
-        cls,
-        timetable_type: list[str] = Query(default_factory=list),
-    ) -> _TimetableTypesFilter:
-        return cls().set_value(timetable_type)
-
-
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -629,7 +607,6 @@ QueryDagIdPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
-QueryTimeTableTypesFilter = Annotated[_TimetableTypesFilter, Depends(_TimetableTypesFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
