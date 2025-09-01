@@ -380,11 +380,12 @@ class KubernetesExecutor(BaseExecutor):
                         body = {"message": e.body}
 
                     retries = self.task_publish_retries[key]
-                    # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                    # In case of exceeded quota, conflict errors, or rate limiting, requeue the task as per the task_publish_max_retries
                     message = body.get("message", "")
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
+                        or str(e.status) == "429"  # Add support for rate limiting errors
                     ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -682,6 +683,17 @@ class KubernetesExecutor(BaseExecutor):
             )
         except ApiException as e:
             self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+
+            # Log detailed information for rate limiting errors (429) which can cause task history loss
+            if str(e.status) == "429":
+                self.log.warning(
+                    "Kubernetes API rate limiting (429) prevented adoption of pod %s for task %s. "
+                    "This may cause task history loss if the task was previously running. "
+                    "Consider implementing rate limiting backoff or increasing API quota.",
+                    pod.metadata.name,
+                    ti_key,
+                )
+
             return
 
         del tis_to_flush_by_key[ti_key]
