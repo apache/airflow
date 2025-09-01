@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-08-30T07:44:34.069049
+# This constraints file was automatically generated on 2025-09-01T08:04:19.647610
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -37,7 +37,7 @@ PyNaCl==1.5.0
 PyYAML==6.0.2
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
-SQLAlchemy-Utils==0.41.2
+SQLAlchemy-Utils==0.42.0
 SQLAlchemy==1.4.54
 SecretStorage==3.3.3
 Sphinx==8.1.3
@@ -45,7 +45,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.10
 adal==1.2.7
-adlfs==2024.12.0
+adlfs==2025.8.0
 aenum==3.1.16
 aiobotocore==2.24.1
 aiofiles==24.1.0
@@ -139,7 +139,7 @@ cachelib==0.13.0
 cachetools==5.5.2
 cadwyn==5.4.4
 cassandra-driver==3.29.2
-cattrs==25.1.1
+cattrs==25.2.0
 celery==5.5.3
 certifi==2025.8.3
 cffi==1.17.1
@@ -201,11 +201,12 @@ exceptiongroup==1.3.0
 execnet==2.1.1
 executing==2.2.0
 facebook_business==23.0.1
-fastapi-cli==0.0.8
+fastapi-cli==0.0.10
 fastapi==0.116.1
 fastavro==1.12.0
 fasteners==0.20
 fastjsonschema==2.21.2
+fastuuid==0.12.0
 filelock==3.19.1
 flit==3.12.0
 flit_core==3.12.0
@@ -351,7 +352,7 @@ keyring==25.6.0
 keyrings.alt==5.0.2
 kgb==7.2
 kombu==5.5.4
-krb5==0.7.1
+krb5==0.8.0
 kubernetes==32.0.1
 kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
@@ -359,7 +360,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.76.0
+litellm==1.76.1
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.1
@@ -642,13 +643,13 @@ tomli==2.2.1
 tomli_w==1.2.0
 tomlkit==0.13.3
 tornado==6.5.2
-towncrier==24.8.0
+towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
 trove-classifiers==2025.8.26.11
 twine==6.1.0
-typer==0.16.1
+typer==0.17.3
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250809
 types-PyMySQL==1.1.0.20250822
