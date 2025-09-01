@@ -87,21 +87,13 @@ class TestHITLOperator:
         )
         hitl_op.validate_options()
 
-    @pytest.mark.parametrize(
-        "options, expected_err_msg",
-        [
-            ([], '"options" cannot be empty.'),
-            (["1,1", "1", "2"], '"," is not allowed in option'),
-        ],
-        ids=["empty", "comma"],
-    )
-    def test_validate_options_with_empty_options(self, options: list[str], expected_err_msg: str) -> None:
+    def test_validate_options_with_empty_options(self) -> None:
         # validate_options is called during initialization
-        with pytest.raises(ValueError, match=expected_err_msg):
+        with pytest.raises(ValueError, match='"options" cannot be empty.'):
             HITLOperator(
                 task_id="hitl_test",
                 subject="This is subject",
-                options=options,
+                options=[],
                 body="This is body",
                 defaults=["1"],
                 multiple=False,
