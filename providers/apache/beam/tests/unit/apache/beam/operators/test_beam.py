@@ -192,6 +192,19 @@ class TestBeamRunPythonPipelineOperator:
             py_system_site_packages=False,
         )
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_direct_runner_no_op_extra_links(self, gcs_hook, beam_hook_mock, py_options):
+        """Test there is no operator_extra_links when running pipeline with direct runner type."""
+        start_python_hook = beam_hook_mock.return_value.start_python_pipeline
+        op = BeamRunPythonPipelineOperator(**self.default_op_kwargs)
+        op.execute({})
+
+        beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
+        start_python_hook.assert_called_once()
+
+        assert not op.operator_extra_links
+
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -402,6 +415,21 @@ class TestBeamRunJavaPipelineOperator:
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
         )
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_direct_runner_no_op_extra_links(
+        self, gcs_hook, beam_hook_mock, default_options, pipeline_options
+    ):
+        """Test there is no operator_extra_links when running pipeline with direct runner type."""
+        start_java_hook = beam_hook_mock.return_value.start_java_pipeline
+        op = BeamRunJavaPipelineOperator(**self.default_op_kwargs)
+
+        op.execute({})
+
+        beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
+        start_java_hook.assert_called_once()
+        assert not op.operator_extra_links
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
