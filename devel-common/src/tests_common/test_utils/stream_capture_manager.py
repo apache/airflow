@@ -89,15 +89,12 @@ class StreamCaptureManager(ExitStack):
         original_handlers = list(root_logger.handlers)
 
         def reset_handlers():
-            from logging import _acquireLock, _releaseLock
+            from logging import _lock
 
             root_logger = logging.getLogger()
 
-            _acquireLock()
-            try:
+            with _lock:
                 root_logger.handlers = original_handlers
-            finally:
-                _releaseLock()
 
         self.callback(reset_handlers)
 
