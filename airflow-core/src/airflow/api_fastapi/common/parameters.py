@@ -710,12 +710,12 @@ class _PendingActionsFilter(BaseParam[bool]):
             .scalar_subquery()
         )
 
-        if self.value:
-            #  with more than 1 pending actions
-            where_clause = pending_actions_count_subquery > 1
+        if self.value is True:
+            # Filter to show only Dags with pending actions
+            where_clause = pending_actions_count_subquery >= 1
         else:
-            # Filter to show only Dags with 1 or fewer pending actions
-            where_clause = pending_actions_count_subquery <= 1
+            # Filter to show only Dags without pending actions
+            where_clause = pending_actions_count_subquery == 0
 
         return select.where(where_clause)
 

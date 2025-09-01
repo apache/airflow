@@ -189,24 +189,25 @@ def get_dags(
 
     recent_dag_runs = session.execute(recent_dag_runs_select)
 
-    # Fetch pending HITL actions for each Dag
-    pending_actions_select = (
-        select(
-            HITLDetail,
-            TaskInstance.dag_id,
-        )
-        .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-        .where(HITLDetail.response_at.is_(None))
-        .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
-        .order_by(TaskInstance.dag_id)
-    )
-
-    pending_actions = session.execute(pending_actions_select)
-
-    # Group pending actions by dag_id
+    # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
     pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
-    for hitl_detail, dag_id in pending_actions:
-        pending_actions_by_dag_id[dag_id].append(hitl_detail)
+    if has_pending_actions.value is not False:
+        pending_actions_select = (
+            select(
+                TaskInstance.dag_id,
+                HITLDetail,
+            )
+            .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .where(HITLDetail.response_at.is_(None))
+            .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
+            .order_by(TaskInstance.dag_id)
+        )
+
+        pending_actions = session.execute(pending_actions_select)
+
+        # Group pending actions by dag_id
+        for dag_id, hitl_detail in pending_actions:
+            pending_actions_by_dag_id[dag_id].append(hitl_detail)
 
     # aggregate rows by dag_id
     dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {

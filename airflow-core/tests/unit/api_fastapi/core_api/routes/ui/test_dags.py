@@ -170,28 +170,39 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.add_all(hitl_detail_models)
         session.commit()
 
+        # Without `has_pending_actions` params, it should query all Dags without pending actions
         response = test_client.get("/dags")
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 3
 
+        # With `has_pending_actions` params set to true, it should only query Dags with pending actions
         response = test_client.get("/dags", params={"has_pending_actions": True})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 1
-        assert body["dags"][0]["pending_actions"] == [
-            {
-                "task_instance": mock.ANY,
-                "options": ["Approve", "Reject"],
-                "subject": f"This is subject {i}",
-                "defaults": ["Approve"],
-                "multiple": False,
-                "params": {},
-                "params_input": {},
-                "response_received": False,
-            }
-            for i in range(3)
-        ]
+        for dag_json in body["dags"]:
+            assert dag_json["pending_actions"] == [
+                {
+                    "task_instance": mock.ANY,
+                    "options": ["Approve", "Reject"],
+                    "subject": f"This is subject {i}",
+                    "defaults": ["Approve"],
+                    "multiple": False,
+                    "params": {},
+                    "params_input": {},
+                    "response_received": False,
+                }
+                for i in range(3)
+            ]
+
+        # With `has_pending_actions` params set to true, it should only query Dags without pending actions
+        response = test_client.get("/dags", params={"has_pending_actions": False})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        for dag_json in body["dags"]:
+            assert dag_json["pending_actions"] == []
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})
