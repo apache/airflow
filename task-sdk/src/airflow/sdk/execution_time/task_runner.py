@@ -310,8 +310,8 @@ class RuntimeTaskInstance(TaskInstance):
             manually). To remove the filter, pass *None*.
         :param task_ids: Only XComs from tasks with matching ids will be
             pulled. Pass *None* to remove the filter.
-        :param dag_id: If provided, only pulls XComs from this DAG. If *None*
-            (default), the DAG of the calling task is used.
+        :param dag_id: If provided, only pulls XComs from this Dag. If *None*
+            (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
             If *None* (default), this is inferred from the task(s) being pulled
             (see below for details).
@@ -443,13 +443,13 @@ class RuntimeTaskInstance(TaskInstance):
         return response.start_date
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRun | None:
-        """Return the previous DAG run before the given logical date, optionally filtered by state."""
+        """Return the previous Dag run before the given logical date, optionally filtered by state."""
         context = self.get_template_context()
         dag_run = context.get("dag_run")
 
         log = structlog.get_logger(logger_name="task")
 
-        log.debug("Getting previous DAG run", dag_run=dag_run)
+        log.debug("Getting previous Dag run", dag_run=dag_run)
 
         if dag_run is None:
             return None
@@ -527,7 +527,7 @@ class RuntimeTaskInstance(TaskInstance):
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
     ) -> int:
-        """Return the number of DAG runs matching the given criteria."""
+        """Return the number of Dag runs matching the given criteria."""
         response = SUPERVISOR_COMMS.send(
             GetDRCount(
                 dag_id=dag_id,
@@ -544,7 +544,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str:
-        """Return the state of the DAG run with the given Run ID."""
+        """Return the state of the Dag run with the given Run ID."""
         response = SUPERVISOR_COMMS.send(msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
 
         if TYPE_CHECKING:
@@ -630,7 +630,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         dag = bag.dags[what.ti.dag_id]
     except KeyError:
         log.error(
-            "DAG not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
+            "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
         exit(1)
 
@@ -640,7 +640,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         task = dag.task_dict[what.ti.task_id]
     except KeyError:
         log.error(
-            "Task not found in DAG during start up",
+            "Task not found in Dag during start up",
             dag_id=dag.dag_id,
             task_id=what.ti.task_id,
             bundle=bundle_info,
@@ -729,7 +729,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
         ti.log_url = get_log_url_from_ti(ti)
-    log.debug("DAG file parsed", file=msg.dag_rel_path)
+    log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
@@ -1201,7 +1201,7 @@ def _get_email_subject_content(
         "max_tries": task_instance.max_tries,
     }
 
-    # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+    # Use the Dag's get_template_env() to set force_sandboxed. Don't add
     # the flag to the function on task object -- that function can be
     # overridden, and adding a flag breaks backward compatibility.
     dag = task_instance.task.get_dag()
@@ -1310,7 +1310,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
-    """Render named map index if the DAG author defined map_index_template at the task level."""
+    """Render named map index if the Dag author defined map_index_template at the task level."""
     if (template := context.get("map_index_template")) is None:
         return None
     jinja_env = ti.task.dag.get_template_env()

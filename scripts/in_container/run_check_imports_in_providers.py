@@ -36,7 +36,7 @@ def check_imports():
         "analyze",
         "graph",
         "--python",
-        "/usr/local/bin/python",
+        "/usr/python/bin/python",
     ]
     console.print("Cmd", cmd)
     import_tree_str = subprocess.check_output(cmd)

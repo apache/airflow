@@ -386,6 +386,27 @@ class TestKubernetesExecutor:
                 State.SUCCESS,
                 id="409 conflict",
             ),
+            pytest.param(
+                HTTPResponse(body="Too many requests, please try again later.", status=429),
+                0,
+                False,
+                State.FAILED,
+                id="429 Too Many Requests (non-JSON body)",
+            ),
+            pytest.param(
+                HTTPResponse(body="Too many requests, please try again later.", status=429),
+                1,
+                False,
+                State.FAILED,
+                id="429 Too Many Requests (non-JSON body) (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body="", status=429),
+                0,
+                False,
+                State.FAILED,
+                id="429 Too Many Requests (empty body)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")

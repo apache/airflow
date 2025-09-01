@@ -34,6 +34,29 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.1.0
+~~~~~~~~~~~~~
+
+In Airflow 3.1.0 we changed the base images used for building the Airflow images. Previously the images
+were based on "official" Python images from DockerHub, however those images sometimes lag behind the
+latest security patches and their maintainers made decisions about using older setuptools and pip versions,
+however we want to be able to use the latest versions of those tools to build the images. Therefore
+we decided to use ``bookworm-slim`` images from Debian as the base images for Airflow images and we compile
+and install the latest Python version in the image based on the official packages from the Python Software
+Foundation. This change should be transparent for those who extend the images or use them "as is", however
+for those who want to build custom images, there are changes to the build-args passed to the ``docker build``
+command:
+
+* The ``PYTHON_BASE_IMAGE`` arg is no longer supported - the base image is always ``debian:bookworm-slim``
+* Instead ``AIRFLOW_PYTHON_VERSION`` arg is introduced to select the Python version to be installed in the
+  image. It should be full Python version - for example ``3.12.7`` or two-digit version like ``3.12``
+  (the latest released Python patch version will be installed in that case).
+* Python is now installed in ``/usr/python/`` directory not in ``/usr/local/`` as it was previously.
+  This should not affect regular uses because there are symlinks from ``/usr/local/bin/`` to
+  ``/usr/python/bin/``, and ``/usr/python/bin`` is first on the PATH, however if the ``/usr/local/``
+  location has been hard-coded to - for example - detect ``site-packages`` dir, the folders moved to
+  the ``/usr/python`` directory.
+
 Airflow 3.0.2
 ~~~~~~~~~~~~~
 

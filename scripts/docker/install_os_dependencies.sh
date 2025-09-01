@@ -19,26 +19,34 @@
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
-    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     exit 1
 fi
+
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
+GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
 elif   [[ "${1}" == "dev" ]]; then
-    INSTALLATION_TYPE="dev"
+    INSTALLATION_TYPE="DEV"
+elif   [[ "${1}" == "ci" ]]; then
+    INSTALLATION_TYPE="CI"
 else
-    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
     exit 1
 fi
 
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
-        DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+        DEV_APT_DEPS="apt-transport-https apt-utils build-essential dirmngr \
 freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
+software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev wget \
+gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
+libzstd-dev"
         export DEV_APT_DEPS
     fi
 }
@@ -57,10 +65,10 @@ function get_runtime_apt_deps() {
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
-        RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
+        RUNTIME_APT_DEPS="apt-transport-https apt-utils \
 curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
-lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
+lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc wget"
         export RUNTIME_APT_DEPS
     fi
 }
@@ -83,7 +91,7 @@ function install_docker_cli() {
 function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
@@ -105,10 +113,30 @@ function install_debian_dev_dependencies() {
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
 
+
+function link_python() {
+    # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
+    # Links in /usr/local/bin are needed for tools that expect python to be there
+    # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
+    # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
+    ldconfig
+    for dst in pip3 python3 python3-config; do
+        src="$(echo "${dst}" | tr -d 3)"
+        echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
+        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        for dir in /usr/local/bin /usr/python/bin; do
+            if [[ ! -e "${dir}/${src}" ]]; then
+                echo "Creating ${src} - > ${dst} link in ${dir}"
+                ln -sv "${dir}/${dst}" "${dir}/${src}"
+            fi
+        done
+    done
+}
+
 function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_RUNTIME_APT_ENV?}
     if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
@@ -122,6 +150,71 @@ function install_debian_runtime_dependencies() {
     apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
     apt-get autoremove -yqq --purge
     apt-get clean
+    link_python
+    rm -rf /var/lib/apt/lists/* /var/log/*
+}
+
+function install_python() {
+    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
+    declare -A keys=(
+        # gpg: key B26995E310250568: public key "\xc5\x81ukasz Langa (GPG langa.pl) <lukasz@langa.pl>" imported
+        # https://peps.python.org/pep-0596/#release-manager-and-crew
+        [3.9]="E3FF2839C048B25C084DEBE9B26995E310250568"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0619/#release-manager-and-crew
+        [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0664/#release-manager-and-crew
+        [3.11]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0693/#release-manager-and-crew
+        [3.12]="7169605F62C751356D054A26A821E680E5FA6305"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0719/#release-manager-and-crew
+        [3.13]="7169605F62C751356D054A26A821E680E5FA6305"
+    )
+    major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
+    GNUPGHOME="$(mktemp -d)"; export GNUPGHOME;
+    gpg_key="${keys[${major_minor_version}]}"
+    echo "Using GPG key ${gpg_key}"
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+    gpg --batch --verify python.tar.xz.asc python.tar.xz;
+    gpgconf --kill all
+    rm -rf "$GNUPGHOME" python.tar.xz.asc
+    mkdir -p /usr/src/python
+    tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
+    rm python.tar.xz
+    cd /usr/src/python
+    arch="$(dpkg --print-architecture)"; arch="${arch##*-}"
+    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"
+    EXTRA_CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
+    LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+    LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+        --enable-loadable-sqlite-extensions --enable-option-checking=fatal  --enable-shared --with-lto
+    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
+    make -s -j "$(nproc)" install
+    cd /
+    rm -rf /usr/src/python
+    find /usr/python -depth \
+      \( \
+        \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+        -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+    \) -exec rm -rf '{}' +
+    link_python
+}
+
+function install_golang() {
+    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function apt_clean() {
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
@@ -129,9 +222,14 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
-
+    apt_clean
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_python
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        install_golang
+    fi
     install_docker_cli
+    apt_clean
 fi
