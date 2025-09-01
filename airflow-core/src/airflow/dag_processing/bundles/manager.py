@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.dagbag import DagBag as DagBagType
 
 _example_dag_bundle_name = "example_dags"
 
@@ -292,3 +293,9 @@ class DagBundlesManager(LoggingMixin):
         )
         bundle = self.get_bundle(name, version)
         return bundle.view_url(version=version)
+
+    @staticmethod
+    def get_dagbag(**kwargs) -> DagBagType:
+        from airflow.dag_processing.dagbag import DagBag
+
+        return DagBag(**kwargs)
