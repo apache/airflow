@@ -7,6 +7,7 @@
     "Providers": "חבילות עזר",
     "Variables": "משתנים"
   },
+  "allOperators": "כל האופרטורים",
   "asset_one": "נכס",
   "asset_other": "נכסים",
   "assetEvent_one": "אירוע נכס",
@@ -180,6 +181,7 @@
     "failed": "נכשל",
     "no_status": "ללא סטטוס",
     "none": "ללא סטטוס",
+    "planned": "מתוכנן",
     "queued": "בתור",
     "removed": "הוסר",
     "restarting": "מופעל מחדש",

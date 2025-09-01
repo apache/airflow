@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "הכל",
+      "pending": "ממתין",
+      "received": "נבדק"
+    }
+  },
   "requiredAction_one": "פעולה נדרשת",
   "requiredAction_other": "פעולות נדרשות",
   "requiredActionState": "מצב פעולה נדרשת",
