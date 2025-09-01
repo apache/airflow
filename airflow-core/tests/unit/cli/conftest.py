@@ -21,8 +21,8 @@ import sys
 
 import pytest
 
+from airflow.dag_processing.dagbag import DagBag
 from airflow.executors import local_executor
-from airflow.models.dagbag import DagBag
 from airflow.providers.celery.executors import celery_executor
 from airflow.providers.cncf.kubernetes.executors import kubernetes_executor
 

@@ -35,7 +35,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.models.dagbag import DagBag
+from airflow.dag_processing.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
