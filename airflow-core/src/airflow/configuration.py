@@ -145,6 +145,7 @@ from airflow._shared.configuration import (  # noqa: E402, F401
     JWT_SECRET_KEY,
     conf,
     ensure_secrets_loaded,
+    initialize_secrets_backends,
     retrieve_configuration_description,
     secrets_backend_list,
 )
