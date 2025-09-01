@@ -257,8 +257,8 @@ class DAG:
     are met. Certain tasks have the property of depending on their own past, meaning that
     they can't run until their previous schedule (and upstream tasks) are completed.
 
-    DAGs essentially act as namespaces for tasks. A task_id can only be
-    added once to a DAG.
+    Dags essentially act as namespaces for tasks. A task_id can only be
+    added once to a Dag.
 
     Note that if you plan to use time zones all the dates provided should be pendulum
     dates. See :ref:`timezone_aware_dags`.
@@ -348,15 +348,15 @@ class DAG:
     :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
-    :param tags: List of tags to help filtering DAGs in the UI.
-    :param owner_links: Dict of owners and their links, that will be clickable on the DAGs view UI.
+    :param tags: List of tags to help filtering Dags in the UI.
+    :param owner_links: Dict of owners and their links, that will be clickable on the Dags view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_fast: Fails currently running tasks when task in DAG fails.
+    :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
-    :param dag_display_name: The display name of the DAG which appears on the UI.
+    :param dag_display_name: The display name of the Dag which appears on the UI.
     """
 
     __serialized_fields: ClassVar[frozenset[str]]
@@ -478,7 +478,7 @@ class DAG:
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
         """
-        Validate Param values when the DAG has schedule defined.
+        Validate Param values when the Dag has schedule defined.
 
         Raise exception if there are any Params which can not be resolved by their schema definition.
         """
@@ -489,7 +489,7 @@ class DAG:
             params.validate()
         except ParamValidationError as pverr:
             raise ValueError(
-                f"DAG {self.dag_id!r} is not allowed to define a Schedule, "
+                f"Dag {self.dag_id!r} is not allowed to define a Schedule, "
                 "as there are required params without default values, or the default values are not valid."
             ) from pverr
 
@@ -599,9 +599,9 @@ class DAG:
 
     def validate(self):
         """
-        Validate the DAG has a coherent setup.
+        Validate the Dag has a coherent setup.
 
-        This is called by the DAG bag before bagging the DAG.
+        This is called by the Dag bag before bagging the Dag.
         """
         self.timetable.validate()
         self.validate_setup_teardown()
@@ -658,15 +658,15 @@ class DAG:
 
     @property
     def folder(self) -> str:
-        """Folder location of where the DAG object is instantiated."""
+        """Folder location of where the Dag object is instantiated."""
         return os.path.dirname(self.fileloc)
 
     @property
     def owner(self) -> str:
         """
-        Return list of all owners found in DAG tasks.
+        Return list of all owners found in Dag tasks.
 
-        :return: Comma separated list of owners in DAG tasks
+        :return: Comma separated list of owners in Dag tasks
         """
         return ", ".join({t.owner for t in self.tasks})
 
@@ -714,7 +714,7 @@ class DAG:
         return env
 
     def set_dependency(self, upstream_task_id, downstream_task_id):
-        """Set dependency between two tasks that already have been added to the DAG using add_task()."""
+        """Set dependency between two tasks that already have been added to the Dag using add_task()."""
         self.get_task(upstream_task_id).set_downstream(self.get_task(downstream_task_id))
 
     @property
@@ -920,7 +920,7 @@ class DAG:
 
     def add_task(self, task: Operator) -> None:
         """
-        Add a task to the DAG.
+        Add a task to the Dag.
 
         :param task: the task you want to add
         """
@@ -928,11 +928,11 @@ class DAG:
 
         from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
-        # if the task has no start date, assign it the same as the DAG
+        # if the task has no start date, assign it the same as the Dag
         if not task.start_date:
             task.start_date = self.start_date
         # otherwise, the task will start on the later of its own start date and
-        # the DAG's start date
+        # the Dag's start date
         elif self.start_date:
             task.start_date = max(task.start_date, self.start_date)
 
@@ -940,7 +940,7 @@ class DAG:
         if not task.end_date:
             task.end_date = self.end_date
         # otherwise, the task will end on the earlier of its own end date and
-        # the DAG's end date
+        # the Dag's end date
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
@@ -965,7 +965,7 @@ class DAG:
 
     def add_tasks(self, tasks: Iterable[Operator]) -> None:
         """
-        Add a list of tasks to the DAG.
+        Add a list of tasks to the Dag.
 
         :param tasks: a lit of tasks you want to add
         """
@@ -982,9 +982,9 @@ class DAG:
 
     def check_cycle(self) -> None:
         """
-        Check to see if there are any cycles in the DAG.
+        Check to see if there are any cycles in the Dag.
 
-        :raises AirflowDagCycleException: If cycle is found in the DAG.
+        :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
         # default of int is 0 which corresponds to CYCLE_NEW
         CYCLE_NEW = 0
@@ -999,7 +999,7 @@ class DAG:
             """Return first untraversed child task, else None if all tasks traversed."""
             for adjacent_task in current_task.get_direct_relative_ids():
                 if visited[adjacent_task] == CYCLE_IN_PROGRESS:
-                    msg = f"Cycle detected in DAG: {self.dag_id}. Faulty task: {task_id}"
+                    msg = f"Cycle detected in Dag: {self.dag_id}. Faulty task: {task_id}"
                     raise AirflowDagCycleException(msg)
                 if visited[adjacent_task] == CYCLE_NEW:
                     return adjacent_task
@@ -1022,7 +1022,7 @@ class DAG:
                     path_stack.append(child_to_check)
 
     def cli(self):
-        """Exposes a CLI specific to this DAG."""
+        """Exposes a CLI specific to this Dag."""
         self.check_cycle()
 
         from airflow.cli import cli_parser
@@ -1033,12 +1033,12 @@ class DAG:
 
     @classmethod
     def get_serialized_fields(cls):
-        """Stringified DAGs and operators contain exactly these fields."""
+        """Stringified Dags and operators contain exactly these fields."""
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
-        # Note - older serialized DAGs may not have edge_info being a dict at all
+        # Note - older serialized Dags may not have edge_info being a dict at all
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
@@ -1046,7 +1046,7 @@ class DAG:
 
     def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
         """
-        Set the given edge information on the DAG.
+        Set the given edge information on the Dag.
 
         Note that this will overwrite, rather than merge with, existing info.
         """
@@ -1081,14 +1081,14 @@ class DAG:
         mark_success_pattern: Pattern | str | None = None,
     ):
         """
-        Execute one single DagRun for a given DAG and logical date.
+        Execute one single DagRun for a given Dag and logical date.
 
         :param run_after: the datetime before which to Dag cannot run.
-        :param logical_date: logical date for the DAG run
+        :param logical_date: logical date for the Dag run
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
-        :param use_executor: if set, uses an executor to test the DAG
+        :param use_executor: if set, uses an executor to test the Dag
         :param mark_success_pattern: regex of task_ids to mark as success instead of running
         """
         import re
@@ -1161,9 +1161,9 @@ class DAG:
                 self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
             )
             scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))  # type: ignore[arg-type]
-            # Preserve callback functions from original DAG since they're lost during serialization
+            # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
-            # Without it, we need "Scheduler DAG" (Serialized dag) for the scheduler bits
+            # Without it, we need "Scheduler Dag" (Serialized dag) for the scheduler bits
             #   -- dep check, scheduling tis
             # and need real dag to get and run callbacks without having to load the dag model
 
@@ -1423,9 +1423,9 @@ if TYPE_CHECKING:
         disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
-        Python dag decorator which wraps a function into an Airflow DAG.
+        Python dag decorator which wraps a function into an Airflow Dag.
 
-        Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
+        Accepts kwargs for operator kwarg. Can be used to parameterize Dags.
 
         :param dag_args: Arguments for DAG object
         :param dag_kwargs: Kwargs for DAG object.
@@ -1462,9 +1462,9 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
             # Apply defaults to capture default values if set.
             f_sig.apply_defaults()
 
-            # Initialize DAG with bound arguments
+            # Initialize Dag with bound arguments
             with DAG(dag_id, **decorator_kwargs) as dag_obj:
-                # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                # Set Dag documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:
                     dag_obj.doc_md = f.__doc__
 
@@ -1478,7 +1478,7 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
                 back = sys._getframe().f_back
                 dag_obj.fileloc = back.f_code.co_filename if back else ""
 
-                # Invoke function to create operators in the DAG scope.
+                # Invoke function to create operators in the Dag scope.
                 f(**f_kwargs)
 
             # Return dag object such that it's accessible in Globals.

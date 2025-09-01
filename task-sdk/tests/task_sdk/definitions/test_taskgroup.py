@@ -854,7 +854,7 @@ def test_build_task_group_depended_by_task():
 
 
 def test_build_task_group_with_operators():
-    """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
+    """Tests Dag with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
     from airflow.sdk import task
 
     def task_start():
@@ -894,7 +894,7 @@ def test_build_task_group_with_operators():
         t_end = PythonOperator(task_id="task_end", python_callable=task_end, dag=dag)
         sec_1.set_downstream(t_end)
 
-    # Testing Tasks in DAG
+    # Testing Tasks in Dag
     assert set(dag.task_group.children.keys()) == {"section_1", "task_start", "task_end"}
     assert set(dag.task_group.children["section_1"].children.keys()) == {
         "section_1.task_2",

@@ -23,7 +23,8 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
-from airflow.exceptions import AirflowException, AirflowFailException
+from airflow import XComArg
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import SkipMixin
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -31,6 +32,8 @@ from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
@@ -1250,6 +1253,135 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
         # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
         self.skip_all_except(context["ti"], follow_branch)
+
+
+class SQLInsertRowsOperator(BaseSQLOperator):
+    """
+    Insert rows (e.g. a collection of tuples) into a database table directly from an XCom or Python data structure.
+
+    :param table: the name of the table in which the rows will be inserted (templated).
+    :param conn_id: the connection ID used to connect to the database
+    :param schema: (optional) the name of schema in which the table is defined
+    :param database: name of database (e.g. schema) which overwrite the defined one in connection
+    :param columns: (optional) specify a list of columns being used for the insert when passing a list of
+        dictionaries.
+    :param ignore_columns: (optional) specify a list of columns being ignored for the insert.  If no columns
+        where specified, the columns will be resolved dynamically from the metadata.
+    :param rows: the rows to insert into the table. Rows can be a list of tuples or a list of dictionaries.
+        When a list of dictionaries is provided, the column names are inferred from the dictionary keys and
+        will be matched with the column names, ignored columns will be filtered out.
+    :rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
+    :param preoperator: sql statement or list of statements to be executed prior to loading the data. (templated)
+    :param postoperator: sql statement or list of statements to be executed after loading the data. (templated)
+    :param insert_args: (optional) dictionary of additional arguments passed to the underlying hook's
+        `insert_rows` method. This allows you to configure options such as `replace`, `executemany`,
+        `fast_executemany`, and `autocommit`.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLInsertRowsOperator`
+    """
+
+    template_fields: Sequence[str] = (
+        "table_name",
+        "conn_id",
+        "schema",
+        "database",
+        "_columns",
+        "ignored_columns",
+        "preoperator",
+        "postoperator",
+        "insert_args",
+    )
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"preoperator": "sql"}
+
+    def __init__(
+        self,
+        *,
+        table_name: str,
+        conn_id: str | None = None,
+        schema: str | None = None,
+        database: str | None = None,
+        columns: Iterable[str] | None = None,
+        ignored_columns: Iterable[str] | None = None,
+        rows: list[Any] | XComArg | None = None,
+        rows_processor: Callable[[Any, Context], Any] = lambda rows, **context: rows,
+        preoperator: str | list[str] | None = None,
+        postoperator: str | list[str] | None = None,
+        hook_params: dict | None = None,
+        insert_args: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            conn_id=conn_id,
+            database=database,
+            hook_params=hook_params,
+            **kwargs,
+        )
+        self.table_name = table_name
+        self.schema = schema
+        self._columns: list | None = list(columns) if columns else None
+        self.ignored_columns = set(ignored_columns or {})
+        self.rows = rows or []
+        self._rows_processor = rows_processor
+        self.preoperator = preoperator
+        self.postoperator = postoperator
+        self.insert_args = insert_args or {}
+        self.do_xcom_push = False
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        super().render_template_fields(context=context, jinja_env=jinja_env)
+
+        if isinstance(self.rows, XComArg):
+            self.rows = self.rows.resolve(context=context)
+
+    @property
+    def table_name_with_schema(self) -> str:
+        if self.schema is not None:
+            return f"{self.schema}.{self.table_name}"
+        return self.table_name
+
+    @cached_property
+    def columns(self):
+        if self._columns is None:
+            self._columns = self.get_db_hook().dialect.get_column_names(self.table_name_with_schema)
+        return self._columns
+
+    @property
+    def column_names(self) -> list[str]:
+        if self.ignored_columns:
+            return [column for column in self.columns if column not in self.ignored_columns]
+        return self.columns
+
+    def _process_rows(self, context: Context):
+        return self._rows_processor(context, self.rows)  # type: ignore
+
+    def execute(self, context: Context) -> Any:
+        if not self.rows:
+            raise AirflowSkipException(f"Skipping task {self.task_id} because no rows.")
+
+        self.log.debug("Table: %s", self.table_name_with_schema)
+        self.log.debug("Column names: %s", self.column_names)
+        if self.preoperator:
+            self.log.debug("Running preoperator")
+            self.log.debug(self.preoperator)
+            self.get_db_hook().run(self.preoperator)
+        rows = self._process_rows(context=context)
+        self.get_db_hook().insert_rows(
+            table=self.table_name_with_schema,
+            rows=rows,
+            target_fields=self.column_names,
+            **self.insert_args,
+        )
+        if self.postoperator:
+            self.log.debug("Running postoperator")
+            self.log.debug(self.postoperator)
+            self.get_db_hook().run(self.postoperator)
 
 
 def _initialize_partition_clause(clause: str | None) -> str | None:

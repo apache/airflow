@@ -168,7 +168,7 @@ class MultiAssetDefinition(BaseAsset):
 @attrs.define(kw_only=True)
 class _DAGFactory:
     """
-    Common class for things that take DAG-like arguments.
+    Common class for things that take Dag-like arguments.
 
     This exists so we don't need to define these arguments separately for
     ``@asset`` and ``@asset.multi``.
@@ -222,7 +222,7 @@ class asset(_DAGFactory):
 
     @attrs.define(kw_only=True)
     class multi(_DAGFactory):
-        """Create a one-task DAG that emits multiple assets."""
+        """Create a one-task Dag that emits multiple assets."""
 
         outlets: Collection[BaseAsset]  # TODO: Support non-asset outlets?
 

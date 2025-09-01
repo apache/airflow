@@ -137,7 +137,6 @@ function link_python() {
     # Links in /usr/local/bin are needed for tools that expect python to be there
     # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
     # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
-    ldconfig
     for dst in pip3 python3 python3-config; do
         src="$(echo "${dst}" | tr -d 3)"
         echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
@@ -149,6 +148,16 @@ function link_python() {
             fi
         done
     done
+    for dst in /usr/python/lib/*
+    do
+        src="/usr/local/lib/$(basename "${dst}")"
+        if [[ -e "${src}" ]]; then
+            rm -rf "${src}"
+        fi
+        echo "Linking ${dst} to ${src}"
+        ln -sv "${dst}" "${src}"
+    done
+    ldconfig
 }
 
 function install_debian_runtime_dependencies() {
@@ -1365,11 +1374,9 @@ ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG DEPENDENCIES_EPOCH_NUMBER="15"
 
 # Make sure noninteractive debian install is used and language variables set
-# As well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
-# shared libraries installed there are found
 ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER} \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MSSQL_CLIENT="true" \
@@ -1540,7 +1547,7 @@ ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG DEPENDENCY_CACHE_EPOCH="0"
+ARG DEPENDENCY_CACHE_EPOCH="1"
 
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed

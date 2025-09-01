@@ -206,7 +206,7 @@ UV_VERSION = "0.8.14"
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
 
-# packages that  providers docs
+# packages that providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
     "docker-stack",
@@ -215,6 +215,16 @@ REGULAR_DOC_PACKAGES = [
     "task-sdk",
     "apache-airflow-ctl",
 ]
+
+
+# packages that are distributions of Airflow
+class DistributionType(Enum):
+    AIRFLOW_CORE = "airflow"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    AIRFLOW_CTL = "airflowctl"
+    HELM_CHART = "helm-chart"
+
 
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
