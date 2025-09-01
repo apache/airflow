@@ -39,6 +39,7 @@ from airflow.dag_processing.dagbag import DagBag, _capture_with_reraise, _valida
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
+from airflow.dag_processing.dagbag import DagBag, _capture_with_reraise, _validate_executor_fields
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
