@@ -1837,6 +1837,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
                 return callback
 
+            # Handle stale DAGs (removed from filesystem but still have task instances in DB)
+            if dag_model.is_stale and not dag:
+                self.log.error("DAG %s is stale (removed from filesystem), skipping scheduling for DAG run %s",
+                    dag_run.dag_id, dag_run.run_id)
+                return callback
+
             if (
                 dag_run.start_date
                 and dag.dagrun_timeout
