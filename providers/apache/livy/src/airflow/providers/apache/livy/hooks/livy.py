@@ -629,7 +629,10 @@ class LivyAsyncHook(HttpAsyncHook):
         """
         self._validate_session_id(session_id)
         self.log.info("Fetching info for batch session %s", session_id)
-        result = await self.run_method(endpoint=f"{self.endpoint_prefix}/batches/{session_id}/state")
+        result = await self.run_method(
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/state",
+            headers=self.extra_headers,
+        )
         if result["status"] == "error":
             self.log.info(result)
             return {"batch_state": "error", "response": result, "status": "error"}
