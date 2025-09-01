@@ -605,8 +605,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     from airflow.dag_processing.dagbag import DagBag
 
     bundle_info = what.bundle_info
-    manager = DagBundlesManager()
-    bundle_instance = manager.get_bundle(
+    bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
     )
