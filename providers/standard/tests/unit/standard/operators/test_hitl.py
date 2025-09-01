@@ -31,7 +31,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from sqlalchemy import select
 
-from airflow.exceptions import DownstreamTasksSkipped, AirflowException
+from airflow.exceptions import AirflowException, DownstreamTasksSkipped
 from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -576,7 +576,7 @@ class TestHITLBranchOperator:
         assert set(exc.value.tasks) == {("branch_1", -1)}
 
     def test_error_if_mapped_branch_not_direct_downstream(self, dag_maker):
-        # Don’t add the mapped task downstream → expect a clean error
+        # Don't add the mapped task downstream → expect a clean error
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
                 task_id="choose",

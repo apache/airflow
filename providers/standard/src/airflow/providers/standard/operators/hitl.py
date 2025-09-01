@@ -359,9 +359,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
         self.validate_options_mapping()
 
     def validate_options_mapping(self) -> None:
-        """
-        Ensure provided options_mapping keys are valid option labels and values are strings.
-        """
+        """Ensure provided options_mapping keys are valid option labels and values are strings."""
         if not self.options_mapping:
             return
 
