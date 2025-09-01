@@ -98,13 +98,9 @@ class HITLOperator(BaseOperator):
 
         Raises:
             ValueError: If `options` is empty.
-            ValueError: If any option contains a comma (`,`), which is not allowed.
         """
         if not self.options:
             raise ValueError('"options" cannot be empty.')
-
-        if any("," in option for option in self.options):
-            raise ValueError('"," is not allowed in option')
 
     def validate_params(self) -> None:
         """
@@ -235,7 +231,7 @@ class HITLOperator(BaseOperator):
         if options:
             if diff := set(options) - set(self.options):
                 raise ValueError(f"options {diff} are not valid options")
-            query_param["_options"] = ",".join(options)
+            query_param["_options"] = options
 
         if params_input:
             if diff := set(params_input.keys()) - set(self.params.keys()):
