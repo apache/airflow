@@ -58,7 +58,7 @@ from sqlalchemy_utils import UUIDType
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, NotMapped, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
@@ -67,7 +67,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext

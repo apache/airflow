@@ -27,11 +27,8 @@ import methodtools
 import structlog
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import (
-    NotMapped,
-)
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
