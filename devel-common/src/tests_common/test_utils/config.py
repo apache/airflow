@@ -24,7 +24,7 @@ import os
 @contextlib.contextmanager
 def conf_vars(overrides):
     from airflow import settings
-    from airflow_shared.configuration import conf
+    from airflow.configuration import conf
 
     original = {}
     original_env_vars = {}
