@@ -875,10 +875,9 @@ class TriggerRunner:
         last_status = time.monotonic()
         try:
             while not self.stop:
-                if not self.monitor_stall:
-                    # Raise exceptions from the tasks
-                    if self.watchdog and self.watchdog.done():
-                        self.watchdog.result()
+                # Raise exceptions from the tasks
+                if self.watchdog and self.watchdog.done():
+                    self.watchdog.result()
 
                 # Run core logic
 
