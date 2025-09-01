@@ -68,6 +68,7 @@ class SFTPSensor(BaseSensorOperator):
         python_callable: Callable | None = None,
         op_args: list | None = None,
         op_kwargs: dict[str, Any] | None = None,
+        use_managed_conn: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -77,37 +78,37 @@ class SFTPSensor(BaseSensorOperator):
         self.hook: SFTPHook | None = None
         self.sftp_conn_id = sftp_conn_id
         self.newer_than: datetime | str | None = newer_than
+        self.use_managed_conn = use_managed_conn
         self.python_callable: Callable | None = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
         self.deferrable = deferrable
 
-    def poke(self, context: Context) -> PokeReturnValue | bool:
-        self.hook = SFTPHook(self.sftp_conn_id)
-        self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
-        files_found = []
+    def _get_files(self) -> list[str]:
+        files_from_pattern: list[str] = []
+        files_found: list[str] = []
 
         if self.file_pattern:
-            files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)
+            files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)  # type: ignore[union-attr]
             if files_from_pattern:
                 actual_files_present = [
                     os.path.join(self.path, file_from_pattern) for file_from_pattern in files_from_pattern
                 ]
             else:
-                return False
+                return files_found
         else:
             try:
                 # If a file is present, it is the single element added to the actual_files_present list to be
                 # processed. If the file is a directory, actual_file_present will be assigned an empty list,
                 # since SFTPHook.isfile(...) returns False
-                actual_files_present = [self.path] if self.hook.isfile(self.path) else []
+                actual_files_present = [self.path] if self.hook.isfile(self.path) else []  # type: ignore[union-attr]
             except Exception as e:
                 raise AirflowException from e
 
         if self.newer_than:
             for actual_file_present in actual_files_present:
                 try:
-                    mod_time = self.hook.get_mod_time(actual_file_present)
+                    mod_time = self.hook.get_mod_time(actual_file_present)  # type: ignore[union-attr]
                     self.log.info("Found File %s last modified: %s", actual_file_present, mod_time)
                 except OSError as e:
                     if e.errno != SFTP_NO_SUCH_FILE:
@@ -135,6 +136,19 @@ class SFTPSensor(BaseSensorOperator):
                     )
         else:
             files_found = actual_files_present
+
+        return files_found
+
+    def poke(self, context: Context) -> PokeReturnValue | bool:
+        self.hook = SFTPHook(self.sftp_conn_id, use_managed_conn=self.use_managed_conn)
+
+        self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
+
+        if self.use_managed_conn:
+            files_found = self._get_files()
+        else:
+            with self.hook.get_managed_conn():
+                files_found = self._get_files()
 
         if not len(files_found):
             return False

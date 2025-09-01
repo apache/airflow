@@ -55,9 +55,12 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker, _secrets_masker
     except ImportError:
-        from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
+        try:
+            from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+        except ImportError:
+            from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
