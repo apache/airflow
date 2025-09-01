@@ -698,8 +698,6 @@ class DAG:
         if config_path:
             if isinstance(config_path, str):
                 searchpath += [p.strip() for p in config_path.split(",")]
-            elif isinstance(config_path, list):
-                searchpath += config_path
 
         # Default values (for backward compatibility)
         jinja_env_options = {
