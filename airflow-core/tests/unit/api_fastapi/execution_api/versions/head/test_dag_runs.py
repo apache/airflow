@@ -20,10 +20,10 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.timezones import timezone
-from airflow.models import DagModel
+from airflow.models import DagModel, TaskInstance
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -453,3 +453,56 @@ class TestGetPreviousDagRun:
         )
 
         assert response.status_code == 422
+
+
+class TestDagRunClearRestMode:
+    @pytest.mark.parametrize(
+        "reset_mode",
+        [
+            "all",
+            "only_failed",
+        ],
+    )
+    def test_handle_trigger_dag_run_reset_mode(self, reset_mode, client, session, dag_maker):
+        """
+        Test that Dag run clear execution api with reset mode option
+        """
+        dag_id = "test_handle_trigger_dag_run_reset_mode" + reset_mode
+        run_id = "test_handle_trigger_dag_run_reset_mode_run" + reset_mode
+
+        first_task_id = "1_success_" + reset_mode
+        second_task_id = "2_failure_" + reset_mode
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id=first_task_id)
+            EmptyOperator(task_id=second_task_id)
+
+        dag_run = dag_maker.create_dagrun(run_id=run_id, state=DagRunState.FAILED)
+        for ti in dag_run.get_task_instances():
+            if ti.task_id == first_task_id:
+                ti.set_state(TaskInstanceState.SUCCESS)
+            else:
+                ti.set_state(TaskInstanceState.FAILED)
+
+        dag_maker.session.flush()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}/clear",
+            json={"only_failed": bool(reset_mode == "only_failed")},
+        )
+        assert response.status_code == 204
+
+        task_instances = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.run_id == run_id)
+            .order_by(TaskInstance.task_id)
+            .all()
+        )
+
+        for ti in task_instances:
+            if reset_mode == "all":
+                assert ti.state is None
+            elif ti.task_id == first_task_id:
+                assert ti.state == TaskInstanceState.SUCCESS
+            else:
+                assert ti.state is None
