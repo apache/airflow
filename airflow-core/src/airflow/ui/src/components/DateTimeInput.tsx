@@ -32,8 +32,11 @@ type Props = {
 export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
   const { selectedTimezone } = useTimezone();
 
-  // Make the value timezone-aware
-  const date = dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS");
+  // Convert UTC value to local time for display
+  const displayValue =
+    Boolean(value) && dayjs(value).isValid()
+      ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS")
+      : "";
 
   return (
     <Input
@@ -42,7 +45,6 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
           ...event,
           target: {
             ...event.target,
-            // Return a timezone-aware ISO string
             value: dayjs(event.target.value).isValid()
               ? dayjs(event.target.value).tz(selectedTimezone, true).toISOString()
               : "",
@@ -51,7 +53,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
       }
       ref={ref}
       type="datetime-local"
-      value={date}
+      value={displayValue}
       {...rest}
     />
   );

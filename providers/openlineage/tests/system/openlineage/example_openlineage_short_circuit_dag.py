@@ -15,12 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Simple DAG without schedule and extra args, with one operator, to verify OpenLineage event integrity.
+Simple DAG with Short Circuit Operator.
 
 It checks:
-    - required keys
-    - field formats and types
-    - number of task events (one start, one complete)
+    - if events that should be emitted are there
+    - if events for skipped tasks are not emitted
 """
 
 from __future__ import annotations
@@ -28,22 +27,38 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.models import Variable
+from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
-
-try:
-    from airflow.sdk import chain
-except ImportError:
-    from airflow.models.baseoperator import chain  # type: ignore[no-redef]
 
 
 def do_nothing():
     pass
 
 
-DAG_ID = "openlineage_base_simple_dag"
+def check_events_number_func():
+    try:
+        from airflow.sdk.exceptions import AirflowRuntimeError as ExpectedError  # AF3
+    except ImportError:
+        ExpectedError = KeyError  # AF2
+
+    for event_type in ("start", "complete"):
+        try:
+            events = Variable.get(
+                key=f"openlineage_short_circuit_dag.should_be_skipped.event.{event_type}",
+                deserialize_json=True,
+            )
+        except ExpectedError:
+            pass
+        else:
+            raise ValueError(
+                f"Expected no {event_type.upper()} events for task `should_be_skipped`, got {events}"
+            )
+
+
+DAG_ID = "openlineage_short_circuit_dag"
 
 with DAG(
     dag_id=DAG_ID,
@@ -54,11 +69,21 @@ with DAG(
 ) as dag:
     do_nothing_task = PythonOperator(task_id="do_nothing_task", python_callable=do_nothing)
 
+    skip_tasks = ShortCircuitOperator(
+        task_id="skip_tasks", python_callable=lambda: False, ignore_downstream_trigger_rules=False
+    )
+
+    should_be_skipped = PythonOperator(task_id="should_be_skipped", python_callable=do_nothing)
+
+    check_events_number = PythonOperator(
+        task_id="check_events_number", python_callable=check_events_number_func, trigger_rule="none_failed"
+    )
+
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
 
-    chain(do_nothing_task, check_events)
+    do_nothing_task >> skip_tasks >> should_be_skipped >> check_events_number >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
