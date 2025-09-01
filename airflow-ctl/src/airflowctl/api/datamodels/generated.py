@@ -1157,7 +1157,7 @@ class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
     update_mask: Annotated[
         list[str] | None,
         Field(
-            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
             title="Update Mask",
         ),
     ] = None
@@ -1177,7 +1177,7 @@ class BulkUpdateActionConnectionBody(BaseModel):
     update_mask: Annotated[
         list[str] | None,
         Field(
-            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
             title="Update Mask",
         ),
     ] = None
@@ -1197,7 +1197,7 @@ class BulkUpdateActionPoolBody(BaseModel):
     update_mask: Annotated[
         list[str] | None,
         Field(
-            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
             title="Update Mask",
         ),
     ] = None
@@ -1217,7 +1217,7 @@ class BulkUpdateActionVariableBody(BaseModel):
     update_mask: Annotated[
         list[str] | None,
         Field(
-            description="A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.",
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
             title="Update Mask",
         ),
     ] = None
