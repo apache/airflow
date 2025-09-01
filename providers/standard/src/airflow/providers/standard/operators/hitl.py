@@ -351,15 +351,30 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
     inherits_from_skipmixin = True
 
     def __init__(self, *, options_mapping: dict[str, str] | None = None, **kwargs) -> None:
-        super().__init__(
-            **kwargs,
-        )
-        self.options_mapping = options_mapping or {}
+        """
+        Initialize HITLBranchOperator.
 
+        Args:
+            options_mapping:
+                A dictionary mapping option labels (must match entries in `self.options`)
+                to string values (e.g., task IDs). Defaults to an empty dict if not provided.
+
+        Raises:
+            ValueError:
+                - If `options_mapping` contains keys not present in `self.options`.
+                - If any value in `options_mapping` is not a string.
+        """
+        super().__init__(**kwargs)
+        self.options_mapping = options_mapping or {}
         self.validate_options_mapping()
 
     def validate_options_mapping(self) -> None:
-        """Ensure provided options_mapping keys are valid option labels and values are strings."""
+        """
+        Validate that `options_mapping` keys match `self.options` and all values are strings.
+
+        Raises:
+            ValueError: If any key is not in `self.options` or any value is not a string.
+        """
         if not self.options_mapping:
             return
 
