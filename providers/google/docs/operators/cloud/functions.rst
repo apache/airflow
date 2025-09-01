@@ -74,7 +74,7 @@ For parameter definition, take a look at
 Arguments
 """""""""
 
-When a DAG is created, the default_args dictionary can be used to pass
+When a Dag is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_functions/example_functions.py

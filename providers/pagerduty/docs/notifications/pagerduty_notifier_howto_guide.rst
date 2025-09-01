@@ -21,7 +21,7 @@ How-to Guide for Pagerduty notifications
 Introduction
 ------------
 The Pagerduty notifier (:class:`airflow.providers.pagerduty.notifications.pagerduty.PagerdutyNotifier`) allows users to send
-messages to Pagerduty using the various ``on_*_callbacks`` at both the DAG level and Task level.
+messages to Pagerduty using the various ``on_*_callbacks`` at both the Dag level and Task level.
 
 
 Example Code:
@@ -30,16 +30,16 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import DAG
+    from airflow import Dag
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.pagerduty.notifications.pagerduty import send_pagerduty_notification
 
-    with DAG(
+    with Dag(
         "pagerduty_notifier",
         start_date=datetime(2023, 1, 1),
         on_failure_callback=[
             send_pagerduty_notification(
-                summary="The dag {{ dag.dag_id }} failed",
+                summary="The Dag {{ dag.dag_id }} failed",
                 severity="critical",
                 source="airflow dag_id: {{dag.dag_id}}",
                 dedup_key="{{dag.dag_id}}-{{ti.task_id}}",

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,26 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
+from __future__ import annotations
 
-TEMP_DOCKER_DIR=$(mktemp -d)
-pushd "${TEMP_DOCKER_DIR}"
+import pytest
 
-cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
+from tests_common.test_utils.version_compat import get_base_airflow_version_tuple
 
 
-# [START build]
-export DOCKER_BUILDKIT=1
+@pytest.fixture
+def collect_queue_param_deprecation_warning():
+    """Collect deprecation warnings for queue parameter."""
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match="The `queue` parameter is deprecated and will be removed in future versions. Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
+    ):
+        yield
 
-docker build . \
-    --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow @ https://github.com/apache/airflow/archive/v2-2-test.tar.gz" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-2" \
-    --tag "my-github-v2-2:0.0.1"
-# [END build]
-docker rmi --force "my-github-v2-2:0.0.1"
-popd
-rm -rf "${TEMP_DOCKER_DIR}"
+
+mark_common_msg_queue_test = pytest.mark.skipif(
+    get_base_airflow_version_tuple() < (3, 0, 1), reason="CommonMessageQueueTrigger Requires Airflow 3.0.1+"
+)

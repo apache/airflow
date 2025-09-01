@@ -24,7 +24,7 @@ Using OpenLineage integration
 OpenLineage is an open framework for data lineage collection and analysis. At its core is an extensible specification that systems can use to interoperate with lineage metadata.
 `Check out OpenLineage docs <https://openlineage.io/docs/>`_.
 
-**No change to user DAG files is required to use OpenLineage**. Basic configuration is needed so that OpenLineage knows where to send events.
+**No change to user Dag files is required to use OpenLineage**. Basic configuration is needed so that OpenLineage knows where to send events.
 
 Quickstart
 ==========
@@ -57,7 +57,7 @@ This example is a basic demonstration of OpenLineage setup.
 
       AIRFLOW__OPENLINEAGE__TRANSPORT='{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
 
-3. **That's it !**  OpenLineage events should be sent to the configured backend when DAGs are run.
+3. **That's it !**  OpenLineage events should be sent to the configured backend when Dags are run.
 
 Usage
 =====
@@ -352,10 +352,10 @@ reproducing your environment setup by setting ``debug_mode`` option to ``true`` 
   By setting this variable to true, OpenLineage integration may log and emit extensive details. It should only be enabled temporary for debugging purposes.
 
 
-Enabling OpenLineage on DAG/task level
+Enabling OpenLineage on Dag/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-One can selectively enable OpenLineage for specific DAGs and tasks by using the ``selective_enable`` policy.
+One can selectively enable OpenLineage for specific Dags and tasks by using the ``selective_enable`` policy.
 To enable this policy, set the ``selective_enable`` option to True in the [openlineage] section of your Airflow configuration file:
 
 .. code-block:: ini
@@ -371,47 +371,47 @@ To enable this policy, set the ``selective_enable`` option to True in the [openl
 
 
 While ``selective_enable`` enables selective control, the ``disabled`` :ref:`option <options:disable>` still has precedence.
-If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all DAGs and tasks regardless of the ``selective_enable`` setting.
+If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all Dags and tasks regardless of the ``selective_enable`` setting.
 
 Once the ``selective_enable`` policy is enabled, you can choose to enable OpenLineage
-for individual DAGs and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
+for individual Dags and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
 
-1. Enabling Lineage on a DAG:
+1. Enabling Lineage on a Dag:
 
 .. code-block:: python
 
     from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
-    with enable_lineage(DAG(...)):
-        # Tasks within this DAG will have lineage tracking enabled
+    with enable_lineage(Dag(...)):
+        # Tasks within this Dag will have lineage tracking enabled
         MyOperator(...)
 
         AnotherOperator(...)
 
 2. Enabling Lineage on a Task:
 
-While enabling lineage on a DAG implicitly enables it for all tasks within that DAG, you can still selectively disable it for specific tasks:
+While enabling lineage on a Dag implicitly enables it for all tasks within that Dag, you can still selectively disable it for specific tasks:
 
 .. code-block:: python
 
     from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
-    with DAG(...) as dag:
+    with Dag(...) as dag:
         t1 = MyOperator(...)
         t2 = AnotherOperator(...)
 
-    # Enable lineage for the entire DAG
+    # Enable lineage for the entire Dag
     enable_lineage(dag)
 
     # Disable lineage for task t1
     disable_lineage(t1)
 
-Enabling lineage on the DAG level automatically enables it for all tasks within that DAG unless explicitly disabled per task.
+Enabling lineage on the Dag level automatically enables it for all tasks within that Dag unless explicitly disabled per task.
 
-Enabling lineage on the task level implicitly enables lineage on its DAG.
+Enabling lineage on the task level implicitly enables lineage on its Dag.
 This is because each emitting task sends a `ParentRunFacet <https://openlineage.io/docs/spec/facets/run-facets/parent_run>`_,
-which requires the DAG-level lineage to be enabled in some OpenLineage backend systems.
-Disabling DAG-level lineage while enabling task-level lineage might cause errors or inconsistencies.
+which requires the Dag-level lineage to be enabled in some OpenLineage backend systems.
+Disabling Dag-level lineage while enabling task-level lineage might cause errors or inconsistencies.
 
 .. _options:spark_inject_parent_job_info:
 

@@ -345,7 +345,7 @@ class SalesforceHook(BaseHook):
         elif fmt == "json":
             df.to_json(filename, orient="records", date_unit="s")
         elif fmt == "ndjson":
-            df.to_json(filename, orient="records", lines=True, date_unit="s")
+            df.to_json(filename, orient="records", date_unit="s", lines=True)
 
         return df
 

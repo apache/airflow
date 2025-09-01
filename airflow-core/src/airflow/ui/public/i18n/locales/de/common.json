@@ -7,6 +7,7 @@
     "Providers": "Providers",
     "Variables": "Variablen"
   },
+  "allOperators": "Alle Operatoren",
   "asset_one": "Datenset (Asset)",
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
@@ -180,6 +181,7 @@
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
     "none": "Kein Status",
+    "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
     "restarting": "Im Neustart",

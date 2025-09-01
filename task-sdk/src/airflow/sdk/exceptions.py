@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in DAG definition."""
+    """Raise when there is a cycle in Dag definition."""
 
 
 class AirflowRuntimeError(Exception):

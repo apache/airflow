@@ -1998,8 +1998,8 @@ class DagRun(Base, LoggingMixin):
                 assert isinstance(task, Operator)
             if (
                 task.inherits_from_empty_operator
-                and not task.on_execute_callback
-                and not task.on_success_callback
+                and not task.has_on_execute_callback
+                and not task.has_on_success_callback
                 and not task.outlets
                 and not task.inlets
             ):

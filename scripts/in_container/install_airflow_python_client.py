@@ -79,7 +79,7 @@ def install_airflow_python_client(
     extension = "whl" if distribution_format == "wheel" else "tar.gz"
 
     install_airflow_python_client_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
         find_airflow_python_client(extension),

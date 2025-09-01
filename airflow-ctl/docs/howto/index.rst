@@ -130,19 +130,19 @@ These visual references show the full command syntax, options, and parameters fo
   :width: 60%
   :alt: airflowctl Connections Command
 
-**DAGs**
+**Dags**
 ''''''''
 .. image:: ../images/output_dag.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dag.svg
   :width: 60%
-  :alt: airflowctl DAG Command
+  :alt: airflowctl Dag Command
 
-**DAG Runs**
+**Dag Runs**
 ''''''''''''
 .. image:: ../images/output_dagrun.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dagrun.svg
   :width: 60%
-  :alt: airflowctl DAG Run Command
+  :alt: airflowctl Dag Run Command
 
 **Jobs**
 ''''''''

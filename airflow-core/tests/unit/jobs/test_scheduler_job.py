@@ -333,6 +333,73 @@ class TestSchedulerJob:
             any_order=True,
         )
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_restarting_cleared_task(
+        self, mock_stats_incr, mock_task_callback, dag_maker
+    ):
+        """
+        Test processing of RESTARTING task instances by scheduler's _process_executor_events.
+
+        Simulates the complete flow when a running task is cleared:
+        1. Task is RUNNING and has exhausted retries (try_number > max_tries)
+        2. User clears the task → state becomes RESTARTING
+        3. Executor successfully terminates the task → reports SUCCESS
+        4. Scheduler processes the event and sets task to None (scheduled)
+        5. max_tries is adjusted to allow retry beyond normal limits
+
+        This test prevents regression of issue #55045 where RESTARTING tasks
+        would get stuck due to scheduler not processing executor events.
+        """
+        dag_id = "test_restarting_max_tries"
+        task_id = "test_task"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/", max_active_runs=1):
+            task1 = EmptyOperator(task_id=task_id, retries=2)
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        # Set up exhausted task scenario: try_number > max_tries
+        ti1.state = TaskInstanceState.RESTARTING  # Simulates cleared running task
+        ti1.try_number = 4  # Already tried 4 times
+        ti1.max_tries = 3  # Originally only allowed 3 tries
+        session.merge(ti1)
+        session.commit()
+
+        # Verify task is in RESTARTING state and eligible for retry
+        assert ti1.state == TaskInstanceState.RESTARTING
+        assert ti1.is_eligible_to_retry() is True, "RESTARTING should bypass max_tries"
+
+        # Set up scheduler and executor
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock(spec=TaskCallbackRequest)
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job(executor=executor)
+        job_runner = SchedulerJobRunner(scheduler_job)
+
+        # Simulate executor reporting task completion (this triggers the bug scenario)
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+
+        # Process the executor event
+        job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+
+        assert ti1.state is None, "Task should be set to None (scheduled) state after RESTARTING processing"
+
+        # Verify max_tries was adjusted to allow retry
+        expected_max_tries = 4 + 2
+        assert ti1.max_tries == expected_max_tries, (
+            f"max_tries should be adjusted to {expected_max_tries}, got {ti1.max_tries}"
+        )
+
+        # Verify task is now eligible for retry despite being previously exhausted
+        assert ti1.is_eligible_to_retry() is True, (
+            "Task should be eligible for retry after max_tries adjustment"
+        )
+
+        # Verify try_number wasn't changed (scheduler doesn't increment it here)
+        assert ti1.try_number == 4, "try_number should remain unchanged"
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
     def test_process_executor_events_with_no_callback(self, mock_stats_incr, mock_task_callback, dag_maker):

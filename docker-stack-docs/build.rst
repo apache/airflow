@@ -366,7 +366,7 @@ You should be aware, about a few things
   The dags in production image are in ``/opt/airflow/dags`` folder.
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
-  ``Dockerfile`` and any files that are referred to (such as DAG files) in a separate directory and run
+  ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
   a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
@@ -801,49 +801,6 @@ Building images with MySQL client
     :start-after: [START build]
     :end-before: [END build]
 
-
-.. _image-build-github:
-
-
-Building from GitHub
-....................
-
-This method is usually used for development purpose. But in case you have your own fork you can point
-it to your forked version of source code without having to release it to PyPI. It is enough to have
-a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
-
-In case of GitHub builds you need to pass the constraints reference manually in case you want to use
-specific constraints, otherwise the default ``constraints-main`` is used.
-
-The following example builds the production image in version ``3.10`` with default extras from the latest main version and
-constraints are taken from latest version of the constraints-main branch in GitHub.
-
-.. exampleinclude:: docker-examples/customizing/github-main.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
-The following example builds the production image with default extras from the
-latest ``v2-*-test`` version and constraints are taken from the latest version of
-the ``constraints-2-*`` branch in GitHub (for example ``v2-2-test`` branch matches ``constraints-2-2``).
-Note that this command might fail occasionally as only the "released version" constraints when building a
-version and "main" constraints when building main are guaranteed to work.
-
-.. exampleinclude:: docker-examples/customizing/github-v2-2-test.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
-You can also specify another repository to build from. If you also want to use different constraints
-repository source, you must specify it as additional ``CONSTRAINTS_GITHUB_REPOSITORY`` build arg.
-
-The following example builds the production image using ``potiuk/airflow`` fork of Airflow and constraints
-are also downloaded from that repository.
-
-.. exampleinclude:: docker-examples/customizing/github-different-repository.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
 
 .. _image-build-custom:
 

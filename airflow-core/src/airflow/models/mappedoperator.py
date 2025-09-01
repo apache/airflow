@@ -30,19 +30,7 @@ from sqlalchemy.orm import Session
 from airflow.exceptions import AirflowException
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import (
-    DEFAULT_EXECUTOR,
-    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    DEFAULT_OWNER,
-    DEFAULT_POOL_NAME,
-    DEFAULT_POOL_SLOTS,
-    DEFAULT_PRIORITY_WEIGHT,
-    DEFAULT_QUEUE,
-    DEFAULT_RETRIES,
-    DEFAULT_RETRY_DELAY,
-    DEFAULT_TRIGGER_RULE,
-    DEFAULT_WEIGHT_RULE,
     NotMapped,
-    TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
@@ -91,6 +79,7 @@ def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG."""
 
+    # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
     operator_class: dict[str, Any]
     partial_kwargs: dict[str, Any] = attrs.field(init=False, factory=dict)
 
@@ -107,10 +96,10 @@ class MappedOperator(DAGNode):
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
-    _task_type: str
+    task_type: str
     _operator_name: str
-    start_trigger_args: StartTriggerArgs | None
-    start_from_trigger: bool
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
     _needs_expansion: bool = True
 
     dag: SchedulerDAG = attrs.field(init=False)
@@ -155,11 +144,6 @@ class MappedOperator(DAGNode):
     # SDK and the scheduler, and remove those not needed.
 
     @property
-    def task_type(self) -> str:
-        """Implementing Operator."""
-        return self._task_type
-
-    @property
     def operator_name(self) -> str:
         return self._operator_name
 
@@ -186,11 +170,11 @@ class MappedOperator(DAGNode):
 
     @property
     def owner(self) -> str:
-        return self.partial_kwargs.get("owner", DEFAULT_OWNER)
+        return self.partial_kwargs.get("owner", SerializedBaseOperator.owner)
 
     @property
     def trigger_rule(self) -> TriggerRule:
-        return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
+        return self.partial_kwargs.get("trigger_rule", SerializedBaseOperator.trigger_rule)
 
     @property
     def is_setup(self) -> bool:
@@ -206,7 +190,9 @@ class MappedOperator(DAGNode):
 
     @property
     def ignore_first_depends_on_past(self) -> bool:
-        value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
+        value = self.partial_kwargs.get(
+            "ignore_first_depends_on_past", SerializedBaseOperator.ignore_first_depends_on_past
+        )
         return bool(value)
 
     @property
@@ -215,19 +201,19 @@ class MappedOperator(DAGNode):
 
     @property
     def retries(self) -> int:
-        return self.partial_kwargs.get("retries", DEFAULT_RETRIES)
+        return self.partial_kwargs.get("retries", SerializedBaseOperator.retries)
 
     @property
     def queue(self) -> str:
-        return self.partial_kwargs.get("queue", DEFAULT_QUEUE)
+        return self.partial_kwargs.get("queue", SerializedBaseOperator.queue)
 
     @property
     def pool(self) -> str:
-        return self.partial_kwargs.get("pool", DEFAULT_POOL_NAME)
+        return self.partial_kwargs.get("pool", SerializedBaseOperator.pool)
 
     @property
     def pool_slots(self) -> int:
-        return self.partial_kwargs.get("pool_slots", DEFAULT_POOL_SLOTS)
+        return self.partial_kwargs.get("pool_slots", SerializedBaseOperator.pool_slots)
 
     @property
     def resources(self) -> Resources | None:
@@ -242,24 +228,24 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("max_active_tis_per_dagrun")
 
     @property
-    def on_execute_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_execute_callback") or []
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_execute_callback", False))
 
     @property
-    def on_failure_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_failure_callback") or []
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_failure_callback", False))
 
     @property
-    def on_retry_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_retry_callback") or []
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_retry_callback", False))
 
     @property
-    def on_success_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_success_callback") or []
+    def has_on_success_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_success_callback", False))
 
     @property
-    def on_skipped_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_skipped_callback") or []
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.partial_kwargs.get("has_on_skipped_callback", False))
 
     @property
     def run_as_user(self) -> str | None:
@@ -267,11 +253,11 @@ class MappedOperator(DAGNode):
 
     @property
     def priority_weight(self) -> int:
-        return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
+        return self.partial_kwargs.get("priority_weight", SerializedBaseOperator.priority_weight)
 
     @property
     def retry_delay(self) -> datetime.timedelta:
-        return self.partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY)
+        return self.partial_kwargs["retry_delay"]
 
     @property
     def retry_exponential_backoff(self) -> bool:
@@ -280,12 +266,12 @@ class MappedOperator(DAGNode):
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
         return validate_and_load_priority_weight_strategy(
-            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+            self.partial_kwargs.get("weight_rule", SerializedBaseOperator._weight_rule)
         )
 
     @property
     def executor(self) -> str | None:
-        return self.partial_kwargs.get("executor", DEFAULT_EXECUTOR)
+        return self.partial_kwargs.get("executor")
 
     @property
     def executor_config(self) -> dict:
@@ -311,8 +297,37 @@ class MappedOperator(DAGNode):
     def on_failure_fail_dagrun(self, v) -> None:
         self.partial_kwargs["on_failure_fail_dagrun"] = bool(v)
 
-    def get_serialized_fields(self):
-        return TaskSDKMappedOperator.get_serialized_fields()
+    @classmethod
+    def get_serialized_fields(cls):
+        """Fields to extract from JSON-Serialized DAG."""
+        return frozenset(
+            {
+                "_disallow_kwargs_override",
+                "_expand_input_attr",
+                "_is_sensor",
+                "_needs_expansion",
+                "_operator_name",
+                "_task_module",
+                "downstream_task_ids",
+                "end_date",
+                "operator_extra_links",
+                "params",
+                "partial_kwargs",
+                "start_date",
+                "start_from_trigger",
+                "start_trigger_args",
+                "task_id",
+                "task_type",
+                "template_ext",
+                "template_fields",
+                "template_fields_renderers",
+                "ui_color",
+                "ui_fgcolor",
+                # TODO: Need to verify if the following two are needed on the server side.
+                "expand_input",
+                "op_kwargs_expand_input",
+            }
+        )
 
     @functools.cached_property
     def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:

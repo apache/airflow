@@ -260,10 +260,10 @@ This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-prov
     resource
   );
 
-Give DAG specific permissions to a group of users
+Give Dag specific permissions to a group of users
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The policy below gives all DAG related permissions of the DAG ``test`` to a group of users.
+The policy below gives all Dag related permissions of the Dag ``test`` to a group of users.
 
  ::
 
@@ -273,7 +273,7 @@ The policy below gives all DAG related permissions of the DAG ``test`` to a grou
     resource == Airflow::Dag::"test"
   );
 
-The policy below gives all DAG related permissions of the DAGs ``financial-1`` and ``financial-2`` to a group of users.
+The policy below gives all Dag related permissions of the Dags ``financial-1`` and ``financial-2`` to a group of users.
 
  ::
 
@@ -283,7 +283,7 @@ The policy below gives all DAG related permissions of the DAGs ``financial-1`` a
     resource in [Airflow::Dag::"financial-1", Airflow::Dag::"financial-2"]
   );
 
-The policy below gives access to logs of the DAG ``test`` to a group of users.
+The policy below gives access to logs of the Dag ``test`` to a group of users.
 
  ::
 
@@ -303,7 +303,7 @@ For example, if both one **permit** and one **forbid** policies match the reques
 This can be useful if, for example, you want to restrict access to a specific user who belongs to a group that is
 granted all permissions.
 
-The policy below removes access of DAGs ``secret-dag-1`` and ``secret-dag-2`` from a specific user.
+The policy below removes access of Dags ``secret-dag-1`` and ``secret-dag-2`` from a specific user.
 
  ::
 

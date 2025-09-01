@@ -80,7 +80,7 @@ class GitDagBundle(BaseDagBundle):
         self.hook: GitHook | None = None
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default")
-        except AirflowException as e:
+        except Exception as e:
             self._log.warning("Could not create GitHook", conn_id=git_conn_id, exc=e)
 
         if not repo_url and self.hook and self.hook.repo_url:

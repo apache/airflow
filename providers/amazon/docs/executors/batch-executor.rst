@@ -113,8 +113,8 @@ used by the Batch Executor, the appropriate policy needs to be attached to the E
 Additionally, the role also needs to have at least the ``CloudWatchLogsFullAccess``
 (or ``CloudWatchLogsFullAccessV2``) policies. The Job Role is the role that is
 used by the containers to make AWS API requests. This role needs to have
-permissions based on the tasks that are described in the DAG being run.
-If you are loading DAGs via an S3 bucket, this role needs to have
+permissions based on the tasks that are described in the Dag being run.
+If you are loading Dags via an S3 bucket, this role needs to have
 permission to read the S3 bucket.
 
 To create a new Job Role or Execution Role, follow the steps

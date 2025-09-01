@@ -331,13 +331,17 @@ class TestXComsSetEndpoint:
             ('{"key2": "value2"}', '{"key2": "value2"}'),
             ('{"key2": "value2", "key3": ["value3"]}', '{"key2": "value2", "key3": ["value3"]}'),
             ('["value1"]', '["value1"]'),
+            (None, None),
         ],
     )
     def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
         """
-        Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
-        XCom.set then uses json.dumps to serialize it and store the value in the database.
-        This is done so that Task SDK in multiple languages can use the same API to set XCom values.
+        Test that XCom value is set correctly. The request body can be either:
+        - a JSON string (e.g. '"value"', '{"k":"v"}', '[1]'), which is stored as-is (a string) in the DB
+        - the JSON literal null, which is stored as a None
+
+        This mirrors the Execution API contract where the body is the JSON value itself; Task SDKs may send
+        pre-serialized JSON strings or null.
         """
         ti = create_task_instance()
         session.commit()

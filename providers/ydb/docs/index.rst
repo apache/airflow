@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-ydb/|version|/providers/ydb/tests/system/ydb>
+    Example Dags <https://github.com/apache/airflow/tree/providers-ydb/|version|/providers/ydb/tests/system/ydb>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ydb/>
     Installing from sources <installing-providers-from-sources>
 

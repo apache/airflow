@@ -294,7 +294,7 @@ def block_orm_access():
                 delattr(settings, attr)
 
         def configure_orm(*args, **kwargs):
-            raise RuntimeError("Database access is disabled from DAGs and Triggers")
+            raise RuntimeError("Database access is disabled from Dags and Triggers")
 
         settings.configure_orm = configure_orm
         settings.Session = BlockedDBSession
@@ -1454,7 +1454,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         This bypasses the standard `ActivitySubprocess.start()` behavior, which expects
         to launch a subprocess and communicate via stdin/stdout. Instead, it constructs
         the `RuntimeTaskInstance` directly — useful in contexts like `dag.test()` where the
-        DAG is already parsed in memory.
+        Dag is already parsed in memory.
 
         Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
         """
@@ -1475,10 +1475,10 @@ class InProcessTestSupervisor(ActivitySubprocess):
             supervisor.ti = what  # type: ignore[assignment]
 
             # We avoid calling `task_runner.startup()` because we are already inside a
-            # parsed DAG file (e.g. via dag.test()).
-            # In normal execution, `startup()` parses the DAG based on info in a `StartupDetails` message.
+            # parsed Dag file (e.g. via dag.test()).
+            # In normal execution, `startup()` parses the Dag based on info in a `StartupDetails` message.
             # By directly constructing the `RuntimeTaskInstance`,
-            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set DAG Bundle config
+            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set Dag Bundle config
             #   and run the task in-process.
             start_date = datetime.now(tz=timezone.utc)
             ti_context = supervisor.client.task_instances.start(supervisor.id, supervisor.pid, start_date)
@@ -1512,7 +1512,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
             from airflow.models.dagbag import DBDagBag
 
             # This is needed since the Execution API server uses the DBDagBag in its "state".
-            # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
+            # This `app.state.dag_bag` is used to get some Dag properties like `fail_fast`.
             dag_bag = DBDagBag()
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
@@ -1768,8 +1768,8 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Information of the DAG bundle to use for this task instance.
-    :param dag_rel_path: The file path to the DAG.
+    :param bundle_info: Information of the Dag bundle to use for this task instance.
+    :param dag_rel_path: The file path to the Dag.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param dry_run: If True, execute without actual task execution (simulate run).

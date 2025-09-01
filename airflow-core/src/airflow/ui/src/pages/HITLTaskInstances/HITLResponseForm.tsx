@@ -20,13 +20,14 @@ import { Button, Box, Spacer, HStack, Accordion, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSend } from "react-icons/fi";
+import { useSearchParams } from "react-router-dom";
 
 import type { HITLDetail, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
 import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
-import { getHITLParamsDict, getHITLFormData } from "src/utils/hitl";
+import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData } from "src/utils/hitl";
 
 type HITLResponseFormProps = {
   readonly hitlDetail: {
@@ -34,9 +35,12 @@ type HITLResponseFormProps = {
   } & Omit<HITLDetail, "task_instance">;
 };
 
-const isHighlightOption = (option: string, hitlDetail: HITLDetail) => {
+const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITLOptions: Array<string>) => {
+  // preload's priority is higher than default
+  const defaultOptions = preloadedHITLOptions.length > 0 ? preloadedHITLOptions : hitlDetail.defaults;
+
   const isSelected = hitlDetail.chosen_options?.includes(option) && Boolean(hitlDetail.response_received);
-  const isDefault = hitlDetail.defaults?.includes(option) && !Boolean(hitlDetail.response_received);
+  const isDefault = defaultOptions?.includes(option) && !Boolean(hitlDetail.response_received);
 
   // highlight if:
   // 1. the option is selected and the response is received
@@ -50,6 +54,17 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore("hitl");
+  const [searchParams] = useSearchParams();
+  const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
+
+  const isApprovalTask =
+    hitlDetail.options.includes("Approve") &&
+    hitlDetail.options.includes("Reject") &&
+    hitlDetail.options.length === 2;
+
+  const shouldRenderOptionButton =
+    hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
     dagRunId: hitlDetail.task_instance.dag_run_id,
@@ -96,7 +111,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           flexFormDescription={hitlDetail.body ?? undefined}
           flexibleFormDefaultSection={hitlDetail.subject}
           initialParamsDict={{
-            paramsDict: getHITLParamsDict(hitlDetail, translate),
+            paramsDict: getHITLParamsDict(hitlDetail, translate, searchParams),
           }}
           isHITL
           key={hitlDetail.subject}
@@ -108,14 +123,14 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           <Spacer />
-          {hitlDetail.options.length < 4 && !hitlDetail.multiple ? (
+          {shouldRenderOptionButton || isApprovalTask ? (
             hitlDetail.options.map((option) => (
               <Button
-                colorPalette={isHighlightOption(option, hitlDetail) ? "blue" : "gray"}
+                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
                 disabled={errors || isSubmitting || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
-                variant={isHighlightOption(option, hitlDetail) ? "solid" : "subtle"}
+                variant={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "solid" : "subtle"}
               >
                 {option}
               </Button>

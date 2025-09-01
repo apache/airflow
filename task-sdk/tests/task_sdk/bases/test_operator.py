@@ -760,7 +760,7 @@ class TestBaseOperator:
         assert mock_jinja_env.call_count == 1
 
     def test_deepcopy(self):
-        # Test bug when copying an operator attached to a DAG
+        # Test bug when copying an operator attached to a Dag
         with DAG("dag0", schedule=None, start_date=DEFAULT_DATE) as dag:
 
             @dag.task
