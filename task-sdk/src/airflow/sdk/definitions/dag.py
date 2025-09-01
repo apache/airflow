@@ -694,10 +694,8 @@ class DAG:
 
         # Always include config path as a fallback source
         # Developers don't need to configure template_searchpath in every DAG — they can rely on a global value from airflow.cfg
-        config_path = conf.get("core", "template_searchpath", fallback=None)
-        if config_path:
-            if isinstance(config_path, str):
-                searchpath += [p.strip() for p in config_path.split(",")]
+        if config_path := conf.get("core", "template_searchpath", fallback=""):
+            searchpath.extend(p.strip() for p in config_path.split(","))
 
         # Default values (for backward compatibility)
         jinja_env_options = {
