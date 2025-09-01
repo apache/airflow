@@ -31,7 +31,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from sqlalchemy import select
 
-from airflow.exceptions import DownstreamTasksSkipped
+from airflow.exceptions import AirflowException, DownstreamTasksSkipped
 from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -505,3 +505,111 @@ class TestHITLBranchOperator:
                 },
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(4, 6))
+
+    def test_mapping_applies_for_single_choice(self, dag_maker):
+        # ["Approve"]; map -> "publish"
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve", "Reject"],
+                options_mapping={"Approve": "publish"},
+            )
+            op >> [EmptyOperator(task_id="publish"), EmptyOperator(task_id="archive")]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc:
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={"chosen_options": ["Approve"], "params_input": {}},
+            )
+        # checks to see that the "archive" task was skipped
+        assert set(exc.value.tasks) == {("archive", -1)}
+
+    def test_mapping_with_multiple_choices(self, dag_maker):
+        # multiple=True; mapping applied per option; no dedup implied
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                multiple=True,
+                options=["Approve", "KeepAsIs"],
+                options_mapping={"Approve": "publish", "KeepAsIs": "keep"},
+            )
+            op >> [
+                EmptyOperator(task_id="publish"),
+                EmptyOperator(task_id="keep"),
+                EmptyOperator(task_id="other"),
+            ]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc:
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={"chosen_options": ["Approve", "KeepAsIs"], "params_input": {}},
+            )
+        # publish + keep chosen → only "other" skipped
+        assert set(exc.value.tasks) == {("other", -1)}
+
+    def test_fallback_to_option_when_not_mapped(self, dag_maker):
+        # No mapping: option must match downstream task_id
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["branch_1", "branch_2"],  # no mapping for branch_2
+            )
+            op >> [EmptyOperator(task_id="branch_1"), EmptyOperator(task_id="branch_2")]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc:
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={"chosen_options": ["branch_2"], "params_input": {}},
+            )
+        assert set(exc.value.tasks) == {("branch_1", -1)}
+
+    def test_error_if_mapped_branch_not_direct_downstream(self, dag_maker):
+        # Don't add the mapped task downstream → expect a clean error
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve"],
+                options_mapping={"Approve": "not_a_downstream"},
+            )
+            # Intentionally no downstream "not_a_downstream"
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(AirflowException, match="downstream|not found"):
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={"chosen_options": ["Approve"], "params_input": {}},
+            )
+
+    @pytest.mark.parametrize("bad", [123, ["publish"], {"x": "y"}, b"publish"])
+    def test_options_mapping_non_string_value_raises(self, bad):
+        with pytest.raises(ValueError, match=r"values must be strings \(task_ids\)"):
+            HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve"],
+                options_mapping={"Approve": bad},
+            )
+
+    def test_options_mapping_key_not_in_options_raises(self):
+        with pytest.raises(ValueError, match="contains keys that are not in `options`"):
+            HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve", "Reject"],
+                options_mapping={"NotAnOption": "publish"},
+            )
