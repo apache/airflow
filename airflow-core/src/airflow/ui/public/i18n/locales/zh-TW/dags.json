@@ -20,6 +20,11 @@
       "all": "全部",
       "paused": "暫停"
     },
+    "pendingActions": {
+      "all": "全部",
+      "withPending": "尚待回應",
+      "withoutPending": "無需回應"
+    },
     "runIdPatternFilter": "搜尋 Dag 執行",
     "triggeringUserNameFilter": "搜尋觸發使用者名稱"
   },
