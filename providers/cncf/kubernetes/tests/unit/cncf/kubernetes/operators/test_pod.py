@@ -51,12 +51,9 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
-<<<<<<< HEAD
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-=======
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
->>>>>>> 95bb79917c (fix tests)
 
 if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel as XCom
@@ -117,31 +114,17 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag.add_task(task)
     now = timezone.utcnow()
 <<<<<<< HEAD
+<<<<<<< HEAD
     if AIRFLOW_V_3_0_PLUS:
         sync_dag_to_db(dag)
 =======
     if AIRFLOW_V_3_1_PLUS:
         with create_session() as session:
             from airflow.models.dagbundle import DagBundleModel
+=======
+>>>>>>> 0fe9e03c90 (adjust import statements and remove same code)
 
-            bundle_name = "testing"
-            session.add(DagBundleModel(name=bundle_name))
-            session.flush()
-            session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
-            session.commit()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
-        dag_run = DagRun(
-            run_id=DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
-            ),
-            run_type=DagRunType.MANUAL,
-            dag_id=dag.dag_id,
-            logical_date=now,
-            data_interval=(now, now),
-            run_after=now,
-        )
-    elif AIRFLOW_V_3_0_PLUS:
+    if AIRFLOW_V_3_0_PLUS:
         with create_session() as session:
             from airflow.models.dagbundle import DagBundleModel
 

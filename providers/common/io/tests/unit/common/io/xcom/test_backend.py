@@ -26,9 +26,9 @@ from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 try:
-    from airflow.utils import timezone  # type: ignore[attr-defined]
-except ImportError:
     from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
