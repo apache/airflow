@@ -72,6 +72,9 @@ class TestDag:
     def test_dag_naive_start_date_string(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01"})
 
+    def test_dag_naive_start_date_constructor_default_args_string(self):
+        DAG("DAG", start_date=DEFAULT_DATE, schedule=None, default_args={"start_date": "2019-06-01"})
+
     def test_dag_naive_start_end_dates_strings(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01", "end_date": "2019-06-05"})
 
