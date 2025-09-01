@@ -17,11 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import ExitStack, redirect_stderr, redirect_stdout
 
-class StreamCaptureManager:
+
+class StreamCaptureManager(ExitStack):
     """Context manager class for capturing stdout and/or stderr while isolating from Logger output."""
 
     def __init__(self, capture_stdout=True, capture_stderr=False):
+        super().__init__()
         from io import StringIO
 
         self.capture_stdout = capture_stdout
@@ -30,7 +33,6 @@ class StreamCaptureManager:
         self._stdout_buffer = StringIO() if capture_stdout else None
         self._stderr_buffer = StringIO() if capture_stderr else None
 
-        self.original_handlers = []
         self._stdout_final = ""
         self._stderr_final = ""
         self._in_context = False
@@ -76,17 +78,32 @@ class StreamCaptureManager:
     def __enter__(self):
         import logging
         import sys
-        from contextlib import redirect_stderr, redirect_stdout
+
+        # Set up context managers for redirection
+        self._context_manager = ExitStack()
 
         self._in_context = True
 
         # Setup logging isolation
         root_logger = logging.getLogger()
-        self.original_handlers = list(root_logger.handlers)
+        original_handlers = list(root_logger.handlers)
+
+        def reset_handlers():
+            from logging import _acquireLock, _releaseLock
+
+            root_logger = logging.getLogger()
+
+            _acquireLock()
+            try:
+                root_logger.handlers = original_handlers
+            finally:
+                _releaseLock()
+
+        self.callback(reset_handlers)
 
         # Remove stream handlers that would interfere with capture
         handlers_to_remove = []
-        for handler in self.original_handlers:
+        for handler in original_handlers:
             if isinstance(handler, logging.StreamHandler):
                 if self.capture_stdout and handler.stream == sys.stdout:
                     handlers_to_remove.append(handler)
@@ -96,58 +113,27 @@ class StreamCaptureManager:
         for handler in handlers_to_remove:
             root_logger.removeHandler(handler)
 
-        # Set up context managers for redirection
-        self._context_managers = []
+        def final_value(buffer, attrname):
+            if buffer:
+                try:
+                    val = buffer.getvalue()
+                except (ValueError, AttributeError):
+                    val = ""
+                setattr(self, attrname, val)
 
         if self.capture_stdout:
             self._stdout_redirect = redirect_stdout(self._stdout_buffer)
-            self._context_managers.append(self._stdout_redirect)
+            self.enter_context(self._stdout_redirect)
+            self.callback(final_value, buffer=self._stdout_buffer, attrname="_stdout_final")
 
         if self.capture_stderr:
             self._stderr_redirect = redirect_stderr(self._stderr_buffer)
-            self._context_managers.append(self._stderr_redirect)
+            self.enter_context(self._stderr_redirect)
+            self.callback(final_value, buffer=self._stderr_buffer, attrname="_stderr_final")
 
-        # Enter all context managers
-        for cm in self._context_managers:
-            cm.__enter__()
+        self.callback(setattr, self, "_in_context", False)
 
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        import logging
-        import sys
-
-        self._in_context = False
-
-        # Capture content BEFORE cleaning up
-        if self._stdout_buffer:
-            try:
-                self._stdout_final = self._stdout_buffer.getvalue()
-            except (ValueError, AttributeError):
-                self._stdout_final = ""
-
-        if self._stderr_buffer:
-            try:
-                self._stderr_final = self._stderr_buffer.getvalue()
-            except (ValueError, AttributeError):
-                self._stderr_final = ""
-
-        # Exit all context managers in reverse order
-        for cm in reversed(self._context_managers):
-            try:
-                cm.__exit__(exc_type, exc_val, exc_tb)
-            except Exception:
-                pass  # Don't let cleanup failures mask the real error
-
-        # Restore logging handlers
-        root_logger = logging.getLogger()
-        for handler in self.original_handlers:
-            if isinstance(handler, logging.StreamHandler):
-                if (self.capture_stdout and handler.stream == sys.stdout) or (
-                    self.capture_stderr and handler.stream == sys.stderr
-                ):
-                    if handler not in root_logger.handlers:
-                        root_logger.addHandler(handler)
+        return super().__enter__()
 
 
 # Convenience classes
