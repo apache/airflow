@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
