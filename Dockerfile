@@ -197,7 +197,6 @@ function link_python() {
     # Links in /usr/local/bin are needed for tools that expect python to be there
     # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
     # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
-    ldconfig
     for dst in pip3 python3 python3-config; do
         src="$(echo "${dst}" | tr -d 3)"
         echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
@@ -209,6 +208,16 @@ function link_python() {
             fi
         done
     done
+    for dst in /usr/python/lib/*
+    do
+        src="/usr/local/lib/$(basename "${dst}")"
+        if [[ -e "${src}" ]]; then
+            rm -rf "${src}"
+        fi
+        echo "Linking ${dst} to ${src}"
+        ln -sv "${dst}" "${src}"
+    done
+    ldconfig
 }
 
 function install_debian_runtime_dependencies() {
@@ -1558,11 +1567,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG BASE_IMAGE
 
 # Make sure noninteractive debian install is used and language variables set
-# as well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
-# shared libraries installed there are found
 ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
@@ -1794,11 +1801,9 @@ LABEL org.apache.airflow.distro="debian" \
 ARG BASE_IMAGE
 
 # Make sure noninteractive debian install is used and language variables set
-# as well as LD_LIBRARY_PATH to /usr/local/lib and /usr/python/lib is set, so that
-# shared libraries installed there are found
 ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/python/lib:/usr/local/lib \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
