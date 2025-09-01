@@ -328,11 +328,13 @@ export const UseEventLogServiceGetEventLogKeyFn = ({ eventLogId }: {
 export type EventLogServiceGetEventLogsDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLogs>>;
 export type EventLogServiceGetEventLogsQueryResult<TData = EventLogServiceGetEventLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogsKey = "EventLogServiceGetEventLogs";
-export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }: {
+export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }: {
   after?: string;
   before?: string;
   dagId?: string;
+  dagIdPattern?: string;
   event?: string;
+  eventPattern?: string;
   excludedEvents?: string[];
   includedEvents?: string[];
   limit?: number;
@@ -340,10 +342,13 @@ export const UseEventLogServiceGetEventLogsKeyFn = ({ after, before, dagId, even
   offset?: number;
   orderBy?: string[];
   owner?: string;
+  ownerPattern?: string;
   runId?: string;
+  runIdPattern?: string;
   taskId?: string;
+  taskIdPattern?: string;
   tryNumber?: number;
-} = {}, queryKey?: Array<unknown>) => [useEventLogServiceGetEventLogsKey, ...(queryKey ?? [{ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }])];
+} = {}, queryKey?: Array<unknown>) => [useEventLogServiceGetEventLogsKey, ...(queryKey ?? [{ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }])];
 export type ExtraLinksServiceGetExtraLinksDefaultResponse = Awaited<ReturnType<typeof ExtraLinksService.getExtraLinks>>;
 export type ExtraLinksServiceGetExtraLinksQueryResult<TData = ExtraLinksServiceGetExtraLinksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useExtraLinksServiceGetExtraLinksKey = "ExtraLinksServiceGetExtraLinks";
