@@ -9684,6 +9684,7 @@ components:
 
 
             Deprecated: Use max_active_tasks instead.'
+          deprecated: true
           readOnly: true
         latest_dag_version:
           anyOf:
