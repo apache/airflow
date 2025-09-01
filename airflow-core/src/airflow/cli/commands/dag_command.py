@@ -37,11 +37,11 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
-from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
@@ -364,23 +364,21 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag_import_errors = 0
     dags_list = []
     if args.local:
-        from airflow.models.dagbag import DagBag
-
+        manager = DagBundlesManager()
         # Get import errors from the local area
         if args.bundle_name:
-            manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)
             all_bundles = list(manager.get_all_dag_bundles())
             bundles_to_search = set(args.bundle_name)
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
+                    dagbag = manager.get_dagbag(dags_folder=bundle.path, bundle_path=bundle.path)
                     dagbag.collect_dags()
                     dags_list.extend(list(dagbag.dags.values()))
                     dagbag_import_errors += len(dagbag.import_errors)
         else:
-            dagbag = DagBag()
+            dagbag = manager.get_dagbag()
             dagbag.collect_dags()
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
@@ -463,19 +461,19 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
     if args.local:
         # Get import errors from local areas
+        manager = DagBundlesManager()
         if args.bundle_name:
-            manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)
             all_bundles = list(manager.get_all_dag_bundles())
             bundles_to_search = set(args.bundle_name)
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
+                    dagbag = manager.get_dagbag(dags_folder=bundle.path, bundle_path=bundle.path)
                     for filename, errors in dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
-            dagbag = DagBag()
+            dagbag = manager.get_dagbag()
             for filename, errors in dagbag.import_errors.items():
                 data.append({"filepath": filename, "error": errors})
 
@@ -523,7 +521,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag = manager.get_dagbag(dags_folder=bundle.path, include_examples=False)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -687,5 +685,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
+        dag_bag = manager.get_dagbag(dags_folder=bundle.path, bundle_path=bundle.path, include_examples=False)
         sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

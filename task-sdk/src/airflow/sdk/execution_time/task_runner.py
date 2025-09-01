@@ -603,10 +603,9 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
 
-    from airflow.models.dagbag import DagBag
-
     bundle_info = what.bundle_info
-    bundle_instance = DagBundlesManager().get_bundle(
+    manager = DagBundlesManager()
+    bundle_instance = manager.get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
     )
@@ -618,7 +617,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         sys.path.append(bundle_root)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = DagBag(
+    bag = manager.get_dagbag(
         dag_folder=dag_absolute_path,
         include_examples=False,
         safe_mode=False,
