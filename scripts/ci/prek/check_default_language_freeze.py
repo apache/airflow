@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import datetime, timezone
+from subprocess import run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -42,15 +43,18 @@ if __name__ == "__main__":
     today = datetime.now(timezone.utc).date()
 
     if freeze_start <= today <= freeze_end:
-        if args.files:
+        changed_files = [
+            f for f in args.files if run(["git", "diff", "--cached", "--quiet", "--", f]).returncode != 0
+        ]
+        if changed_files:
             print(
                 f"Error: English language freeze is active from {args.freeze_start_date} to "
                 f"{args.freeze_end_date}.",
                 file=sys.stderr,
             )
             print("Changes to English translation files are not allowed during this period.", file=sys.stderr)
-            print("The following files are affected:", file=sys.stderr)
-            for file_path in args.files:
+            print("The following files have staged changes:", file=sys.stderr)
+            for file_path in changed_files:
                 print(f"  - {file_path}", file=sys.stderr)
             sys.exit(1)
 
