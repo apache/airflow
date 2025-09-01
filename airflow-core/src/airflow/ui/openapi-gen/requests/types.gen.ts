@@ -2500,7 +2500,15 @@ export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
     dagId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     event?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    eventPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
     includedEvents?: Array<(string)> | null;
     limit?: number;
@@ -2508,8 +2516,20 @@ export type GetEventLogsData = {
     offset?: number;
     orderBy?: Array<(string)>;
     owner?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    ownerPattern?: string | null;
     runId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     tryNumber?: number | null;
 };
 

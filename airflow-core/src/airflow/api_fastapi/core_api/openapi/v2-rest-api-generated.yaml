@@ -3781,6 +3781,66 @@ paths:
             format: date-time
           - type: 'null'
           title: After
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: owner_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Owner Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: event_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Event Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
