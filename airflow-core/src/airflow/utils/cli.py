@@ -316,7 +316,7 @@ def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
-    from airflow.dag_processing.dagbag import DagBag
+    from airflow.models import DagBag
 
     bundle_names = bundle_names or []
 
