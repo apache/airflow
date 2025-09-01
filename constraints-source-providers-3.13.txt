@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-01T08:04:39.021269
+# This constraints file was automatically generated on 2025-09-01T13:49:13.960545
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -148,7 +148,7 @@ coverage==7.10.6
 crcmod==1.7
 cron_descriptor==2.0.5
 croniter==6.0.0
-cryptography==45.0.6
+cryptography==45.0.7
 curlify==3.0.0
 databricks-sql-connector==4.1.2
 databricks-sqlalchemy==2.0.7
@@ -180,7 +180,7 @@ eralchemy2==1.4.1
 et_xmlfile==2.0.0
 eventlet==0.40.3
 execnet==2.1.1
-executing==2.2.0
+executing==2.2.1
 facebook_business==23.0.1
 fastapi-cli==0.0.10
 fastapi==0.116.1
@@ -463,7 +463,7 @@ pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyenchant==3.2.2
-pyexasol==0.27.0
+pyexasol==1.0.0
 pygraphviz==1.14
 pyiceberg==0.9.1
 pykerberos==1.2.4
@@ -541,7 +541,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.12.2
-sentry-sdk==2.35.1
+sentry-sdk==2.35.2
 setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1

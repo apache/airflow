@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-01T08:07:55.658668
+# This constraints file was automatically generated on 2025-09-01T13:52:25.210519
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -246,7 +246,7 @@ comm==0.2.3
 crcmod==1.7
 cron_descriptor==2.0.5
 croniter==6.0.0
-cryptography==45.0.6
+cryptography==45.0.7
 curlify==3.0.0
 databricks-sql-connector==4.1.2
 databricks-sqlalchemy==2.0.7
@@ -271,7 +271,7 @@ email-validator==2.3.0
 entrypoints==0.4
 et_xmlfile==2.0.0
 eventlet==0.40.3
-executing==2.2.0
+executing==2.2.1
 facebook_business==23.0.1
 fastapi-cli==0.0.10
 fastapi==0.116.1
@@ -509,7 +509,7 @@ pydantic==2.11.7
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydruid==0.6.9
-pyexasol==0.27.0
+pyexasol==1.0.0
 pykerberos==1.2.4
 pymongo==4.14.1
 pymssql==2.3.7
@@ -563,7 +563,7 @@ scramp==1.4.6
 scrapbook==0.5.0
 segment-analytics-python==2.3.4
 sendgrid==6.12.2
-sentry-sdk==2.35.1
+sentry-sdk==2.35.2
 setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1
