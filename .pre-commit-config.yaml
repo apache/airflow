@@ -1467,6 +1467,7 @@ repos:
           - --freeze-end-date
           - "2025-09-09"
         files: ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*
+        exclude: ^airflow-core/src/airflow/ui/public/i18n/locales/en/_freeze_exemptions\.json.*
         pass_filenames: true
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
