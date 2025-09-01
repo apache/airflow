@@ -180,7 +180,7 @@ export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
   let stateType: [string, string] = ["responseRequired", "responseReceived"];
 
   if (!responseReceived && isNotDeferred) {
-    // need to update this after unfreezing hitl.json
+    // TODO: update this after unfreezing hitl.json
     return translate("_freeze_exemptions:hitl.state.noResponseReceived");
   }
 
