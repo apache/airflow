@@ -83,7 +83,7 @@ export const Gantt = ({ limit }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
   const ref = useRef();
-  const [tick, setTick] = useState(0);
+  const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
 
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
     "gray.200",
@@ -125,15 +125,17 @@ export const Gantt = ({ limit }: Props) => {
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
   useEffect(() => {
-    const hasRunningTasks = taskInstancesData?.task_instances?.some((ti) => isStatePending(ti.state));
+    const hasRunningTasks = taskInstancesData?.task_instances.some((ti) => isStatePending(ti.state));
 
     if (hasRunningTasks) {
       const interval = setInterval(() => {
-        setTick(prev => prev + 1);
+        setCurrentTime(new Date().toISOString());
       }, 3000);
 
       return () => clearInterval(interval);
     }
+
+    return undefined;
   }, [taskInstancesData]);
 
   const data = useMemo(() => {
@@ -167,9 +169,7 @@ export const Gantt = ({ limit }: Props) => {
 
           if (taskInstance) {
             const isTaskRunning = taskInstance.state === "running";
-            const endTime = isTaskRunning && !taskInstance.end_date
-              ? new Date().toISOString()
-              : taskInstance.end_date;
+            const endTime = isTaskRunning ? currentTime : taskInstance.end_date;
 
             return {
               isGroup: false,
@@ -188,7 +188,7 @@ export const Gantt = ({ limit }: Props) => {
         return undefined;
       })
       .filter((item) => item !== undefined);
-  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, tick]);
+  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
 
   const chartData = useMemo(
     () => ({
