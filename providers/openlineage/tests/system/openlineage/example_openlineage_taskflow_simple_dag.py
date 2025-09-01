@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Simple DAG without schedule and extra args, with one operator, to verify OpenLineage event integrity.
+Simple DAG to verify that DAG defined with taskflow API emits OL events.
 
 It checks:
     - required keys
@@ -27,38 +27,34 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
-
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 try:
-    from airflow.sdk import chain
-except ImportError:
-    from airflow.models.baseoperator import chain  # type: ignore[no-redef]
+    from airflow.sdk import dag, task
+except ImportError:  # Airflow 2
+    from airflow.decorators import dag, task  # type: ignore[no-redef, attr-defined]
 
 
-def do_nothing():
-    pass
+DAG_ID = "openlineage_taskflow_simple_dag"
 
 
-DAG_ID = "openlineage_base_simple_dag"
+@dag(schedule=None, start_date=datetime(2021, 1, 1), catchup=False, default_args={"retries": 0})
+def openlineage_taskflow_simple_dag():
+    @task
+    def do_nothing_task(**context):
+        return None
 
-with DAG(
-    dag_id=DAG_ID,
-    start_date=datetime(2021, 1, 1),
-    schedule=None,
-    catchup=False,
-    default_args={"retries": 0},
-) as dag:
-    do_nothing_task = PythonOperator(task_id="do_nothing_task", python_callable=do_nothing)
+    do_nothing = do_nothing_task()
 
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
 
-    chain(do_nothing_task, check_events)
+    do_nothing >> check_events
+
+
+openlineage_taskflow_simple_dag()
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

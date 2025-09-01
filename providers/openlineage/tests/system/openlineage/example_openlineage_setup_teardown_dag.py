@@ -15,12 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Simple DAG without schedule and extra args, with one operator, to verify OpenLineage event integrity.
+Simple DAG with setup and teardown operators.
 
 It checks:
-    - required keys
-    - field formats and types
-    - number of task events (one start, one complete)
+    - if setup and teardown information is included in DAG event for all tasks
+    - if setup and teardown information is included in task events for AF2
 """
 
 from __future__ import annotations
@@ -33,17 +32,12 @@ from airflow.providers.standard.operators.python import PythonOperator
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
-try:
-    from airflow.sdk import chain
-except ImportError:
-    from airflow.models.baseoperator import chain  # type: ignore[no-redef]
-
 
 def do_nothing():
     pass
 
 
-DAG_ID = "openlineage_base_simple_dag"
+DAG_ID = "openlineage_setup_teardown_dag"
 
 with DAG(
     dag_id=DAG_ID,
@@ -52,13 +46,22 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    do_nothing_task = PythonOperator(task_id="do_nothing_task", python_callable=do_nothing)
+    create_cluster = PythonOperator(task_id="create_cluster", python_callable=do_nothing)
+    run_query = PythonOperator(task_id="run_query", python_callable=do_nothing)
+    run_query2 = PythonOperator(task_id="run_query2", python_callable=do_nothing)
+    delete_cluster = PythonOperator(task_id="delete_cluster", python_callable=do_nothing)
 
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
 
-    chain(do_nothing_task, check_events)
+    (
+        create_cluster
+        >> run_query
+        >> run_query2
+        >> delete_cluster.as_teardown(setups=create_cluster)
+        >> check_events
+    )
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
