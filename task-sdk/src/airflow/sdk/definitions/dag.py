@@ -458,7 +458,9 @@ class DAG:
     def __attrs_post_init__(self):
         from airflow.sdk import timezone
 
-        # Apply the timezone we settled on to end_date if it wasn't supplied
+        # Apply the timezone we settled on to start_date, end_date if it wasn't supplied
+        if isinstance(_start_date := self.default_args.get("start_date"), str):
+            self.default_args["start_date"] = timezone.parse(_start_date, timezone=self.timezone)
         if isinstance(_end_date := self.default_args.get("end_date"), str):
             self.default_args["end_date"] = timezone.parse(_end_date, timezone=self.timezone)
 
