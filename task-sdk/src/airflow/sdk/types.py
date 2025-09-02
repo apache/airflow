@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class DagRunProtocol(Protocol):
-    """Minimal interface for a DAG run available during the execution."""
+    """Minimal interface for a Dag run available during the execution."""
 
     dag_id: str
     run_id: str

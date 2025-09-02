@@ -16,6 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "requests==2.32.3",
+# ]
+# ///
 from __future__ import annotations
 
 import json

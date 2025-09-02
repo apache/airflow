@@ -79,6 +79,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
+from airflow.models.dag_version import DagVersion
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -117,7 +118,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.dag import DAG as SchedulerDAG, DagModel
+    from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
@@ -222,7 +223,6 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
-
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
@@ -281,6 +281,15 @@ def clear_task_instances(
                 dr.start_date = timezone.utcnow()
                 if run_on_latest_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                    dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                    if dag_version:
+                        # Change the dr.created_dag_version_id so the scheduler doesn't reject this
+                        # version when it sets the dag_run.dag
+                        dr.created_dag_version_id = dag_version.id
+                        dr.dag = dr_dag
+                        dr.verify_integrity(session=session, dag_version_id=dag_version.id)
+                        for ti in dr.task_instances:
+                            ti.dag_version_id = dag_version.id
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
@@ -845,8 +854,6 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             return None
 
-        if TYPE_CHECKING:
-            assert isinstance(dag, SchedulerDAG)
         dr = self.get_dagrun(session=session)
         dr.dag = dag
 
@@ -1023,7 +1030,6 @@ class TaskInstance(Base, LoggingMixin):
         if getattr(self, "task", None) is not None:
             if TYPE_CHECKING:
                 assert self.task
-                assert isinstance(self.task.dag, SchedulerDAG)
             dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.logical_date` will work correctly
         set_committed_value(self, "dag_run", dr)
@@ -1734,13 +1740,13 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
 
+        from airflow.exceptions import NotMapped
         from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
             TIRunContext,
         )
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.sdk.definitions.param import process_params
         from airflow.sdk.execution_time.context import InletEventsAccessors
         from airflow.utils.context import (

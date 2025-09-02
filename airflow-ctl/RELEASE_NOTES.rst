@@ -15,8 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-airflowctl 1.0.0b1 (2025-08-23)
+airflowctl 1.0.0b1 (2025-08-25)
 ------------------------------
 
 Beta Release of airflowctl, a command-line tool. There are lots of great features to use from start.
 Please check the documentation for quick start and usage instructions.
+
+Please visit quick start guide: :doc:`/start`
+
+A new way of using Apache Airflow using CLI. Enhanced security is provided by using the Apache Airflow API to provide similar functionality to the Apache Airflow CLI.
+Integrated with Keyring to enhance password security.

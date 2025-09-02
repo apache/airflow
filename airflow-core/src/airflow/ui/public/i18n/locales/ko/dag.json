@@ -40,7 +40,6 @@
     "warning": "경고"
   },
   "navigation": {
-    "jump": "이동: Shift+{{arrow}}",
     "navigation": "탐색: {{arrow}}",
     "toggleGroup": "그룹 전환: Space"
   },
