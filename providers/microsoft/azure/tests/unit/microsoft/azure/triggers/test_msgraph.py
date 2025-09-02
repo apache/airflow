@@ -25,6 +25,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pendulum
+import pytest
+from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion
 
 from airflow.exceptions import AirflowException
@@ -152,6 +154,19 @@ class TestMSGraphTrigger(Base):
 
         for template_field in MSGraphTrigger.template_fields:
             getattr(trigger, template_field)
+
+    def test_get_conn(self):
+        with self.patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.warns(
+                DeprecationWarning,
+                match="get_conn is deprecated, please use the async get_async_conn method!"
+            ):
+                actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
 
 class TestResponseSerializer:
