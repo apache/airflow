@@ -23,20 +23,20 @@ import random
 import pytest
 from sqlalchemy import select
 
-from airflow.models import DagRun
-from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import sync_dag_to_db
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -330,14 +330,7 @@ class TestClearTasks:
             dag.task_dict.clear()
             dag.task_group.children.clear()
             assert ti1.max_tries == 2
-            SerializedDagModel.write_dag(
-                dag=dag,
-                bundle_name="dag_maker",
-                bundle_version=None,
-                min_update_interval=0,
-                session=session,
-            )
-            session.commit()
+            sync_dag_to_db(dag, session=session)
             session.refresh(ti1)
             assert ti0.try_number == 1
             assert ti0.max_tries == 0
@@ -631,7 +624,7 @@ class TestClearTasks:
                 )
             )
 
-        DAG.clear_dags(dags)
+        SerializedDAG.clear_dags(dags)
         session.commit()
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
@@ -650,7 +643,7 @@ class TestClearTasks:
             assert ti.try_number == 2
             assert ti.max_tries == 1
         session.commit()
-        DAG.clear_dags(dags, dry_run=True)
+        SerializedDAG.clear_dags(dags, dry_run=True)
         session.commit()
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
@@ -664,7 +657,7 @@ class TestClearTasks:
         ti_fail.state = State.FAILED
         session.commit()
 
-        DAG.clear_dags(dags, only_failed=True)
+        SerializedDAG.clear_dags(dags, only_failed=True)
 
         for ti in tis:
             ti = _get_ti(ti)

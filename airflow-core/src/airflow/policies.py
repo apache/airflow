@@ -27,13 +27,11 @@ hookimpl = pluggy.HookimplMarker("airflow.policy")
 __all__: list[str] = ["hookimpl"]
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator as BaseOperator
 
 
 @local_settings_hookspec
-def task_policy(task: BaseOperator) -> None:
+def task_policy(task) -> None:
     """
     Allow altering tasks after they are loaded in the DagBag.
 
@@ -51,7 +49,7 @@ def task_policy(task: BaseOperator) -> None:
 
 
 @local_settings_hookspec
-def dag_policy(dag: DAG) -> None:
+def dag_policy(dag) -> None:
     """
     Allow altering DAGs after they are loaded in the DagBag.
 
