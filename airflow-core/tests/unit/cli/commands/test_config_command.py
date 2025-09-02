@@ -234,9 +234,12 @@ class TestCliConfigGetValue:
         config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
     def test_should_raise_exception_when_option_is_missing(self, caplog):
-        config_command.get_value(
-            self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-        )
+        from airflow._shared.configuration.exceptions import AirflowConfigException
+
+        with pytest.raises(AirflowConfigException):
+            config_command.get_value(
+                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
+            )
         assert "section/key [missing-section/dags_folder] not found in config" in caplog.text
 
 
