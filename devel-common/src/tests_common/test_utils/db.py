@@ -90,9 +90,9 @@ def _deactivate_unknown_dags(active_dag_ids, session):
 
 
 def _bootstrap_dagbag():
-    try:
+    if AIRFLOW_V_3_1_PLUS:
         from airflow.dag_processing.dagbag import DagBag
-    except ImportError:  # back-compat for Airflow <3.1
+    else:  # back-compat for Airflow <3.1
         from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
