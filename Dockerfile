@@ -97,7 +97,9 @@ COPY <<"EOF" /install_os_dependencies.sh
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
+    echo
     echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
+    echo
     exit 1
 fi
 
@@ -111,20 +113,72 @@ elif   [[ "${1}" == "dev" ]]; then
 elif   [[ "${1}" == "ci" ]]; then
     INSTALLATION_TYPE="CI"
 else
+    echo
     echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
+    echo
     exit 1
 fi
 
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
-        DEV_APT_DEPS="apt-transport-https apt-utils build-essential dirmngr \
-freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
-libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev wget \
-gdb lcov pkg-config libbz2-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
-libncurses5-dev libreadline6-dev libsqlite3-dev lzma lzma-dev tk-dev uuid-dev \
-libzstd-dev"
+        DEV_APT_DEPS="\
+apt-transport-https \
+apt-utils \
+build-essential \
+dirmngr \
+freetds-bin \
+freetds-dev \
+git \
+graphviz \
+graphviz-dev \
+krb5-user \
+lcov \
+ldap-utils \
+libbluetooth-dev \
+libbz2-dev \
+libc6-dev \
+libdb-dev \
+libev-dev \
+libev4 \
+libffi-dev \
+libgdbm-compat-dev \
+libgdbm-dev \
+libgdbm-dev \
+libgeos-dev \
+libkrb5-dev \
+libldap2-dev \
+libleveldb-dev \
+libleveldb1d \
+liblzma-dev \
+libncurses5-dev \
+libreadline6-dev \
+libsasl2-2 \
+libsasl2-dev \
+libsasl2-modules \
+libsqlite3-dev \
+libssl-dev \
+libxmlsec1 \
+libxmlsec1-dev \
+libzstd-dev \
+locales \
+lsb-release \
+lzma \
+lzma-dev \
+openssh-client \
+openssl \
+pkg-config \
+pkgconf \
+sasl2-bin \
+sqlite3 \
+sudo \
+tk-dev \
+unixodbc \
+unixodbc-dev \
+uuid-dev \
+wget \
+xz-utils \
+zlib1g-dev \
+"
         export DEV_APT_DEPS
     fi
 }
@@ -138,15 +192,43 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
+    debian_version_apt_deps="\
+libffi8 \
+libldap-2.5-0 \
+libssl3 \
+netcat-openbsd\
+"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
-        RUNTIME_APT_DEPS="apt-transport-https apt-utils \
-curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
-ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
-lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc wget"
+        RUNTIME_APT_DEPS="\
+${debian_version_apt_deps} \
+apt-transport-https \
+apt-utils \
+curl \
+dumb-init \
+freetds-bin \
+git \
+gnupg \
+iputils-ping \
+krb5-user \
+ldap-utils \
+libev4 \
+libgeos-dev \
+libsasl2-2 \
+libsasl2-modules \
+libxmlsec1 \
+locales \
+lsb-release \
+openssh-client \
+rsync \
+sasl2-bin \
+sqlite3 \
+sudo \
+unixodbc \
+wget\
+"
         export RUNTIME_APT_DEPS
     fi
 }
@@ -188,9 +270,15 @@ function install_debian_dev_dependencies() {
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
     # shellcheck disable=SC2086
-    apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+    apt-get install -y --no-install-recommends ${DEV_APT_DEPS}
 }
 
+function install_additional_dev_dependencies() {
+    if [[ "${ADDITIONAL_DEV_APT_DEPS=}" != "" ]]; then
+        # shellcheck disable=SC2086
+        apt-get install -y --no-install-recommends ${ADDITIONAL_DEV_APT_DEPS}
+    fi
+}
 
 function link_python() {
     # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
@@ -242,6 +330,27 @@ function install_debian_runtime_dependencies() {
 }
 
 function install_python() {
+    # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
+    # to fail and make sure that it is not there, because there can be strange interactions if we install
+    # newer version and system libraries are installed, because
+    # when you create a virtualenv part of the shared libraries of Python can be taken from the system
+    # Installation leading to weird errors when you want to install some modules - for example when you install ssl:
+    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
+    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
+        echo
+        echo "ERROR! System python is installed by one of the previous steps"
+        echo
+        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython3.11 is installed:"
+        echo
+        apt-get install -yqq aptitude >/dev/null
+        aptitude why libpython3.11
+        echo
+        exit 1
+    else
+        echo
+        echo "GOOD! System python is not installed - OK"
+        echo
+    fi
     wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
     declare -A keys=(
@@ -281,7 +390,8 @@ function install_python() {
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
     ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
-        --enable-loadable-sqlite-extensions --enable-option-checking=fatal  --enable-shared --with-lto
+        --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+            --enable-shared --with-lto
     make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
         "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
     make -s -j "$(nproc)" install
@@ -314,6 +424,7 @@ else
     get_dev_apt_deps
     install_debian_dev_dependencies
     install_python
+    install_additional_dev_dependencies
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
     fi
@@ -1589,6 +1700,11 @@ ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
+
+# In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
+# libraries will be accidentally used before the library installed from sources (which is newer and
+# python interpreter might break if accidentally the old system libraries are used.
+ENV LD_LIBRARY_PATH="/usr/python/lib"
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"

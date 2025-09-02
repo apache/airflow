@@ -167,9 +167,22 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
 };
 
 export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
-  const { chosen_options: chosenOptions, options, params, response_received: responseReceived } = hitlDetail;
+  const {
+    chosen_options: chosenOptions,
+    options,
+    params,
+    response_received: responseReceived,
+    task_instance: { state: taskInstanceState },
+  } = hitlDetail;
+
+  const isNotDeferred = taskInstanceState !== "deferred";
 
   let stateType: [string, string] = ["responseRequired", "responseReceived"];
+
+  if (!responseReceived && isNotDeferred) {
+    // TODO: update this after unfreezing hitl.json
+    return translate("_freeze_exemptions:hitl.state.noResponseReceived");
+  }
 
   if (options.length === 2 && options.includes("Approve") && options.includes("Reject")) {
     // If options contain only "Approve" and "Reject" -> approval task

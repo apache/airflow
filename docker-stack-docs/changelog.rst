@@ -57,6 +57,11 @@ command:
   location has been hard-coded to - for example - detect ``site-packages`` dir, the folders moved to
   the ``/usr/python`` directory.
 
+There might be other subtle changes in the image due to the change of the base image, some packages (
+especially dev libraries installed with ``apt`` might not be installed by default if they were installed
+as a side-effect in the original image, however that should only affect those who want to customise the image.
+They should be able to install in their custom images following the :doc:`Building the image <build>`
+
 Airflow 3.0.2
 ~~~~~~~~~~~~~
 

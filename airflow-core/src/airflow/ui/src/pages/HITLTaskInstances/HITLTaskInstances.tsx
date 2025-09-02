@@ -114,7 +114,7 @@ const taskInstanceColumns = ({
 ];
 
 export const HITLTaskInstances = () => {
-  const { t: translate } = useTranslation("hitl");
+  const { t: translate } = useTranslation(["hitl", "_freeze_exemptions"]);
   const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();

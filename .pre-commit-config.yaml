@@ -1456,6 +1456,19 @@ repos:
         files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/prek/check_i18n_json.py
         pass_filenames: false
+      - id: check-en-language-freeze
+        name: Check for Default language (English) freeze
+        description: Prevent changes to English translation files during the language freeze period (typically around release time; time is measured in UTC)
+        language: python
+        entry: ./scripts/ci/prek/check_default_language_freeze.py
+        args:
+          - --freeze-start-date
+          - "2025-09-01"
+          - --freeze-end-date
+          - "2025-09-09"
+        files: ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*
+        exclude: ^airflow-core/src/airflow/ui/public/i18n/locales/en/_freeze_exemptions\.json.*
+        pass_filenames: true
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/prek/check_provider_yaml_files.py

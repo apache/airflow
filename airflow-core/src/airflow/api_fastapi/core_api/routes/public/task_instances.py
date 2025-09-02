@@ -744,7 +744,6 @@ def post_clear_task_instances(
     common_params = {
         "dry_run": True,
         "task_ids": task_ids,
-        "dag_bag": dag_bag,
         "session": session,
         "run_on_latest_version": body.run_on_latest_version,
         "only_failed": body.only_failed,

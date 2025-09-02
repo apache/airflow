@@ -45,7 +45,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -57,8 +57,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import Operator
-    from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 log = logging.getLogger(__name__)
 
@@ -317,15 +315,9 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG | LazyDeserializedDAG) -> None:
-        from airflow.sdk import DAG
-
+    def __init__(self, dag: LazyDeserializedDAG) -> None:
         self.dag_id = dag.dag_id
-        if isinstance(dag, DAG):
-            dag_data = SerializedDAG.to_dict(dag)
-        else:
-            dag_data = dag.data
-
+        dag_data = dag.data
         self.dag_hash = SerializedDagModel.hash(dag_data)
 
         # partially ordered json data
@@ -382,7 +374,7 @@ class SerializedDagModel(Base):
     @provide_session
     def write_dag(
         cls,
-        dag: DAG | LazyDeserializedDAG,
+        dag: LazyDeserializedDAG,
         bundle_name: str,
         bundle_version: str | None = None,
         min_update_interval: int | None = None,
