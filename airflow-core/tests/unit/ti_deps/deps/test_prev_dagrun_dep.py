@@ -23,14 +23,13 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 
 from airflow._shared.timezones.timezone import convert_to_utc, datetime
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk import DAG, BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -55,10 +54,9 @@ class TestPrevDagrunDep:
             start_date=START_DATE,
             wait_for_downstream=False,
         )
-        DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        scheduler_dag = sync_dag_to_db(dag)
         # Old DAG run will include only TaskInstance of old_task
-        dag.create_dagrun(
+        scheduler_dag.create_dagrun(
             run_id="old_run",
             state=TaskInstanceState.SUCCESS,
             logical_date=old_task.start_date,
@@ -78,7 +76,7 @@ class TestPrevDagrunDep:
 
         # New DAG run will include 1st TaskInstance of new_task
         logical_date = convert_to_utc(datetime(2016, 1, 2))
-        dr = dag.create_dagrun(
+        dr = create_scheduler_dag(dag).create_dagrun(
             run_id="new_run",
             state=DagRunState.RUNNING,
             logical_date=logical_date,

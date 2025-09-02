@@ -27,10 +27,7 @@
 #
 # You can read more in the README_API.md file
 #
-"""
-Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer
-isort:skip_file
-"""
+"""Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer."""
 
 from collections.abc import Sequence
 from functools import cached_property as cached_property

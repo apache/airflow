@@ -50,6 +50,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
@@ -63,7 +64,7 @@ def _get_task_instance(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int | None = None,
+    map_index: int,
 ) -> TI:
     query = select(TI).where(
         TI.dag_id == dag_id,
@@ -83,11 +84,6 @@ def _get_task_instance(
                 f"task_id: `{task_id}` and map_index: `{map_index}` was not found"
             ),
         )
-    if map_index is None and task_instance.map_index != -1:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task instance is mapped, add the map_index value to the URL",
-        )
 
     return task_instance
 
@@ -99,7 +95,7 @@ def _update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
-    map_index: int | None = None,
+    map_index: int,
 ) -> HITLDetailResponse:
     task_instance = _get_task_instance(
         dag_id=dag_id,
@@ -151,7 +147,7 @@ def _get_hitl_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int | None = None,
+    map_index: int,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance = _get_task_instance(
@@ -186,7 +182,10 @@ def _get_hitl_detail(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL)),
+        Depends(action_logging()),
+    ],
 )
 def update_hitl_detail(
     dag_id: str,
@@ -195,38 +194,7 @@ def update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
-) -> HITLDetailResponse:
-    """Update a Human-in-the-loop detail."""
-    return _update_hitl_detail(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        update_hitl_detail_payload=update_hitl_detail_payload,
-        user=user,
-        map_index=None,
-    )
-
-
-@hitl_router.patch(
-    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_403_FORBIDDEN,
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
-    ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
-)
-def update_mapped_ti_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    update_hitl_detail_payload: UpdateHITLDetailPayload,
-    user: GetUserDep,
-    session: SessionDep,
-    map_index: int,
+    map_index: int = -1,
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
     return _update_hitl_detail(
@@ -251,29 +219,7 @@ def get_hitl_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-) -> HITLDetail:
-    """Get a Human-in-the-loop detail of a specific task instance."""
-    return _get_hitl_detail(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=None,
-    )
-
-
-@hitl_router.get(
-    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
-    status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
-)
-def get_mapped_ti_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: SessionDep,
-    map_index: int,
+    map_index: int = -1,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
     return _get_hitl_detail(

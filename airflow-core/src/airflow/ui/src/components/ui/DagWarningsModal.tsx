@@ -38,10 +38,7 @@ export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, on
   const heading = Boolean(error)
     ? warnings?.length !== undefined && warnings.length > 0
       ? translate("dagWarnings.errorAndWarning", {
-          warning:
-            warnings.length > 1
-              ? translate("dagWarnings.warning_other", { count: warnings.length })
-              : translate("dagWarnings.warning_one"),
+          warning: translate("dagWarnings.warning", { count: warnings.length }),
         })
       : translate("dagWarnings.error_one")
     : "";

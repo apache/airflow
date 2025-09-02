@@ -17,12 +17,12 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
   useHumanInTheLoopServiceGetHitlDetails,
@@ -38,7 +38,8 @@ import { Header } from "./Header";
 export const TaskInstance = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
-
+  const navigate = useNavigate();
+  const location = useLocation();
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
@@ -79,7 +80,7 @@ export const TaskInstance = () => {
 
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
-  const { data: hitlDetails } = useHumanInTheLoopServiceGetHitlDetails(
+  const { data: hitlDetails, isLoading: isLoadingHitl } = useHumanInTheLoopServiceGetHitlDetails(
     {
       dagId,
       dagRunId: runId,
@@ -127,6 +128,12 @@ export const TaskInstance = () => {
 
     return true;
   });
+
+  useEffect(() => {
+    if (!hasHitlForTask && !isLoadingHitl && location.pathname.includes("required_actions")) {
+      navigate(`/dags/${dagId}/runs/${runId}/tasks/${taskId}`);
+    }
+  }, [dagId, error, hasHitlForTask, isLoadingHitl, location.pathname, navigate, runId, taskId]);
 
   return (
     <ReactFlowProvider>

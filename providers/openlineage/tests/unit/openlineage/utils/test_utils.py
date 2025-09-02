@@ -274,7 +274,7 @@ def test_get_fully_qualified_class_name_serialized_operator():
     op_path_after_deserialization = get_fully_qualified_class_name(deserialized)
     assert op_path_after_deserialization == f"{op_module_path}.{op_name}"
     assert deserialized._task_module == op_module_path
-    assert deserialized._task_type == op_name
+    assert deserialized.task_type == op_name
 
 
 def test_get_fully_qualified_class_name_mapped_operator():

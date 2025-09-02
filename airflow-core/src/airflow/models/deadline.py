@@ -86,6 +86,7 @@ class DeadlineCallbackState(str, Enum):
     """
 
     QUEUED = "queued"
+    RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
 
@@ -223,9 +224,11 @@ class Deadline(Base):
         if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
             DeadlineCallbackState.SUCCESS,
             DeadlineCallbackState.FAILED,
+            DeadlineCallbackState.RUNNING,
         }:
-            self.trigger = None
-            self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+            self.callback_state = status
+            if status != DeadlineCallbackState.RUNNING:
+                self.trigger = None
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)

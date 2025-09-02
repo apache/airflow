@@ -23,3 +23,6 @@ all: true
 recursive: true
 packages:
   github.com/apache/airflow/go-sdk:
+  github.com/apache/airflow/go-sdk/sdk:
+    config:
+      all: false

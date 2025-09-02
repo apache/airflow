@@ -860,7 +860,8 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow._shared.secrets_masker import mask_secret as mask_secret_core
+        from airflow.sdk.log import mask_secret as mask_secret_sdk
 
         for section, key in self.sensitive_config_values:
             try:
@@ -873,7 +874,8 @@ class AirflowConfigParser(ConfigParser):
                     key,
                 )
                 continue
-            mask_secret(value)
+            mask_secret_core(value)
+            mask_secret_sdk(value)
 
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
