@@ -1289,7 +1289,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
 
         with self.cloud_sql_proxy_context(self.hook):
             return get_openlineage_facets_with_sql(
-                hook=self.hook.mssql_hook,
+                hook=self.hook.db_hook,
                 sql=self.sql,  # type:ignore[arg-type]  # Iterable[str] instead of list[str]
                 conn_id=self.gcp_cloudsql_conn_id,
                 database=self.hook.database,
