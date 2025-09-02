@@ -3011,9 +3011,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -3021,9 +3021,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
