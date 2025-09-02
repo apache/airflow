@@ -161,7 +161,7 @@ class TestMSGraphTrigger(Base):
 
             with pytest.warns(
                 DeprecationWarning,
-                match="get_conn is deprecated, please use the async get_async_conn method!"
+                match="get_conn is deprecated, please use the async get_async_conn method!",
             ):
                 actual = hook.get_conn()
 
