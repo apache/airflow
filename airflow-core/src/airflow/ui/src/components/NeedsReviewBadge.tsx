@@ -37,7 +37,7 @@ export const NeedsReviewBadge = ({ dagId, pendingActions }: Props) => {
   }
 
   return (
-    <Tooltip content={translate("tooltip_other", { count: pendingActions.length })}>
+    <Tooltip content={translate("requiredActionCount", { count: pendingActions.length })}>
       <RouterLink to={`/dags/${dagId}/required_actions?response_received=false`}>
         <StateBadge colorPalette="deferred" fontSize="md" variant="solid">
           <LuUserRoundPen />

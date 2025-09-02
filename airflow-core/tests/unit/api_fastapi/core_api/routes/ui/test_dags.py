@@ -124,12 +124,9 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
 
-    def test_should_return_200_with_hitl(
-        self,
-        test_client: TestClient,
-        create_task_instance: TaskInstance,
-        session: Session,
-    ):
+    @pytest.fixture
+    def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
+        """Setup HITL test data for parametrized tests."""
         # 3 Dags (test_dag0 created here and test_dag1, test_dag2 created in setup_dag_runs)
         # 5 task instances in test_dag0
         TI_COUNT = 5
@@ -170,39 +167,55 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.add_all(hitl_detail_models)
         session.commit()
 
-        # Without `has_pending_actions` params, it should query all Dags without pending actions
-        response = test_client.get("/dags")
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 3
+    @pytest.mark.parametrize(
+        "has_pending_actions, expected_total_entries, expected_pending_actions",
+        [
+            # Without has_pending_actions param, should query all DAGs
+            (None, 3, None),
+            # With has_pending_actions=True, should only query DAGs with pending actions
+            (
+                True,
+                1,
+                [
+                    {
+                        "task_instance": mock.ANY,
+                        "options": ["Approve", "Reject"],
+                        "subject": f"This is subject {i}",
+                        "defaults": ["Approve"],
+                        "multiple": False,
+                        "params": {},
+                        "params_input": {},
+                        "response_received": False,
+                    }
+                    for i in range(3)
+                ],
+            ),
+        ],
+    )
+    def test_should_return_200_with_hitl(
+        self,
+        test_client: TestClient,
+        setup_hitl_data,
+        has_pending_actions,
+        expected_total_entries,
+        expected_pending_actions,
+    ):
+        # Build query params
+        params = {}
+        if has_pending_actions is not None:
+            params["has_pending_actions"] = has_pending_actions
 
-        # With `has_pending_actions` params set to true, it should only query Dags with pending actions
-        response = test_client.get("/dags", params={"has_pending_actions": True})
+        # Make request
+        response = test_client.get("/dags", params=params)
         assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 1
-        for dag_json in body["dags"]:
-            assert dag_json["pending_actions"] == [
-                {
-                    "task_instance": mock.ANY,
-                    "options": ["Approve", "Reject"],
-                    "subject": f"This is subject {i}",
-                    "defaults": ["Approve"],
-                    "multiple": False,
-                    "params": {},
-                    "params_input": {},
-                    "response_received": False,
-                }
-                for i in range(3)
-            ]
 
-        # With `has_pending_actions` params set to true, it should only query Dags without pending actions
-        response = test_client.get("/dags", params={"has_pending_actions": False})
-        assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == 2
-        for dag_json in body["dags"]:
-            assert dag_json["pending_actions"] == []
+        assert body["total_entries"] == expected_total_entries
+
+        # Check pending_actions structure when specified
+        if expected_pending_actions is not None:
+            for dag_json in body["dags"]:
+                assert dag_json["pending_actions"] == expected_pending_actions
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})

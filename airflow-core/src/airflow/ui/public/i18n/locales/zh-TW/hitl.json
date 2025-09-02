@@ -6,7 +6,6 @@
       "received": "已回應"
     }
   },
-  "needsReview": "需要回應",
   "requiredAction_one": "待回應的任務實例",
   "requiredAction_other": "待回應的任務實例",
   "requiredActionState": "待回應的任務實例狀態",
@@ -28,7 +27,5 @@
     "responseReceived": "已回應",
     "responseRequired": "需要回應"
   },
-  "subject": "標題",
-  "tooltip_one": "{{count}} 個任務需要回應",
-  "tooltip_other": "{{count}} 個任務需要回應"
+  "subject": "標題"
 }

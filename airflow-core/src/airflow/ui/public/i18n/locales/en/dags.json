@@ -20,11 +20,6 @@
       "all": "All",
       "paused": "Paused"
     },
-    "pendingActions": {
-      "all": "All",
-      "withPending": "With Pending Actions",
-      "withoutPending": "Without Pending Actions"
-    },
     "runIdPatternFilter": "Search Dag Runs",
     "triggeringUserNameFilter": "Search by Triggering User"
   },

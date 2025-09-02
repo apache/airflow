@@ -94,7 +94,7 @@ export const StateFilters = ({
         <StateBadge colorPalette="deferred">
           <LuUserRoundPen />
         </StateBadge>
-        {translate("hitl:needsReview")}
+        {translate("hitl:requiredAction_other")}
       </QuickFilterButton>
     </HStack>
   );
