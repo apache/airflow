@@ -311,6 +311,13 @@ class TestVariable:
 
         assert c != b
 
+    def test_get_team_name(self, testing_team, session):
+        var = Variable(key="key", val="value", team_id=testing_team.id)
+        session.add(var)
+        session.flush()
+
+        assert Variable.get_team_name("key", session=session) == "testing"
+
 
 @pytest.mark.parametrize(
     "variable_value, deserialize_json, expected_masked_values",
