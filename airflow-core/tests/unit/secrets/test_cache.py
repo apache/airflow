@@ -20,9 +20,10 @@ import datetime
 import multiprocessing
 
 import pytest
-from task_sdk.bases.test_hook import conf_vars
 
 from airflow.sdk import SecretCache
+
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 def test_cache_disabled_by_default():

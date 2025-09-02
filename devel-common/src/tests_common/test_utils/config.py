@@ -85,3 +85,50 @@ def env_vars(overrides):
             os.environ[env] = value
         for env in new_vars:
             os.environ.pop(env)
+
+
+@contextlib.contextmanager
+def task_sdk_conf_vars(overrides):
+    """
+    Task SDK version of conf_vars context manager.
+
+    Uses airflow.sdk.configuration.conf and doesn't call settings.configure_vars()
+    since settings isn't needed in task-sdk context.
+
+    Example:
+        with task_sdk_conf_vars({('core', 'executor'): 'LocalExecutor'}):
+            # configuration is temporarily overridden
+    """
+    from airflow.sdk.configuration import conf
+
+    original = {}
+    original_env_vars = {}
+    for (section, key), value in overrides.items():
+        env = conf._env_var_name(section, key)
+        if env in os.environ:
+            original_env_vars[env] = os.environ.pop(env)
+
+        if conf.has_option(section, key):
+            original[(section, key)] = conf.get(section, key)
+        else:
+            original[(section, key)] = None
+        if value is not None:
+            if not conf.has_section(section):
+                conf.add_section(section)
+            conf.set(section, key, value)
+        else:
+            if conf.has_section(section):
+                conf.remove_option(section, key)
+    try:
+        yield
+    finally:
+        for (section, key), value in original.items():
+            if value is not None:
+                if not conf.has_section(section):
+                    conf.add_section(section)
+                conf.set(section, key, value)
+            else:
+                if conf.has_section(section):
+                    conf.remove_option(section, key)
+        for env, value in original_env_vars.items():
+            os.environ[env] = value

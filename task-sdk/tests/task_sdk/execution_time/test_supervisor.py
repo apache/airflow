@@ -42,7 +42,6 @@ import psutil
 import pytest
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
-from task_sdk.bases.test_hook import conf_vars
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
@@ -131,6 +130,8 @@ from airflow.sdk.execution_time.supervisor import (
     supervise,
 )
 from airflow.sdk.execution_time.task_runner import run
+
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 if TYPE_CHECKING:
     import kgb

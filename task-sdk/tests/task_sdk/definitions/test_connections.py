@@ -22,7 +22,6 @@ from unittest import mock
 from urllib.parse import urlparse
 
 import pytest
-from task_sdk.bases.test_hook import conf_vars
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
@@ -30,6 +29,8 @@ from airflow.sdk._shared.configuration import initialize_secrets_backends
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 class TestConnections:

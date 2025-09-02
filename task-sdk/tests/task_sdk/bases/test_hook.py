@@ -17,51 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
-import os
-
 import pytest
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
 from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
 
-
-@contextlib.contextmanager
-def conf_vars(overrides):
-    from airflow.sdk._shared.configuration import conf
-
-    original = {}
-    original_env_vars = {}
-    for (section, key), value in overrides.items():
-        env = conf._env_var_name(section, key)
-        if env in os.environ:
-            original_env_vars[env] = os.environ.pop(env)
-
-        if conf.has_option(section, key):
-            original[(section, key)] = conf.get(section, key)
-        else:
-            original[(section, key)] = None
-        if value is not None:
-            if not conf.has_section(section):
-                conf.add_section(section)
-            conf.set(section, key, value)
-        else:
-            if conf.has_section(section):
-                conf.remove_option(section, key)
-    try:
-        yield
-    finally:
-        for (section, key), value in original.items():
-            if value is not None:
-                if not conf.has_section(section):
-                    conf.add_section(section)
-                conf.set(section, key, value)
-            else:
-                if conf.has_section(section):
-                    conf.remove_option(section, key)
-        for env, value in original_env_vars.items():
-            os.environ[env] = value
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 class TestBaseHook:
