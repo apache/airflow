@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
 import { useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { InputWithAddon } from "../../ui";
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
 
@@ -52,14 +52,11 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
       onChange={onChange}
       onRemove={onRemove}
     >
-      <Input
-        borderRadius="full"
+      <InputWithAddon
+        label={filter.config.label}
         onChange={handleInputChange}
         placeholder={filter.config.placeholder ?? `Enter ${filter.config.label.toLowerCase()}`}
-        ref={inputRef}
-        size="sm"
         value={String(filter.value ?? "")}
-        width="220px"
       />
     </FilterPill>
   );

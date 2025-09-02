@@ -162,14 +162,7 @@ export const FilterBar = ({
         </Menu.Root>
       )}
       {filters.length > 0 && (
-        <Button
-          _hover={{ bg: "gray.100" }}
-          bg="white"
-          borderRadius="full"
-          color="black"
-          onClick={resetFilters}
-          size="sm"
-        >
+        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
           <MdClear />
           {translate("common:reset")}
         </Button>
