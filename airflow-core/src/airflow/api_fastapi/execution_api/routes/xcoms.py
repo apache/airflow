@@ -76,7 +76,6 @@ async def xcom_query(
     run_id: str,
     task_id: str,
     key: str,
-    session: SessionDep,
     map_index: Annotated[int | None, Query()] = None,
 ) -> Select:
     query = XComModel.get_many(
