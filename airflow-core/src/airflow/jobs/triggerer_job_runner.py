@@ -973,7 +973,7 @@ class TriggerRunner:
                 if workload.ti:
                     trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
 
-                    dag_bag.process_file(workload.dag_fileloc)  # TODO: What about dag versions?
+                    await dag_bag.process_file(workload.dag_fileloc)  # TODO: What about dag versions?
                     task = dag_bag.dags[workload.ti.dag_id].get_task(workload.ti.task_id)
 
                     # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
