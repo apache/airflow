@@ -34,21 +34,24 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.utils import timezone
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator, timezone
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[attr-defined,no-redef]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -200,9 +203,7 @@ class TestCeleryExecutor:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             key1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
         else:
@@ -223,9 +224,7 @@ class TestCeleryExecutor:
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
             ti2 = TaskInstance(task=task_2, run_id=None, dag_version_id=dag_version.id)
@@ -269,9 +268,7 @@ class TestCeleryExecutor:
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(task.dag.dag_id)
             ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
         else:
@@ -305,9 +302,7 @@ class TestCeleryExecutor:
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(task.dag.dag_id)
             ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
         else:

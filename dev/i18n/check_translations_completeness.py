@@ -17,9 +17,9 @@
 # under the License.
 
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#   "rich",
+#   "rich>=13.6.0",
 #   "rich-click",
 # ]
 # ///
@@ -124,7 +124,12 @@ def expand_plural_keys(keys: set[str], lang: str) -> set[str]:
 def get_locale_files() -> list[LocaleFiles]:
     return [
         LocaleFiles(
-            locale=locale_dir.name, files=[f.name for f in locale_dir.iterdir() if f.suffix == ".json"]
+            locale=locale_dir.name,
+            files=[
+                f.name
+                for f in locale_dir.iterdir()
+                if f.suffix == ".json" and f.name != "_freeze_exemptions.json"
+            ],
         )
         for locale_dir in LOCALES_DIR.iterdir()
         if locale_dir.is_dir()

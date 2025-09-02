@@ -42,6 +42,7 @@ class DagDetails:
     """Represents the details of a DAG."""
 
     id: str | None = None
+    team_name: str | None = None
 
 
 @dataclass

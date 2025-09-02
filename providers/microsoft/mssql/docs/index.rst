@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/microsoft/mssql/tests/system/microsoft/mssql>
+    Example Dags <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/microsoft/mssql/tests/system/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 

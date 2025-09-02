@@ -25,16 +25,14 @@ import pytest
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
-from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_1,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    XCOM_RETURN_KEY,
+)
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
@@ -42,7 +40,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-
 else:
     from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
         setup,
@@ -51,11 +48,17 @@ else:
     )
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.dag import DAG  # type: ignore[assignment]
+    from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment,no-redef]
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TriggerRule, timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 pytestmark = pytest.mark.db_test
 

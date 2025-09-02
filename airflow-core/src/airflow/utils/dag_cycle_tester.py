@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
 
 warnings.warn(
-    "`airflow.utils.dag_cycle_tester` module is deprecated and "
-    "will be removed in Airflow 3.2. Please use `dag.check_cycle()` method instead.",
+    "`airflow.utils.dag_cycle_tester` module is deprecated and and will be removed in a future release."
+    "Please use `dag.check_cycle()` method instead.",
     DeprecationWarning,
     stacklevel=2,
 )

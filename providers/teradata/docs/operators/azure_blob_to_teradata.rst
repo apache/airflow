@@ -123,10 +123,10 @@ to teradata table is as follows:
     :start-after: [START azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
     :end-before: [END azure_blob_to_teradata_transfer_operator_howto_guide_transfer_data_blob_to_teradata_parquet]
 
-The complete ``AzureBlobStorageToTeradataOperator`` Operator DAG
+The complete ``AzureBlobStorageToTeradataOperator`` Operator Dag
 ----------------------------------------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_azure_blob_to_teradata_transfer.py
     :language: python

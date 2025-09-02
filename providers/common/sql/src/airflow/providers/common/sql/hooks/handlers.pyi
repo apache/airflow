@@ -28,8 +28,8 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.handlers
-isort:skip_file
+Definition of the public interface for
+airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.handlers.
 """
 
 from collections.abc import Iterable

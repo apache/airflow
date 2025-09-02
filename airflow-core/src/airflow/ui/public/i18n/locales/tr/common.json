@@ -25,7 +25,6 @@
   "dag_other": "Dag'ler",
   "dagDetails": {
     "catchup": "Yakalama",
-    "concurrency": "Eş Zamanlılık",
     "dagRunTimeout": "Dag Çalıştırma Zaman Aşımı",
     "defaultArgs": "Varsayılan Argümanlar",
     "description": "Açıklama",

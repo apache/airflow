@@ -27,15 +27,16 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.sdk import SecretCache
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -134,6 +135,7 @@ class Connection(Base, LoggingMixin):
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
     _extra = Column("extra", Text())
 
     def __init__(
@@ -479,7 +481,7 @@ class Connection(Base, LoggingMixin):
 
             warnings.warn(
                 "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
+                "Please use `get` on Connection from sdk(`airflow.sdk.Connection`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -555,7 +557,7 @@ class Connection(Base, LoggingMixin):
 
             warnings.warn(
                 "Using Connection.from_json from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
+                "Please use `from_json` on Connection from sdk(airflow.sdk.Connection) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
