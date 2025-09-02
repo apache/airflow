@@ -322,7 +322,10 @@ class TestHttpOpSensor:
             poke_interval=5,
             timeout=15,
         )
-        run_task(sensor)
+        run_task(sensor, logical_date=DEFAULT_DATE)
+
+        assert run_task.state == "success"
+        assert run_task.error is None
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)

@@ -34,7 +34,13 @@ from typing import Any
 
 from googleapiclient import discovery
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
 from airflow.providers.google.cloud.operators.cloud_sql import (
@@ -43,7 +49,12 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
@@ -243,7 +254,6 @@ os.environ["AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL"] = (
     "sslkey={client_key_file}&"
     "sslrootcert={server_ca_file}".format(**mysql_kwargs)
 )
-
 
 log = logging.getLogger(__name__)
 

@@ -54,7 +54,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pig/|version|/providers/apache/pig/tests/system/apache/pig>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-pig/|version|/providers/apache/pig/tests/system/apache/pig>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pig/>
     Installing from sources <installing-providers-from-sources>
 
@@ -75,7 +75,9 @@ apache-airflow-providers-apache-pig package
 `Apache Pig <https://pig.apache.org/>`__
 
 
-Release: 4.7.1
+Release: 4.7.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

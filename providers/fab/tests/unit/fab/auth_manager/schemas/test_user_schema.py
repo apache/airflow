@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from airflow.utils import timezone
 
@@ -48,19 +49,19 @@ def configured_app(minimal_app_for_auth_api):
     )
     yield app
 
-    delete_role(app, "TestRole")  # type:ignore
+    delete_role(app, "TestRole")
 
 
 class TestUserBase:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
-        self.client = self.app.test_client()  # type:ignore
+        self.client = self.app.test_client()
         self.role = self.app.appbuilder.sm.find_role("TestRole")
         self.session = self.app.appbuilder.get_session
 
     def teardown_method(self):
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()
         if user:
             self.session.delete(user)
             self.session.commit()
@@ -80,7 +81,7 @@ class TestUserCollectionItemSchema(TestUserBase):
         self.session.add(user_model)
         user_model.roles = [self.role]
         self.session.commit()
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()
         deserialized_user = user_collection_item_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {
@@ -111,7 +112,7 @@ class TestUserSchema(TestUserBase):
         )
         self.session.add(user_model)
         self.session.commit()
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()
         deserialized_user = user_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {

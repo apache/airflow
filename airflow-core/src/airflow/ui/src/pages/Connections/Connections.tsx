@@ -135,7 +135,7 @@ export const Connections = () => {
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "connection_id";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
     connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,

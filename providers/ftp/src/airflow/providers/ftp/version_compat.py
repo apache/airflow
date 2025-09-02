@@ -38,7 +38,7 @@ AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, BaseSensorOperator
 else:
-    from airflow.models import BaseOperator  # type: ignore[no-redef]
+    from airflow.models import BaseOperator
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_1_PLUS:

@@ -22,9 +22,19 @@ from datetime import datetime
 from typing import cast
 
 from airflow import DAG
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

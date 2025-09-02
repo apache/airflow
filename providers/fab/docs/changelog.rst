@@ -20,6 +20,75 @@
 Changelog
 ---------
 
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'get_authorized_dag_ids' in 'FabAuthManager' (#54276)``
+* ``Allow downgrading to 2.11 from 3.x (#54371)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Allow downgrading to 2.11 from 3.x (#54231)" (#54367)``
+   * ``Allow downgrading to 2.11 from 3.x (#54231)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create HITL specific permission for core-API (#54043)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Add FAB configs for cookie security (#53542)``
+* ``Fig 'Config' menu item missing in 'FabAuthManager' (#53944)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#53941)``
+* ``Add UI for human in the loop operators (#53035)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#53503)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'MENU' from 'ResourceMethod' in auth manager (#52731)``
+
+Misc
+~~~~
+
+* ``Fix FAB provider in unreachable code (#53436)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore for fab provider in init_jinja_globals (#53328)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Remove unused batch methods from auth manager (#52883)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 7 updates (#52807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove extra slash from endpoint URL (#53755)``
+* ``Fix spelling of GitHub brand name (#53735)``
+* ``Clarify FAB auth provider versioning and webserver_config.py deprecation for Airflow 3.x (#53606)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup mypy ignore in fab provider where possible (#53282)``
+
 2.3.0
 .....
 

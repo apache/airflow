@@ -103,8 +103,11 @@ class TestKeda:
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
         )
-        if "CeleryKubernetesExecutor" in executor or "KubernetesExecutor" in executor:
-            query += f" AND queue != '{queue or 'kubernetes'}'"
+        if "CeleryKubernetesExecutor" in executor:
+            queue_value = queue or "kubernetes"
+            query += f" AND queue != '{queue_value}'"
+        elif "KubernetesExecutor" in executor:
+            query += " AND executor != 'KubernetesExecutor'"
         return query
 
     @pytest.mark.parametrize(

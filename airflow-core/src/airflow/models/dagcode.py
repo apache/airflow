@@ -26,10 +26,10 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import DagCodeNotFound
 from airflow.models.base import ID_LEN, Base
-from airflow.utils import timezone
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session

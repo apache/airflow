@@ -99,7 +99,9 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds, session):
+    def test_should_read_logs_from_remote(
+        self, mock_blob, mock_client, mock_creds, session, sdk_connection_not_found
+    ):
         mock_obj = MagicMock()
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
@@ -114,6 +116,7 @@ class TestGCSTaskHandler:
         mock_blob.from_string.assert_called_once_with(expected_gs_uri, mock_client.return_value)
 
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == [expected_gs_uri]
             assert logs[1].event == "::endgroup::"
@@ -143,6 +146,7 @@ class TestGCSTaskHandler:
         expected_gs_uri = f"gs://bucket/{mock_obj.name}"
 
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert log[0].sources == [
                 expected_gs_uri,

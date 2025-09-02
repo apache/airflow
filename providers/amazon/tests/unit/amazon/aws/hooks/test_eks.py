@@ -240,8 +240,9 @@ class TestEksHooks:
         assert isinstance(result, list)
         assert len(result) == 0
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_list_clusters_returns_sorted_cluster_names(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, cluster_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.cluster_names)
@@ -250,9 +251,8 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
-    def test_list_clusters_returns_all_results(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.LARGE
-    ) -> None:
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.LARGE])
+    def test_list_clusters_returns_all_results(self, cluster_builder, initial_batch_size: int) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.cluster_names)
 
@@ -260,8 +260,9 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result)
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_create_cluster_throws_exception_when_cluster_exists(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, cluster_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceInUseException
@@ -272,7 +273,7 @@ class TestEksHooks:
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
                 name=generated_test_data.existing_cluster_name,
-                **dict(ClusterInputs.REQUIRED),  # type: ignore
+                **dict(ClusterInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -329,8 +330,9 @@ class TestEksHooks:
         for key, expected_value in generated_test_data.attributes_to_test:
             assert generated_test_data.cluster_describe_output[key] == expected_value
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_describe_cluster_throws_exception_when_cluster_not_found(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, cluster_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceNotFoundException
@@ -347,9 +349,8 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
-    def test_delete_cluster_returns_deleted_cluster(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
-    ) -> None:
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
+    def test_delete_cluster_returns_deleted_cluster(self, cluster_builder, initial_batch_size: int) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size, minimal=False)
 
         result: dict = eks_hook.delete_cluster(name=generated_test_data.existing_cluster_name)[
@@ -359,9 +360,8 @@ class TestEksHooks:
         for key, expected_value in generated_test_data.attributes_to_test:
             assert result[key] == expected_value
 
-    def test_delete_cluster_removes_deleted_cluster(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
-    ) -> None:
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
+    def test_delete_cluster_removes_deleted_cluster(self, cluster_builder, initial_batch_size: int) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size, minimal=False)
 
         eks_hook.delete_cluster(name=generated_test_data.existing_cluster_name)
@@ -370,8 +370,9 @@ class TestEksHooks:
         assert len(result_cluster_list) == (initial_batch_size - 1)
         assert generated_test_data.existing_cluster_name not in result_cluster_list
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_cluster_throws_exception_when_cluster_not_found(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, cluster_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceNotFoundException
@@ -399,8 +400,9 @@ class TestEksHooks:
         assert isinstance(result, list)
         assert len(result) == 0
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_list_nodegroups_returns_sorted_nodegroup_names(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, nodegroup_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.nodegroup_names)
@@ -409,9 +411,8 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
-    def test_list_nodegroups_returns_all_results(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.LARGE
-    ) -> None:
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.LARGE])
+    def test_list_nodegroups_returns_all_results(self, nodegroup_builder, initial_batch_size: int) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.nodegroup_names)
 
@@ -433,7 +434,7 @@ class TestEksHooks:
             eks_hook.create_nodegroup(
                 clusterName=non_existent_cluster_name,
                 nodegroupName=non_existent_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),  # type: ignore
+                **dict(NodegroupInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -442,8 +443,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_create_nodegroup_throws_exception_when_nodegroup_already_exists(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, nodegroup_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceInUseException
@@ -456,7 +458,7 @@ class TestEksHooks:
             eks_hook.create_nodegroup(
                 clusterName=generated_test_data.cluster_name,
                 nodegroupName=generated_test_data.existing_nodegroup_name,
-                **dict(NodegroupInputs.REQUIRED),  # type: ignore
+                **dict(NodegroupInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -470,8 +472,9 @@ class TestEksHooks:
         )
         assert nodegroup_count_after_test == initial_batch_size
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_create_nodegroup_throws_exception_when_cluster_not_active(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, nodegroup_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         non_existent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
@@ -485,7 +488,7 @@ class TestEksHooks:
                 eks_hook.create_nodegroup(
                     clusterName=generated_test_data.cluster_name,
                     nodegroupName=non_existent_nodegroup_name,
-                    **dict(NodegroupInputs.REQUIRED),  # type: ignore
+                    **dict(NodegroupInputs.REQUIRED),
                 )
 
         assert_client_error_exception_thrown(
@@ -637,8 +640,9 @@ class TestEksHooks:
         cluster_count_after_test: int = len(eks_hook.list_clusters())
         assert cluster_count_after_test == BatchCountSize.SINGLE
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_nodegroup_removes_deleted_nodegroup(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, nodegroup_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
 
@@ -651,8 +655,9 @@ class TestEksHooks:
         assert len(result_nodegroup_list) == (initial_batch_size - 1)
         assert generated_test_data.existing_nodegroup_name not in result_nodegroup_list
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_nodegroup_returns_deleted_nodegroup(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, nodegroup_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size, minimal=False)
 
@@ -683,8 +688,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_nodegroup_throws_exception_when_nodegroup_not_found(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, nodegroup_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceNotFoundException
@@ -806,8 +812,9 @@ class TestEksHooks:
         assert isinstance(result, list)
         assert len(result) == 0
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_list_fargate_profiles_returns_sorted_profile_names(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.fargate_profile_names)
@@ -816,8 +823,9 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.LARGE])
     def test_list_fargate_profiles_returns_all_results(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.LARGE
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.fargate_profile_names)
@@ -838,7 +846,7 @@ class TestEksHooks:
             eks_hook.create_fargate_profile(
                 clusterName=non_existent_cluster_name,
                 fargateProfileName=non_existent_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
+                **dict(FargateProfileInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -847,8 +855,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_create_fargate_profile_throws_exception_when_fargate_profile_already_exists(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceInUseException
@@ -858,7 +867,7 @@ class TestEksHooks:
             eks_hook.create_fargate_profile(
                 clusterName=generated_test_data.cluster_name,
                 fargateProfileName=generated_test_data.existing_fargate_profile_name,
-                **dict(FargateProfileInputs.REQUIRED),  # type: ignore
+                **dict(FargateProfileInputs.REQUIRED),
             )
 
         assert_client_error_exception_thrown(
@@ -872,8 +881,9 @@ class TestEksHooks:
         )
         assert fargate_profile_count_after_test == initial_batch_size
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_create_fargate_profile_throws_exception_when_cluster_not_active(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         non_existent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
@@ -887,7 +897,7 @@ class TestEksHooks:
                 eks_hook.create_fargate_profile(
                     clusterName=generated_test_data.cluster_name,
                     fargateProfileName=non_existent_fargate_profile_name,
-                    **dict(FargateProfileInputs.REQUIRED),  # type: ignore
+                    **dict(FargateProfileInputs.REQUIRED),
                 )
 
         assert_client_error_exception_thrown(
@@ -976,8 +986,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_fargate_profile_removes_deleted_fargate_profile(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(initial_batch_size)
 
@@ -992,8 +1003,9 @@ class TestEksHooks:
         assert len(result_fargate_profile_list) == (initial_batch_size - 1)
         assert generated_test_data.existing_fargate_profile_name not in result_fargate_profile_list
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_fargate_profile_returns_deleted_fargate_profile(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size, minimal=False)
 
@@ -1026,8 +1038,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
+    @pytest.mark.parametrize("initial_batch_size", [BatchCountSize.SMALL])
     def test_delete_fargate_profile_throws_exception_when_fargate_profile_not_found(
-        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+        self, fargate_profile_builder, initial_batch_size: int
     ) -> None:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         expected_exception: type[AWSError] = ResourceNotFoundException
@@ -1360,6 +1373,3 @@ def assert_is_valid_uri(value: str) -> None:
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value
-
-
-# ruff: noqa: PT028

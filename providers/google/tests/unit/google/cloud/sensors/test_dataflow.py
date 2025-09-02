@@ -376,7 +376,7 @@ class TestDataflowJobMessagesSensor:
 
         results = task.poke(mock.MagicMock())
 
-        assert callback.return_value == results
+        assert callback.return_value == results.xcom_value
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -552,7 +552,7 @@ class TestDataflowJobAutoScalingEventsSensor:
 
         results = task.poke(mock.MagicMock())
 
-        assert callback.return_value == results
+        assert callback.return_value == results.xcom_value
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,

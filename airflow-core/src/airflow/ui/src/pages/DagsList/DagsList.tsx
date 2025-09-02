@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -26,7 +28,7 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -84,7 +86,19 @@ const createColumns = (
   },
   {
     accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => <Schedule dag={original} />,
+    cell: ({ row: { original } }) => {
+      const [latestRun] = original.latest_dag_runs;
+
+      return (
+        <Schedule
+          assetExpression={original.asset_expression}
+          dagId={original.dag_id}
+          latestRunAfter={latestRun?.run_after}
+          timetableDescription={original.timetable_description}
+          timetableSummary={original.timetable_summary}
+        />
+      );
+    },
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
   },
@@ -129,7 +143,14 @@ const createColumns = (
   },
   {
     accessorKey: "trigger",
-    cell: ({ row: { original } }) => <TriggerDAGButton dag={original} withText={false} />,
+    cell: ({ row: { original } }) => (
+      <TriggerDAGButton
+        dagDisplayName={original.dag_display_name}
+        dagId={original.dag_id}
+        isPaused={original.is_paused}
+        withText={false}
+      />
+    ),
     enableSorting: false,
     header: "",
   },
@@ -150,7 +171,8 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, PAUSED, TAGS, TAGS_MATCH_MODE } = SearchParamsKeys;
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
+  SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -176,13 +198,12 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
   const { pagination, sorting } = tableURLState;
-  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN) ?? undefined,
-  );
+  const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
@@ -190,17 +211,16 @@ export const DagsList = () => {
   const columns = useMemo(() => createColumns(translate), [translate]);
 
   const handleSearchChange = (value: string) => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
     if (value) {
       searchParams.set(NAME_PATTERN, value);
     } else {
       searchParams.delete(NAME_PATTERN);
     }
     setSearchParams(searchParams);
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    setDagDisplayNamePattern(value);
   };
 
   let paused = defaultShowPaused;
@@ -221,13 +241,14 @@ export const DagsList = () => {
   }
 
   const { data, error, isLoading } = useDags({
-    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
+    dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
+    orderBy: [orderBy],
+    owners,
     paused,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
@@ -251,7 +272,7 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          defaultValue={dagDisplayNamePattern ?? ""}
+          defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
           placeHolder={translate("dags:search.dags")}
         />
@@ -259,7 +280,7 @@ export const DagsList = () => {
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {`${data?.total_entries ?? 0} ${(data?.total_entries ?? 0) === 1 ? translate("dag_one") : translate("dag_other")}`}
+              {`${data?.total_entries ?? 0} ${translate("dag", { count: data?.total_entries ?? 0 })}`}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>

@@ -135,8 +135,8 @@ class NodegroupInputs:
 class PossibleTestResults(Enum):
     """Possible test results."""
 
-    SUCCESS: str = "SUCCESS"
-    FAILURE: str = "FAILURE"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
 
 
 class ClusterAttributes:

@@ -85,7 +85,7 @@ class PubsubPullTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
             while True:
                 if pulled_messages := await self.hook.pull(

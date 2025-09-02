@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-mongo``
 
-Release: ``5.2.1``
+Release: ``5.2.2``
 
+Release Date: ``|PypiReleaseDate|``
 
 `MongoDB <https://www.mongodb.com/>`__
 
@@ -36,7 +37,7 @@ This is a provider package for ``mongo`` provider. All classes for this provider
 are in ``airflow.providers.mongo`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.2.2/>`_.
 
 Installation
 ------------
@@ -45,18 +46,18 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-mongo``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-==================  ===================
+==================  ==================
 PIP package         Version required
-==================  ===================
+==================  ==================
 ``apache-airflow``  ``>=2.10.0``
 ``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=4.0.0,<4.11.0``
-==================  ===================
+``pymongo``         ``>=4.13.2``
+==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.2.2/changelog.html>`_.

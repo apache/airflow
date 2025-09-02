@@ -62,6 +62,7 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         api_group: str = "flink.apache.org",
         api_version: str = "v1beta1",
         plural: str = "flinkdeployments",
+        taskmanager_pods_namespace: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,6 +74,7 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         self.api_group = api_group
         self.api_version = api_version
         self.plural = plural
+        self.taskmanager_pods_namespace = taskmanager_pods_namespace
 
     def _log_driver(self, application_state: str, response: dict) -> None:
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
@@ -88,7 +90,9 @@ class FlinkKubernetesSensor(BaseSensorOperator):
 
         task_manager_labels = status_info["taskManager"]["labelSelector"]
         all_pods = self.hook.get_namespaced_pod_list(
-            namespace="default", watch=False, label_selector=task_manager_labels
+            namespace=self.taskmanager_pods_namespace or self.namespace or "default",
+            watch=False,
+            label_selector=task_manager_labels,
         )
 
         namespace = response["metadata"]["namespace"]

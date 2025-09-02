@@ -5,6 +5,33 @@
     "reason": "Powód",
     "title": "Zależności blokujące zaplanowanie zadania"
   },
+  "calendar": {
+    "daily": "Dziennie",
+    "hourly": "Godzinowo",
+    "legend": {
+      "less": "Mniej",
+      "more": "Więcej"
+    },
+    "navigation": {
+      "nextMonth": "Następny miesiąc",
+      "nextYear": "Następny rok",
+      "previousMonth": "Poprzedni miesiąc",
+      "previousYear": "Poprzedni rok"
+    },
+    "noData": "Brak danych",
+    "noRuns": "Brak wykonań",
+    "totalRuns": "Łączna liczba wykonań",
+    "week": "Tydzień {{weekNumber}}",
+    "weekdays": {
+      "friday": "Pt",
+      "monday": "Pn",
+      "saturday": "So",
+      "sunday": "Nd",
+      "thursday": "Cz",
+      "tuesday": "Wt",
+      "wednesday": "Śr"
+    }
+  },
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
@@ -19,11 +46,12 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
     }
   },
   "logs": {
-    "allLevels": "Wszystkie poziomy logów",
+    "allLevels": "Wszystkie poziomy logowania",
     "allSources": "Wszystkie źródła",
     "critical": "CRITICAL",
     "debug": "DEBUG",
@@ -34,8 +62,13 @@
     },
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
+    "settings": "Ustawienia logowania",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "Przewiń: {{arrow}}",
+    "toggleGroup": "Przełącz grupę: Space"
   },
   "overview": {
     "buttons": {
@@ -66,6 +99,7 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
+      "showGantt": "Pokaż diagram Gantta",
       "showGraph": "Pokaż graf",
       "showGrid": "Pokaż siatkę"
     },
@@ -102,6 +136,7 @@
     "assetEvents": "Zdarzenia zasobów",
     "auditLog": "Log audytu",
     "backfills": "Wypełnienia wsteczne",
+    "calendar": "Kalendarz",
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",
@@ -111,6 +146,7 @@
     "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
+    "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
     "taskInstances": "Instancje zadań",
     "tasks": "Zadania",

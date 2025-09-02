@@ -16,8 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo, type PropsWithChildren } from "react";
+import { useCallback, useMemo, useEffect, type PropsWithChildren } from "react";
 import { useLocalStorage } from "usehooks-ts";
+
+import { useStructureServiceStructureData } from "openapi/queries";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
 
 import { OpenGroupsContext, type OpenGroupsContextType } from "./Context";
 
@@ -27,7 +31,33 @@ type Props = {
 
 export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const openGroupsKey = `${dagId}/open-groups`;
+  const allGroupsKey = `${dagId}/all-groups`;
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
+  const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
+
+  // For Graph view support: dependencies + selected version
+  const selectedVersion = useSelectedVersion();
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+
+  // Fetch structure (minimal params if you want it lightweight for Grid)
+  const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: dependencies === "immediate",
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    { enabled: Boolean(dagId) && selectedVersion !== undefined },
+  );
+
+  // Update allGroupIds whenever structure changes
+  useEffect(() => {
+    const observedGroupIds = flattenGraphNodes(structure.nodes).allGroupIds;
+
+    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIds)) {
+      setAllGroupIds(observedGroupIds);
+    }
+  }, [structure.nodes, allGroupIds, setAllGroupIds]);
 
   const toggleGroupId = useCallback(
     (groupId: string) => {
@@ -41,8 +71,8 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   );
 
   const value = useMemo<OpenGroupsContextType>(
-    () => ({ openGroupIds, setOpenGroupIds, toggleGroupId }),
-    [openGroupIds, setOpenGroupIds, toggleGroupId],
+    () => ({ allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId }),
+    [allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId],
   );
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;

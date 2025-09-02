@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from datetime import datetime, timezone
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
@@ -30,14 +31,17 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
-    from airflow.typing_compat import TypeAlias
+    from airflow.utils.log.file_task_handler import LogHandlerOutputStream, LogMetadata
 
-LogMessages: TypeAlias = list[StructuredLogMessage] | str
-LogMetadata: TypeAlias = dict[str, Any]
+LogReaderOutputStream: TypeAlias = Generator[str, None, None]
+
+READ_BATCH_SIZE = 1024
 
 
 class TaskLogReader:
@@ -49,12 +53,30 @@ class TaskLogReader:
     STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 10
     """Number of empty loop iterations before stopping the stream"""
 
+    @staticmethod
+    def get_no_log_state_message(ti: TaskInstance | TaskInstanceHistory) -> Iterator[StructuredLogMessage]:
+        """Yield standardized no-log messages for a given TI state."""
+        msg = {
+            TaskInstanceState.SKIPPED: "Task was skipped — no logs available.",
+            TaskInstanceState.UPSTREAM_FAILED: "Task did not run because upstream task(s) failed.",
+        }.get(ti.state, "No logs available for this task.")
+
+        yield StructuredLogMessage(
+            timestamp=None,
+            event="::group::Log message source details",
+        )
+        yield StructuredLogMessage(timestamp=None, event="::endgroup::")
+        yield StructuredLogMessage(
+            timestamp=ti.updated_at or datetime.now(timezone.utc),
+            event=msg,
+        )
+
     def read_log_chunks(
         self,
         ti: TaskInstance | TaskInstanceHistory,
         try_number: int | None,
         metadata: LogMetadata,
-    ) -> tuple[LogMessages, LogMetadata]:
+    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
         """
         Read chunks of Task Instance logs.
 
@@ -73,6 +95,11 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
+        if try_number == 0:
+            msg = self.get_no_log_state_message(ti)  # returns StructuredLogMessage
+            # one message + tell the caller it's the end so stream stops
+            return msg, {"end_of_log": True}
+
         return self.log_handler.read(ti, try_number, metadata=metadata)
 
     def read_log_stream(
@@ -91,25 +118,26 @@ class TaskLogReader:
         if try_number is None:
             try_number = ti.try_number
 
+        # Handle skipped / upstream_failed case directly
+        if try_number == 0:
+            for msg in self.get_no_log_state_message(ti):
+                yield f"{msg.model_dump_json()}\n"
+            return
+
         for key in ("end_of_log", "max_offset", "offset", "log_pos"):
-            metadata.pop(key, None)
+            # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
+            metadata.pop(key, None)  # type: ignore[misc]
         empty_iterations = 0
 
         while True:
-            logs, out_metadata = self.read_log_chunks(ti, try_number, metadata)
-            # Update the metadata dict in place so caller can get new values/end-of-log etc.
-
-            for log in logs:
-                # It's a bit wasteful here to parse the JSON then dump it back again.
-                # Optimize this so in stream mode we can just pass logs right through, or even better add
-                # support to 307 redirect to a signed URL etc.
-                yield (log if isinstance(log, str) else log.model_dump_json()) + "\n"
+            log_stream, out_metadata = self.read_log_chunks(ti, try_number, metadata)
+            yield from (f"{log.model_dump_json()}\n" for log in log_stream)
 
             if not out_metadata.get("end_of_log", False) and ti.state not in (
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.DEFERRED,
             ):
-                if logs:
+                if log_stream:
                     empty_iterations = 0
                 else:
                     # we did not receive any logs in this loop
@@ -121,7 +149,8 @@ class TaskLogReader:
                         yield "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
                         return
             else:
-                metadata.clear()
+                # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
+                metadata.clear()  # type: ignore[attr-defined]
                 metadata.update(out_metadata)
                 return
 

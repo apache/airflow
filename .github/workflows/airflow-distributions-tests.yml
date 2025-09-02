@@ -105,8 +105,6 @@ jobs:
         if: ${{ inputs.use-local-venv == 'true' }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         if: ${{ inputs.use-local-venv == 'true' }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*

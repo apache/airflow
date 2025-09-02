@@ -429,7 +429,6 @@ class GCSToBigQueryOperator(BaseOperator):
                                 table = job_configuration[job_type][table_prop]
                                 persist_kwargs = {
                                     "context": context,
-                                    "task_instance": self,
                                     "table_id": table,
                                 }
                                 if not isinstance(table, str):
@@ -581,7 +580,7 @@ class GCSToBigQueryOperator(BaseOperator):
         table_obj_api_repr = table.to_api_repr()
 
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
-        self.hook.create_empty_table(
+        self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
             location=self.location,
@@ -636,12 +635,6 @@ class GCSToBigQueryOperator(BaseOperator):
             self.configuration["load"]["schema"] = {"fields": self.schema_fields}
 
         if self.schema_update_options:
-            if self.write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError(
-                    "schema_update_options is only "
-                    "allowed if write_disposition is "
-                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
-                )
             # To provide backward compatibility
             self.schema_update_options = list(self.schema_update_options or [])
             self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)

@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-salesforce/|version|/providers/salesforce/tests/system/salesforce>
+    Example Dags <https://github.com/apache/airflow/tree/providers-salesforce/|version|/providers/salesforce/tests/system/salesforce>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-salesforce package
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.11.1
+Release: 5.11.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

@@ -19,6 +19,7 @@
   },
   "header": {
     "buttons": {
+      "advanced": "고급",
       "dagDocs": "Dag 문서"
     }
   },
@@ -34,8 +35,13 @@
     },
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
+    "settings": "로그 설정",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"
+  },
+  "navigation": {
+    "navigation": "탐색: {{arrow}}",
+    "toggleGroup": "그룹 전환: Space"
   },
   "overview": {
     "buttons": {
@@ -101,6 +107,7 @@
     "mappedTaskInstances_other": "작업 인스턴스 [{{count}}]",
     "overview": "개요",
     "renderedTemplates": "렌더링된 템플릿",
+    "requiredActions": "필수 작업",
     "runs": "실행",
     "taskInstances": "작업 인스턴스",
     "tasks": "작업",

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""A collection of closely related tasks on the same DAG that should be grouped together visually."""
+"""A collection of closely related tasks on the same Dag that should be grouped together visually."""
 
 from __future__ import annotations
 
@@ -31,23 +31,26 @@ import attrs
 import methodtools
 
 from airflow.exceptions import (
-    AirflowDagCycleException,
     AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
+from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 def _default_parent_group() -> TaskGroup | None:
@@ -87,17 +90,17 @@ class TaskGroup(DAGNode):
     all tasks within the group if necessary.
 
     :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
-        with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
+        with group_id of TaskGroup or task_id of tasks in the Dag. Root TaskGroup has group_id
         set to None.
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
-    :param dag: The DAG that this TaskGroup belongs to.
+    :param dag: The Dag that this TaskGroup belongs to.
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators,
-        will override default_args defined in the DAG level.
+        will override default_args defined in the Dag level.
         Note that operators have the same hook, and precede those defined
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
@@ -242,13 +245,13 @@ class TaskGroup(DAGNode):
 
         if key in self.children:
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
-            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
+            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the Dag")
 
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
                     raise RuntimeError(
-                        "Cannot mix TaskGroups from different DAGs: %s and %s",
+                        "Cannot mix TaskGroups from different Dags: %s and %s",
                         self.dag,
                         task.dag,
                     )
@@ -492,7 +495,7 @@ class TaskGroup(DAGNode):
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Serialize task group; required by DAGNode."""
+        """Serialize task group; required by DagNode."""
         from airflow.serialization.enums import DagAttributeTypes
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
@@ -582,9 +585,12 @@ class TaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    def iter_tasks(self) -> Iterator[AbstractOperator]:
+    # TODO (GH-52141): This should only return SDK operators. Have a db representation for db operators.
+    def iter_tasks(self) -> Iterator[AbstractOperator | MappedOperator | SerializedBaseOperator]:
         """Return an iterator of the child tasks."""
+        from airflow.models.mappedoperator import MappedOperator
         from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         groups_to_visit = [self]
 
@@ -592,7 +598,7 @@ class TaskGroup(DAGNode):
             visiting = groups_to_visit.pop(0)
 
             for child in visiting.children.values():
-                if isinstance(child, AbstractOperator):
+                if isinstance(child, (AbstractOperator, MappedOperator, SerializedBaseOperator)):
                     yield child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
@@ -613,7 +619,12 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(self, *, expand_input: SchedulerExpandInput, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        expand_input: SchedulerExpandInput | DictOfListsExpandInput | ListOfDictsExpandInput,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
 
@@ -630,7 +641,7 @@ class MappedTaskGroup(TaskGroup):
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
-        Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
+        Return the Number of instances a task in this group should be mapped to, when a Dag run is created.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -659,53 +670,3 @@ class MappedTaskGroup(TaskGroup):
 
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
-
-
-def task_group_to_dict(task_item_or_group):
-    """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.sensors.base import BaseSensorOperator
-
-    if isinstance(task := task_item_or_group, AbstractOperator):
-        setup_teardown_type = {}
-        is_mapped = {}
-        node_type = {"type": "task"}
-        if task.is_setup is True:
-            setup_teardown_type["setup_teardown_type"] = "setup"
-        elif task.is_teardown is True:
-            setup_teardown_type["setup_teardown_type"] = "teardown"
-        if isinstance(task, MappedOperator):
-            is_mapped["is_mapped"] = True
-        if isinstance(task, BaseSensorOperator):
-            node_type["type"] = "sensor"
-        return {
-            "id": task.task_id,
-            "label": task.label,
-            **is_mapped,
-            **setup_teardown_type,
-            **node_type,
-        }
-
-    task_group = task_item_or_group
-    is_mapped = isinstance(task_group, MappedTaskGroup)
-    children = [
-        task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
-    ]
-
-    if task_group.upstream_group_ids or task_group.upstream_task_ids:
-        # This is the join node used to reduce the number of edges between two TaskGroup.
-        children.append({"id": task_group.upstream_join_id, "label": "", "type": "join"})
-
-    if task_group.downstream_group_ids or task_group.downstream_task_ids:
-        # This is the join node used to reduce the number of edges between two TaskGroup.
-        children.append({"id": task_group.downstream_join_id, "label": "", "type": "join"})
-
-    return {
-        "id": task_group.group_id,
-        "label": task_group.label,
-        "tooltip": task_group.tooltip,
-        "is_mapped": is_mapped,
-        "children": children,
-        "type": "task_group",
-    }

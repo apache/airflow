@@ -17,15 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import ipaddress
+
 # [START dag_decorator_usage]
 from typing import TYPE_CHECKING, Any
 
 import httpx
 import pendulum
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import dag, task
+from airflow.sdk import BaseOperator, dag, task
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -61,9 +62,13 @@ def example_dag_decorator(url: str = "http://httpbin.org/get"):
     @task(multiple_outputs=True)
     def prepare_command(raw_json: dict[str, Any]) -> dict[str, str]:
         external_ip = raw_json["origin"]
-        return {
-            "command": f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'",
-        }
+        try:
+            ipaddress.ip_address(external_ip)
+            return {
+                "command": f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'",
+            }
+        except ValueError:
+            raise ValueError(f"Invalid IP address: '{external_ip}'.")
 
     command_info = prepare_command(get_ip.output)
 

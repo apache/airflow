@@ -50,7 +50,7 @@ def string_comma_to_list(message: str) -> list[str]:
 
 def send_email(
     smtp_server: str,
-    smpt_port: int,
+    smtp_port: int,
     username: str,
     password: str,
     sender_email: str,
@@ -61,7 +61,7 @@ def send_email(
     Send a simple text email (SMTP)
     """
     context = ssl.create_default_context()
-    with smtplib.SMTP(smtp_server, smpt_port) as server:
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
         server.starttls(context=context)
         server.login(username, password)
         server.sendmail(sender_email, receiver_email, message)
@@ -157,7 +157,7 @@ class BaseParameters:
     help="Your LDAP Apache username",
     required=True,
 )
-@click.password_option(  # type: ignore
+@click.password_option(
     "-p",
     "--apache_password",
     prompt="Apache Password",
@@ -184,7 +184,7 @@ class BaseParameters:
     help="Release Candidate Version",
     required=True,
 )
-@click.option(  # type: ignore
+@click.option(
     "-n",
     "--name",
     prompt="Your Name",

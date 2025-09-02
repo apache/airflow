@@ -17,27 +17,14 @@
  * under the License.
  */
 import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { MdExpand, MdCompress } from "react-icons/md";
-import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
 
 import { useOpenGroups } from "src/context/openGroups";
-import { useGridStructure } from "src/queries/useGridStructure.ts";
-
-import { flattenNodes } from "./Grid/utils";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { t: translate } = useTranslation();
-  const { openGroupIds, setOpenGroupIds } = useOpenGroups();
-  const { dagId = "" } = useParams();
-  const [limit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
-  const { data: dagStructure } = useGridStructure({ limit });
-  const { allGroupIds } = useMemo(
-    () => flattenNodes(dagStructure, openGroupIds),
-    [dagStructure, openGroupIds],
-  );
+  const { allGroupIds, openGroupIds, setOpenGroupIds } = useOpenGroups();
 
   // Don't show button if the DAG has no task groups
   if (!allGroupIds.length) {
@@ -59,14 +46,13 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
   const collapseLabel = translate("dag:taskGroups.collapseAll");
 
   return (
-    <ButtonGroup attached size="sm" variant="surface" {...props}>
+    <ButtonGroup attached size="sm" variant="outline" {...props}>
       <IconButton
         aria-label={expandLabel}
         disabled={isExpandDisabled}
         onClick={onExpand}
         size="sm"
         title={expandLabel}
-        variant="surface"
       >
         <MdExpand />
       </IconButton>
@@ -76,7 +62,6 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
         onClick={onCollapse}
         size="sm"
         title={collapseLabel}
-        variant="surface"
       >
         <MdCompress />
       </IconButton>

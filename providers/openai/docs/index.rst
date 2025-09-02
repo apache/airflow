@@ -71,7 +71,9 @@ apache-airflow-providers-openai package
 `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 
-Release: 1.6.1
+Release: 1.6.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

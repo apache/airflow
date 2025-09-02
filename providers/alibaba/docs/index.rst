@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-alibaba/|version|/alibaba/tests/system/alibaba>
+    Example Dags <https://github.com/apache/airflow/tree/providers-alibaba/|version|/alibaba/tests/system/alibaba>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-alibaba/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 3.2.1
+Release: 3.2.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

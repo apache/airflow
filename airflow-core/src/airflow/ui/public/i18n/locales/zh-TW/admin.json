@@ -1,19 +1,19 @@
 {
-  "columns":{
+  "columns": {
     "description": "描述",
     "key": "鍵",
     "name": "名稱",
     "value": "值"
   },
-  "config":{
-    "columns":{
+  "config": {
+    "columns": {
       "section": "區段"
     },
     "title": "Airflow 設定"
   },
-  "connections":{
-    "add":"新增連線",
-    "columns":{
+  "connections": {
+    "add": "新增連線",
+    "columns": {
       "connectionId": "連線 ID",
       "connectionType": "連線類型",
       "host": "主機",
@@ -21,7 +21,7 @@
     },
     "connection_one": "連線",
     "connection_other": "連線",
-    "delete":{
+    "delete": {
       "deleteConnection_one": "刪除 1 個連線",
       "deleteConnection_other": "刪除 {{count}} 個連線",
       "firstConfirmMessage_one": "您即將刪除以下連線：",
@@ -29,18 +29,22 @@
       "title": "刪除連線"
     },
     "edit": "編輯連線",
-    "form":{
+    "form": {
       "connectionIdRequired": "連線 ID 是必填的",
       "connectionIdRequirement": "連線 ID 不能只包含空格",
       "connectionTypeRequired": "連線類型是必填的",
       "extraFields": "額外欄位",
       "extraFieldsJson": "額外欄位 JSON",
       "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow Providers 套件。",
+      "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",
       "selectConnectionType": "選擇連線類型",
       "standardFields": "標準欄位"
     },
     "nothingFound": {
-        "title": "找不到連線"
+      "description": "透過環境變數或密鑰管理器定義的連線不會列在此處。",
+      "documentationLink": "在 Airflow 文件中了解更多。",
+      "learnMore": "這些連線會在執行時間解析，不會在 UI 顯示。",
+      "title": "找不到連線"
     },
     "searchPlaceholder": "搜尋連線",
     "test": "測試連線",
@@ -57,9 +61,9 @@
       }
     }
   },
-  "deleteActions":{
+  "deleteActions": {
     "button": "刪除",
-    "modal":{
+    "modal": {
       "confirmButton": "確定刪除",
       "secondConfirmMessage": "此動作無法復原。",
       "thirdConfirmMessage": "您確定要繼續嗎？"
@@ -67,7 +71,7 @@
     "selected": "已選取",
     "tooltip": "刪除所選連線"
   },
-  "formActions":{
+  "formActions": {
     "reset": "重置",
     "save": "儲存"
   },
@@ -82,7 +86,7 @@
   "pools": {
     "add": "新增資源池",
     "deferredSlotsIncluded": "包含延後任務",
-    "delete":{
+    "delete": {
       "title": "刪除資源池",
       "warning": "這將刪除所有與此資源池相關的系統資料，可能會影響使用此資源池的任務。"
     },

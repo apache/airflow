@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -24,7 +24,7 @@ export const useAssetServiceGetAssetsSuspense = <TData = Common.AssetServiceGetA
   namePattern?: string;
   offset?: number;
   onlyActive?: boolean;
-  orderBy?: string;
+  orderBy?: string[];
   uriPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }, queryKey), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }) as TData, ...options });
 /**
@@ -42,7 +42,7 @@ export const useAssetServiceGetAssetAliasesSuspense = <TData = Common.AssetServi
   limit?: number;
   namePattern?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }, queryKey), queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }) as TData, ...options });
 /**
 * Get Asset Alias
@@ -68,22 +68,26 @@ export const useAssetServiceGetAssetAliasSuspense = <TData = Common.AssetService
 * @param data.sourceRunId
 * @param data.sourceMapIndex
 * @param data.timestampGte
+* @param data.timestampGt
 * @param data.timestampLte
+* @param data.timestampLt
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetEventsSuspense = <TData = Common.AssetServiceGetAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGte, timestampLte }: {
+export const useAssetServiceGetAssetEventsSuspense = <TData = Common.AssetServiceGetAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
   sourceTaskId?: string;
+  timestampGt?: string;
   timestampGte?: string;
+  timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGte, timestampLte }, queryKey), queryFn: () => AssetService.getAssetEvents({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGte, timestampLte }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }, queryKey), queryFn: () => AssetService.getAssetEvents({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) as TData, ...options });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -160,7 +164,7 @@ export const useBackfillServiceListBackfillsSuspense = <TData = Common.BackfillS
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ dagId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData, ...options });
 /**
 * Get Backfill
@@ -188,7 +192,7 @@ export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.Backfil
   dagId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData, ...options });
 /**
 * Get Connection
@@ -216,7 +220,7 @@ export const useConnectionServiceGetConnectionsSuspense = <TData = Common.Connec
   connectionIdPattern?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData, ...options });
 /**
 * Hook Meta Data
@@ -260,41 +264,63 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <TData = Common.Da
 * @param data.limit
 * @param data.offset
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.updatedAtGte
+* @param data.updatedAtGt
 * @param data.updatedAtLte
+* @param data.updatedAtLt
 * @param data.runType
 * @param data.state
 * @param data.orderBy
 * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns DAGRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagRunServiceGetDagRunsSuspense = <TData = Common.DagRunServiceGetDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }: {
+export const useDagRunServiceGetDagRunsSuspense = <TData = Common.DagRunServiceGetDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
   dagId: string;
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   limit?: number;
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
   runIdPattern?: string;
   runType?: string[];
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
   state?: string[];
+  triggeringUserNamePattern?: string;
+  updatedAtGt?: string;
   updatedAtGte?: string;
+  updatedAtLt?: string;
   updatedAtLte?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, updatedAtGte, updatedAtLte }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) as TData, ...options });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
@@ -415,7 +441,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <TData = Common.DagWa
   dagId?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   warningType?: DagWarningType;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
@@ -432,35 +458,51 @@ export const useDagWarningServiceListDagWarningsSuspense = <TData = Common.DagWa
 * @param data.excludeStale
 * @param data.paused
 * @param data.lastDagRunState
+* @param data.bundleName
+* @param data.bundleVersion
+* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
 * @param data.dagRunStartDateGte
+* @param data.dagRunStartDateGt
 * @param data.dagRunStartDateLte
+* @param data.dagRunStartDateLt
 * @param data.dagRunEndDateGte
+* @param data.dagRunEndDateGt
 * @param data.dagRunEndDateLte
+* @param data.dagRunEndDateLt
 * @param data.dagRunState
 * @param data.orderBy
 * @param data.isFavorite
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagServiceGetDagsSuspense = <TData = Common.DagServiceGetDagsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const useDagServiceGetDagsSuspense = <TData = Common.DagServiceGetDagsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  assetDependency?: string;
+  bundleName?: string;
+  bundleVersion?: string;
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
+  dagRunEndDateGt?: string;
   dagRunEndDateGte?: string;
+  dagRunEndDateLt?: string;
   dagRunEndDateLte?: string;
+  dagRunStartDateGt?: string;
   dagRunStartDateGte?: string;
+  dagRunStartDateLt?: string;
   dagRunStartDateLte?: string;
   dagRunState?: string[];
   excludeStale?: boolean;
+  hasAssetSchedule?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owners?: string[];
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsKeyFn({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDags({ dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
 /**
 * Get Dag
 * Get basic information about a DAG.
@@ -497,7 +539,7 @@ export const useDagServiceGetDagDetailsSuspense = <TData = Common.DagServiceGetD
 export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagTagsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy, tagNamePattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   tagNamePattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey), queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData, ...options });
 /**
@@ -516,27 +558,46 @@ export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagT
 * @param data.excludeStale
 * @param data.paused
 * @param data.lastDagRunState
+* @param data.bundleName
+* @param data.bundleVersion
 * @param data.orderBy
 * @param data.isFavorite
+* @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
+* @param data.assetDependency Filter DAGs by asset dependency (name or URI)
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagServiceGetDagsUiSuspense = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const useDagServiceGetDagsUiSuspense = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  assetDependency?: string;
+  bundleName?: string;
+  bundleVersion?: string;
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
   dagIds?: string[];
   dagRunsLimit?: number;
   excludeStale?: boolean;
+  hasAssetSchedule?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owners?: string[];
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDagsUi({ dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }, queryKey), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) as TData, ...options });
+/**
+* Get Latest Run Info
+* Get latest run.
+* @param data The data for the request.
+* @param data.dagId
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetLatestRunInfoSuspense = <TData = Common.DagServiceGetLatestRunInfoDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
+  dagId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }, queryKey), queryFn: () => DagService.getLatestRunInfo({ dagId }) as TData, ...options });
 /**
 * Get Event Log
 * @param data The data for the request.
@@ -565,25 +626,35 @@ export const useEventLogServiceGetEventLogSuspense = <TData = Common.EventLogSer
 * @param data.includedEvents
 * @param data.before
 * @param data.after
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns EventLogCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useEventLogServiceGetEventLogsSuspense = <TData = Common.EventLogServiceGetEventLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }: {
+export const useEventLogServiceGetEventLogsSuspense = <TData = Common.EventLogServiceGetEventLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }: {
   after?: string;
   before?: string;
   dagId?: string;
+  dagIdPattern?: string;
   event?: string;
+  eventPattern?: string;
   excludedEvents?: string[];
   includedEvents?: string[];
   limit?: number;
   mapIndex?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owner?: string;
+  ownerPattern?: string;
   runId?: string;
+  runIdPattern?: string;
   taskId?: string;
+  taskIdPattern?: string;
   tryNumber?: number;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }, queryKey), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }, queryKey), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }) as TData, ...options });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -641,53 +712,81 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <TData = Common.Tas
 * @param data.dagRunId
 * @param data.taskId
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.updatedAtGte
+* @param data.updatedAtGt
 * @param data.updatedAtLte
+* @param data.updatedAtLt
 * @param data.durationGte
+* @param data.durationGt
 * @param data.durationLte
+* @param data.durationLt
 * @param data.state
 * @param data.pool
 * @param data.queue
 * @param data.executor
 * @param data.versionNumber
+* @param data.tryNumber
+* @param data.operator
 * @param data.limit
 * @param data.offset
 * @param data.orderBy
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskId, updatedAtGte, updatedAtLte, versionNumber }: {
+export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, operator, orderBy, pool, queue, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
+  durationGt?: number;
   durationGte?: number;
+  durationLt?: number;
   durationLte?: number;
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   executor?: string[];
   limit?: number;
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  operator?: string[];
+  orderBy?: string[];
   pool?: string[];
   queue?: string[];
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
   state?: string[];
   taskId: string;
+  tryNumber?: number[];
+  updatedAtGt?: string;
   updatedAtGte?: string;
+  updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskId, updatedAtGte, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskId, updatedAtGte, updatedAtLte, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, operator, orderBy, pool, queue, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, operator, orderBy, pool, queue, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -783,55 +882,83 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <TData = Comm
 * @param data.dagRunId
 * @param data.taskId
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.updatedAtGte
+* @param data.updatedAtGt
 * @param data.updatedAtLte
+* @param data.updatedAtLt
 * @param data.durationGte
+* @param data.durationGt
 * @param data.durationLte
+* @param data.durationLt
 * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.pool
 * @param data.queue
 * @param data.executor
 * @param data.versionNumber
+* @param data.tryNumber
+* @param data.operator
 * @param data.limit
 * @param data.offset
 * @param data.orderBy
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstancesSuspense = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskDisplayNamePattern, taskId, updatedAtGte, updatedAtLte, versionNumber }: {
+export const useTaskInstanceServiceGetTaskInstancesSuspense = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, operator, orderBy, pool, queue, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
+  durationGt?: number;
   durationGte?: number;
+  durationLt?: number;
   durationLte?: number;
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   executor?: string[];
   limit?: number;
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
   offset?: number;
-  orderBy?: string;
+  operator?: string[];
+  orderBy?: string[];
   pool?: string[];
   queue?: string[];
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
   state?: string[];
   taskDisplayNamePattern?: string;
   taskId?: string;
+  tryNumber?: number[];
+  updatedAtGt?: string;
   updatedAtGte?: string;
+  updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskDisplayNamePattern, taskId, updatedAtGte, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstances({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskDisplayNamePattern, taskId, updatedAtGte, updatedAtLte, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, operator, orderBy, pool, queue, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, operator, orderBy, pool, queue, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
 /**
 * Get Task Instance Try Details
 * Get task instance details by try number.
@@ -937,7 +1064,7 @@ export const useImportErrorServiceGetImportErrorSuspense = <TData = Common.Impor
 export const useImportErrorServiceGetImportErrorsSuspense = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData, ...options });
 /**
 * Get Jobs
@@ -945,9 +1072,13 @@ export const useImportErrorServiceGetImportErrorsSuspense = <TData = Common.Impo
 * @param data The data for the request.
 * @param data.isAlive
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.limit
 * @param data.offset
 * @param data.orderBy
@@ -958,8 +1089,10 @@ export const useImportErrorServiceGetImportErrorsSuspense = <TData = Common.Impo
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useJobServiceGetJobsSuspense = <TData = Common.JobServiceGetJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }: {
+export const useJobServiceGetJobsSuspense = <TData = Common.JobServiceGetJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   executorClass?: string;
   hostname?: string;
@@ -968,10 +1101,12 @@ export const useJobServiceGetJobsSuspense = <TData = Common.JobServiceGetJobsDef
   jobType?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseJobServiceGetJobsKeyFn({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }, queryKey), queryFn: () => JobService.getJobs({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseJobServiceGetJobsKeyFn({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => JobService.getJobs({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
 /**
 * Get Plugins
 * @param data The data for the request.
@@ -1015,7 +1150,7 @@ export const usePoolServiceGetPoolSuspense = <TData = Common.PoolServiceGetPoolD
 export const usePoolServiceGetPoolsSuspense = <TData = Common.PoolServiceGetPoolsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy, poolNamePattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   poolNamePattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }, queryKey), queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }) as TData, ...options });
 /**
@@ -1067,18 +1202,44 @@ export const useXcomServiceGetXcomEntrySuspense = <TData = Common.XcomServiceGet
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
+* @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.mapIndexFilter
+* @param data.logicalDateGte
+* @param data.logicalDateGt
+* @param data.logicalDateLte
+* @param data.logicalDateLt
+* @param data.runAfterGte
+* @param data.runAfterGt
+* @param data.runAfterLte
+* @param data.runAfterLt
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useXcomServiceGetXcomEntriesSuspense = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }: {
+export const useXcomServiceGetXcomEntriesSuspense = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }: {
+  dagDisplayNamePattern?: string;
   dagId: string;
   dagRunId: string;
   limit?: number;
+  logicalDateGt?: string;
+  logicalDateGte?: string;
+  logicalDateLt?: string;
+  logicalDateLte?: string;
   mapIndex?: number;
+  mapIndexFilter?: number;
   offset?: number;
+  runAfterGt?: string;
+  runAfterGte?: string;
+  runAfterLt?: string;
+  runAfterLte?: string;
+  runIdPattern?: string;
   taskId: string;
+  taskIdPattern?: string;
   xcomKey?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) as TData, ...options });
+  xcomKeyPattern?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }) as TData, ...options });
 /**
 * Get Tasks
 * Get tasks for DAG.
@@ -1130,7 +1291,7 @@ export const useVariableServiceGetVariableSuspense = <TData = Common.VariableSer
 export const useVariableServiceGetVariablesSuspense = <TData = Common.VariableServiceGetVariablesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy, variableKeyPattern }: {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   variableKeyPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern }, queryKey), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData, ...options });
 /**
@@ -1168,9 +1329,61 @@ export const useDagVersionServiceGetDagVersionsSuspense = <TData = Common.DagVer
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
+/**
+* Get Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlDetailSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+/**
+* Get Hitl Details
+* Get Human-in-the-loop details.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy
+* @param data.dagId
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagRunId
+* @param data.taskId
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.state
+* @param data.responseReceived
+* @param data.userId
+* @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @returns HITLDetailCollection Successful Response
+* @throws ApiError
+*/
+export const useHumanInTheLoopServiceGetHitlDetailsSuspense = <TData = Common.HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }: {
+  bodySearch?: string;
+  dagId?: string;
+  dagIdPattern?: string;
+  dagRunId?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  responseReceived?: boolean;
+  state?: string[];
+  subjectSearch?: string;
+  taskId?: string;
+  taskIdPattern?: string;
+  userId?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }, queryKey), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }) as TData, ...options });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
@@ -1206,6 +1419,17 @@ export const useLoginServiceLoginSuspense = <TData = Common.LoginServiceLoginDef
 export const useLoginServiceLogoutSuspense = <TData = Common.LoginServiceLogoutDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ next }: {
   next?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey), queryFn: () => LoginService.logout({ next }) as TData, ...options });
+/**
+* Refresh
+* Refresh the authentication token.
+* @param data The data for the request.
+* @param data.next
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceRefreshSuspense = <TData = Common.LoginServiceRefreshDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ next }: {
+  next?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseLoginServiceRefreshKeyFn({ next }, queryKey), queryFn: () => LoginService.refresh({ next }) as TData, ...options });
 /**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response
@@ -1265,41 +1489,6 @@ export const useStructureServiceStructureDataSuspense = <TData = Common.Structur
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }, queryKey), queryFn: () => StructureService.structureData({ dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }) as TData, ...options });
 /**
-* Grid Data
-* Return grid data.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.includeUpstream
-* @param data.includeDownstream
-* @param data.root
-* @param data.offset
-* @param data.runType
-* @param data.state
-* @param data.limit
-* @param data.orderBy
-* @param data.runAfterGte
-* @param data.runAfterLte
-* @param data.logicalDateGte
-* @param data.logicalDateLte
-* @returns GridResponse Successful Response
-* @throws ApiError
-*/
-export const useGridServiceGridDataSuspense = <TData = Common.GridServiceGridDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }: {
-  dagId: string;
-  includeDownstream?: boolean;
-  includeUpstream?: boolean;
-  limit?: number;
-  logicalDateGte?: string;
-  logicalDateLte?: string;
-  offset?: number;
-  orderBy?: string;
-  root?: string;
-  runAfterGte?: string;
-  runAfterLte?: string;
-  runType?: string[];
-  state?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGridDataKeyFn({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }, queryKey), queryFn: () => GridService.gridData({ dagId, includeDownstream, includeUpstream, limit, logicalDateGte, logicalDateLte, offset, orderBy, root, runAfterGte, runAfterLte, runType, state }) as TData, ...options });
-/**
 * Get Dag Structure
 * Return dag structure for grid view.
 * @param data The data for the request.
@@ -1308,18 +1497,22 @@ export const useGridServiceGridDataSuspense = <TData = Common.GridServiceGridDat
 * @param data.limit
 * @param data.orderBy
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @returns GridNodeResponse Successful Response
 * @throws ApiError
 */
-export const useGridServiceGetDagStructureSuspense = <TData = Common.GridServiceGetDagStructureDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+export const useGridServiceGetDagStructureSuspense = <TData = Common.GridServiceGetDagStructureDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }, queryKey), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }, queryKey), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }) as TData, ...options });
 /**
 * Get Grid Runs
 * Get info about a run for the grid.
@@ -1329,18 +1522,22 @@ export const useGridServiceGetDagStructureSuspense = <TData = Common.GridService
 * @param data.limit
 * @param data.orderBy
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @returns GridRunsResponse Successful Response
 * @throws ApiError
 */
-export const useGridServiceGetGridRunsSuspense = <TData = Common.GridServiceGetGridRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+export const useGridServiceGetGridRunsSuspense = <TData = Common.GridServiceGetGridRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }, queryKey), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }, queryKey), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }) as TData, ...options });
 /**
 * Get Grid Ti Summaries
 * Get states for TIs / "groups" of TIs.
@@ -1366,32 +1563,23 @@ export const useGridServiceGetGridTiSummariesSuspense = <TData = Common.GridServ
   runId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }, queryKey), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) as TData, ...options });
 /**
-* Get Latest Run
-* Get information about the latest dag run by run_after.
-*
-* This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-* @param data The data for the request.
-* @param data.dagId
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const useGridServiceGetLatestRunSuspense = <TData = Common.GridServiceGetLatestRunDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
-  dagId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetLatestRunKeyFn({ dagId }, queryKey), queryFn: () => GridService.getLatestRun({ dagId }) as TData, ...options });
-/**
 * Get Calendar
 * Get calendar data for a DAG including historical and planned DAG runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.granularity
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @returns CalendarTimeRangeCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useCalendarServiceGetCalendarSuspense = <TData = Common.CalendarServiceGetCalendarDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, granularity, logicalDateGte, logicalDateLte }: {
+export const useCalendarServiceGetCalendarSuspense = <TData = Common.CalendarServiceGetCalendarDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }: {
   dagId: string;
   granularity?: "hourly" | "daily";
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGte, logicalDateLte }, queryKey), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGte, logicalDateLte }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }, queryKey), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }) as TData, ...options });

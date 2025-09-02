@@ -20,7 +20,6 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Developer commands",
     "commands": [
         "start-airflow",
-        "static-checks",
         "build-docs",
         "down",
         "shell",
@@ -40,6 +39,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
+                "--auth-manager",
             ],
         },
         {
@@ -86,6 +86,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--load-default-connections",
                 "--standalone-dag-processor",
                 "--start-api-server-with-examples",
+                "--auth-manager",
             ],
         },
         {
@@ -209,6 +210,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
+                "--auth-manager",
                 "--load-example-dags",
                 "--load-default-connections",
             ],
@@ -236,12 +238,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--celery-broker",
                 "--celery-flower",
-            ],
-        },
-        {
-            "name": "Auth manager",
-            "options": [
-                "--auth-manager",
             ],
         },
         {
@@ -292,6 +288,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--forward-credentials",
             ],
+        },
+        {
+            "name": "Debugging options",
+            "options": ["--debug", "--debugger"],
         },
     ],
     "breeze exec": [
@@ -372,36 +372,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
-            ],
-        },
-    ],
-    "breeze static-checks": [
-        {
-            "name": "Pre-commit flags",
-            "options": [
-                "--type",
-                "--show-diff-on-failure",
-                "--initialize-environment",
-                "--max-initialization-attempts",
-            ],
-        },
-        {
-            "name": "Selecting files to run the checks on",
-            "options": [
-                "--file",
-                "--all-files",
-                "--commit-ref",
-                "--last-commit",
-                "--only-my-changes",
-            ],
-        },
-        {
-            "name": "Building image before running checks",
-            "options": [
-                "--skip-image-upgrade-check",
-                "--force-build",
-                "--github-repository",
-                "--builder",
             ],
         },
     ],

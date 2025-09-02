@@ -28,12 +28,15 @@ import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/req
 import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
+import { parseStreamingLogContent } from "src/utils/logs";
 
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
   expanded?: boolean;
   logLevelFilters?: Array<string>;
+  showSource?: boolean;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
@@ -43,6 +46,8 @@ type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   expanded?: boolean;
   logLevelFilters?: Array<string>;
+  showSource?: boolean;
+  showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   translate: TFunction;
@@ -53,6 +58,8 @@ const parseLogs = ({
   data,
   expanded,
   logLevelFilters,
+  showSource,
+  showTimestamp,
   sourceFilters,
   taskInstance,
   translate,
@@ -66,24 +73,28 @@ const parseLogs = ({
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
-    parsedLines = data.map((datum, index) => {
-      if (typeof datum !== "string" && "logger" in datum) {
-        const source = datum.logger as string;
+    parsedLines = data
+      .map((datum, index) => {
+        if (typeof datum !== "string" && "logger" in datum) {
+          const source = datum.logger as string;
 
-        if (!sources.includes(source)) {
-          sources.push(source);
+          if (!sources.includes(source)) {
+            sources.push(source);
+          }
         }
-      }
 
-      return renderStructuredLog({
-        index,
-        logLevelFilters,
-        logLink,
-        logMessage: datum,
-        sourceFilters,
-        translate,
-      });
-    });
+        return renderStructuredLog({
+          index,
+          logLevelFilters,
+          logLink,
+          logMessage: datum,
+          showSource,
+          showTimestamp,
+          sourceFilters,
+          translate,
+        });
+      })
+      .filter((parsedLine) => parsedLine !== "");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -170,10 +181,12 @@ const parseLogs = ({
 
 export const useLogs = (
   {
-    accept = "application/json",
+    accept = "application/x-ndjson",
     dagId,
     expanded,
     logLevelFilters,
+    showSource,
+    showTimestamp,
     sourceFilters,
     taskInstance,
     tryNumber = 1,
@@ -205,9 +218,11 @@ export const useLogs = (
   );
 
   const parsedData = parseLogs({
-    data: data?.content ?? [],
+    data: parseStreamingLogContent(data),
     expanded,
     logLevelFilters,
+    showSource,
+    showTimestamp,
     sourceFilters,
     taskInstance,
     translate,

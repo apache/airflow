@@ -60,7 +60,7 @@ RELEASE_AIRFLOW_TASK_SDK_COMMANDS: dict[str, str | list[str]] = {
 }
 
 RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Airflow CTL release commands",
+    "name": "airflowctl release commands",
     "commands": [
         "prepare-airflow-ctl-distributions",
     ],
@@ -86,15 +86,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+                "--tag",
             ],
         }
     ],
     "breeze release-management prepare-airflow-tarball": [
         {
             "name": "Package flags",
-            "options": [
-                "--version",
-            ],
+            "options": ["--version", "--distribution-name", "--tag"],
         }
     ],
     "breeze release-management prepare-task-sdk-distributions": [
@@ -104,6 +103,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+                "--tag",
             ],
         }
     ],
@@ -114,6 +114,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+                "--tag",
             ],
         }
     ],
@@ -234,6 +235,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-tag-check",
                 "--version-suffix",
                 "--distributions-list",
+                "--tag",
             ],
         }
     ],
@@ -382,6 +384,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-site-directory",
                 "--include-not-ready-providers",
                 "--include-removed-providers",
+                "--head-repo",
+                "--head-ref",
             ],
         },
     ],
@@ -393,6 +397,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--excluded-pr-list",
                 "--github-token",
                 "--only-available-in-dist",
+                "--no-include-browser-link",
             ],
         }
     ],
@@ -405,8 +410,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management generate-providers-metadata": [
         {
             "name": "Generate providers metadata flags",
-            "options": ["--refresh-constraints", "--github-token"],
-        }
+            "options": ["--refresh-constraints-and-airflow-releases", "--github-token"],
+        },
+        {
+            "name": "Debug options",
+            "options": ["--provider-id", "--provider-version"],
+        },
     ],
     "breeze release-management start-rc-process": [
         {
@@ -414,7 +423,9 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--version",
                 "--previous-version",
+                "--task-sdk-version",
                 "--github-token",
+                "--remote-name",
             ],
         }
     ],

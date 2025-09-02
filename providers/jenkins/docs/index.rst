@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jenkins/|version|/providers/jenkins/tests/system/jenkins>
+    Example Dags <https://github.com/apache/airflow/tree/providers-jenkins/|version|/providers/jenkins/tests/system/jenkins>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jenkins/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,9 @@ apache-airflow-providers-jenkins package
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 4.1.1
+Release: 4.1.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -100,5 +102,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``python-jenkins``  ``>=1.8.0``
+``python-jenkins``  ``>=1.8.2``
 ==================  ==================

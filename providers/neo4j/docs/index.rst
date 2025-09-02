@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/|version|/providers/neo4j/tests/system/neo4j>
+    Example Dags <https://github.com/apache/airflow/tree/providers-neo4j/|version|/providers/neo4j/tests/system/neo4j>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-neo4j package
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.9.2
+Release: 3.10.0
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

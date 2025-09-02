@@ -124,22 +124,15 @@ def _get_parent_run_facet(task_instance):
 
 def _run_api_call(hook: DatabricksSqlHook | DatabricksHook, query_ids: list[str]) -> list[dict]:
     """Retrieve execution details for specific queries from Databricks's query history API."""
-    try:
-        token = hook._get_token(raise_error=True)
-        # https://docs.databricks.com/api/azure/workspace/queryhistory/list
-        response = requests.get(
-            url=f"https://{hook.host}/api/2.0/sql/history/queries",
-            headers={"Authorization": f"Bearer {token}"},
-            data=json.dumps({"filter_by": {"statement_ids": query_ids}}),
-            timeout=2,
-        )
-        response.raise_for_status()
-    except Exception as e:
-        log.warning(
-            "OpenLineage could not retrieve Databricks queries details. Error received: `%s`.",
-            e,
-        )
-        return []
+    token = hook._get_token(raise_error=True)
+    # https://docs.databricks.com/api/azure/workspace/queryhistory/list
+    response = requests.get(
+        url=f"https://{hook.host}/api/2.0/sql/history/queries",
+        headers={"Authorization": f"Bearer {token}"},
+        data=json.dumps({"filter_by": {"statement_ids": query_ids}}),
+        timeout=3,
+    )
+    response.raise_for_status()
 
     return response.json()["res"]
 
@@ -176,7 +169,11 @@ def _get_queries_details_from_databricks(
             if query_info["query_id"]
         }
     except Exception as e:
-        log.warning("OpenLineage could not retrieve extra metadata from Databricks. Error encountered: %s", e)
+        log.info(
+            "OpenLineage encountered an error while retrieving additional metadata about SQL queries"
+            " from Databricks. The process will continue with default values. Error details: %s",
+            e,
+        )
 
     return query_details
 
@@ -345,8 +342,8 @@ def emit_openlineage_events_for_databricks_queries(
         event_batch = _create_ol_event_pair(
             job_namespace=namespace(),
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
-            start_time=query_metadata.get("start_time") or default_event_time,  # type: ignore[arg-type]
-            end_time=query_metadata.get("end_time") or default_event_time,  # type: ignore[arg-type]
+            start_time=query_metadata.get("start_time") or default_event_time,
+            end_time=query_metadata.get("end_time") or default_event_time,
             # Only finished status means it completed without failures
             is_successful=(query_metadata.get("status") or default_state).lower() == "finished",
             run_facets={**query_specific_run_facets, **common_run_facets, **additional_run_facets},

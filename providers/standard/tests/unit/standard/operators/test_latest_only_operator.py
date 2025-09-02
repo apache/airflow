@@ -27,10 +27,15 @@ from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
@@ -312,3 +317,21 @@ class TestLatestOnlyOperator:
 
         # The task will raise DownstreamTasksSkipped exception if it is not the latest run
         assert run_task.state == State.SUCCESS
+
+    def test_regular_latest_only_run(self, dag_maker):
+        """Test latest_only running in normal mode."""
+        with dag_maker(
+            "test_dag",
+            start_date=DEFAULT_DATE,
+            schedule="* * * * *",
+            catchup=False,
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            latest_task >> downstream_task
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        dag_maker.run_ti("latest", dr)

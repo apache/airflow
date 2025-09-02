@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from unittest import mock
@@ -21,7 +22,7 @@ from unittest.mock import MagicMock, Mock
 
 import pandas as pd
 import pytest
-import requests
+from packaging.version import Version
 
 weaviate = pytest.importorskip("weaviate")
 from weaviate import ObjectAlreadyExistsException  # noqa: E402
@@ -30,6 +31,17 @@ from airflow.models import Connection  # noqa: E402
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook  # noqa: E402
 
 TEST_CONN_ID = "test_weaviate_conn"
+
+
+# Weaviate 4.10.0 uses HTTPX internal, so we need to mock httpx rather than requests.
+USE_HTTPX = Version(weaviate.__version__) >= Version("4.10.0")
+
+if USE_HTTPX:
+    import httpx
+else:
+    import requests
+
+NON_RETRIABLE_UNEXPECTED_STATUS_CODE = 501
 
 
 @pytest.fixture
@@ -535,11 +547,17 @@ def test_batch_create_links_retry(weaviate_hook):
             "from_property": "hasCategory",
         },
     ]
-    response = requests.Response()
-    response.status_code = 429
-    error = requests.exceptions.HTTPError()
-    error.response = response
-    side_effect = [None, error, error, None]
+    if USE_HTTPX:
+        response = httpx.Response(status_code=429)
+        too_many_requests_error = weaviate.UnexpectedStatusCodeException(
+            "Weaviate returned an unexpected status code",
+            response=response,
+        )
+    else:
+        response = requests.Response()
+        response.status_code = 429
+        too_many_requests_error = requests.exceptions.HTTPError(response=response)
+    side_effect = [None, too_many_requests_error, too_many_requests_error, None]
 
     mock_collection.batch.dynamic.return_value.__enter__.return_value.add_reference.side_effect = side_effect
 
@@ -583,11 +601,17 @@ def test_batch_data_retry(weaviate_hook):
     weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
 
     data = [{"name": "chandler"}, {"name": "joey"}, {"name": "ross"}]
-    response = requests.Response()
-    response.status_code = 429
-    error = requests.exceptions.HTTPError()
-    error.response = response
-    side_effect = [None, error, None, error, None]
+    if USE_HTTPX:
+        response = httpx.Response(status_code=429)
+        too_many_requests_error = weaviate.UnexpectedStatusCodeException(
+            "Weaviate returned an unexpected status code",
+            response=response,
+        )
+    else:
+        response = requests.Response()
+        response.status_code = 429
+        too_many_requests_error = requests.exceptions.HTTPError(response=response)
+    side_effect = [None, too_many_requests_error, None, too_many_requests_error, None]
 
     mock_collection.batch.dynamic.return_value.__enter__.return_value.add_object.side_effect = side_effect
 
@@ -607,11 +631,17 @@ def test_delete_by_property_retry(get_conn, weaviate_hook):
 
     get_conn.return_value.collections.get.return_value = mock_collection
 
-    response = requests.Response()
-    response.status_code = 429
-    error = requests.exceptions.HTTPError()
-    error.response = response
-    side_effect = [error, error, None]
+    if USE_HTTPX:
+        response = httpx.Response(status_code=429)
+        too_many_requests_error = weaviate.UnexpectedStatusCodeException(
+            "Weaviate returned an unexpected status code",
+            response=response,
+        )
+    else:
+        response = requests.Response()
+        response.status_code = 429
+        too_many_requests_error = requests.exceptions.HTTPError(response=response)
+    side_effect = [too_many_requests_error, too_many_requests_error, None]
 
     mock_collection.data.delete_many.side_effect = side_effect
 
@@ -641,7 +671,12 @@ def test_delete_by_property_get_exception(mock_get_collection, weaviate_hook):
     )
 
     mock_get_collection.side_effect = [
-        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        weaviate.UnexpectedStatusCodeException(
+            "something failed",
+            requests.Response()
+            if not USE_HTTPX
+            else httpx.Response(status_code=NON_RETRIABLE_UNEXPECTED_STATUS_CODE),
+        ),
         mock_collection_b,
         mock_collection_c,
     ]
@@ -656,7 +691,10 @@ def test_delete_by_property_get_exception(mock_get_collection, weaviate_hook):
 
     mock_get_collection.reset_mock()
     mock_get_collection.side_effect = weaviate.UnexpectedStatusCodeException(
-        "something failed", requests.Response()
+        "something failed",
+        requests.Response()
+        if not USE_HTTPX
+        else httpx.Response(status_code=NON_RETRIABLE_UNEXPECTED_STATUS_CODE),
     )
 
     with pytest.raises(weaviate.UnexpectedStatusCodeException):
@@ -671,14 +709,26 @@ def test_delete_by_property_get_exception(mock_get_collection, weaviate_hook):
 def test_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]
     get_conn.return_value.collections.delete.side_effect = [
-        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        weaviate.UnexpectedStatusCodeException(
+            "something failed",
+            httpx.Response(status_code=NON_RETRIABLE_UNEXPECTED_STATUS_CODE)
+            if USE_HTTPX
+            else requests.Response()
+            if not USE_HTTPX
+            else httpx.Response(status_code=NON_RETRIABLE_UNEXPECTED_STATUS_CODE),
+        ),
         None,
     ]
     error_list = weaviate_hook.delete_collections(collection_names, if_error="continue")
     assert error_list == ["collection_a"]
 
     get_conn.return_value.collections.delete.side_effect = weaviate.UnexpectedStatusCodeException(
-        "something failed", requests.Response()
+        "something failed",
+        httpx.Response(status_code=NON_RETRIABLE_UNEXPECTED_STATUS_CODE)
+        if USE_HTTPX
+        else requests.Response()
+        if not USE_HTTPX
+        else httpx.Response(status_code=NON_RETRIABLE_UNEXPECTED_STATUS_CODE),
     )
     with pytest.raises(weaviate.UnexpectedStatusCodeException):
         weaviate_hook.delete_collections("class_a", if_error="stop")
@@ -687,12 +737,22 @@ def test_delete_collections(get_conn, weaviate_hook):
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_http_errors_of_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]
-    resp = requests.Response()
-    resp.status_code = 429
+    if USE_HTTPX:
+        resp = httpx.Response(status_code=429)
+        too_many_requests_error = weaviate.UnexpectedStatusCodeException(
+            "Weaviate returned an unexpected status code",
+            response=resp,
+        )
+        connection_error = httpx.ConnectError("Connection error")
+    else:
+        resp = requests.Response()
+        resp.status_code = 429
+        too_many_requests_error = requests.exceptions.HTTPError(response=resp)
+        connection_error = requests.exceptions.ConnectionError
     get_conn.return_value.collections.delete.side_effect = [
-        requests.exceptions.HTTPError(response=resp),
+        too_many_requests_error,
         None,
-        requests.exceptions.ConnectionError,
+        connection_error,
         None,
     ]
     error_list = weaviate_hook.delete_collections(collection_names, if_error="continue")
@@ -727,18 +787,27 @@ def test___generate_uuids(generate_uuid5, weaviate_hook):
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_object")
 def test__delete_objects(delete_object, weaviate_hook):
-    resp = requests.Response()
-    resp.status_code = 429
-    requests.exceptions.HTTPError(response=resp)
-    http_429_exception = requests.exceptions.HTTPError(response=resp)
+    if USE_HTTPX:
+        resp_429 = httpx.Response(status_code=429)
+        http_429_exception = weaviate.UnexpectedStatusCodeException(
+            "Weaviate returned an unexpected status code",
+            response=resp_429,
+        )
+        resp_404 = httpx.Response(status_code=404)
+        http_404_exception = weaviate.UnexpectedStatusCodeException(
+            message="object not found", response=resp_404
+        )
+    else:
+        resp_429 = requests.Response()
+        resp_429.status_code = 429
+        http_429_exception = requests.exceptions.HTTPError(response=resp_429)
+        resp_404 = requests.Response()
+        resp_404.status_code = 404
+        http_404_exception = weaviate.exceptions.UnexpectedStatusCodeException(
+            message="object not found", response=resp_404
+        )
 
-    resp = requests.Response()
-    resp.status_code = 404
-    not_found_exception = weaviate.exceptions.UnexpectedStatusCodeException(
-        message="object not found", response=resp
-    )
-
-    delete_object.side_effect = [not_found_exception, None, http_429_exception, http_429_exception, None]
+    delete_object.side_effect = [http_404_exception, None, http_429_exception, http_429_exception, None]
     weaviate_hook._delete_objects(uuids=["1", "2", "3"], collection_name="test")
     assert delete_object.call_count == 5
 

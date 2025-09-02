@@ -95,16 +95,22 @@ class TestIgnorePluginFile:
             "test_notload.py",
             "test_notload_sub.py",
             "test_noneload_sub1.py",
-            "test_shouldignore.py",
         }
         should_not_ignore_files = {
             "test_load.py",
             "test_load_sub1.py",
+            "test_shouldignore.py",  # moved to here because it should not ignore, as we do not ignore all
+            # things from subdir 2
         }
         ignore_list_file = ".airflowignore_glob"
+        print("-" * 20)
         for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "glob"):
             file_path = Path(file_path)
             if file_path.is_file() and file_path.suffix == ".py":
                 detected_files.add(file_path.name)
+                print(file_path)
+
+        print("-" * 20)
+        print(detected_files)
         assert detected_files == should_not_ignore_files
         assert detected_files.isdisjoint(should_ignore_files)

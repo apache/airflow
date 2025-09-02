@@ -18,11 +18,11 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { FiCode, FiDatabase } from "react-icons/fi";
+import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -38,6 +38,7 @@ export const Run = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -46,14 +47,6 @@ export const Run = () => {
   ];
 
   const refetchInterval = useAutoRefresh({ dagId });
-
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isLoadinDag,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
 
   const {
     data: dagRun,
@@ -70,9 +63,30 @@ export const Run = () => {
     },
   );
 
+  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId && runId),
+    },
+  );
+
+  const hasHitlTasksForRun = Boolean(hitlData?.hitl_details.length);
+
+  const displayTabs = tabs.filter((tab) => {
+    if (tab.value === "required_actions" && !hasHitlTasksForRun) {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {dagRun === undefined ? undefined : (
           <Header
             dagRun={dagRun}

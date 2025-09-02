@@ -20,12 +20,12 @@ import contextlib
 import copy
 import json
 import logging
-from collections.abc import ItemsView, Iterable, MutableMapping, ValuesView
+from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -145,15 +145,8 @@ class ParamsDict(MutableMapping[str, Any]):
     __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
-    def __init__(self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False):
-        params_dict: dict[str, Param] = {}
-        dict_obj = dict_obj or {}
-        for k, v in dict_obj.items():
-            if not isinstance(v, Param):
-                params_dict[k] = Param(v)
-            else:
-                params_dict[k] = v
-        self.__dict = params_dict
+    def __init__(self, dict_obj: Mapping[str, Any] | None = None, suppress_exception: bool = False):
+        self.__dict = {k: v if isinstance(v, Param) else Param(v) for k, v in (dict_obj or {}).items()}
         self.suppress_exception = suppress_exception
 
     def __bool__(self) -> bool:
@@ -261,14 +254,14 @@ class ParamsDict(MutableMapping[str, Any]):
 
 class DagParam(ResolveMixin):
     """
-    DAG run parameter reference.
+    Dag run parameter reference.
 
-    This binds a simple Param object to a name within a DAG instance, so that it
+    This binds a simple Param object to a name within a Dag instance, so that it
     can be resolved during the runtime via the ``{{ context }}`` dictionary. The
     ideal use case of this class is to implicitly convert args passed to a
     method decorated by ``@dag``.
 
-    It can be used to parameterize a DAG. You can overwrite its value by setting
+    It can be used to parameterize a Dag. You can overwrite its value by setting
     it on conf when you trigger your DagRun.
 
     This can also be used in templates by accessing ``{{ context.params }}``.
@@ -318,13 +311,13 @@ class DagParam(ResolveMixin):
         Deserializes the dictionary back into a DagParam object.
 
         :param data: The serialized representation of the DagParam.
-        :param dags: A dictionary of available DAGs to look up the DAG.
+        :param dags: A dictionary of available Dags to look up the Dag.
         """
         dag_id = data["dag_id"]
-        # Retrieve the current DAG from the provided DAGs dictionary
+        # Retrieve the current Dag from the provided Dags dictionary
         current_dag = dags.get(dag_id)
         if not current_dag:
-            raise ValueError(f"DAG with id {dag_id} not found.")
+            raise ValueError(f"Dag with id {dag_id} not found.")
 
         return cls(current_dag=current_dag, name=data["name"], default=data["default"])
 

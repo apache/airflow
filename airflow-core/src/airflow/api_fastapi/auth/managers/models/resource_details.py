@@ -42,6 +42,7 @@ class DagDetails:
     """Represents the details of a DAG."""
 
     id: str | None = None
+    team_name: str | None = None
 
 
 @dataclass
@@ -98,6 +99,7 @@ class DagAccessEntity(Enum):
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
+    HITL_DETAIL = "HITL_DETAIL"
     RUN = "RUN"
     TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"

@@ -20,19 +20,27 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
 DAG1_ID = "test_dag1"
+DAG1_DISPLAY_NAME = "test_dag1"
 DAG2_ID = "test_dag2"
+DAG2_DISPLAY_NAME = "test_dag2"
 DAG3_ID = "test_dag3"
+DAG3_DISPLAY_NAME = "test_dag3"
 TASK_ID = "op1"
 API_PREFIX = "/dagStats"
 
@@ -44,11 +52,13 @@ class TestDagStatsEndpoint:
     def _clear_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_serialized_dags()
 
     def _create_dag_and_runs(self, session=None):
         dag_1 = DagModel(
             dag_id=DAG1_ID,
+            bundle_name="testing",
             fileloc="/tmp/dag_stats_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -74,6 +84,7 @@ class TestDagStatsEndpoint:
         )
         dag_2 = DagModel(
             dag_id=DAG2_ID,
+            bundle_name="testing",
             fileloc="/tmp/dag_stats_2.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -91,6 +102,7 @@ class TestDagStatsEndpoint:
         )
         dag_3 = DagModel(
             dag_id=DAG3_ID,
+            bundle_name="testing",
             fileloc="/tmp/dag_stats_3.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -129,12 +141,13 @@ class TestDagStatsEndpoint:
 class TestGetDagStats(TestDagStatsEndpoint):
     """Unit tests for Get DAG Stats."""
 
-    def test_should_respond_200(self, test_client, session):
+    def test_should_respond_200(self, test_client, session, testing_dag_bundle):
         self._create_dag_and_runs(session)
         exp_payload = {
             "dags": [
                 {
                     "dag_id": DAG1_ID,
+                    "dag_display_name": DAG1_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -156,6 +169,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                 },
                 {
                     "dag_id": DAG2_ID,
+                    "dag_display_name": DAG2_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -193,12 +207,13 @@ class TestGetDagStats(TestDagStatsEndpoint):
         response = unauthorized_test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
         assert response.status_code == 403
 
-    def test_all_dags_should_respond_200(self, test_client, session):
+    def test_all_dags_should_respond_200(self, test_client, session, testing_dag_bundle):
         self._create_dag_and_runs(session)
         exp_payload = {
             "dags": [
                 {
                     "dag_id": DAG1_ID,
+                    "dag_display_name": DAG1_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -220,6 +235,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                 },
                 {
                     "dag_id": DAG2_ID,
+                    "dag_display_name": DAG2_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -241,6 +257,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                 },
                 {
                     "dag_id": DAG3_ID,
+                    "dag_display_name": DAG3_DISPLAY_NAME,
                     "stats": [
                         {
                             "state": DagRunState.QUEUED,
@@ -284,6 +301,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                     "dags": [
                         {
                             "dag_id": DAG1_ID,
+                            "dag_display_name": DAG1_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -305,6 +323,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                         },
                         {
                             "dag_id": DAG2_ID,
+                            "dag_display_name": DAG2_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -326,6 +345,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                         },
                         {
                             "dag_id": DAG3_ID,
+                            "dag_display_name": DAG3_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -356,6 +376,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                     "dags": [
                         {
                             "dag_id": DAG1_ID,
+                            "dag_display_name": DAG1_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -386,6 +407,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
                     "dags": [
                         {
                             "dag_id": DAG3_ID,
+                            "dag_display_name": DAG3_DISPLAY_NAME,
                             "stats": [
                                 {
                                     "state": DagRunState.QUEUED,
@@ -411,7 +433,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             ),
         ],
     )
-    def test_single_dag_in_dag_ids(self, test_client, session, url, params, exp_payload):
+    def test_single_dag_in_dag_ids(self, test_client, session, testing_dag_bundle, url, params, exp_payload):
         self._create_dag_and_runs(session)
         response = test_client.get(url, params=params)
         assert response.status_code == 200

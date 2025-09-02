@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -35,13 +36,18 @@ from airflow.models.asset import (
 )
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_runs,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
 
@@ -192,12 +198,16 @@ class TestAssets:
     def setup(self):
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_logs()
 
         yield
 
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_logs()
 
     @provide_session
@@ -439,9 +449,13 @@ class TestGetAssets(TestAssets):
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
-    def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
+    def test_filter_assets_by_dag_ids_works(
+        self, test_client, dag_ids, expected_num, testing_dag_bundle, session
+    ):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "testing"
+
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -453,9 +467,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
@@ -475,10 +489,12 @@ class TestGetAssets(TestAssets):
     )
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
-        self, test_client, dag_ids, uri_pattern, expected_num, session
+        self, test_client, dag_ids, uri_pattern, expected_num, testing_dag_bundle, session
     ):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "testing"
+
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -490,9 +506,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
@@ -545,10 +561,14 @@ class TestAssetAliases:
     def setup(self) -> None:
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     @provide_session
     def create_asset_aliases(self, num: int = 2, *, session):

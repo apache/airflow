@@ -47,9 +47,9 @@ from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -364,6 +364,7 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "navbar_text_hover_color"): ("webserver", "navbar_text_hover_color", "3.0.2"),
         ("api", "secret_key"): ("webserver", "secret_key", "3.0.2"),
         ("api", "enable_swagger_ui"): ("webserver", "enable_swagger_ui", "3.0.2"),
+        ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.0.4"),
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
@@ -372,7 +373,6 @@ class AirflowConfigParser(ConfigParser):
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
-        ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
     }
 
@@ -860,7 +860,8 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow._shared.secrets_masker import mask_secret as mask_secret_core
+        from airflow.sdk.log import mask_secret as mask_secret_sdk
 
         for section, key in self.sensitive_config_values:
             try:
@@ -873,7 +874,8 @@ class AirflowConfigParser(ConfigParser):
                     key,
                 )
                 continue
-            mask_secret(value)
+            mask_secret_core(value)
+            mask_secret_sdk(value)
 
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
@@ -902,7 +904,16 @@ class AirflowConfigParser(ConfigParser):
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
-                return run_command(command)
+                try:
+                    cmd_output = run_command(command)
+                except AirflowConfigException as e:
+                    raise e
+                except Exception as e:
+                    raise AirflowConfigException(
+                        f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
+                        f" Please check the {fallback_key} value."
+                    ) from e
+                return cmd_output
         return None
 
     def _get_cmd_option_from_config_sources(
@@ -961,10 +972,10 @@ class AirflowConfigParser(ConfigParser):
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
-    @overload  # type: ignore[override]
+    @overload
     def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
-    def get(  # type: ignore[override,misc]
+    def get(  # type: ignore[misc]
         self,
         section: str,
         key: str,
@@ -2102,7 +2113,7 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             )
         else:
             # there
-            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
+            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
             warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
 
 

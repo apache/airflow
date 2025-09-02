@@ -177,7 +177,7 @@ class XComObjectStorageBackend(BaseXCom):
             return data
 
     @staticmethod
-    def purge(xcom: XComResult, session: Session | None = None) -> None:  # type: ignore[override]
+    def purge(xcom: XComResult, session: Session | None = None) -> None:
         if not isinstance(xcom.value, str):
             return
         with contextlib.suppress(TypeError, ValueError):

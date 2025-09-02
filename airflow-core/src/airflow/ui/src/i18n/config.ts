@@ -24,17 +24,35 @@ import { initReactI18next } from "react-i18next";
 export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ar", name: "العربية" },
+  { code: "ca", name: "Català" },
   { code: "de", name: "Deutsch" },
+  { code: "es", name: "Español" },
   { code: "fr", name: "Français" },
   { code: "he", name: "עברית" },
+  { code: "hi", name: "हिन्दी" },
+  { code: "hu", name: "Magyar" },
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
   { code: "zh-TW", name: "繁體中文" },
+  { code: "tr", name: "Türkçe" },
 ] as const;
 
 export const defaultLanguage = "en";
-export const namespaces = ["common", "dashboard", "dags", "admin", "browse", "assets", "components"] as const;
+export const namespaces = [
+  "common",
+  "dashboard",
+  "dags",
+  "admin",
+  "browse",
+  "assets",
+  "components",
+  "hitl",
+] as const;
+
+const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
+const baseUrl = new URL(baseHref, globalThis.location.origin);
+const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 void i18n
   .use(Backend)
@@ -42,7 +60,7 @@ void i18n
   .use(initReactI18next)
   .init({
     backend: {
-      loadPath: "/static/i18n/locales/{{lng}}/{{ns}}.json",
+      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
     },
     defaultNS: "common",
     detection: {

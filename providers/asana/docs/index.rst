@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/blob/providers-asana/|version|/providers/asana/tests/system/asana/example_asana.py>
+    Example Dags <https://github.com/apache/airflow/blob/providers-asana/|version|/providers/asana/tests/system/asana/example_asana.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-asana/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-asana package
 `Asana <https://asana.com/>`__
 
 
-Release: 2.10.1
+Release: 2.10.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

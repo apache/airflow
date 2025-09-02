@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kylin/|version|/providers/apache/kylin/tests/system/apache/kylin>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-kylin/|version|/providers/apache/kylin/tests/system/apache/kylin>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kylin/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-apache-kylin package
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 3.9.1
+Release: 3.9.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

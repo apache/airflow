@@ -23,7 +23,7 @@ import pendulum
 
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG
-from airflow.utils.task_group import TaskGroup
+from airflow.sdk.definitions.taskgroup import TaskGroup
 
 with DAG(
     dag_id="example_setup_teardown",

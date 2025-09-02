@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/blob/providers-singularity/|version|/providers/singularity/tests/system/singularity/example_singularity.py>
+    Example Dags <https://github.com/apache/airflow/blob/providers-singularity/|version|/providers/singularity/tests/system/singularity/example_singularity.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-singularity/>
     Installing from sources <installing-providers-from-sources>
 
@@ -69,7 +69,9 @@ apache-airflow-providers-singularity package
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 
-Release: 3.8.1
+Release: 3.8.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

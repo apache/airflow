@@ -22,8 +22,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk import BaseOperator, get_current_context
+from airflow.sdk import BaseOperator, get_current_context, timezone
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -57,12 +58,11 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
-    _convert_connection_result_conn,
     _convert_variable_result_to_variable,
+    _process_connection_result_conn,
     context_to_airflow_vars,
     set_current_context,
 )
-from airflow.utils import timezone
 
 
 def test_convert_connection_result_conn():
@@ -77,7 +77,7 @@ def test_convert_connection_result_conn():
         port=1234,
         extra='{"extra_key": "extra_value"}',
     )
-    conn = _convert_connection_result_conn(conn)
+    conn = _process_connection_result_conn(conn)
     assert conn == Connection(
         conn_id="test_conn",
         conn_type="mysql",
@@ -534,12 +534,12 @@ class TestTriggeringAssetEventsAccessor:
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
-            XComResult(key="return_value", value="__example_xcom_value__"),
+            XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
         mock_supervisor_comms.send.assert_called_once_with(
             msg=GetXCom(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="d1",
                 run_id="r1",
                 task_id="t2",
@@ -718,12 +718,12 @@ class TestInletEventAccessor:
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
-            XComResult(key="return_value", value="__example_xcom_value__"),
+            XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
         mock_supervisor_comms.send.assert_called_once_with(
             msg=GetXCom(
-                key="return_value",
+                key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="__dag__",
                 run_id="__run__",
                 task_id="__task__",

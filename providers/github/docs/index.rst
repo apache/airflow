@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-github/|version|/providers/github/tests/system/github>
+    Example Dags <https://github.com/apache/airflow/tree/providers-github/|version|/providers/github/tests/system/github>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-github/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,9 @@ apache-airflow-providers-github package
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.9.1
+Release: 2.9.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

@@ -40,13 +40,22 @@ from datetime import datetime
 
 from google.cloud.exceptions import NotFound
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 

@@ -55,9 +55,12 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker, _secrets_masker
     except ImportError:
-        from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
+        try:
+            from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+        except ImportError:
+            from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
@@ -90,7 +93,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("transport", {}).get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
+                self._client = OpenLineageClient(config=config)
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "

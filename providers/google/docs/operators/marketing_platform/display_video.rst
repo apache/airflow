@@ -30,14 +30,12 @@ Prerequisite Tasks
 Creating a Query
 ^^^^^^^^^^^^^^^^
 
+.. warning::
+    This operator is deprecated and will be removed after September 01, 2025. Please use
+    :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`.
+
 To create Display&Video 360 query use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateQueryOperator`.
-
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_create_query_operator]
-    :end-before: [END howto_google_display_video_create_query_operator]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateQueryOperator`
@@ -50,13 +48,11 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to b
 Run Query
 ^^^^^^^^^
 
-:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunQueryOperator`.
+.. warning::
+    This operator is deprecated and will be removed after September 01, 2025. Please use
+    :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`.
 
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_run_query_report_operator]
-    :end-before: [END howto_google_display_video_run_query_report_operator]
+:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunQueryOperator`.
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunQueryOperator`
@@ -68,14 +64,13 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to b
 Deleting a report
 ^^^^^^^^^^^^^^^^^
 
+.. warning::
+    This operator is deprecated and will be removed after September 01, 2025.
+    Display & Video 360 API v2 has been deprecated and will be removed. Reports were replaced with SDF
+    export task in v4 of API.
+
 To delete Display&Video 360 report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`.
-
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_delete_query_report_operator]
-    :end-before: [END howto_google_display_video_delete_query_report_operator]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`
@@ -86,14 +81,13 @@ parameters which allow you to dynamically determine values.
 Waiting for query
 ^^^^^^^^^^^^^^^^^
 
+.. warning::
+    This sensor is deprecated and will be removed after September 01, 2025.
+    Display & Video 360 API v2 has been deprecated and will be removed. Queries were replaced with SDF
+    export task in v4 of API.
+
 To wait for the report use
 :class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360RunQuerySensor`.
-
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_wait_run_query_sensor]
-    :end-before: [END howto_google_display_video_wait_run_query_sensor]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360RunQuerySensor`
@@ -104,14 +98,12 @@ parameters which allow you to dynamically determine values.
 Downloading a report
 ^^^^^^^^^^^^^^^^^^^^
 
+.. warning::
+    This operator is deprecated and will be removed after September 01, 2025. Please use
+    :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator`.
+
 To download a report to GCS bucket use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator`.
-
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_get_report_operator]
-    :end-before: [END howto_google_display_video_get_report_operator]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator`
@@ -132,14 +124,12 @@ The operator accepts body request:
     "fileSpec": "EWF"
     }
 
+.. warning::
+    This operator is deprecated and will be removed after September 01, 2025. Please use
+    :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`.
+
 To download line items in CSV format report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator`.
-
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_download_line_items_operator]
-    :end-before: [END howto_google_display_video_download_line_items_operator]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator`
@@ -151,14 +141,12 @@ parameters which allow you to dynamically determine values.
 Upload line items
 ^^^^^^^^^^^^^^^^^
 
+.. warning::
+    This operator is deprecated and will be removed after September 01, 2025. Please use
+    :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator`.
+
 To run Display&Video 360 uploading line items use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator`.
-
-.. exampleinclude:: /../../google/tests/system/google/marketing_platform/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_upload_line_items_operator]
-    :end-before: [END howto_google_display_video_upload_line_items_operator]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator`

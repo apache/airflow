@@ -45,6 +45,6 @@ if AIRFLOW_V_3_0_PLUS:
 
     EsLogMsgType = list[StructuredLogMessage] | str
 else:
-    EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
 __all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseHook", "EsLogMsgType"]

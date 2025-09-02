@@ -35,8 +35,9 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG as SchedulerDAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 class TaskMapVariant(enum.Enum):
@@ -122,7 +123,13 @@ class TaskMap(TaskInstanceDependencies):
         return TaskMapVariant.DICT
 
     @classmethod
-    def expand_mapped_task(cls, task, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+    def expand_mapped_task(
+        cls,
+        task: SerializedBaseOperator | MappedOperator,
+        run_id: str,
+        *,
+        session: Session,
+    ) -> tuple[Sequence[TaskInstance], int]:
         """
         Create the mapped task instances for mapped task.
 
@@ -130,20 +137,19 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
-        from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.mappedoperator import MappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.bases.operator import BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, (BaseOperator, MappedOperator)):
+        if not isinstance(task, (MappedOperator, SerializedBaseOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
 
         try:
-            total_length: int | None = DBBaseOperator.get_mapped_ti_count(task, run_id, session=session)
+            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
                 task.log.error(
@@ -169,7 +175,7 @@ class TaskMap(TaskInstanceDependencies):
 
         if unmapped_ti:
             if TYPE_CHECKING:
-                assert task.dag is None or isinstance(task.dag, SchedulerDAG)
+                assert task.dag is None
 
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.

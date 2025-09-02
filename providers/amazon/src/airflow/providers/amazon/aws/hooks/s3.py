@@ -1565,15 +1565,14 @@ class S3Hook(AwsBaseHook):
         else:
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
 
-        with file:
-            extra_args = {**self.extra_args}
-            if self._requester_pays:
-                extra_args["RequestPayer"] = "requester"
-            s3_obj.download_fileobj(
-                file,
-                ExtraArgs=extra_args,
-                Config=self.transfer_config,
-            )
+        extra_args = {**self.extra_args}
+        if self._requester_pays:
+            extra_args["RequestPayer"] = "requester"
+        s3_obj.download_fileobj(
+            file,
+            ExtraArgs=extra_args,
+            Config=self.transfer_config,
+        )
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )

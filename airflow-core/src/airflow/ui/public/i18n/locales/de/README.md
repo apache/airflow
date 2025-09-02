@@ -46,7 +46,7 @@ Die folgenden Begriffe wurden bewusst nicht aus dem Englischen übersetzt:
   "Workflow" wäre vermutlich eher irreführend und es ist anzunehmen dass die
   Nutzer von Airflow den Begriff zuordnen können.
   Der Begriff `Dag` wird in der deutschen Übersetzung im Neutrum verwendet.
-- Log level "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG" in dags.json
+- Log level "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG" in dag.json
   Abschnitt "logs": Diese Begriffe werden in den feststehenden Logs im Text
   auch ausgegeben, deswegen werden sie nicht in das Deutsche übertragen.
 
@@ -120,5 +120,9 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   Bedingungen und zu welchem Zeitpunkt im Dag Lauf dieser Task gestartet werden
   kann.
 - `Try Number` --> `Versuch Nummer`: Direkt Übersetzung ist passend.
+- `XCom` --> `Task Kommunikation (XCom)`: Um die Navigation für neue Benutzer
+  verständlicher zu machen, wurde der Begriff sinngemäß auf Deutsch
+  übersetzt. Zusätzlich ist XCom, da der Begriff oft in Airflow Code und Logs erscheint,
+  nochmals in Klammern angegeben.
 
 (Andere klassische Begriffsübersetzungen nicht im Einzelnen aufgeführt)

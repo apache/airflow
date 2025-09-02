@@ -305,6 +305,8 @@ def run_command_with_k8s_env(
 
 
 def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = None) -> dict[str, str]:
+    from packaging.version import Version
+
     new_env = os.environ.copy()
     new_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env["PATH"]
     new_env["KUBECONFIG"] = str(get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version))
@@ -317,6 +319,11 @@ def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = Non
     if executor:
         new_env["PS1"] = f"({kubectl_cluster_name}:{executor})> "
         new_env["EXECUTOR"] = executor
+    use_flask_appbuilder = Version(python) < Version("3.13")
+    if use_flask_appbuilder:
+        new_env["USE_FAB_AUTH_MANAGER"] = "true"
+    else:
+        new_env["USE_FAB_AUTH_MANAGER"] = "false"
     return new_env
 
 

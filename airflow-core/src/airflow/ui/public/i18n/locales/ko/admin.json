@@ -36,6 +36,7 @@
       "extraFields": "추가 필드",
       "extraFieldsJson": "추가 필드 JSON",
       "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
+      "helperTextForRedactedFields": "('***')로 마스킹된 필드는 수정하지 않으면 그대로 유지됩니다.",
       "selectConnectionType": "커넥션 유형 선택",
       "standardFields": "기본 필드"
     },

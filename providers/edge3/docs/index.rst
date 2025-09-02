@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <_api/airflow/providers/edge3/example_dags/index>
+    Example Dags <_api/airflow/providers/edge3/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-edge3/>
     Installing from sources <installing-providers-from-sources>
 
@@ -90,7 +90,9 @@ Additional REST API endpoints are provided to distribute tasks and manage the ed
 are provided by the API server.
 
 
-Release: 1.1.2
+Release: 1.1.3
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

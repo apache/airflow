@@ -30,10 +30,10 @@ from airflow.api_fastapi.core_api.services.ui.structure import (
     bind_output_assets_to_tasks,
     get_upstream_assets,
 )
+from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import task_group_to_dict
 
 structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
@@ -141,7 +141,7 @@ def structure_data(
                     }
                 )
 
-        if asset_expression := serialized_dag.dag_model.asset_expression:
+        if (asset_expression := serialized_dag.dag_model.asset_expression) and entry_node_ref:
             upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
                 asset_expression, entry_node_ref["id"]
             )

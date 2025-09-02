@@ -29,13 +29,17 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 import attrs
 
 from airflow.sdk.api.datamodels._generated import AssetProfile
+from airflow.sdk.definitions._internal.templater import Templater
 from airflow.serialization.dag_dependency import DagDependency
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
+    import jinja2
+
     from airflow.models.asset import AssetModel
+    from airflow.sdk import Context
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.serialization.serialized_objects import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
@@ -283,9 +287,9 @@ class AssetWatcher:
 
     name: str
     # This attribute serves double purpose.
-    # For a "normal" asset instance loaded from DAG, this holds the trigger used to monitor an external
+    # For a "normal" asset instance loaded from Dag, this holds the trigger used to monitor an external
     # resource. In that case, ``AssetWatcher`` is used directly by users.
-    # For an asset recreated from a serialized DAG, this holds the serialized data of the trigger. In that
+    # For an asset recreated from a serialized Dag, this holds the serialized data of the trigger. In that
     # case, `SerializedAssetWatcher` is used. We need to keep the two types to make mypy happy because
     # `SerializedAssetWatcher` is a subclass of `AssetWatcher`.
     trigger: BaseEventTrigger | dict
@@ -305,7 +309,7 @@ class AssetWatcher:
 
 
 @attrs.define(init=False, unsafe_hash=False)
-class Asset(os.PathLike, BaseAsset):
+class Asset(os.PathLike, BaseAsset, Templater):
     """A representation of data asset dependencies between workflows."""
 
     name: str = attrs.field(
@@ -489,6 +493,22 @@ class Asset(os.PathLike, BaseAsset):
         """
         return AssetProfile(name=self.name or None, uri=self.uri or None, type=Asset.__name__)
 
+    def render_extra_field(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        """
+        Template extra attribute.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja environment to use for rendering.
+        """
+        dag = context["dag"]
+        if not jinja_env:
+            jinja_env = self.get_template_env(dag=dag)
+        self._do_render_template_fields(self, ("extra",), context, jinja_env, set())
+
 
 class AssetRef(BaseAsset, AttrsInstance):
     """
@@ -633,7 +653,7 @@ class AssetBooleanCondition(BaseAsset):
 class AssetAny(AssetBooleanCondition):
     """Use to combine assets schedule references in an "or" relationship."""
 
-    agg_func = any
+    agg_func = any  # type: ignore[assignment]
 
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
@@ -656,7 +676,7 @@ class AssetAny(AssetBooleanCondition):
 class AssetAll(AssetBooleanCondition):
     """Use to combine assets schedule references in an "and" relationship."""
 
-    agg_func = all
+    agg_func = all  # type: ignore[assignment]
 
     def __and__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):

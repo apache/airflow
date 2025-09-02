@@ -57,9 +57,9 @@ Limitations:
     Breeze container-based solution provides a reproducible environment that is
     consistent with other developers.
 
--   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <08_static_code_checks.rst#pre-commit-hooks>`_
+-   You are **STRONGLY** encouraged to also install and use `prek hooks <08_static_code_checks.rst#prek-hooks>`_
     for your local virtualenv development environment.
-    Pre-commit hooks can speed up your development cycle a lot.
+    Prek hooks can speed up your development cycle a lot.
 
 Typically you can connect your local virtualenv environments easily with your IDE
 and use it for development:
@@ -158,3 +158,6 @@ Typically, you are recommended to use multiple of these environments depending o
 
 If you want to learn more details about setting up your local virtualenv, follow to the
 `Local virtualenv <07_local_virtualenv.rst>`__ document.
+
+For detailed information about debugging Airflow components using Breeze, see the
+`Debugging Airflow Components <20_debugging_airflow_components.rst>`__ guide.

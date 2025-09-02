@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { GridDAGRunwithTIs, GridNodeResponse } from "openapi/requests/types.gen";
-
-export type RunWithDuration = {
-  duration: number;
-} & GridDAGRunwithTIs;
+import type { GridNodeResponse, NodeResponse } from "openapi/requests/types.gen";
 
 export type GridTask = {
   depth: number;
@@ -57,4 +53,23 @@ export const flattenNodes = (
   });
 
   return { allGroupIds, flatNodes };
+};
+
+export const flattenGraphNodes = (
+  nodes: Array<NodeResponse>,
+  depth: number = 0,
+): { allGroupIds: Array<string> } => {
+  let allGroupIds: Array<string> = [];
+
+  nodes.forEach((node) => {
+    if (node.children) {
+      allGroupIds.push(node.id);
+
+      const { allGroupIds: childGroupIds } = flattenGraphNodes(node.children, depth + 1);
+
+      allGroupIds = [...allGroupIds, ...childGroupIds];
+    }
+  });
+
+  return { allGroupIds };
 };

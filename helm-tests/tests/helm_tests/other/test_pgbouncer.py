@@ -751,7 +751,7 @@ class TestPgbouncerExporter:
                     "enabled": True,
                     "metricsExporterSidecar": {
                         "statsSecretName": "existing-stats-secret",
-                        "statsSecretKey": "exisiting-stats-secret-key",
+                        "statsSecretKey": "existing-stats-secret-key",
                     },
                 },
             },
@@ -760,7 +760,7 @@ class TestPgbouncerExporter:
 
         assert jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0]) == {
             "name": "existing-stats-secret",
-            "key": "exisiting-stats-secret-key",
+            "key": "existing-stats-secret-key",
         }
 
     def test_unused_secret_key(self):

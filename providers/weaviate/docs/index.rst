@@ -79,7 +79,9 @@ apache-airflow-providers-weaviate package
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 3.2.1
+Release: 3.2.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------

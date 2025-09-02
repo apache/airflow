@@ -17,15 +17,50 @@
 
 from __future__ import annotations
 
+import threading
 import uuid
 from socket import socketpair
 
 import msgspec
 import pytest
 
-from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails, _ResponseFrame
+from airflow.sdk import timezone
+from airflow.sdk.execution_time.comms import BundleInfo, MaskSecret, StartupDetails, _ResponseFrame
 from airflow.sdk.execution_time.task_runner import CommsDecoder
-from airflow.utils import timezone
+
+
+class TestCommsModels:
+    """Test Pydantic models used in task communication for proper validation."""
+
+    @pytest.mark.parametrize(
+        "object_to_mask",
+        [
+            {
+                "key_path": "/files/airflow-breeze-config/keys2/keys.json",
+                "scope": "https://www.googleapis.com/auth/cloud-platform",
+                "project": "project_id",
+                "num_retries": 6,
+            },
+            ["iter1", "iter2", {"key": "value"}],
+            "string",
+            {
+                "key1": "value1",
+            },
+        ],
+    )
+    def test_mask_secret_with_objects(self, object_to_mask):
+        mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
+        assert mask_secret_object.value == object_to_mask
+
+    def test_mask_secret_with_list(self):
+        example_dict = ["test"]
+        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
+        assert mask_secret_object.value == example_dict
+
+    def test_mask_secret_with_iterable(self):
+        example_dict = ["test"]
+        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
+        assert mask_secret_object.value == example_dict
 
 
 class TestCommsDecoder:
@@ -56,6 +91,7 @@ class TestCommsDecoder:
                     "run_after": "2024-12-01T01:00:00Z",
                     "end_date": None,
                     "run_type": "manual",
+                    "state": "success",
                     "conf": None,
                     "consumed_asset_events": [],
                 },
@@ -82,3 +118,32 @@ class TestCommsDecoder:
         assert msg.dag_rel_path == "/dev/null"
         assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
         assert msg.start_date == timezone.datetime(2024, 12, 1, 1)
+
+    def test_huge_payload(self):
+        r, w = socketpair()
+
+        msg = {
+            "type": "XComResult",
+            "key": "a",
+            "value": ("a" * 10 * 1024 * 1024) + "b",  # A 10mb xcom value
+        }
+
+        w.settimeout(1.0)
+        bytes = msgspec.msgpack.encode(_ResponseFrame(0, msg, None))
+
+        # Since `sendall` blocks, we need to do the send in another thread, so we can perform the read here
+        t = threading.Thread(target=w.sendall, args=(len(bytes).to_bytes(4, byteorder="big") + bytes,))
+        t.start()
+
+        decoder = CommsDecoder(socket=r, log=None)
+
+        try:
+            msg = decoder._get_response()
+        finally:
+            t.join(2)
+
+        assert msg is not None
+
+        # It actually failed to read at all for large values, but lets just make sure we get it all
+        assert len(msg.value) == 10 * 1024 * 1024 + 1
+        assert msg.value[-1] == "b"

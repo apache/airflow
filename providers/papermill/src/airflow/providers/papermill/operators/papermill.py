@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         from airflow.sdk.definitions.context import Context
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context  # type: ignore[no-redef]
+        from airflow.utils.context import Context
 
 
 @attr.s(auto_attribs=True)
@@ -106,9 +106,9 @@ class PapermillOperator(BaseOperator):
 
     def execute(self, context: Context):
         if not isinstance(self.input_nb, NoteBook):
-            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
+            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
         if not isinstance(self.output_nb, NoteBook):
-            self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
+            self.output_nb = NoteBook(url=self.output_nb)
         if not AIRFLOW_V_3_0_PLUS:
             self.inlets.append(self.input_nb)
             self.outlets.append(self.output_nb)

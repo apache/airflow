@@ -77,7 +77,7 @@ class RedshiftHook(AwsBaseHook):
         return response
 
     # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier: str) -> str:
+    def cluster_status(self, cluster_identifier: str) -> str | None:
         """
         Get status of a cluster.
 
@@ -92,7 +92,7 @@ class RedshiftHook(AwsBaseHook):
         except self.conn.exceptions.ClusterNotFoundFault:
             return "cluster_not_found"
 
-    async def cluster_status_async(self, cluster_identifier: str) -> str:
+    async def cluster_status_async(self, cluster_identifier: str) -> str | None:
         async with await self.get_async_conn() as client:
             response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)
             return response["Clusters"][0]["ClusterStatus"] if response else None
@@ -139,7 +139,7 @@ class RedshiftHook(AwsBaseHook):
         snapshots.sort(key=lambda x: x["SnapshotCreateTime"], reverse=True)
         return snapshots
 
-    def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> str:
+    def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> dict | None:
         """
         Restore a cluster from its snapshot.
 
@@ -160,7 +160,7 @@ class RedshiftHook(AwsBaseHook):
         cluster_identifier: str,
         retention_period: int = -1,
         tags: list[Any] | None = None,
-    ) -> str:
+    ) -> dict | None:
         """
         Create a snapshot of a cluster.
 

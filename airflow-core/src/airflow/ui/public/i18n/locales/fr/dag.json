@@ -19,18 +19,30 @@
   },
   "header": {
     "buttons": {
-      "dagDocs": "Documentation du DAG"
+      "advanced": "Avancé",
+      "dagDocs": "Documentation du Dag"
     }
   },
   "logs": {
     "allLevels": "Tous les niveaux de journalisation",
     "allSources": "Toutes les sources",
+    "critical": "CRITIQUE",
+    "debug": "DÉBOGAGE",
+    "error": "ERREUR",
     "fullscreen": {
       "button": "Plein écran",
       "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
     },
+    "info": "INFO",
     "noTryNumber": "Aucun essai",
-    "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})"
+    "settings": "Paramètres des journaux",
+    "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})",
+    "warning": "AVERTISSEMENT"
+  },
+  "navigation": {
+    "jump": "Sauter : Maj+{{arrow}}",
+    "navigation": "Navigation : {{arrow}}",
+    "toggleGroup": "Basculer le groupe : Espace"
   },
   "overview": {
     "buttons": {
@@ -53,16 +65,17 @@
   "panel": {
     "buttons": {
       "options": "Options",
+      "showGantt": "Afficher le Gantt",
       "showGraph": "Afficher le graphe",
       "showGrid": "Afficher la grille"
     },
     "dagRuns": {
-      "label": "Nombre de Runs du DAG"
+      "label": "Nombre de Runs du Dag"
     },
     "dependencies": {
       "label": "Dépendances",
       "options": {
-        "allDagDependencies": "Toutes les dépendances du DAG",
+        "allDagDependencies": "Toutes les dépendances du Dag",
         "externalConditions": "Conditions externes",
         "onlyTasks": "Tâches uniquement"
       },
@@ -76,11 +89,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "La demande d'analyse du DAG a échoué. Il se peut qu'il y ait encore des demandes en attente.",
-        "title": "Échec de l'analyse du DAG"
+        "description": "La demande d'analyse du Dag a échoué. Il se peut qu'il y ait encore des demandes en attente.",
+        "title": "Échec de l'analyse du Dag"
       },
       "success": {
-        "description": "Le DAG devrait être analysé sous peu.",
+        "description": "Le Dag devrait être analysé sous peu.",
         "title": "Demande d'analyse soumise avec succès"
       }
     }
@@ -96,6 +109,7 @@
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Aperçu",
     "renderedTemplates": "Modèles rendus",
+    "requiredActions": "Actions requises",
     "runs": "Runs",
     "taskInstances": "Task Instances",
     "tasks": "Tâches",

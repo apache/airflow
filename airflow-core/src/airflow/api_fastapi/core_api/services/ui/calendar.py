@@ -28,17 +28,17 @@ from pendulum import DateTime
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
 )
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import timezone
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -52,7 +52,7 @@ class CalendarService:
         self,
         dag_id: str,
         session: Session,
-        dag: DAG,
+        dag: SerializedDAG,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"] = "daily",
     ) -> CalendarTimeRangeCollectionResponse:
@@ -126,7 +126,7 @@ class CalendarService:
 
     def _get_planned_dag_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         raw_dag_states: list[Row],
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
@@ -152,7 +152,7 @@ class CalendarService:
             dag, last_data_interval, year, restriction, logical_date, granularity
         )
 
-    def _should_calculate_planned_runs(self, dag: DAG, raw_dag_states: list[Row]) -> bool:
+    def _should_calculate_planned_runs(self, dag: SerializedDAG, raw_dag_states: list[Row]) -> bool:
         """Check if we should calculate planned runs."""
         return (
             bool(raw_dag_states)
@@ -177,7 +177,7 @@ class CalendarService:
 
     def _calculate_cron_planned_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         last_data_interval: DataInterval,
         year: int,
         logical_date: RangeFilter,
@@ -208,7 +208,7 @@ class CalendarService:
 
     def _calculate_timetable_planned_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         last_data_interval: DataInterval,
         year: int,
         restriction: TimeRestriction,
@@ -317,9 +317,13 @@ class CalendarService:
         if not logical_date.value:
             return True
 
-        if logical_date.value.lower_bound and dt < logical_date.value.lower_bound:
+        if logical_date.value.lower_bound_gte and dt < logical_date.value.lower_bound_gte:
             return False
-        if logical_date.value.upper_bound and dt > logical_date.value.upper_bound:
+        if logical_date.value.lower_bound_gt and dt <= logical_date.value.lower_bound_gt:
+            return False
+        if logical_date.value.upper_bound_lte and dt > logical_date.value.upper_bound_lte:
+            return False
+        if logical_date.value.upper_bound_lt and dt >= logical_date.value.upper_bound_lt:
             return False
 
         return True
