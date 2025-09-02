@@ -3003,11 +3003,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         logs = (
             session.query(Log)
             .filter(Log.dag_id == dag_id, Log.run_id == dag_run_id, Log.event == event)
-            .all()
+            .count()
         )
 
         assert response.status_code == 200
-        assert len(logs) == audit_log_count
+        assert logs == audit_log_count
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
