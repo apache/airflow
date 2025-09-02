@@ -239,7 +239,7 @@ connection via **CLI**:
    *and* supply a ``smtp_conn_id``, the hook's connection settings take
    precedence and the global ``[smtp]`` options may be ignored.
 
-Using ``SmtpHook`` in a DAG
+Using ``SmtpHook`` in a Dag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
@@ -247,7 +247,7 @@ Using ``SmtpHook`` in a DAG
 
    from datetime import datetime
 
-   from airflow import DAG
+   from airflow import Dag
    from airflow.operators.python import PythonOperator
    from airflow.providers.smtp.hooks.smtp import SmtpHook
 
@@ -261,7 +261,7 @@ Using ``SmtpHook`` in a DAG
            )
 
 
-   with DAG(
+   with Dag(
        dag_id="test_gmail_oauth2",
        start_date=datetime(2025, 7, 1),
        schedule=None,

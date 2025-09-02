@@ -329,3 +329,60 @@ class TestLogView:
 
         reader = TaskLogReader()
         assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
+
+    @pytest.mark.parametrize(
+        "state,try_number,expected_event,use_self_ti",
+        [
+            (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
+            (
+                TaskInstanceState.UPSTREAM_FAILED,
+                0,
+                "Task did not run because upstream task(s) failed.",
+                False,
+            ),
+            (TaskInstanceState.SUCCESS, 1, "try_number=1.", True),
+        ],
+    )
+    def test_read_log_chunks_no_logs_and_normal(
+        self, create_task_instance, state, try_number, expected_event, use_self_ti
+    ):
+        task_log_reader = TaskLogReader()
+
+        if use_self_ti:
+            ti = copy.copy(self.ti)  # already prepared with log files
+        else:
+            ti = create_task_instance(dag_id="dag_no_logs", task_id="task_no_logs")
+
+        ti.state = state
+        logs, _ = task_log_reader.read_log_chunks(ti=ti, try_number=try_number, metadata={})
+        events = [log.event for log in logs]
+
+        assert any(expected_event in e for e in events)
+
+    @pytest.mark.parametrize(
+        "state,try_number,expected_event,use_self_ti",
+        [
+            (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
+            (
+                TaskInstanceState.UPSTREAM_FAILED,
+                0,
+                "Task did not run because upstream task(s) failed.",
+                False,
+            ),
+            (TaskInstanceState.SUCCESS, 1, "try_number=1.", True),
+        ],
+    )
+    def test_read_log_stream_no_logs_and_normal(
+        self, create_task_instance, state, try_number, expected_event, use_self_ti
+    ):
+        task_log_reader = TaskLogReader()
+
+        if use_self_ti:
+            ti = copy.copy(self.ti)  # session-bound TI with logs
+        else:
+            ti = create_task_instance(dag_id="dag_no_logs", task_id="task_no_logs")
+
+        ti.state = state
+        stream = task_log_reader.read_log_stream(ti=ti, try_number=try_number, metadata={})
+
+        assert any(expected_event in line for line in stream)

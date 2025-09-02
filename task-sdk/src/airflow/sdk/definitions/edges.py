@@ -175,7 +175,7 @@ class EdgeModifier(DependencyMixin):
 
     def add_edge_info(self, dag: DAG, upstream_id: str, downstream_id: str):
         """
-        Add or update task info on the DAG for this specific pair of tasks.
+        Add or update task info on the Dag for this specific pair of tasks.
 
         Called either from our relationship trigger methods above, or directly
         by set_upstream/set_downstream in operators.
@@ -190,6 +190,6 @@ def Label(label: str):
 
 
 class EdgeInfoType(TypedDict):
-    """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
+    """Extra metadata that the Dag can store about an edge, usually generated from an EdgeModifier."""
 
     label: str | None

@@ -7,6 +7,7 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "allOperators": "Wszystkie operatory",
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -35,7 +36,6 @@
   "dag_other": "Dagi",
   "dagDetails": {
     "catchup": "Nadrabianie zaległości",
-    "concurrency": "Współbieżność",
     "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
     "description": "Opis",
@@ -197,6 +197,7 @@
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
+    "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",

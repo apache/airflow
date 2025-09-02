@@ -15,7 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "rich>=13.6.0",
+#   "tomli>=2.0.1",
+# ]
+# ///
 """
 Prek hook to verify and sync shared_distributions in pyproject.toml files.
 Ensures only valid shared libraries are referenced and that they exist in the shared/ folder.

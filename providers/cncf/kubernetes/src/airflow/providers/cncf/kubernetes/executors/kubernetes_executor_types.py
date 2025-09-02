@@ -16,7 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.utils.state import TaskInstanceState
+
 
 ADOPTED = "adopted"
 
@@ -35,27 +42,40 @@ class FailureDetails(TypedDict, total=False):
     container_name: str | None
 
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+class KubernetesResults(NamedTuple):
+    """Results from Kubernetes task execution."""
 
-    from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.state import TaskInstanceState
+    key: TaskInstanceKey
+    state: TaskInstanceState | str | None
+    pod_name: str
+    namespace: str
+    resource_version: str
+    failure_details: FailureDetails | None
 
-    # TODO: Remove after Airflow 2 support is removed
-    CommandType = Sequence[str]
 
-    # TaskInstance key, command, configuration, pod_template_file
-    KubernetesJobType = tuple[TaskInstanceKey, CommandType, Any, str | None]
+class KubernetesWatch(NamedTuple):
+    """Watch event data from Kubernetes pods."""
 
-    # key, pod state, pod_name, namespace, resource_version, failure_details
-    KubernetesResultsType = tuple[
-        TaskInstanceKey, TaskInstanceState | str | None, str, str, str, FailureDetails | None
-    ]
+    pod_name: str
+    namespace: str
+    state: TaskInstanceState | str | None
+    annotations: dict[str, str]
+    resource_version: str
+    failure_details: FailureDetails | None
 
-    # pod_name, namespace, pod state, annotations, resource_version, failure_details
-    KubernetesWatchType = tuple[
-        str, str, TaskInstanceState | str | None, dict[str, str], str, FailureDetails | None
-    ]
+
+# TODO: Remove after Airflow 2 support is removed
+CommandType = "Sequence[str]"
+
+
+class KubernetesJob(NamedTuple):
+    """Job definition for Kubernetes execution."""
+
+    key: TaskInstanceKey
+    command: Sequence[str]
+    kube_executor_config: Any
+    pod_template_file: str | None
+
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"

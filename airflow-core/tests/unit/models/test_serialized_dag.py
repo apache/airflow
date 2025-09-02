@@ -27,7 +27,7 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags as example_dags_module
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
-from airflow.models.dag import DAG as SchedulerDAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
@@ -44,6 +44,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -62,7 +63,7 @@ def make_example_dags(module):
     dagbag = DagBag(module.__path__[0])
 
     dags = [LazyDeserializedDAG(data=SerializedDAG.to_dict(dag)) for dag in dagbag.dags.values()]
-    SchedulerDAG.bulk_write_to_db("testing", None, dags)
+    SerializedDAG.bulk_write_to_db("testing", None, dags)
     return dagbag.dags
 
 
@@ -87,7 +88,7 @@ class TestSerializedDagModel:
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            SDM.write_dag(dag, bundle_name="testing")
+            SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
         return example_dags
 
     def test_write_dag(self, testing_dag_bundle):
@@ -107,48 +108,45 @@ class TestSerializedDagModel:
         def my_callable():
             pass
 
-        with dag_maker("dag1") as dag:
+        with dag_maker("dag1"):
             PythonOperator(task_id="task1", python_callable=my_callable)
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
         dag_maker.create_dagrun(run_id="test1")
-        with dag_maker("dag1") as dag:
+
+        with dag_maker("dag1"):
             PythonOperator(task_id="task1", python_callable=lambda x: None)
-        SDM.write_dag(dag, bundle_name="dag_maker")
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         assert len(session.query(DagVersion).all()) == 2
 
-        with dag_maker("dag2") as dag:
+        with dag_maker("dag2"):
 
             @task_decorator
             def my_callable():
                 pass
 
             my_callable()
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
-        with dag_maker("dag2") as dag:
+
+        with dag_maker("dag2"):
 
             @task_decorator
             def my_callable2():
                 pass
 
             my_callable2()
-        SDM.write_dag(dag, bundle_name="testing")
-
         assert len(session.query(DagVersion).all()) == 4
 
     def test_serialized_dag_is_updated_if_dag_is_changed(self, testing_dag_bundle):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+        dag_updated = SDM.write_dag(
+            dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
+            bundle_name="testing",
+        )
         assert dag_updated is True
 
-        # SchedulerDAG is created to create dagrun
-        dag = SchedulerDAG.from_sdk_dag(dag=example_bash_op_dag)
-        dag.create_dagrun(
+        s_dag = SDM.get(example_bash_op_dag.dag_id)
+        s_dag.dag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
@@ -156,11 +154,12 @@ class TestSerializedDagModel:
             run_type=DagRunType.MANUAL,
         )
 
-        s_dag = SDM.get(example_bash_op_dag.dag_id)
-
         # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
         # column is not updated
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+        dag_updated = SDM.write_dag(
+            dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
+            bundle_name="testing",
+        )
         s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
 
         assert s_dag_1.dag_hash == s_dag.dag_hash
@@ -171,7 +170,10 @@ class TestSerializedDagModel:
         example_bash_op_dag.tags.add("new_tag")
         assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
 
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+        dag_updated = SDM.write_dag(
+            dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
+            bundle_name="testing",
+        )
         s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
 
         assert s_dag.created_at != s_dag_2.created_at
@@ -196,18 +198,16 @@ class TestSerializedDagModel:
         assert len(example_dags) == len(serialized_dags)
 
         dag = example_dags.get("example_bash_operator")
-
-        # DAGs are serialized and deserialized to access create_dagrun object
-        sdag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag))
-        sdag.create_dagrun(
+        SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag)).create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
             triggered_by=DagRunTriggeredByType.TEST,
             run_type=DagRunType.MANUAL,
         )
+
         dag.doc_md = "new doc string"
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
         serialized_dags2 = SDM.read_all_dags()
         sdags = session.query(SDM).all()
         # assert only the latest SDM is returned
@@ -223,7 +223,7 @@ class TestSerializedDagModel:
         example_params_trigger_ui = example_dags.get("example_params_trigger_ui")
         before = list(example_params_trigger_ui.params.keys())
 
-        SDM.write_dag(example_params_trigger_ui, bundle_name="testing")
+        SDM.write_dag(LazyDeserializedDAG.from_dag(example_params_trigger_ui), bundle_name="testing")
         retrieved_dag = SDM.get_dag("example_params_trigger_ui")
         after = list(retrieved_dag.params.keys())
 
@@ -299,26 +299,22 @@ class TestSerializedDagModel:
         # first dag
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun()
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         # second dag
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
 
         # Total serdags should be 4
         assert session.scalar(select(func.count()).select_from(SDM)) == 4
@@ -336,7 +332,7 @@ class TestSerializedDagModel:
         last_updated = sdm1.last_updated
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
         sdm2 = SDM.get(dag.dag_id, session=session)
 
         assert sdm2.dag_hash != dag_hash  # first recorded serdag
@@ -353,7 +349,7 @@ class TestSerializedDagModel:
         assert session.query(DagVersion).count() == 1
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
 
         assert session.query(DagVersion).count() == 2
         assert session.query(SDM).count() == 2
@@ -402,8 +398,7 @@ class TestSerializedDagModel:
             schedule=[Asset.ref(uri=asset_uri), Asset.ref(uri="test://no-such-asset/")],
         ) as dag:
             BashOperator(task_id="any", bash_command="sleep 5")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
 
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dependencies == {
@@ -448,8 +443,7 @@ class TestSerializedDagModel:
             schedule=[AssetAlias(name="alias_1"), AssetAlias(name="alias_2")],
         ) as dag:
             BashOperator(task_id="any", bash_command="sleep 5")
-        dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag, session=session)
 
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dependencies == {
@@ -498,7 +492,7 @@ class TestSerializedDagModel:
             PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
 
         did_write = SDM.write_dag(
-            dag,
+            LazyDeserializedDAG.from_dag(dag),
             bundle_name="dag_maker",
             min_update_interval=min_update_interval,
         )
@@ -518,7 +512,7 @@ class TestSerializedDagModel:
 
         # Write the same DAG (no changes, so hash is the same) with a new bundle_name
         new_bundle = "bundleB"
-        SDM.write_dag(dag, bundle_name=new_bundle)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=new_bundle)
 
         # There should now be two versions of the DAG
         assert session.query(DagVersion).count() == 2

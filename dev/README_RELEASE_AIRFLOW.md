@@ -272,10 +272,11 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 export GPG_TTY=$(tty)
 
 # Set Version
-export VERSION=2.1.2rc3
-export VERSION_SUFFIX=rc3
+export VERSION=3.0.5rc1
+export VERSION_SUFFIX=rc1
 export VERSION_BRANCH=2-1
 export VERSION_WITHOUT_RC=${VERSION/rc?/}
+export TASK_SDK_VERSION=1.0.5rc1
 
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
@@ -359,7 +360,23 @@ uv tool install -e ./dev/breeze
     ```shell script
     git checkout main
     git pull # Ensure that the script is up-to-date
-    breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
+    breeze release-management start-rc-process \
+        --version ${VERSION} \
+        --previous-version <PREVIOUS_VERSION> \
+        --task-sdk-version ${TASK_SDK_VERSION}
+   ```
+
+   **Testing the start-rc-process command:**
+   Before running the actual release command, you can safely test it using:
+
+   ```shell script
+   # Test with dry-run (shows what would be executed without doing it)
+   breeze release-management start-rc-process \
+       --version ${VERSION} \
+       --previous-version <PREVIOUS_VERSION> \
+       --task-sdk-version ${TASK_SDK_VERSION} \
+       --remote-name upstream \
+       --dry-run
    ```
 
 - Create issue in github for testing the release using this subject:
@@ -748,8 +765,8 @@ this is a valid key already.  To suppress the warning you may edit the key's tru
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-2.0.2rc4.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
+Checking apache-airflow-3.0.5rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-3.0.5rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -757,8 +774,8 @@ gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 
-Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
+Checking apache_airflow-3.0.5rc4-py2.py3-none-any.whl.asc
+gpg: assuming signed data in 'apache_airflow-3.0.5rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -766,8 +783,8 @@ gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 
-Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
+Checking apache-airflow-3.0.5rc4-source.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-3.0.5rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -790,9 +807,9 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-2.0.2rc4.tar.gz.sha512
-Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
-Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
+Checking apache-airflow-3.0.5rc4.tar.gz.sha512
+Checking apache_airflow-3.0.5rc4-py2.py3-none-any.whl.sha512
+Checking apache-airflow-3.0.5rc4-source.tar.gz.sha512
 ```
 
 
@@ -857,7 +874,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Release Airflow 2.0.2 from 2.0.2rc3
+[RESULT][VOTE] Release Airflow 3.0.5 from 3.0.5rc1 & Task SDK 1.0.5 from 1.0.5rc1
 ```
 
 Message:
@@ -865,26 +882,27 @@ Message:
 ```
 Hello,
 
-Apache Airflow 2.0.2 (based on RC3) has been accepted.
+The vote to release Apache Airflow version 3.0.5 based on 3.0.5rc3 & Task SDK 1.0.5 from 1.0.5rc3 is now closed.
 
-4 "+1" binding votes received:
+The vote PASSED with 6 binding "+1", 4 non-binding "+1" and 0 "-1" votes:
+
+"+1" Binding votes:
 - Kaxil Naik
-- Bolke de Bruin
+- Jens Scheffler
+- Jarek Potiuk
 - Ash Berlin-Taylor
-- Tao Feng
+- Hussein Awala
+- Amogh Desai
 
+"+1" non-Binding votes:
+- Wei Lee
+- Pavankumar Gopidesu
+- Ankit Chaurasia
+- Rahul Vats
 
-4 "+1" non-binding votes received:
+Vote thread: https://lists.apache.org/thread/f72gglg5vdxnfmjqtjlhwgvn2tnh4gx4
 
-- Deng Xiaodong
-- Stefan Seelmann
-- Joshua Patchus
-- Felix Uellendall
-
-Vote thread:
-https://lists.apache.org/thread.html/736404ca3d2b2143b296d0910630b9bd0f8b56a0c54e3a05f4c8b5fe@%3Cdev.airflow.apache.org%3E
-
-I'll continue with the release process, and the release announcement will follow shortly.
+I will continue with the release process, and the release announcement will follow shortly.
 
 Cheers,
 <your name>
@@ -899,7 +917,7 @@ https://dist.apache.org/repos/dist/release/airflow/
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
-export RC=2.0.2rc5
+export RC=3.0.5rc5
 export VERSION=${RC/rc?/}
 # cd to the airflow repo directory and set the environment variable below
 export AIRFLOW_REPO_ROOT=$(pwd)

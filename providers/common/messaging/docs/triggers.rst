@@ -33,7 +33,7 @@ Additional parameters can be provided depending on the queue provider. Connectio
 default connection ID, for example, when connecting to a queue in AWS SQS, the connection ID should be
 ``aws_default``.
 
-Below is an example of how you can configure an Airflow DAG to be triggered by a message in Amazon SQS.
+Below is an example of how you can configure an Airflow Dag to be triggered by a message in Amazon SQS.
 
 .. exampleinclude:: /../tests/system/common/messaging/example_message_queue_trigger.py
     :language: python
@@ -49,5 +49,5 @@ How it works
 The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
 asset.
 
-3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
+3. **Event-Driven Dag**: Instead of running on a fixed schedule, the Dag executes when the asset receives an update
 (e.g., a new message in the queue).

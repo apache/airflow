@@ -70,8 +70,8 @@ Manage roles and permissions
 There is no option to manage roles and permissions in simple auth manager. They are defined as part of the simple auth manager implementation and cannot be modified.
 Here is the list of roles defined in simple auth manager. These roles can be associated to users.
 
-* **viewer**. Read-only permissions on dags, assets and pools
-* **user**. **viewer** permissions plus all permissions (edit, create, delete) on dags
+* **viewer**. Read-only permissions on Dags, assets and pools
+* **user**. **viewer** permissions plus all permissions (edit, create, delete) on Dags
 * **op**. **user** permissions plus all permissions on pools, assets, config, connections and variables
 * **admin**. All permissions
 

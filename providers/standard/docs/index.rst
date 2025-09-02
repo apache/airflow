@@ -43,7 +43,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <_api/airflow/providers/standard/example_dags/index>
+    Example Dags <_api/airflow/providers/standard/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-standard/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/standard/index>

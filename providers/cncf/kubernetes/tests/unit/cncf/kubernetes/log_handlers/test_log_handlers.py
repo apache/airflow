@@ -30,23 +30,26 @@ from kubernetes.client import models as k8s
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_loader
 from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk.timezone import datetime
+else:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -133,9 +136,7 @@ class TestFileTaskLogHandler:
                 "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            dag = sync_dag_to_db(dag)
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
         dagrun = dag.create_dagrun(

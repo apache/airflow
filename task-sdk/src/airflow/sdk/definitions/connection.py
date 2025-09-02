@@ -189,15 +189,29 @@ class Connection:
         return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     @classmethod
+    def _handle_connection_error(cls, e: AirflowRuntimeError, conn_id: str) -> None:
+        """Handle connection retrieval errors."""
+        if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+        raise
+
+    @classmethod
     def get(cls, conn_id: str) -> Any:
         from airflow.sdk.execution_time.context import _get_connection
 
         try:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
-            if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
-            raise
+            cls._handle_connection_error(e, conn_id)
+
+    @classmethod
+    async def async_get(cls, conn_id: str) -> Any:
+        from airflow.sdk.execution_time.context import _async_get_connection
+
+        try:
+            return await _async_get_connection(conn_id)
+        except AirflowRuntimeError as e:
+            cls._handle_connection_error(e, conn_id)
 
     @property
     def extra_dejson(self) -> dict:

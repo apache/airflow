@@ -43,6 +43,7 @@ with suppress(ImportError):
     )
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.dag import sync_dag_to_db
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
@@ -764,10 +765,16 @@ class TestFabAuthManager:
     ):
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
         with dag_maker("test_dag2"):
             EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
         with dag_maker("Connections"):
             EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
 
         auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
         auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")

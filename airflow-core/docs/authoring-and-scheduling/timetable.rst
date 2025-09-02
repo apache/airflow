@@ -19,9 +19,9 @@
 Timetables
 ==========
 
-For a DAG with a time-based schedule (as opposed to event-driven), the DAG's internal "timetable"
+For a Dag with a time-based schedule (as opposed to event-driven), the Dag's internal "timetable"
 drives scheduling.  The timetable also determines the data interval and the logical date of
-each run created for the DAG.
+each run created for the Dag.
 
 Dags scheduled with a cron expression or ``timedelta`` object are
 internally converted to always use a timetable.
@@ -29,7 +29,7 @@ internally converted to always use a timetable.
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
 to worry about writing a custom timetable because Airflow has default timetables that handle those cases.
 But for more complicated scheduling requirements,
-you can create your own timetable class and pass that to the DAG's ``schedule`` argument.
+you can create your own timetable class and pass that to the Dags ``schedule`` argument.
 
 Some examples of when custom timetable implementations are useful:
 
@@ -49,7 +49,7 @@ Some examples of when custom timetable implementations are useful:
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
 Airflow allows you to write custom timetables in plugins and used by
-dags. You can find an example demonstrating a custom timetable in the
+Dags. You can find an example demonstrating a custom timetable in the
 :doc:`/howto/timetable` how-to guide.
 
 .. note::
@@ -70,7 +70,7 @@ DeltaTriggerTimetable
 ^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that accepts a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``, and runs
-the DAG once a delta passes.
+the Dag once a delta passes.
 
 .. seealso:: `Differences between "trigger" and "data interval" timetables`_
 
@@ -87,7 +87,7 @@ the DAG once a delta passes.
 
 You can also provide a static data interval to the timetable. The optional ``interval`` argument also
 should be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. When using these
-arguments, a triggered DAG run's data interval spans the specified duration, and *ends* with the trigger time.
+arguments, a triggered Dag run's data interval spans the specified duration, and *ends* with the trigger time.
 
 .. code-block:: python
 
@@ -116,7 +116,7 @@ arguments, a triggered DAG run's data interval spans the specified duration, and
 CronTriggerTimetable
 ^^^^^^^^^^^^^^^^^^^^
 
-A timetable that accepts a cron expression, and triggers DAG runs according to it.
+A timetable that accepts a cron expression, and triggers Dag runs according to it.
 
 .. seealso:: `Differences between "trigger" and "data interval" timetables`_
 
@@ -130,7 +130,7 @@ A timetable that accepts a cron expression, and triggers DAG runs according to i
         pass
 
 You can also provide a static data interval to the timetable. The optional ``interval`` argument
-must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. When using these arguments, a triggered DAG run's data interval spans the specified duration, and *ends* with the trigger time.
+must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. When using these arguments, a triggered Dag run's data interval spans the specified duration, and *ends* with the trigger time.
 
 .. code-block:: python
 
@@ -157,7 +157,7 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
 MultipleCronTriggerTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This is similar to CronTriggerTimetable_ except it takes multiple cron expressions. A DAG run is scheduled whenever any of the expressions matches the time. It is particularly useful when the desired schedule cannot be expressed by one single cron expression.
+This is similar to CronTriggerTimetable_ except it takes multiple cron expressions. A Dag run is scheduled whenever any of the expressions matches the time. It is particularly useful when the desired schedule cannot be expressed by one single cron expression.
 
 .. code-block:: python
 
@@ -197,7 +197,7 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that schedules data intervals with a time delta. You can select it by providing a
-:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule`` parameter of a DAG.
+:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule`` parameter of a Dag.
 
 This timetable focuses on the data interval value and does not necessarily align execution dates with
 arbitrary bounds, such as the start of day or of hour.
@@ -216,13 +216,13 @@ CronDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that accepts a cron expression, creates data intervals according to the interval between each cron
-trigger points, and triggers a DAG run at the end of each data interval.
+trigger points, and triggers a Dag run at the end of each data interval.
 
 .. seealso:: `Differences between "trigger" and "data interval" timetables`_
 .. seealso:: `Differences between the cron and delta data interval timetables`_
 
 Select this timetable by providing a valid cron expression as a string to the ``schedule``
-parameter of a DAG, as described in the :doc:`../core-concepts/dags` documentation.
+parameter of a Dag, as described in the :doc:`../core-concepts/dags` documentation.
 
 .. code-block:: python
 
@@ -233,11 +233,11 @@ parameter of a DAG, as described in the :doc:`../core-concepts/dags` documentati
 EventsTimetable
 ^^^^^^^^^^^^^^^
 
-Pass a list of ``datetime``\s for the DAG to run after. This can be useful for timing based on sporting
+Pass a list of ``datetime``\s for the Dag to run after. This can be useful for timing based on sporting
 events, planned communication campaigns, and other schedules that are arbitrary and irregular, but predictable.
 
-The list of events must be finite and of reasonable size as it must be loaded every time the DAG is parsed. Optionally, use
-the ``restrict_to_events`` flag to force manual runs of the DAG that use the time of the most recent, or very
+The list of events must be finite and of reasonable size as it must be loaded every time the Dag is parsed. Optionally, use
+the ``restrict_to_events`` flag to force manual runs of the Dag that use the time of the most recent, or very
 first, event for the data interval. Otherwise, manual runs begin with a ``data_interval_start`` and
 ``data_interval_end`` equal to the time at which the manual run started. You can also name the set of events using the
 ``description`` parameter, which will be displayed in the Airflow UI.
@@ -268,11 +268,11 @@ Asset event based scheduling with time based scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
-The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
+The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
 
-This feature is particularly useful in scenarios where a DAG needs to run on asset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
+This feature is particularly useful in scenarios where a Dag needs to run on asset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
-Here's an example of a DAG using ``AssetOrTimeSchedule``:
+Here's an example of a Dag using ``AssetOrTimeSchedule``:
 
 .. code-block:: python
 
@@ -287,7 +287,7 @@ Here's an example of a DAG using ``AssetOrTimeSchedule``:
         # Additional arguments here, replace this comment with actual arguments
     )
     def example_dag():
-        # DAG tasks go here
+        # Dag tasks go here
         pass
 
 
@@ -312,48 +312,48 @@ Whether taking care of *Data Interval*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A trigger timetable *does not* include *data interval*. This means that the value of ``data_interval_start``
-and ``data_interval_end`` are the same; the time when a DAG run is triggered.
+and ``data_interval_end`` are the same; the time when a Dag run is triggered.
 
 For a data interval timetable, the value of ``data_interval_start`` and ``data_interval_end`` are different.
-``data_interval_end`` is the time when a DAG run is triggered, while ``data_interval_start`` is the start of the interval.
+``data_interval_end`` is the time when a Dag run is triggered, while ``data_interval_start`` is the start of the interval.
 
 *Catchup* behavior
 ^^^^^^^^^^^^^^^^^^
 
-By default, ``catchup`` is set to ``False``. This prevents running unnecessary dags in the following scenarios:
+By default, ``catchup`` is set to ``False``. This prevents running unnecessary Dags in the following scenarios:
 
-- If you create a new DAG with a start date in the past, and don't want to run dags for the past. If ``catchup`` is ``True``, Airflow runs all dags that would have run in that time interval.
-- If you pause an existing DAG, and then restart it at a later date, ``catchup`` being ``False`` means that Airflow does not run the dags that would have run during the paused period.
+- If you create a new Dag with a start date in the past, and don't want to run Dags for the past. If ``catchup`` is ``True``, Airflow runs all Dags that would have run in that time interval.
+- If you pause an existing Dag, and then restart it at a later date, ``catchup`` being ``False`` means that Airflow does not run the Dags that would have run during the paused period.
 
 In these scenarios, the ``logical_date`` in the ``run_id`` are based on how how the timetable handles the data
 interval.
 
 You can change the default ``catchup`` behavior using the Airflow config ``[scheduler] catchup_by_default``.
 
-See :ref:`dag-catchup` for more information about how DAG runs are triggered when using ``catchup``.
+See :ref:`dag-catchup` for more information about how Dag runs are triggered when using ``catchup``.
 
 .. _timetables_run_id_logical_date:
 
-The time when a DAG run is triggered
+The time when a Dag run is triggered
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Both trigger and data interval timetables trigger DAG runs at the same time. However, the timestamp for the
+Both trigger and data interval timetables trigger Dag runs at the same time. However, the timestamp for the
 ``run_id`` is different for each. This is because ``run_id`` is based on ``logical_date``.
 
-For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable dags using the two timetables at 3PM on January
+For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable Dags using the two timetables at 3PM on January
 31st,
 
-- `CronTriggerTimetable`_ creates a new DAG run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
-- `CronDataIntervalTimetable`_ immediately creates a new DAG run, because a DAG run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
+- `CronTriggerTimetable`_ creates a new Dag run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
+- `CronDataIntervalTimetable`_ immediately creates a new Dag run, because a Dag run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
 
-The following is another example showing the difference in the case of skipping DAG runs:
+The following is another example showing the difference in the case of skipping Dag runs:
 
-Suppose there are two running dags with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the dags at 3PM on January 31st and re-enable them at 3PM on February 2nd,
+Suppose there are two running Dags with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the Dags at 3PM on January 31st and re-enable them at 3PM on February 2nd,
 
-- `CronTriggerTimetable`_ skips the DAG runs that were supposed to trigger on February 1st and 2nd. The next DAG run will be triggered at 12AM on February 3rd.
-- `CronDataIntervalTimetable`_ skips the DAG runs that were supposed to trigger on February 1st only. A DAG run for February 2nd is immediately triggered after you re-enable the DAG.
+- `CronTriggerTimetable`_ skips the Dag runs that were supposed to trigger on February 1st and 2nd. The next Dag run will be triggered at 12AM on February 3rd.
+- `CronDataIntervalTimetable`_ skips the Dag runs that were supposed to trigger on February 1st only. A Dag run for February 2nd is immediately triggered after you re-enable the Dag.
 
-In these examples, you see how a trigger timetable creates DAG runs more intuitively and similar to what
+In these examples, you see how a trigger timetable creates Dag runs more intuitively and similar to what
 people expect a workflow to behave, while a data interval timetable is designed heavily around the data
 interval it processes, and does not reflect a workflow's own properties.
 
@@ -364,7 +364,7 @@ Differences between the cron and delta data interval timetables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Choosing between `DeltaDataIntervalTimetable`_ and `CronDataIntervalTimetable`_ depends on your use case.
-If you enable a DAG at 01:05 on February 1st, the following table summarizes the DAG runs created and the
+If you enable a Dag at 01:05 on February 1st, the following table summarizes the Dag runs created and the
 data interval that they cover, depending on 3 arguments: ``schedule``, ``start_date`` and ``catchup``.
 
 .. list-table::

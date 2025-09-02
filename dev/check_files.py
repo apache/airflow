@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#   "rich",
-#   "rich-click",
+#   "rich>=13.6.0",
+#   "rich-click>=1.7.1",
 # ]
 # ///
 from __future__ import annotations

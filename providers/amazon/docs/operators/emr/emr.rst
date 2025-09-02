@@ -53,12 +53,12 @@ Create an EMR job flow
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator` to
 create a new EMR job flow.  The cluster will be terminated automatically after finishing the steps.
 
-The default behaviour is to mark the DAG Task node as success as soon as the cluster is launched
+The default behaviour is to mark the Dag Task node as success as soon as the cluster is launched
 (``wait_policy=None``).
 It is possible to modify this behaviour by using a different ``wait_policy``. Available options are:
 
-- ``WaitPolicy.WAIT_FOR_COMPLETION`` - DAG Task node waits for the cluster to be running
-- ``WaitPolicy.WAIT_FOR_STEPS_COMPLETION`` - DAG Task node waits for the cluster to terminate
+- ``WaitPolicy.WAIT_FOR_COMPLETION`` - Dag Task node waits for the cluster to be running
+- ``WaitPolicy.WAIT_FOR_STEPS_COMPLETION`` - Dag Task node waits for the cluster to terminate
 
 
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.

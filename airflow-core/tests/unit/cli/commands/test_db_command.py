@@ -726,3 +726,17 @@ def test_get_version_revision():
     assert db_command._get_version_revision("2.11.1", heads) == "5f2621c13b39"
     assert db_command._get_version_revision("2.10.1", heads) == "22ed7efa9da2"
     assert db_command._get_version_revision("2.0.0", heads) is None
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("pa!sw0rd#", '"pa!sw0rd#"'),
+        ('he"llo', '"he\\"llo"'),
+        ("path\\file", '"path\\\\file"'),
+        (None, ""),
+    ],
+)
+def test_quote_mysql_password_for_cnf(raw, expected):
+    password = db_command._quote_mysql_password_for_cnf(raw)
+    assert password == expected

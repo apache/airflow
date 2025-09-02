@@ -40,7 +40,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 # [START howto_operator_vision_retry_import]
-from google.api_core.retry import Retry  # isort:skip
+from google.api_core.retry import Retry
 
 # [END howto_operator_vision_retry_import]
 

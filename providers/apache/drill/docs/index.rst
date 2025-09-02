@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-drill/|version|/providers/apache/drill/tests/system/apache/drill>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-drill/|version|/providers/apache/drill/tests/system/apache/drill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-drill/>
     Installing from sources <installing-providers-from-sources>
 

@@ -177,27 +177,27 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
                     )
                 task_list.append(task)
 
-        # relationships can only be set if the tasks share a single DAG. Tasks
-        # without a DAG are assigned to that DAG.
+        # relationships can only be set if the tasks share a single Dag. Tasks
+        # without a Dag are assigned to that Dag.
         dags: set[DAG] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
 
         if len(dags) > 1:
-            raise RuntimeError(f"Tried to set relationships between tasks in more than one DAG: {dags}")
+            raise RuntimeError(f"Tried to set relationships between tasks in more than one Dag: {dags}")
         if len(dags) == 1:
             dag = dags.pop()
         else:
             raise ValueError(
-                "Tried to create relationships between tasks that don't have DAGs yet. "
-                f"Set the DAG for at least one task and try again: {[self, *task_list]}"
+                "Tried to create relationships between tasks that don't have Dags yet. "
+                f"Set the Dag for at least one task and try again: {[self, *task_list]}"
             )
 
         if not self.has_dag():
-            # If this task does not yet have a dag, add it to the same dag as the other task.
+            # If this task does not yet have a Dag, add it to the same Dag as the other task.
             self.dag = dag
 
         for task in task_list:
             if dag and not task.has_dag():
-                # If the other task does not yet have a dag, add it to the same dag as this task and
+                # If the other task does not yet have a Dag, add it to the same Dag as this task and
                 dag.add_task(task)  # type: ignore[arg-type]
             if upstream:
                 task.downstream_task_ids.add(self.node_id)
@@ -230,14 +230,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def downstream_list(self) -> Iterable[Operator]:
         """List of nodes directly downstream."""
         if not self.dag:
-            raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+            raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
     def upstream_list(self) -> Iterable[Operator]:
         """List of nodes directly upstream."""
         if not self.dag:
-            raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+            raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:

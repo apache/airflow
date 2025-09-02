@@ -1797,6 +1797,11 @@ export class EventLogService {
      * @param data.includedEvents
      * @param data.before
      * @param data.after
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1818,7 +1823,12 @@ export class EventLogService {
                 excluded_events: data.excludedEvents,
                 included_events: data.includedEvents,
                 before: data.before,
-                after: data.after
+                after: data.after,
+                dag_id_pattern: data.dagIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                run_id_pattern: data.runIdPattern,
+                owner_pattern: data.ownerPattern,
+                event_pattern: data.eventPattern
             },
             errors: {
                 401: 'Unauthorized',

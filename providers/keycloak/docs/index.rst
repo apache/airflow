@@ -44,6 +44,7 @@
     Python API <_api/airflow/providers/keycloak/index>
     Configuration <configurations-ref>
     Keycloak auth manager token API <api-ref/token-api-ref>
+    CLI <cli-refs>
 
 .. toctree::
     :hidden:

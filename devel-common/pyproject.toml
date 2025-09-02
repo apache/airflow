@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.12.8",
+    "ruff==0.12.11",
     "semver>=3.0.2",
     "time-machine>=2.15.0",
     "wheel>=0.42.0",
@@ -128,7 +128,9 @@ dependencies = [
     "pytest-icdiff>=0.9",
     "pytest-instafail>=0.5.0",
     "pytest-mock>=3.14.0",
-    "pytest-rerunfailures>=13.0",
+    # pytest-rerunfailures 16.0 crashes xdist xfail tests
+    # https://github.com/pytest-dev/pytest-rerunfailures/issues/302
+    "pytest-rerunfailures>=13.0,!=16.0",
     "pytest-timeouts>=1.2.1",
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",

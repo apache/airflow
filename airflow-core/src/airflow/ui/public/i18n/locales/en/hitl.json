@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "All",
+      "pending": "Pending",
+      "received": "Reviewed"
+    }
+  },
   "requiredAction_one": "Required Action",
   "requiredAction_other": "Required Actions",
   "requiredActionState": "Required Action State",
