@@ -136,6 +136,16 @@ def initialize_auth_manager() -> BaseAuthManager:
     return auth_manager_cls()
 
 
+def get_airflow_home() -> str:
+    """Get path to AIRFLOW_HOME."""
+    return AIRFLOW_HOME
+
+
+def get_airflow_config(*args, **kwargs) -> str:
+    """Get Path to airflow.cfg path."""
+    return AIRFLOW_CONFIG
+
+
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
 # "~/airflow" and "$AIRFLOW_HOME/airflow.cfg" respectively as defaults.
 from airflow._shared.configuration import (  # noqa: E402, F401
