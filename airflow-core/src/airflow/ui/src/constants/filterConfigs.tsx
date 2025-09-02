@@ -19,7 +19,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
-import { MdDateRange, MdNumbers, MdSearch } from "react-icons/md";
+import { LuBrackets } from "react-icons/lu";
+import { MdDateRange, MdSearch } from "react-icons/md";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -61,7 +62,7 @@ export const useFilterConfigs = () => {
         type: "date" as const,
       },
       [SearchParamsKeys.MAP_INDEX]: {
-        icon: <MdNumbers />,
+        icon: <LuBrackets />,
         label: translate("common:mapIndex"),
         min: -1,
         placeholder: translate("common:filters.mapIndexPlaceholder"),
