@@ -34,6 +34,26 @@ import type {
 
 dayjs.extend(isSameOrBefore);
 
+// Calendar color constants
+const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
+const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
+
+const TOTAL_COLOR_INTENSITIES = [
+  EMPTY_COLOR, // 0
+  { _dark: "green.300", _light: "green.200" },
+  { _dark: "green.500", _light: "green.400" },
+  { _dark: "green.700", _light: "green.600" },
+  { _dark: "green.900", _light: "green.800" },
+];
+
+const FAILURE_COLOR_INTENSITIES = [
+  EMPTY_COLOR, // 0
+  { _dark: "red.300", _light: "red.200" },
+  { _dark: "red.500", _light: "red.400" },
+  { _dark: "red.700", _light: "red.600" },
+  { _dark: "red.900", _light: "red.800" },
+];
+
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
@@ -191,33 +211,28 @@ export const createCalendarScale = (
 
   // Handle empty data case
   if (maxCount === 0) {
-    const emptyColor = { _dark: "gray.700", _light: "gray.100" };
-
     return {
-      getColor: () => emptyColor,
-      legendItems: [{ color: emptyColor, label: "0" }],
+      getColor: () => EMPTY_COLOR,
+      legendItems: [{ color: EMPTY_COLOR, label: "0" }],
       type: "empty",
     };
   }
 
   // Handle single value case
   if (minCount === maxCount) {
-    const singleColor =
-      viewMode === "total"
-        ? { _dark: "green.500", _light: "green.400" }
-        : { _dark: "red.500", _light: "red.400" };
+    const singleColor = viewMode === "total" ? TOTAL_COLOR_INTENSITIES[2]! : FAILURE_COLOR_INTENSITIES[2]!;
 
     return {
       getColor: (counts: RunCounts) => {
         if (counts.planned > 0) {
-          return { _dark: "scheduled.600", _light: "scheduled.200" };
+          return PLANNED_COLOR;
         }
         const targetCount = viewMode === "total" ? counts.total : counts.failed;
 
-        return targetCount === 0 ? { _dark: "gray.700", _light: "gray.100" } : singleColor;
+        return targetCount === 0 ? EMPTY_COLOR : singleColor;
       },
       legendItems: [
-        { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
+        { color: EMPTY_COLOR, label: "0" },
         { color: singleColor, label: maxCount.toString() },
       ],
       type: "single_value",
@@ -226,22 +241,7 @@ export const createCalendarScale = (
 
   // Handle gradient case - create dynamic thresholds
   const range = maxCount - minCount;
-  const colorScheme =
-    viewMode === "total"
-      ? [
-          { _dark: "gray.700", _light: "gray.100" }, // 0
-          { _dark: "green.300", _light: "green.200" },
-          { _dark: "green.500", _light: "green.400" },
-          { _dark: "green.700", _light: "green.600" },
-          { _dark: "green.900", _light: "green.800" },
-        ]
-      : [
-          { _dark: "gray.700", _light: "gray.100" }, // 0
-          { _dark: "red.300", _light: "red.200" },
-          { _dark: "red.500", _light: "red.400" },
-          { _dark: "red.700", _light: "red.600" },
-          { _dark: "red.900", _light: "red.800" },
-        ];
+  const colorScheme = viewMode === "total" ? TOTAL_COLOR_INTENSITIES : FAILURE_COLOR_INTENSITIES;
 
   const thresholds = [
     0,
@@ -255,26 +255,24 @@ export const createCalendarScale = (
 
   const getColor = (counts: RunCounts): string | { _dark: string; _light: string } => {
     if (counts.planned > 0) {
-      return { _dark: "scheduled.600", _light: "scheduled.200" };
+      return PLANNED_COLOR;
     }
 
     const targetCount = viewMode === "total" ? counts.total : counts.failed;
 
     if (targetCount === 0) {
-      return colorScheme[0] ?? { _dark: "gray.700", _light: "gray.100" };
+      return colorScheme[0] ?? EMPTY_COLOR;
     }
 
     for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
       const threshold = uniqueThresholds[index];
 
       if (threshold !== undefined && targetCount >= threshold) {
-        return (
-          colorScheme[Math.min(index, colorScheme.length - 1)] ?? { _dark: "gray.700", _light: "gray.100" }
-        );
+        return colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
       }
     }
 
-    return colorScheme[1] ?? { _dark: "gray.700", _light: "gray.100" };
+    return colorScheme[1] ?? EMPTY_COLOR;
   };
 
   const legendItems: Array<LegendItem> = [];
@@ -296,10 +294,7 @@ export const createCalendarScale = (
       label = `${threshold}-${nextThreshold - 1}`;
     }
 
-    const color = colorScheme[Math.min(index, colorScheme.length - 1)] ?? {
-      _dark: "gray.700",
-      _light: "gray.100",
-    };
+    const color = colorScheme[Math.min(index, colorScheme.length - 1)]!;
 
     legendItems.push({
       color,
