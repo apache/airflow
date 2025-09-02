@@ -1635,7 +1635,6 @@ repos:
           ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/models/asset\.py$|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
-          ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
           ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
@@ -1662,7 +1661,6 @@ repos:
           ^airflow-core/src/airflow/serialization/helpers\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/settings\.py$|
-          ^airflow-core/src/airflow/ti_deps/dep_context\.py$|
           ^airflow-core/src/airflow/task/task_runner/bash_task_runner\.py$|
           ^airflow-core/src/airflow/task/task_runner/standard_task_runner\.py$|
           ^airflow-core/src/airflow/ti_deps/deps/mapped_task_upstream_dep\.py$|

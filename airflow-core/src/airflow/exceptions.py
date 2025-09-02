@@ -24,7 +24,12 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import TYPE_CHECKING, NamedTuple
 
-from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
+from airflow.sdk.exceptions import (  # noqa: F401
+    AirflowException,
+    AirflowNotFoundException,
+    ParamValidationError,
+    TaskNotFound,
+)
 
 if TYPE_CHECKING:
     from airflow.models import DagRun
@@ -147,14 +152,6 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
 class SerializationError(AirflowException):
     """A problem occurred when trying to serialize something."""
-
-
-class ParamValidationError(AirflowException):
-    """Raise when DAG params is invalid."""
-
-
-class TaskNotFound(AirflowNotFoundException):
-    """Raise when a Task is not available in the system."""
 
 
 class TaskInstanceNotFound(AirflowNotFoundException):
@@ -310,7 +307,6 @@ _DEPRECATED_EXCEPTIONS = {
     "AirflowSensorTimeout": "airflow.sdk.exceptions.AirflowSensorTimeout",
     "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
     "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
-    "AirflowNotFoundException": "airflow.sdk.exceptions.AirflowNotFoundException",
 }
 
 
