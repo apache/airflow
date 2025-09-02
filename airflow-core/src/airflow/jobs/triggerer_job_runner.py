@@ -44,7 +44,7 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
+from airflow.models.dagbag import AsyncDagBag
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -933,7 +933,7 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
-        dag_bag = DagBag(collect_dags=False)
+        dag_bag = AsyncDagBag(collect_dags=False)
 
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
