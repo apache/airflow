@@ -42,6 +42,7 @@ def run_trigger(trigger: BaseTrigger) -> list[TriggerEvent]:
 
 def execute_operator(operator: Operator) -> tuple[Any, Any]:
     context = mock_context(task=operator)
+    operator.render_template_fields(context=context)
     return asyncio.run(deferrable_operator(context, operator))
 
 
@@ -49,7 +50,6 @@ async def deferrable_operator(context, operator):
     result = None
     triggered_events = []
     try:
-        operator.render_template_fields(context=context)
         result = operator.execute(context=context)
     except TaskDeferred as deferred:
         task = deferred
