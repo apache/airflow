@@ -33,7 +33,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
@@ -2391,7 +2391,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
-        check_last_log(session, dag_id=request_dag, event="post_clear_task_instances", logical_date=None)
+
+        if not payload.get("dry_run", True):
+            check_last_log(session, dag_id=request_dag, event="post_clear_task_instances", logical_date=None)
 
     @pytest.mark.parametrize("flag", ["include_future", "include_past"])
     def test_dag_run_with_future_or_past_flag_returns_400(self, test_client, session, flag):
@@ -2977,6 +2979,35 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert "The Dag with ID: `non-existent-dag` was not found" in response.text
+
+    @pytest.mark.parametrize(
+        "dry_run, audit_log_count",
+        [
+            (True, 0),
+            (False, 1),
+        ],
+    )
+    def test_dry_run_audit_log(self, test_client, session, dry_run, audit_log_count):
+        dag_id = "example_python_operator"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        event = "post_clear_task_instances"
+
+        payload = {"dry_run": dry_run, "dag_run_id": dag_run_id}
+        self.create_task_instances(session, dag_id)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+
+        logs = (
+            session.query(Log)
+            .filter(Log.dag_id == dag_id, Log.run_id == dag_run_id, Log.event == event)
+            .count()
+        )
+
+        assert response.status_code == 200
+        assert logs == audit_log_count
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
