@@ -379,14 +379,16 @@ def filter_param_factory(
     default_factory: Callable[[], T | None] | None = None,
     skip_none: bool = True,
     transform_callable: Callable[[T | None], Any] | None = None,
+    *,
+    description: str | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
     # can only set either default_value or default_factory
     query = (
-        Query(alias=filter_name, default_factory=default_factory)
+        Query(alias=filter_name, default_factory=default_factory, description=description)
         if default_factory is not None
-        else Query(alias=filter_name, default=default_value)
+        else Query(alias=filter_name, default=default_value, description=description)
     )
 
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
