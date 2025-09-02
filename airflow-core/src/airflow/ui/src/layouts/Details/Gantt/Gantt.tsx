@@ -33,6 +33,7 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
+import dayjs from "dayjs";
 import { useMemo, useRef, useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
@@ -127,6 +128,8 @@ export const Gantt = ({ limit }: Props) => {
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
+  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
+
   const data = useMemo(() => {
     if (isLoading || runId === "") {
       return [];
@@ -157,6 +160,9 @@ export const Gantt = ({ limit }: Props) => {
           const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
           if (taskInstance) {
+            const hasTaskRunning = isStatePending(taskInstance.state);
+            const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
+
             return {
               isGroup: node.isGroup,
               isMapped: node.is_mapped,
@@ -164,7 +170,7 @@ export const Gantt = ({ limit }: Props) => {
               taskId: taskInstance.task_id,
               x: [
                 formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
-                formatDate(taskInstance.end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+                formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT),
               ],
               y: taskInstance.task_id,
             };
@@ -174,7 +180,7 @@ export const Gantt = ({ limit }: Props) => {
         return undefined;
       })
       .filter((item) => item !== undefined);
-  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
+  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];

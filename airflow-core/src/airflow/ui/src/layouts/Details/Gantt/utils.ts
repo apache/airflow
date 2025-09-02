@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
+import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -91,16 +92,22 @@ export const createChartOptions = ({
   selectedRun,
   selectedTimezone,
   translate,
-}: ChartOptionsParams) => ({
-  animation: {
-    duration: 150,
-    easing: "linear" as const,
+}: ChartOptionsParams) => {
+  const isActivePending = isStatePending(selectedRun?.state);
+  const effectiveEndDate = isActivePending
+    ? dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss")
+    : selectedRun?.end_date;
+
+  return {
+    animation: {
+      duration: 150,
+      easing: "linear" as const,
   },
-  indexAxis: "y" as const,
-  maintainAspectRatio: false,
-  onClick: handleBarClick,
-  onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
-    const target = event.native?.target as HTMLElement | undefined;
+    indexAxis: "y" as const,
+    maintainAspectRatio: false,
+    onClick: handleBarClick,
+    onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
+      const target = event.native?.target as HTMLElement | undefined;
 
     if (target) {
       target.style.cursor = elements.length > 0 ? "pointer" : "default";
@@ -167,7 +174,7 @@ export const createChartOptions = ({
               // add 5% to the max time to avoid the last tick being cut off
               return maxTime + totalDuration * 0.05;
             })()
-          : formatDate(selectedRun?.end_date, selectedTimezone),
+          : formatDate(effectiveEndDate, selectedTimezone),
       min:
         data.length > 0
           ? Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()))
@@ -194,4 +201,5 @@ export const createChartOptions = ({
       },
     },
   },
-});
+  };
+};
