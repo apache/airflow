@@ -40,7 +40,6 @@
     "warning": "UYARI"
   },
   "navigation": {
-    "jump": "Atla: Shift+{{arrow}}",
     "navigation": "Gezin: {{arrow}}",
     "toggleGroup": "Grubu aç/kapat: Space"
   },

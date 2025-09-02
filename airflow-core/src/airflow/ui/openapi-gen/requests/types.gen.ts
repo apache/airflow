@@ -541,6 +541,9 @@ export type DAGDetailsResponse = {
     readonly file_token: string;
     /**
      * Return max_active_tasks as concurrency.
+     *
+     * Deprecated: Use max_active_tasks instead.
+     * @deprecated
      */
     readonly concurrency: number;
     /**
@@ -661,13 +664,21 @@ export type DAGRunsBatchBody = {
     dag_ids?: Array<(string)> | null;
     states?: Array<(DagRunState | null)> | null;
     run_after_gte?: string | null;
+    run_after_gt?: string | null;
     run_after_lte?: string | null;
+    run_after_lt?: string | null;
     logical_date_gte?: string | null;
+    logical_date_gt?: string | null;
     logical_date_lte?: string | null;
+    logical_date_lt?: string | null;
     start_date_gte?: string | null;
+    start_date_gt?: string | null;
     start_date_lte?: string | null;
+    start_date_lt?: string | null;
     end_date_gte?: string | null;
+    end_date_gt?: string | null;
     end_date_lte?: string | null;
+    end_date_lt?: string | null;
 };
 
 /**
@@ -712,6 +723,7 @@ export type DAGWarningResponse = {
     warning_type: DagWarningType;
     message: string;
     timestamp: string;
+    dag_display_name: string;
 };
 
 /**
@@ -1286,6 +1298,7 @@ export type TaskInstanceHistoryResponse = {
     queue: string | null;
     priority_weight: number | null;
     operator: string | null;
+    operator_name: string | null;
     queued_when: string | null;
     scheduled_when: string | null;
     pid: number | null;
@@ -1320,6 +1333,7 @@ export type TaskInstanceResponse = {
     queue: string | null;
     priority_weight: number | null;
     operator: string | null;
+    operator_name: string | null;
     queued_when: string | null;
     scheduled_when: string | null;
     pid: number | null;
@@ -1351,15 +1365,25 @@ export type TaskInstancesBatchBody = {
     task_ids?: Array<(string)> | null;
     state?: Array<(TaskInstanceState | null)> | null;
     run_after_gte?: string | null;
+    run_after_gt?: string | null;
     run_after_lte?: string | null;
+    run_after_lt?: string | null;
     logical_date_gte?: string | null;
+    logical_date_gt?: string | null;
     logical_date_lte?: string | null;
+    logical_date_lt?: string | null;
     start_date_gte?: string | null;
+    start_date_gt?: string | null;
     start_date_lte?: string | null;
+    start_date_lt?: string | null;
     end_date_gte?: string | null;
+    end_date_gt?: string | null;
     end_date_lte?: string | null;
+    end_date_lt?: string | null;
     duration_gte?: number | null;
+    duration_gt?: number | null;
     duration_lte?: number | null;
+    duration_lt?: number | null;
     pool?: Array<(string)> | null;
     queue?: Array<(string)> | null;
     executor?: Array<(string)> | null;
@@ -1550,6 +1574,7 @@ export type XComResponse = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
 };
 
 /**
@@ -1564,6 +1589,7 @@ export type XComResponseNative = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
     value: unknown;
 };
 
@@ -1579,6 +1605,7 @@ export type XComResponseString = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
     value: string | null;
 };
 
@@ -1973,7 +2000,9 @@ export type GetAssetEventsData = {
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
     sourceTaskId?: string | null;
+    timestampGt?: string | null;
     timestampGte?: string | null;
+    timestampLt?: string | null;
     timestampLte?: string | null;
 };
 
@@ -2198,28 +2227,38 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
     orderBy?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     runIdPattern?: string | null;
     runType?: Array<(string)>;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     triggeringUserNamePattern?: string | null;
+    updatedAtGt?: string | null;
     updatedAtGte?: string | null;
+    updatedAtLt?: string | null;
     updatedAtLte?: string | null;
 };
 
@@ -2302,6 +2341,10 @@ export type ListDagWarningsData = {
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    /**
+     * Filter DAGs by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
@@ -2312,12 +2355,20 @@ export type GetDagsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     dagIdPattern?: string | null;
+    dagRunEndDateGt?: string | null;
     dagRunEndDateGte?: string | null;
+    dagRunEndDateLt?: string | null;
     dagRunEndDateLte?: string | null;
+    dagRunStartDateGt?: string | null;
     dagRunStartDateGte?: string | null;
+    dagRunStartDateLt?: string | null;
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    /**
+     * Filter DAGs with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2400,6 +2451,10 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    /**
+     * Filter DAGs by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
@@ -2413,6 +2468,10 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    /**
+     * Filter DAGs with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2442,7 +2501,15 @@ export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
     dagId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     event?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    eventPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
     includedEvents?: Array<(string)> | null;
     limit?: number;
@@ -2450,8 +2517,20 @@ export type GetEventLogsData = {
     offset?: number;
     orderBy?: Array<(string)>;
     owner?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    ownerPattern?: string | null;
     runId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     tryNumber?: number | null;
 };
 
@@ -2497,25 +2576,39 @@ export type DeleteTaskInstanceResponse = null;
 export type GetMappedTaskInstancesData = {
     dagId: string;
     dagRunId: string;
+    durationGt?: number | null;
     durationGte?: number | null;
+    durationLt?: number | null;
     durationLte?: number | null;
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
+    operator?: Array<(string)>;
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
     taskId: string;
+    tryNumber?: Array<(number)>;
+    updatedAtGt?: string | null;
     updatedAtGte?: string | null;
+    updatedAtLt?: string | null;
     updatedAtLte?: string | null;
     versionNumber?: Array<(number)>;
 };
@@ -2581,21 +2674,32 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 export type GetTaskInstancesData = {
     dagId: string;
     dagRunId: string;
+    durationGt?: number | null;
     durationGte?: number | null;
+    durationLt?: number | null;
     durationLte?: number | null;
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
+    operator?: Array<(string)>;
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
@@ -2603,7 +2707,10 @@ export type GetTaskInstancesData = {
      */
     taskDisplayNamePattern?: string | null;
     taskId?: string | null;
+    tryNumber?: Array<(number)>;
+    updatedAtGt?: string | null;
     updatedAtGte?: string | null;
+    updatedAtLt?: string | null;
     updatedAtLte?: string | null;
     versionNumber?: Array<(number)>;
 };
@@ -2713,7 +2820,9 @@ export type GetImportErrorsData = {
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetJobsData = {
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     executorClass?: string | null;
     hostname?: string | null;
@@ -2723,7 +2832,9 @@ export type GetJobsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
 };
 
@@ -2819,12 +2930,16 @@ export type GetXcomEntriesData = {
     dagId: string;
     dagRunId: string;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     mapIndex?: number | null;
     mapIndexFilter?: number | null;
     offset?: number;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2939,6 +3054,7 @@ export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 export type UpdateHitlDetailData = {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     requestBody: UpdateHITLDetailPayload;
     taskId: string;
 };
@@ -2948,29 +3064,11 @@ export type UpdateHitlDetailResponse = HITLDetailResponse;
 export type GetHitlDetailData = {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
 };
 
 export type GetHitlDetailResponse = HITLDetail;
-
-export type UpdateMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-};
-
-export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
-
-export type GetMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    taskId: string;
-};
-
-export type GetMappedTiHitlDetailResponse = HITLDetail;
 
 export type GetHitlDetailsData = {
     /**
@@ -3057,7 +3155,9 @@ export type GetDagStructureData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
 };
 
@@ -3068,7 +3168,9 @@ export type GetGridRunsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
 };
 
@@ -3084,7 +3186,9 @@ export type GetGridTiSummariesResponse = GridTISummaries;
 export type GetCalendarData = {
     dagId: string;
     granularity?: 'hourly' | 'daily';
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
 };
 
@@ -5999,62 +6103,6 @@ export type $OpenApiTs = {
         };
         get: {
             req: GetHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetail;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
-        patch: {
-            req: UpdateMappedTiHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-        get: {
-            req: GetMappedTiHitlDetailData;
             res: {
                 /**
                  * Successful Response

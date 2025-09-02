@@ -149,9 +149,18 @@ After the branch is chosen, the workflow will proceed along the selected path.
 Notifiers
 ---------
 
-A notifier is a callback mechanism that allows you to handle HITL events, such as when a task is waiting for human input, succeeds, or fails.
-The example uses a notifier ``LocalLogNotifier`` that logs messages for demonstration.
-You can implement your own notifier for different functionalities.
+A notifier is a callback mechanism for handling HITL events, such as when a task is waiting for human input, succeeds, or fails.
+The example uses the ``LocalLogNotifier``, which logs messages for demonstration purposes.
+
+The method ``HITLOperator.generate_link_to_ui_from_context`` can be used to generate a direct link to the UI page where the user should respond. It accepts four arguments:
+
+- ``context`` – automatically passed to ``notify`` by the notifier
+- ``base_url`` – (optional) the base URL of the Airflow UI; if not provided, ``api.base_url`` in the configuration will be used
+- ``options`` – (optional) pre-selected options for the UI page
+- ``params_inputs`` – (optional) pre-loaded inputs for the UI page
+
+This makes it easy to include actionable links in notifications or logs.
+You can also implement your own notifier to provide different functionalities.
 For more details, please refer to `Creating a notifier <https://airflow.apache.org/docs/apache-airflow/stable/howto/notifications.html>`_ and `Notifications <https://airflow.apache.org/docs/apache-airflow-providers/core-extensions/notifications.html>`_.
 
 In the example Dag, the notifier is defined as follows:
