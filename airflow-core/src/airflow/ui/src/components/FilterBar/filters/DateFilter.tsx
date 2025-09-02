@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import dayjs from "dayjs";
+
 import { DateTimeInput } from "src/components/DateTimeInput";
 
 import { FilterPill } from "../FilterPill";
@@ -23,15 +25,7 @@ import type { FilterPluginProps } from "../types";
 
 export const DateFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const hasValue = filter.value !== null && filter.value !== undefined && String(filter.value).trim() !== "";
-  const displayValue = hasValue
-    ? new Date(String(filter.value)).toLocaleString("en-US", {
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : "";
+  const displayValue = hasValue ? dayjs(String(filter.value)).format("MMM DD, YYYY, hh:mm A") : "";
 
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
