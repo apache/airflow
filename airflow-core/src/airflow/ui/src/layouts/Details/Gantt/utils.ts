@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
+import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
 export type GanttDataItem = {
@@ -82,8 +83,10 @@ export const createChartOptions = ({
   selectedTimezone,
   translate,
 }: ChartOptionsParams) => {
-  const isRunning = selectedRun?.state === "running";
-  const effectiveEndDate = isRunning ? new Date().toISOString() : selectedRun?.end_date;
+  const isActivePending = isStatePending(selectedRun?.state);
+  const effectiveEndDate = isActivePending
+    ? dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss")
+    : selectedRun?.end_date;
 
   return {
     animation: {

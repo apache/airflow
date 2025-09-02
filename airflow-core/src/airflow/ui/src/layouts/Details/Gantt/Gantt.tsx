@@ -33,7 +33,10 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
-import { useMemo, useRef, useState, useEffect } from "react";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+import { useMemo, useRef } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -51,6 +54,9 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createChartOptions } from "./utils";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 ChartJS.register(
   CategoryScale,
@@ -83,7 +89,6 @@ export const Gantt = ({ limit }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
   const ref = useRef();
-  const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
 
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
     "gray.200",
@@ -124,19 +129,7 @@ export const Gantt = ({ limit }: Props) => {
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
-  useEffect(() => {
-    const hasRunningTasks = taskInstancesData?.task_instances.some((ti) => isStatePending(ti.state));
-
-    if (hasRunningTasks) {
-      const interval = setInterval(() => {
-        setCurrentTime(new Date().toISOString());
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }
-
-    return undefined;
-  }, [taskInstancesData]);
+  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
 
   const data = useMemo(() => {
     if (isLoading || runId === undefined) {
@@ -168,8 +161,8 @@ export const Gantt = ({ limit }: Props) => {
           const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
           if (taskInstance) {
-            const isTaskRunning = taskInstance.state === "running";
-            const endTime = isTaskRunning ? currentTime : taskInstance.end_date;
+            const hasTaskRunning = isStatePending(taskInstance.state);
+            const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
 
             return {
               isGroup: false,
