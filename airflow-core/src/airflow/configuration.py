@@ -156,8 +156,11 @@ from airflow._shared.configuration import (  # noqa: E402, F401
     AirflowConfigParser,
     conf,
     ensure_secrets_loaded,
+    expand_env_var,
+    get_all_expansion_variables,
     initialize_secrets_backends,
     retrieve_configuration_description,
+    write_default_airflow_configuration_if_needed,
 )
 
 # Set up dags folder for unit tests
