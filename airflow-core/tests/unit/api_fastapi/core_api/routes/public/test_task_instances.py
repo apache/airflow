@@ -2444,7 +2444,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         }
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 200
-        assert resp.json()["total_entries"] == expected  # include_past => T0,1 / include_future => T1,T2
+        assert resp.json()["total_entries"] == expected  # include_past => T0,T1 / include_future => T1,T2
 
     def test_with_dag_run_id_and_both_past_and_future_means_full_range(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2480,15 +2480,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_failed": True,
             "dag_run_id": "TEST_DAG_RUN_ID_1",
         }
-        a= (
-            DEFAULT_DATETIME_1 + dt.timedelta(days=1)
-        ).strftime("%Y-%m-%dT%H:%M:%SZ")  # T1
         resp = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert resp.status_code == 200
-        a = resp.json()
         assert resp.json()["total_entries"] == 1
-        assert resp.json()["task_instances"][0]["logical_date"] == '2020-01-02T00:00:00Z' # T1
-
+        assert resp.json()["task_instances"][0]["logical_date"] == "2020-01-02T00:00:00Z"  # T1
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
@@ -3750,49 +3745,49 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         "new_state,expected_status_code,expected_json,set_ti_state_call_count",
         [
             (
-                    "failed",
-                    200,
-                    {
-                        "task_instances": [
-                            {
-                                "dag_id": "example_python_operator",
-                                "dag_display_name": "example_python_operator",
-                                "dag_version": mock.ANY,
-                                "dag_run_id": "TEST_DAG_RUN_ID",
-                                "logical_date": "2020-01-01T00:00:00Z",
-                                "task_id": "print_the_context",
-                                "duration": 10000.0,
-                                "end_date": "2020-01-03T00:00:00Z",
-                                "executor": None,
-                                "executor_config": "{}",
-                                "hostname": "",
-                                "id": mock.ANY,
-                                "map_index": -1,
-                                "max_tries": 0,
-                                "note": "placeholder-note",
-                                "operator": "PythonOperator",
-                                "pid": 100,
-                                "pool": "default_pool",
-                                "pool_slots": 1,
-                                "priority_weight": 9,
-                                "queue": "default_queue",
-                                "queued_when": None,
-                                "scheduled_when": None,
-                                "start_date": "2020-01-02T00:00:00Z",
-                                "state": "running",
-                                "task_display_name": "print_the_context",
-                                "try_number": 0,
-                                "unixname": getuser(),
-                                "rendered_fields": {},
-                                "rendered_map_index": None,
-                                "run_after": "2020-01-01T00:00:00Z",
-                                "trigger": None,
-                                "triggerer_job": None,
-                            }
-                        ],
-                        "total_entries": 1,
-                    },
-                    1,
+                "failed",
+                200,
+                {
+                    "task_instances": [
+                        {
+                            "dag_id": "example_python_operator",
+                            "dag_display_name": "example_python_operator",
+                            "dag_version": mock.ANY,
+                            "dag_run_id": "TEST_DAG_RUN_ID",
+                            "logical_date": "2020-01-01T00:00:00Z",
+                            "task_id": "print_the_context",
+                            "duration": 10000.0,
+                            "end_date": "2020-01-03T00:00:00Z",
+                            "executor": None,
+                            "executor_config": "{}",
+                            "hostname": "",
+                            "id": mock.ANY,
+                            "map_index": -1,
+                            "max_tries": 0,
+                            "note": "placeholder-note",
+                            "operator": "PythonOperator",
+                            "pid": 100,
+                            "pool": "default_pool",
+                            "pool_slots": 1,
+                            "priority_weight": 9,
+                            "queue": "default_queue",
+                            "queued_when": None,
+                            "scheduled_when": None,
+                            "start_date": "2020-01-02T00:00:00Z",
+                            "state": "running",
+                            "task_display_name": "print_the_context",
+                            "try_number": 0,
+                            "unixname": getuser(),
+                            "rendered_fields": {},
+                            "rendered_map_index": None,
+                            "run_after": "2020-01-01T00:00:00Z",
+                            "trigger": None,
+                            "triggerer_job": None,
+                        }
+                    ],
+                    "total_entries": 1,
+                },
+                1,
             ),
             (
                 None,
@@ -4491,20 +4486,20 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 1,
             ),
             (
-                    None,
-                    422,
-                    {
-                        "detail": [
-                            {
-                                "type": "value_error",
-                                "loc": ["body", "new_state"],
-                                "msg": "Value error, 'new_state' should not be empty",
-                                "input": None,
-                                "ctx": {"error": {}},
-                            }
-                        ]
-                    },
-                    0,
+                None,
+                422,
+                {
+                    "detail": [
+                        {
+                            "type": "value_error",
+                            "loc": ["body", "new_state"],
+                            "msg": "Value error, 'new_state' should not be empty",
+                            "input": None,
+                            "ctx": {"error": {}},
+                        }
+                    ]
+                },
+                0,
             ),
         ],
     )
