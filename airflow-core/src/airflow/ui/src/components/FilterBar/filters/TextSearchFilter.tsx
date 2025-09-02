@@ -55,7 +55,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
       <InputWithAddon
         label={filter.config.label}
         onChange={handleInputChange}
-        placeholder={filter.config.placeholder ?? `Enter ${filter.config.label.toLowerCase()}`}
+        placeholder={filter.config.placeholder}
         value={String(filter.value ?? "")}
       />
     </FilterPill>

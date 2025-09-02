@@ -104,7 +104,7 @@ export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
         max={filter.config.max}
         min={filter.config.min}
         onValueChange={handleValueChange}
-        placeholder={filter.config.placeholder ?? `Enter ${filter.config.label.toLowerCase()}`}
+        placeholder={filter.config.placeholder}
         value={inputValue}
       />
     </FilterPill>
