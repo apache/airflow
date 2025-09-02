@@ -21,7 +21,7 @@ How-to Guide for SMTP notifications
 Introduction
 ------------
 The SMTP notifier (:class:`airflow.providers.smtp.notifications.smtp.SmtpNotifier`) allows users to send
-messages to SMTP servers using the various ``on_*_callbacks`` at both the DAG level and Task level.
+messages to SMTP servers using the various ``on_*_callbacks`` at both the Dag level and Task level.
 
 
 Example Code:
@@ -30,11 +30,11 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import DAG
+    from airflow import Dag
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.smtp.notifications.smtp import send_smtp_notification
 
-    with DAG(
+    with Dag(
         dag_id="smtp_notifier",
         schedule=None,
         start_date=datetime(2023, 1, 1),

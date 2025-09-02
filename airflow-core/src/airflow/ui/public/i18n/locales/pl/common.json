@@ -7,6 +7,7 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "allOperators": "Wszystkie operatory",
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -35,7 +36,6 @@
   "dag_other": "Dagi",
   "dagDetails": {
     "catchup": "Nadrabianie zaległości",
-    "concurrency": "Współbieżność",
     "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
     "description": "Opis",
@@ -103,6 +103,17 @@
     "and": "ORAZ",
     "any": "Dowolne",
     "or": "LUB"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtruj według Daga",
+    "keyPlaceholder": "Filtruj według klucza XCom",
+    "logicalDateFromPlaceholder": "Data logiczna od",
+    "logicalDateToPlaceholder": "Data logiczna do",
+    "mapIndexPlaceholder": "Filtruj według indeksu mapowania",
+    "runAfterFromPlaceholder": "Uruchom po (od)",
+    "runAfterToPlaceholder": "Uruchom po (do)",
+    "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
+    "taskIdPlaceholder": "Filtruj według identyfikatora zadania"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
@@ -186,6 +197,7 @@
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
+    "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
@@ -229,7 +241,7 @@
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskGroup": "Grupa zadań",
-  "taskId": "Identifikator Zadania",
+  "taskId": "Identyfikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",
     "executor": "Wykonawca",

@@ -45,7 +45,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -56,6 +56,7 @@ from airflow.models.asset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
+    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
@@ -65,7 +66,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -78,7 +79,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -770,6 +771,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.SUCCESS,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
+                TaskInstanceState.RESTARTING,
             ):
                 tis_with_right_state.append(ti_key)
 
@@ -798,7 +800,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                cls.logger().info("Setting external_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
                 continue
 
             msg = (
@@ -858,6 +860,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.SCHEDULED,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
+                TaskInstanceState.RESTARTING,
             )
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
@@ -896,7 +899,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(state)
                     continue
                 ti.task = task
-                if task.on_retry_callback or task.on_failure_callback:
+                if task.has_on_retry_callback or task.has_on_failure_callback:
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
@@ -915,6 +918,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                     )
                     executor.send_callback(request)
+
+                # Handle cleared tasks that were successfully terminated by executor
+                if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
+                    cls.logger().info(
+                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.", ti
+                    )
+                    # Adjust max_tries to allow retry beyond normal limits (like clearing does)
+                    ti.max_tries = ti.try_number + ti.task.retries
+                    ti.set_state(None)
+                    continue
+
                 ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
@@ -1232,6 +1246,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
+        )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._remove_unreferenced_triggers,
         )
 
         if any(x.is_local for x in self.job.executors):
@@ -2028,7 +2046,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     exc_info=True,
                 )
             else:
-                if task.on_failure_callback:
+                if task.has_on_failure_callback:
                     if inspect(ti).detached:
                         ti = session.merge(ti)
                     request = TaskCallbackRequest(
@@ -2380,6 +2398,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details["External Executor Id"] = ti.external_executor_id
 
         return task_instance_heartbeat_timeout_message_details
+
+    @provide_session
+    def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
+        """Remove triggers that are no longer used by anything."""
+        session.execute(
+            delete(Trigger)
+            .where(
+                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(Deadline.trigger_id)),
+                Trigger.id.not_in(select(TaskInstance.trigger_id)),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

@@ -21,6 +21,7 @@ import datetime
 import logging
 import os
 import pickle
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -64,6 +65,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.team import Team
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -73,6 +75,7 @@ from airflow.sdk.definitions._internal.templater import NativeEnvironment, Sandb
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.task.trigger_rule import TriggerRule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -82,7 +85,6 @@ from airflow.timetables.simple import (
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -92,6 +94,7 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
+    clear_db_teams,
 )
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
@@ -143,6 +146,18 @@ TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 def test_dags_bundle(configure_testing_dag_bundle):
     with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
         yield
+
+
+@pytest.fixture
+def testing_team():
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        team = session.query(Team).filter_by(name="testing").one_or_none()
+        if not team:
+            team = Team(id=uuid.uuid4(), name="testing")
+            session.add(team)
+        yield team
 
 
 def _create_dagrun(
@@ -1397,43 +1412,6 @@ class TestDag:
         )
         assert dr.creating_job_id == job_id
 
-    def test_dag_add_task_checks_trigger_rule(self):
-        # A non fail stop dag should allow any trigger rule
-        from airflow.exceptions import FailFastDagInvalidTriggerRule
-        from airflow.utils.trigger_rule import TriggerRule
-
-        task_with_non_default_trigger_rule = EmptyOperator(
-            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
-        )
-        non_fail_fast_dag = DAG(
-            dag_id="test_dag_add_task_checks_trigger_rule",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            fail_fast=False,
-        )
-        non_fail_fast_dag.add_task(task_with_non_default_trigger_rule)
-
-        # a fail stop dag should allow default trigger rule
-        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
-
-        fail_fast_dag = DAG(
-            dag_id="test_dag_add_task_checks_trigger_rule",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            fail_fast=True,
-        )
-        task_with_default_trigger_rule = EmptyOperator(
-            task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
-        )
-        fail_fast_dag.add_task(task_with_default_trigger_rule)
-
-        # a fail stop dag should not allow a non-default trigger rule
-        task_with_non_default_trigger_rule = EmptyOperator(
-            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
-        )
-        with pytest.raises(FailFastDagInvalidTriggerRule):
-            fail_fast_dag.add_task(task_with_non_default_trigger_rule)
-
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
         task_without_task_group = EmptyOperator(task_id="task_without_group_id")
@@ -2123,6 +2101,8 @@ class TestDagModel:
         clear_db_dags()
         clear_db_assets()
         clear_db_runs()
+        clear_db_dag_bundles()
+        clear_db_teams()
 
     def setup_method(self):
         self._clean()
@@ -2558,6 +2538,25 @@ class TestDagModel:
                 {"alias": {"name": "test_name", "group": "test-group"}},
             ]
         }
+
+    def test_get_team_name(self, testing_team):
+        session = settings.Session()
+        dag_bundle = DagBundleModel(name="testing-team")
+        dag_bundle.teams.append(testing_team)
+        session.add(dag_bundle)
+        session.flush()
+
+        dag_id = "test_get_team_name"
+        dag = DAG(dag_id, schedule=None)
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="testing-team",
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+        assert DagModel.get_dagmodel(dag_id) is not None
+        assert DagModel.get_team_name(dag_id, session=session) == "testing"
 
 
 class TestQueries:

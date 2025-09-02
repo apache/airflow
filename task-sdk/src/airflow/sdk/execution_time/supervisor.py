@@ -33,6 +33,7 @@ from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
+from functools import lru_cache
 from http import HTTPStatus
 from socket import socket, socketpair
 from typing import (
@@ -112,14 +113,13 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     ValidateInletsAndOutlets,
     VariableResult,
-    XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.secrets_masker import mask_secret
+from airflow.sdk.log import mask_secret
 
 try:
     from socket import send_fds
@@ -294,7 +294,7 @@ def block_orm_access():
                 delattr(settings, attr)
 
         def configure_orm(*args, **kwargs):
-            raise RuntimeError("Database access is disabled from DAGs and Triggers")
+            raise RuntimeError("Database access is disabled from Dags and Triggers")
 
         settings.configure_orm = configure_orm
         settings.Session = BlockedDBSession
@@ -815,6 +815,82 @@ class WatchedSubprocess:
         return self._exit_code
 
 
+@lru_cache
+def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
+    """
+    Fetch and cache connection for remote logging.
+
+    Args:
+        conn_id: Connection ID to fetch
+        client: API client for making requests
+
+    Returns:
+        Connection object or None if not found
+    """
+    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
+    # SUPERVISOR_COMMS
+
+    # TODO: Store in the SecretsCache if its enabled - see #48858
+
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
+        try:
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
+        except Exception:
+            log.exception(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    conn = client.connections.get(conn_id)
+    if isinstance(conn, ConnectionResponse):
+        conn_result = ConnectionResult.from_conn_response(conn)
+        from airflow.sdk.definitions.connection import Connection
+
+        return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+    return None
+
+
+@contextlib.contextmanager
+def _remote_logging_conn(client: Client):
+    """
+    Pre-fetch the needed remote logging connection with caching.
+
+    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
+    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
+    hook tries to get the connection it can find it easily from the env vars.
+
+    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
+    supervisor process when this is needed, so that doesn't exist yet.
+
+    This function uses @lru_cache for connection caching to avoid repeated API calls.
+    """
+    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
+
+    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
+        # Nothing to do
+        yield
+        return
+
+    # Use cached connection fetcher
+    conn = _get_remote_logging_conn(conn_id, client)
+
+    if conn:
+        key = f"AIRFLOW_CONN_{conn_id.upper()}"
+        old = os.getenv(key)
+        os.environ[key] = conn.get_uri()
+        try:
+            yield
+        finally:
+            if old is None:
+                del os.environ[key]
+            else:
+                os.environ[key] = old
+
+
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
     client: Client
@@ -931,7 +1007,8 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.process_log, self.ti)
+        with _remote_logging_conn(self.client):
+            upload_to_remote(self.process_log, self.ti)
 
     def _monitor_subprocess(self):
         """
@@ -1124,8 +1201,7 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result
         elif isinstance(msg, GetXComCount):
-            xcom_count = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=xcom_count)
+            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
             xcom = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
@@ -1378,7 +1454,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         This bypasses the standard `ActivitySubprocess.start()` behavior, which expects
         to launch a subprocess and communicate via stdin/stdout. Instead, it constructs
         the `RuntimeTaskInstance` directly — useful in contexts like `dag.test()` where the
-        DAG is already parsed in memory.
+        Dag is already parsed in memory.
 
         Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
         """
@@ -1399,10 +1475,10 @@ class InProcessTestSupervisor(ActivitySubprocess):
             supervisor.ti = what  # type: ignore[assignment]
 
             # We avoid calling `task_runner.startup()` because we are already inside a
-            # parsed DAG file (e.g. via dag.test()).
-            # In normal execution, `startup()` parses the DAG based on info in a `StartupDetails` message.
+            # parsed Dag file (e.g. via dag.test()).
+            # In normal execution, `startup()` parses the Dag based on info in a `StartupDetails` message.
             # By directly constructing the `RuntimeTaskInstance`,
-            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set DAG Bundle config
+            #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set Dag Bundle config
             #   and run the task in-process.
             start_date = datetime.now(tz=timezone.utc)
             ti_context = supervisor.client.task_instances.start(supervisor.id, supervisor.pid, start_date)
@@ -1436,7 +1512,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
             from airflow.models.dagbag import DBDagBag
 
             # This is needed since the Execution API server uses the DBDagBag in its "state".
-            # This `app.state.dag_bag` is used to get some DAG properties like `fail_fast`.
+            # This `app.state.dag_bag` is used to get some Dag properties like `fail_fast`.
             dag_bag = DBDagBag()
 
             api.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
@@ -1651,68 +1727,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     return backends
 
 
-@contextlib.contextmanager
-def _remote_logging_conn(client: Client):
-    """
-    Pre-fetch the needed remote logging connection.
-
-    If a remote logger is in use, and has the logging/remote_logging option set, we try to fetch the
-    connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
-    hook tries to get the connection it
-    can find it easily from the env vars
-
-    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
-    supervisor process when this is needed, so that doesn't exist yet.
-    """
-    from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
-
-    if load_remote_log_handler() is None or not (conn_id := load_remote_conn_id()):
-        # Nothing to do
-        yield
-        return
-
-    # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
-    # SUPERVISOR_COMMS
-
-    # TODO: Store in the SecretsCache if its enabled - see #48858
-
-    def _get_conn() -> Connection | None:
-        backends = ensure_secrets_backend_loaded()
-        for secrets_backend in backends:
-            try:
-                conn = secrets_backend.get_connection(conn_id=conn_id)
-                if conn:
-                    return conn
-            except Exception:
-                log.exception(
-                    "Unable to retrieve connection from secrets backend (%s). "
-                    "Checking subsequent secrets backend.",
-                    type(secrets_backend).__name__,
-                )
-
-        conn = client.connections.get(conn_id)
-        if isinstance(conn, ConnectionResponse):
-            conn_result = ConnectionResult.from_conn_response(conn)
-            from airflow.sdk.definitions.connection import Connection
-
-            return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
-        return None
-
-    if conn := _get_conn():
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
-
-        os.environ[key] = conn.get_uri()
-
-        try:
-            yield
-        finally:
-            if old is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old
-
-
 def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:
     # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
     # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
@@ -1754,8 +1768,8 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param bundle_info: Information of the DAG bundle to use for this task instance.
-    :param dag_rel_path: The file path to the DAG.
+    :param bundle_info: Information of the Dag bundle to use for this task instance.
+    :param dag_rel_path: The file path to the Dag.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param dry_run: If True, execute without actual task execution (simulate run).
@@ -1766,7 +1780,7 @@ def supervise(
     :raises ValueError: If server URL is empty or invalid.
     """
     # One or the other
-    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+    from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:
         if dry_run and server:

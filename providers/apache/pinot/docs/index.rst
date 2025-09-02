@@ -41,7 +41,7 @@
     :maxdepth: 1
     :caption: References
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/providers/apache/pinot/tests/system/apache/pinot>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/providers/apache/pinot/tests/system/apache/pinot>
     Python API <_api/airflow/providers/apache/pinot/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pinot/>
     Installing from sources <installing-providers-from-sources>

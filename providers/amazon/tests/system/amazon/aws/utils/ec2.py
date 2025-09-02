@@ -26,7 +26,11 @@ try:
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 
 def _get_next_available_cidr(vpc_id: str) -> str:

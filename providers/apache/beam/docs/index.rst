@@ -48,7 +48,7 @@
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-beam/>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-beam/|version|/providers/apache/beam/tests/system/apache/beam>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-beam/|version|/providers/apache/beam/tests/system/apache/beam>
 
 .. toctree::
     :hidden:

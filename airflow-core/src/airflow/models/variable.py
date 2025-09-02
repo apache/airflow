@@ -24,15 +24,16 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.sdk import SecretCache
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
@@ -54,6 +55,7 @@ class Variable(Base, LoggingMixin):
     _val = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
     description = Column(Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
     def __init__(self, key=None, val=None, description=None):
         super().__init__()
@@ -146,7 +148,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -203,7 +205,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -301,7 +303,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead and use `Variable.set` as it is an upsert.",
+                "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -356,7 +358,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )

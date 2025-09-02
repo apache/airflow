@@ -40,7 +40,6 @@
     "warning": "تحذير"
   },
   "navigation": {
-    "jump": "الانتقال: Shift+{{arrow}}",
     "navigation": "التنقل: {{arrow}}",
     "toggleGroup": "تبديل المجموعة: المسافة"
   },

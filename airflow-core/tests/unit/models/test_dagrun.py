@@ -47,11 +47,11 @@ from airflow.sdk import BaseOperator, setup, task, task_group, teardown
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
+from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
@@ -2036,6 +2036,7 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+@pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
@@ -2092,7 +2093,7 @@ def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     assert empty_ti.try_number == 1
 
 
-@pytest.mark.xfail(reason="We can't keep this bevaviour with remote workers where scheduler can't reach xcom")
+@pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.

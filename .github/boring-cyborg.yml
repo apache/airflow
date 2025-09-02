@@ -357,6 +357,7 @@ labelPRBasedOnFilePath:
     - providers/**/docs/**/*
     - providers-summary-docs/**/*
     - docker-stack-docs/**/*
+    - airflow-ctl/docs/**/*
 
   area:helm-chart:
     - chart/**/*
@@ -386,6 +387,12 @@ labelPRBasedOnFilePath:
   translation:he:
     - airflow-core/src/airflow/ui/public/i18n/locales/he/*
 
+  translation:hi:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hi/*
+
+  translation:hu:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hu/*
+
   translation:ko:
     - airflow-core/src/airflow/ui/public/i18n/locales/ko/*
 
@@ -394,6 +401,9 @@ labelPRBasedOnFilePath:
 
   translation:pl:
     - airflow-core/src/airflow/ui/public/i18n/locales/pl/*
+
+  translation:tr:
+    - airflow-core/src/airflow/ui/public/i18n/locales/tr/*
 
   translation:zh-TW:
     - airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/*

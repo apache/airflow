@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
 )
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
@@ -500,7 +501,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
-    """Test running a DAG with templated task."""
+    """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(
@@ -605,7 +606,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
 def test_startup_and_run_dag_with_rtif(
     mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine, mock_supervisor_comms
 ):
-    """Test startup of a DAG with various rendered templated fields."""
+    """Test startup of a Dag with various rendered templated fields."""
 
     class CustomOperator(BaseOperator):
         template_fields = tuple(task_params.keys())
@@ -745,6 +746,49 @@ def test_task_run_with_user_impersonation_default_user(
         assert "_AIRFLOW__STARTUP_MSG" not in os.environ
 
 
+def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_process(
+    mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    task = CustomOperator(task_id="impersonation_task", run_as_user="airflowuser")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="impersonation_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    mocked_parse(what, "basic_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+
+    mock_os_env = {
+        "KRB5CCNAME": "/tmp/airflow_krb5_ccache",
+        "_AIRFLOW__REEXECUTED_PROCESS": "1",
+        "_AIRFLOW__STARTUP_MSG": what.model_dump_json(),
+    }
+    with mock.patch.dict("os.environ", mock_os_env, clear=True):
+        startup()
+
+        assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+        assert "_AIRFLOW__STARTUP_MSG" in os.environ
+        assert "KRB5CCNAME" not in os.environ
+
+
 @pytest.mark.parametrize(
     ["command", "rendered_command"],
     [
@@ -757,7 +801,7 @@ def test_task_run_with_user_impersonation_default_user(
 def test_startup_and_run_dag_with_templated_fields(
     command, rendered_command, create_runtime_ti, time_machine
 ):
-    """Test startup of a DAG with various templated fields."""
+    """Test startup of a Dag with various templated fields."""
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(task_id="templated_task", bash_command=command)
@@ -848,10 +892,10 @@ def test_run_basic_failed(
 
 def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch, test_dags_dir):
     """
-    Test that the DAG parsing context is correctly set during the startup process.
+    Test that the Dag parsing context is correctly set during the startup process.
 
-    This test verifies that the DAG and task IDs are correctly set in the parsing context
-    when a DAG is started up.
+    This test verifies that the Dag and task IDs are correctly set in the parsing context
+    when a Dag is started up.
     """
     dag_id = "dag_parsing_context_test"
     task_id = "conditional_task"
@@ -868,8 +912,8 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
 
     mock_supervisor_comms._get_response.return_value = what
 
-    # Set the environment variable for DAG bundles
-    # We use the DAG defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
+    # Set the environment variable for Dag bundles
+    # We use the Dag defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
     dag_bundle_val = json.dumps(
         [
             {
@@ -883,7 +927,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
     ti, _, _ = startup()
 
-    # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
+    # Presence of `conditional_task` below means Dag ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
     assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
 
@@ -899,9 +943,37 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[],
+                outlet_events=[
+                    {
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                    }
+                ],
             ),
             id="asset",
+        ),
+        pytest.param(
+            [
+                Asset(
+                    name="s3://bucket/my-task",
+                    uri="s3://bucket/my-task",
+                    extra={"task_id": "{{ task.task_id }}"},
+                )
+            ],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {"task_id": "asset-outlet-task"},
+                    }
+                ],
+            ),
+            id="asset_with_template_extra",
         ),
         pytest.param(
             [Dataset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -911,9 +983,37 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[],
+                outlet_events=[
+                    {
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                    }
+                ],
             ),
             id="dataset",
+        ),
+        pytest.param(
+            [
+                Dataset(
+                    name="s3://bucket/my-task",
+                    uri="s3://bucket/my-task",
+                    extra={"task_id": "{{ task.task_id }}"},
+                )
+            ],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {"task_id": "asset-outlet-task"},
+                    }
+                ],
+            ),
+            id="dataset_with_template_extra",
         ),
         pytest.param(
             [Model(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -923,9 +1023,37 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[],
+                outlet_events=[
+                    {
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                    }
+                ],
             ),
             id="model",
+        ),
+        pytest.param(
+            [
+                Model(
+                    name="s3://bucket/my-task",
+                    uri="s3://bucket/my-task",
+                    extra={"task_id": "{{ task.task_id }}"},
+                )
+            ],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {"task_id": "asset-outlet-task"},
+                    }
+                ],
+            ),
+            id="model_with_template_extra",
         ),
         pytest.param(
             [Asset.ref(name="s3://bucket/my-task")],
@@ -1092,7 +1220,7 @@ class TestRuntimeTaskInstance:
         task = BaseOperator(task_id="hello")
         dag_id = "basic_task"
 
-        # Assign task to DAG
+        # Assign task to Dag
         get_inline_dag(dag_id=dag_id, task=task)
 
         ti_id = uuid7()
@@ -1878,6 +2006,70 @@ class TestRuntimeTaskInstance:
         assert dr.dag_id == "test_dag"
         assert dr.run_id == "prev_success_run"
         assert dr.state == "success"
+
+    @pytest.mark.parametrize(
+        "map_index",
+        [
+            pytest.param(-1, id="map_index_negative_one"),
+            pytest.param(0, id="map_index_zero"),
+            pytest.param(5, id="map_index_positive"),
+        ],
+    )
+    def test_xcom_clearing_includes_map_index(self, create_runtime_ti, mock_supervisor_comms, map_index):
+        """Test that XCom clearing during task execution properly passes map_index."""
+
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+
+        # Mock the ti_context_from_server to include xcom_keys_to_clear
+        runtime_ti._ti_context_from_server = TIRunContext(
+            dag_run=runtime_ti._ti_context_from_server.dag_run,
+            task_reschedule_count=0,
+            max_tries=1,
+            should_retry=False,
+            xcom_keys_to_clear=["key1", "key2", "key3"],
+        )
+
+        with mock.patch.object(XCom, "delete") as mock_delete:
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            # Verify that XCom.delete was called for each key with the correct map_index
+            expected_calls = [
+                mock.call(
+                    key="key1",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+                mock.call(
+                    key="key2",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+                mock.call(
+                    key="key3",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+            ]
+            mock_delete.assert_has_calls(expected_calls)
+
+    def test_xcom_clearing_without_keys_to_clear(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that no XCom clearing occurs when xcom_keys_to_clear is empty."""
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        assert runtime_ti._ti_context_from_server.xcom_keys_to_clear is None
+
+        with mock.patch.object(XCom, "delete") as mock_delete:
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            mock_delete.assert_not_called()
 
 
 class TestXComAfterTaskExecution:

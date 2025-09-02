@@ -518,10 +518,11 @@ class TestDagFileProcessorManager:
             # SerializedDagModel gives history about Dags
             assert serialized_dag_count == 1
 
-    @time_machine.travel(datetime(2000, 1, 1, 0, 0, 0), tick=False)
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
-        processor, _ = self.mock_processor(start_time=16000)
+        # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
         manager._processors = {
             DagFileInfo(
                 bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
