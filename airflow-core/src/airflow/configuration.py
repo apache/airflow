@@ -157,7 +157,6 @@ from airflow._shared.configuration import (  # noqa: E402, F401
     ensure_secrets_loaded,
     initialize_secrets_backends,
     retrieve_configuration_description,
-    secrets_backend_list,
 )
 
 # Set up dags folder for unit tests
@@ -180,3 +179,4 @@ else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
 
 conf.validate()
+secrets_backend_list = initialize_secrets_backends()

@@ -2179,15 +2179,9 @@ def ensure_secrets_loaded(
     """
     Ensure that all secrets backends are loaded.
 
-    If the secrets_backend_list contains only 2 default backends, reload it.
+    Always initialize and return the secrets backends for the given default_backends.
     """
-    # Check if the secrets_backend_list contains only 2 default backends.
-
-    # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to DEFAULT_SECRETS_SEARCH_PATH.
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
-        return initialize_secrets_backends(default_backends=default_backends)
-    return secrets_backend_list
+    return initialize_secrets_backends(default_backends=default_backends)
 
 
 # TODO: Add type hint as BaseSecretsBackend | None when BaseSecretsBackend comes to shared
@@ -2309,4 +2303,3 @@ FERNET_KEY = ""
 JWT_SECRET_KEY = ""
 
 conf: AirflowConfigParser = initialize_config()
-secrets_backend_list = initialize_secrets_backends()
