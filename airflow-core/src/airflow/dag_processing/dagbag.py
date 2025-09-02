@@ -67,9 +67,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
-    from airflow.models import DagRun
     from airflow.models.dagwarning import DagWarning
-    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.utils.types import ArgNotSet
 
 
