@@ -133,7 +133,7 @@ def action_logging(event: str | None = None):
         if has_json_body:
             params.update(masked_body_json)
         if params and "is_paused" in params:
-            extra_fields["is_paused"] = params["is_paused"] == "false"
+            extra_fields["is_paused"] = params["is_paused"]
 
         extra_fields["method"] = request.method
 

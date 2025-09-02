@@ -276,6 +276,10 @@ class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a task instance is not available in the system."""
 
 
+class NotMapped(Exception):
+    """Raise if a task is neither mapped nor has any parent mapped groups."""
+
+
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
 

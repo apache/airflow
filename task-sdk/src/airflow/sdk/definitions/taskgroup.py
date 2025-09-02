@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""A collection of closely related tasks on the same DAG that should be grouped together visually."""
+"""A collection of closely related tasks on the same Dag that should be grouped together visually."""
 
 from __future__ import annotations
 
@@ -90,17 +90,17 @@ class TaskGroup(DAGNode):
     all tasks within the group if necessary.
 
     :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
-        with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
+        with group_id of TaskGroup or task_id of tasks in the Dag. Root TaskGroup has group_id
         set to None.
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
-    :param dag: The DAG that this TaskGroup belongs to.
+    :param dag: The Dag that this TaskGroup belongs to.
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators,
-        will override default_args defined in the DAG level.
+        will override default_args defined in the Dag level.
         Note that operators have the same hook, and precede those defined
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
@@ -245,13 +245,13 @@ class TaskGroup(DAGNode):
 
         if key in self.children:
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
-            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
+            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the Dag")
 
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
                     raise RuntimeError(
-                        "Cannot mix TaskGroups from different DAGs: %s and %s",
+                        "Cannot mix TaskGroups from different Dags: %s and %s",
                         self.dag,
                         task.dag,
                     )
@@ -495,7 +495,7 @@ class TaskGroup(DAGNode):
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Serialize task group; required by DAGNode."""
+        """Serialize task group; required by DagNode."""
         from airflow.serialization.enums import DagAttributeTypes
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
@@ -641,7 +641,7 @@ class MappedTaskGroup(TaskGroup):
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
-        Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
+        Return the Number of instances a task in this group should be mapped to, when a Dag run is created.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
