@@ -16,27 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { ChakraProvider } from "@chakra-ui/react";
-import { FC } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
+import { FC } from "react";
 
 import { ColorModeProvider } from "src/context/colorMode";
 import { EdgeLayout } from "src/layouts/EdgeLayout";
-
-import { system } from "./theme";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { tokenHandler } from "src/utils/tokenHandler";
 
-export interface PluginComponentProps {
-  // Add any props your plugin component needs
-}
+import { system } from "./theme";
+
+export type PluginComponentProps = object;
 
 /**
  * Main plugin component
  */
-const PluginComponent: FC<PluginComponentProps> = (props) => {
-
+const PluginComponent: FC<PluginComponentProps> = () => {
   // ensure HTTP API calls are authenticated with current session token
   axios.interceptors.request.use(tokenHandler);
 

@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Box, Table } from "@chakra-ui/react";
-
 import { useUiServiceWorker } from "openapi/queries";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 export const WorkerPage = () => {
@@ -60,7 +59,17 @@ export const WorkerPage = () => {
                 <Table.Cell>{worker.last_heartbeat}</Table.Cell>
                 <Table.Cell>{worker.jobs_active}</Table.Cell>
                 <Table.Cell>
-                  {worker.sysinfo ? <ul>{Object.entries(worker.sysinfo).map(([key, value]) => <li key={key}>{key}: {value}</li>)}</ul> : "N/A"}
+                  {worker.sysinfo ? (
+                    <ul>
+                      {Object.entries(worker.sysinfo).map(([key, value]) => (
+                        <li key={key}>
+                          {key}: {value}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "N/A"
+                  )}
                 </Table.Cell>
                 <Table.Cell>{worker.maintenance_comments}</Table.Cell>
               </Table.Row>
@@ -77,5 +86,5 @@ export const WorkerPage = () => {
       </Box>
     );
   }
-  return (<Box p={2}>Loading...</Box>);
+  return <Box p={2}>Loading...</Box>;
 };

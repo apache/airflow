@@ -53,7 +53,7 @@ export const NavTabs = ({ tabs }: Props) => {
               px={4}
               transition="all 0.2s ease"
             >
-              {containerWidth > 600 || !Boolean(icon) ? label : icon}
+              {containerWidth > 600 || !icon ? label : icon}
             </Center>
           )}
         </NavLink>

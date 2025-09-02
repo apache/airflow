@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Box, Table } from "@chakra-ui/react";
-
 import { useUiServiceJobs } from "openapi/queries";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 export const JobsPage = () => {
@@ -53,7 +52,9 @@ export const JobsPage = () => {
           </Table.Header>
           <Table.Body>
             {data.jobs.map((job) => (
-              <Table.Row key={`${job.dag_id}.${job.run_id}.${job.task_id}.${job.map_index}.${job.try_number}`}>
+              <Table.Row
+                key={`${job.dag_id}.${job.run_id}.${job.task_id}.${job.map_index}.${job.try_number}`}
+              >
                 <Table.Cell>{job.dag_id}</Table.Cell>
                 <Table.Cell>{job.run_id}</Table.Cell>
                 <Table.Cell>{job.task_id}</Table.Cell>
@@ -78,5 +79,5 @@ export const JobsPage = () => {
       </Box>
     );
   }
-  return (<Box p={2}>Loading...</Box>);
+  return <Box p={2}>Loading...</Box>;
 };

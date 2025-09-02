@@ -1359,6 +1359,22 @@ repos:
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: true
         require_serial: true
+      - id: ts-compile-lint-edge-ui
+        name: Compile / format / lint edge UI
+        description: TS types generation / ESLint / Prettier new UI files in Edge Provider
+        language: node
+        files: |
+          (?x)
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$|
+          ^providers/edge3/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml$
+        exclude: |
+          (?x)
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/node-modules/.*|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.pnpm-store
+        entry: ./scripts/ci/prek/ts_compile_lint_edge.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev
