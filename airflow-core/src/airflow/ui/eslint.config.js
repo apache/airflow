@@ -41,6 +41,67 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   // Base rules
   coreRules,
   typescriptRules,
+
+  // Custom UI rules
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      // Nudge devs away from Chakra internals; use our app theme
+      "no-restricted-imports": [
+        "warn",
+        {
+          paths: [
+            {
+              message: "Import semantic tokens from '@/theme', not Chakra internals.",
+              name: "@chakra-ui/theme",
+            },
+          ],
+        },
+      ],
+      // Warn on Chakra palette (gray.500 etc.) or hex colors in color-like props.
+      // NOTE: This intentionally allows semantic tokens like "border.emphasized", "accent.default", etc.
+      "no-restricted-syntax": [
+        "warn",
+        // <Box color="gray.500"> (string literal)
+        {
+          message:
+            "Use semantic tokens (e.g., 'surface', 'border', 'text.muted', 'accent.default', 'status.success') instead of raw hex or palette values.",
+          selector:
+            "JSXAttribute[name.name=/^(bg|background|backgroundColor|color|borderColor|fill|stroke)$/] > Literal[value=/^#|\\b(?:gray|blue|red|green|orange|yellow|purple|pink|teal|cyan|blackAlpha|whiteAlpha)\\.(?:\\d{2,3}|[a-z]+)\\b/]",
+        },
+        // <Box color={"gray.500"}> (wrapped literal)
+        {
+          message:
+            "Use semantic tokens (e.g., 'surface', 'border', 'text.muted', 'accent.default', 'status.success') instead of raw hex or palette values.",
+          selector:
+            "JSXAttribute[name.name=/^(bg|background|backgroundColor|color|borderColor|fill|stroke)$/] > JSXExpressionContainer > Literal[value=/^#|\\b(?:gray|blue|red|green|orange|yellow|purple|pink|teal|cyan|blackAlpha|whiteAlpha)\\.(?:\\d{2,3}|[a-z]+)\\b/]",
+        },
+        // <Box sx={{ color: "gray.500" }}>
+        {
+          message:
+            "Use semantic tokens (e.g., 'surface', 'border', 'text.muted', 'accent.default', 'status.success') instead of raw hex or palette values.",
+          selector:
+            "JSXAttribute[name.name='sx'] ObjectExpression > Property[key.name=/^(bg|background|backgroundColor|color|borderColor|fill|stroke)$/] > Literal[value=/^#|\\b(?:gray|blue|red|green|orange|yellow|purple|pink|teal|cyan|blackAlpha|whiteAlpha)\\.(?:\\d{2,3}|[a-z]+)\\b/]",
+        },
+        // <Box _hover={{ bg: "blue.500" }}>
+        {
+          message:
+            "Use semantic tokens (e.g., 'surface', 'border', 'text.muted', 'accent.default', 'status.success') instead of raw hex or palette values.",
+          selector:
+            "JSXAttribute[name.name=/^_(hover|active|focus|selected|disabled)$/] ObjectExpression > Property[key.name=/^(bg|background|backgroundColor|color|borderColor|fill|stroke)$/] > Literal[value=/^#|\\b(?:gray|blue|red|green|orange|yellow|purple|pink|teal|cyan|blackAlpha|whiteAlpha)\\.(?:\\d{2,3}|[a-z]+)\\b/]",
+        },
+      ],
+    },
+  },
+
+  // Allow brand/inline SVG assets to keep hex/palette if needed
+  {
+    files: ["src/assets/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
+
   // Da rest
   perfectionistRules,
   prettierRules,
