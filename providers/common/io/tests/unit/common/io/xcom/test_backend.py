@@ -20,14 +20,14 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from task_sdk.bases.test_hook import conf_vars
 
 import airflow.models.xcom
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 
 from tests_common.test_utils import db
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
 
 pytestmark = [pytest.mark.db_test]
