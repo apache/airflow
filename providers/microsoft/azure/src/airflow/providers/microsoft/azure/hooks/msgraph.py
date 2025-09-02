@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
-    from airflow.models import Connection
+    from airflow.providers.microsoft.azure.version_compat import Connection
 
 
 class DefaultResponseHandler(ResponseHandler):
