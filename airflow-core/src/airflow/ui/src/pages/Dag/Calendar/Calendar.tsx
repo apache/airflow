@@ -77,13 +77,10 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const scale = useMemo(() => {
-    if (!data?.dag_runs) {
-      return createCalendarScale([], viewMode, granularity);
-    }
-
-    return createCalendarScale(data.dag_runs, viewMode, granularity);
-  }, [data?.dag_runs, viewMode, granularity]);
+  const scale = useMemo(
+    () => createCalendarScale(data?.dag_runs ?? [], viewMode, granularity),
+    [data?.dag_runs, viewMode, granularity],
+  );
 
   if (!data && !isLoading) {
     return (

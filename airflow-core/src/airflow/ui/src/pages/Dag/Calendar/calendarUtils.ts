@@ -279,36 +279,33 @@ export const createCalendarScale = (
 
   const legendItems: Array<LegendItem> = [];
 
-  for (let index = 0; index < uniqueThresholds.length; index += 1) {
-    const threshold = uniqueThresholds[index];
-    const nextThreshold = uniqueThresholds[index + 1];
+  uniqueThresholds.forEach((threshold, index, thresholdsArray) => {
+    const nextThreshold = thresholdsArray[index + 1];
 
-    if (threshold !== undefined) {
-      let label: string;
+    let label: string;
 
-      if (index === 0) {
-        label = "0";
-      } else if (index === uniqueThresholds.length - 1) {
-        label = `${threshold}+`;
-      } else if (nextThreshold !== undefined && threshold + 1 === nextThreshold) {
-        label = threshold.toString();
-      } else if (nextThreshold === undefined) {
-        label = `${threshold}+`;
-      } else {
-        label = `${threshold}-${nextThreshold - 1}`;
-      }
-
-      const color = colorScheme[Math.min(index, colorScheme.length - 1)] ?? {
-        _dark: "gray.700",
-        _light: "gray.100",
-      };
-
-      legendItems.push({
-        color,
-        label,
-      });
+    if (index === 0) {
+      label = "0";
+    } else if (index === thresholdsArray.length - 1) {
+      label = `${threshold}+`;
+    } else if (nextThreshold !== undefined && threshold + 1 === nextThreshold) {
+      label = threshold.toString();
+    } else if (nextThreshold === undefined) {
+      label = `${threshold}+`;
+    } else {
+      label = `${threshold}-${nextThreshold - 1}`;
     }
-  }
+
+    const color = colorScheme[Math.min(index, colorScheme.length - 1)] ?? {
+      _dark: "gray.700",
+      _light: "gray.100",
+    };
+
+    legendItems.push({
+      color,
+      label,
+    });
+  });
 
   return {
     getColor,
