@@ -188,7 +188,7 @@ def test_configure_logging_respects_colored_console_log_config():
     mock_conf.get.return_value = "INFO"
     mock_conf.getboolean.return_value = False  # colored_console_log = False
 
-    with mock.patch("airflow.configuration.conf", mock_conf):
+    with mock.patch("airflow.sdk.configuration.conf", mock_conf):
         reset_logging()
         configure_logging(enable_pretty_log=True)
         # Check that getboolean was called with colored_console_log
@@ -219,7 +219,7 @@ def test_configure_logging_no_airflow_config():
     mock_conf.get.return_value = "INFO"
     mock_conf.getboolean.return_value = True  # colored_console_log = True by default
 
-    with mock.patch("airflow.configuration.conf", mock_conf):
+    with mock.patch("airflow.sdk.configuration.conf", mock_conf):
         reset_logging()
         configure_logging(enable_pretty_log=True)
         mock_conf.getboolean.assert_called_with("logging", "colored_console_log", fallback=True)
