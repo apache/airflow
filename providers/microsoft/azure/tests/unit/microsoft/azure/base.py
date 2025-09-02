@@ -39,7 +39,8 @@ class Base:
             patches = [
                 patch.object(BaseHook, "get_connection", side_effect=side_effect),
                 patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(side_effect))
-                if hasattr(BaseHook, "aget_connection") else None,
+                if hasattr(BaseHook, "aget_connection")
+                else None,
             ]
             entered = [stack.enter_context(p) for p in patches if p is not None]
             yield entered  # expose entered mocks to the caller

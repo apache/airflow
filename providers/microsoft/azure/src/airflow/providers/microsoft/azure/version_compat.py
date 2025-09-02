@@ -43,7 +43,7 @@ if AIRFLOW_V_3_0_PLUS:
         Connection,
     )
 else:
-    from airflow.models import BaseOperator, BaseOperatorLink, Connection
+    from airflow.models import BaseOperator, BaseOperatorLink, Connection  # type: ignore[assignment]
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
