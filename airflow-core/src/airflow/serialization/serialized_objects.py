@@ -2392,7 +2392,7 @@ class SerializedDAG(DAG, BaseSerialization):
             raise DeserializationError(dag_id) from err
 
         try:
-            return cls._deserialize_dag_internal(encoded_dag)
+            return cls._deserialize_dag_internal(encoded_dag, client_defaults)
         except _TimetableNotRegistered:
             raise
         except (ValueError, KeyError) as err:
@@ -2400,7 +2400,9 @@ class SerializedDAG(DAG, BaseSerialization):
             raise DeserializationError(dag_id) from err
 
     @classmethod
-    def _deserialize_dag_internal(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
+    def _deserialize_dag_internal(
+        cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
+    ) -> SerializedDAG:
         """Handle the main Dag deserialization logic."""
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
