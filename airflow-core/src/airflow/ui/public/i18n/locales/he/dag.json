@@ -40,7 +40,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "קפיצה: Shift+{{arrow}}",
     "navigation": "ניווט: {{arrow}}",
     "toggleGroup": "החלפת קבוצה: רווח"
   },

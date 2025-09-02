@@ -1950,7 +1950,10 @@ export const $DAGDetailsResponse = {
         concurrency: {
             type: 'integer',
             title: 'Concurrency',
-            description: 'Return max_active_tasks as concurrency.',
+            description: `Return max_active_tasks as concurrency.
+
+Deprecated: Use max_active_tasks instead.`,
+            deprecated: true,
             readOnly: true
         },
         latest_dag_version: {

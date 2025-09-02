@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-
-TEMP_DOCKER_DIR=$(mktemp -d)
-pushd "${TEMP_DOCKER_DIR}"
-
-cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
-
-
-# [START build]
-export DOCKER_BUILDKIT=1
-
-docker build . \
-    --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow @ https://github.com/apache/airflow/archive/v2-2-test.tar.gz" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-2" \
-    --tag "my-github-v2-2:0.0.1"
-# [END build]
-docker rmi --force "my-github-v2-2:0.0.1"
-popd
-rm -rf "${TEMP_DOCKER_DIR}"

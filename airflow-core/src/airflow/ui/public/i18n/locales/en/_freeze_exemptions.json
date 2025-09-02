@@ -1,0 +1,16 @@
+{
+  "admin": {},
+  "assets": {},
+  "browse": {},
+  "common": {},
+  "components": {},
+  "dag": {},
+  "dags": {},
+  "dashboard": {},
+  "hitl": {
+    "state": {
+      "noResponseReceived": "No Response Received"
+    }
+  },
+  "tasks": {}
+}

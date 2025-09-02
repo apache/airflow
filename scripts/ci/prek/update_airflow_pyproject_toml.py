@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "packaging>=25",
+#   "rich>=13.6.0",
+#   "tomli>=2.0.1",
+# ]
+# ///
 """
 Test for an order of dependencies in setup.py
 """

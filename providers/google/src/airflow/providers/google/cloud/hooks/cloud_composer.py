@@ -642,7 +642,12 @@ class CloudComposerAsyncHook(GoogleBaseHook):
                 self.log.exception("Exception occurred while polling CMD result")
                 raise AirflowException(ex)
 
-            result_dict = PollAirflowCommandResponse.to_dict(result)
+            try:
+                result_dict = PollAirflowCommandResponse.to_dict(result)
+            except Exception as ex:
+                self.log.exception("Exception occurred while transforming PollAirflowCommandResponse")
+                raise AirflowException(ex)
+
             if result_dict["output_end"]:
                 return result_dict
 

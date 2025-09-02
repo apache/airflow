@@ -632,7 +632,7 @@ class DagRunOperations:
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
     ) -> OKResponse | ErrorResponse:
-        """Trigger a DAG run via the API server."""
+        """Trigger a Dag run via the API server."""
         body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
 
         try:
@@ -642,23 +642,23 @@ class DagRunOperations:
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
-                    log.info("DAG Run already exists; Resetting DAG Run.", dag_id=dag_id, run_id=run_id)
+                    log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
                     return self.clear(run_id=run_id, dag_id=dag_id)
 
-                log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                log.info("Dag Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
             raise
 
         return OKResponse(ok=True)
 
     def clear(self, dag_id: str, run_id: str) -> OKResponse:
-        """Clear a DAG run via the API server."""
+        """Clear a Dag run via the API server."""
         self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
         # TODO: Error handling
         return OKResponse(ok=True)
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
-        """Get the state of a DAG run via the API server."""
+        """Get the state of a Dag run via the API server."""
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
@@ -669,7 +669,7 @@ class DagRunOperations:
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
     ) -> DRCount:
-        """Get count of DAG runs matching the given criteria."""
+        """Get count of Dag runs matching the given criteria."""
         params = {
             "dag_id": dag_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,

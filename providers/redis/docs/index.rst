@@ -51,7 +51,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-redis/|version|/providers/redis/tests/system/redis>
+    Example Dags <https://github.com/apache/airflow/tree/providers-redis/|version|/providers/redis/tests/system/redis>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-redis/>
     Installing from sources <installing-providers-from-sources>
 

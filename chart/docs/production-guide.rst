@@ -262,7 +262,7 @@ Typical scenarios where you would like to use your custom image:
 See `Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
 details on how you can extend and customize the Airflow image.
 
-Managing DAG Files
+Managing Dag Files
 ------------------
 
 See :doc:`manage-dag-files`.
