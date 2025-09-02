@@ -214,16 +214,17 @@ def extract_ds_name_from_gcs_path(path: str) -> str:
 
 def get_facets_from_bq_table(table: Table) -> dict[str, DatasetFacet]:
     """Get facets from BigQuery table object."""
+    return get_facets_from_bq_table_for_given_fields(table, selected_fields=None)
 
-    return get_facets_from_bq_table(table, None)
 
-
-def get_facets_from_bq_table(table: Table, selected_fields: list[str]) -> dict[str, DatasetFacet]:
+def get_facets_from_bq_table_for_given_fields(
+    table: Table, selected_fields: list[str] | None
+) -> dict[str, DatasetFacet]:
     """
-        Get facets from BigQuery table object for selected fields only.
-        If selected_fields is None, include all fields.
-    """
+    Get facets from BigQuery table object for selected fields only.
 
+    If selected_fields is None, include all fields.
+    """
     facets: dict[str, DatasetFacet] = {}
     selected_fields_set = set(selected_fields) if selected_fields else None
 

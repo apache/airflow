@@ -117,7 +117,7 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.google.cloud.openlineage.utils import (
             BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
+            get_facets_from_bq_table_for_given_fields,
             get_identity_column_lineage_facet,
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
@@ -139,19 +139,19 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
             )
             return OperatorLineage()
 
+        if self.selected_fields:
+            if isinstance(self.selected_fields, str):
+                bigquery_field_names = list(self.selected_fields)
+            else:
+                bigquery_field_names = self.selected_fields
+        else:
+            bigquery_field_names = [f.name for f in getattr(table_obj, "schema", [])]
+
         input_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
             name=self.source_project_dataset_table,
-            facets=get_facets_from_bq_table(table_obj,self.selected_fields),
+            facets=get_facets_from_bq_table_for_given_fields(table_obj, bigquery_field_names),
         )
-
-        if self.selected_fields:
-            if isinstance(self.selected_fields, str):
-                dest_field_names = list(self.selected_fields)
-            else:
-                dest_field_names = self.selected_fields
-        else:
-            dest_field_names = [f.name for f in getattr(table_obj, "schema", [])]
 
         db_info = self.mssql_hook.get_openlineage_database_info(self.mssql_hook.get_conn())
         default_schema = self.mssql_hook.get_openlineage_default_schema()
@@ -160,7 +160,8 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
         if self.target_table_name and "." in self.target_table_name:
             schema_name, table_name = self.target_table_name.split(".", 1)
         else:
-            schema_name, table_name = default_schema, self.target_table_name
+            schema_name = default_schema or ""
+            table_name = self.target_table_name or ""
 
         if self.database:
             output_name = f"{self.database}.{schema_name}.{table_name}"
@@ -168,7 +169,7 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
             output_name = f"{schema_name}.{table_name}"
 
         column_lineage_facet = get_identity_column_lineage_facet(
-            dest_field_names, input_datasets=[input_dataset]
+            bigquery_field_names, input_datasets=[input_dataset]
         )
 
         output_facets = column_lineage_facet or {}
