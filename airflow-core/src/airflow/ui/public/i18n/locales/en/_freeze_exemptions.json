@@ -7,6 +7,10 @@
   "dag": {},
   "dags": {},
   "dashboard": {},
-  "hitl": {},
+  "hitl": {
+    "state": {
+      "noResponseReceived": "No Response Received"
+    }
+  },
   "tasks": {}
 }

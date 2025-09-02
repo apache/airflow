@@ -876,29 +876,32 @@ class TestDagRun:
     def test_removed_task_instances_can_be_restored(self, dag_maker, session):
         def with_all_tasks_removed(dag):
             with dag_maker(
-                dag_id=dag.dag_id, schedule=datetime.timedelta(days=1), start_date=dag.start_date
+                dag_id=dag.dag_id,
+                schedule=datetime.timedelta(days=1),
+                start_date=dag.start_date,
             ) as dag:
                 pass
             return dag
 
         with dag_maker(
-            "test_task_restoration", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE
-        ) as dag:
-            ...
-        dag.add_task(EmptyOperator(task_id="flaky_task", owner="test"))
+            "test_task_restoration",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+        ) as ori_dag:
+            EmptyOperator(task_id="flaky_task", owner="test")
 
-        dagrun = self.create_dag_run(dag, session=session)
+        dagrun = self.create_dag_run(ori_dag, session=session)
         flaky_ti = dagrun.get_task_instances()[0]
         assert flaky_ti.task_id == "flaky_task"
         assert flaky_ti.state is None
 
-        dagrun.dag = with_all_tasks_removed(dag)
-        dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+        dagrun.dag = with_all_tasks_removed(ori_dag)
+        dag_version_id = DagVersion.get_latest_version(ori_dag.dag_id, session=session).id
         dagrun.verify_integrity(dag_version_id=dag_version_id)
         flaky_ti.refresh_from_db()
         assert flaky_ti.state is None
 
-        dagrun.dag.add_task(EmptyOperator(task_id="flaky_task", owner="test"))
+        dagrun.dag.add_task(ori_dag.task_dict["flaky_task"])
 
         dagrun.verify_integrity(dag_version_id=dag_version_id)
         flaky_ti.refresh_from_db()
@@ -942,8 +945,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=DEFAULT_DATE,
         ) as dag:
-            ...
-        dag.add_task(EmptyOperator(task_id="task_to_mutate", owner="test", queue="queue1"))
+            EmptyOperator(task_id="task_to_mutate", owner="test", queue="queue1")
 
         dagrun = self.create_dag_run(dag, session=session)
         task = dagrun.get_task_instances()[0]

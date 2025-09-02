@@ -543,6 +543,7 @@ export type DAGDetailsResponse = {
      * Return max_active_tasks as concurrency.
      *
      * Deprecated: Use max_active_tasks instead.
+     * @deprecated
      */
     readonly concurrency: number;
     /**

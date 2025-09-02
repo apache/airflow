@@ -2238,7 +2238,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             mapped task groups.
         :return: Total number of mapped TIs this task should have.
         """
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
+        from airflow.exceptions import NotMapped
 
         group = self.get_closest_mapped_task_group()
         if group is None:
