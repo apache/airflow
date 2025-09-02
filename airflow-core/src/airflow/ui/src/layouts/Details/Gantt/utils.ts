@@ -23,6 +23,7 @@ import type { NavigateFunction, Location } from "react-router-dom";
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
 import { getDuration } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
   isGroup: boolean;
@@ -38,7 +39,7 @@ type HandleBarClickOptions = {
   data: Array<GanttDataItem>;
   location: Location;
   navigate: NavigateFunction;
-  runId: string | undefined;
+  runId: string;
 };
 
 type ChartOptionsParams = {
@@ -61,9 +62,18 @@ export const createHandleBarClick =
       if (clickedData) {
         const { isGroup, isMapped, taskId } = clickedData;
 
+        const taskUrl = buildTaskInstanceUrl({
+          currentPathname: location.pathname,
+          dagId,
+          isGroup,
+          isMapped: Boolean(isMapped),
+          runId,
+          taskId,
+        });
+
         navigate(
           {
-            pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
+            pathname: taskUrl,
             search: location.search,
           },
           { replace: true },
