@@ -37,8 +37,6 @@ from unittest import mock
 import pytest
 import time_machine
 
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_1_PLUS
-
 if TYPE_CHECKING:
     from uuid import UUID
 
@@ -1624,6 +1622,8 @@ def session():
 def get_test_dag():
     def _get(dag_id: str):
         from airflow import settings
+
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
         if AIRFLOW_V_3_1_PLUS:
             from airflow.dag_processing.dagbag import DagBag
