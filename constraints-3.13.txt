@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-01T13:52:25.210519
+# This constraints file was automatically generated on 2025-09-02T02:38:38.829638
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -352,7 +352,7 @@ grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.74.0
 grpcio==1.74.0
-gssapi==1.9.0
+gssapi==1.10.0
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
@@ -484,7 +484,7 @@ pinotdb==5.7.0
 platformdirs==4.4.0
 pluggy==1.6.0
 ply==3.11
-polars==1.32.3
+polars==1.33.0
 portalocker==3.2.0
 presto-python-client==0.8.4
 prometheus_client==0.22.1
@@ -539,7 +539,7 @@ reactivex==4.0.4
 redis==5.2.1
 redshift-connector==2.1.8
 referencing==0.36.2
-regex==2025.8.29
+regex==2025.9.1
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
