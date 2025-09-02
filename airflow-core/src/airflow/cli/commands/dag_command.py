@@ -51,6 +51,7 @@ from airflow.utils.cli import (
     suppress_logs_and_warning,
     validate_dag_bundle_arg,
 )
+from airflow.utils.dates import cron_presets
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
@@ -669,12 +670,12 @@ def _get_schedule_info(dag: DAG) -> str | None:
             # Preset schedules like @daily, @hourly
             preset_map = {
                 '@once': 'Once',
-                '@hourly': 'Hourly (0 * * * *)',
-                '@daily': 'Daily (0 0 * * *)',
-                '@weekly': 'Weekly (0 0 * * 0)',
-                '@monthly': 'Monthly (0 0 1 * *)',
-                '@yearly': 'Yearly (0 0 1 1 *)',
-                '@annually': 'Annually (0 0 1 1 *)',
+                '@hourly': f'Hourly {cron_presets["@hourly"]}',
+                '@daily': f'Daily {cron_presets["@daily"]}',
+                '@weekly': f'Weekly {cron_presets["@weekly"]}',
+                '@monthly': f'Monthly {cron_presets["@monthly"]}',
+                '@quarterly': f'Quarterly {cron_presets["@quarterly"]}',
+                '@yearly': f'Quarterly {cron_presets["@yearly"]}',
             }
             return preset_map.get(schedule, schedule, f"Cron: `{schedule}`")
 
