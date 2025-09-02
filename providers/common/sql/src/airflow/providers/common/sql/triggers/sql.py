@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from asgiref.sync import sync_to_async
-
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.version_compat import BaseHook
@@ -69,6 +67,8 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
         :return: DbApiHook for this connection
         """
+        from asgiref.sync import sync_to_async
+
         connection = await sync_to_async(BaseHook.get_connection)(conn_id=self.conn_id)
         hook = connection.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
