@@ -1611,7 +1611,6 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/grid\.py$|
           ^airflow-core/src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
-          ^airflow-core/src/airflow/api_fastapi/execution_api/routes/connections\.py$|
           ^airflow-core/src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
           ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
           ^airflow-core/src/airflow/api_fastapi/logging/decorators\.py$|
@@ -1635,6 +1634,7 @@ repos:
           ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/models/asset\.py$|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
+          ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
           ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|

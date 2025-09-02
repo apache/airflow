@@ -1294,7 +1294,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Returns the Operator's Dag if set, otherwise raises an error."""
         if dag := self._dag:
             return dag
-        raise AirflowException(f"Operator {self} has not been assigned to a Dag yet")
+        raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
 
     @dag.setter
     def dag(self, dag: DAG | None) -> None:
