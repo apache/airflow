@@ -24,12 +24,16 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
-from airflow.utils import timezone
 
 try:
-    from airflow.triggers.base import StartTriggerArgs
-except ImportError:
-    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    from airflow.sdk import timezone
+except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for standard provider
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
+try:
+    from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]
+except ImportError:  # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+
     @dataclass
     class StartTriggerArgs:  # type: ignore[no-redef]
         """Arguments required for start task execution from triggerer."""
@@ -42,11 +46,7 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class DateTimeSensor(BaseSensorOperator):

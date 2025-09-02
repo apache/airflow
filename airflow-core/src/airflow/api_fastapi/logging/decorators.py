@@ -24,10 +24,10 @@ import pendulum
 from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
-from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ def action_logging(event: str | None = None):
         if has_json_body:
             params.update(masked_body_json)
         if params and "is_paused" in params:
-            extra_fields["is_paused"] = params["is_paused"] == "false"
+            extra_fields["is_paused"] = params["is_paused"]
 
         extra_fields["method"] = request.method
 

@@ -106,7 +106,7 @@ class TestEksClusterStateSensor:
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
     @pytest.mark.db_test
-    def test_region_argument(self):
+    def test_region_argument(self, sdk_connection_not_found):
         with pytest.warns(AirflowProviderDeprecationWarning) as w:
             w.sensor = EksClusterStateSensor(
                 task_id=TASK_ID,

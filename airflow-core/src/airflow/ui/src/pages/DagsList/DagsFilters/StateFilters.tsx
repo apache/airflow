@@ -25,12 +25,13 @@ import { StateBadge } from "src/components/StateBadge";
 type Props = {
   readonly isAll: boolean;
   readonly isFailed: boolean;
+  readonly isQueued: boolean;
   readonly isRunning: boolean;
   readonly isSuccess: boolean;
   readonly onStateChange: React.MouseEventHandler<HTMLButtonElement>;
 };
 
-export const StateFilters = ({ isAll, isFailed, isRunning, isSuccess, onStateChange }: Props) => {
+export const StateFilters = ({ isAll, isFailed, isQueued, isRunning, isSuccess, onStateChange }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
 
   return (
@@ -46,6 +47,15 @@ export const StateFilters = ({ isAll, isFailed, isRunning, isSuccess, onStateCha
       >
         <StateBadge state="failed" />
         {translate("common:states.failed")}
+      </QuickFilterButton>
+      <QuickFilterButton
+        data-testid="dags-queued-filter"
+        isActive={isQueued}
+        onClick={onStateChange}
+        value="queued"
+      >
+        <StateBadge state="queued" />
+        {translate("common:states.queued")}
       </QuickFilterButton>
       <QuickFilterButton
         data-testid="dags-running-filter"

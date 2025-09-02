@@ -20,10 +20,10 @@ Customizing the UI
 
 .. _customizing-the-ui:
 
-Customizing DAG UI Header and Airflow Page Titles
--------------------------------------------------
+Customizing Dag UI Header and Airflow Page Titles
+==================================================
 
-Airflow now allows you to customize the DAG home page header and page title. This will help
+Airflow now allows you to customize the Dag home page header and page title. This will help
 distinguish between various installations of Airflow or simply amend the page text.
 
 .. note::

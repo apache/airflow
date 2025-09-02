@@ -31,7 +31,7 @@ of object-name => data. To enable remote access, operations on objects are usual
 (slow) HTTP REST operations.
 
 Airflow provides a generic abstraction on top of object stores, like s3, gcs, and azure blob storage.
-This abstraction allows you to use a variety of object storage systems in your dags without having to
+This abstraction allows you to use a variety of object storage systems in your Dags without having to
 change your code to deal with every different object storage system. In addition, it allows you to use
 most of the standard Python modules, like ``shutil``, that can work with file-like objects.
 
@@ -58,7 +58,7 @@ operations that a real file system does. Key differences are:
 
 Airflow relies on `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_ to provide a consistent
 experience across different object storage systems. It  implements local file caching to speed up access.
-However, you should be aware of the limitations of object storage when designing your dags.
+However, you should be aware of the limitations of object storage when designing your Dags.
 
 
 .. _concepts:basic-use:
@@ -163,7 +163,7 @@ would do the following:
 
 
 .. note::
-    To reuse the registration across tasks, make sure to attach the backend at the top-level of your DAG.
+    To reuse the registration across tasks, make sure to attach the backend at the top-level of your Dag.
     Otherwise, the backend will not be available across multiple tasks.
 
 

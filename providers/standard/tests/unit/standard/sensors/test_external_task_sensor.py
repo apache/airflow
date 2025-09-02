@@ -26,20 +26,8 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
-    TaskDeferred,
-)
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
@@ -56,38 +44,38 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.sensors.external_task import (
-    ExternalTaskMarker,
-    ExternalTaskSensor,
-)
+from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timezone import coerce_datetime, datetime
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
-    from airflow.sdk import task as task_deco
+    from airflow.sdk import BaseOperator, task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
 else:
     from airflow.decorators import task as task_deco  # type: ignore[attr-defined,no-redef]
+    from airflow.models import BaseOperator  # type: ignore[assignment,no-redef]
 
-try:
-    from airflow.sdk.definitions.taskgroup import TaskGroup
-except ImportError:
-    # Fallback for Airflow < 3.1
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskGroup
+    from airflow.sdk.timezone import coerce_datetime, datetime
+else:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+    from airflow.utils.timezone import coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
+TI = TaskInstance
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
@@ -372,7 +360,6 @@ class TestExternalTaskSensorV2:
 
         # then
         session = settings.Session()
-        TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
@@ -392,7 +379,6 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
@@ -500,7 +486,6 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
@@ -529,7 +514,6 @@ exit 0
         )
 
         session = settings.Session()
-        TI = TaskInstance
         try:
             task_external_with_failure.run(
                 start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(seconds=1), ignore_ti_state=True
@@ -1702,7 +1686,7 @@ def run_tasks(
     for dag in dag_bag.dags.values():
         data_interval = DataInterval(coerce_datetime(logical_date), coerce_datetime(logical_date))
         if AIRFLOW_V_3_0_PLUS:
-            runs[dag.dag_id] = dagrun = dag.create_dagrun(
+            runs[dag.dag_id] = dagrun = create_scheduler_dag(dag).create_dagrun(
                 run_id=dag.timetable.generate_run_id(
                     run_type=DagRunType.MANUAL,
                     run_after=logical_date,
@@ -1718,7 +1702,7 @@ def run_tasks(
                 session=session,
             )
         else:
-            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[call-arg]
+            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[attr-defined,call-arg]
                 run_id=dag.timetable.generate_run_id(  # type: ignore[call-arg]
                     run_type=DagRunType.MANUAL,
                     logical_date=logical_date,
@@ -1933,9 +1917,7 @@ def dag_bag_cyclic():
 
         for dag in dags:
             if AIRFLOW_V_3_0_PLUS:
-                dag.sync_to_db()
-                SerializedDagModel.write_dag(dag, bundle_name="testing")
-                dag_bag.bag_dag(dag=dag)
+                dag_bag.bag_dag(dag=sync_dag_to_db(dag))
             else:
                 dag_bag.bag_dag(dag=dag, root_dag=dag)  # type: ignore[call-arg]
 
@@ -2010,32 +1992,9 @@ def dag_bag_multiple(session):
         begin >> task
 
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.dagbundle import DagBundleModel
-
-        bundle_name = "abcbunhdlerch3rc"
-        session.merge(DagBundleModel(name=bundle_name))
-        session.flush()
-        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[daily_dag, agg_dag], bundle_version=None)
-        SerializedDagModel.write_dag(dag=daily_dag, bundle_name=bundle_name)
-        SerializedDagModel.write_dag(dag=agg_dag, bundle_name=bundle_name)
+        sync_dags_to_db([agg_dag, daily_dag])
 
     return dag_bag
-
-
-def test_clear_multiple_external_task_marker(dag_bag_multiple):
-    """
-    Test clearing a dag that has multiple ExternalTaskMarker.
-    """
-    agg_dag = dag_bag_multiple.get_dag("agg_dag")
-    _, tis = run_tasks(dag_bag_multiple, logical_date=DEFAULT_DATE)
-    session = settings.Session()
-    try:
-        qry = session.query(TaskInstance).filter(
-            TaskInstance.state.is_(None), TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids)
-        )
-        assert agg_dag.clear(dag_bag=dag_bag_multiple) == len(tis) == qry.count() == 10
-    finally:
-        session.close()
 
 
 @pytest.fixture
@@ -2075,101 +2034,16 @@ def dag_bag_head_tail(session):
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.dagbundle import DagBundleModel
-
-        dag_bag.bag_dag(dag=dag)
-        bundle_name = "9e8uh9odhu9c"
-        session.merge(DagBundleModel(name=bundle_name))
-        session.flush()
-        DAG.bulk_write_to_db(bundle_name=bundle_name, dags=[dag], bundle_version=None)
-        SerializedDagModel.write_dag(dag=dag, bundle_name=bundle_name)
+        dag_bag.bag_dag(dag)
+        sync_dag_to_db(dag)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
 
-@provide_session
-def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
-    dag: DAG = dag_bag_head_tail.get_dag("head_tail")
-    dag.sync_to_db()
-    if AIRFLOW_V_3_0_PLUS:
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
-
-    # "Run" 10 times.
-    for delta in range(10):
-        logical_date = DEFAULT_DATE + timedelta(days=delta)
-        dagrun = DagRun(
-            dag_id=dag.dag_id,
-            start_date=logical_date,
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            run_id=f"test_{delta}",
-        )
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun.logical_date = logical_date
-        else:
-            dagrun.execution_date = logical_date
-        session.add(dagrun)
-        for task in dag.tasks:
-            if AIRFLOW_V_3_0_PLUS:
-                dag_version = DagVersion.get_latest_version(task.dag_id, session=session)
-                ti = TaskInstance(task=task, dag_version_id=dag_version.id)
-
-            else:
-                ti = TaskInstance(task=task)
-            dagrun.task_instances.append(ti)
-            ti.state = TaskInstanceState.SUCCESS
-    session.flush()
-
-    assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
-
-
-def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail, session):
-    dag: DAG = dag_bag_head_tail.get_dag("head_tail")
-    dag.sync_to_db()
-    if AIRFLOW_V_3_0_PLUS:
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
-
-    # "Run" 10 times.
-    for delta in range(10):
-        logical_date = DEFAULT_DATE + timedelta(days=delta)
-        dagrun = DagRun(
-            dag_id=dag.dag_id,
-            start_date=logical_date,
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            run_id=f"test_{delta}",
-        )
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun.logical_date = logical_date
-        else:
-            dagrun.execution_date = logical_date
-        session.add(dagrun)
-
-        for task in dag.tasks:
-            if AIRFLOW_V_3_0_PLUS:
-                dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-                ti = TaskInstance(task=task, dag_version_id=dag_version.id)
-            else:
-                ti = TaskInstance(task=task)
-            dagrun.task_instances.append(ti)
-            ti.state = TaskInstanceState.SUCCESS
-    session.flush()
-
-    assert (
-        dag.clear(
-            start_date=DEFAULT_DATE,
-            end_date=logical_date,
-            dag_bag=dag_bag_head_tail,
-            session=session,
-        )
-        == 30
-    )
-
-
 @pytest.fixture
-def dag_bag_head_tail_mapped_tasks():
+def dag_bag_head_tail_mapped_tasks(session):
     """
     Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
     previous logical_date.
@@ -2211,79 +2085,8 @@ def dag_bag_head_tail_mapped_tasks():
         head >> body >> tail
 
     if AIRFLOW_V_3_0_PLUS:
-        dag.sync_to_db()
-        dag_bag.bag_dag(dag=dag)
+        sync_dag_to_db(dag)
     else:
         dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
-
-
-def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
-    dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
-    dag.sync_to_db()
-    if AIRFLOW_V_3_0_PLUS:
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
-    # "Run" 10 times.
-    for delta in range(10):
-        logical_date = DEFAULT_DATE + timedelta(days=delta)
-        dagrun = DagRun(
-            dag_id=dag.dag_id,
-            start_date=logical_date,
-            state=DagRunState.SUCCESS,
-            run_type=DagRunType.MANUAL,
-            run_id=f"test_{delta}",
-        )
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun.logical_date = logical_date
-        else:
-            dagrun.execution_date = logical_date
-        session.add(dagrun)
-        for task in dag.tasks:
-            if task.task_id == "dummy_task":
-                for map_index in range(5):
-                    if AIRFLOW_V_3_0_PLUS:
-                        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-                        ti = TaskInstance(
-                            task=task,
-                            run_id=dagrun.run_id,
-                            map_index=map_index,
-                            dag_version_id=dag_version.id,
-                        )
-                    else:
-                        ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
-                    ti.state = TaskInstanceState.SUCCESS
-                    dagrun.task_instances.append(ti)
-            else:
-                if AIRFLOW_V_3_0_PLUS:
-                    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-                    ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
-                else:
-                    ti = TaskInstance(task=task, run_id=dagrun.run_id)
-                ti.state = TaskInstanceState.SUCCESS
-                dagrun.task_instances.append(ti)
-    session.flush()
-    if AIRFLOW_V_3_0_PLUS:
-        dag = dag.partial_subset(
-            task_ids=["head"],
-            include_downstream=True,
-            include_upstream=False,
-        )
-    else:
-        dag = dag.partial_subset(
-            task_ids_or_regex=["head"],
-            include_downstream=True,
-            include_upstream=False,
-        )
-
-    task_ids = list(dag.task_dict)
-    assert (
-        dag.clear(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            dag_bag=dag_bag_head_tail_mapped_tasks,
-            session=session,
-            task_ids=task_ids,
-        )
-        == 70
-    )

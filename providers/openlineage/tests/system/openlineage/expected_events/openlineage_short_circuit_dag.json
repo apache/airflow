@@ -1,0 +1,77 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_short_circuit_dag",
+            "facets": {
+                "airflow": {
+                    "taskGroups": {},
+                    "taskTree": {},
+                    "tasks": {
+                        "do_nothing_task": {
+                            "downstream_task_ids": [
+                                "skip_tasks"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "do_nothing_task"
+                        },
+                        "should_be_skipped": {
+                            "downstream_task_ids": [
+                                "check_events_number"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "should_be_skipped"
+                        },
+                        "skip_tasks": {
+                            "downstream_task_ids": [
+                                "should_be_skipped"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.ShortCircuitOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "skip_tasks"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_short_circuit_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_short_circuit_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_short_circuit_dag.skip_tasks"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_short_circuit_dag.skip_tasks"
+        }
+    }
+]

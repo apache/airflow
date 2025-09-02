@@ -153,7 +153,7 @@ const taskInstanceColumns = ({
     header: translate("taskInstance.pool"),
   },
   {
-    accessorKey: "operator",
+    accessorKey: "operator_name",
     enableSorting: false,
     header: translate("task.operator"),
   },
@@ -223,7 +223,6 @@ export const TaskInstances = () => {
     },
     undefined,
     {
-      enabled: !isNaN(pagination.pageSize),
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },

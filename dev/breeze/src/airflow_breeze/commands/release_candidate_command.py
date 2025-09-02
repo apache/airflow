@@ -18,21 +18,196 @@ from __future__ import annotations
 
 import os
 import shutil
+from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import click
 
 from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
 from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.global_constants import (
+    DistributionType,
+    get_airflow_version,
+    get_airflowctl_version,
+    get_task_sdk_version,
+)
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, OUT_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_ROOT_PATH,
+    OUT_PATH,
+)
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
-def merge_pr(version_branch):
+def validate_remote_tracks_apache_airflow(remote_name):
+    """Validate that the specified remote tracks the apache/airflow repository."""
+    console_print(f"[info]Validating remote '{remote_name}' tracks apache/airflow...")
+
+    result = run_command(
+        ["git", "remote", "get-url", remote_name],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        console_print(f"[error]Remote '{remote_name}' does not exist!")
+        console_print("Available remotes:")
+        run_command(["git", "remote", "-v"])
+        exit(1)
+
+    remote_url = result.stdout.strip()
+
+    # Check if it's the apache/airflow repository
+    apache_patterns = [
+        "https://github.com/apache/airflow",
+        "https://github.com/apache/airflow.git",
+        "git@github.com:apache/airflow",
+        "git@github.com:apache/airflow.git",
+        "ssh://git@github.com/apache/airflow",
+        "ssh://git@github.com/apache/airflow.git",
+    ]
+
+    is_apache_repo = any(pattern in remote_url for pattern in apache_patterns)
+
+    if not is_apache_repo:
+        console_print(f"[error]Remote '{remote_name}' does not track apache/airflow!")
+        console_print(f"Remote URL: {remote_url}")
+        console_print("Expected patterns: apache/airflow")
+        if not confirm_action("Do you want to continue anyway? This is NOT recommended for releases."):
+            exit(1)
+    console_print(f"[success]Remote '{remote_name}' correctly tracks apache/airflow")
+
+
+def validate_git_status():
+    """Validate that git working directory is clean."""
+    console_print("[info]Validating git status...")
+
+    # Check if working directory is clean
+    result = run_command(
+        ["git", "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.stdout.strip():
+        console_print("[error]Working directory is not clean!")
+        run_command(["git", "status"])
+        if not confirm_action("Do you want to continue with uncommitted changes? This is NOT recommended."):
+            exit(1)
+    console_print("[success]Working directory is clean")
+
+
+def validate_version_branches_exist(version_branch, remote_name):
+    """Validate that the required version branches exist."""
+    console_print(f"[info]Validating version branches exist for {version_branch}...")
+
+    # Check if test branch exists
+    test_branch = f"v{version_branch}-test"
+    stable_branch = f"v{version_branch}-stable"
+
+    # Fetch to get latest remote branches
+    run_command(["git", "fetch", remote_name], check=True)
+
+    # Check remote branches
+    result = run_command(
+        ["git", "branch", "-r"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    remote_branches = result.stdout
+
+    test_branch_exists = f"{remote_name}/{test_branch}" in remote_branches
+    stable_branch_exists = f"{remote_name}/{stable_branch}" in remote_branches
+
+    if not test_branch_exists:
+        console_print(f"[error]Test branch '{remote_name}/{test_branch}' does not exist!")
+        console_print("Available remote branches:")
+        run_command(["git", "branch", "-r"])
+        exit(1)
+    console_print(f"[success]Test branch '{remote_name}/{test_branch}' exists")
+
+    if not stable_branch_exists:
+        console_print(f"[error]Stable branch '{remote_name}/{stable_branch}' does not exist!")
+        console_print("Available remote branches:")
+        run_command(["git", "branch", "-r"])
+        exit(1)
+    console_print(f"[success]Stable branch '{remote_name}/{stable_branch}' exists")
+
+
+def validate_tag_does_not_exist(version, remote_name):
+    """Validate that the release tag doesn't already exist."""
+    console_print(f"[info]Checking if tag '{version}' already exists...")
+
+    # Check if tag exists locally
+    local_result = run_command(
+        ["git", "tag", "-l", version],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    # Check if tag exists on remote using ls-remote with --exit-code
+    remote_result = run_command(
+        ["git", "ls-remote", "--exit-code", "--tags", remote_name, f"refs/tags/{version}"],
+        check=False,
+    )
+
+    tag_exists_locally = bool(local_result.stdout.strip())
+    tag_exists_remotely = remote_result.returncode == 0
+
+    if not tag_exists_locally and not tag_exists_remotely:
+        console_print(f"[success]Tag '{version}' does not exist yet")
+        return
+
+    location = []
+    if tag_exists_locally:
+        location.append("locally")
+    if tag_exists_remotely:
+        location.append("remotely")
+
+    console_print(f"[error]Tag '{version}' already exists {' and '.join(location)}!")
+
+    if tag_exists_locally:
+        console_print(f"Use 'git tag -d {version}' to delete it locally if needed")
+    if tag_exists_remotely:
+        console_print(f"Use 'git push {remote_name} --delete {version}' to delete it remotely if needed")
+
+    if not confirm_action("Do you want to continue anyway? This may cause issues."):
+        exit(1)
+
+
+def validate_on_correct_branch_for_tagging(version_branch):
+    """Validate that we're on the correct branch for tagging (stable branch)."""
+    console_print("[info]Validating we're on the correct branch for tagging...")
+
+    expected_branch = f"v{version_branch}-stable"
+
+    # Check current branch
+    result = run_command(
+        ["git", "branch", "--show-current"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    current_branch = result.stdout.strip()
+
+    if current_branch != expected_branch:
+        console_print(f"[error]Currently on branch '{current_branch}', expected '{expected_branch}'!")
+        console_print("Tags should be created on the stable branch after merging the sync PR.")
+        console_print("Make sure the PR merge step completed successfully.")
+        exit(1)
+    console_print(f"[success]On correct branch '{expected_branch}' for tagging")
+
+
+def merge_pr(version_branch, remote_name):
     if confirm_action("Do you want to merge the Sync PR?"):
         run_command(
             [
@@ -43,7 +218,7 @@ def merge_pr(version_branch):
             check=True,
         )
         run_command(
-            ["git", "reset", "--hard", f"origin/v{version_branch}-stable"],
+            ["git", "reset", "--hard", f"{remote_name}/v{version_branch}-stable"],
             check=True,
         )
         run_command(
@@ -52,18 +227,18 @@ def merge_pr(version_branch):
         )
         if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
             run_command(
-                ["git", "push", "origin", f"v{version_branch}-stable"],
+                ["git", "push", remote_name, f"v{version_branch}-stable"],
                 check=True,
             )
 
 
-def git_tag(version):
+def git_tag(version, message):
     if confirm_action(f"Tag {version}?"):
         run_command(
-            ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"],
+            ["git", "tag", "-s", f"{version}", "-m", message],
             check=True,
         )
-        console_print("[success]Tagged")
+        console_print(f"[success]Tagged {version}!")
 
 
 def git_clean():
@@ -73,12 +248,18 @@ def git_clean():
         console_print("[success]Git repo cleaned")
 
 
-def tarball_release(version: str, version_without_rc: str, source_date_epoch: int):
-    console_print(f"[info]Creating tarball for Airflow {version}")
+def tarball_release(
+    version: str,
+    version_without_rc: str,
+    source_date_epoch: int,
+    distribution_name: DistributionType,
+    tag: str | None = None,
+):
+    console_print(f"[info]Creating tarball for Apache {distribution_name.value} {version}")
     shutil.rmtree(OUT_PATH, ignore_errors=True)
     OUT_PATH.mkdir(exist_ok=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    archive_name = f"apache-airflow-{version_without_rc}-source.tar.gz"
+    archive_name = f"apache-{distribution_name.value}-{version_without_rc}-source.tar.gz"
     temporary_archive = OUT_PATH / archive_name
     result = run_command(
         [
@@ -87,15 +268,17 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
             "tar.umask=0077",
             "archive",
             "--format=tar.gz",
-            f"{version}",
-            f"--prefix=apache-airflow-{version_without_rc}/",
+            f"{version if tag is None else tag}",
+            f"--prefix=apache-{distribution_name.value}-{version_without_rc}/",
             "-o",
             temporary_archive.as_posix(),
         ],
         check=False,
     )
     if result.returncode != 0:
-        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        console_print(
+            f"[error]Failed to create tarball {temporary_archive} for Apache {distribution_name.value} {version}"
+        )
         exit(result.returncode)
     final_archive = AIRFLOW_DIST_PATH / archive_name
     result = repack_deterministically(
@@ -110,17 +293,67 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
     console_print(f"[success]Tarball created in {final_archive}")
 
 
+def create_tarball_release(
+    version: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    from packaging.version import Version
+
+    distribution_name = DistributionType(distribution_name)
+    if not version:
+        if distribution_name == DistributionType.AIRFLOW_CORE:
+            version = get_airflow_version()
+        elif distribution_name == DistributionType.TASK_SDK:
+            version = get_task_sdk_version()
+        elif distribution_name == DistributionType.AIRFLOW_CTL:
+            version = get_airflowctl_version()
+        elif distribution_name == DistributionType.PROVIDERS:
+            version = get_airflow_version()
+    distribution_version = Version(version)
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
+    version_without_rc = (
+        distribution_version.base_version
+        if distribution_name != DistributionType.PROVIDERS
+        else f"{datetime.now().strftime('%Y-%m-%d')}"
+    )
+
+    # Create the tarball
+    tarball_release(
+        version=version,
+        version_without_rc=version_without_rc,
+        source_date_epoch=source_date_epoch,
+        distribution_name=distribution_name,
+        tag=tag,
+    )
+
+
 def create_artifacts_with_hatch(source_date_epoch: int):
     console_print("[info]Creating artifacts with hatch")
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    # Build Airflow packages
     run_command(
         ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=env_copy
     )
-    console_print("[success]Successfully prepared Airflow packages:")
+    # Build Task SDK packages
+    run_command(
+        [
+            "breeze",
+            "release-management",
+            "prepare-task-sdk-distributions",
+            "--distribution-format",
+            "both",
+            "--use-local-hatch",
+        ],
+        check=True,
+    )
+    console_print("[success]Successfully prepared Airflow and Task SDK packages:")
     for file in sorted(AIRFLOW_DIST_PATH.glob("apache_airflow*")):
+        console_print(print(file.name))
+    for file in sorted(AIRFLOW_DIST_PATH.glob("*task*")):
         console_print(print(file.name))
     console_print()
 
@@ -137,7 +370,17 @@ def create_artifacts_with_docker():
         ],
         check=True,
     )
-    console_print("[success]Artifacts created")
+    run_command(
+        [
+            "breeze",
+            "release-management",
+            "prepare-task-sdk-distributions",
+            "--distribution-format",
+            "both",
+        ],
+        check=True,
+    )
+    console_print("[success]Airflow and Task SDK artifacts created")
 
 
 def sign_the_release(repo_root):
@@ -147,10 +390,10 @@ def sign_the_release(repo_root):
         console_print("[success]Release signed")
 
 
-def tag_and_push_constraints(version, version_branch):
+def tag_and_push_constraints(version, version_branch, remote_name):
     if confirm_action("Do you want to tag and push constraints?"):
         run_command(
-            ["git", "checkout", f"origin/constraints-{version_branch}"],
+            ["git", "checkout", f"{remote_name}/constraints-{version_branch}"],
             check=True,
         )
         run_command(
@@ -165,7 +408,7 @@ def tag_and_push_constraints(version, version_branch):
             check=True,
         )
         run_command(
-            ["git", "push", "origin", "tag", f"constraints-{version}"],
+            ["git", "push", remote_name, "tag", f"constraints-{version}"],
             check=True,
         )
         console_print("[success]Constraints tagged and pushed")
@@ -187,13 +430,18 @@ def clone_asf_repo(version, repo_root):
         console_print("[success]Cloned ASF repo successfully")
 
 
-def move_artifacts_to_svn(version, repo_root):
+def move_artifacts_to_svn(version, task_sdk_version, repo_root):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
         run_command(["svn", "mkdir", f"{version}"], check=True)
-        run_command(f"mv {repo_root}/dist/* {version}/", check=True, shell=True)
+        run_command(f"mv {repo_root}/dist/*{version}* {version}/", check=True, shell=True)
+        run_command(
+            f"mv {repo_root}/dist/*{task_sdk_version}* task-sdk/{task_sdk_version}/", check=True, shell=True
+        )
         console_print("[success]Moved artifacts to SVN:")
         run_command(["ls"])
+        run_command([f"ls {version}"])
+        run_command([f"ls task-sdk/{task_sdk_version}"])
 
 
 def push_artifacts_to_asf_repo(version, repo_root):
@@ -237,6 +485,19 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
             ],
             check=True,
         )
+        # Task SDK
+        run_command(
+            [
+                "breeze",
+                "release-management",
+                "prepare-task-sdk-distributions",
+                "--version-suffix",
+                f"{version_suffix}",
+                "--distribution-format",
+                "both",
+            ],
+            check=True,
+        )
         files_to_check = []
         for files in Path(AIRFLOW_DIST_PATH).glob("apache_airflow*"):
             if "-sources" not in files.name:
@@ -273,8 +534,8 @@ def push_packages_to_pypi(version):
         )
 
 
-def push_release_candidate_tag_to_github(version):
-    if confirm_action("Do you want to push release candidate tag to GitHub?"):
+def push_release_candidate_tag_to_github(version, remote_name):
+    if confirm_action("Do you want to push release candidate tags to GitHub?"):
         console_print(
             """
         This step should only be done now and not before, because it triggers an automated
@@ -283,7 +544,7 @@ def push_release_candidate_tag_to_github(version):
         """
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
-        run_command(["git", "push", "origin", "tag", f"{version}"], check=True)
+        run_command(["git", "push", remote_name, "tag", f"{version}"], check=True)
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
@@ -317,24 +578,30 @@ def remove_old_releases(version, repo_root):
 
 @release_management.command(
     name="prepare-airflow-tarball",
-    help="Prepare airflow's source tarball.",
+    help="Prepare airflow's or airflow distribution source tarball.",
+)
+@click.option("--version", help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION")
+@click.option(
+    "--distribution-name",
+    default="airflow",
+    help="The distribution name, airflow, task-sdk, providers, airflowctl",
 )
 @click.option(
-    "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
+    "--tag",
+    help="The git tag to use for creating the tarball. If not provided, __init__ file version is used.",
+    default=None,
 )
 @option_dry_run
 @option_verbose
-def prepare_airflow_tarball(version: str):
-    from packaging.version import Version
-
-    airflow_version = Version(version)
-    if not airflow_version.is_prerelease:
-        exit("--version value must be a pre-release")
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
-    version_without_rc = airflow_version.base_version
-    # Create the tarball
-    tarball_release(
-        version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+def prepare_airflow_tarball(
+    version: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    create_tarball_release(
+        version=version,
+        distribution_name=distribution_name,
+        tag=tag,
     )
 
 
@@ -345,13 +612,15 @@ def prepare_airflow_tarball(version: str):
 )
 @click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
+@click.option("--task-sdk-version", required=True, help="The task SDK version e.g. 1.0.6rc1.")
 @click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
+@click.option("--remote-name", default="origin", help="Git remote name to push to (default: origin)")
 @option_answer
 @option_dry_run
 @option_verbose
-def publish_release_candidate(version, previous_version, github_token):
+def publish_release_candidate(version, previous_version, task_sdk_version, github_token, remote_name):
     from packaging.version import Version
 
     airflow_version = Version(version)
@@ -368,29 +637,46 @@ def publish_release_candidate(version, previous_version, github_token):
     version_suffix = airflow_version.pre[0] + str(airflow_version.pre[1])
     version_branch = str(airflow_version.release[0]) + "-" + str(airflow_version.release[1])
     version_without_rc = airflow_version.base_version
+
+    task_sdk_version_obj = Version(task_sdk_version)
+    task_sdk_version_without_rc = task_sdk_version_obj.base_version
+
     os.chdir(AIRFLOW_ROOT_PATH)
     airflow_repo_root = os.getcwd()
+
+    if not get_dry_run():
+        console_print("[info]Skipping validations in dry-run mode")
+        validate_remote_tracks_apache_airflow(remote_name)
+        validate_git_status()
+        validate_version_branches_exist(version_branch, remote_name)
+        validate_tag_does_not_exist(version, remote_name)
+        validate_tag_does_not_exist(f"task-sdk/{task_sdk_version}", remote_name)
 
     # List the above variables and ask for confirmation
     console_print()
     console_print(f"Previous version: {previous_version}")
-    console_print(f"version: {version}")
+    console_print(f"Airflow version: {version}")
+    console_print(f"Task SDK version: {task_sdk_version}")
     console_print(f"version_suffix: {version_suffix}")
     console_print(f"version_branch: {version_branch}")
     console_print(f"version_without_rc: {version_without_rc}")
+    console_print(f"task_sdk_version_without_rc: {task_sdk_version_without_rc}")
     console_print(f"airflow_repo_root: {airflow_repo_root}")
+    console_print(f"remote_name: {remote_name}")
     console_print()
-    console_print("Below are your git remotes. We will push to origin:")
+    console_print(f"Below are your git remotes. We will push to {remote_name}:")
     run_command(["git", "remote", "-v"])
     console_print()
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
-    # Final confirmation
-    confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
     # Merge the sync PR
-    merge_pr(version_branch)
+    merge_pr(version_branch, remote_name)
     #
     # # Tag & clean the repo
-    git_tag(version)
+    # Validate we're on the correct branch before tagging
+    if not get_dry_run():
+        validate_on_correct_branch_for_tagging(version_branch)
+    git_tag(version, f"Apache Airflow {version}")
+    git_tag(f"task-sdk/{task_sdk_version}", f"Airflow Task SDK {task_sdk_version}")
     git_clean()
     source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
@@ -402,16 +688,19 @@ def publish_release_candidate(version, previous_version, github_token):
     if confirm_action("Create tarball?"):
         # Create the tarball
         tarball_release(
-            version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+            version=version,
+            version_without_rc=version_without_rc,
+            source_date_epoch=source_date_epoch,
+            distribution_name=DistributionType.AIRFLOW_CORE,
         )
     # Sign the release
     sign_the_release(airflow_repo_root)
     # Tag and push constraints
-    tag_and_push_constraints(version, version_branch)
+    tag_and_push_constraints(version, version_branch, remote_name)
     # Clone the asf repo
     clone_asf_repo(version, airflow_repo_root)
     # Move artifacts to SVN
-    move_artifacts_to_svn(version, airflow_repo_root)
+    move_artifacts_to_svn(version, task_sdk_version, airflow_repo_root)
     # Push the artifacts to the asf repo
     push_artifacts_to_asf_repo(version, airflow_repo_root)
 
@@ -428,7 +717,8 @@ def publish_release_candidate(version, previous_version, github_token):
     push_packages_to_pypi(version)
 
     # Push the release candidate tag to gitHub
-    push_release_candidate_tag_to_github(version)
+    push_release_candidate_tag_to_github(version, remote_name)
+    push_release_candidate_tag_to_github(f"task-sdk/{task_sdk_version}", remote_name)
     # Create issue for testing
     os.chdir(airflow_repo_root)
 

@@ -85,34 +85,6 @@ class TestMessageQueueTrigger:
         )
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
-    @pytest.mark.parametrize(
-        "kafka_config_id, topics, expected_uri",
-        [
-            ("kafka_d", ["test"], "kafka://localhost:9092/test"),
-            ("kafka_d", ["test1", "test2"], "kafka://localhost:9092/test1,test2"),
-            (
-                "kafka_multi_bootstraps",
-                ["test1", "test2", "test3"],
-                "kafka://localhost:9091,localhost:9092,localhost:9093/test1,test2,test3",
-            ),
-        ],
-    )
-    def test_queue_uri(self, kafka_config_id, topics, expected_uri):
-        """
-        Test the queue URI generation for KafkaMessageQueueTrigger.
-        """
-        trigger = KafkaMessageQueueTrigger(
-            kafka_config_id=kafka_config_id,
-            topics=topics,
-            apply_function="test.noop",
-            apply_function_args=[],
-            apply_function_kwargs={},
-            poll_timeout=1,
-            poll_interval=5,
-        )
-        assert trigger.queue == expected_uri
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
     def test_trigger_serialization(self):
         if get_base_airflow_version_tuple() < (3, 0, 1):
             pytest.skip("This test is only for Airflow 3.0.1+")

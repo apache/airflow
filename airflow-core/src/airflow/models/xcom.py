@@ -104,6 +104,12 @@ class XComModel(TaskInstanceDependencies):
     )
     logical_date = association_proxy("dag_run", "logical_date")
 
+    task = relationship(
+        "TaskInstance",
+        viewonly=True,
+        lazy="selectin",
+    )
+
     @classmethod
     @provide_session
     def clear(

@@ -38,7 +38,12 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -74,6 +79,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     num_preemptible_workers=1,
     preemptibility="PREEMPTIBLE",
     internal_ip_only=False,
+    cluster_tier="CLUSTER_TIER_STANDARD",
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]

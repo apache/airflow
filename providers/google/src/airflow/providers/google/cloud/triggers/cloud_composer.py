@@ -145,10 +145,23 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
             )
             return
 
+        exit_code = result.get("exit_info", {}).get("exit_code")
+
+        if exit_code == 0:
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "result": result,
+                }
+            )
+            return
+
+        error_output = "".join(line["content"] for line in result.get("error", []))
+        message = f"Airflow CLI command failed with exit code {exit_code}.\nError output:\n{error_output}"
         yield TriggerEvent(
             {
-                "status": "success",
-                "result": result,
+                "status": "error",
+                "message": message,
             }
         )
         return
@@ -253,6 +266,12 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
             while True:
                 if datetime.now(self.end_date.tzinfo).timestamp() > self.end_date.timestamp():
                     dag_runs = await self._pull_dag_runs()
+
+                    if len(dag_runs) == 0:
+                        self.log.info("Dag runs are empty. Sensor waits for dag runs...")
+                        self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                        await asyncio.sleep(self.poll_interval)
+                        continue
 
                     self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
                     if self._check_dag_runs_states(

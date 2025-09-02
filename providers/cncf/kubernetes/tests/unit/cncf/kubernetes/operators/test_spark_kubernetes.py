@@ -729,6 +729,8 @@ class TestSparkKubernetesOperator:
             pod=op.pod,
             containers="spark-kubernetes-driver",
             follow_logs=True,
+            container_name_log_prefix_enabled=True,
+            log_formatter=None,
         )
 
     @pytest.mark.asyncio

@@ -390,7 +390,7 @@ option_tty = click.option(
     default=ALLOWED_TTY[0],
     show_default=True,
     help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
+    " (useful for prek and CI to force-enable it).",
 )
 option_upgrade_boto = click.option(
     "--upgrade-boto",
@@ -439,7 +439,7 @@ option_use_airflow_version = click.option(
 )
 option_allow_pre_releases = click.option(
     "--allow-pre-releases",
-    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    help="Allow pre-releases of Airflow, task-sdk, providers and airflowctl to be installed. "
     "Set to true automatically for pre-release --use-airflow-version)",
     is_flag=True,
     envvar="ALLOW_PRE_RELEASES",

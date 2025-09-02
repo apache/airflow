@@ -30,8 +30,6 @@ from contextlib import ExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from packaging.version import parse as parse_version
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
@@ -44,8 +42,10 @@ from airflow.version import version
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+GOOGLE_PROVIDER = ProvidersManager().providers.get("apache-airflow-providers-google")
 
-try:
+
+if GOOGLE_PROVIDER:
     from airflow.providers.google.cloud.hooks.dataflow import (
         DEFAULT_DATAFLOW_LOCATION,
         DataflowHook,
@@ -55,14 +55,16 @@ try:
     from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
     from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
     from airflow.providers.google.cloud.triggers.dataflow import (
-        DataflowJobStateCompleteTrigger,
         DataflowJobStatus,
         DataflowJobStatusTrigger,
     )
 
-    GOOGLE_PROVIDER_VERSION = ProvidersManager().providers["apache-airflow-providers-google"].version
-except ImportError:
-    GOOGLE_PROVIDER_VERSION = ""
+    try:
+        from airflow.providers.google.cloud.triggers.dataflow import DataflowJobStateCompleteTrigger
+
+        GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE = True
+    except ImportError:
+        GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE = False
 
 
 class BeamDataflowMixin(metaclass=ABCMeta):
@@ -80,7 +82,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     dataflow_support_impersonation: bool = True
 
     def __init__(self):
-        if not GOOGLE_PROVIDER_VERSION:
+        if not GOOGLE_PROVIDER:
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import apache-airflow-google-provider. To use the dataflow service please install "
                 "the appropriate version of the google provider."
@@ -346,7 +348,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
-    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
+    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()
 
     def __init__(
         self,
@@ -462,7 +464,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                 "gcp_conn_id": self.gcp_conn_id,
             }
             trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
-            if parse_version(GOOGLE_PROVIDER_VERSION) < parse_version("16.0.0"):
+
+            if GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE:
                 trigger = DataflowJobStatusTrigger(
                     expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                     **trigger_args,
@@ -534,7 +537,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     ui_color = "#0273d4"
 
-    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
+    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()
 
     def __init__(
         self,
@@ -638,7 +641,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                         "gcp_conn_id": self.gcp_conn_id,
                     }
                     trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
-                    if parse_version(GOOGLE_PROVIDER_VERSION) < parse_version("16.0.0"):
+
+                    if GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE:
                         trigger = DataflowJobStatusTrigger(
                             expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                             **trigger_args,
@@ -719,7 +723,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     ]
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
-    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
+    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()
 
     def __init__(
         self,

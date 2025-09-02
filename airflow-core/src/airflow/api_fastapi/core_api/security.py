@@ -103,10 +103,14 @@ def requires_access_dag(
         user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
+        team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
-                method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
+                method=method,
+                access_entity=access_entity,
+                details=DagDetails(id=dag_id, team_name=team_name),
+                user=user,
             )
         )
 

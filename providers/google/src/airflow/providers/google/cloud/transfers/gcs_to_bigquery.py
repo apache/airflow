@@ -635,12 +635,6 @@ class GCSToBigQueryOperator(BaseOperator):
             self.configuration["load"]["schema"] = {"fields": self.schema_fields}
 
         if self.schema_update_options:
-            if self.write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError(
-                    "schema_update_options is only "
-                    "allowed if write_disposition is "
-                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
-                )
             # To provide backward compatibility
             self.schema_update_options = list(self.schema_update_options or [])
             self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)

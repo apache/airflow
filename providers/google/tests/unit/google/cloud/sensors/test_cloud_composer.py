@@ -88,3 +88,25 @@ class TestCloudComposerDAGRunSensor:
         task._composer_airflow_version = composer_airflow_version
 
         assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_dag_runs_empty(self, mock_hook, to_dict_mode, composer_airflow_version):
+        mock_hook.return_value.wait_command_execution_result.return_value = {
+            "output": [{"line_number": 1, "content": json.dumps([])}],
+            "output_end": True,
+            "exit_info": {"exit_code": 0, "error": ""},
+        }
+
+        task = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})

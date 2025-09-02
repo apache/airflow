@@ -32,7 +32,11 @@ try:
     from airflow.sdk import BaseHook
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator
@@ -42,7 +46,7 @@ try:
 except ImportError:
     # Airflow 2.10 compat
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
-    from airflow.models.dag import DAG  # type: ignore[assignment]
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
     from airflow.models.param import Param  # type: ignore[no-redef]
     from airflow.models.variable import Variable
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef]

@@ -28,10 +28,10 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const GroupTaskInstance = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", groupId = "", runId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
-  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+  const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
   const refetchInterval = useAutoRefresh({ dagId });
 

@@ -134,6 +134,7 @@ CONFIG = {
     "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
     "autoscaling_config": {"policy_uri": "autoscaling_policy"},
     "config_bucket": "storage_bucket",
+    "cluster_tier": "CLUSTER_TIER_STANDARD",
     "initialization_actions": [
         {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
     ],
@@ -604,6 +605,7 @@ class TestsClusterGenerator:
             customer_managed_key="customer_managed_key",
             driver_pool_id="cluster_driver_pool",
             driver_pool_size=2,
+            cluster_tier="CLUSTER_TIER_STANDARD",
         )
         cluster = generator.make()
         assert cluster == CONFIG
@@ -754,6 +756,11 @@ class TestsClusterGenerator:
             )
             cluster = generator.make()
             assert cluster["gce_cluster_config"]["internal_ip_only"] == internal_ip_only
+
+    def test_build_with_cluster_tier(self):
+        generator = ClusterGenerator(project_id="project_id", cluster_tier="CLUSTER_TIER_STANDARD")
+        cluster = generator.make()
+        assert cluster["cluster_tier"] == "CLUSTER_TIER_STANDARD"
 
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
@@ -3307,7 +3314,7 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
         mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED.name)
 
         op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
@@ -3350,7 +3357,7 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
         mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED.name)
 
         with pytest.raises(AirflowException) as exc:
             op.execute(context=MagicMock())

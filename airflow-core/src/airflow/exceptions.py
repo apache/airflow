@@ -26,8 +26,6 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.utils.trigger_rule import TriggerRule
-
 if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -241,25 +239,6 @@ class DagRunAlreadyExists(AirflowBadRequest):
         )
 
 
-class FailFastDagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
-
-    _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
-
-    @classmethod
-    def check(cls, *, fail_fast: bool, trigger_rule: TriggerRule):
-        """
-        Check that fail_fast dag tasks have allowable trigger rules.
-
-        :meta private:
-        """
-        if fail_fast and trigger_rule not in cls._allowed_rules:
-            raise cls()
-
-    def __str__(self) -> str:
-        return f"A 'fail_fast' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
-
-
 class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG."""
 
@@ -295,6 +274,10 @@ class TaskNotFound(AirflowNotFoundException):
 
 class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a task instance is not available in the system."""
+
+
+class NotMapped(Exception):
+    """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
 class PoolNotFound(AirflowNotFoundException):

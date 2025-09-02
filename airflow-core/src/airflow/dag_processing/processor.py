@@ -43,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetVariable,
+    MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
@@ -104,7 +105,8 @@ ToManager = Annotated[
     | PutVariable
     | DeleteVariable
     | GetPrevSuccessfulDagRun
-    | GetPreviousDagRun,
+    | GetPreviousDagRun
+    | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -184,10 +186,9 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
-    dags = [LazyDeserializedDAG(data=serdag) for serdag in serialized_dags]
     result = DagFileParsingResult(
         fileloc=msg.file,
-        serialized_dags=dags,
+        serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
         # TODO: Make `bag.dag_warnings` not return SQLA model objects
         warnings=[],
@@ -195,13 +196,16 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     return result
 
 
-def _serialize_dags(bag: DagBag, log: FilteringBoundLogger) -> tuple[list[dict], dict[str, str]]:
+def _serialize_dags(
+    bag: DagBag,
+    log: FilteringBoundLogger,
+) -> tuple[list[LazyDeserializedDAG], dict[str, str]]:
     serialization_import_errors = {}
     serialized_dags = []
     for dag in bag.dags.values():
         try:
-            serialized_dag = SerializedDAG.to_dict(dag)
-            serialized_dags.append(serialized_dag)
+            data = SerializedDAG.to_dict(dag)
+            serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
             log.exception("Failed to serialize DAG: %s", dag.fileloc)
             dagbag_import_error_traceback_depth = conf.getint(
@@ -427,6 +431,11 @@ class DagFileProcessorProcess(WatchedSubprocess):
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
             resp = dagrun_result
             dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, MaskSecret):
+            # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
+            from airflow.sdk.log import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
