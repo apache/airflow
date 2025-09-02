@@ -135,14 +135,6 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        XComModel.set(
-            key=XCOM_RETURN_KEY,
-            value=self.path,
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            run_id=task_instance.run_id,
-        )
-
         if AIRFLOW_V_3_0_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
@@ -202,18 +194,28 @@ class TestXComObjectStorageBackend:
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
         if AIRFLOW_V_3_0_PLUS:
-            qry = XComModel.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-            )
             if AIRFLOW_V_3_1_PLUS:
-                assert str(p) == XComModel.deserialize_value(
-                    session.execute(qry.with_only_columns(XComModel.value)).first()
-                )
+                value = session.execute(
+                    XComModel.get_many(
+                        key=XCOM_RETURN_KEY,
+                        dag_ids=task_instance.dag_id,
+                        task_ids=task_instance.task_id,
+                        run_id=task_instance.run_id,
+                    ).with_only_columns(XComModel.value)
+                ).first()
             else:
-                assert str(p) == XComModel.deserialize_value((qry.with_entities(XComModel.value)).first())
+                value = (
+                    XComModel.get_many(
+                        key=XCOM_RETURN_KEY,
+                        dag_ids=task_instance.dag_id,
+                        task_ids=task_instance.task_id,
+                        run_id=task_instance.run_id,
+                        session=session,
+                    )
+                    .with_entities(XComModel.value)
+                    .first()
+                )
+            assert str(p) == XComModel.deserialize_value(value)
         else:
             qry = XCom.get_many(
                 key=XCOM_RETURN_KEY,
@@ -300,42 +302,42 @@ class TestXComObjectStorageBackend:
         )
         assert value
 
-        mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
-        XCom.delete(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            run_id=task_instance.run_id,
-            key=XCOM_RETURN_KEY,
-            map_index=task_instance.map_index,
-        )
-        XComModel.clear(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            run_id=task_instance.run_id,
-            map_index=task_instance.map_index,
-        )
-
-        if AIRFLOW_V_3_1_PLUS:
-            value = session.execute(
-                XComModel.get_many(
-                    key=XCOM_RETURN_KEY,
-                    dag_ids=task_instance.dag_id,
-                    task_ids=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                ).with_only_columns(XComModel.value)
-            ).first()
-        elif AIRFLOW_V_3_0_PLUS:
-            value = (
-                XComModel.get_many(
-                    key=XCOM_RETURN_KEY,
-                    dag_ids=task_instance.dag_id,
-                    task_ids=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                )
-                .with_entities(XComModel.value)
-                .first()
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
+            XCom.delete(
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+                key=XCOM_RETURN_KEY,
+                map_index=task_instance.map_index,
             )
+            XComModel.clear(
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                run_id=task_instance.run_id,
+                map_index=task_instance.map_index,
+            )
+            if AIRFLOW_V_3_1_PLUS:
+                value = session.execute(
+                    XComModel.get_many(
+                        key=XCOM_RETURN_KEY,
+                        dag_ids=task_instance.dag_id,
+                        task_ids=task_instance.task_id,
+                        run_id=task_instance.run_id,
+                    ).with_only_columns(XComModel.value)
+                ).first()
+            else:
+                value = (
+                    XComModel.get_many(
+                        key=XCOM_RETURN_KEY,
+                        dag_ids=task_instance.dag_id,
+                        task_ids=task_instance.task_id,
+                        run_id=task_instance.run_id,
+                        session=session,
+                    )
+                    .with_entities(XComModel.value)
+                    .first()
+                )
         else:
             XCom.clear(
                 dag_id=task_instance.dag_id,
