@@ -26,7 +26,6 @@ from unittest import mock
 
 import pendulum
 import pytest
-from airflow.models.baseoperator import BaseOperator
 from sqlalchemy import select
 
 from airflow._shared.timezones.timezone import datetime
@@ -35,6 +34,7 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, Log, TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
@@ -45,6 +45,7 @@ from airflow.sdk import BaseOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
 from tests_common.test_utils.db import (
     clear_db_runs,
@@ -3766,6 +3767,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,
