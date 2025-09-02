@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
 import json
 import logging
 import os
 from datetime import datetime, timedelta
+from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -400,7 +402,7 @@ class TestCliDags:
         """Test the dag docs CLI command."""
         # Test listing docs for all DAGs
         args = self.parser.parse_args(["dags", "docs"])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
 
@@ -435,7 +437,7 @@ class TestCliDags:
         args = self.parser.parse_args([
             "dags", "docs", "--dag-id", "tutorial_dag"
         ])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
 
@@ -462,7 +464,7 @@ class TestCliDags:
         args = self.parser.parse_args([
             "dags", "docs", "--dag-id", "example_complex"
         ])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
 
@@ -475,6 +477,19 @@ class TestCliDags:
 
         # Should contain the placeholder text for no documentation
         assert "*No documentation available*" in markdown_output
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_dag_docs_output_to_file(self, tmp_path):
+        """Test the dag docs CLI command writes markdown to a file."""
+        out_file = tmp_path / "dag_docs.md"
+        args = self.parser.parse_args([
+            "dags", "docs", "--dag-id", "tutorial_dag", "--output-file", str(out_file)
+        ])
+        dag_command.dag_docs(args)
+        assert out_file.exists()
+        content = out_file.read_text(encoding="utf-8")
+        assert content.startswith("# tutorial_dag\n")
+        assert "*No documentation available*" not in content
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
