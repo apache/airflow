@@ -939,6 +939,40 @@ class TriggerRunner:
     async def create_triggers(self):
         dag_bag = AsyncDagBag(collect_dags=False)
 
+        async def create_runtime_ti(dag_fileloc: str) -> RuntimeTaskInstance:
+            await dag_bag.process_file(dag_fileloc)
+            task = dag_bag.dags[workload.ti.dag_id].get_task(workload.ti.task_id)
+
+            # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
+            runtime_ti = RuntimeTaskInstance.model_construct(
+                **workload.ti.model_dump(exclude_unset=True),
+                task=task,
+            )
+
+            self.log.info("runtime_ti: %s", runtime_ti)
+            self.log.info("start_trigger_args: %s", task.start_trigger_args)
+
+            if task.start_trigger_args:
+                # Find intersection between start_trigger_args and template_fields
+                templated_start_trigger_args = set(
+                    task.start_trigger_args.trigger_kwargs.keys()
+                ).intersection(set(task.template_fields or []))
+
+                self.log.info("templated_start_trigger_args: %s", templated_start_trigger_args)
+
+                # We only need to render templated fields if templated fields are part of the start_trigger_args
+                if templated_start_trigger_args:
+                    context = runtime_ti.get_template_context()
+                    self.log.info("context: %s", context)
+                    task.render_template_fields(context=context)
+
+                    for start_trigger_arg in templated_start_trigger_args:
+                        rendered_start_trigger_arg = getattr(task, start_trigger_arg)
+                        self.log.info("rendered %s: %s", start_trigger_arg, rendered_start_trigger_arg)
+                        deserialised_kwargs[start_trigger_arg] = rendered_start_trigger_arg
+
+            return runtime_ti
+
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
             await asyncio.sleep(0)
@@ -972,39 +1006,7 @@ class TriggerRunner:
 
                 if workload.ti:
                     trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
-
-                    await dag_bag.process_file(workload.dag_fileloc)  # TODO: What about dag versions?
-                    task = dag_bag.dags[workload.ti.dag_id].get_task(workload.ti.task_id)
-
-                    # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
-                    runtime_ti = RuntimeTaskInstance.model_construct(
-                        **workload.ti.model_dump(exclude_unset=True),
-                        task=task,
-                    )
-
-                    self.log.debug("runtime_ti: %s", runtime_ti)
-                    self.log.debug("start_trigger_args: %s", task.start_trigger_args)
-
-                    if task.start_trigger_args:
-                        # Find intersection between start_trigger_args and template_fields
-                        templated_start_trigger_args = set(
-                            task.start_trigger_args.trigger_kwargs.keys()
-                        ).intersection(set(task.template_fields or []))
-
-                        self.log.debug("templated_start_trigger_args: %s", templated_start_trigger_args)
-
-                        # We only need to render templated fields if templated fields are part of the start_trigger_args
-                        if templated_start_trigger_args:
-                            context = runtime_ti.get_template_context()
-                            task.render_template_fields(context=context)
-
-                            for start_trigger_arg in templated_start_trigger_args:
-                                rendered_start_trigger_arg = getattr(task, start_trigger_arg)
-                                self.log.debug(
-                                    "rendered %s: %s", start_trigger_arg, rendered_start_trigger_arg
-                                )
-                                deserialised_kwargs[start_trigger_arg] = rendered_start_trigger_arg
-
+                    runtime_ti = await create_runtime_ti(workload.dag_fileloc)
                     trigger_instance = trigger_class(**deserialised_kwargs)
                     trigger_instance.task_instance = runtime_ti
                 else:
