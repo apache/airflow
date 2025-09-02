@@ -46,7 +46,17 @@ from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
+<<<<<<< HEAD
+from airflow.utils.cli import , suppress_logs_and_warning, validate_dag_bundle_arg
+=======
+from airflow.utils.cli import (
+    get_bagged_dag, 
+    get_dag,
+    process_subdir,
+    suppress_logs_and_warning,
+    validate_dag_bundle_arg,
+)
+>>>>>>> 2cd716f17bb7ee3cd9e535cee41a5f17292e64cc
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
@@ -729,7 +739,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
         # Fallback to string representation
         return str(schedule)
 
-    except Exception:
+    except Exception:  # noqa: BLE001 - best-effort fallback; schedule parsing is optional
         # If anything fails, return None to skip schedule info
         return None
 
