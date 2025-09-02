@@ -500,6 +500,23 @@ class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
 
 
+class DeserializationError(Exception):
+    """
+    Raised when a Dag cannot be deserialized.
+
+    This exception should be raised using exception chaining:
+    `raise DeserializationError(dag_id) from original_exception`
+    """
+
+    def __init__(self, dag_id: str | None = None):
+        self.dag_id = dag_id
+        if dag_id is None:
+            message = "Missing Dag ID in serialized Dag"
+        else:
+            message = f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'"
+        super().__init__(message)
+
+
 def __getattr__(name: str):
     """Provide backward compatibility for moved exceptions."""
     if name == "AirflowDagCycleException":
