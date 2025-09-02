@@ -425,7 +425,7 @@ ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
 # dag_docs
 ARG_OUTPUT_FILE = Arg(
-    ("-o", "--output-file"), 
+    ("-o", "--output-file"),
     help="Write markdown output to the specified file instead of stdout."
 )
 
