@@ -40,7 +40,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
