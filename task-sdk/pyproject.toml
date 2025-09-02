@@ -76,6 +76,9 @@ dependencies = [
     "pyyaml",
     "typing-extensions",
     # End of shared configuration dependencies
+    # Start of shared secrets-masker dependencies
+    "apache-airflow-shared-configuration",
+    # End of shared secrets-masker dependencies
 ]
 
 [project.urls]

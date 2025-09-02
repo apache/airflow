@@ -28,6 +28,7 @@ dependencies = [
     "methodtools>=0.4.7",
     "colorlog>=6.8.2",
     "pydantic>2.11.0",
+    "apache-airflow-shared-configuration",
 ]
 
 [dependency-groups]
