@@ -939,7 +939,8 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     respondents?: Array<(string)> | null;
-    responded_by?: string | null;
+    responded_user_id?: string | null;
+    responded_user_name?: string | null;
     response_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
@@ -960,7 +961,8 @@ export type HITLDetailCollection = {
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
-    responded_by: string;
+    responded_user_id: string;
+    responded_user_name: string;
     response_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
@@ -3084,7 +3086,8 @@ export type GetHitlDetailsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
-    respondedBy?: Array<(string)>;
+    respondedUserId?: Array<(string)>;
+    respondedUserName?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
