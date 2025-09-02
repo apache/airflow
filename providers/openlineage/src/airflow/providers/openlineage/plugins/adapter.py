@@ -44,6 +44,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_state_run_facet,
     get_processing_engine_facet,
 )
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -161,8 +162,20 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             with ExitStack() as stack:
-                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                if AIRFLOW_V_3_1_PLUS:
+                    from airflow.metrics.dual_stats_manager import DualStatsManager
+
+                    # If enabled on the config, publish metrics twice,
+                    # once with backward compatible name, and then with tags.
+                    stack.enter_context(
+                        DualStatsManager.timer(
+                            f"ol.emit.attempts.{event_type}.{transport_type}", "ol.emit.attempts"
+                        )
+                    )
+                else:
+                    stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                    stack.enter_context(Stats.timer("ol.emit.attempts"))
+
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",
