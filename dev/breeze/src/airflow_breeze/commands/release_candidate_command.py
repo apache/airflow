@@ -18,15 +18,27 @@ from __future__ import annotations
 
 import os
 import shutil
+from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import click
 
 from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
 from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.global_constants import (
+    DistributionType,
+    get_airflow_version,
+    get_airflowctl_version,
+    get_task_sdk_version,
+)
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, OUT_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_ROOT_PATH,
+    OUT_PATH,
+)
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -236,12 +248,18 @@ def git_clean():
         console_print("[success]Git repo cleaned")
 
 
-def tarball_release(version: str, version_without_rc: str, source_date_epoch: int):
-    console_print(f"[info]Creating tarball for Airflow {version}")
+def tarball_release(
+    version: str,
+    version_without_rc: str,
+    source_date_epoch: int,
+    distribution_name: DistributionType,
+    tag: str | None = None,
+):
+    console_print(f"[info]Creating tarball for Apache {distribution_name.value} {version}")
     shutil.rmtree(OUT_PATH, ignore_errors=True)
     OUT_PATH.mkdir(exist_ok=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    archive_name = f"apache-airflow-{version_without_rc}-source.tar.gz"
+    archive_name = f"apache-{distribution_name.value}-{version_without_rc}-source.tar.gz"
     temporary_archive = OUT_PATH / archive_name
     result = run_command(
         [
@@ -250,15 +268,17 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
             "tar.umask=0077",
             "archive",
             "--format=tar.gz",
-            f"{version}",
-            f"--prefix=apache-airflow-{version_without_rc}/",
+            f"{version if tag is None else tag}",
+            f"--prefix=apache-{distribution_name.value}-{version_without_rc}/",
             "-o",
             temporary_archive.as_posix(),
         ],
         check=False,
     )
     if result.returncode != 0:
-        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        console_print(
+            f"[error]Failed to create tarball {temporary_archive} for Apache {distribution_name.value} {version}"
+        )
         exit(result.returncode)
     final_archive = AIRFLOW_DIST_PATH / archive_name
     result = repack_deterministically(
@@ -271,6 +291,41 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
         console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
         exit(result.returncode)
     console_print(f"[success]Tarball created in {final_archive}")
+
+
+def create_tarball_release(
+    version: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    from packaging.version import Version
+
+    distribution_name = DistributionType(distribution_name)
+    if not version:
+        if distribution_name == DistributionType.AIRFLOW_CORE:
+            version = get_airflow_version()
+        elif distribution_name == DistributionType.TASK_SDK:
+            version = get_task_sdk_version()
+        elif distribution_name == DistributionType.AIRFLOW_CTL:
+            version = get_airflowctl_version()
+        elif distribution_name == DistributionType.PROVIDERS:
+            version = get_airflow_version()
+    distribution_version = Version(version)
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
+    version_without_rc = (
+        distribution_version.base_version
+        if distribution_name != DistributionType.PROVIDERS
+        else f"{datetime.now().strftime('%Y-%m-%d')}"
+    )
+
+    # Create the tarball
+    tarball_release(
+        version=version,
+        version_without_rc=version_without_rc,
+        source_date_epoch=source_date_epoch,
+        distribution_name=distribution_name,
+        tag=tag,
+    )
 
 
 def create_artifacts_with_hatch(source_date_epoch: int):
@@ -523,24 +578,30 @@ def remove_old_releases(version, repo_root):
 
 @release_management.command(
     name="prepare-airflow-tarball",
-    help="Prepare airflow's source tarball.",
+    help="Prepare airflow's or airflow distribution source tarball.",
+)
+@click.option("--version", help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION")
+@click.option(
+    "--distribution-name",
+    default="airflow",
+    help="The distribution name, airflow, task-sdk, providers, airflowctl",
 )
 @click.option(
-    "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
+    "--tag",
+    help="The git tag to use for creating the tarball. If not provided, __init__ file version is used.",
+    default=None,
 )
 @option_dry_run
 @option_verbose
-def prepare_airflow_tarball(version: str):
-    from packaging.version import Version
-
-    airflow_version = Version(version)
-    if not airflow_version.is_prerelease:
-        exit("--version value must be a pre-release")
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
-    version_without_rc = airflow_version.base_version
-    # Create the tarball
-    tarball_release(
-        version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+def prepare_airflow_tarball(
+    version: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    create_tarball_release(
+        version=version,
+        distribution_name=distribution_name,
+        tag=tag,
     )
 
 
@@ -627,7 +688,10 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     if confirm_action("Create tarball?"):
         # Create the tarball
         tarball_release(
-            version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+            version=version,
+            version_without_rc=version_without_rc,
+            source_date_epoch=source_date_epoch,
+            distribution_name=DistributionType.AIRFLOW_CORE,
         )
     # Sign the release
     sign_the_release(airflow_repo_root)

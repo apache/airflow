@@ -1,0 +1,325 @@
+[
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "dag_id": "openlineage_taskflow_simple_dag",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_taskflow_simple_dag.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "tags": "[]",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {},
+                        "dag_id": "openlineage_taskflow_simple_dag",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result is string }}",
+                        "run_type": "manual",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_taskflow_simple_dag",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "DAG",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                },
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "airflow": {
+                    "taskGroups": {},
+                    "taskTree": {},
+                    "tasks": {
+                        "do_nothing_task": {
+                            "downstream_task_ids": [
+                                "check_events"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "{{ result.endswith('decorators.python._PythonDecoratedOperator') }}",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "do_nothing_task"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/JobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_taskflow_simple_dag"
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_taskflow_simple_dag",
+                            "namespace": "{{ result is string }}"
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "dag": {
+                        "dag_id": "openlineage_taskflow_simple_dag",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_taskflow_simple_dag.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "tags": "[]",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {},
+                        "dag_id": "openlineage_taskflow_simple_dag",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result is string }}",
+                        "run_type": "manual",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    },
+                    "task": {
+                        "depends_on_past": false,
+                        "downstream_task_ids": "['check_events']",
+                        "executor_config": {},
+                        "inlets": "[]",
+                        "mapped": false,
+                        "multiple_outputs": false,
+                        "operator_class": "_PythonDecoratedOperator",
+                        "operator_class_path": "{{ result.endswith('decorators.python._PythonDecoratedOperator') }}",
+                        "outlets": "[]",
+                        "owner": "airflow",
+                        "priority_weight": 1,
+                        "queue": "{{ result is string }}",
+                        "retries": "{{ result is number }}",
+                        "retry_exponential_backoff": false,
+                        "task_id": "do_nothing_task",
+                        "trigger_rule": "all_success",
+                        "upstream_task_ids": "[]",
+                        "wait_for_downstream": false,
+                        "wait_for_past_depends_before_skipping": false
+                    },
+                    "taskUuid": "{{ is_uuid(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_taskflow_simple_dag.do_nothing_task",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                },
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_taskflow_simple_dag"
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_taskflow_simple_dag",
+                            "namespace": "{{ result is string }}"
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "dag": {
+                        "dag_id": "openlineage_taskflow_simple_dag",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_taskflow_simple_dag.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "tags": "[]",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {},
+                        "dag_id": "openlineage_taskflow_simple_dag",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result is string }}",
+                        "run_type": "manual",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    },
+                    "task": {
+                        "depends_on_past": false,
+                        "downstream_task_ids": "['check_events']",
+                        "executor_config": {},
+                        "inlets": "[]",
+                        "mapped": false,
+                        "multiple_outputs": false,
+                        "operator_class": "_PythonDecoratedOperator",
+                        "operator_class_path": "{{ result.endswith('decorators.python._PythonDecoratedOperator') }}",
+                        "outlets": "[]",
+                        "owner": "airflow",
+                        "priority_weight": 1,
+                        "queue": "{{ result is string }}",
+                        "retries": "{{ result is number }}",
+                        "retry_exponential_backoff": false,
+                        "task_id": "do_nothing_task",
+                        "trigger_rule": "all_success",
+                        "upstream_task_ids": "[]",
+                        "wait_for_downstream": false,
+                        "wait_for_past_depends_before_skipping": false
+                    },
+                    "taskUuid": "{{ is_uuid(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_taskflow_simple_dag.do_nothing_task",
+            "facets": {
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                }
+            }
+        }
+    }
+]

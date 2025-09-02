@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "الكل",
+      "pending": "قيد الانتظار",
+      "received": "تمت المراجعة"
+    }
+  },
   "requiredAction_few": "إجراءات مطلوبة",
   "requiredAction_many": "لإجراءات مطلوبة",
   "requiredAction_one": "إجراء مطلوب",
