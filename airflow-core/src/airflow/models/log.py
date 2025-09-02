@@ -59,7 +59,6 @@ class Log(Base):
     task_instance = relationship(
         "TaskInstance",
         viewonly=True,
-        lazy="selectin",
         foreign_keys=[task_id],
         primaryjoin="Log.task_id == TaskInstance.task_id",
     )
