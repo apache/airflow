@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the Classic branching Python operators.
+"""Example Dag demonstrating the usage of the Classic branching Python operators.
 
 It is showcasing the basic BranchPythonOperator and its sisters BranchExternalPythonOperator
 and BranchPythonVirtualenvOperator."""

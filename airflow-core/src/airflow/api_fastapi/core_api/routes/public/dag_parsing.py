@@ -35,7 +35,7 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
-dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{file_token}")
+dag_parsing_router = AirflowRouter(tags=["Dag Parsing"], prefix="/parseDagFile/{file_token}")
 
 
 @dag_parsing_router.put(
@@ -49,7 +49,7 @@ def reparse_dag_file(
     session: SessionDep,
     request: Request,
 ) -> None:
-    """Request re-parsing a DAG file."""
+    """Request re-parsing a Dag file."""
     secret_key = request.app.state.secret_key
     auth_s = URLSafeSerializer(secret_key)
     try:

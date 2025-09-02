@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 def create_dag_bag() -> DBDagBag:
-    """Create DagBag to retrieve DAGs from the database."""
+    """Create DagBag to retrieve Dags from the database."""
     return DBDagBag()
 
 

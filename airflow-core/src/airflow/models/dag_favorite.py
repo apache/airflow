@@ -23,7 +23,7 @@ from airflow.models.base import Base, StringID
 
 
 class DagFavorite(Base):
-    """Association table model linking users to their favorite DAGs."""
+    """Association table model linking users to their favorite Dags."""
 
     __tablename__ = "dag_favorite"
 

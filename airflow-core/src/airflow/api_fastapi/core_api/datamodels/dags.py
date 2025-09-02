@@ -48,7 +48,7 @@ DAG_ALIAS_MAPPING: dict[str, str] = {
 
 
 class DAGResponse(BaseModel):
-    """DAG serializer for responses."""
+    """Dag serializer for responses."""
 
     model_config = ConfigDict(
         alias_generator=AliasGenerator(
@@ -84,7 +84,7 @@ class DAGResponse(BaseModel):
     @field_validator("owners", mode="before")
     @classmethod
     def get_owners(cls, v: Any) -> list[str] | None:
-        """Convert owners attribute to DAG representation."""
+        """Convert owners attribute to Dag representation."""
         if not (v is None or isinstance(v, str)):
             return v
 
@@ -122,14 +122,14 @@ class DAGPatchBody(StrictBaseModel):
 
 
 class DAGCollectionResponse(BaseModel):
-    """DAG Collection serializer for responses."""
+    """Dag Collection serializer for responses."""
 
     dags: list[DAGResponse]
     total_entries: int
 
 
 class DAGDetailsResponse(DAGResponse):
-    """Specific serializer for DAG Details responses."""
+    """Specific serializer for Dag Details responses."""
 
     model_config = ConfigDict(
         from_attributes=True,

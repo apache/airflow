@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Processes DAGs."""
+"""Processes Dags."""
 
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ class DagFileStat:
 
 @dataclass(frozen=True)
 class DagFileInfo:
-    """Information about a DAG file."""
+    """Information about a Dag file."""
 
     rel_path: Path
     bundle_name: str
@@ -152,9 +152,9 @@ def utc_epoch() -> datetime:
 @attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
-    Manage processes responsible for parsing DAGs.
+    Manage processes responsible for parsing Dags.
 
-    Given a list of DAG definition files, this kicks off several processors
+    Given a list of Dag definition files, this kicks off several processors
     in parallel to process them and put the results to a multiprocessing.Queue
     for DagFileProcessorAgent to harvest. The parallelism is limited and as the
     processors finish, more are launched. The files are processed over and
@@ -162,7 +162,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     :param max_runs: The number of times to parse each file. -1 for unlimited.
     :param bundle_names_to_parse: List of bundle names to parse. If None, all bundles are parsed.
-    :param processor_timeout: How long to wait before timing out a DAG file processor
+    :param processor_timeout: How long to wait before timing out a Dag file processor
     """
 
     max_runs: int
@@ -238,17 +238,17 @@ class DagFileProcessorManager(LoggingMixin):
         signal.signal(signal.SIGUSR2, signal.SIG_IGN)
 
     def _exit_gracefully(self, signum, frame):
-        """Clean up DAG file processors to avoid leaving orphan processes."""
+        """Clean up Dag file processors to avoid leaving orphan processes."""
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         self.log.debug("Current Stacktrace is: %s", "\n".join(map(str, inspect.stack())))
         self.terminate()
         self.end()
-        self.log.debug("Finished terminating DAG processors.")
+        self.log.debug("Finished terminating Dag processors.")
         sys.exit(os.EX_OK)
 
     def run(self):
         """
-        Use multiple processes to parse and generate tasks for the DAGs in parallel.
+        Use multiple processes to parse and generate tasks for the Dags in parallel.
 
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
@@ -275,7 +275,7 @@ class DagFileProcessorManager(LoggingMixin):
         return self._run_parsing_loop()
 
     def _scan_stale_dags(self):
-        """Scan and deactivate DAGs which are no longer present in files."""
+        """Scan and deactivate Dags which are no longer present in files."""
         now = time.monotonic()
         elapsed_time_since_refresh = now - self._last_deactivate_stale_dags_time
         if elapsed_time_since_refresh > self.parsing_cleanup_interval:
@@ -293,7 +293,7 @@ class DagFileProcessorManager(LoggingMixin):
         last_parsed: dict[DagFileInfo, datetime | None],
         session: Session = NEW_SESSION,
     ):
-        """Detect and deactivate DAGs which are no longer present in files."""
+        """Detect and deactivate Dags which are no longer present in files."""
         to_deactivate = set()
         bundle_names = {b.name for b in self._dag_bundles}
         query = select(
@@ -307,13 +307,13 @@ class DagFileProcessorManager(LoggingMixin):
 
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-            # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
+            # last_parsed_time is the processor_timeout. Longer than that indicates that the Dag is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                    self.log.info("Dag %s is missing and will be deactivated.", dag.dag_id)
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
@@ -325,11 +325,11 @@ class DagFileProcessorManager(LoggingMixin):
             )
             deactivated = deactivated_dagmodel.rowcount
             if deactivated:
-                self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+                self.log.info("Deactivated %i Dags which are no longer present in file.", deactivated)
 
     def _run_parsing_loop(self):
-        # initialize cache to mutualize calls to Variable.get in DAGs
-        # needs to be done before this process is forked to create the DAG parsing processes.
+        # initialize cache to mutualize calls to Variable.get in Dags
+        # needs to be done before this process is forked to create the Dag parsing processes.
         SecretCache.init()
 
         poll_time = 0.0
@@ -486,7 +486,7 @@ class DagFileProcessorManager(LoggingMixin):
         Stats.incr("dag_processing.other_callback_count")
 
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
-        """Refresh DAG bundles, if required."""
+        """Refresh Dag bundles, if required."""
         now = timezone.utcnow()
 
         # we don't need to check if it's time to refresh every loop - that is way too often
@@ -494,7 +494,7 @@ class DagFileProcessorManager(LoggingMixin):
         now_seconds = time.monotonic()
         if now_seconds < next_check and not self._force_refresh_bundles:
             self.log.debug(
-                "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
+                "Not time to check if Dag Bundles need refreshed yet - skipping. Next check in %.2f seconds",
                 next_check - now_seconds,
             )
             return
@@ -517,7 +517,7 @@ class DagFileProcessorManager(LoggingMixin):
                     now - (bundle_model.last_refreshed or utc_epoch())
                 ).total_seconds()
                 if bundle.supports_versioning:
-                    # we will also check the version of the bundle to see if another DAG processor has seen
+                    # we will also check the version of the bundle to see if another Dag processor has seen
                     # a new version
                     pre_refresh_version = (
                         self._bundle_versions.get(bundle.name) or bundle.get_current_version()
@@ -587,7 +587,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
-        # Build up a list of Python files that could contain DAGs
+        # Build up a list of Python files that could contain Dags
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
         rel_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
         self.log.info("Found %s files for bundle %s", len(rel_paths), bundle.name)
@@ -595,7 +595,7 @@ class DagFileProcessorManager(LoggingMixin):
         return rel_paths
 
     def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
-        """Deactivate DAGs that come from files that are no longer present in bundle."""
+        """Deactivate Dags that come from files that are no longer present in bundle."""
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """
@@ -667,10 +667,10 @@ class DagFileProcessorManager(LoggingMixin):
         Print out stats about how files are getting processed.
 
         :param known_files: a list of file paths that may contain Airflow
-            DAG definitions
+            Dag definitions
         :return: None
         """
-        # File Path: Path to the file containing the DAG definition
+        # File Path: Path to the file containing the Dag definition
         # PID: PID associated with the process that's processing the file. May
         # be empty.
         # Runtime: If the process is currently running, how long it's been
@@ -685,7 +685,7 @@ class DagFileProcessorManager(LoggingMixin):
             "File Path",
             "PID",
             "Current Duration",
-            "# DAGs",
+            "# Dags",
             "# Errors",
             "Last Duration",
             "Last Run At",
@@ -753,7 +753,7 @@ class DagFileProcessorManager(LoggingMixin):
             "\n"
             + "=" * 80
             + "\n"
-            + "DAG File Processing Stats\n\n"
+            + "Dag File Processing Stats\n\n"
             + tabulate(formatted_rows, headers=headers)
             + "\n"
             + "=" * 80
@@ -987,7 +987,7 @@ class DagFileProcessorManager(LoggingMixin):
         elif list_mode == "alphabetical":
             files.sort(key=attrgetter("rel_path"))
         elif list_mode == "random_seeded_by_host":
-            # Shuffle the list seeded by hostname so multiple DAG processors can work on different
+            # Shuffle the list seeded by hostname so multiple Dag processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(files)
 
@@ -1149,7 +1149,7 @@ def process_parse_results(
     if parsing_result is None:
         stat.import_errors = 1
     else:
-        # record DAGs and import errors to database
+        # record Dags and import errors to database
         import_errors = {}
         if parsing_result.import_errors:
             import_errors = {

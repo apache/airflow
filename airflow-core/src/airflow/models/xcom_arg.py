@@ -52,7 +52,7 @@ class SchedulerXComArg:
 
         The implementation should be the inverse function to ``serialize``,
         implementing given a data dict converted from this XComArg derivative,
-        how the original XComArg should be created. DAG serialization relies on
+        how the original XComArg should be created. Dag serialization relies on
         additional information added in ``serialize_xcom_arg`` to dispatch data
         dicts to the correct ``_deserialize`` information, so this function does
         not need to validate whether the incoming data contains correct keys.
@@ -220,7 +220,7 @@ def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
 
 
 def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
-    """DAG serialization interface."""
+    """Dag serialization interface."""
     klass = _XCOM_ARG_TYPES[data.get("type", "")]
     return klass._deserialize(data, dag)
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the branching TaskFlow API decorators.
+"""Example Dag demonstrating the usage of the branching TaskFlow API decorators.
 
 It shows how to use standard Python ``@task.branch`` as well as the external Python
 version ``@task.branch_external_python`` which calls an external Python interpreter and

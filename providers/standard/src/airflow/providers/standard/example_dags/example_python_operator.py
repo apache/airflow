@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating the usage of the classic Python operators to execute Python functions natively and
+Example Dag demonstrating the usage of the classic Python operators to execute Python functions natively and
 within a virtual environment.
 """
 
@@ -77,7 +77,7 @@ with DAG(
     # [START howto_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
     def my_sleeping_function(random_base):
-        """This is a function that will run within the DAG execution"""
+        """This is a function that will run within the Dag execution"""
         time.sleep(random_base)
 
     for i in range(5):

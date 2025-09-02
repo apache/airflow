@@ -25,9 +25,9 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 
 class LocalDagBundle(BaseDagBundle):
     """
-    Local DAG bundle - exposes a local directory as a DAG bundle.
+    Local Dag bundle - exposes a local directory as a Dag bundle.
 
-    :param path: Local path where the DAGs are stored
+    :param path: Local path where the Dags are stored
     """
 
     supports_versioning = False

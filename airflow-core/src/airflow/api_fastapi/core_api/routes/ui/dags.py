@@ -109,8 +109,8 @@ def get_dags(
     session: SessionDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
-    """Get DAGs with recent DagRun."""
-    # Fetch DAGs with their latest DagRun and apply filters
+    """Get Dags with recent DagRun."""
+    # Fetch Dags with their latest DagRun and apply filters
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
             last_dag_run_state,

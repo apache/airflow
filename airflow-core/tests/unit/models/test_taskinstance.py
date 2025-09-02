@@ -155,7 +155,7 @@ class TestTaskInstance:
 
     def test_set_task_dates(self, dag_maker):
         """
-        Test that tasks properly take start/end dates from DAGs
+        Test that tasks properly take start/end dates from Dags
         """
         with dag_maker("dag", end_date=DEFAULT_DATE + datetime.timedelta(days=10)) as dag:
             pass
@@ -243,7 +243,7 @@ class TestTaskInstance:
         op1.set_downstream(op2)
         assert op2.dag is dag
 
-        # can't assign across multiple DAGs
+        # can't assign across multiple Dags
         with pytest.raises(RuntimeError):
             op1.set_downstream(op4)
         with pytest.raises(RuntimeError):

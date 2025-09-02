@@ -90,7 +90,7 @@ class ExecuteTask(BaseWorkload):
     ti: TaskInstance
     """The TaskInstance to execute"""
     dag_rel_path: os.PathLike[str]
-    """The filepath where the DAG can be found (likely prefixed with `DAG_FOLDER/`)"""
+    """The filepath where the Dag can be found (likely prefixed with `DAG_FOLDER/`)"""
 
     bundle_info: BundleInfo
 

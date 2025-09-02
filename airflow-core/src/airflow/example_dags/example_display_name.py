@@ -29,7 +29,7 @@ from airflow.sdk import dag, task
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-    dag_display_name="Sample DAG with Display Name",
+    dag_display_name="Sample Dag with Display Name",
 )
 def example_display_name():
     sample_task_1 = EmptyOperator(

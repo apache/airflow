@@ -36,7 +36,7 @@ try:
     from kubernetes.client import models as k8s
 except ImportError:
     log.warning(
-        "The example_kubernetes_executor example DAG requires the kubernetes provider."
+        "The example_kubernetes_executor example Dag requires the kubernetes provider."
         " Please install it with: pip install apache-airflow[cncf.kubernetes]"
     )
     k8s = None

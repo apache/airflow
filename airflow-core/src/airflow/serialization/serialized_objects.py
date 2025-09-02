@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG and BaseOperator."""
+"""Serialized Dag and BaseOperator."""
 
 # TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
 # ruff: noqa: RET505
@@ -170,7 +170,7 @@ def encode_timezone(var: Timezone | FixedTimezone) -> str | int:
     if isinstance(var, Timezone):
         return var.name
     raise ValueError(
-        f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}. "
+        f"Dag timezone should be a pendulum.tz.Timezone, not {var!r}. "
         f"See {get_docs_url('timezone.html#time-zone-aware-dags')}"
     )
 
@@ -593,24 +593,24 @@ class BaseSerialization:
 
     @classmethod
     def to_json(cls, var: DAG | SchedulerOperator | dict | list | set | tuple) -> str:
-        """Stringify DAGs and operators contained by var and returns a JSON string of var."""
+        """Stringify Dags and operators contained by var and returns a JSON string of var."""
         return json.dumps(cls.to_dict(var), ensure_ascii=True)
 
     @classmethod
     def to_dict(cls, var: DAG | SchedulerOperator | dict | list | set | tuple) -> dict:
-        """Stringify DAGs and operators contained by var and returns a dict of var."""
+        """Stringify Dags and operators contained by var and returns a dict of var."""
         # Don't call on this class directly - only SerializedDAG or
         # SerializedBaseOperator should be used as the "entrypoint"
         raise NotImplementedError()
 
     @classmethod
     def from_json(cls, serialized_obj: str) -> BaseSerialization | dict | list | set | tuple:
-        """Deserialize json_str and reconstructs all DAGs and operators it contains."""
+        """Deserialize json_str and reconstructs all Dags and operators it contains."""
         return cls.from_dict(json.loads(serialized_obj))
 
     @classmethod
     def from_dict(cls, serialized_obj: dict[Encoding, Any]) -> BaseSerialization | dict | list | set | tuple:
-        """Deserialize a dict of type decorators and reconstructs all DAGs and operators it contains."""
+        """Deserialize a dict of type decorators and reconstructs all Dags and operators it contains."""
         return cls.deserialize(serialized_obj)
 
     @classmethod
@@ -1030,7 +1030,7 @@ class BaseSerialization:
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
-        """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
+        """Serialize Params dict for a Dag or task as a list of tuples to ensure ordering."""
         serialized_params = []
         for k, v in params.items():
             if isinstance(params, ParamsDict):
@@ -1043,13 +1043,13 @@ class BaseSerialization:
             if class_identity == "airflow.sdk.definitions.param.Param":
                 serialized_params.append((k, cls._serialize_param(v)))
             else:
-                # Auto-box other values into Params object like it is done by DAG parsing as well
+                # Auto-box other values into Params object like it is done by Dag parsing as well
                 serialized_params.append((k, cls._serialize_param(Param(v))))
         return serialized_params
 
     @classmethod
     def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
-        """Deserialize a DAG's Params dict."""
+        """Deserialize a Dag's Params dict."""
         if isinstance(encoded_params, collections.abc.Mapping):
             # in 2.9.2 or earlier params were serialized as JSON objects
             encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
@@ -1110,7 +1110,7 @@ class BaseSerialization:
 
 class DependencyDetector:
     """
-    Detects dependencies between DAGs.
+    Detects dependencies between Dags.
 
     :meta private:
     """
@@ -1193,7 +1193,7 @@ class DependencyDetector:
 
     @staticmethod
     def detect_dag_dependencies(dag: SdkDag | None) -> Iterable[DagDependency]:
-        """Detect dependencies set directly on the DAG object."""
+        """Detect dependencies set directly on the Dag object."""
         if not dag:
             return
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
@@ -1211,7 +1211,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     1. Instantiate a :class:`SerializedBaseOperator` object.
     2. Populate attributes with :func:`SerializedBaseOperator.populated_operator`.
-    3. When the task's containing DAG is available, fix references to the DAG
+    3. When the task's containing Dag is available, fix references to the DAG
        with :func:`SerializedBaseOperator.set_task_dag_references`.
     """
 
@@ -1519,7 +1519,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         This covers simple attributes that don't reference other things in the
         DAG. Setting references (such as ``op.dag`` and task dependencies) is
         done in ``set_task_dag_references`` instead, which is called after the
-        DAG is hydrated.
+        Dag is hydrated.
         """
         # Apply defaults by merging them into encoded_op BEFORE main deserialization
         encoded_op = cls._apply_defaults_to_encoded_op(encoded_op, client_defaults)
@@ -1658,11 +1658,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     @staticmethod
     def set_task_dag_references(task: SchedulerOperator, dag: DAG) -> None:
         """
-        Handle DAG references on an operator.
+        Handle Dag references on an operator.
 
         The operator should have been mostly populated earlier by calling
         ``populate_operator``. This function further fixes object references
-        that were not possible before the task's containing DAG is hydrated.
+        that were not possible before the task's containing Dag is hydrated.
         """
         task.dag = dag
 
@@ -1774,7 +1774,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @classmethod
     def detect_dependencies(cls, op: SdkOperator) -> set[DagDependency]:
-        """Detect between DAG dependencies for the operator."""
+        """Detect between Dag dependencies for the operator."""
         dependency_detector = DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
         return deps
@@ -2115,7 +2115,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             encoded_op: The serialized operator data (already includes applied default_args)
             client_defaults: SDK-specific defaults from client_defaults section
 
-        Note: DAG default_args are already applied during task creation in the SDK,
+        Note: Dag default_args are already applied during task creation in the SDK,
         so encoded_op contains the final resolved values.
 
         Hierarchy (lowest to highest priority):
@@ -2143,10 +2143,10 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         """
         Return mapped nodes that are direct dependencies of the current task.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record an Dag node's all downstream nodes instead.
 
         Note that this does not guarantee the returned tasks actually use the
         current task for task mapping, but only checks those task are mapped
@@ -2182,10 +2182,10 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         """
         Return mapped nodes that depend on the current task the expansion.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record an Dag node's all downstream nodes instead.
         """
         return (
             downstream
@@ -2228,7 +2228,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     @methodtools.lru_cache(maxsize=1)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
-        Return the number of mapped task instances that can be created on DAG run creation.
+        Return the number of mapped task instances that can be created on Dag run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -2250,7 +2250,7 @@ class SerializedDAG(DAG, BaseSerialization):
     """
     A JSON serializable representation of DAG.
 
-    A stringified DAG can only be used in the scope of scheduler and webserver, because fields
+    A stringified Dag can only be used in the scope of scheduler and webserver, because fields
     that are not serializable, such as functions and customer defined classes, are casted to
     strings.
     """
@@ -2275,7 +2275,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def serialize_dag(cls, dag: SdkDag) -> dict:
-        """Serialize a DAG into a JSON object."""
+        """Serialize a Dag into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
@@ -2305,13 +2305,13 @@ class SerializedDAG(DAG, BaseSerialization):
         except SerializationError:
             raise
         except Exception as e:
-            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}")
+            raise SerializationError(f"Failed to serialize Dag {dag.dag_id!r}: {e}")
 
     @classmethod
     def deserialize_dag(
         cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
     ) -> SerializedDAG:
-        """Deserializes a DAG from a JSON object."""
+        """Deserializes a Dag from a JSON object."""
         if "dag_id" not in encoded_dag:
             raise RuntimeError(
                 "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
@@ -2408,7 +2408,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def to_dict(cls, var: Any) -> dict:
-        """Stringifies DAGs and operators contained by var and returns a dict of var."""
+        """Stringifies Dags and operators contained by var and returns a dict of var."""
         # Clear any cached client_defaults to ensure fresh generation for this DAG
         # Clear lru_cache for client defaults
         SerializedBaseOperator.generate_client_defaults.cache_clear()
@@ -2421,7 +2421,7 @@ class SerializedDAG(DAG, BaseSerialization):
         if client_defaults:
             json_dict["client_defaults"] = {"tasks": client_defaults}
 
-        # Validate Serialized DAG with Json Schema. Raises Error if it mismatches
+        # Validate Serialized Dag with Json Schema. Raises Error if it mismatches
         cls.validate_schema(json_dict)
         return json_dict
 
@@ -2558,7 +2558,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
-        """Deserializes a python dict in to the DAG and operators it contains."""
+        """Deserializes a python dict in to the Dag and operators it contains."""
         ver = serialized_obj.get("__version", "<not present>")
         if ver not in (1, 2):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
@@ -2689,10 +2689,10 @@ MaybeSerializedDAG: TypeAlias = "DAG | LazyDeserializedDAG"
 
 class LazyDeserializedDAG(pydantic.BaseModel):
     """
-    Lazily build information from the serialized DAG structure.
+    Lazily build information from the serialized Dag structure.
 
-    An object that will present "enough" of the DAG like interface to update DAG db models etc, without having
-    to deserialize the full DAG and Task hierarchy.
+    An object that will present "enough" of the Dag like interface to update Dag db models etc, without having
+    to deserialize the full Dag and Task hierarchy.
     """
 
     data: dict
@@ -2795,7 +2795,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     def get_run_data_interval(self, run: DagRun) -> DataInterval | None:
         """Get the data interval of this run."""
         if run.dag_id is not None and run.dag_id != self.dag_id:
-            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
+            raise ValueError(f"Arguments refer to different Dags: {self.dag_id} != {run.dag_id}")
 
         data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
         if data_interval is None and run.logical_date is not None:

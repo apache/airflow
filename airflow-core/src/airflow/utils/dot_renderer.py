@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Renderer DAG (tasks and dependencies) to the graphviz object."""
+"""Renderer Dag (tasks and dependencies) to the graphviz object."""
 
 from __future__ import annotations
 
@@ -161,9 +161,9 @@ def _draw_nodes(
 
 def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Digraph:
     """
-    Render the DAG dependency to the DOT object.
+    Render the Dag dependency to the DOT object.
 
-    :param deps: List of DAG dependencies
+    :param deps: List of Dag dependencies
     :return: Graphviz object
     """
     if not graphviz:
@@ -194,11 +194,11 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
 
 def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
-    Render the DAG object to the DOT object.
+    Render the Dag object to the DOT object.
 
     If an task instance list is passed, the nodes will be painted according to task statuses.
 
-    :param dag: DAG that will be rendered.
+    :param dag: Dag that will be rendered.
     :param tis: List of task instances
     :return: Graphviz object
     """

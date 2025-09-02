@@ -25,7 +25,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class ParseImportError(Base):
-    """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
+    """Stores all Import Errors which are recorded when parsing Dags and displayed on the Webserver."""
 
     __tablename__ = "import_error"
     id = Column(Integer, primary_key=True)
@@ -35,6 +35,6 @@ class ParseImportError(Base):
     stacktrace = Column(Text)
 
     def full_file_path(self) -> str:
-        """Return the full file path of the dag."""
+        """Return the full file path of the Dag."""
         bundle = DagBundlesManager().get_bundle(self.bundle_name)
         return "/".join([str(bundle.path), self.filename])

@@ -98,7 +98,7 @@ class Deadline(Base):
 
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
-    # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
+    # If the Deadline Alert is for a DAG, store the Dag run ID from the dag_run.
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
@@ -187,7 +187,7 @@ class Deadline(Base):
 
         logger.debug("%d deadline records were deleted matching the conditions %s", deleted_count, conditions)
 
-        # Refresh any affected DAG runs.
+        # Refresh any affected Dag runs.
         for dagrun in dagruns_to_refresh:
             session.refresh(dagrun)
 

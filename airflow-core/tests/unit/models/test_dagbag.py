@@ -87,7 +87,7 @@ class TestDagBag:
 
     def test_get_existing_dag(self, tmp_path):
         """
-        Test that we're able to parse some example DAGs and retrieve them
+        Test that we're able to parse some example Dags and retrieve them
         """
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=True)
 
@@ -212,7 +212,7 @@ class TestDagBag:
         assert dagbag.has_logged
         assert (
             f"File {test_zip_path}:file_no_airflow_dag.py "
-            "assumed to contain no DAGs. Skipping." in caplog.text
+            "assumed to contain no Dags. Skipping." in caplog.text
         )
 
     def test_zip(self, tmp_path, test_zip_path):

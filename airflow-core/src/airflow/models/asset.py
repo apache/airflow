@@ -326,7 +326,7 @@ class AssetActive(Base):
     """
     Collection of active assets.
 
-    An asset is considered active if it is declared by the user in any DAG files.
+    An asset is considered active if it is declared by the user in any Dag files.
     AssetModel entries that are not active (also called orphaned in some parts
     of the code base) are still kept in the database, but have their corresponding
     entries in this table removed. This ensures we keep all possible history on
@@ -380,7 +380,7 @@ class AssetActive(Base):
 
 
 class DagScheduleAssetNameReference(Base):
-    """Reference from a DAG to an asset name reference of which it is a consumer."""
+    """Reference from a Dag to an asset name reference of which it is a consumer."""
 
     name = Column(
         String(length=1500).with_variant(
@@ -426,7 +426,7 @@ class DagScheduleAssetNameReference(Base):
 
 
 class DagScheduleAssetUriReference(Base):
-    """Reference from a DAG to an asset URI reference of which it is a consumer."""
+    """Reference from a Dag to an asset URI reference of which it is a consumer."""
 
     uri = Column(
         String(length=1500).with_variant(
@@ -472,7 +472,7 @@ class DagScheduleAssetUriReference(Base):
 
 
 class DagScheduleAssetAliasReference(Base):
-    """References from a DAG to an asset alias of which it is a consumer."""
+    """References from a Dag to an asset alias of which it is a consumer."""
 
     alias_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
@@ -514,7 +514,7 @@ class DagScheduleAssetAliasReference(Base):
 
 
 class DagScheduleAssetReference(Base):
-    """References from a DAG to an asset of which it is a consumer."""
+    """References from a Dag to an asset of which it is a consumer."""
 
     asset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)

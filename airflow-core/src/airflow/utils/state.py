@@ -59,7 +59,7 @@ class TaskInstanceState(str, Enum):
     # Use None instead if need this state.
 
     # Set by the scheduler
-    REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
+    REMOVED = TerminalTIState.REMOVED  # Task vanished from Dag before it ran
     SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
 
     # Set by the task instance itself

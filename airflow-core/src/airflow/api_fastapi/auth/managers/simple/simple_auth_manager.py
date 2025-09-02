@@ -71,7 +71,7 @@ class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), E
     # VIEWER role gives all read-only permissions
     VIEWER = "VIEWER", 0
 
-    # USER role gives viewer role permissions + access to DAGs
+    # USER role gives viewer role permissions + access to Dags
     USER = "USER", 1
 
     # OP role gives user role permissions + access to connections, config, pools, variables

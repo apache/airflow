@@ -62,15 +62,15 @@ def fetch_dag_run_from_run_id_or_logical_date_string(
     session: Session,
 ) -> tuple[DagRun | None, datetime.datetime | None]:
     """
-    Try to find a DAG run with a given string value.
+    Try to find a Dag run with a given string value.
 
     The string value may be a run ID, or a logical date in string form. We first
     try to use it as a run_id; if a run is found, it is returned as-is.
 
     Otherwise, the string value is parsed into a datetime. If that works, it is
-    used to find a DAG run.
+    used to find a Dag run.
 
-    The return value is a two-tuple. The first item is the found DAG run (or
+    The return value is a two-tuple. The first item is the found Dag run (or
     *None* if one cannot be found). The second is the parsed logical date. This
     second value can be used to create a new run by the calling function when
     one cannot be found here.

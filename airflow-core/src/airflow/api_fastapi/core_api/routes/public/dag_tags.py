@@ -57,7 +57,7 @@ def get_dag_tags(
     readable_tags_filter: ReadableTagsFilterDep,
     session: SessionDep,
 ) -> DAGTagCollectionResponse:
-    """Get all DAG tags."""
+    """Get all Dag tags."""
     query = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
         statement=query,

@@ -351,7 +351,7 @@ def materialize_asset(
     user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
-    """Materialize an asset by triggering a DAG run that produces it."""
+    """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
         session.scalars(
             select(TaskOutletAssetReference.dag_id)
@@ -362,11 +362,11 @@ def materialize_asset(
     )
 
     if (dag_id := next(dag_id_it, None)) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No DAG materializes asset with ID: {asset_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No Dag materializes asset with ID: {asset_id}")
     if next(dag_id_it, None) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"More than one DAG materializes asset with ID: {asset_id}",
+            f"More than one Dag materializes asset with ID: {asset_id}",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)

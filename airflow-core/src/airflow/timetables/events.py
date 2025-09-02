@@ -33,11 +33,11 @@ if TYPE_CHECKING:
 
 class EventsTimetable(Timetable):
     """
-    Timetable that schedules DAG runs at specific listed datetimes.
+    Timetable that schedules Dag runs at specific listed datetimes.
 
     Suitable for predictable but truly irregular scheduling such as sporting events.
 
-    :param event_dates: List of datetimes for the DAG to run at. Duplicates will be ignored. Must be finite
+    :param event_dates: List of datetimes for the Dag to run at. Duplicates will be ignored. Must be finite
                         and of reasonable size as it will be loaded in its entirety.
     :param restrict_to_events: Whether manual runs should use the most recent event or
         the current time

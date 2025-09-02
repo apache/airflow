@@ -65,10 +65,10 @@ def generate_distributed_airflow_diagram():
         graph_attr=graph_attr,
         edge_attr=edge_attr,
     ):
-        dag_author = User("DAG Author")
+        dag_author = User("Dag Author")
         deployment_manager = User("Deployment Manager")
 
-        dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix(), height="1.8")
+        dag_files = Custom("Dag files", MULTIPLE_FILES_IMAGE.as_posix(), height="1.8")
         dag_author >> Edge(color="brown", style="solid", reverse=False, label="author\n\n") >> dag_files
 
         with Cluster("Parsing, Scheduling & Executing"):

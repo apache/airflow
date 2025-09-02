@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the simplest use of the `@dag` decorator."""
+"""Example Dag demonstrating the simplest use of the `@dag` decorator."""
 
 from __future__ import annotations
 

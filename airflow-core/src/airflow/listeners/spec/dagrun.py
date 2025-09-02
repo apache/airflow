@@ -29,14 +29,14 @@ hookspec = HookspecMarker("airflow")
 
 @hookspec
 def on_dag_run_running(dag_run: DagRun, msg: str):
-    """Execute when dag run state changes to RUNNING."""
+    """Execute when Dag run state changes to RUNNING."""
 
 
 @hookspec
 def on_dag_run_success(dag_run: DagRun, msg: str):
-    """Execute when dag run state changes to SUCCESS."""
+    """Execute when Dag run state changes to SUCCESS."""
 
 
 @hookspec
 def on_dag_run_failed(dag_run: DagRun, msg: str):
-    """Execute when dag run state changes to FAIL."""
+    """Execute when Dag run state changes to FAIL."""

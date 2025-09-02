@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG for demonstrating the usage of event driven scheduling using assets and triggers.
+Example Dag for demonstrating the usage of event driven scheduling using assets and triggers.
 """
 
 from __future__ import annotations

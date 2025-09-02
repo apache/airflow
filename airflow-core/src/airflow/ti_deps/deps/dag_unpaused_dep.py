@@ -22,7 +22,7 @@ from airflow.utils.session import provide_session
 
 
 class DagUnpausedDep(BaseTIDep):
-    """Determines whether a task's DAG is not paused."""
+    """Determines whether a task's Dag is not paused."""
 
     NAME = "Dag Not Paused"
     IGNORABLE = True
@@ -30,4 +30,4 @@ class DagUnpausedDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         if ti.task.dag.get_is_paused(session):
-            yield self._failing_status(reason=f"Task's DAG '{ti.dag_id}' is paused.")
+            yield self._failing_status(reason=f"Task's Dag '{ti.dag_id}' is paused.")

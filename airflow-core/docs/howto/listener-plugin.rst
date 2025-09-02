@@ -23,7 +23,7 @@ Airflow has feature that allows to add listener for monitoring and tracking
 the task state using Plugins.
 
 This is a simple example listener plugin of Airflow that helps to track the task
-state and collect useful metadata information about the task, Dag run and dag.
+state and collect useful metadata information about the task, Dag run and Dag.
 
 This is an example plugin for Airflow that allows to create listener plugin of Airflow.
 This plugin works by using SQLAlchemy's event mechanism. It watches

@@ -15,18 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
+Example Dag for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
 asset expression-based scheduling.
 
 Notes on usage:
 
-Turn on all the DAGs.
+Turn on all the Dags.
 
-Once the "asset_s3_bucket_producer" DAG is triggered, the "asset_s3_bucket_consumer" DAG should be triggered upon completion.
+Once the "asset_s3_bucket_producer" Dag is triggered, the "asset_s3_bucket_consumer" Dag should be triggered upon completion.
 This is because the asset alias "example-alias" is used to add an asset event to the asset "s3://bucket/my-task"
 during the "produce_asset_events_through_asset_alias" task.
-As the DAG "asset-alias-consumer" relies on asset alias "example-alias" which was previously unresolved,
-the DAG "asset-alias-consumer" (along with all the DAGs in the same file) will be re-parsed and
+As the Dag "asset-alias-consumer" relies on asset alias "example-alias" which was previously unresolved,
+the Dag "asset-alias-consumer" (along with all the Dags in the same file) will be re-parsed and
 thus update its schedule to the asset "s3://bucket/my-task" and will also be triggered.
 """
 

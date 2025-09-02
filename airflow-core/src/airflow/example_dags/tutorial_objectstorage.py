@@ -56,7 +56,7 @@ base = ObjectStoragePath("s3://aws_default@airflow-tutorial-data/")
 def tutorial_objectstorage():
     """
     ### Object Storage Tutorial Documentation
-    This is a tutorial DAG to showcase the usage of the Object Storage API.
+    This is a tutorial Dag to showcase the usage of the Object Storage API.
     Documentation that goes along with the Airflow Object Storage tutorial is
     located
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/objectstorage.html)

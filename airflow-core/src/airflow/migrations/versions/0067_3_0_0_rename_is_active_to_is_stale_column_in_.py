@@ -37,7 +37,7 @@ airflow_version = "3.0.0"
 
 
 def upgrade():
-    """Rename is_active to is_stale column in DAG table."""
+    """Rename is_active to is_stale column in Dag table."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("is_active", new_column_name="is_stale", type_=sa.Boolean)
 
@@ -45,7 +45,7 @@ def upgrade():
 
 
 def downgrade():
-    """Revert renaming of is_active to is_stale column in DAG table."""
+    """Revert renaming of is_active to is_stale column in Dag table."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("is_stale", new_column_name="is_active", type_=sa.Boolean)
 

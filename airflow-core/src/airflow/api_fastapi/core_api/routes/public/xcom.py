@@ -155,7 +155,7 @@ def get_xcom_entries(
     """
     Get all XCom entries.
 
-    This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+    This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
     """
     query = select(XComModel)
     if dag_id != "~":
@@ -224,7 +224,7 @@ def create_xcom_entry(
     from airflow.models.dagrun import DagRun
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-    # Validate DAG ID
+    # Validate Dag ID
     dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     # Validate Task ID
@@ -235,7 +235,7 @@ def create_xcom_entry(
             status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in dag: `{dag_id}`"
         )
 
-    # Validate DAG Run ID
+    # Validate Dag Run ID
     if not dag_run:
         if not dag_run:
             raise HTTPException(

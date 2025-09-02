@@ -46,7 +46,7 @@ class ReferenceMixin(Protocol):
         """
         Find underlying XCom references this contains.
 
-        This is used by the DAG parser to recursively find task dependencies.
+        This is used by the Dag parser to recursively find task dependencies.
 
         :meta private:
         """

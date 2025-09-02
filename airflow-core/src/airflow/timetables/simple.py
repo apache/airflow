@@ -101,9 +101,9 @@ class OnceTimetable(_TrivialTimetable):
     ) -> DagRunInfo | None:
         if last_automated_data_interval is not None:
             return None  # Already run, no more scheduling.
-        # If the user does not specify an explicit start_date, the dag is ready.
+        # If the user does not specify an explicit start_date, the Dag is ready.
         run_after = restriction.earliest or timezone.coerce_datetime(timezone.utcnow())
-        # "@once" always schedule to the start_date determined by the DAG and
+        # "@once" always schedule to the start_date determined by the Dag and
         # tasks, regardless of catchup or not. This has been the case since 1.10
         # and we're inheriting it.
         if restriction.latest is not None and run_after > restriction.latest:
@@ -160,7 +160,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     """
     Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
+    This should not be directly used anywhere, but only set if a Dag is triggered by assets.
 
     :meta private:
     """

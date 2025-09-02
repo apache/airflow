@@ -231,7 +231,7 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     :param template: A Jinja2 template to render.
     :param context: The Airflow task context to render the template with.
     :param native: If set to *True*, render the template into a native type. A
-        DAG can enable this with ``render_template_as_native_obj=True``.
+        Dag can enable this with ``render_template_as_native_obj=True``.
     :returns: The render result.
     """
     context = copy.copy(context)

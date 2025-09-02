@@ -119,7 +119,7 @@ class ConcurrencyMap:
 
     It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
     to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
-    to # of task instances in the given state list in each DAG run.
+    to # of task instances in the given state list in each Dag run.
     """
 
     def __init__(self):
@@ -159,10 +159,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     It figures out the latest runs for each task and sees if the dependencies
     for the next schedules are met.
     If so, it creates appropriate TaskInstances and sends run commands to the
-    executor. It does this for each task in each DAG and repeats.
+    executor. It does this for each task in each Dag and repeats.
 
     :param num_runs: The number of times to run the scheduling loop. If you
-        have a large number of DAG files this could complete before each file
+        have a large number of Dag files this could complete before each file
         has been parsed. -1 for unlimited times.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
@@ -297,11 +297,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Conditions include:
         - pool limits
-        - DAG max_active_tasks
+        - Dag max_active_tasks
         - executor state
         - priority
         - max active tis per DAG
-        - max active tis per DAG run
+        - max active tis per Dag run
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :return: list[airflow.models.TaskInstance]
@@ -478,14 +478,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Though we can execute tasks with lower priority if there's enough room
                     continue
 
-                # Check to make sure that the task max_active_tasks of the DAG hasn't been
+                # Check to make sure that the task max_active_tasks of the Dag hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
                 dag_run_key = (dag_id, task_instance.run_id)
                 current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
                 dag_max_active_tasks = task_instance.dag_model.max_active_tasks
                 self.log.info(
-                    "DAG %s has %s/%s running and queued tasks",
+                    "Dag %s has %s/%s running and queued tasks",
                     dag_id,
                     current_active_tasks_per_dag_run,
                     dag_max_active_tasks,
@@ -493,7 +493,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if current_active_tasks_per_dag_run >= dag_max_active_tasks:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
+                        "from Dag %s is >= to the DAG's max_active_tasks limit of %s",
                         task_instance,
                         dag_id,
                         dag_max_active_tasks,
@@ -503,14 +503,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
-                    # serialized DAG the better.
+                    # serialized Dag the better.
                     serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
                         dag_run=task_instance.dag_run, session=session
                     )
                     # If the dag is missing, fail the task and continue to the next task.
                     if not serialized_dag:
                         self.log.error(
-                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            "Dag '%s' for task instance %s not found in serialized_dag table",
                             dag_id,
                             task_instance,
                         )
@@ -554,7 +554,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                         if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
                             self.log.info(
-                                "Not executing %s since the task concurrency per DAG run for"
+                                "Not executing %s since the task concurrency per Dag run for"
                                 " this task has been reached.",
                                 task_instance,
                             )
@@ -679,7 +679,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         HA note: This function is a "critical section" meaning that only a single scheduler process can
         execute this function at the same time. This is achieved by doing
         ``SELECT ... from pool FOR UPDATE``. For DBs that support NOWAIT, a "blocked" scheduler will skip
-        this and continue on with other tasks (creating new DAG runs, progressing TIs from None to SCHEDULED
+        this and continue on with other tasks (creating new Dag runs, progressing TIs from None to SCHEDULED
         etc.); DBs that don't support this (such as MariaDB or MySQL 5.x) the other schedulers will wait for
         the lock before continuing.
 
@@ -753,7 +753,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Respond to executor events.
 
         This is a classmethod because this is also used in `dag.test()`.
-        `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
+        `dag.test` execute Dags with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
@@ -885,7 +885,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 try:
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                     cls.logger().error(
-                        "DAG '%s' for task instance %s not found in serialized_dag table",
+                        "Dag '%s' for task instance %s not found in serialized_dag table",
                         ti.dag_id,
                         ti,
                     )
@@ -1184,10 +1184,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _run_scheduler_loop(self) -> None:
         """
-        Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
+        Harvest Dag parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
 
         The main steps in the loop are:
-            #. Harvest DAG parsing results through DagFileProcessorAgent
+            #. Harvest Dag parsing results through DagFileProcessorAgent
             #. Find and queue executable tasks
                 #. Change task instance state in DB
                 #. Queue tasks in executor
@@ -1354,14 +1354,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Make the main scheduling decisions.
 
         It:
-        - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
+        - Creates any necessary Dag runs by examining the next_dagrun_create_after column of DagModel
 
           Since creating Dag Runs is a relatively time consuming process, we select only 10 dags by default
           (configurable via ``scheduler.max_dagruns_to_create_per_loop`` setting) - putting this higher will
           mean one scheduler could spend a chunk of time creating dag runs, and not ever get around to
           scheduling tasks.
 
-        - Finds the "next n oldest" running DAG Runs to examine for scheduling (n=20 by default, configurable
+        - Finds the "next n oldest" running Dag Runs to examine for scheduling (n=20 by default, configurable
           via ``scheduler.max_dagruns_per_loop_to_schedule`` config setting) and tries to progress state (TIs
           to SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
 
@@ -1369,8 +1369,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
           We don't select all dagruns at once, because the rows are selected with row locks, meaning
           that only one scheduler can "process them", even it is waiting behind other dags. Increasing this
-          limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
-          (>500 tasks.) DAGs
+          limit will allow more throughput for smaller Dags but will likely slow down throughput for larger
+          (>500 tasks.) Dags
 
         - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
           to the executor.
@@ -1404,7 +1404,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Sending callbacks to the database, so it must be done outside of prohibit_commit.
                 self._send_dag_callbacks_to_processor(dag, callback_to_run)
             else:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_run.dag_id)
 
         with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
@@ -1487,7 +1487,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
-        """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        """Create a Dag run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -1518,7 +1518,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for dag_model in dag_models:
             dag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
             data_interval = dag.get_next_data_interval(dag_model)
@@ -1572,7 +1572,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
-        """For DAGs that are triggered by assets, create dag runs."""
+        """For Dags that are triggered by assets, create dag runs."""
         triggered_dates: dict[str, DateTime] = {
             dag_id: timezone.coerce_datetime(last_asset_event_time)
             for dag_id, last_asset_event_time in triggered_date_by_dag.items()
@@ -1581,12 +1581,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for dag_model in dag_models:
             dag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
-                    "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
                 )
                 continue
@@ -1650,13 +1650,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
-        # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
+        # If last_dag_run is defined, the update was triggered by a scheduling decision in this Dag run.
         # In such case, schedule next only if last_dag_run is finished and was an automated run.
         if last_dag_run and not (
             last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
         ):
             return False
-        # If the DAG never schedules skip save runtime
+        # If the Dag never schedules skip save runtime
         if not dag.timetable.can_be_scheduled:
             return False
 
@@ -1670,7 +1670,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if active_non_backfill_runs >= dag.max_active_runs:
             self.log.info(
-                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                "Dag %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
                 active_non_backfill_runs,
                 dag.max_active_runs,
@@ -1751,7 +1751,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             backfill = dag_run.backfill
             dag = dag_run.dag = cached_get_dag(dag_run)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
             active_runs = active_runs_of_dags[(dag_id, backfill_id)]
             if backfill_id is not None:
@@ -1834,7 +1834,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
             if not dag or not dag_model:
-                self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+                self.log.error("Couldn't find Dag %s in Dag bag or database!", dag_run.dag_id)
                 return callback
 
             if (
@@ -1897,7 +1897,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run=dag_run, session=session
             ):
                 self.log.warning(
-                    "The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
+                    "The Dag disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
                 )
                 return callback
 
@@ -1937,16 +1937,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
         """
-        Only run DagRun.verify integrity if Serialized DAG has changed since it is slow.
+        Only run DagRun.verify integrity if Serialized Dag has changed since it is slow.
 
-        Return True if we determine that DAG still exists.
+        Return True if we determine that Dag still exists.
         """
         latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
         if TYPE_CHECKING:
             assert latest_dag_version
 
         if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
-            self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
+            self.log.debug("Dag %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
         dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
@@ -2042,7 +2042,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task = dag.get_task(ti.task_id)
             except Exception:
                 self.log.warning(
-                    "The DAG or task could not be found. If a failure callback exists, it will not be run.",
+                    "The Dag or task could not be found. If a failure callback exists, it will not be run.",
                     exc_info=True,
                 )
             else:
@@ -2293,7 +2293,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         have a no-longer-running LocalTaskJob will be failed by the scheduler.
 
         A TaskCallbackRequest is also created for the killed task instance to be
-        handled by the DAG processor, and the executor is informed to no longer
+        handled by the Dag processor, and the executor is informed to no longer
         count the task instance as running when it calculates parallelism.
         """
         with create_session() as session:
@@ -2385,7 +2385,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @staticmethod
     def _generate_task_instance_heartbeat_timeout_message_details(ti: TI) -> dict[str, Any]:
         task_instance_heartbeat_timeout_message_details = {
-            "DAG Id": ti.dag_id,
+            "Dag Id": ti.dag_id,
             "Task Id": ti.task_id,
             "Run Id": ti.run_id,
         }
@@ -2417,7 +2417,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Check assets orphanization and update their active entry.
 
-        An orphaned asset is no longer referenced in any DAG schedule parameters
+        An orphaned asset is no longer referenced in any Dag schedule parameters
         or task outlets. Active assets (non-orphaned) have entries in AssetActive
         and must have unique names and URIs.
 
@@ -2559,8 +2559,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return e
 
         # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
-        # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
-        # they request is available and if not, disallow the DAG to be scheduled.
+        # modification, since the Dag parser will validate the tasks in the Dag and ensure the executor
+        # they request is available and if not, disallow the Dag to be scheduled.
         # Keeping this exception handling because this is a critical issue if we do somehow find
         # ourselves here and the user should get some feedback about that.
         self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)

@@ -63,9 +63,9 @@ def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
 @attrs.define(
     kw_only=True,
     # Disable custom __getstate__ and __setstate__ generation since it interacts
-    # badly with Airflow's DAG serialization and pickling. When a mapped task is
+    # badly with Airflow's Dag serialization and pickling. When a mapped task is
     # deserialized, subclasses are coerced into MappedOperator, but when it goes
-    # through DAG pickling, all attributes defined in the subclasses are dropped
+    # through Dag pickling, all attributes defined in the subclasses are dropped
     # by attrs's custom state management. Since attrs does not do anything too
     # special here (the logic is only important for slots=True), we use Python's
     # built-in implementation, which works (as proven by good old BaseOperator).
@@ -74,7 +74,7 @@ def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
 )
 # TODO (GH-52141): Duplicate DAGNode in the scheduler.
 class MappedOperator(DAGNode):
-    """Object representing a mapped operator in a DAG."""
+    """Object representing a mapped operator in a Dag."""
 
     # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
     operator_class: dict[str, Any]
@@ -296,7 +296,7 @@ class MappedOperator(DAGNode):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Fields to extract from JSON-Serialized DAG."""
+        """Fields to extract from JSON-Serialized Dag."""
         return frozenset(
             {
                 "_disallow_kwargs_override",

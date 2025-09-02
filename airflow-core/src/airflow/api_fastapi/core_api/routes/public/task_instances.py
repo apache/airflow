@@ -449,8 +449,8 @@ def get_task_instances(
     """
     Get list of task instances.
 
-    This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-    and DAG runs.
+    This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all Dags
+    and Dag runs.
     """
     dag_run = None
     query = (

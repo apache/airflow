@@ -39,6 +39,6 @@ def create_dag(suffix):
 
 
 # 26 queries for parsing file with one DAG, 17 queries more for each new dag.
-# As a result 94 queries for this file with 5 DAGs.
+# As a result 94 queries for this file with 5 Dags.
 for i in range(0, 5):
     globals()[f"dag_{i}"] = create_dag(f"dag_{i}")

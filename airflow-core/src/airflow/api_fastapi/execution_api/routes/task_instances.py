@@ -472,7 +472,7 @@ def _create_ti_state_update_query_and_update_state(
         session.flush()
 
         # TODO: HANDLE execution timeout later as it requires a call to the DB
-        # either get it from the serialised DAG or get it from the API
+        # either get it from the serialised Dag or get it from the API
 
         query = update(TI).where(TI.id == ti_id_str)
 
@@ -557,7 +557,7 @@ def ti_skip_downstream(
     tasks = ti_patch_payload.tasks
 
     dag_id, run_id = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str)).fetchone()
-    log.debug("Retrieved DAG and run info", dag_id=dag_id, run_id=run_id)
+    log.debug("Retrieved Dag and run info", dag_id=dag_id, run_id=run_id)
 
     task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
     log.debug("Prepared task IDs for skipping", task_ids=task_ids)
@@ -700,7 +700,7 @@ def get_previous_successful_dagrun(
     """
     ti_id_str = str(task_instance_id)
     bind_contextvars(ti_id=ti_id_str)
-    log.debug("Retrieving previous successful DAG run")
+    log.debug("Retrieving previous successful Dag run")
 
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
     if not task_instance or not task_instance.logical_date:
@@ -718,11 +718,11 @@ def get_previous_successful_dagrun(
         .limit(1)
     )
     if not dag_run:
-        log.debug("No previous successful DAG run found")
+        log.debug("No previous successful Dag run found")
         return PrevSuccessfulDagRunResponse()
 
     log.debug(
-        "Found previous successful DAG run",
+        "Found previous successful Dag run",
         dag_id=dag_run.dag_id,
         run_id=dag_run.run_id,
         logical_date=dag_run.logical_date,
@@ -858,7 +858,7 @@ def _get_group_tasks(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"Task group {task_group_id} not found in DAG {dag_id}",
+                "message": f"Task group {task_group_id} not found in Dag {dag_id}",
             },
         )
 

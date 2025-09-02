@@ -1273,7 +1273,7 @@ class TestDag:
     def test_rich_comparison_ops(self):
         test_dag_id = "test_rich_comparison_ops"
 
-        class DAGsubclass(DAG):
+        class Dagsubclass(DAG):
             pass
 
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -1284,8 +1284,8 @@ class TestDag:
         dag_diff_load_time = DAG(test_dag_id, schedule=None, default_args=args)
         dag_diff_name = DAG(test_dag_id + "_neq", schedule=None, default_args=args)
 
-        dag_subclass = DAGsubclass(test_dag_id, schedule=None, default_args=args)
-        dag_subclass_diff_name = DAGsubclass(test_dag_id + "2", schedule=None, default_args=args)
+        dag_subclass = Dagsubclass(test_dag_id, schedule=None, default_args=args)
+        dag_subclass_diff_name = Dagsubclass(test_dag_id + "2", schedule=None, default_args=args)
 
         for dag_ in [dag_eq, dag_diff_name, dag_subclass, dag_subclass_diff_name]:
             dag_.last_loaded = dag.last_loaded
@@ -2279,7 +2279,7 @@ class TestDagModel:
 
     def test_dags_needing_dagruns_only_unpaused(self, testing_dag_bundle):
         """
-        We should never create dagruns for unpaused DAGs
+        We should never create dagruns for unpaused Dags
         """
         dag = DAG(dag_id="test_dags", schedule=None, start_date=DEFAULT_DATE)
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")

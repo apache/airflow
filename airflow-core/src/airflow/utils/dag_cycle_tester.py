@@ -38,7 +38,7 @@ def check_cycle(dag: DAG) -> None:
     .. deprecated:: 3.1.0
         This function is deprecated. Use `dag.check_cycle()` method instead.
 
-    :param dag: The DAG to check for cycles
+    :param dag: The Dag to check for cycles
     :raises AirflowDagCycleException: If cycle is found in the DAG.
     """
     # No warning here since we already warned on import

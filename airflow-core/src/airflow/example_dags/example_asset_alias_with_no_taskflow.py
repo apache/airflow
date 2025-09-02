@@ -15,20 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
+Example Dag for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
 asset expression-based scheduling.
 
 Notes on usage:
 
-Turn on all the DAGs.
+Turn on all the Dags.
 
-Before running any DAG, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG will show as "unresolved AssetAlias".
+Before running any DAG, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" Dag will show as "unresolved AssetAlias".
 This is expected because the asset alias has not been resolved into any asset yet.
 
-Once the "asset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "asset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
+Once the "asset_s3_bucket_producer_with_no_taskflow" Dag is triggered, the "asset_s3_bucket_consumer_with_no_taskflow" Dag should be triggered upon completion.
 This is because the asset alias "example-alias-no-taskflow" is used to add an asset event to the asset "s3://bucket/my-task-with-no-taskflow"
-during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Asset" as
-the asset alias "example-alias-no-taskflow" is now resolved to the asset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
+during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" Dag should change to "Asset" as
+the asset alias "example-alias-no-taskflow" is now resolved to the asset "s3://bucket/my-task-with-no-taskflow" and this Dag should also be triggered.
 """
 
 from __future__ import annotations

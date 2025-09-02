@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Delete DAGs APIs."""
+"""Delete Dags APIs."""
 
 from __future__ import annotations
 
@@ -42,9 +42,9 @@ log = logging.getLogger(__name__)
 @provide_session
 def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session = NEW_SESSION) -> int:
     """
-    Delete a DAG by a dag_id.
+    Delete a Dag by a dag_id.
 
-    :param dag_id: the dag_id of the DAG to delete
+    :param dag_id: the dag_id of the Dag to delete
     :param keep_records_in_log: whether keep records of the given dag_id
         in the Log table in the backend database (for reasons like auditing).
         The default value is True.

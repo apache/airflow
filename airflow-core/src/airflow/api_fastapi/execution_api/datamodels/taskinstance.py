@@ -285,7 +285,7 @@ class DagRun(StrictBaseModel):
 
     # TODO: `dag_id` and `run_id` are duplicated from TaskInstance
     #   See if we can avoid sending these fields from API server and instead
-    #   use the TaskInstance data to get the DAG run information in the client (Task Execution Interface).
+    #   use the TaskInstance data to get the Dag run information in the client (Task Execution Interface).
     dag_id: str
     run_id: str
 
@@ -306,7 +306,7 @@ class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
     dag_run: DagRun
-    """DAG run information for the task instance."""
+    """Dag run information for the task instance."""
 
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""

@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Example DAG to demonstrate reading asset events annotated with extra information.
+Example Dag to demonstrate reading asset events annotated with extra information.
 
 Also see examples in ``example_outlet_event_extra.py``.
 """

@@ -181,7 +181,7 @@ class TaskMap(TaskInstanceDependencies):
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
             if total_length is None:
-                # If the DAG is partial, it's likely that the upstream tasks
+                # If the Dag is partial, it's likely that the upstream tasks
                 # are not done yet, so the task can't fail yet.
                 if not task.dag or not task.dag.partial:
                     unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED

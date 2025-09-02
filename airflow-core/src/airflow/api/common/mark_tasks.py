@@ -79,7 +79,7 @@ def set_state(
 
     task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
     if len(task_dags) > 1:
-        raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
+        raise ValueError(f"Received tasks from multiple Dags: {task_dags}")
     dag = next(iter(task_dags))
     if dag is None:
         raise ValueError("Received tasks with no DAG")
@@ -143,7 +143,7 @@ def find_task_relatives(tasks, downstream, upstream):
 
 @provide_session
 def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
-    """Return DAG executions' run_ids."""
+    """Return Dag executions' run_ids."""
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     if current_dagrun.logical_date is None:
         return [run_id]
@@ -162,7 +162,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
     start_date = current_dagrun.logical_date if not past else first_dagrun.logical_date
     if not dag.timetable.can_be_scheduled:
-        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
+        # If the Dag never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
         run_ids = sorted({d.run_id for d in dag_runs})
@@ -205,9 +205,9 @@ def set_dag_run_state_to_success(
 
     Set for a specific logical date and its task instances to success.
 
-    :param dag: the DAG of which to alter state
+    :param dag: the Dag of which to alter state
     :param run_id: the run_id to start looking from
-    :param commit: commit DAG and tasks to be altered to the database
+    :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -266,9 +266,9 @@ def set_dag_run_state_to_failed(
 
     Set for a specific logical date and its task instances to failed.
 
-    :param dag: the DAG of which to alter state
-    :param run_id: the DAG run_id to start looking from
-    :param commit: commit DAG and tasks to be altered to the database
+    :param dag: the Dag of which to alter state
+    :param run_id: the Dag run_id to start looking from
+    :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -356,9 +356,9 @@ def __set_dag_run_state_to_running_or_queued(
     """
     Set the dag run for a specific logical date to running.
 
-    :param dag: the DAG of which to alter state
+    :param dag: the Dag of which to alter state
     :param run_id: the id of the DagRun
-    :param commit: commit DAG and tasks to be altered to the database
+    :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated

@@ -25,7 +25,7 @@ from airflow.utils.state import DagRunState
 
 
 class CalendarTimeRangeResponse(BaseModel):
-    """Represents a summary of DAG runs for a specific calendar time range."""
+    """Represents a summary of Dag runs for a specific calendar time range."""
 
     date: datetime
     state: Literal[

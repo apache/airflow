@@ -23,7 +23,7 @@ from airflow.utils.state import DagRunState
 
 
 class DAGRunLightResponse(BaseModel):
-    """DAG Run serializer for responses."""
+    """Dag Run serializer for responses."""
 
     id: int
     dag_id: str

@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Remove SubDAGs: ``is_subdag`` & ``root_dag_id`` columns from DAG table.
+Remove SubDags: ``is_subdag`` & ``root_dag_id`` columns from Dag table.
 
 Revision ID: d0f1c55954fa
 Revises: 044f740568ec
@@ -41,7 +41,7 @@ airflow_version = "3.0.0"
 
 
 def upgrade():
-    """Remove ``is_subdag`` column from DAGs table."""
+    """Remove ``is_subdag`` column from Dags table."""
     with op.batch_alter_table("dag") as batch_op:
         batch_op.drop_column("is_subdag")
         batch_op.drop_index("idx_root_dag_id")
@@ -49,7 +49,7 @@ def upgrade():
 
 
 def downgrade():
-    """Add ``is_subdag`` column in DAGs table."""
+    """Add ``is_subdag`` column in Dags table."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.add_column(sa.Column("is_subdag", sa.BOOLEAN(), nullable=True))
         batch_op.add_column(sa.Column("root_dag_id", StringID(), nullable=True))

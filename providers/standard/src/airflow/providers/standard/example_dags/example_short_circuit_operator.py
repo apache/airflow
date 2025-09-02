@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the ShortCircuitOperator."""
+"""Example Dag demonstrating the usage of the ShortCircuitOperator."""
 
 from __future__ import annotations
 

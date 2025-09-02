@@ -68,9 +68,9 @@ if TYPE_CHECKING:
 
 class DagFileParseRequest(BaseModel):
     """
-    Request for DAG File Parsing.
+    Request for Dag File Parsing.
 
-    This is the request that the manager will send to the DAG parser with the dag file and
+    This is the request that the manager will send to the Dag parser with the dag file and
     any other necessary metadata.
     """
 
@@ -85,9 +85,9 @@ class DagFileParseRequest(BaseModel):
 
 class DagFileParsingResult(BaseModel):
     """
-    Result of DAG File Parsing.
+    Result of Dag File Parsing.
 
-    This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
+    This is the result of a successful Dag parse, in this class, we gather all serialized Dags,
     import errors and warnings to send back to the scheduler to store in the DB.
     """
 
@@ -148,7 +148,7 @@ def _parse_file_entrypoint():
 
     from airflow.sdk.execution_time import comms, task_runner
 
-    # Parse DAG file, send JSON back up!
+    # Parse Dag file, send JSON back up!
     comms_decoder = comms.CommsDecoder[ToDagProcessor, ToManager](
         body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
     )
@@ -180,7 +180,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         load_op_links=False,
     )
     if msg.callback_requests:
-        # If the request is for callback, we shouldn't serialize the DAGs
+        # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
         return None
 
@@ -345,9 +345,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
     """
     Parses dags with Task SDK API.
 
-    This class provides a wrapper and management around a subprocess to parse a specific DAG file.
+    This class provides a wrapper and management around a subprocess to parse a specific Dag file.
 
-    Since DAGs are written with the Task SDK, we need to parse them in a task SDK process such that
+    Since Dags are written with the Task SDK, we need to parse them in a task SDK process such that
     we can use the Task SDK definitions when serializing. This prevents potential conflicts with classes
     in core Airflow.
     """

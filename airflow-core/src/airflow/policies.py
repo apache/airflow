@@ -38,7 +38,7 @@ def task_policy(task: BaseOperator) -> None:
     Allow altering tasks after they are loaded in the DagBag.
 
     It allows administrator to rewire some task's parameters.  Alternatively you can raise
-    ``AirflowClusterPolicyViolation`` exception to stop DAG from being executed.
+    ``AirflowClusterPolicyViolation`` exception to stop Dag from being executed.
 
     Here are a few examples of how this can be useful:
 
@@ -53,16 +53,16 @@ def task_policy(task: BaseOperator) -> None:
 @local_settings_hookspec
 def dag_policy(dag: DAG) -> None:
     """
-    Allow altering DAGs after they are loaded in the DagBag.
+    Allow altering Dags after they are loaded in the DagBag.
 
     It allows administrator to rewire some DAG's parameters.
     Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
-    to stop DAG from being executed.
+    to stop Dag from being executed.
 
     Here are a few examples of how this can be useful:
 
-    * You could enforce default user for DAGs
-    * Check if every DAG has configured tags
+    * You could enforce default user for Dags
+    * Check if every Dag has configured tags
 
     :param dag: dag to be mutated
     """
@@ -108,12 +108,12 @@ def get_airflow_context_vars(context) -> dict[str, str]:  # type: ignore[empty-b
 @local_settings_hookspec(firstresult=True)
 def get_dagbag_import_timeout(dag_file_path: str) -> int | float:  # type: ignore[empty-body]
     """
-    Allow for dynamic control of the DAG file parsing timeout based on the DAG file path.
+    Allow for dynamic control of the Dag file parsing timeout based on the Dag file path.
 
-    It is useful when there are a few DAG files requiring longer parsing times, while others do not.
-    You can control them separately instead of having one value for all DAG files.
+    It is useful when there are a few Dag files requiring longer parsing times, while others do not.
+    You can control them separately instead of having one value for all Dag files.
 
-    If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+    If the return value is less than or equal to 0, it means no timeout during the Dag parsing.
     """
 
 

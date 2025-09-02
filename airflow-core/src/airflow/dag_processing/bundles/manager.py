@@ -60,7 +60,7 @@ def _validate_bundle_config(config_list):
         if bundle_name == _example_dag_bundle_name:
             raise AirflowConfigException(
                 f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
-                " Example DAGs can be enabled with the '[core] load_examples' config."
+                " Example Dags can be enabled with the '[core] load_examples' config."
             )
 
         all_names.append(bundle_name)
@@ -139,7 +139,7 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
 
 
 class DagBundlesManager(LoggingMixin):
-    """Manager for DAG bundles."""
+    """Manager for Dag bundles."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -148,7 +148,7 @@ class DagBundlesManager(LoggingMixin):
 
     def parse_config(self) -> None:
         """
-        Get all DAG bundle configurations and store in instance variable.
+        Get all Dag bundle configurations and store in instance variable.
 
         If a bundle class for a given name has already been imported, it will not be imported again.
 
@@ -176,11 +176,11 @@ class DagBundlesManager(LoggingMixin):
             class_ = import_string(cfg["classpath"])
             kwargs = cfg["kwargs"]
             self._bundle_config[name] = (class_, kwargs)
-        self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+        self.log.info("Dag bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
-        self.log.debug("Syncing DAG bundles to the database")
+        self.log.debug("Syncing Dag bundles to the database")
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
             bundle_instance = self.get_bundle(name)
@@ -219,11 +219,11 @@ class DagBundlesManager(LoggingMixin):
                 new_bundle.template_params = new_params
 
                 session.add(new_bundle)
-                self.log.info("Added new DAG bundle %s to the database", name)
+                self.log.info("Added new Dag bundle %s to the database", name)
 
         for name, bundle in stored.items():
             bundle.active = False
-            self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+            self.log.warning("Dag bundle %s is no longer found in config and has been disabled", name)
             from airflow.models.errors import ParseImportError
 
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
@@ -260,12 +260,12 @@ class DagBundlesManager(LoggingMixin):
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
         """
-        Get a DAG bundle by name.
+        Get a Dag bundle by name.
 
-        :param name: The name of the DAG bundle.
-        :param version: The version of the DAG bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
+        :param name: The name of the Dag bundle.
+        :param version: The version of the Dag bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
 
-        :return: The DAG bundle.
+        :return: The Dag bundle.
         """
         cfg_tuple = self._bundle_config.get(name)
         if not cfg_tuple:
@@ -275,9 +275,9 @@ class DagBundlesManager(LoggingMixin):
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
-        Get all DAG bundles.
+        Get all Dag bundles.
 
-        :return: list of DAG bundles.
+        :return: list of Dag bundles.
         """
         for name, (class_, kwargs) in self._bundle_config.items():
             yield class_(name=name, version=None, **kwargs)

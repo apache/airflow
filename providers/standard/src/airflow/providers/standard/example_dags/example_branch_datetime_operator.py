@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating the usage of DateTimeBranchOperator with datetime as well as time objects as
+Example Dag demonstrating the usage of DateTimeBranchOperator with datetime as well as time objects as
 targets.
 """
 

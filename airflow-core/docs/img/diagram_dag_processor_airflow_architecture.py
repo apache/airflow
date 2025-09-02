@@ -67,7 +67,7 @@ def generate_dag_processor_airflow_diagram():
         operations_user = User("Operations User")
         deployment_manager = User("Deployment Manager")
 
-        with Cluster("Security perimeter with no DAG code execution", graph_attr={"bgcolor": "lightgrey"}):
+        with Cluster("Security perimeter with no Dag code execution", graph_attr={"bgcolor": "lightgrey"}):
             with Cluster("Scheduling\n\n"):
                 schedulers = Custom("Scheduler(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
@@ -78,15 +78,15 @@ def generate_dag_processor_airflow_diagram():
 
         metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
 
-        dag_author = User("DAG Author")
+        dag_author = User("Dag Author")
 
-        with Cluster("Security perimeter with DAG code execution"):
+        with Cluster("Security perimeter with Dag code execution"):
             with Cluster("Execution"):
                 workers = Custom("Worker(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 triggerer = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
             with Cluster("Parsing"):
                 dag_processors = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-            dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix())
+            dag_files = Custom("Dag files", MULTIPLE_FILES_IMAGE.as_posix())
 
         plugins_and_packages = Custom("Plugin folder\n& installed packages", PACKAGES_IMAGE.as_posix())
 

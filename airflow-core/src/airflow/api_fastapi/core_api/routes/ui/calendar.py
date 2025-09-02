@@ -57,7 +57,7 @@ def get_calendar(
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     granularity: Literal["hourly", "daily"] = "daily",
 ) -> CalendarTimeRangeCollectionResponse:
-    """Get calendar data for a DAG including historical and planned DAG runs."""
+    """Get calendar data for a Dag including historical and planned Dag runs."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     calendar_service = CalendarService()

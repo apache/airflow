@@ -103,7 +103,7 @@ paths:
       tags:
       - DAG
       summary: Get Dags
-      description: Get DAGs with recent DagRun.
+      description: Get Dags with recent DagRun.
       operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
@@ -257,9 +257,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -267,9 +267,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
       responses:
         '200':
           description: Successful Response
@@ -409,7 +409,7 @@ paths:
       tags:
       - Dashboard
       summary: Dag Stats
-      description: Return basic DAG stats with counts of DAGs in various states.
+      description: Return basic Dag stats with counts of Dags in various states.
       operationId: dag_stats
       responses:
         '200':
@@ -854,7 +854,7 @@ paths:
       tags:
       - Calendar
       summary: Get Calendar
-      description: Get calendar data for a DAG including historical and planned DAG
+      description: Get calendar data for a Dag including historical and planned Dag
         runs.
       operationId: get_calendar
       security:
@@ -1107,7 +1107,7 @@ components:
       - state
       - count
       title: CalendarTimeRangeResponse
-      description: Represents a summary of DAG runs for a specific calendar time range.
+      description: Represents a summary of Dag runs for a specific calendar time range.
     ConfigResponse:
       properties:
         page_size:
@@ -1276,7 +1276,7 @@ components:
       - end_date
       - state
       title: DAGRunLightResponse
-      description: DAG Run serializer for responses.
+      description: Dag Run serializer for responses.
     DAGRunResponse:
       properties:
         dag_run_id:
@@ -1396,7 +1396,7 @@ components:
       - bundle_version
       - dag_display_name
       title: DAGRunResponse
-      description: DAG Run serializer for responses.
+      description: Dag Run serializer for responses.
     DAGRunStates:
       properties:
         queued:
@@ -1418,7 +1418,7 @@ components:
       - success
       - failed
       title: DAGRunStates
-      description: DAG Run States for responses.
+      description: Dag Run States for responses.
     DAGRunTypes:
       properties:
         backfill:
@@ -1440,7 +1440,7 @@ components:
       - manual
       - asset_triggered
       title: DAGRunTypes
-      description: DAG Run Types for responses.
+      description: Dag Run Types for responses.
     DAGWithLatestDagRunsCollectionResponse:
       properties:
         total_entries:
@@ -1456,7 +1456,7 @@ components:
       - total_entries
       - dags
       title: DAGWithLatestDagRunsCollectionResponse
-      description: DAG with latest dag runs collection response serializer.
+      description: Dag with latest dag runs collection response serializer.
     DAGWithLatestDagRunsResponse:
       properties:
         dag_id:
@@ -1613,7 +1613,7 @@ components:
       - latest_dag_runs
       - file_token
       title: DAGWithLatestDagRunsResponse
-      description: DAG with latest dag runs response serializer.
+      description: Dag with latest dag runs response serializer.
     DagRunState:
       type: string
       enum:
@@ -1669,7 +1669,7 @@ components:
       - dag_id
       - dag_display_name
       title: DagTagResponse
-      description: DAG Tag serializer for responses.
+      description: Dag Tag serializer for responses.
     DagVersionResponse:
       properties:
         id:
@@ -1738,7 +1738,7 @@ components:
       - running_dag_count
       - queued_dag_count
       title: DashboardDagStatsResponse
-      description: Dashboard DAG Stats serializer for responses.
+      description: Dashboard Dag Stats serializer for responses.
     EdgeResponse:
       properties:
         source_id:
@@ -1888,7 +1888,7 @@ components:
       - dag_id
       - task_instances
       title: GridTISummaries
-      description: DAG Run model for the Grid UI.
+      description: Dag Run model for the Grid UI.
     HTTPExceptionResponse:
       properties:
         detail:

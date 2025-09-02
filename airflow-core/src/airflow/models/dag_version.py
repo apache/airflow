@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 
 
 class DagVersion(Base):
-    """Model to track the versions of DAGs in the database."""
+    """Model to track the versions of Dags in the database."""
 
     __tablename__ = "dag_version"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
@@ -87,9 +87,9 @@ class DagVersion(Base):
         """
         Write a new DagVersion into database.
 
-        Checks if a version of the DAG exists and increments the version number if it does.
+        Checks if a version of the Dag exists and increments the version number if it does.
 
-        :param dag_id: The DAG ID.
+        :param dag_id: The Dag ID.
         :param version_number: The version number.
         :param session: The database session.
         :return: The DagVersion object.
@@ -119,7 +119,7 @@ class DagVersion(Base):
         """
         Get the select object to get the latest version of the DAG.
 
-        :param dag_id: The DAG ID.
+        :param dag_id: The Dag ID.
         :return: The select object.
         """
         query = select(cls).where(cls.dag_id == dag_id)
@@ -145,10 +145,10 @@ class DagVersion(Base):
         """
         Get the latest version of the DAG.
 
-        :param dag_id: The DAG ID.
+        :param dag_id: The Dag ID.
         :param session: The database session.
-        :param load_dag_model: Whether to load the DAG model.
-        :return: The latest version of the DAG or None if not found.
+        :param load_dag_model: Whether to load the Dag model.
+        :return: The latest version of the Dag or None if not found.
         """
         return session.scalar(
             cls._latest_version_select(dag_id, bundle_version=bundle_version, load_dag_model=load_dag_model)
@@ -166,10 +166,10 @@ class DagVersion(Base):
         """
         Get the version of the DAG.
 
-        :param dag_id: The DAG ID.
+        :param dag_id: The Dag ID.
         :param version_number: The version number.
         :param session: The database session.
-        :return: The version of the DAG or None if not found.
+        :return: The version of the Dag or None if not found.
         """
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
         if version_number:

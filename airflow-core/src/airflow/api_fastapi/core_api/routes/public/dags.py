@@ -126,7 +126,7 @@ def get_dags(
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
 ) -> DAGCollectionResponse:
-    """Get all DAGs."""
+    """Get all Dags."""
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
             dag_run_start_date_range,
@@ -287,7 +287,7 @@ def patch_dags(
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
-    """Patch multiple DAGs."""
+    """Patch multiple Dags."""
     if update_mask:
         if update_mask != ["is_paused"]:
             raise HTTPException(
@@ -336,10 +336,10 @@ def patch_dags(
     dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
 def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
-    """Mark the DAG as favorite."""
+    """Mark the Dag as favorite."""
     dag = session.get(DagModel, dag_id)
     if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Dag with id '{dag_id}' not found")
 
     user_id = str(user.get_id())
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
@@ -352,10 +352,10 @@ def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
 def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
-    """Unmark the DAG as favorite."""
+    """Unmark the Dag as favorite."""
     dag = session.get(DagModel, dag_id)
     if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Dag with id '{dag_id}' not found")
 
     user_id = str(user.get_id())
 
@@ -367,7 +367,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     ).first()
 
     if not favorite_exists:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="DAG is not marked as favorite")
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Dag is not marked as favorite")
 
     session.execute(
         delete(DagFavorite).where(

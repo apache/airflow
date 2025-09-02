@@ -215,7 +215,7 @@ def clear_task_instances(
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
-    :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+    :param run_on_latest_version: whether to run on latest serialized Dag and Bundle version
 
     :meta private:
     """
@@ -247,7 +247,7 @@ def clear_task_instances(
                     assert ti.task
                 ti.max_tries = ti.try_number + task.retries
             else:
-                # Ignore errors when updating max_tries if the DAG or
+                # Ignore errors when updating max_tries if the Dag or
                 # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
@@ -860,7 +860,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         # We always ignore schedule in dagrun lookup when `state` is given
-        # or the DAG is never scheduled. For legacy reasons, when
+        # or the Dag is never scheduled. For legacy reasons, when
         # `catchup=True`, we use `get_previous_scheduled_dagrun` unless
         # `ignore_schedule` is `True`.
         ignore_schedule = state is not None or not dag.timetable.can_be_scheduled
@@ -1063,7 +1063,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :param verbose: whether to turn on more verbose logging
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
-        :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
+        :param ignore_depends_on_past: Ignore depends_on_past Dag attribute
         :param wait_for_past_depends_before_skipping: Wait for past depends before mark the ti as skipped
         :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
         :param ignore_ti_state: Disregards previous task instance state
@@ -1618,7 +1618,7 @@ class TaskInstance(Base, LoggingMixin):
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
         # Use the original task directly - scheduler only needs to check email settings
-        # Actual callbacks are handled by the DAG processor, not the scheduler
+        # Actual callbacks are handled by the Dag processor, not the scheduler
         task = getattr(ti, "task", None)
 
         if not ti.is_eligible_to_retry():

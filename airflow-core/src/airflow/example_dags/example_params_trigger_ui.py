@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage DAG params to model a trigger UI with a user form.
+"""Example Dag demonstrating the usage Dag params to model a trigger UI with a user form.
 
-This example DAG generates greetings to a list of provided names in selected languages in the logs.
+This example Dag generates greetings to a list of provided names in selected languages in the logs.
 """
 
 from __future__ import annotations

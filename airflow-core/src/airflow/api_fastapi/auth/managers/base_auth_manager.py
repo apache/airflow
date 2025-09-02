@@ -187,8 +187,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         :param method: the method to perform
         :param user: the user to performing the action
-        :param access_entity: the kind of DAG information the authorization request is about.
-            If not provided, the authorization request is about the DAG itself
+        :param access_entity: the kind of Dag information the authorization request is about.
+            If not provided, the authorization request is about the Dag itself
         :param details: optional details about the DAG
         """
 
@@ -347,9 +347,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
-        Get DAGs the user has access to.
+        Get Dags the user has access to.
 
-        By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
+        By default, reads all the Dags and check individually if the user has permissions to access the DAG.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
 
@@ -368,9 +368,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         method: ResourceMethod = "GET",
     ) -> set[str]:
         """
-        Filter DAGs the user has access to.
+        Filter Dags the user has access to.
 
-        :param dag_ids: the list of DAG ids
+        :param dag_ids: the list of Dag ids
         :param user: the user
         :param method: the method to filter on
         """

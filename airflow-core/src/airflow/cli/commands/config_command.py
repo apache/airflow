@@ -647,9 +647,9 @@ CONFIGS_CHANGES = [
         was_removed=False,
         new_default="False",
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
-        "This means that DAGs without explicit definition of the `catchup` parameter will not "
+        "This means that Dags without explicit definition of the `catchup` parameter will not "
         "catchup by default. "
-        "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
+        "If your Dags rely on catchup behavior, not explicitly defined in the Dag definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
     ),

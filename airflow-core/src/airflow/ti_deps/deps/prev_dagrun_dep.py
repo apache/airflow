@@ -61,7 +61,7 @@ class PrevDagrunDep(BaseTIDep):
     @staticmethod
     def _has_tis(dagrun: DagRun, task_id: str, *, session: Session) -> bool:
         """
-        Check if a task has presence in the specified DAG run.
+        Check if a task has presence in the specified Dag run.
 
         This function exists for easy mocking in tests.
         """
@@ -139,7 +139,7 @@ class PrevDagrunDep(BaseTIDep):
             assert ti.task
         if dep_context.ignore_depends_on_past:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
-            reason = "The context specified that the state of past DAGs could be ignored."
+            reason = "The context specified that the state of past Dags could be ignored."
             yield self._passing_status(reason=reason)
             return
 
@@ -171,13 +171,13 @@ class PrevDagrunDep(BaseTIDep):
             last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session)
         else:
             last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
-        # First ever run for this DAG.
+        # First ever run for this Dag.
         if not last_dagrun:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        # There was a DAG run, but the task wasn't active back then.
+        # There was a Dag run, but the task wasn't active back then.
         if catchup and last_dagrun.logical_date < ti.task.start_date:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
