@@ -2401,7 +2401,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def _deserialize_dag_internal(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
-        """Handle the main DAG deserialization logic."""
+        """Handle the main Dag deserialization logic."""
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
