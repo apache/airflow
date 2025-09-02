@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-02T07:50:36.365887
+# This constraints file was automatically generated on 2025-09-02T13:54:50.350697
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -50,7 +50,7 @@ Mako==1.3.10
 Markdown==3.8.2
 MarkupSafe==3.0.2
 PyAthena==3.17.1
-PyGithub==2.7.0
+PyGithub==2.8.0
 PyHive==0.7.0
 PyJWT==2.10.1
 PyMySQL==1.1.2
@@ -622,7 +622,7 @@ sortedcontainers==2.4.0
 soupsieve==2.8
 spython==0.3.14
 sqlalchemy-bigquery==1.15.0
-sqlalchemy-spanner==1.15.0
+sqlalchemy-spanner==1.16.0
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
