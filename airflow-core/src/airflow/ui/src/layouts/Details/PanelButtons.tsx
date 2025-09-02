@@ -30,7 +30,6 @@ import {
   VStack,
   Text,
   Box,
-  Input,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -45,6 +44,7 @@ import type { DagRunType } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { SearchBar } from "src/components/SearchBar";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { dagRunTypeOptions } from "src/constants/stateOptions";
@@ -56,14 +56,14 @@ type Props = {
   readonly dagView: string;
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
-  readonly runTypeFilter: Array<DagRunType> | null;
+  readonly runTypeFilter: DagRunType | undefined;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
-  readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<Array<DagRunType> | null>>;
+  readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
-  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | null>>;
+  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
-  readonly triggeringUserFilter: string | null;
+  readonly triggeringUserFilter: string | undefined;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -134,20 +134,20 @@ export const PanelButtons = ({
     }
   };
 
-  const handleRunTypeChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
+  const handleRunTypeChange = (event: SelectValueChangeDetails<string>) => {
     const [val] = event.value;
 
     if (val === undefined || val === "all") {
-      setRunTypeFilter(null);
+      setRunTypeFilter(undefined);
     } else {
-      setRunTypeFilter([val as DagRunType]);
+      setRunTypeFilter(val as DagRunType);
     }
   };
 
-  const handleTriggeringUserChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value.trim();
+  const handleTriggeringUserChange = (value: string) => {
+    const trimmedValue = value.trim();
 
-    setTriggeringUserFilter(value === "" ? null : value);
+    setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
   };
 
   const handleFocus = (view: string) => {
@@ -326,24 +326,23 @@ export const PanelButtons = ({
                           data-testid="run-type-filter"
                           onValueChange={handleRunTypeChange}
                           size="sm"
-                          value={[runTypeFilter?.[0] ?? "all"]}
+                          value={[runTypeFilter ?? "all"]}
                         >
                           <Select.Label>{translate("common:dagRun.runType")}</Select.Label>
                           <Select.Control>
                             <Select.Trigger>
                               <Select.ValueText>
-                                {(runTypeFilter?.[0] ?? "all") === "all"
-                                  ? translate("dags:filters.allRunTypes")
-                                  : runTypeFilter?.[0] !== undefined && (
-                                      <Flex gap={1}>
-                                        <RunTypeIcon runType={runTypeFilter[0]} />
-                                        {translate(
-                                          dagRunTypeOptions.items.find(
-                                            (item) => item.value === runTypeFilter[0],
-                                          )?.label ?? "",
-                                        )}
-                                      </Flex>
+                                {(runTypeFilter ?? "all") === "all" ? (
+                                  translate("dags:filters.allRunTypes")
+                                ) : (
+                                  <Flex gap={1}>
+                                    <RunTypeIcon runType={runTypeFilter!} />
+                                    {translate(
+                                      dagRunTypeOptions.items.find((item) => item.value === runTypeFilter)
+                                        ?.label ?? "",
                                     )}
+                                  </Flex>
+                                )}
                               </Select.ValueText>
                             </Select.Trigger>
                             <Select.IndicatorGroup>
@@ -371,11 +370,12 @@ export const PanelButtons = ({
                           <Text fontSize="xs" mb={1}>
                             {translate("common:dagRun.triggeringUser")}
                           </Text>
-                          <Input
+                          <SearchBar
+                            defaultValue={triggeringUserFilter ?? ""}
+                            hideAdvanced
+                            hotkeyDisabled
                             onChange={handleTriggeringUserChange}
-                            placeholder={translate("common:filters.triggeringUserPlaceholder")}
-                            size="sm"
-                            value={triggeringUserFilter ?? ""}
+                            placeHolder={translate("common:filters.triggeringUserPlaceholder")}
                           />
                         </VStack>
                         {shouldShowToggleButtons ? (

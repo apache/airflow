@@ -60,13 +60,13 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
-  const [runTypeFilter, setRunTypeFilter] = useLocalStorage<Array<DagRunType> | null>(
+  const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
     `run_type_filter-${dagId}`,
-    null,
+    undefined,
   );
-  const [triggeringUserFilter, setTriggeringUserFilter] = useLocalStorage<string | null>(
+  const [triggeringUserFilter, setTriggeringUserFilter] = useLocalStorage<string | undefined>(
     `triggering_user_filter-${dagId}`,
-    null,
+    undefined,
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);

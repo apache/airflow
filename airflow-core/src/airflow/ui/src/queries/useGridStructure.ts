@@ -30,8 +30,8 @@ export const useGridStructure = ({
 }: {
   hasActiveRun?: boolean;
   limit?: number;
-  runType?: Array<DagRunType> | null;
-  triggeringUser?: string | null;
+  runType?: DagRunType | undefined;
+  triggeringUser?: string | undefined;
 }) => {
   const { dagId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -42,7 +42,7 @@ export const useGridStructure = ({
       dagId,
       limit,
       orderBy: ["-run_after"],
-      runType: runType ?? undefined,
+      runType: runType ? [runType] : undefined,
       triggeringUser: triggeringUser ?? undefined,
     },
     undefined,

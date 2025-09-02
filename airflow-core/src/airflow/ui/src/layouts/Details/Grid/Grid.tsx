@@ -41,9 +41,9 @@ dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly limit: number;
-  readonly runType?: Array<DagRunType> | null;
+  readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
-  readonly triggeringUser?: string | null;
+  readonly triggeringUser?: string | undefined;
 };
 
 export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
