@@ -36,7 +36,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.settings import json
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
