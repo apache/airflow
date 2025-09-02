@@ -396,9 +396,9 @@ class TestKubernetesExecutor:
             pytest.param(
                 HTTPResponse(body="Too many requests, please try again later.", status=429),
                 1,
-                False,
-                State.FAILED,
-                id="429 Too Many Requests (non-JSON body) (task_publish_max_retries=1)",
+                True,
+                State.SUCCESS,
+                id="429 Too Many Requests (non-JSON body) (task_publish_max_retries=1) (retry succeeded)",
             ),
             pytest.param(
                 HTTPResponse(body="", status=429),
@@ -406,6 +406,13 @@ class TestKubernetesExecutor:
                 False,
                 State.FAILED,
                 id="429 Too Many Requests (empty body)",
+            ),
+            pytest.param(
+                HTTPResponse(body="", status=429),
+                1,
+                True,
+                State.SUCCESS,
+                id="429 Too Many Requests (empty body) (task_publish_max_retries=1) (retry succeeded)",
             ),
         ],
     )
