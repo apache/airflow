@@ -34,7 +34,6 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, Log, TaskInstance
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
