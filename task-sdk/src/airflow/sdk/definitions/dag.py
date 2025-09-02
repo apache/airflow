@@ -1144,7 +1144,7 @@ class DAG:
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import timezone
-        from airflow.sdk._shared.configuration import secrets_backend_list
+        from airflow.sdk._shared.configuration import ensure_secrets_loaded
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -1179,6 +1179,8 @@ class DAG:
             local_secrets = LocalFilesystemBackend(
                 variables_file_path=variable_file_path, connections_file_path=conn_file_path
             )
+            # TODO: cross verify if this is ok
+            secrets_backend_list = ensure_secrets_loaded()
             secrets_backend_list.insert(0, local_secrets)
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
