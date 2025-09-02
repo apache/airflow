@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -33,9 +32,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import Column, String, inspect, select
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.attributes import NO_VALUE
 from tabulate import tabulate
 
 from airflow import settings
@@ -52,9 +48,7 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, StringID
-from airflow.models.dag_version import DagVersion
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
     correct_maybe_zipped,
@@ -77,9 +71,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
-    from airflow.models import DagRun
     from airflow.models.dagwarning import DagWarning
-    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.utils.types import ArgNotSet
 
 
