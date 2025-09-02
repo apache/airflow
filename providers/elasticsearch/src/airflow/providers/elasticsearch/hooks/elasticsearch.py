@@ -17,24 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Generator
+from collections.abc import Generator, Iterable, Mapping
 from copy import deepcopy
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast, Optional, Union, Type
+from typing import TYPE_CHECKING, Any, cast
 from urllib import parse
 from warnings import warn
 
 from elasticsearch import Elasticsearch
-from elasticsearch.helpers import bulk, streaming_bulk, parallel_bulk, scan, reindex
 from elasticsearch.exceptions import ConnectionError as ESConnectionError
+from elasticsearch.helpers import bulk, parallel_bulk, reindex, scan, streaming_bulk
 
-from airflow.exceptions import AirflowException, AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
-
     from elastic_transport import ObjectApiResponse
 
     from airflow.models.connection import Connection as AirflowConnection
@@ -297,9 +296,7 @@ class ElasticsearchHook(BaseHook):
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 
-    def __init__(
-        self, elasticsearch_conn_id: str = None, log_query: bool = False, **kwargs: Any
-    ) -> None:
+    def __init__(self, elasticsearch_conn_id: str = None, log_query: bool = False, **kwargs: Any) -> None:
         """
         Initialize the Elasticsearch Hook.
 
@@ -328,7 +325,7 @@ class ElasticsearchHook(BaseHook):
         }
 
     @cached_property
-    def conn(self) -> "AirflowConnection":
+    def conn(self) -> AirflowConnection:
         """Get the Airflow connection object for Elasticsearch."""
         return self.get_connection(self.conn_id)
 
@@ -492,8 +489,8 @@ class ElasticsearchHook(BaseHook):
 
     def scan(
         self,
-        index: Optional[Union[str, list[str]]] = None,
-        query: Optional[dict[str, Any]] = None,
+        index: str | list[str] | None = None,
+        query: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> Generator[dict[str, Any], None, None]:
         """
@@ -513,9 +510,9 @@ class ElasticsearchHook(BaseHook):
 
     def reindex(
         self,
-        source_index: Union[str, list[str]],
+        source_index: str | list[str],
         target_index: str,
-        query: Optional[dict[str, Any]] = None,
+        query: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[int, list]:
         """
@@ -535,7 +532,7 @@ class ElasticsearchHook(BaseHook):
 
         return reindex(self.client, source_index=source_index, target_index=target_index, **reindex_kwargs)
 
-    def search_to_pandas(self, index: str, query: dict[str, Any], **kwargs: Any) -> "pd.DataFrame":
+    def search_to_pandas(self, index: str, query: dict[str, Any], **kwargs: Any) -> pd.DataFrame:
         """
         Execute a search query and return results as a pandas DataFrame.
 
@@ -568,10 +565,10 @@ class ElasticsearchHook(BaseHook):
 
     def scan_to_pandas(
         self,
-        index: Optional[Union[str, list[str]]] = None,
-        query: Optional[dict[str, Any]] = None,
+        index: str | list[str] | None = None,
+        query: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> "pd.DataFrame":
+    ) -> pd.DataFrame:
         """
         Scan all documents matching the query and return results as a pandas DataFrame.
 
@@ -632,10 +629,10 @@ class ElasticsearchHook(BaseHook):
     def create_index(
         self,
         index_name: str,
-        mappings: Optional[dict[str, Any]] = None,
-        settings: Optional[dict[str, Any]] = None,
+        mappings: dict[str, Any] | None = None,
+        settings: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Create a new Elasticsearch index with proper error handling.
 
@@ -664,9 +661,8 @@ class ElasticsearchHook(BaseHook):
             if "already exists" in str(e).lower():
                 self.log.warning(f"Index {index_name} already exists")
                 return None
-            else:
-                # Let other Elasticsearch exceptions pass through for proper error handling
-                raise
+            # Let other Elasticsearch exceptions pass through for proper error handling
+            raise
 
     def delete_index(self, index_name: str, **kwargs: Any) -> dict[str, Any]:
         """
@@ -706,7 +702,7 @@ class ElasticsearchHook(BaseHook):
                 if "client" in self.__dict__:
                     del self.__dict__["client"]
 
-    def __enter__(self) -> "ElasticsearchHook":
+    def __enter__(self) -> ElasticsearchHook:
         """
         Context manager entry point.
 
@@ -715,7 +711,7 @@ class ElasticsearchHook(BaseHook):
         return self
 
     def __exit__(
-        self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any | None
     ) -> None:
         """
         Context manager exit point.

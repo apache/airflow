@@ -28,11 +28,11 @@ from kgb import SpyAgency
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
+    ElasticsearchHook,
     ElasticsearchPythonHook,
     ElasticsearchSQLCursor,
     ElasticsearchSQLHook,
     ESConnection,
-    ElasticsearchHook
 )
 
 ROWS = [
@@ -282,7 +282,9 @@ class TestElasticsearchHook:
 
     def test_create_index(self):
         self.hook.client.indices.create.return_value = {"acknowledged": True}
-        result = self.hook.create_index("test-index", mappings={"properties": {}}, settings={"number_of_shards": 1})
+        result = self.hook.create_index(
+            "test-index", mappings={"properties": {}}, settings={"number_of_shards": 1}
+        )
         assert result == {"acknowledged": True}
         self.hook.client.indices.create.assert_called_once()
 
@@ -300,7 +302,9 @@ class TestElasticsearchHook:
             bulk_mock.assert_called_once()
 
     def test_streaming_bulk(self):
-        with mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.streaming_bulk") as streaming_mock:
+        with mock.patch(
+            "airflow.providers.elasticsearch.hooks.elasticsearch.streaming_bulk"
+        ) as streaming_mock:
             streaming_mock.return_value = iter([(True, {"result": "created"})])
             results = list(self.hook.streaming_bulk([{"_index": "test", "_source": {"field": "value"}}]))
             assert results == [(True, {"result": "created"})]
@@ -344,9 +348,7 @@ class TestElasticsearchHook:
 
     def test_search_to_pandas(self):
         self.hook.client.search.return_value = {
-            "hits": {
-                "hits": [{"_source": {"field": i}} for i in range(2)]
-            }
+            "hits": {"hits": [{"_source": {"field": i}} for i in range(2)]}
         }
         df = self.hook.search_to_pandas(index="test-index", query={"match_all": {}})
         assert df.shape == (2, 1)
@@ -357,9 +359,4 @@ class TestElasticsearchHook:
             mock_reindex.return_value = (3, [])
             result = self.hook.reindex(source_index="src", target_index="dst")
             assert result == (3, [])
-            mock_reindex.assert_called_once_with(
-                self.hook.client,
-                source_index="src",
-                target_index="dst"
-            )
-
+            mock_reindex.assert_called_once_with(self.hook.client, source_index="src", target_index="dst")

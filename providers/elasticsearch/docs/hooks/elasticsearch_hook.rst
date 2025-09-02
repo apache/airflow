@@ -81,7 +81,7 @@ Usage Examples
     hook.create_index(
         index_name="my_index",
         mappings={"properties": {"field": {"type": "text"}}},
-        settings={"number_of_shards": 1}
+        settings={"number_of_shards": 1},
     )
 
     # Check if index exists
@@ -96,7 +96,7 @@ Usage Examples
 
     actions = [
         {"_index": "my_index", "_source": {"field": "value1"}},
-        {"_index": "my_index", "_source": {"field": "value2"}}
+        {"_index": "my_index", "_source": {"field": "value2"}},
     ]
 
     # Standard bulk
@@ -112,26 +112,17 @@ Usage Examples
 .. code-block:: python
 
     # Convert search results to DataFrame
-    df = hook.search_to_pandas(
-        index="my_index",
-        query={"match_all": {}}
-    )
+    df = hook.search_to_pandas(index="my_index", query={"match_all": {}})
 
     # Scan large datasets to DataFrame
-    df = hook.scan_to_pandas(
-        index="large_index",
-        query={"range": {"date": {"gte": "2023-01-01"}}}
-    )
+    df = hook.scan_to_pandas(index="large_index", query={"range": {"date": {"gte": "2023-01-01"}}})
 
 **Data Migration:**
 
 .. code-block:: python
 
     # Reindex data between indices
-    success_count, errors = hook.reindex(
-        source_index="old_index",
-        target_index="new_index"
-    )
+    success_count, errors = hook.reindex(source_index="old_index", target_index="new_index")
 
 **Context Manager:**
 
