@@ -84,7 +84,10 @@ class TestKiotaRequestAdapterHook(Base):
         with self.patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
-            with pytest.warns(DeprecationWarning, match="get_conn is deprecated"):
+            with pytest.warns(
+                DeprecationWarning,
+                match="get_conn is deprecated, please use the async get_async_conn method!"
+            ):
                 actual = hook.get_conn()
 
             assert isinstance(actual, HttpxRequestAdapter)
