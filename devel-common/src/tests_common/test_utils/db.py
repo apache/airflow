@@ -166,7 +166,10 @@ def initial_db_init():
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
-    from airflow.dag_processing.dagbag import DagBag
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.dag_processing.dagbag import DagBag
+    else:
+        from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.dag_processing.bundles.manager import DagBundlesManager
