@@ -252,9 +252,7 @@ class ElasticsearchPythonHook(BaseHook):
         super().__init__()
         warn(
             "ElasticsearchPythonHook is deprecated. "
-            "Use airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook instead.",
-            DeprecationWarning,
-            stacklevel=2,
+            "Use airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook instead."
         )
         self.hosts = hosts
         self.es_conn_args = es_conn_args or {}
@@ -296,7 +294,9 @@ class ElasticsearchHook(BaseHook):
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 
-    def __init__(self, elasticsearch_conn_id: str = None, log_query: bool = False, **kwargs: Any) -> None:
+    def __init__(
+        self, elasticsearch_conn_id: str = "elasticsearch_default", log_query: bool = False, **kwargs: Any
+    ) -> None:
         """
         Initialize the Elasticsearch Hook.
 
@@ -387,7 +387,7 @@ class ElasticsearchHook(BaseHook):
             return Elasticsearch(**client_args)
         except Exception as e:
             raise AirflowConfigException(
-                f"Failed to create Elasticsearch client with connection '{self.conn_id}': {e}"
+                "Failed to create Elasticsearch client with connection '%s': %s" % (self.conn_id, e)
             )
 
     def _log_config_source(self) -> None:
@@ -401,7 +401,7 @@ class ElasticsearchHook(BaseHook):
             config_sources.append("Environment variables")
 
         if config_sources:
-            self.log.info(f"Elasticsearch configuration loaded from: {', '.join(config_sources)}")
+            self.log.info("Elasticsearch configuration loaded from: %s", ", ".join(config_sources))
         else:
             self.log.info("Elasticsearch configuration using default values")
 
@@ -422,15 +422,15 @@ class ElasticsearchHook(BaseHook):
         """
         try:
             info = self.client.info()
-            self.log.info(f"Successfully connected to Elasticsearch: {info.body}")
+            self.log.info("Successfully connected to Elasticsearch: %s", info.body)
             return True
         except ESConnectionError as e:
             raise AirflowException(
-                f"Cannot connect to Elasticsearch cluster: {e}. "
-                f"Check your connection '{self.conn_id}' configuration or environment variables."
+                "Cannot connect to Elasticsearch cluster: %s. Check your connection '%s' configuration or environment variables."
+                % (e, self.conn_id)
             )
         except Exception as e:
-            self.log.error(f"Failed to connect to Elasticsearch: {e}")
+            self.log.error("Failed to connect to Elasticsearch: %s", e)
             return False
 
     def search(self, query: dict[str, Any], index_name: str, **kwargs: Any) -> dict[str, Any]:
@@ -560,7 +560,7 @@ class ElasticsearchHook(BaseHook):
         source_data = [hit["_source"] for hit in hits]
         df = pd.json_normalize(source_data)
 
-        self.log.info(f"Converted {len(hits)} search results to DataFrame")
+        self.log.info("Converted %d search results to DataFrame", len(hits))
         return df
 
     def scan_to_pandas(
@@ -623,7 +623,7 @@ class ElasticsearchHook(BaseHook):
         # Convert to DataFrame
         df = pd.json_normalize(source_data)
 
-        self.log.info(f"Converted {len(docs)} scanned documents to DataFrame with shape {df.shape}")
+        self.log.info("Converted %d scanned documents to DataFrame with shape %s", len(docs), df.shape)
         return df
 
     def create_index(
@@ -654,12 +654,12 @@ class ElasticsearchHook(BaseHook):
             if settings:
                 body["settings"] = settings
 
-            self.log.info(f"Creating index: {index_name}")
+            self.log.info("Creating index: %s", index_name)
             return self.client.indices.create(index=index_name, body=body, **kwargs)
 
         except Exception as e:
             if "already exists" in str(e).lower():
-                self.log.warning(f"Index {index_name} already exists")
+                self.log.warning("Index %s already exists", index_name)
                 return None
             # Let other Elasticsearch exceptions pass through for proper error handling
             raise
@@ -672,7 +672,7 @@ class ElasticsearchHook(BaseHook):
         :param kwargs: Additional deletion parameters to pass to the Elasticsearch client.
         :return: Response dictionary from the index deletion operation.
         """
-        self.log.info(f"Deleting index: {index_name}")
+        self.log.info("Deleting index: %s", index_name)
         return self.client.indices.delete(index=index_name, **kwargs)
 
     def index_exists(self, index_name: str) -> bool:
@@ -696,7 +696,7 @@ class ElasticsearchHook(BaseHook):
                 self.client.transport.close()
                 self.log.info("Elasticsearch client connection closed")
             except Exception as e:
-                self.log.warning(f"Error closing Elasticsearch client: {e}")
+                self.log.warning("Error closing Elasticsearch client: %s", e)
             finally:
                 # Remove cached client to force recreation on next access
                 if "client" in self.__dict__:
