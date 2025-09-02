@@ -47,8 +47,8 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
-    get_bagged_dag, 
-    get_dag,
+    get_bagged_dag,
+    get_dags,
     process_subdir,
     suppress_logs_and_warning,
     validate_dag_bundle_arg,
@@ -748,11 +748,13 @@ def dag_docs(args) -> None:
     """Display Dag documentation (__doc_md__) at the command line."""
     if args.dag_id:
         # Get specific Dag
-        dag = get_dag(args.subdir, args.dag_id)
-        dags = [dag]
+        dags = get_dags(
+            bundle_names=getattr(args, "bundle_name", None),
+            dag_id=args.dag_id
+        )
     else:
         # Get all Dags
-        dagbag = DagBag(process_subdir(args.subdir))
+        dagbag = DagBag(process_subdir(getattr(args, "subdir", None)))
         if dagbag.import_errors:
             from rich import print as rich_print
 
