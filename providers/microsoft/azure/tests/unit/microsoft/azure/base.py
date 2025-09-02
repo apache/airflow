@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
+from asgiref.sync import sync_to_async
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.utils.module_loading import import_string
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
@@ -42,12 +44,24 @@ class Base:
 
     @contextmanager
     def patch_hook_and_request_adapter(self, response):
-        with (
-            patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response,
-        ):
+        with ExitStack() as stack:
+            # List of patches; put None if a patch shouldn’t be applied
+            patches = [
+                patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection),
+                patch(f"{BASEHOOK_PATCH_PATH}.aget_connection", side_effect=sync_to_async(get_airflow_connection))
+                if hasattr(import_string(BASEHOOK_PATCH_PATH), "aget_connection") else None,
+                patch.object(HttpxRequestAdapter, "get_http_response_message")
+            ]
+
+            # Enter only the non-None patches
+            entered = [stack.enter_context(p) for p in patches if p is not None]
+
+            # mock_get_http_response is the last one
+            mock_get_http_response = entered[-1]
+
             if isinstance(response, Exception):
                 mock_get_http_response.side_effect = response
             else:
                 mock_get_http_response.return_value = response
+
             yield
