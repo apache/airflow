@@ -724,9 +724,9 @@ class AsyncDagBag(DagBag):
                 await asyncio.to_thread(os.path.getmtime, filepath)
             )
             if (
-                    only_if_updated
-                    and filepath in self.file_last_changed
-                    and file_last_changed_on_disk == self.file_last_changed[filepath]
+                only_if_updated
+                and filepath in self.file_last_changed
+                and file_last_changed_on_disk == self.file_last_changed[filepath]
             ):
                 return []
         except Exception as e:
@@ -842,7 +842,9 @@ class AsyncDagBag(DagBag):
             self.log.debug("Reading %s from %s", zip_info.filename, filepath)
 
             # Check if the file might contain DAGs (sync, offload to thread)
-            contains_dag = await asyncio.to_thread(might_contain_dag, zip_info.filename, safe_mode, current_zip_file)
+            contains_dag = await asyncio.to_thread(
+                might_contain_dag, zip_info.filename, safe_mode, current_zip_file
+            )
             if not contains_dag:
                 if not self.has_logged:
                     self.has_logged = True
