@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from importlib import import_module
 from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
@@ -73,7 +74,9 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
     else:
         modpath = logging_class_path.rsplit(".", 1)[0]
         try:
-            mod = import_string(modpath)
+            mod = import_module(modpath)
+
+            # Load remote logging configuration from the custom module
             REMOTE_TASK_LOG = getattr(mod, "REMOTE_TASK_LOG")
             DEFAULT_REMOTE_CONN_ID = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
         except Exception as err:

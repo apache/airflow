@@ -24,7 +24,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrencia",
     "dagRunTimeout": "Tiempo de Ejecución del Dag",
     "defaultArgs": "Argumentos por Defecto",
     "description": "Descripción",

@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-dingding/|version|/providers/dinging/tests/system/dingding>
+    Example Dags <https://github.com/apache/airflow/tree/providers-dingding/|version|/providers/dinging/tests/system/dingding>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dingding/>
     Installing from sources <installing-providers-from-sources>
 

@@ -25,9 +25,16 @@ from unittest import mock
 
 import flask
 import pytest
+from sqlalchemy import delete, select
 
 from airflow.models import Log
-from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
+
+try:
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+except ImportError:
+    from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS  # type:ignore[no-redef]
+
+sensitive_fields = DEFAULT_SENSITIVE_FIELDS
 
 if TYPE_CHECKING:
     import jinja2
@@ -96,8 +103,8 @@ def _masked_value_check(data, sensitive_fields):
 
 
 def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, check_masked=False):
-    logs = (
-        session.query(
+    logs = session.execute(
+        select(
             Log.dag_id,
             Log.task_id,
             Log.event,
@@ -112,8 +119,7 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, c
         )
         .order_by(Log.dttm.desc())
         .limit(5)
-        .all()
-    )
+    ).all()
     assert len(logs) >= 1
     assert logs[0].extra
     if expected_extra:
@@ -122,28 +128,17 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, c
         extra_json = json.loads(logs[0].extra)
         _masked_value_check(extra_json, sensitive_fields)
 
-    session.query(Log).delete()
+    session.execute(delete(Log))
 
 
 def _check_last_log_masked_connection(session, dag_id, event, logical_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.logical_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.logical_date == logical_date,
-        )
+    logs = session.execute(
+        select(Log.dag_id, Log.task_id, Log.event, Log.logical_date, Log.owner, Log.extra)
+        .where(Log.dag_id == dag_id, Log.event == event, Log.logical_date == logical_date)
         .order_by(Log.dttm.desc())
         .limit(5)
-        .all()
-    )
+    ).all()
+
     assert len(logs) >= 1
     extra = ast.literal_eval(logs[0].extra)
     assert extra == {
@@ -164,8 +159,8 @@ def _check_last_log_masked_variable(
     event,
     logical_date,
 ):
-    logs = (
-        session.query(
+    logs = session.execute(
+        select(
             Log.dag_id,
             Log.task_id,
             Log.event,
@@ -173,15 +168,14 @@ def _check_last_log_masked_variable(
             Log.owner,
             Log.extra,
         )
-        .filter(
+        .where(
             Log.dag_id == dag_id,
             Log.event == event,
             Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
         .limit(5)
-        .all()
-    )
+    ).all()
     assert len(logs) >= 1
     extra_dict = ast.literal_eval(logs[0].extra)
     assert extra_dict == {"key": "x_secret", "val": "***"}

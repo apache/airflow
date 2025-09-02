@@ -25,7 +25,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "השלמה אוטומטית",
-    "concurrency": "מספר הרצות מקבילות",
     "dagRunTimeout": "זמן תפוגה להרצת Dag",
     "defaultArgs": "פרמטרי ברירת מחדל",
     "description": "תיאור",

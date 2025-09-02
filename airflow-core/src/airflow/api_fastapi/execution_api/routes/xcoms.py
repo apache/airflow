@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 import logging
-import sys
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, JsonValue, StringConstraints
@@ -316,12 +315,6 @@ def get_mapped_xcom_by_slice(
     return XComSequenceSliceResponse(values)
 
 
-if sys.version_info < (3, 12):
-    # zmievsa/cadwyn#262
-    # Setting this to "Any" doesn't have any impact on the API as it has to be parsed as valid JSON regardless
-    JsonValue = Any  # type: ignore [misc]
-
-
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
 # the token
 @router.post(
@@ -333,6 +326,7 @@ def set_xcom(
     run_id: str,
     task_id: str,
     key: Annotated[str, StringConstraints(min_length=1)],
+    session: SessionDep,
     value: Annotated[
         JsonValue,
         Body(
@@ -352,8 +346,7 @@ def set_xcom(
                 },
             },
         ),
-    ],
-    session: SessionDep,
+    ] = None,
     map_index: Annotated[int, Query()] = -1,
     mapped_length: Annotated[
         int | None, Query(description="Number of mapped tasks this value expands into")

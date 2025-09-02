@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-github/|version|/providers/github/tests/system/github>
+    Example Dags <https://github.com/apache/airflow/tree/providers-github/|version|/providers/github/tests/system/github>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-github/>
     Installing from sources <installing-providers-from-sources>
 
