@@ -32,6 +32,7 @@ from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 
@@ -42,11 +43,11 @@ if TYPE_CHECKING:
     import pendulum
 
     from airflow.models import TaskInstance
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -99,7 +100,7 @@ class MappedOperator(DAGNode):
     start_from_trigger: bool = False
     _needs_expansion: bool = True
 
-    dag: SchedulerDAG = attrs.field(init=False)
+    dag: SerializedDAG = attrs.field(init=False)
     task_group: TaskGroup = attrs.field(init=False)
     start_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     end_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
@@ -377,6 +378,10 @@ class MappedOperator(DAGNode):
             return None
         return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives MappedOperator
 
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
+        """Implement DAGNode."""
+        return DagAttributeTypes.OP, self.task_id
+
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
     def _get_specified_expand_input(self) -> SchedulerExpandInput:
         """Input received from the expand call on the operator."""
@@ -479,7 +484,7 @@ def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Ses
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
     if not hasattr(exp_input, "get_total_map_length"):
         if TYPE_CHECKING:
-            assert isinstance(task.dag, SchedulerDAG)
+            assert isinstance(task.dag, SerializedDAG)
         current_count = (
             _ExpandInputRef(
                 exp_input.EXPAND_INPUT_TYPE,
@@ -523,7 +528,7 @@ def _(group: TaskGroup, run_id: str, *, session: Session) -> int:
                 # TODO (GH-52141): 'group' here should be scheduler-bound and returns scheduler expand input.
                 if not hasattr(exp_input, "get_total_map_length"):
                     if TYPE_CHECKING:
-                        assert isinstance(group.dag, SchedulerDAG)
+                        assert isinstance(group.dag, SerializedDAG)
                     exp_input = _ExpandInputRef(
                         exp_input.EXPAND_INPUT_TYPE,
                         BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),

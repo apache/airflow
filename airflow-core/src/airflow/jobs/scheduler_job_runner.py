@@ -59,7 +59,7 @@ from airflow.models.asset import (
     asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
@@ -94,7 +94,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -105,7 +105,7 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
 
-def _get_current_dag(dag_id: str, session: Session) -> DAG | None:
+def _get_current_dag(dag_id: str, session: Session) -> SerializedDAG | None:
     serdag = SerializedDagModel.get(dag_id=dag_id, session=session)  # grabs the latest version
     if not serdag:
         return None
@@ -1395,7 +1395,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
+        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
         for dag_run, callback_to_run in callback_tuples:
@@ -1521,7 +1521,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            data_interval = dag.get_next_data_interval(dag_model)
+            data_interval = get_next_data_interval(dag.timetable, dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
@@ -1642,7 +1642,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _should_update_dag_next_dagruns(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         dag_model: DagModel,
         *,
         last_dag_run: DagRun | None = None,
@@ -1697,7 +1697,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
         @add_debug_span
-        def _update_state(dag: DAG, dag_run: DagRun):
+        def _update_state(dag: SerializedDAG, dag_run: DagRun):
             span = Trace.get_current_span()
             span.set_attributes(
                 {
@@ -1723,7 +1723,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # always happening immediately after the data interval.
                 # We only publish these metrics for scheduled dag runs and only
                 # when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
-                expected_start_date = dag.get_run_data_interval(dag_run).end
+                expected_start_date = get_run_data_interval(dag.timetable, dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
@@ -1739,7 +1739,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[DagRun], DAG | None] = lru_cache()(
+        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
@@ -1858,7 +1858,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self._should_update_dag_next_dagruns(
                     dag, dag_model, last_dag_run=dag_run, session=session
                 ):
-                    dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+                    dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
 
                 callback_to_execute = DagCallbackRequest(
                     filepath=dag_model.relative_fileloc,
@@ -1918,7 +1918,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
             if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
-                dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+                dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
             # This will do one query per dag run. We "could" build up a complex
             # query to update all the TIs across all the logical dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_
@@ -1961,7 +1961,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return True
 
-    def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
+    def _send_dag_callbacks_to_processor(
+        self,
+        dag: SerializedDAG,
+        callback: DagCallbackRequest | None = None,
+    ) -> None:
         if callback:
             self.job.executor.send_callback(callback)
         else:
