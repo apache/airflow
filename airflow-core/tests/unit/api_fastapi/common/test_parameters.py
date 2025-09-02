@@ -31,7 +31,7 @@ class TestFilterParam:
     def test_filter_param_factory_description(self):
         app = FastAPI()  # Create a FastAPI app to test OpenAPI generation
         expected_descriptions = {
-            "dag_id": "Filter by DAG ID Description",
+            "dag_id": "Filter by Dag ID Description",
             "task_id": "Filter by Task ID Description",
             "map_index": None,  # No description for map_index
             "run_id": "Filter by Run ID Description",
@@ -42,7 +42,7 @@ class TestFilterParam:
             dag_id: Annotated[
                 FilterParam[str | None],
                 Depends(
-                    filter_param_factory(Log.dag_id, str | None, description="Filter by DAG ID Description")
+                    filter_param_factory(Log.dag_id, str | None, description="Filter by Dag ID Description")
                 ),
             ],
             task_id: Annotated[
