@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
+import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -91,15 +92,21 @@ export const createChartOptions = ({
   selectedRun,
   selectedTimezone,
   translate,
-}: ChartOptionsParams) => ({
-  animation: {
-    duration: 100,
-  },
-  indexAxis: "y" as const,
-  maintainAspectRatio: false,
-  onClick: handleBarClick,
-  onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
-    const target = event.native?.target as HTMLElement | undefined;
+}: ChartOptionsParams) => {
+  const isActivePending = isStatePending(selectedRun?.state);
+  const effectiveEndDate = isActivePending
+    ? dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss")
+    : selectedRun?.end_date;
+
+  return {
+    animation: {
+      duration: 100,
+    },
+    indexAxis: "y" as const,
+    maintainAspectRatio: false,
+    onClick: handleBarClick,
+    onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
+      const target = event.native?.target as HTMLElement | undefined;
 
     if (target) {
       target.style.cursor = elements.length > 0 ? "pointer" : "default";
@@ -156,7 +163,7 @@ export const createChartOptions = ({
         color: gridColor,
         display: true,
       },
-      max: formatDate(selectedRun?.end_date, selectedTimezone),
+      max: formatDate(effectiveEndDate, selectedTimezone),
       min: formatDate(selectedRun?.start_date, selectedTimezone),
       position: "top" as const,
       stacked: true,
@@ -180,4 +187,5 @@ export const createChartOptions = ({
       },
     },
   },
-});
+  };
+};
