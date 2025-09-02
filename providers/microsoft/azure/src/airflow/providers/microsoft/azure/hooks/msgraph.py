@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import warnings
 from ast import literal_eval
@@ -427,7 +428,7 @@ class KiotaRequestAdapterHook(BaseHook):
     def test_connection(self):
         """Test HTTP Connection."""
         try:
-            self.run()
+            asyncio.run(self.run())
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
