@@ -23,19 +23,9 @@ from asgiref.sync import sync_to_async
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.utils.module_loading import import_string
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
-
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 class Base:
@@ -47,9 +37,9 @@ class Base:
         with ExitStack() as stack:
             # List of patches; put None if a patch shouldn’t be applied
             patches = [
-                patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection),
-                patch(f"{BASEHOOK_PATCH_PATH}.aget_connection", side_effect=sync_to_async(get_airflow_connection))
-                if hasattr(import_string(BASEHOOK_PATCH_PATH), "aget_connection") else None,
+                patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection),
+                patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(get_airflow_connection))
+                if hasattr(BaseHook, "aget_connection") else None,
                 patch.object(HttpxRequestAdapter, "get_http_response_message")
             ]
 
