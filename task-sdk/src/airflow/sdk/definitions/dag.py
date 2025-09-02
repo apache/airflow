@@ -93,7 +93,7 @@ __all__ = [
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
+ScheduleArg: TypeAlias = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -135,10 +135,16 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     raise ValueError(f"{interval!r} is not a valid schedule.")
 
 
-def _config_bool_factory(section: str, key: str):
+def _config_bool_factory(section: str, key: str) -> Callable[[], bool]:
     from airflow.configuration import conf
 
     return functools.partial(conf.getboolean, section, key)
+
+
+def _config_int_factory(section: str, key: str) -> Callable[[], int]:
+    from airflow.configuration import conf
+
+    return functools.partial(conf.getint, section, key)
 
 
 def _convert_params(val: abc.MutableMapping | None, self_: DAG) -> ParamsDict:
@@ -170,10 +176,18 @@ def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
     return set(tags or [])
 
 
-def _convert_access_control(value, self_: DAG):
-    if hasattr(self_, "_upgrade_outdated_dag_access_control"):
-        return self_._upgrade_outdated_dag_access_control(value)
-    return value
+def _convert_access_control(access_control):
+    if access_control is None:
+        return None
+    updated_access_control = {}
+    for role, perms in access_control.items():
+        updated_access_control[role] = updated_access_control.get(role, {})
+        if isinstance(perms, (set, list)):
+            # Support for old-style access_control where only the actions are specified
+            updated_access_control[role]["DAGs"] = set(perms)
+        else:
+            updated_access_control[role] = perms
+    return updated_access_control
 
 
 def _convert_doc_md(doc_md: str | None) -> str | None:
@@ -398,9 +412,33 @@ class DAG:
     template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined
     user_defined_macros: dict | None = None
     user_defined_filters: dict | None = None
-    max_active_tasks: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
-    max_active_runs: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
-    max_consecutive_failed_dag_runs: int = attrs.field(default=0, validator=attrs.validators.instance_of(int))
+    max_active_tasks: int = attrs.field(
+        factory=_config_int_factory("core", "max_active_tasks_per_dag"),
+        converter=attrs.converters.default_if_none(  # type: ignore[misc]
+            # attrs only supports named callables or lambdas, but partial works
+            # OK here too. This is a false positive from attrs's Mypy plugin.
+            factory=_config_int_factory("core", "max_active_tasks_per_dag"),
+        ),
+        validator=attrs.validators.instance_of(int),
+    )
+    max_active_runs: int = attrs.field(
+        factory=_config_int_factory("core", "max_active_runs_per_dag"),
+        converter=attrs.converters.default_if_none(  # type: ignore[misc]
+            # attrs only supports named callables or lambdas, but partial works
+            # OK here too. This is a false positive from attrs's Mypy plugin.
+            factory=_config_int_factory("core", "max_active_runs_per_dag"),
+        ),
+        validator=attrs.validators.instance_of(int),
+    )
+    max_consecutive_failed_dag_runs: int = attrs.field(
+        factory=_config_int_factory("core", "max_consecutive_failed_dag_runs_per_dag"),
+        converter=attrs.converters.default_if_none(  # type: ignore[misc]
+            # attrs only supports named callables or lambdas, but partial works
+            # OK here too. This is a false positive from attrs's Mypy plugin.
+            factory=_config_int_factory("core", "max_consecutive_failed_dag_runs_per_dag"),
+        ),
+        validator=attrs.validators.instance_of(int),
+    )
     dagrun_timeout: timedelta | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
@@ -423,7 +461,7 @@ class DAG:
     )
     access_control: dict[str, dict[str, Collection[str]]] | None = attrs.field(
         default=None,
-        converter=attrs.Converter(_convert_access_control, takes_self=True),  # type: ignore[misc, call-overload]
+        converter=attrs.Converter(_convert_access_control),  # type: ignore[misc, call-overload]
     )
     is_paused_upon_creation: bool | None = None
     jinja_environment_kwargs: dict | None = None
@@ -454,6 +492,12 @@ class DAG:
     disable_bundle_versioning: bool = attrs.field(
         factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
     )
+
+    # TODO (GH-52141): This is never used in the sdk dag (it only makes sense
+    # after this goes through the dag processor), but various parts of the code
+    # depends on its existence. We should remove this after completely splitting
+    # DAG classes in the SDK and scheduler.
+    last_loaded: datetime | None = attrs.field(init=False, default=None)
 
     def __attrs_post_init__(self):
         from airflow.sdk import timezone
@@ -1099,8 +1143,7 @@ class DAG:
 
         from airflow import settings
         from airflow.configuration import secrets_backend_list
-        from airflow.models.dag import DAG as SchedulerDAG, _get_or_create_dagrun
-        from airflow.models.dagrun import DagRun
+        from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
@@ -1149,7 +1192,7 @@ class DAG:
 
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
-            SchedulerDAG.clear_dags(
+            SerializedDAG.clear_dags(
                 dags=[self],
                 start_date=logical_date,
                 end_date=logical_date,
@@ -1172,7 +1215,7 @@ class DAG:
             scheduler_dag.on_success_callback = self.on_success_callback
             scheduler_dag.on_failure_callback = self.on_failure_callback
 
-            dr: DagRun = _get_or_create_dagrun(
+            dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
                 start_date=logical_date or run_after,
                 logical_date=logical_date,
