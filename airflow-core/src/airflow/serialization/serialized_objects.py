@@ -47,7 +47,7 @@ from airflow import macros
 from airflow._shared.timezones.timezone import coerce_datetime, from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
+from airflow.exceptions import AirflowException, DeserializationError, SerializationError, TaskDeferred
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -2382,11 +2382,28 @@ class SerializedDAG(DAG, BaseSerialization):
         cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
     ) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        if "dag_id" not in encoded_dag:
-            raise RuntimeError(
-                "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
-            )
+        try:
+            if "dag_id" not in encoded_dag:
+                raise RuntimeError(
+                    "Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
+                )
+        except RuntimeError as err:
+            dag_id = encoded_dag.get("dag_id", None)
+            raise DeserializationError(dag_id) from err
 
+        try:
+            return cls._deserialize_dag_internal(encoded_dag, client_defaults)
+        except _TimetableNotRegistered:
+            raise
+        except (ValueError, KeyError) as err:
+            dag_id = encoded_dag.get("dag_id", None)
+            raise DeserializationError(dag_id) from err
+
+    @classmethod
+    def _deserialize_dag_internal(
+        cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
+    ) -> SerializedDAG:
+        """Handle the main Dag deserialization logic."""
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
