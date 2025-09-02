@@ -58,12 +58,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
             interval=timedelta(minutes=15),
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={
-                    "slack_conn_id": "slack_default",
-                    "channel": "#alerts",
-                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
-                    "username": "Airflow Alerts",
-                },
+                kwargs={"text": "Dag 'slack_deadline_alert' still running after 30 minutes."},
             ),
         ),
     ):
@@ -107,12 +102,7 @@ Here's an example using a fixed datetime:
             interval=timedelta(minutes=-30),  # Alert 30 minutes before the reference.
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={
-                    "slack_conn_id": "slack_default",
-                    "channel": "#alerts",
-                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
-                    "username": "Airflow Alerts",
-                },
+                kwargs={"text": "Dag 'slack_deadline_alert' still running after 30 minutes."},
             ),
         ),
     ):
@@ -133,8 +123,8 @@ Using Callbacks
 ---------------
 
 When a deadline is exceeded, the callback is executed. You can use an existing :doc:`Notifier </howto/notifications>`
-or create a custom callback function.  A callback must be either an :class:`~airflow.sdk.definitions.deadline.AsyncCallback`
-or a :class:`~airflow.sdk.definitions.deadline.SyncCallback`.
+or create a custom callback function.  A callback must be an :class:`~airflow.sdk.definitions.deadline.AsyncCallback`,
+with support coming soon for :class:`~airflow.sdk.definitions.deadline.SyncCallback`.
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -150,12 +140,7 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
             interval=timedelta(minutes=30),
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={
-                    "slack_conn_id": "slack_default",
-                    "channel": "#alerts",
-                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
-                    "username": "Airflow Alerts",
-                },
+                kwargs={"text": "Dag 'slack_deadline_alert' still running after 30 minutes."},
             ),
         ),
     ):
@@ -164,10 +149,9 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can create custom callbacks for more complex handling. The ``kwargs`` specified in the ``Callback``
-are passed to the callback function, if any are provided. **Synchronous callbacks** (standard python
-methods) can be defined in the dag bundle and are run in the Executor. **Asynchronous callbacks** must
-be defined somewhere in the Triggerer's system path.
+You can create custom callbacks for more complex handling. If ``kwargs`` are specified in the ``Callback``,
+they are passed to the callback function. **Asynchronous callbacks** must be defined somewhere in the
+Triggerer's system path.
 
 .. note::
     Regarding Async Custom Deadline callbacks:
@@ -176,41 +160,10 @@ be defined somewhere in the Triggerer's system path.
     * One easy way to do this is to place the callback as a top-level method in a new file in the plugins folder.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
-A **custom synchronous callback** might look like this:
 
-.. code-block:: python
+A **custom asynchronous callback** might look like this:
 
-    from datetime import timedelta
-
-    from airflow import DAG
-    from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, SyncCallback
-
-
-    def custom_synchronous_callback(**kwargs):
-        """Handle deadline violation with custom logic."""
-        print(f"Deadline exceeded for Dag {kwargs.get("dag_id")}!")
-        print(f"Alert type: {kwargs.get("alert_type")}")
-        # Additional custom handling here
-
-
-    with DAG(
-        dag_id="custom_deadline_alert",
-        deadline=DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=timedelta(minutes=15),
-            callback=SyncCallback(
-                custom_synchronous_callback,
-                kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
-            ),
-        ),
-    ):
-        EmptyOperator(task_id="example_task")
-
-A **custom asynchronous callback** is only slightly more work.  Note in the following example that
-the custom callback code is placed in a separate file, and must be imported in the Dag file.
-
-Place this method in ``/files/plugins/deadline_callbacks.py``:
+1. Place this method in ``/files/plugins/deadline_callbacks.py``:
 
 .. code-block:: python
 
@@ -220,7 +173,8 @@ Place this method in ``/files/plugins/deadline_callbacks.py``:
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
-Place this in a Dag file:
+2. Restart your Triggerer.
+3. Place this in a Dag file:
 
 .. code-block:: python
 
@@ -288,9 +242,9 @@ you to create deadlines that suit a wide variety of operational requirements.
 Custom References
 ^^^^^^^^^^^^^^^^^
 
-While the built-in references should cover most use cases, and more will be released over time,
-you can create custom references by implementing a class that inherits from DeadlineReference.
-This may be useful if you have calendar integrations or other sources that you want to use as a reference.
+While the built-in references should cover most use cases, and more will be released over time, you
+can create custom references by implementing a class that inherits from DeadlineReference.  This may
+be useful if you have calendar integrations or other sources that you want to use as a reference.
 
 .. code-block:: python
 

@@ -24,22 +24,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow import DAG
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.settings import json
-from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -65,14 +63,7 @@ def reset_db():
 @pytest.fixture
 def task_instance_factory(request, session: Session):
     def func(*, dag_id, task_id, logical_date, run_after=None):
-        dag = DAG(dag_id=dag_id)
-        bundle_name = "testing"
-        with create_session() as session:
-            orm_dag_bundle = DagBundleModel(name=bundle_name)
-            session.merge(orm_dag_bundle)
-            session.commit()
-        DAG.bulk_write_to_db(bundle_name, None, [dag], session=session)
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        sync_dag_to_db(DAG(dag_id=dag_id))
         run_id = DagRun.generate_run_id(
             run_type=DagRunType.SCHEDULED,
             logical_date=logical_date,

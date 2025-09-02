@@ -145,10 +145,23 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
             )
             return
 
+        exit_code = result.get("exit_info", {}).get("exit_code")
+
+        if exit_code == 0:
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "result": result,
+                }
+            )
+            return
+
+        error_output = "".join(line["content"] for line in result.get("error", []))
+        message = f"Airflow CLI command failed with exit code {exit_code}.\nError output:\n{error_output}"
         yield TriggerEvent(
             {
-                "status": "success",
-                "result": result,
+                "status": "error",
+                "message": message,
             }
         )
         return

@@ -62,7 +62,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/providers/apache/kafka/tests/system/apache/kafka>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/providers/apache/kafka/tests/system/apache/kafka>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kafka/>
     Installing from sources <installing-providers-from-sources>
 

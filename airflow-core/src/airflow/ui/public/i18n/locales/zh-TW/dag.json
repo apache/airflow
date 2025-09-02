@@ -7,7 +7,6 @@
   },
   "calendar": {
     "daily": "每日",
-    "error": "載入日曆資料時發生錯誤",
     "hourly": "每小時",
     "legend": {
       "less": "較少",
@@ -68,7 +67,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "跳躍: Shift+{{arrow}}",
     "navigation": "導航: {{arrow}}",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },
@@ -94,8 +92,8 @@
     "buttons": {
       "options": "選項",
       "showGantt": "顯示甘特圖",
-      "showGraph": "顯示圖表",
-      "showGrid": "顯示網格"
+      "showGraphShortcut": "顯示圖表 (按 g)",
+      "showGridShortcut": "顯示網格 (按 g)"
     },
     "dagRuns": {
       "label": "Dag 執行次數"
