@@ -99,12 +99,9 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
-from airflow.utils.operator_resources import Resources
-from airflow.utils.session import create_session
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter

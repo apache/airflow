@@ -52,7 +52,6 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
