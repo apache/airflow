@@ -153,6 +153,7 @@ from airflow._shared.configuration import (  # noqa: E402, F401
     AIRFLOW_HOME,
     FERNET_KEY,
     JWT_SECRET_KEY,
+    AirflowConfigParser,
     conf,
     ensure_secrets_loaded,
     initialize_secrets_backends,
