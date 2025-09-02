@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
@@ -33,25 +34,23 @@ class Base:
         KiotaRequestAdapterHook.cached_request_adapters.clear()
 
     @contextmanager
-    def patch_hook_and_request_adapter(self, response):
+    def patch_hook(self, side_effect: Callable = get_airflow_connection):
         with ExitStack() as stack:
-            # List of patches; put None if a patch shouldn’t be applied
             patches = [
-                patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection),
-                patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(get_airflow_connection))
+                patch.object(BaseHook, "get_connection", side_effect=side_effect),
+                patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(side_effect))
                 if hasattr(BaseHook, "aget_connection") else None,
-                patch.object(HttpxRequestAdapter, "get_http_response_message")
             ]
-
-            # Enter only the non-None patches
             entered = [stack.enter_context(p) for p in patches if p is not None]
+            yield entered  # expose entered mocks to the caller
 
-            # mock_get_http_response is the last one
-            mock_get_http_response = entered[-1]
+    @contextmanager
+    def patch_hook_and_request_adapter(self, response):
+        with self.patch_hook() as hook_mocks:
+            with patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
+                if isinstance(response, Exception):
+                    mock_get_http_response.side_effect = response
+                else:
+                    mock_get_http_response.return_value = response
 
-            if isinstance(response, Exception):
-                mock_get_http_response.side_effect = response
-            else:
-                mock_get_http_response.return_value = response
-
-            yield
+                yield [*hook_mocks, mock_get_http_response]
