@@ -24,11 +24,12 @@ Revises: 3e4f92b7c1a2, a3c7f2b18d4e
 Create Date: 2025-09-01 13:24:29.575087
 
 """
+
 from __future__ import annotations
 
 # revision identifiers, used by Alembic.
 revision = "2d6e7c3a3864"
-down_revision = ('3e4f92b7c1a2', 'a3c7f2b18d4e')
+down_revision = ("3e4f92b7c1a2", "a3c7f2b18d4e")
 branch_labels = None
 depends_on = None
 airflow_version = "3.1.0"
