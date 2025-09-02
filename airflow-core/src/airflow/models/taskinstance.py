@@ -288,6 +288,8 @@ def clear_task_instances(
                         dr.created_dag_version_id = dag_version.id
                         dr.dag = dr_dag
                         dr.verify_integrity(session=session, dag_version_id=dag_version.id)
+                        for ti in dr.task_instances:
+                            ti.dag_version_id = dag_version.id
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
