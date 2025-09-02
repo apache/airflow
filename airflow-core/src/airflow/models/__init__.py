@@ -128,7 +128,6 @@ if TYPE_CHECKING:
     from airflow.models.base import ID_LEN, Base
     from airflow.models.connection import Connection
     from airflow.models.dag import DagModel, DagTag
-    from airflow.models.dagbag import DagBag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
