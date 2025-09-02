@@ -194,6 +194,8 @@ class GitDagBundle(BaseDagBundle):
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock():
+            pre_version = self.get_current_version() if self.repo else None
+
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
                 self._fetch_bare_repo()
@@ -207,6 +209,17 @@ class GitDagBundle(BaseDagBundle):
                     target = self.tracking_ref
                 self.repo.head.reset(target, index=True, working_tree=True)
                 self.repo.close()
+
+            if self.supports_versioning:
+                new_version = self.get_current_version()
+                if new_version != pre_version:
+                    self._log.info(
+                        "New version detected for %s: %s (was %s)", self.name, new_version, pre_version
+                    )
+                    try:
+                        self._materialize_version(new_version)
+                    except Exception as exc:
+                        self._log.warning("Materializing version folder failed: %s", exc)
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
@@ -273,3 +286,17 @@ class GitDagBundle(BaseDagBundle):
                     return f"{template}/{self.subdir}"
                 return template
         return None
+
+    def _materialize_version(self, version: str) -> None:
+        """Clone and checkout the commit into versions/<version> for DAG Processor callbacks."""
+        version_path = self.versions_dir / version
+        if version_path.exists():
+            self._log.debug("Version folder already exists: %s", version_path)
+            return
+
+        self._log.info("Cloning version %s into %s", version, version_path)
+        self._clone_bare_repo_if_required()
+        self._ensure_version_in_bare_repo()
+
+        Repo.clone_from(url=self.bare_repo_path, to_path=version_path)
+        Repo(version_path).git.checkout(version)
