@@ -346,7 +346,16 @@ class FabAuthManager(BaseAuthManager[User]):
                 self._is_authorized(method=method, resource_type=resource_type, user=user)
                 for resource_type in resource_types
             )
-            if not access_entity_authorized:
+            if access_entity == DagAccessEntity.RUN and details and details.id:
+                # Check using the deprecated permission prefix "DAG Run" to check whether the user has access to dag runs
+                is_authorized_run = self._is_authorized(
+                    method=method,
+                    resource_type=permissions.resource_name(details.id, RESOURCE_DAG_RUN),
+                    user=user,
+                )
+                if not (is_authorized_run or access_entity_authorized):
+                    return False
+            elif not access_entity_authorized:
                 return False
 
         if method == "GET" and (not details or not details.id):

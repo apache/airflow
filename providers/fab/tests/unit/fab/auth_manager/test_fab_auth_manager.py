@@ -485,6 +485,14 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
                 False,
             ),
+            # Use deprecated prefix "DAG Run" to assign permissions specifically on dag runs
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG Run:test_dag_id")],
+                True,
+            ),
         ],
     )
     def test_is_authorized_dag(

@@ -95,28 +95,32 @@ RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG: ResourceDetails(
         actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
     ),
+    RESOURCE_DAG_RUN: ResourceDetails(
+        actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
+        prefix="DAG Run:",
+    ),
 }
 PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
 PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
 
 
-def resource_name(root_dag_id: str, resource: str) -> str:
+def resource_name(dag_id: str, resource: str) -> str:
     """Return the resource name for a DAG id."""
-    if root_dag_id in RESOURCE_DETAILS_MAP.keys():
-        return root_dag_id
-    if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
-        return root_dag_id
-    return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{root_dag_id}"
+    if dag_id in RESOURCE_DETAILS_MAP.keys():
+        return dag_id
+    if dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
+        return dag_id
+    return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{dag_id}"
 
 
-def resource_name_for_dag(root_dag_id: str) -> str:
+def resource_name_for_dag(dag_id: str) -> str:
     """
     Return the resource name for a DAG id.
 
     Note: This function is kept for backwards compatibility.
     """
-    if root_dag_id == RESOURCE_DAG:
-        return root_dag_id
-    if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
-        return root_dag_id
-    return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+    if dag_id == RESOURCE_DAG:
+        return dag_id
+    if dag_id.startswith(RESOURCE_DAG_PREFIX):
+        return dag_id
+    return f"{RESOURCE_DAG_PREFIX}{dag_id}"

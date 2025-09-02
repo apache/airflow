@@ -85,6 +85,10 @@ RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG: ResourceDetails(
         actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
     ),
+    RESOURCE_DAG_RUN: ResourceDetails(
+        actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
+        prefix="DAG Run:",
+    ),
 }
 PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
 PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
