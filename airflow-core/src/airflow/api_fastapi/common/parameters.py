@@ -379,6 +379,7 @@ def filter_param_factory(
     default_factory: Callable[[], T | None] | None = None,
     skip_none: bool = True,
     transform_callable: Callable[[T | None], Any] | None = None,
+    *,
     description: str | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
