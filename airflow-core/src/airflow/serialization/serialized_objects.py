@@ -3605,7 +3605,6 @@ class XComOperatorLink(LoggingMixin):
                     map_indexes=ti_key.map_index,
                 ).with_only_columns(XComModel.value)
             ).first()
-
         if not value:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",

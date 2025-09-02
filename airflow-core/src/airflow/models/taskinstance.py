@@ -1964,7 +1964,6 @@ class TaskInstance(Base, LoggingMixin):
                     XComModel.value,
                 )
             ).first()
-
             if first is None:  # No matching XCom at all.
                 return default
             if map_indexes is not None or first.map_index < 0:
@@ -2004,10 +2003,14 @@ class TaskInstance(Base, LoggingMixin):
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
         """Return Number of running TIs from the DB."""
         # .count() is inefficient
-        num_running_task_instances_query = select(func.count()).where(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.state == TaskInstanceState.RUNNING,
+        num_running_task_instances_query = (
+            select(func.count())
+            .select_from(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.state == TaskInstanceState.RUNNING,
+            )
         )
         if same_dagrun:
             num_running_task_instances_query = num_running_task_instances_query.where(
