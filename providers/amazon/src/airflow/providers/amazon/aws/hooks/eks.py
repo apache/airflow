@@ -564,9 +564,9 @@ class EksHook(AwsBaseHook):
         try:
             # Create secure temporary file
             fd, temp_path = tempfile.mkstemp(
-                    suffix=".aws_creds",
-                    prefix="airflow_eks_",
-                    )
+                suffix=".aws_creds",
+                prefix="airflow_eks_",
+            )
 
             # Set restrictive permissions (0600) - owner read/write only
             os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
@@ -593,7 +593,7 @@ class EksHook(AwsBaseHook):
 
     @contextmanager
     def generate_config_file(
-            self,
+        self,
         eks_cluster_name: str,
         pod_namespace: str | None,
         credentials_file,
