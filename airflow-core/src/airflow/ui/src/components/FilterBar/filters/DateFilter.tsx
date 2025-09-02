@@ -50,7 +50,7 @@ export const DateFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
       <DateTimeInput
         borderRadius="full"
         onChange={handleDateChange}
-        placeholder={filter.config.placeholder ?? `Select ${filter.config.label.toLowerCase()}`}
+        placeholder={filter.config.placeholder}
         size="sm"
         value={filter.value !== null && filter.value !== undefined ? String(filter.value) : ""}
         width="200px"

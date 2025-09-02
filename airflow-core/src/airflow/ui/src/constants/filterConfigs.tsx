@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
@@ -28,84 +27,74 @@ import type { FilterConfig } from "src/components/FilterBar";
 
 import { SearchParamsKeys } from "./searchParams";
 
-/**
- * Hook to get filter configurations with translations
- */
 export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "admin"]);
 
-  const filterConfigMap = useMemo(
-    () => ({
-      [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
-        hotkeyDisabled: true,
-        icon: <DagIcon />,
-        label: translate("common:dagName"),
-        placeholder: translate("common:filters.dagDisplayNamePlaceholder"),
-        type: "text" as const,
-      },
-      [SearchParamsKeys.KEY_PATTERN]: {
-        icon: <MdSearch />,
-        label: translate("admin:columns.key"),
-        placeholder: translate("common:filters.keyPlaceholder"),
-        type: "text" as const,
-      },
-      [SearchParamsKeys.LOGICAL_DATE_GTE]: {
-        icon: <MdDateRange />,
-        label: translate("common:filters.logicalDateFromPlaceholder"),
-        placeholder: translate("common:filters.logicalDateFromPlaceholder"),
-        type: "date" as const,
-      },
-      [SearchParamsKeys.LOGICAL_DATE_LTE]: {
-        icon: <MdDateRange />,
-        label: translate("common:filters.logicalDateToPlaceholder"),
-        placeholder: translate("common:filters.logicalDateToPlaceholder"),
-        type: "date" as const,
-      },
-      [SearchParamsKeys.MAP_INDEX]: {
-        icon: <LuBrackets />,
-        label: translate("common:mapIndex"),
-        min: -1,
-        placeholder: translate("common:filters.mapIndexPlaceholder"),
-        type: "number" as const,
-      },
-      [SearchParamsKeys.RUN_AFTER_GTE]: {
-        icon: <MdDateRange />,
-        label: translate("common:filters.runAfterFromPlaceholder"),
-        placeholder: translate("common:filters.runAfterFromPlaceholder"),
-        type: "date" as const,
-      },
-      [SearchParamsKeys.RUN_AFTER_LTE]: {
-        icon: <MdDateRange />,
-        label: translate("common:filters.runAfterToPlaceholder"),
-        placeholder: translate("common:filters.runAfterToPlaceholder"),
-        type: "date" as const,
-      },
-      [SearchParamsKeys.RUN_ID_PATTERN]: {
-        hotkeyDisabled: true,
-        icon: <FiBarChart />,
-        label: translate("common:runId"),
-        placeholder: translate("common:filters.runIdPlaceholder"),
-        type: "text" as const,
-      },
-      [SearchParamsKeys.TASK_ID_PATTERN]: {
-        hotkeyDisabled: true,
-        icon: <TaskIcon />,
-        label: translate("common:taskId"),
-        placeholder: translate("common:filters.taskIdPlaceholder"),
-        type: "text" as const,
-      },
-    }),
-    [translate],
-  );
+  const filterConfigMap = {
+    [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <DagIcon />,
+      label: translate("common:dagName"),
+      placeholder: translate("common:filters.dagDisplayNamePlaceholder"),
+      type: "text" as const,
+    },
+    [SearchParamsKeys.KEY_PATTERN]: {
+      icon: <MdSearch />,
+      label: translate("admin:columns.key"),
+      placeholder: translate("common:filters.keyPlaceholder"),
+      type: "text" as const,
+    },
+    [SearchParamsKeys.LOGICAL_DATE_GTE]: {
+      icon: <MdDateRange />,
+      label: translate("common:filters.logicalDateFromPlaceholder"),
+      placeholder: translate("common:filters.logicalDateFromPlaceholder"),
+      type: "date" as const,
+    },
+    [SearchParamsKeys.LOGICAL_DATE_LTE]: {
+      icon: <MdDateRange />,
+      label: translate("common:filters.logicalDateToPlaceholder"),
+      placeholder: translate("common:filters.logicalDateToPlaceholder"),
+      type: "date" as const,
+    },
+    [SearchParamsKeys.MAP_INDEX]: {
+      icon: <LuBrackets />,
+      label: translate("common:mapIndex"),
+      min: -1,
+      placeholder: translate("common:filters.mapIndexPlaceholder"),
+      type: "number" as const,
+    },
+    [SearchParamsKeys.RUN_AFTER_GTE]: {
+      icon: <MdDateRange />,
+      label: translate("common:filters.runAfterFromPlaceholder"),
+      placeholder: translate("common:filters.runAfterFromPlaceholder"),
+      type: "date" as const,
+    },
+    [SearchParamsKeys.RUN_AFTER_LTE]: {
+      icon: <MdDateRange />,
+      label: translate("common:filters.runAfterToPlaceholder"),
+      placeholder: translate("common:filters.runAfterToPlaceholder"),
+      type: "date" as const,
+    },
+    [SearchParamsKeys.RUN_ID_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <FiBarChart />,
+      label: translate("common:runId"),
+      placeholder: translate("common:filters.runIdPlaceholder"),
+      type: "text" as const,
+    },
+    [SearchParamsKeys.TASK_ID_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("common:taskId"),
+      placeholder: translate("common:filters.taskIdPlaceholder"),
+      type: "text" as const,
+    },
+  };
 
-  const getFilterConfig = useMemo(
-    () =>
-      (key: keyof typeof filterConfigMap): FilterConfig => ({
-        key,
-        ...filterConfigMap[key],
-      }),
-    [filterConfigMap],
-  );
+  const getFilterConfig = (key: keyof typeof filterConfigMap): FilterConfig => ({
+    key,
+    ...filterConfigMap[key],
+  });
 
   return { getFilterConfig };
 };

@@ -16,13 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import type { FilterConfig, FilterValue } from "src/components/FilterBar";
+import type { FilterValue } from "src/components/FilterBar";
+import { useFilterConfigs } from "src/constants/filterConfigs";
+import type { SearchParamsKeys } from "src/constants/searchParams";
 
-export const useFiltersHandler = (filterConfigs: Array<FilterConfig>) => {
+export type FilterableSearchParamsKeys =
+  | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
+  | SearchParamsKeys.KEY_PATTERN
+  | SearchParamsKeys.LOGICAL_DATE_GTE
+  | SearchParamsKeys.LOGICAL_DATE_LTE
+  | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.RUN_AFTER_GTE
+  | SearchParamsKeys.RUN_AFTER_LTE
+  | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.TASK_ID_PATTERN;
+
+export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsKeys>) => {
+  const { getFilterConfig } = useFilterConfigs();
+
+  const filterConfigs = useMemo(
+    () => searchParamKeys.map((key) => getFilterConfig(key)),
+    [searchParamKeys, getFilterConfig],
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -49,6 +68,7 @@ export const useFiltersHandler = (filterConfigs: Array<FilterConfig>) => {
   );
 
   return {
+    filterConfigs,
     handleFiltersChange,
     searchParams,
   };

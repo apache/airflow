@@ -20,44 +20,42 @@ import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterConfig, type FilterValue } from "src/components/FilterBar";
-import { useFilterConfigs } from "src/constants/filterConfigs";
+import { FilterBar, type FilterValue } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFiltersHandler } from "src/utils";
+import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const XComFilters = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
-  const { getFilterConfig } = useFilterConfigs();
 
-  const filterConfigs: Array<FilterConfig> = useMemo(() => {
-    const configs: Array<FilterConfig> = [
-      getFilterConfig(SearchParamsKeys.KEY_PATTERN),
-      getFilterConfig(SearchParamsKeys.LOGICAL_DATE_GTE),
-      getFilterConfig(SearchParamsKeys.LOGICAL_DATE_LTE),
-      getFilterConfig(SearchParamsKeys.RUN_AFTER_GTE),
-      getFilterConfig(SearchParamsKeys.RUN_AFTER_LTE),
+  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+    const keys: Array<FilterableSearchParamsKeys> = [
+      SearchParamsKeys.KEY_PATTERN,
+      SearchParamsKeys.LOGICAL_DATE_GTE,
+      SearchParamsKeys.LOGICAL_DATE_LTE,
+      SearchParamsKeys.RUN_AFTER_GTE,
+      SearchParamsKeys.RUN_AFTER_LTE,
     ];
 
     if (dagId === "~") {
-      configs.push(getFilterConfig(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN));
+      keys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
     }
 
     if (runId === "~") {
-      configs.push(getFilterConfig(SearchParamsKeys.RUN_ID_PATTERN));
+      keys.push(SearchParamsKeys.RUN_ID_PATTERN);
     }
 
     if (taskId === "~") {
-      configs.push(getFilterConfig(SearchParamsKeys.TASK_ID_PATTERN));
+      keys.push(SearchParamsKeys.TASK_ID_PATTERN);
     }
 
     if (mapIndex === "-1") {
-      configs.push(getFilterConfig(SearchParamsKeys.MAP_INDEX));
+      keys.push(SearchParamsKeys.MAP_INDEX);
     }
 
-    return configs;
-  }, [dagId, mapIndex, runId, taskId, getFilterConfig]);
+    return keys;
+  }, [dagId, mapIndex, runId, taskId]);
 
-  const { handleFiltersChange, searchParams } = useFiltersHandler(filterConfigs);
+  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
 
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
