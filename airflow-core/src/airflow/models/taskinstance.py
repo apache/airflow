@@ -1512,6 +1512,35 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             ti.refresh_from_db(session)
 
+        # Check for orphaned task before setting end_date
+        if (
+            ti.is_eligible_to_retry()
+            and ti.state is None
+            and ti.start_date is not None
+            and ti.end_date is None
+        ):
+            # If the task instance state is None but has a start_date without end_date,
+            # it likely means the task was running but became orphaned and its state was reset.
+            # This can happen during scheduler restarts when executors fail to adopt running tasks
+            # (e.g., due to Kubernetes API 429 errors). We should still record the task instance
+            # history to maintain complete log history for troubleshooting.
+            from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+            log.info(
+                "Recording task instance history for orphaned task %s that was previously running "
+                "(start_date: %s, state reset to None)",
+                ti.key,
+                ti.start_date,
+            )
+            # Temporarily set state to RUNNING to trigger proper history recording
+            original_state = ti.state
+            ti.state = TaskInstanceState.RUNNING
+            try:
+                TaskInstanceHistory.record_ti(ti, session=session)
+            finally:
+                # Restore the original state
+                ti.state = original_state
+
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
@@ -1547,28 +1576,6 @@ class TaskInstance(Base, LoggingMixin):
                 # about to retry so we record the task instance history. For other states, the task
                 # instance was cleared and already recorded in the task instance history.
                 ti.prepare_db_for_next_try(session)
-            elif ti.state is None and ti.start_date is not None and ti.end_date is None:
-                # If the task instance state is None but has a start_date without end_date,
-                # it likely means the task was running but became orphaned and its state was reset.
-                # This can happen during scheduler restarts when executors fail to adopt running tasks
-                # (e.g., due to Kubernetes API 429 errors). We should still record the task instance
-                # history to maintain complete log history for troubleshooting.
-                from airflow.models.taskinstancehistory import TaskInstanceHistory
-
-                log.info(
-                    "Recording task instance history for orphaned task %s that was previously running "
-                    "(start_date: %s, state reset to None)",
-                    ti.key,
-                    ti.start_date,
-                )
-                # Temporarily set state to RUNNING to trigger proper history recording
-                original_state = ti.state
-                ti.state = TaskInstanceState.RUNNING
-                try:
-                    TaskInstanceHistory.record_ti(ti, session=session)
-                finally:
-                    # Restore the original state
-                    ti.state = original_state
 
             ti.state = State.UP_FOR_RETRY
 
