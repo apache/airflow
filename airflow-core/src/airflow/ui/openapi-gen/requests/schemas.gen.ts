@@ -3341,6 +3341,17 @@ export const $EventLogResponse = {
                 }
             ],
             title: 'Dag Display Name'
+        },
+        task_display_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Display Name'
         }
     },
     type: 'object',

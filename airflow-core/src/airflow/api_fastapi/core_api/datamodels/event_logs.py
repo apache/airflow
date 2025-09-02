@@ -41,6 +41,9 @@ class EventLogResponse(BaseModel):
     dag_display_name: str | None = Field(
         validation_alias=AliasPath("dag_model", "dag_display_name"), default=None
     )
+    task_display_name: str | None = Field(
+        validation_alias=AliasPath("task_instance", "task_display_name"), default=None
+    )
 
 
 class EventLogCollectionResponse(BaseModel):
