@@ -2385,7 +2385,7 @@ class SerializedDAG(DAG, BaseSerialization):
         try:
             if "dag_id" not in encoded_dag:
                 raise RuntimeError(
-                    "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
+                    "Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
                 )
         except RuntimeError as err:
             dag_id = encoded_dag.get("dag_id", None)
