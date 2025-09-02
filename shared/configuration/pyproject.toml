@@ -25,9 +25,10 @@ classifiers = [
 
 dependencies = [
     # Core dependencies for configuration parsing
-    "packaging",
-    "pyyaml",
-    "typing-extensions",
+    "packaging>=25.0",
+    "pyyaml>=6.0.2",
+    "typing-extensions>=4.14.1",
+    "pendulum>=3.1.0",
 ]
 
 [dependency-groups]
