@@ -2415,7 +2415,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         response = test_client.post(f"/dags/{dag_id}/clearTaskInstances", json=payload)
         assert response.status_code == 400
         assert (
-            "Cannot use include_past or include_future with a manually triggered DAG run (logical_date is None)."
+            "Cannot use include_past or include_future with no logical_date(e.g., manually or asset-triggered)."
             in response.json()["detail"]
         )
 
