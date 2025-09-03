@@ -91,9 +91,13 @@ All classes for this package are included in the ``airflow.providers.keycloak`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing **Airflow 3** installation via
 ``pip install apache-airflow-providers-keycloak``.
 For the minimum Airflow version supported, see ``Requirements`` below.
+
+.. note::
+This provider requires **Apache Airflow >= 3.0.0**. Installing it on Airflow 2.x is not supported and
+will raise a ``RuntimeError`` at import time.
 
 Requirements
 ------------
