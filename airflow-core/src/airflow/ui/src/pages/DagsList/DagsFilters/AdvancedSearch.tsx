@@ -34,7 +34,7 @@ export const AdvancedSearch = ({ initialValue, isOpen, onClose, onSubmit }: Adva
   const { t: translate } = useTranslation(["dags", "common"]);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(initialValue);
-  const { data: tagsData, isLoading } = useDagServiceGetDagTags({ orderBy: "name" });
+  const { data: tagsData, isLoading } = useDagServiceGetDagTags({ orderBy: ["name"] });
   const availableTags = tagsData?.tags ?? [];
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export const AdvancedSearch = ({ initialValue, isOpen, onClose, onSubmit }: Adva
       <Dialog.Positioner>
         <Dialog.Content>
           <Dialog.Header>
-            <Dialog.Title>{translate("list.advancedSearch")}</Dialog.Title>
+            <Dialog.Title>{translate("AdvancedSearch")}</Dialog.Title>
           </Dialog.Header>
           <Dialog.Body>
             <Box mb={4}>
@@ -88,7 +88,7 @@ export const AdvancedSearch = ({ initialValue, isOpen, onClose, onSubmit }: Adva
             <Box display="flex" flexDirection="row" gap={3}>
               <Box minW="160px">
                 <ReactSelect
-                  aria-label={translate("list.selectTag", { defaultValue: "Add Tag" })}
+                  aria-label={translate("list.selectTag", { defaultValue: translate("Add Tag") })}
                   isClearable={false}
                   isDisabled={isLoading}
                   isMulti={false}
@@ -98,12 +98,14 @@ export const AdvancedSearch = ({ initialValue, isOpen, onClose, onSubmit }: Adva
                     }
                   }}
                   options={availableTags.map((tag) => ({ label: tag, value: tag }))}
-                  placeholder={translate("list.selectTag", { defaultValue: "Add Tag" })}
+                  placeholder={translate("list.selectTag", { defaultValue: translate("Add Tag") })}
                   value={null}
                 />
               </Box>
             </Box>
-            <Box display="flex" gap={4} justifyContent="flex-end">
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Box display="flex" gap={4} justifyContent="flex-end" width="100%">
               <Button colorScheme="gray" onClick={handleClear} variant="outline">
                 {translate("common:clear")}
               </Button>
@@ -111,7 +113,7 @@ export const AdvancedSearch = ({ initialValue, isOpen, onClose, onSubmit }: Adva
                 {translate("common:enter")}
               </Button>
             </Box>
-          </Dialog.Body>
+          </Dialog.Footer>
           <Dialog.CloseTrigger>
             <CloseButton onClick={onClose} size="sm" />
           </Dialog.CloseTrigger>
