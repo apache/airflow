@@ -26,10 +26,10 @@ from typing import Any, NamedTuple
 import pygments
 from pygments.lexers.configs import IniLexer
 
+from airflow._shared.configuration.exceptions import AirflowConfigException
 from airflow._shared.configuration.parser import ConfigModifications
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
