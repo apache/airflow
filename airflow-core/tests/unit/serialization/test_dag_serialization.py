@@ -84,7 +84,6 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.module_loading import qualname
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
@@ -2181,7 +2180,9 @@ class TestStringifiedDAGs:
         When the callback is not set, has_disable_bundle_versioning should not be stored in Serialized blob
         and so default to False on de-serialization
         """
-        with conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
+        from tests_common.test_utils.config import task_sdk_conf_vars
+
+        with task_sdk_conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
             kwargs = {}
             kwargs["disable_bundle_versioning"] = dag_arg
             dag = DAG(
