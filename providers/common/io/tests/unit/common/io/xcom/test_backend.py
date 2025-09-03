@@ -31,7 +31,7 @@ except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils import db
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
 
 pytestmark = [pytest.mark.db_test]

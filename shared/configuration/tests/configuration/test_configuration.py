@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime
 import os
@@ -24,36 +25,80 @@ import re
 import textwrap
 import warnings
 from io import StringIO
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
-from airflow._shared.configuration import run_command
-from airflow.configuration import (
+from airflow.providers_manager import ProvidersManager
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow_shared.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
     conf,
     ensure_secrets_loaded,
-    expand_env_var,
-    get_airflow_config,
-    get_airflow_home,
     get_all_expansion_variables,
     initialize_secrets_backends,
+    run_command,
     write_default_airflow_configuration_if_needed,
 )
-from airflow.providers_manager import ProvidersManager
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
-from unit.utils.test_config import (
-    remove_all_configurations,
-    set_deprecated_options,
-    set_sensitive_config_values,
-    use_config,
-)
+
+
+def remove_all_configurations():
+    old_sections, old_proxies = (conf._sections, conf._proxies)
+    conf._sections = {}
+    conf._proxies = {}
+    return old_sections, old_proxies
+
+
+def restore_all_configurations(sections: dict, proxies: dict):
+    conf._sections = sections  # type: ignore
+    conf._proxies = proxies  # type: ignore
+
+
+@contextlib.contextmanager
+def use_config(config: str):
+    """
+    Temporary load the deprecated test configuration.
+    """
+    sections, proxies = remove_all_configurations()
+    conf.read(str(Path(__file__).parents[1] / "config_templates" / config))
+    try:
+        yield
+    finally:
+        restore_all_configurations(sections, proxies)
+
+
+@contextlib.contextmanager
+def set_deprecated_options(deprecated_options: dict[tuple[str, str], tuple[str, str, str]]):
+    """
+    Temporary replaces deprecated options with the ones provided.
+    """
+    old_deprecated_options = conf.deprecated_options
+    conf.deprecated_options = deprecated_options
+    try:
+        yield
+    finally:
+        conf.deprecated_options = old_deprecated_options
+
+
+@contextlib.contextmanager
+def set_sensitive_config_values(sensitive_config_values: set[tuple[str, str]]):
+    """
+    Temporary replaces sensitive values with the ones provided.
+    """
+    old_sensitive_config_values = conf.sensitive_config_values
+    conf.sensitive_config_values = sensitive_config_values
+    try:
+        yield
+    finally:
+        conf.sensitive_config_values = old_sensitive_config_values
+
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -103,26 +148,6 @@ def parameterized_config(template) -> str:
     },
 )
 class TestConf:
-    def test_airflow_home_default(self):
-        with mock.patch.dict("os.environ"):
-            if "AIRFLOW_HOME" in os.environ:
-                del os.environ["AIRFLOW_HOME"]
-            assert get_airflow_home() == expand_env_var("~/airflow")
-
-    def test_airflow_home_override(self):
-        with mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
-            assert get_airflow_home() == "/path/to/airflow"
-
-    def test_airflow_config_default(self):
-        with mock.patch.dict("os.environ"):
-            if "AIRFLOW_CONFIG" in os.environ:
-                del os.environ["AIRFLOW_CONFIG"]
-            assert get_airflow_config("/home/airflow") == expand_env_var("/home/airflow/airflow.cfg")
-
-    def test_airflow_config_override(self):
-        with mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
-            assert get_airflow_config("/home//airflow") == "/path/to/airflow/airflow.cfg"
-
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
         # section and key are case insensitive for get method
@@ -1478,7 +1503,7 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow._shared.configuration.parser.get_custom_secret_backend")
+    @mock.patch("airflow.configuration.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
     ):
@@ -1557,8 +1582,6 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
 
     def test_as_dict_should_not_falsely_emit_future_warning(self):
-        from airflow.configuration import AirflowConfigParser
-
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
 
@@ -1568,8 +1591,6 @@ sql_alchemy_conn=sqlite://test
             assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
 
     def test_suppress_future_warnings_no_future_warning(self):
-        from airflow.configuration import AirflowConfigParser
-
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
         with warnings.catch_warnings(record=True) as captured:
@@ -1600,8 +1621,6 @@ sql_alchemy_conn=sqlite://test
         ],
     )
     def test_future_warning_only_for_code_ref(self, key):
-        from airflow.configuration import AirflowConfigParser
-
         old_val = "deactivate_stale_dags_interval"
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {old_val: 60}})  # config has old value
@@ -1809,12 +1828,10 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
-        self.monkeypatch.setattr("airflow._shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
+        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
 
     def patch_airflow_config(self, airflow_config):
-        self.monkeypatch.setattr(
-            "airflow._shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
-        )
+        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config))
 
     def test_default(self):
         """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
@@ -1910,19 +1927,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
 @conf_vars({("core", "unit_test_mode"): "False"})
 def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
-    import airflow._shared.configuration
+    import airflow.configuration
 
     cfgpath = tmp_path / "airflow-gneerated.cfg"
     # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow._shared.configuration.parser, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow._shared.configuration.parser, "JWT_SECRET_KEY", "")
-    monkeypatch.setattr(airflow._shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
+    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
-    localconf: AirflowConfigParser = airflow._shared.configuration.initialize_config()
+    localconf: AirflowConfigParser = airflow.configuration.initialize_config()
     monkeypatch.setattr(airflow.configuration, "conf", localconf)
 
-    airflow._shared.configuration.write_default_airflow_configuration_if_needed()
+    airflow.configuration.write_default_airflow_configuration_if_needed()
 
     assert cfgpath.is_file()
 

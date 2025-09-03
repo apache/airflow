@@ -114,7 +114,7 @@ _DAG_HASH_ATTRS = frozenset(
 
 def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a plain ``schedule`` value."""
-    from airflow.configuration import conf as airflow_conf
+    from airflow.sdk.configuration import conf as airflow_conf
     from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
     from airflow.timetables.trigger import CronTriggerTimetable, DeltaTriggerTimetable
 
@@ -135,8 +135,8 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     raise ValueError(f"{interval!r} is not a valid schedule.")
 
 
-def _config_bool_factory(section: str, key: str) -> Callable[[], bool]:
-    from airflow.configuration import conf
+def _config_bool_factory(section: str, key: str):
+    from airflow.sdk.configuration import conf
 
     return functools.partial(conf.getboolean, section, key)
 
@@ -1142,9 +1142,9 @@ class DAG:
         from contextlib import ExitStack
 
         from airflow import settings
-        from airflow.configuration import secrets_backend_list
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import timezone
+        from airflow.sdk._shared.configuration import ensure_secrets_loaded
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -1179,6 +1179,8 @@ class DAG:
             local_secrets = LocalFilesystemBackend(
                 variables_file_path=variable_file_path, connections_file_path=conn_file_path
             )
+            # TODO: cross verify if this is ok
+            secrets_backend_list = ensure_secrets_loaded()
             secrets_backend_list.insert(0, local_secrets)
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 

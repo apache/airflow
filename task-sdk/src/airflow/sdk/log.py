@@ -274,13 +274,13 @@ def configure_logging(
     """Set up struct logging and stdlib logging config."""
     if log_level == "DEFAULT":
         log_level = "INFO"
-        from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
         log_level = conf.get("logging", "logging_level", fallback="INFO")
 
     # If colored_console_log is not explicitly set, read from configuration
     if colored_console_log is None:
-        from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
         colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
@@ -495,7 +495,7 @@ def init_log_file(local_relative_path: str) -> Path:
     """
     # NOTE: This is duplicated from airflow.utils.log.file_task_handler:FileTaskHandler._init_file, but we
     # want to remove that
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     new_file_permissions = int(
         conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"),
@@ -528,7 +528,7 @@ def load_remote_log_handler() -> RemoteLogIO | None:
 
 def load_remote_conn_id() -> str | None:
     import airflow.logging_config
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
         return conn_id
@@ -549,7 +549,7 @@ def relative_path_from_logger(logger) -> Path | None:
     if fh.fileno() == 1 or not isinstance(fname, str):
         # Logging to stdout, or something odd about this logger, don't try to upload!
         return None
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     base_log_folder = conf.get("logging", "base_log_folder")
     return Path(fname).relative_to(base_log_folder)

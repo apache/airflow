@@ -23,7 +23,7 @@ import pytest
 
 from airflow.sdk import SecretCache
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 def test_cache_disabled_by_default():

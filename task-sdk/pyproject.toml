@@ -71,6 +71,15 @@ dependencies = [
     "colorlog>=6.8.2",
     "pydantic>2.11.0",
     # End of shared secrets_masker dependencies
+    # Start of shared configuration dependencies
+    "packaging>=25.0",
+    "pyyaml>=6.0.2",
+    "typing-extensions>=4.14.1",
+    "importlib-metadata>=7.0.0",
+    # End of shared configuration dependencies
+    # Start of shared secrets-masker dependencies
+    "apache-airflow-shared-configuration",
+    # End of shared secrets-masker dependencies
 ]
 
 [project.urls]
@@ -94,6 +103,7 @@ path = "src/airflow/sdk/__init__.py"
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -237,4 +247,5 @@ tmp_path_retention_policy = "failed"
 shared_distributions = [
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-configuration",
 ]

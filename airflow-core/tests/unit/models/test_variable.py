@@ -29,7 +29,7 @@ from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars, task_sdk_conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -40,7 +40,8 @@ class TestVariable:
         crypto._fernet = None
         db.clear_db_variables()
         SecretCache.reset()
-        with conf_vars({("secrets", "use_cache"): "true"}):
+        with task_sdk_conf_vars({("secrets", "use_cache"): "true"}):
+            # secretcache is present in task sdk and uses the conf there
             SecretCache.init()
         with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
             self.mask_secret = m

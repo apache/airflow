@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
 from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 class TestBaseHook:
