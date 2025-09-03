@@ -29,15 +29,15 @@ type Props = {
 };
 
 const totalRunsLegendData = [
-  { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
-  { color: { _dark: "green.300", _light: "green.200" }, label: "1-5" },
-  { color: { _dark: "green.500", _light: "green.400" }, label: "6-15" },
-  { color: { _dark: "green.700", _light: "green.600" }, label: "16-25" },
-  { color: { _dark: "green.900", _light: "green.800" }, label: "26+" },
+  { color: { _dark: "transparent", _light: "transparent" }, label: "0" },
+  { color: { _dark: "blue.300", _light: "blue.200" }, label: "1-5" },
+  { color: { _dark: "blue.500", _light: "blue.400" }, label: "6-15" },
+  { color: { _dark: "blue.700", _light: "blue.600" }, label: "16-25" },
+  { color: { _dark: "blue.900", _light: "blue.800" }, label: "26+" },
 ];
 
 const failedRunsLegendData = [
-  { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
+  { color: { _dark: "transparent", _light: "transparent" }, label: "0" },
   { color: { _dark: "red.300", _light: "red.200" }, label: "1-2" },
   { color: { _dark: "red.500", _light: "red.400" }, label: "3-5" },
   { color: { _dark: "red.700", _light: "red.600" }, label: "6-10" },
@@ -65,7 +65,15 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
             <VStack gap={0.5}>
               {[...legendData].reverse().map(({ color, label }) => (
                 <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
+                  <Box 
+                    bg={color} 
+                    border="1px solid"
+                    borderColor="border.emphasized"
+                    borderRadius="2px" 
+                    cursor="pointer" 
+                    height="14px" 
+                    width="14px" 
+                  />
                 </Tooltip>
               ))}
             </VStack>
@@ -81,7 +89,15 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
             <HStack gap={0.5}>
               {legendData.map(({ color, label }) => (
                 <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
+                  <Box 
+                    bg={color} 
+                    border="1px solid"
+                    borderColor="border.emphasized"
+                    borderRadius="2px" 
+                    cursor="pointer" 
+                    height="14px" 
+                    width="14px" 
+                  />
                 </Tooltip>
               ))}
             </HStack>
@@ -96,7 +112,9 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
         <HStack gap={4} justify="center" wrap="wrap">
           <HStack gap={2}>
             <Box
-              bg={{ _dark: "scheduled.600", _light: "scheduled.200" }}
+              bg={{ _dark: "scheduled.solid", _light: "scheduled.emphasized" }}
+              border="1px solid"
+              borderColor="border.emphasized"
               borderRadius="2px"
               boxShadow="sm"
               height="14px"

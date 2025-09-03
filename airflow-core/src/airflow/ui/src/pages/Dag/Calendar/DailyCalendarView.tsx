@@ -42,7 +42,7 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
+import { generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
 import type { CalendarColorMode } from "./types";
 
 type Props = {
@@ -113,7 +113,8 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
                 return (
                   <CalendarCell
                     backgroundColor={getCalendarCellColor(day.runs, colorMode)}
-                    content={createTooltipContent(day)}
+                    content=""
+                    cellData={day}
                     key={day.date}
                   />
                 );

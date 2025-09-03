@@ -43,7 +43,7 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { createTooltipContent, generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
+import { generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
 import type { CalendarColorMode } from "./types";
 
 dayjs.extend(isSameOrBefore);
@@ -108,7 +108,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
               return (
                 <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width="14px">
                   <Text
-                    color={isWeekend ? "red.400" : "gray.600"}
+                    color={isWeekend ? "failed.muted" : "fg.muted"}
                     fontSize={dateFontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
                     lineHeight="1"
@@ -117,7 +117,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                     {dayjs(day.day).format("D")}
                   </Text>
                   <Text
-                    color={isWeekend ? "red.400" : "gray.500"}
+                    color={isWeekend ? "failed.muted" : "fg.muted"}
                     fontSize={dayNameFontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
                     lineHeight="1"
@@ -138,7 +138,7 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
           {Array.from({ length: 24 }, (_, hour) => (
             <Box
               alignItems="center"
-              color="gray.500"
+              color="fg.muted"
               display="flex"
               fontSize="xs"
               height="14px"
@@ -170,15 +170,11 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                   );
                 }
 
-                const tooltipContent =
-                  hourData.counts.total > 0
-                    ? `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${createTooltipContent(hourData).split(": ")[1]}`
-                    : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
-
                 return (
                   <CalendarCell
                     backgroundColor={getCalendarCellColor(hourData.runs, colorMode)}
-                    content={tooltipContent}
+                    content=""
+                    cellData={hourData}
                     index={index}
                     key={`${day.day}-${hour}`}
                   />

@@ -88,22 +88,22 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 };
 
 const TOTAL_COLOR_INTENSITIES = [
-  { _dark: "gray.700", _light: "gray.100" }, // 0 runs
-  { _dark: "green.300", _light: "green.200" }, // 1-5 runs
-  { _dark: "green.500", _light: "green.400" }, // 6-15 runs
-  { _dark: "green.700", _light: "green.600" }, // 16-25 runs
-  { _dark: "green.900", _light: "green.800" }, // 26+ runs
+  { _dark: "transparent", _light: "transparent" }, // 0 runs
+  { _dark: "blue.300", _light: "blue.200" }, // 1-5 runs
+  { _dark: "blue.500", _light: "blue.400" }, // 6-15 runs
+  { _dark: "blue.700", _light: "blue.600" }, // 16-25 runs
+  { _dark: "blue.900", _light: "blue.800" }, // 26+ runs
 ] as const;
 
 const FAILURE_COLOR_INTENSITIES = [
-  { _dark: "gray.700", _light: "gray.100" }, // 0 failures
+  { _dark: "transparent", _light: "transparent" }, // 0 failures
   { _dark: "red.300", _light: "red.200" }, // 1-2 failures
   { _dark: "red.500", _light: "red.400" }, // 3-5 failures
   { _dark: "red.700", _light: "red.600" }, // 6-10 failures
   { _dark: "red.900", _light: "red.800" }, // 11+ failures
 ] as const;
 
-const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
+const PLANNED_COLOR = { _dark: "scheduled.solid", _light: "scheduled.emphasized" };
 
 const getIntensityLevel = (count: number, mode: CalendarColorMode): number => {
   if (count === 0) {
@@ -143,20 +143,26 @@ export const getCalendarCellColor = (
   colorMode: CalendarColorMode = "total",
 ): string | { _dark: string; _light: string } => {
   if (runs.length === 0) {
-    return { _dark: "gray.700", _light: "gray.100" };
+    const colorScheme = colorMode === "total" ? TOTAL_COLOR_INTENSITIES : FAILURE_COLOR_INTENSITIES;
+    return colorScheme[0];
   }
 
   const counts = calculateRunCounts(runs);
 
-  if (counts.planned > 0) {
+  // Only show planned color if there are no actual runs (only planned)
+  if (counts.planned > 0 && counts.total === counts.planned) {
     return PLANNED_COLOR;
   }
 
-  const targetCount = colorMode === "total" ? counts.total : counts.failed;
-  const intensityLevel = getIntensityLevel(targetCount, colorMode);
-  const colorScheme = colorMode === "total" ? TOTAL_COLOR_INTENSITIES : FAILURE_COLOR_INTENSITIES;
+  // For failed runs mode, show failed runs
+  if (colorMode === "failed") {
+    const intensityLevel = getIntensityLevel(counts.failed, colorMode);
+    return FAILURE_COLOR_INTENSITIES[intensityLevel] ?? FAILURE_COLOR_INTENSITIES[0];
+  }
 
-  return colorScheme[intensityLevel] ?? { _dark: "gray.700", _light: "gray.100" };
+  // For total runs mode, show total runs in blue
+  const intensityLevel = getIntensityLevel(counts.total, colorMode);
+  return TOTAL_COLOR_INTENSITIES[intensityLevel] ?? TOTAL_COLOR_INTENSITIES[0];
 };
 
 export const generateDailyCalendarData = (
@@ -219,16 +225,18 @@ export const generateHourlyCalendarData = (
   return { days: monthData, month: monthStart.format("MMM YYYY") };
 };
 
-export const createTooltipContent = (cellData: CalendarCellData): string => {
+
+
+export const createTooltipContent = (cellData: CalendarCellData) => {
   const { counts, date } = cellData;
 
-  if (counts.total === 0) {
-    return `${date}: No runs`;
-  }
-
-  const parts = Object.entries(counts)
+  const stateEntries = Object.entries(counts)
     .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => `${count} ${state}`);
+    .map(([state, count]) => {
+      // Get the appropriate semantic token for each state
+      const stateColor = `${state}.solid`;
+      return { state, count, color: stateColor };
+    });
 
-  return `${date}: ${counts.total} runs (${parts.join(", ")})`;
+  return { date, total: counts.total, states: stateEntries, hasRuns: counts.total > 0 };
 };
