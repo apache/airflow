@@ -3,32 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <base href="{{ backend_server_base_url }}" />
-    
-    <!-- Essential SEO Meta Tags -->
-    <title>Apache Airflow Login</title>
-    <meta name="description" content="Sign in to Apache Airflow workflow management platform" />
-    <meta name="robots" content="noindex, nofollow" />
-    
-    <!-- Viewport and Performance -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#017CEE" />
-    
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="/static/pin_32.png" />
-    
-    <!-- Performance Optimization -->
-    <link rel="preconnect" href="{{ backend_server_base_url }}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airflow</title>
   </head>
-  <body style="height: 100%; margin: 0;">
+  <body style="height: 100%">
     <div id="root" style="height: 100%"></div>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- No-JS Fallback -->
-    <noscript>
-      <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-        <h1>JavaScript Required</h1>
-        <p>Apache Airflow requires JavaScript to be enabled.</p>
-      </div>
-    </noscript>
   </body>
 </html>
