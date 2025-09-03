@@ -45,9 +45,7 @@ export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle
           <Heading size="lg">{title}</Heading>
           <Heading size="lg">{subTitle}</Heading>
           {state === undefined ? undefined : (
-            <StateBadge state={state}>
-              {state ? translate(`common:states.${state}`) : undefined}
-            </StateBadge>
+            <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>
           )}
           {isRefreshing ? <Spinner /> : <div />}
         </Flex>

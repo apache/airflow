@@ -355,7 +355,7 @@ export const customConfig = defineConfig({
         danger: generateSemanticTokens("red"),
         info: generateSemanticTokens("blue"),
         warning: generateSemanticTokens("amber"),
-        error: generateSemanticTokens("red"),        
+        error: generateSemanticTokens("red"),
         // AIRFLOW TASK STATE
         active: generateSemanticTokens("blue"),
         success: generateSemanticTokens("green"),
