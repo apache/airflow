@@ -3,7 +3,7 @@
     "response": {
       "all": "全部",
       "pending": "待回應",
-      "received": "已回覆"
+      "received": "已回應"
     }
   },
   "requiredAction_one": "待回應的任務實例",

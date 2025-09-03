@@ -689,6 +689,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         import msgspec
         from structlog.stdlib import NAME_TO_LEVEL
 
+        from airflow.sdk.log import configure_logging
+
+        configure_logging()
+
         fallback_log = structlog.get_logger(logger_name=__name__)
 
         from airflow.sdk.log import logging_processors

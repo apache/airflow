@@ -939,7 +939,8 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     respondents?: Array<(string)> | null;
-    user_id?: string | null;
+    responded_user_id?: string | null;
+    responded_user_name?: string | null;
     response_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
@@ -960,7 +961,8 @@ export type HITLDetailCollection = {
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
-    user_id: string;
+    responded_user_id: string;
+    responded_user_name: string;
     response_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
@@ -1789,6 +1791,7 @@ export type DAGWithLatestDagRunsResponse = {
     [key: string]: unknown;
 } | null;
     latest_dag_runs: Array<DAGRunResponse>;
+    pending_actions: Array<HITLDetail>;
     /**
      * Return file token.
      */
@@ -2342,7 +2345,7 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2366,7 +2369,7 @@ export type GetDagsData = {
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
     isFavorite?: boolean | null;
@@ -2452,7 +2455,7 @@ export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2469,9 +2472,10 @@ export type GetDagsUiData = {
     dagRunsLimit?: number;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -3084,6 +3088,8 @@ export type GetHitlDetailsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
+    respondedUserId?: Array<(string)>;
+    respondedUserName?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
@@ -3095,7 +3101,6 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     taskIdPattern?: string | null;
-    userId?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;

@@ -3011,9 +3011,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -3021,9 +3021,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -8179,14 +8179,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: user_id
+      - name: responded_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: User Id
+          title: Responded User Id
+      - name: responded_user_name
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Responded User Name
       - name: subject_search
         in: query
         required: false
@@ -10822,11 +10830,16 @@ components:
             type: array
           - type: 'null'
           title: Respondents
-        user_id:
+        responded_user_id:
           anyOf:
           - type: string
           - type: 'null'
-          title: User Id
+          title: Responded User Id
+        responded_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responded User Name
         response_at:
           anyOf:
           - type: string
@@ -10873,9 +10886,12 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        user_id:
+        responded_user_id:
           type: string
-          title: User Id
+          title: Responded User Id
+        responded_user_name:
+          type: string
+          title: Responded User Name
         response_at:
           type: string
           format: date-time
@@ -10892,7 +10908,8 @@ components:
           title: Params Input
       type: object
       required:
-      - user_id
+      - responded_user_id
+      - responded_user_name
       - response_at
       - chosen_options
       title: HITLDetailResponse
