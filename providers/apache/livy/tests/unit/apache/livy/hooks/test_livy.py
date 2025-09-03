@@ -936,6 +936,7 @@ class TestLivyAsyncHook:
         mock_run_method.assert_called_once_with(
             endpoint=f"/livy/batches/{BATCH_ID}/log",
             data={"from": 0, "size": 100},
+            headers={},
         )
 
     @pytest.mark.asyncio
