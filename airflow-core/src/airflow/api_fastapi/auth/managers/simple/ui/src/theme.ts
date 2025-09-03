@@ -17,6 +17,10 @@
  * under the License.
  */
 
+/* THIS FILE IS A COPY OF THE AIRFLOW UI THEME FILE LOCATED IN
+   airflow-core/src/airflow/ui/src/theme.ts
+*/
+
 /* eslint-disable perfectionist/sort-objects */
 
 /* eslint-disable max-lines */
@@ -37,9 +41,8 @@ export const customConfig = defineConfig({
   theme: {
     tokens: {
       colors: {
-        black: { value: "oklch(0.23185 0.0323 266.44)" }, // Custom value (Tailwind uses #000)
-        steel: {
-          // This is a 20/80 blend between "blue" and "slate"
+        black: { value: "oklch(0.23185 0.0323 266.44)" }, // Custom value for dark mode
+        brand: {
           "50": { value: "oklch(0.98 0.006 248.717)" },
           "100": { value: "oklch(0.962 0.012 249.460)" },
           "200": { value: "oklch(0.923 0.023 255.082)" },
@@ -53,8 +56,8 @@ export const customConfig = defineConfig({
           "950": { value: "oklch(0.179 0.05 265.487)" },
         },
         gray: {
-          // Values modified from original Tailwind to improve contrast
-          "50":  { value: "oklch(0.985 0.004 253)" }, // Original: oklch(0.985 0.002 247.839)
+          // Values modified from original Tailwind to improve contrast in Chakra UI
+          "50": { value: "oklch(0.985 0.004 253)" }, // Original: oklch(0.985 0.002 247.839)
           "100": { value: "oklch(0.955 0.006 253)" }, // Original: oklch(0.967 0.003 264.542)
           "200": { value: "oklch(0.915 0.01 253)" }, // Original: oklch(0.928 0.006 264.531)
           "300": { value: "oklch(0.85 0.016 253)" }, // Original: oklch(0.872 0.01 258.338)
@@ -81,9 +84,9 @@ export const customConfig = defineConfig({
           "900": { value: "oklch(0.396 0.141 25.723)" },
           "950": { value: "oklch(0.258 0.092 26.042)" },
         },
-        // Values modified from original Tailwind to improve contrast
-        "orange": {
-          "50":  { value: "oklch(0.982 0.013 83.915)" },
+        // Values modified from original Tailwind to improve contrast in Chakra UI
+        orange: {
+          "50": { value: "oklch(0.982 0.013 83.915)" },
           "100": { value: "oklch(0.961 0.033 82.320)" },
           "200": { value: "oklch(0.918 0.065 79.975)" },
           "300": { value: "oklch(0.857 0.118 76.815)" },
@@ -93,7 +96,7 @@ export const customConfig = defineConfig({
           "700": { value: "oklch(0.553 0.184 41.777)" },
           "800": { value: "oklch(0.469 0.144 45.164)" },
           "900": { value: "oklch(0.414 0.110 48.717)" },
-          "950": { value: "oklch(0.271 0.069 52.345)" }
+          "950": { value: "oklch(0.271 0.069 52.345)" },
         },
         amber: {
           "50": { value: "oklch(0.987 0.022 95.277)" },
@@ -134,19 +137,19 @@ export const customConfig = defineConfig({
           "900": { value: "oklch(0.405 0.101 131.063)" },
           "950": { value: "oklch(0.274 0.072 132.109)" },
         },
-        "green": {
-          // Values modified from original Tailwind to improve contrast
-          "50":  { "value": "oklch(0.982 0.018 155.826)" }, // Original: same
-          "100": { "value": "oklch(0.962 0.044 156.743)" }, // Original: same
-          "200": { "value": "oklch(0.925 0.084 155.995)" }, // Original: same
-          "300": { "value": "oklch(0.75 0.18 153.0)" }, // Original: oklch(0.871 0.15 154.449)
-          "400": { "value": "oklch(0.625 0.209 150.0)" }, // Original: oklch(0.792 0.209 151.711)
-          "500": { "value": "oklch(0.528 0.219 149.579)" }, // Original: oklch(0.723 0.219 149.579)
-          "600": { "value": "oklch(0.47 0.20 149.0)" }, // Original: oklch(0.627 0.194 149.214)
-          "700": { "value": "oklch(0.40 0.16 149.5)" }, // Original: oklch(0.527 0.154 150.069)
-          "800": { "value": "oklch(0.448 0.119 151.328)" }, // Original: same
-          "900": { "value": "oklch(0.393 0.095 152.535)" }, // Original: same
-          "950": { "value": "oklch(0.266 0.065 152.934)" } // Original: same
+        green: {
+          // Values modified from original Tailwind to improve contrast in Chakra UI
+          "50": { value: "oklch(0.982 0.018 155.826)" },
+          "100": { value: "oklch(0.962 0.044 156.743)" },
+          "200": { value: "oklch(0.925 0.084 155.995)" },
+          "300": { value: "oklch(0.75 0.18 153.0)" }, // Original: oklch(0.871 0.15 154.449)
+          "400": { value: "oklch(0.625 0.209 150.0)" }, // Original: oklch(0.792 0.209 151.711)
+          "500": { value: "oklch(0.528 0.219 149.579)" }, // Original: oklch(0.723 0.219 149.579)
+          "600": { value: "oklch(0.47 0.20 149.0)" }, // Original: oklch(0.627 0.194 149.214)
+          "700": { value: "oklch(0.40 0.16 149.5)" }, // Original: oklch(0.527 0.154 150.069)
+          "800": { value: "oklch(0.448 0.119 151.328)" },
+          "900": { value: "oklch(0.393 0.095 152.535)" },
+          "950": { value: "oklch(0.266 0.065 152.934)" },
         },
         emerald: {
           "50": { value: "oklch(0.979 0.021 166.113)" },
@@ -347,7 +350,27 @@ export const customConfig = defineConfig({
     },
     semanticTokens: {
       colors: {
-        navbar: generateSemanticTokens("steel"),
+
+        // GENERIC STATE
+        danger: generateSemanticTokens("red"),
+        info: generateSemanticTokens("blue"),
+        warning: generateSemanticTokens("amber"),
+        error: generateSemanticTokens("red"),
+        // AIRFLOW TASK STATE
+        active: generateSemanticTokens("blue"),
+        success: generateSemanticTokens("green"),
+        failed: generateSemanticTokens("red"),
+        queued: generateSemanticTokens("stone"),
+        skipped: generateSemanticTokens("pink"),
+        up_for_reschedule: generateSemanticTokens("sky"),
+        up_for_retry: generateSemanticTokens("yellow"),
+        upstream_failed: generateSemanticTokens("orange"),
+        running: generateSemanticTokens("cyan"),
+        restarting: generateSemanticTokens("violet"),
+        deferred: generateSemanticTokens("purple"),
+        scheduled: generateSemanticTokens("zinc"),
+        none: generateSemanticTokens("gray"),
+        removed: generateSemanticTokens("slate"),
         // TAILWIND 4.0 COLORS
         red: generateSemanticTokens("red"),
         orange: generateSemanticTokens("orange"),
@@ -371,23 +394,16 @@ export const customConfig = defineConfig({
         zinc: generateSemanticTokens("zinc"),
         neutral: generateSemanticTokens("neutral"),
         stone: generateSemanticTokens("stone"),
-        // AIRFLOW TASK STATE
-        success: generateSemanticTokens("green"),
-        failed: generateSemanticTokens("red"),
-        queued: generateSemanticTokens("stone"),
-        skipped: generateSemanticTokens("pink"),
-        up_for_reschedule: generateSemanticTokens("sky"),
-        up_for_retry: generateSemanticTokens("yellow"),
-        upstream_failed: generateSemanticTokens("orange"),
-        running: generateSemanticTokens("cyan"),
-        restarting: generateSemanticTokens("violet"),
-        deferred: generateSemanticTokens("purple"),
-        scheduled: generateSemanticTokens("zinc"),
-        none: generateSemanticTokens("gray"),
-        removed: generateSemanticTokens("slate"),
       },
     },
   },
 });
 
-export const system = createSystem(defaultConfig, customConfig); 
+export const system = createSystem(defaultConfig, customConfig);
+
+// Utility function to resolve CSS variables to their computed values
+// See: https://github.com/chakra-ui/panda/discussions/2200
+export const getComputedCSSVariableValue = (variable: string): string =>
+  getComputedStyle(document.documentElement)
+    .getPropertyValue(variable.slice(4, variable.length - 1))
+    .trim();

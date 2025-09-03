@@ -33,7 +33,7 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
   const { t: translate } = useTranslation("components");
 
   return (
-    <HStack colorPalette="button" gap={1} pb={2}>
+    <HStack colorPalette="brand" gap={1} pb={2}>
       <Tooltip content={translate("toggleCardView")}>
         <IconButton
           _hover={{ bg: "colorPalette.emphasized" }}
