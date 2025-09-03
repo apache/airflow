@@ -378,13 +378,13 @@ class TestCalculatedDeadlineDatabaseCalls:
                 result = reference.evaluate_with(session=session, interval=interval, **conditions)
                 mock_fetch.assert_called_once_with(expected_column, session=session, **conditions)
             elif reference == DeadlineReference.AVERAGE_RUNTIME:
-                # AVERAGE_RUNTIME has custom implementation, doesn't use _fetch_from_db
                 with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
                     mock_utcnow.return_value = DEFAULT_DATE
-                    with mock.patch.object(session, "query") as mock_query:
-                        mock_query.return_value.filter.return_value.scalar.return_value = (
-                            3600  # 1 hour in seconds
-                        )
+                    with mock.patch.object(session, "execute") as mock_execute:
+                        # Mock the result object that execute() returns
+                        mock_result = mock.Mock()
+                        mock_result.scalar.return_value = 3600  # 1 hour in seconds
+                        mock_execute.return_value = mock_result
                         result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
                         mock_fetch.assert_not_called()
                         # Should be DEFAULT_DATE + 1 hour (average) + 1 hour (interval)

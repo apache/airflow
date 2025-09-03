@@ -378,11 +378,11 @@ class ReferenceModels:
             dag_id = kwargs["dag_id"]
 
             # Query for completed DAG runs with both start and end dates
-            query = session.query(
-                func.avg(func.extract("epoch", DagRun.end_date - DagRun.start_date))
-            ).filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+            query = select(func.avg(func.extract("epoch", DagRun.end_date - DagRun.start_date))).filter(
+                DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None)
+            )
 
-            avg_seconds = query.scalar()
+            avg_seconds = session.execute(query).scalar()
             if avg_seconds is None:
                 logger.info("No completed DAG runs found for dag_id: %s, defaulting to 0 seconds", dag_id)
                 avg_seconds = 0
