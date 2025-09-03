@@ -55,7 +55,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
