@@ -365,6 +365,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dags_list = []
     if args.local:
         from airflow.dag_processing.dagbag import DagBag
+
         # Get import errors from the local area
         if args.bundle_name:
             manager = DagBundlesManager()
