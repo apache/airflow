@@ -2080,6 +2080,59 @@ my_postgres_conn:
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
+    def test_dag_with_multiple_deadlines(self, dag_maker, session):
+        """Test that a DAG with multiple deadlines stores all deadlines in the database."""
+        deadlines = [
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=datetime.timedelta(minutes=10),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        ]
+
+        with dag_maker(
+            dag_id="test_multiple_deadlines",
+            schedule=datetime.timedelta(days=1),
+            deadline=deadlines,
+        ) as dag:
+            EmptyOperator(task_id="test_task")
+
+        dr = dag.create_dagrun(
+            run_id="test_multiple_deadlines",
+            run_type=DagRunType.SCHEDULED,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        # Check that all 3 deadlines were created
+        assert len(dr.deadlines) == 3
+
+        # Verify each deadline has correct properties
+        deadline_times = [d.deadline_time for d in dr.deadlines]
+        expected_times = [
+            dr.queued_at + datetime.timedelta(minutes=5),
+            dr.queued_at + datetime.timedelta(minutes=10),
+            dr.logical_date + datetime.timedelta(hours=1),
+        ]
+
+        # Sort both lists to compare regardless of order
+        deadline_times.sort()
+        expected_times.sort()
+        assert deadline_times == expected_times
 
 class TestDagModel:
     def _clean(self):
@@ -3618,3 +3671,4 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
 
     # but it only gets stamped on the dag run when bundle versioning not disabled
     assert dr.bundle_version == expected
+
