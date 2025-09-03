@@ -311,7 +311,7 @@ class TestVariable:
 
         assert c != b
 
-    def test_get_team_name(self, testing_team, session):
+    def test_get_team_name(self, testing_team: Team, session: Session):
         var = Variable(key="key", val="value", team_id=testing_team.id)
         session.add(var)
         session.flush()
