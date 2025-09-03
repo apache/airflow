@@ -937,3 +937,18 @@ class TestLivyAsyncHook:
             endpoint=f"/livy/batches/{BATCH_ID}/log",
             data={"from": 0, "size": 100},
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.run_method")
+    async def test_get_batch_logs_with_extra_headers(self, mock_run_method):
+        headers = {"X-Requested-By": "user"}
+        mock_run_method.return_value = {"status": "success", "response": {}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID, extra_headers=headers)
+        state = await hook.get_batch_logs(BATCH_ID, 0, 100)
+        assert state["status"] == "success"
+
+        mock_run_method.assert_called_once_with(
+            endpoint=f"/batches/{BATCH_ID}/log",
+            data={"from": 0, "size": 100},
+            headers=headers,
+        )

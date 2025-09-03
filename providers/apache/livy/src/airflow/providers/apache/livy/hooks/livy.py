@@ -668,7 +668,9 @@ class LivyAsyncHook(HttpAsyncHook):
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
         result = await self.run_method(
-            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log", data=log_params
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log",
+            data=log_params,
+            headers=self.extra_headers,
         )
         if result["status"] == "error":
             self.log.info(result)
