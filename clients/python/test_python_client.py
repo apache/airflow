@@ -20,7 +20,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #   "apache-airflow-client",
-#   "rich",
+#   "rich>=13.6.0",
 # ]
 # ///
 

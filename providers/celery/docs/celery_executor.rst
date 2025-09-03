@@ -116,7 +116,7 @@ Architecture
             scheduler[label="Scheduler"]
             web[label="Web server"]
             database[label="Database"]
-            dag[label="DAG files"]
+            dag[label="Dag files"]
 
             subgraph cluster_queue {
                 label="Celery";
@@ -145,8 +145,8 @@ Airflow consist of several components:
 
 * **Workers** - Execute the assigned tasks
 * **Scheduler** - Responsible for adding the necessary tasks to the queue
-* **Web server** - HTTP Server provides access to DAG/task status information
-* **Database** - Contains information about the status of tasks, DAGs, Variables, connections, etc.
+* **Web server** - HTTP Server provides access to Dag/task status information
+* **Database** - Contains information about the status of tasks, Dags, Variables, connections, etc.
 * **Celery** - Queue mechanism
 
 Please note that the queue at Celery consists of two components:
@@ -157,14 +157,14 @@ Please note that the queue at Celery consists of two components:
 The components communicate with each other in many places
 
 * [1] **Web server** --> **Workers** - Fetches task execution logs
-* [2] **Web server** --> **DAG files** - Reveal the DAG structure
+* [2] **Web server** --> **Dag files** - Reveal the Dag structure
 * [3] **Web server** --> **Database** - Fetch the status of the tasks
-* [4] **Workers** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [4] **Workers** --> **Dag files** - Reveal the Dag structure and execute the tasks
 * [5] **Workers** --> **Database** - Gets and stores information about connection configuration, variables and XCOM.
 * [6] **Workers** --> **Celery's result backend** - Saves the status of tasks
 * [7] **Workers** --> **Celery's broker** - Stores commands for execution
-* [8] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
-* [9] **Scheduler** --> **Database** - Store a DAG run and related tasks
+* [8] **Scheduler** --> **Dag files** - Reveal the Dag structure and execute the tasks
+* [9] **Scheduler** --> **Database** - Store a Dag run and related tasks
 * [10] **Scheduler** --> **Celery's result backend** - Gets information about the status of completed tasks
 * [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed
 

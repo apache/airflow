@@ -530,7 +530,8 @@ class HITLDetailResponse(BaseModel):
     Response of updating a Human-in-the-loop detail.
     """
 
-    user_id: Annotated[str, Field(title="User Id")]
+    responded_user_id: Annotated[str, Field(title="Responded User Id")]
+    responded_user_name: Annotated[str, Field(title="Responded User Name")]
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
@@ -782,15 +783,25 @@ class TaskInstancesBatchBody(BaseModel):
     task_ids: Annotated[list[str] | None, Field(title="Task Ids")] = None
     state: Annotated[list[TaskInstanceState | None] | None, Field(title="State")] = None
     run_after_gte: Annotated[datetime | None, Field(title="Run After Gte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
     run_after_lte: Annotated[datetime | None, Field(title="Run After Lte")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
     logical_date_gte: Annotated[datetime | None, Field(title="Logical Date Gte")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
     logical_date_lte: Annotated[datetime | None, Field(title="Logical Date Lte")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
     start_date_gte: Annotated[datetime | None, Field(title="Start Date Gte")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
     duration_gte: Annotated[float | None, Field(title="Duration Gte")] = None
+    duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
     duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
+    duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
     pool: Annotated[list[str] | None, Field(title="Pool")] = None
     queue: Annotated[list[str] | None, Field(title="Queue")] = None
     executor: Annotated[list[str] | None, Field(title="Executor")] = None
@@ -945,6 +956,7 @@ class XComResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
 class XComResponseNative(BaseModel):
@@ -960,6 +972,7 @@ class XComResponseNative(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -976,6 +989,7 @@ class XComResponseString(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
     value: Annotated[str | None, Field(title="Value")] = None
 
 
@@ -1252,7 +1266,11 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
-        int, Field(description="Return max_active_tasks as concurrency.", title="Concurrency")
+        int,
+        Field(
+            description="Return max_active_tasks as concurrency.\n\nDeprecated: Use max_active_tasks instead.",
+            title="Concurrency",
+        ),
     ]
     latest_dag_version: Annotated[
         DagVersionResponse | None, Field(description="Return the latest DagVersion.")
@@ -1348,13 +1366,21 @@ class DAGRunsBatchBody(BaseModel):
     dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
     states: Annotated[list[DagRunState | None] | None, Field(title="States")] = None
     run_after_gte: Annotated[datetime | None, Field(title="Run After Gte")] = None
+    run_after_gt: Annotated[datetime | None, Field(title="Run After Gt")] = None
     run_after_lte: Annotated[datetime | None, Field(title="Run After Lte")] = None
+    run_after_lt: Annotated[datetime | None, Field(title="Run After Lt")] = None
     logical_date_gte: Annotated[datetime | None, Field(title="Logical Date Gte")] = None
+    logical_date_gt: Annotated[datetime | None, Field(title="Logical Date Gt")] = None
     logical_date_lte: Annotated[datetime | None, Field(title="Logical Date Lte")] = None
+    logical_date_lt: Annotated[datetime | None, Field(title="Logical Date Lt")] = None
     start_date_gte: Annotated[datetime | None, Field(title="Start Date Gte")] = None
+    start_date_gt: Annotated[datetime | None, Field(title="Start Date Gt")] = None
     start_date_lte: Annotated[datetime | None, Field(title="Start Date Lte")] = None
+    start_date_lt: Annotated[datetime | None, Field(title="Start Date Lt")] = None
     end_date_gte: Annotated[datetime | None, Field(title="End Date Gte")] = None
+    end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
+    end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):
@@ -1375,6 +1401,7 @@ class DAGWarningResponse(BaseModel):
     warning_type: DagWarningType
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagStatsResponse(BaseModel):
@@ -1551,6 +1578,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     queue: Annotated[str | None, Field(title="Queue")] = None
     priority_weight: Annotated[int | None, Field(title="Priority Weight")] = None
     operator: Annotated[str | None, Field(title="Operator")] = None
+    operator_name: Annotated[str | None, Field(title="Operator Name")] = None
     queued_when: Annotated[datetime | None, Field(title="Queued When")] = None
     scheduled_when: Annotated[datetime | None, Field(title="Scheduled When")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
@@ -1586,6 +1614,7 @@ class TaskInstanceResponse(BaseModel):
     queue: Annotated[str | None, Field(title="Queue")] = None
     priority_weight: Annotated[int | None, Field(title="Priority Weight")] = None
     operator: Annotated[str | None, Field(title="Operator")] = None
+    operator_name: Annotated[str | None, Field(title="Operator Name")] = None
     queued_when: Annotated[datetime | None, Field(title="Queued When")] = None
     scheduled_when: Annotated[datetime | None, Field(title="Scheduled When")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
@@ -1798,7 +1827,8 @@ class HITLDetail(BaseModel):
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
-    user_id: Annotated[str | None, Field(title="User Id")] = None
+    responded_user_id: Annotated[str | None, Field(title="Responded User Id")] = None
+    responded_user_name: Annotated[str | None, Field(title="Responded User Name")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None

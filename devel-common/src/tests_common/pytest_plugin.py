@@ -30,7 +30,7 @@ from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 from unittest import mock
 
 import pytest
@@ -42,26 +42,26 @@ if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context
+    from airflow.sdk import DAG, BaseOperator, Context, TriggerRule
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
-    from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+    from airflow.sdk.definitions.dag import ScheduleArg
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol
+    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.trigger_rule import TriggerRule
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
 
-    Op = TypeVar("Op", bound=BaseOperator)
+Dag = TypeVar("Dag", "DAG", "SerializedDAG", covariant=True)
+Op = TypeVar("Op", bound="BaseOperator")
 
 # NOTE: DO NOT IMPORT AIRFLOW THINGS HERE!
 #
@@ -235,10 +235,7 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 @pytest.fixture(autouse=True)
 def trace_sql(request):
     try:
-        from tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
-            count_queries,
-            trace_queries,
-        )
+        from tests_common.test_utils.perf.perf_kit.sqlalchemy import count_queries, trace_queries
     except ImportError:
         yield
         return
@@ -780,7 +777,7 @@ def frozen_sleep(monkeypatch):
         traveller.stop()
 
 
-class DagMaker(Protocol):
+class DagMaker(Generic[Dag], Protocol):
     """
     Interface definition for dag_maker return value.
 
@@ -789,8 +786,9 @@ class DagMaker(Protocol):
     """
 
     session: Session
+    dag: DAG
 
-    def __enter__(self) -> DAG: ...
+    def __enter__(self) -> Dag: ...
 
     def __exit__(self, type, value, traceback) -> None: ...
 
@@ -953,44 +951,56 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if type is not None:
                 return
 
-            dag.clear(session=self.session)
-            if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
-            else:
-                dag.sync_to_db(session=self.session)
-
             if dag.access_control and "FabAuthManager" in conf.get("core", "auth_manager"):
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
-                    from airflow.www.security_appless import ApplessAirflowSecurityManager
+                    from airflow.www.security_appless import ApplessAirflowSecurityManager  # type: ignore
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
-            self.dag_model = self.session.get(DagModel, dag.dag_id)
-
             self._make_serdag(dag)
-            self._bag_dag_compat(self.dag)
+            self.dag_model = self.session.get(DagModel, dag.dag_id)
+            self.session.commit()
 
-        def _make_serdag(self, dag):
+        def _make_serdag(self, dag: DAG):
             from sqlalchemy import select
 
             from airflow.models.serialized_dag import SerializedDagModel
 
-            self.serialized_model = SerializedDagModel(dag)
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+                self.serialized_model = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+            else:
+                self.serialized_model = SerializedDagModel(dag)  # type: ignore[arg-type]
+
             sdm = self.session.scalar(
                 select(SerializedDagModel).where(
                     SerializedDagModel.dag_id == dag.dag_id,
                     SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
                 )
             )
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.serialization.serialized_objects import SerializedDAG
+
+                SerializedDAG.bulk_write_to_db(
+                    self.bundle_name,
+                    self.bundle_version,
+                    [dag],
+                    session=self.session,
+                )
+            else:
+                dag.sync_to_db(session=self.session)  # type: ignore[attr-defined]
+
             if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
                 from airflow.models.dag_version import DagVersion
                 from airflow.models.dagcode import DagCode
 
                 dagv = DagVersion.write_dag(
                     dag_id=dag.dag_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.dag_model.bundle_version,
+                    bundle_name=self.bundle_name,
+                    bundle_version=self.bundle_version,
                     session=self.session,
                 )
                 self.session.add(dagv)
@@ -1005,9 +1015,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 sdm._data = self.serialized_model._data
                 self.serialized_model = sdm
             else:
-                self.session.merge(self.serialized_model)
-            serialized_dag = self._serialized_dag()
-            self._bag_dag_compat(serialized_dag)
+                sdm = self.session.merge(self.serialized_model)
+            self._bag_dag_compat(dag)
             self.session.flush()
 
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
@@ -1030,7 +1039,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 )
                 logical_date = kwargs.pop("execution_date")
 
-            dag = self.dag
+            dag = self._serialized_dag()
             kwargs = {
                 "state": DagRunState.RUNNING,
                 "start_date": self.start_date,
@@ -1059,6 +1068,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if logical_date is not None:
                     if run_type == DagRunType.MANUAL:
                         data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                    elif AIRFLOW_V_3_1_PLUS:
+                        from airflow.models.dag import infer_automated_data_interval
+
+                        data_interval = infer_automated_data_interval(dag.timetable, logical_date)
                     else:
                         data_interval = dag.infer_automated_data_interval(logical_date)
             kwargs["data_interval"] = data_interval
@@ -1089,18 +1102,21 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
-            if self.want_serialized:
-                dag = self.serialized_model.dag
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 # This need to always operate on the _real_ dag
                 ti.refresh_from_task(self.dag.get_task(ti.task_id))
-            if self.want_serialized:
-                self.session.commit()
+            self.session.commit()
             return self.dag_run
 
         def create_dagrun_after(self, dagrun, **kwargs):
-            next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
+            sdag = self._serialized_dag()
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.models.dag import get_run_data_interval
+
+                next_info = sdag.next_dagrun_info(get_run_data_interval(sdag.timetable, dagrun))
+            else:
+                next_info = sdag.next_dagrun_info(sdag.get_run_data_interval(dagrun))
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
             return self.create_dagrun(
@@ -1174,7 +1190,14 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             **kwargs,
         ):
             from airflow import settings
-            from airflow.models.dag import DAG
+
+            # Don't change this to AIRFLOW_V_3_0_PLUS. Although SDK DAG exists
+            # before 3.1, things in dag maker setup can't handle it in compat
+            # tests. They are probably fixable, but it's not worthwhile to.
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.sdk import DAG
+            else:
+                from airflow import DAG
 
             timezone = _import_timezone()
 
@@ -1622,13 +1645,18 @@ def get_test_dag():
             return
 
         if AIRFLOW_V_3_0_PLUS:
-            session = settings.Session()
-            from airflow.models.dagbundle import DagBundleModel
+            from sqlalchemy import func, select
 
-            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.serialization.serialized_objects import SerializedDAG
+
+            session = settings.Session()
+            if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))
-                session.commit()
-            dag.bulk_write_to_db("testing", None, [dag])
+                session.flush()
+            SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
+            session.commit()
+            session.close()
         else:
             dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing")
@@ -1808,24 +1836,57 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         yield
         return
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
-            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow._shared.secrets_masker import (
+                    SecretsMasker as CoreSecretsMasker,
+                )
+                from airflow.sdk._shared.secrets_masker import (
+                    SecretsMasker as SDKSecretsMasker,
+                )
+
+                mp_ctx.setattr(CoreSecretsMasker, "mask_secrets_in_logs", True)
+                mp_ctx.setattr(SDKSecretsMasker, "mask_secrets_in_logs", True)
+            else:
+                # Fallback for older versions
+                mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
-    target = (
-        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
-    )
+    # Rest of the mocking logic remains the same
+    targets = []
+    if AIRFLOW_V_3_1_PLUS:
+        targets = [
+            "airflow._shared.secrets_masker.SecretsMasker.redact",
+            "airflow.sdk._shared.secrets_masker.SecretsMasker.redact",
+        ]
+    elif AIRFLOW_V_3_0_PLUS:
+        targets = ["airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"]
+    else:
+        targets = ["airflow.utils.log.secrets_masker.SecretsMasker.redact"]
 
-    mocked_redact = mocker.patch(target)
-    mocked_redact.side_effect = lambda item, *args, **kwargs: item
+    for target in targets:
+        mocked_redact = mocker.patch(target)
+        mocked_redact.side_effect = lambda item, *args, **kwargs: item
+
     with pytest.MonkeyPatch.context() as mp_ctx:
-        mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
+        # NEW: Set class variable instead of settings
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow._shared.secrets_masker import (
+                SecretsMasker as CoreSecretsMasker,
+            )
+            from airflow.sdk._shared.secrets_masker import (
+                SecretsMasker as SDKSecretsMasker,
+            )
+
+            mp_ctx.setattr(CoreSecretsMasker, "mask_secrets_in_logs", True)
+            mp_ctx.setattr(SDKSecretsMasker, "mask_secrets_in_logs", True)
+        else:
+            # Fallback for older versions
+            mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
 
@@ -2095,7 +2156,10 @@ def sdk_connection_not_found(mock_supervisor_comms):
     from airflow.sdk.exceptions import ErrorType
     from airflow.sdk.execution_time.comms import ErrorResponse
 
-    mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+    mock_supervisor_comms.send.return_value = error_response
+    if hasattr(mock_supervisor_comms, "asend"):
+        mock_supervisor_comms.asend.return_value = error_response
 
     yield mock_supervisor_comms
 
@@ -2128,8 +2192,8 @@ def mocked_parse(spy_agency):
             )
     """
 
-    def set_dag(what: StartupDetails, dag_id: str, task: TaskSDKBaseOperator) -> RuntimeTaskInstance:
-        from airflow.sdk.definitions.dag import DAG
+    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
+        from airflow.sdk import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
 
         timezone = _import_timezone()
@@ -2207,7 +2271,7 @@ class RunTaskCallable(Protocol):
 
     def __call__(
         self,
-        task: TaskSDKBaseOperator,
+        task: BaseOperator,
         dag_id: str = ...,
         run_id: str = ...,
         logical_date: datetime | None = None,
@@ -2243,18 +2307,19 @@ def create_runtime_ti(mocked_parse):
     """
     from uuid6 import uuid7
 
+    from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import TimeRestriction
 
     timezone = _import_timezone()
 
     def _create_task_instance(
-        task: BaseOperator,
+        task: MappedOperator | SerializedBaseOperator,
         dag_id: str = "test_dag",
         run_id: str = "test_run",
-        logical_date: str | datetime = "2024-12-01T01:00:00Z",
+        logical_date: str | datetime | None = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         try_number: int = 1,
@@ -2269,23 +2334,46 @@ def create_runtime_ti(mocked_parse):
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
 
+        if isinstance(logical_date, str):
+            logical_date = timezone.parse(logical_date)
+        else:
+            logical_date = timezone.coerce_datetime(logical_date)
+        if isinstance(start_date, str):
+            start_date = timezone.parse(start_date)
+        else:
+            start_date = timezone.coerce_datetime(start_date)
+
+        if TYPE_CHECKING:
+            from pendulum import DateTime
+
+            assert logical_date is None or isinstance(logical_date, DateTime)
+            assert isinstance(start_date, DateTime)
+
         if not ti_id:
             ti_id = uuid7()
 
         if not task.has_dag():
-            dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+            dag = SerializedDAG.deserialize_dag(
+                SerializedDAG.serialize_dag(DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3)))
+            )
             # Fixture only helps in regular base operator tasks, so mypy is wrong here
             task.dag = dag
-            task = dag.task_dict[task.task_id]
+            # TODO (GH-52141): Scheduler DAG should contain scheduler tasks, but
+            # currently this inherits from SDK DAG.
+            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
+
+        if TYPE_CHECKING:
+            assert task.dag is not None
 
         data_interval_start = None
         data_interval_end = None
 
         if task.dag.timetable:
             if run_type == DagRunType.MANUAL:
-                data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                    run_after=logical_date
-                )
+                if logical_date is not None:
+                    data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
+                        run_after=logical_date,
+                    )
             else:
                 drinfo = task.dag.timetable.next_dagrun_info(
                     last_automated_data_interval=None,
@@ -2512,7 +2600,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
         def __call__(
             self,
-            task: TaskSDKBaseOperator,
+            task: BaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,
@@ -2605,11 +2693,11 @@ def create_connection_without_db(monkeypatch):
 
 def _import_timezone():
     try:
-        from airflow.sdk._shared.timezones import timezone
-    except ModuleNotFoundError:
+        from airflow.sdk import timezone
+    except ImportError:
         try:
             from airflow._shared.timezones import timezone
-        except ModuleNotFoundError:
+        except ImportError:
             from airflow.utils import timezone
     return timezone
 
@@ -2617,7 +2705,12 @@ def _import_timezone():
 @pytest.fixture
 def create_dag_without_db():
     def create_dag(dag_id: str):
-        from airflow.models.dag import DAG
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk import DAG
+        else:
+            from airflow import DAG
 
         return DAG(dag_id=dag_id, schedule=None, render_template_as_native_obj=True)
 

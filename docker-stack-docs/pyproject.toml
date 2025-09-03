@@ -22,7 +22,7 @@ requires = [
 build-backend = "hatchling.build"
 
 [project]
-name = "apache-airflow-docker-stack"
+name = "docker-stack"
 description = "Programmatically author, schedule and monitor data pipelines"
 requires-python = ">=3.10"
 authors = [

@@ -121,6 +121,7 @@ jobs:
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
+      shared-distributions-as-json: ${{ steps.selective-checks.outputs.shared-distributions-as-json }}
       skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.head-repo }}
@@ -176,19 +177,13 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Install Python 3.11 as 3.11+ is needed by pin-versions"
-        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c  # v4.9.1
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
-          python-version: 3.11
-          cache: "pip"
-      - name: Install prek, uv
-        shell: bash
-        env:
-          UV_VERSION: "0.8.12"  # Keep this comment to allow automatic replacement of uv version
-          PREK_VERSION: "0.1.1"  # Keep this comment to allow automatic replacement of prek version
-        run: |
-          pip install uv==${UV_VERSION} || true
-          uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+          # octopin needs python 3.11
+          python-version: "3.11"
+          platform: "linux/amd64"
       - name: "Run pin-versions"
         run: >
           prek -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
@@ -212,6 +207,7 @@ jobs:
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: "linux/amd64"
+      shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
 
   build-ci-images:
     name: Build CI images

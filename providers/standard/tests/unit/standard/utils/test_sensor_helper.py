@@ -33,18 +33,21 @@ from airflow.providers.standard.utils.sensor_helper import (
     _get_count,
     _get_external_task_group_task_ids,
 )
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
     from airflow.sdk.definitions.taskgroup import TaskGroup
-except ImportError:
-    # Fallback for Airflow < 3.1
+except ImportError:  # Fallback for Airflow < 3.1
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+try:
+    from airflow.sdk import timezone
+except ImportError:  # Fallback for Airflow < 3.1
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -92,7 +95,7 @@ class TestSensorHelper:
         execution_date = pendulum.instance(execution_date or now)
         run_type = DagRunType.MANUAL
         data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
-        dag_run = dag.create_dagrun(
+        dag_run = create_scheduler_dag(dag).create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=run_type,
                 run_after=execution_date,
