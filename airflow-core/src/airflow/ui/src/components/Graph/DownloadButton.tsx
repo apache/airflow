@@ -30,18 +30,13 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
   const { fitView } = useReactFlow();
 
   const onClick = async () => {
-
     // Ensure the graph fits before taking screenshot
-    fitView({ duration: 0, padding: 0.1 });
-
-    // Small delay to let layout stabilize
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await fitView({ duration: 0, padding: 0.1 });
 
     // Method obtained from https://reactflow.dev/examples/misc/download-image
     const container = document.querySelector(".react-flow__viewport");
 
     if (container instanceof HTMLElement) {
-
       const dimensions = { height: container.clientHeight, width: container.clientWidth };
 
       toPng(container, {
@@ -73,7 +68,7 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
       <IconButton
         aria-label={translate("graph.downloadImage")}
-        onClick={onClick}
+        onClick={() => void onClick()}
         size="xs"
         title={translate("graph.downloadImage")}
         variant="ghost"
