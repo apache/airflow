@@ -156,6 +156,8 @@ def setup(dag_maker, session=None):
         data_interval=data_interval,
         **triggered_by_kwargs,
     )
+    # Set specific triggering users for testing filtering (only for manual runs)
+    run_2.triggering_user_name = "user2"
     for ti in run_1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
     for ti in sorted(run_2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
@@ -493,6 +495,54 @@ class TestGetGridDataEndpoint:
                 "state": "failed",
             },
         ]
+
+    def test_get_grid_runs_filter_by_run_type_scheduled(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/runs/{DAG_ID}?run_type=scheduled")
+        assert response.status_code == 200
+        assert response.json() == [GRID_RUN_1]
+
+    def test_get_grid_runs_filter_by_run_type_manual(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/runs/{DAG_ID}?run_type=manual")
+        assert response.status_code == 200
+        assert response.json() == [GRID_RUN_2]
+
+    def test_get_dag_structure_filter_by_run_type_scheduled(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/structure/{DAG_ID}?run_type=scheduled")
+        assert response.status_code == 200
+        assert response.json() == GRID_NODES
+
+    def test_get_dag_structure_filter_by_run_type_manual(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/structure/{DAG_ID}?run_type=manual")
+        assert response.status_code == 200
+        assert response.json() == GRID_NODES
+
+    def test_get_grid_runs_filter_by_triggering_user(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/runs/{DAG_ID}?triggering_user=user2")
+        assert response.status_code == 200
+        assert response.json() == [GRID_RUN_2]
+
+    def test_get_grid_runs_filter_by_triggering_user_nonexistent(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/runs/{DAG_ID}?triggering_user=nonexistent")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_get_dag_structure_filter_by_triggering_user(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/structure/{DAG_ID}?triggering_user=user2")
+        assert response.status_code == 200
+        assert response.json() == GRID_NODES
+
+    def test_get_grid_runs_filter_by_run_type_and_triggering_user(self, session, test_client):
+        session.commit()
+        response = test_client.get(f"/grid/runs/{DAG_ID}?run_type=manual&triggering_user=user2")
+        assert response.status_code == 200
+        assert response.json() == [GRID_RUN_2]
 
     def test_grid_ti_summaries_group(self, session, test_client):
         run_id = "run_4-1"
