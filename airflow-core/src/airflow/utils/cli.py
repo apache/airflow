@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli_action_loggers
@@ -277,7 +278,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     for bundle_name in bundle_names or ():
         bundle = manager.get_bundle(bundle_name)
         with _airflow_parsing_context_manager(dag_id=dag_id):
-            dagbag = manager.get_dagbag(
+            dagbag = DagBag(
                 dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
             )
         if dag := dagbag.dags.get(dag_id):
@@ -287,7 +288,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     for bundle in manager.get_all_dag_bundles():
         bundle.initialize()
         with _airflow_parsing_context_manager(dag_id=dag_id):
-            dagbag = manager.get_dagbag(
+            dagbag = DagBag(
                 dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
@@ -315,6 +316,8 @@ def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
+    from airflow.dag_processing.dagbag import DagBag
+
     bundle_names = bundle_names or []
 
     if not use_regex:
@@ -322,8 +325,8 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
             return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
-    def _find_dag(manager, bundle):
-        dagbag = manager.get_dagbag(dag_folder=bundle.path, bundle_path=bundle.path)
+    def _find_dag(bundle):
+        dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
         matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
         return matched_dags
 
@@ -331,14 +334,14 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
     matched_dags = []
     for bundle_name in bundle_names:
         bundle = manager.get_bundle(bundle_name)
-        matched_dags = _find_dag(manager, bundle)
+        matched_dags = _find_dag(bundle)
         if matched_dags:
             break
     if not matched_dags:
         # Search in all bundles
         all_bundles = list(manager.get_all_dag_bundles())
         for bundle in all_bundles:
-            matched_dags = _find_dag(manager, bundle)
+            matched_dags = _find_dag(bundle)
             if matched_dags:
                 break
     if not matched_dags:
