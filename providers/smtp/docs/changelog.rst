@@ -28,6 +28,28 @@ Changelog
 ---------
 
 
+2.2.1
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SMTP email template when mark_success_url is undefined for RuntimeTaskInstance objects (#54680)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make smtp provider tests db independent (#54674)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+
 2.2.0
 .....
 

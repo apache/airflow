@@ -20,6 +20,21 @@
 Changelog
 ---------
 
+2.3.4
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Misc
+~~~~
+
+* ``Switch pre-commit to prek (#54258)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+
 2.3.3
 .....
 

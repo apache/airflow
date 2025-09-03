@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+4.1.4
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Misc
+~~~~
+
+* ``Update OracleHook code to meet mypy and ruff guidelines (#54529)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
 4.1.3
 .....
 

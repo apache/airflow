@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+5.11.3
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mypy error for salesforce to_json (#55060)``
+* ``Use 'orient' kwarg in SalesforceHook (#55056)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+
 5.11.2
 ......
 

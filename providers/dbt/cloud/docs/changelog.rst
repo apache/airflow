@@ -28,6 +28,26 @@
 Changelog
 ---------
 
+4.4.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Change operator DbtCloudRunJobOperator to send job_run_id to XCom (#55184)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
 4.4.2
 .....
 
