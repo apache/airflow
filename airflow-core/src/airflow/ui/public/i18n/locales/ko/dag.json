@@ -5,6 +5,33 @@
     "reason": "이유",
     "title": "작업 스케줄링을 막는 종속성"
   },
+  "calendar": {
+    "daily": "일간",
+    "hourly": "시간별",
+    "legend": {
+      "less": "적음",
+      "more": "많음"
+    },
+    "navigation": {
+      "nextMonth": "다음 달",
+      "nextYear": "다음 해",
+      "previousMonth": "이전 달",
+      "previousYear": "이전 해"
+    },
+    "noData": "데이터가 없습니다",
+    "noRuns": "실행이 없습니다",
+    "totalRuns": "총 실행 수",
+    "week": "주 {{weekNumber}}",
+    "weekdays": {
+      "friday": "금",
+      "monday": "월",
+      "saturday": "토",
+      "sunday": "일",
+      "thursday": "목",
+      "tuesday": "화",
+      "wednesday": "수"
+    }
+  },
   "code": {
     "bundleUrl": "번들 URL",
     "noCode": "코드를 찾을 수 없습니다.",
@@ -64,8 +91,11 @@
   "panel": {
     "buttons": {
       "options": "옵션",
+      "showGantt": "간트 차트 보기",
       "showGraph": "그래프 보기",
-      "showGrid": "그리드 보기"
+      "showGraphShortcut": "그래프 보기 (g 키)",
+      "showGrid": "그리드 보기",
+      "showGridShortcut": "그리드 보기 (g 키)"
     },
     "dagRuns": {
       "label": "Dag 실행 수"
@@ -100,6 +130,7 @@
     "assetEvents": "에셋 이벤트",
     "auditLog": "감사 로그",
     "backfills": "백필",
+    "calendar": "캘린더",
     "code": "코드",
     "details": "세부 정보",
     "logs": "로그",
