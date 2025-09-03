@@ -20,11 +20,9 @@ import { Box, Table } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
-  // Note: might use this in future but core-ui-API is not yet bound:
-  // const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
-  const autoRefreshInterval = 5000;
   const { data, error } = useUiServiceWorker(undefined, {
     enabled: true,
     refetchInterval: autoRefreshInterval,

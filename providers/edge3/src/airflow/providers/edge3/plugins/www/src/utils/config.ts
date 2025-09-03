@@ -17,6 +17,7 @@
  * under the License.
  */
 
-export { autoRefreshInterval } from "./config";
-export { useContainerWidth } from "./useContainerWidth";
-export { tokenHandler } from "./tokenHandler";
+// TODO / Note: might use this in future but core-ui-API is not yet bound:
+// const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
+// Either we need the UI API as a "common component" or we need to bin services via axios here (again)
+export const autoRefreshInterval = 5000;
