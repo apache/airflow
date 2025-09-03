@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-03T02:13:16.719981
+# This constraints file was automatically generated on 2025-09-03T13:50:35.558893
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -435,7 +435,7 @@ polars==1.33.0
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.1.5
+prek==0.1.6
 presto-python-client==0.8.4
 prometheus_client==0.22.1
 prompt_toolkit==3.0.52
@@ -463,7 +463,7 @@ pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyenchant==3.2.2
-pyexasol==1.0.0
+pyexasol==1.0.1
 pygraphviz==1.14
 pyiceberg==0.9.1
 pykerberos==1.2.4
@@ -553,7 +553,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.17.2
+snowflake-connector-python==3.17.3
 snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
 soupsieve==2.8
