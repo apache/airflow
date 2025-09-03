@@ -108,6 +108,7 @@ export class AssetService {
      * @param data.sourceTaskId
      * @param data.sourceRunId
      * @param data.sourceMapIndex
+     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.timestampGte
      * @param data.timestampGt
      * @param data.timestampLte
@@ -128,6 +129,7 @@ export class AssetService {
                 source_task_id: data.sourceTaskId,
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
+                name_pattern: data.namePattern,
                 timestamp_gte: data.timestampGte,
                 timestamp_gt: data.timestampGt,
                 timestamp_lte: data.timestampLte,
