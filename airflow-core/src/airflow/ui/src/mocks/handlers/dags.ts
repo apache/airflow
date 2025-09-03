@@ -57,6 +57,7 @@ export const handlers: Array<HttpHandler> = [
       max_active_tasks: 16,
       max_consecutive_failed_dag_runs: 0,
       owners: ["airflow"],
+      pending_actions: [],
       tags: [{ dag_id: "tutorial_taskflow_api_success", name: "example" }],
       timetable_description: "Never, external triggers only",
     };
@@ -93,6 +94,7 @@ export const handlers: Array<HttpHandler> = [
       max_active_tasks: 16,
       max_consecutive_failed_dag_runs: 0,
       owners: ["airflow"],
+      pending_actions: [],
       tags: [{ dag_id: "tutorial_taskflow_api_failed", name: "example" }],
       timetable_description: "Never, external triggers only",
     };
@@ -138,6 +140,7 @@ export const handlers: Array<HttpHandler> = [
       next_dagrun_data_interval_end: null,
       next_dagrun_data_interval_start: null,
       owners: ["airflow"],
+      pending_actions: [],
       tags: [{ dag_id: "tutorial_taskflow_api_failed", name: "example" }],
       timetable_description: "Never, external triggers only",
       timetable_summary: null,
@@ -164,6 +167,7 @@ export const handlers: Array<HttpHandler> = [
       next_dagrun_data_interval_end: null,
       next_dagrun_data_interval_start: null,
       owners: ["airflow"],
+      pending_actions: [],
       tags: [{ dag_id: "tutorial_taskflow_api_success", name: "example" }],
       timetable_description: "Never, external triggers only",
       timetable_summary: null,
