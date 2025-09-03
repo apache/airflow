@@ -565,6 +565,21 @@ class TestPatchDag(TestDagEndpoint):
         response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        "is_paused_value",
+        [True, False],
+    )
+    def test_patch_dag_audit_log_payload(self, test_client, is_paused_value, session):
+        """Test that audit log payload correctly reflects the is_paused value."""
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": is_paused_value})
+        assert response.status_code == 200
+
+        # Check that the audit log has the correct is_paused value
+        expected_extra = {"is_paused": is_paused_value, "method": "PATCH"}
+        check_last_log(
+            session, dag_id=DAG1_ID, event="patch_dag", logical_date=None, expected_extra=expected_extra
+        )
+
 
 class TestPatchDags(TestDagEndpoint):
     """Unit tests for Patch DAGs."""

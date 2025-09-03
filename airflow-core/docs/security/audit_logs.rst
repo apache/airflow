@@ -25,10 +25,10 @@ Overview
 Audit logs are a critical component of any system that needs to maintain a high level of security and compliance.
 They provide a way to track user actions and system events, which can be used to troubleshoot issues, detect security breaches, and ensure regulatory compliance.
 
-In Airflow, audit logs are used to track user actions and system events that occur during the execution of dags and tasks.
+In Airflow, audit logs are used to track user actions and system events that occur during the execution of Dags and tasks.
 They are stored in a database and can be accessed through the Airflow UI.
 
-To be able to see audit logs, a user needs to have the ``Audit Logs.can_read`` permission. Such user will be able to see all audit logs, independently of the dags permissions applied.
+To be able to see audit logs, a user needs to have the ``Audit Logs.can_read`` permission. Such user will be able to see all audit logs, independently of the Dags permissions applied.
 
 
 Level of Audit Logs
@@ -38,7 +38,7 @@ Audit logs exist at the task level and the user level.
 
 - Task Level: At the task level, audit logs capture information related to the execution of a task, such as the start time, end time, and status of the task.
 
-- User Level: At the user level, audit logs capture information related to user actions, such as creating, modifying, or deleting a DAG or task.
+- User Level: At the user level, audit logs capture information related to user actions, such as creating, modifying, or deleting a Dag or task.
 
 
 Location of Audit Logs
@@ -52,11 +52,11 @@ Types of Events
 
 Airflow provides a set of predefined events that can be tracked in audit logs. These events include, but aren't limited to:
 
-- ``trigger``: Triggering a DAG
+- ``trigger``: Triggering a Dag
 - ``[variable,connection].create``: A user created a Connection or Variable
 - ``[variable,connection].edit``: A user modified a Connection or Variable
 - ``[variable,connection].delete``: A user deleted a Connection or Variable
-- ``delete``: A user deleted a DAG or task
+- ``delete``: A user deleted a Dag or task
 - ``failed``: Airflow or a user set a task as failed
 - ``success``: Airflow or a user set a task as success
 - ``retry``: Airflow or a user retried a task instance

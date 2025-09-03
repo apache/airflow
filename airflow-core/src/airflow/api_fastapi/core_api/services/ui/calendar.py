@@ -34,8 +34,8 @@ from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
 )
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
@@ -52,7 +52,7 @@ class CalendarService:
         self,
         dag_id: str,
         session: Session,
-        dag: DAG,
+        dag: SerializedDAG,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"] = "daily",
     ) -> CalendarTimeRangeCollectionResponse:
@@ -126,7 +126,7 @@ class CalendarService:
 
     def _get_planned_dag_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         raw_dag_states: list[Row],
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
@@ -152,7 +152,7 @@ class CalendarService:
             dag, last_data_interval, year, restriction, logical_date, granularity
         )
 
-    def _should_calculate_planned_runs(self, dag: DAG, raw_dag_states: list[Row]) -> bool:
+    def _should_calculate_planned_runs(self, dag: SerializedDAG, raw_dag_states: list[Row]) -> bool:
         """Check if we should calculate planned runs."""
         return (
             bool(raw_dag_states)
@@ -177,7 +177,7 @@ class CalendarService:
 
     def _calculate_cron_planned_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         last_data_interval: DataInterval,
         year: int,
         logical_date: RangeFilter,
@@ -208,7 +208,7 @@ class CalendarService:
 
     def _calculate_timetable_planned_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         last_data_interval: DataInterval,
         year: int,
         restriction: TimeRestriction,

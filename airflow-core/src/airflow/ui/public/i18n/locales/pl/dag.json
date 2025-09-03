@@ -5,6 +5,33 @@
     "reason": "Powód",
     "title": "Zależności blokujące zaplanowanie zadania"
   },
+  "calendar": {
+    "daily": "Dziennie",
+    "hourly": "Godzinowo",
+    "legend": {
+      "less": "Mniej",
+      "more": "Więcej"
+    },
+    "navigation": {
+      "nextMonth": "Następny miesiąc",
+      "nextYear": "Następny rok",
+      "previousMonth": "Poprzedni miesiąc",
+      "previousYear": "Poprzedni rok"
+    },
+    "noData": "Brak danych",
+    "noRuns": "Brak wykonań",
+    "totalRuns": "Łączna liczba wykonań",
+    "week": "Tydzień {{weekNumber}}",
+    "weekdays": {
+      "friday": "Pt",
+      "monday": "Pn",
+      "saturday": "So",
+      "sunday": "Nd",
+      "thursday": "Cz",
+      "tuesday": "Wt",
+      "wednesday": "Śr"
+    }
+  },
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
@@ -109,6 +136,7 @@
     "assetEvents": "Zdarzenia zasobów",
     "auditLog": "Log audytu",
     "backfills": "Wypełnienia wsteczne",
+    "calendar": "Kalendarz",
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",

@@ -36,6 +36,7 @@ import { TagFilter } from "./TagFilter";
 const {
   FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
@@ -47,12 +48,14 @@ export const DagsFilters = () => {
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
+  const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
   const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
+  const isQueued = state === "queued";
   const isSuccess = state === "success";
 
   const [pattern, setPattern] = useState("");
@@ -111,6 +114,9 @@ export const DagsFilters = () => {
     ({ currentTarget: { value } }) => {
       if (value === "all") {
         searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+        searchParams.delete(NEEDS_REVIEW_PARAM);
+      } else if (value === "needs_review") {
+        searchParams.set(NEEDS_REVIEW_PARAM, "true");
       } else {
         searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
       }
@@ -147,6 +153,7 @@ export const DagsFilters = () => {
   const onClearFilters = () => {
     searchParams.delete(PAUSED_PARAM);
     searchParams.delete(FAVORITE_PARAM);
+    searchParams.delete(NEEDS_REVIEW_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
     searchParams.delete(TAGS_MATCH_MODE_PARAM);
@@ -166,6 +173,7 @@ export const DagsFilters = () => {
   );
 
   const filterCount = getFilterCount({
+    needsReview,
     selectedTags,
     showFavorites,
     showPaused,
@@ -178,8 +186,10 @@ export const DagsFilters = () => {
         <StateFilters
           isAll={isAll}
           isFailed={isFailed}
+          isQueued={isQueued}
           isRunning={isRunning}
           isSuccess={isSuccess}
+          needsReview={needsReview === "true"}
           onStateChange={handleStateChange}
         />
         <PausedFilter

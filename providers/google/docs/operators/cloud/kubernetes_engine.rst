@@ -181,7 +181,7 @@ Use of XCom
 We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
 with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and its mount point
 is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod writes it into a file called
-``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
+``return.json`` in the sidecar. The contents of this can then be used downstream in your Dag.
 Here is an example of it being used:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py

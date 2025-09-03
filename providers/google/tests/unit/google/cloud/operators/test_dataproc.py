@@ -3314,7 +3314,7 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
         mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED.name)
 
         op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
@@ -3357,7 +3357,7 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
         mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED.name)
 
         with pytest.raises(AirflowException) as exc:
             op.execute(context=MagicMock())

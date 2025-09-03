@@ -37,7 +37,7 @@ deployed outside of the central Airflow cluster is connected via HTTP(s) to the 
             scheduler[label="Scheduler"]
             api[label="API server"]
             database[label="Database"]
-            dag[label="DAG files"]
+            dag[label="Dag files"]
 
             api->workers
             api->database
@@ -52,7 +52,7 @@ deployed outside of the central Airflow cluster is connected via HTTP(s) to the 
             label="Edge site";
             {rank = same; edge_worker; edge_dag}
             edge_worker[label="Edge Worker"]
-            edge_dag[label="DAG files (Remote copy)"]
+            edge_dag[label="Dag files (Remote copy)"]
 
             edge_worker->edge_dag
         }
@@ -63,7 +63,7 @@ deployed outside of the central Airflow cluster is connected via HTTP(s) to the 
 * **Workers** - Execute the assigned tasks - most standard setup has local or centralized workers, e.g. via Celery
 * **Edge Workers** - Special workers which pull tasks via HTTP(s) as provided as feature via this provider package
 * **Scheduler** - Responsible for adding the necessary tasks to the queue. The EdgeExecutor is running as a module inside the scheduler.
-* **API server** - HTTP REST API Server provides access to DAG/task status information. The required end-points are
+* **API server** - HTTP REST API Server provides access to Dag/task status information. The required end-points are
   provided by the Edge provider plugin. The Edge Worker uses this API to pull tasks and send back the results.
 * **Database** - Contains information about the status of tasks, Dags, Variables, connections, etc.
 

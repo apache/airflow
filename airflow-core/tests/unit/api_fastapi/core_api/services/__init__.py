@@ -14,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any
-
-
-@dataclass
-class StartTriggerArgs:
-    """Arguments required for start task execution from triggerer."""
-
-    trigger_cls: str
-    next_method: str
-    trigger_kwargs: dict[str, Any] | None = None
-    next_kwargs: dict[str, Any] | None = None
-    timeout: timedelta | None = None

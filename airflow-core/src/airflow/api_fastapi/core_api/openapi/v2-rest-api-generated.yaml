@@ -2191,6 +2191,14 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
       - name: order_by
         in: query
         required: false
@@ -3011,9 +3019,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -3021,9 +3029,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -3781,6 +3789,66 @@ paths:
             format: date-time
           - type: 'null'
           title: After
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: owner_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Owner Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: event_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Event Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -8119,14 +8187,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: user_id
+      - name: responded_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: User Id
+          title: Responded User Id
+      - name: responded_user_name
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Responded User Name
       - name: subject_search
         in: query
         required: false
@@ -9624,6 +9700,7 @@ components:
 
 
             Deprecated: Use max_active_tasks instead.'
+          deprecated: true
           readOnly: true
         latest_dag_version:
           anyOf:
@@ -10761,11 +10838,16 @@ components:
             type: array
           - type: 'null'
           title: Respondents
-        user_id:
+        responded_user_id:
           anyOf:
           - type: string
           - type: 'null'
-          title: User Id
+          title: Responded User Id
+        responded_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responded User Name
         response_at:
           anyOf:
           - type: string
@@ -10812,9 +10894,12 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        user_id:
+        responded_user_id:
           type: string
-          title: User Id
+          title: Responded User Id
+        responded_user_name:
+          type: string
+          title: Responded User Name
         response_at:
           type: string
           format: date-time
@@ -10831,7 +10916,8 @@ components:
           title: Params Input
       type: object
       required:
-      - user_id
+      - responded_user_id
+      - responded_user_name
       - response_at
       - chosen_options
       title: HITLDetailResponse

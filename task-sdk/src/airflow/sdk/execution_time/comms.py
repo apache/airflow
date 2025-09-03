@@ -501,7 +501,7 @@ class DagRunStateResult(DagRunStateResponse):
 
 
 class PreviousDagRunResult(BaseModel):
-    """Response containing previous DAG run information."""
+    """Response containing previous Dag run information."""
 
     dag_run: DagRun | None = None
     type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
@@ -551,7 +551,7 @@ class TaskStatesResult(TaskStatesResponse):
 
 
 class DRCount(BaseModel):
-    """Response containing count of DAG Runs matching certain filters."""
+    """Response containing count of Dag Runs matching certain filters."""
 
     count: int
     type: Literal["DRCount"] = "DRCount"

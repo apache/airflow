@@ -178,10 +178,10 @@ or you can define the same operator in the deferrable mode:
     :start-after: [START howto_operator_run_airflow_cli_command_deferrable_mode]
     :end-before: [END howto_operator_run_airflow_cli_command_deferrable_mode]
 
-Check if a DAG run has completed
+Check if a Dag run has completed
 --------------------------------
 
-You can use sensor that checks if a DAG run has completed in your environments, use:
+You can use sensor that checks if a Dag run has completed in your environments, use:
 :class:`~airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerDAGRunSensor`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py

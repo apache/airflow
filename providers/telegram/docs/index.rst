@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-telegram/|version|/providers/telegram/tests/system/telegram>
+    Example Dags <https://github.com/apache/airflow/tree/providers-telegram/|version|/providers/telegram/tests/system/telegram>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-telegram/>
     Installing from sources <installing-providers-from-sources>
 

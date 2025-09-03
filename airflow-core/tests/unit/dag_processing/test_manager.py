@@ -50,10 +50,9 @@ from airflow.dag_processing.manager import (
     DagFileStat,
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest
+from airflow.models import DagBag, DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -62,6 +61,7 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
@@ -442,7 +442,8 @@ class TestDagFileProcessorManager:
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
-    def test_scan_stale_dags(self, testing_dag_bundle):
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_scan_stale_dags(self, session):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
@@ -466,57 +467,54 @@ class TestDagFileProcessorManager:
             bundle_path=test_dag_path.bundle_path,
         )
 
-        with create_session() as session:
-            # Add stale DAG to the DB
-            dag = dagbag.get_dag("test_example_bash_operator")
-            dag.last_parsed_time = timezone.utcnow()
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+        # Add stale DAG to the DB
+        dag = dagbag.get_dag("test_example_bash_operator")
+        sync_dag_to_db(dag, session=session)
 
-            # Add DAG to the file_parsing_stats
-            stat = DagFileStat(
-                num_dags=1,
-                import_errors=0,
-                last_finish_time=timezone.utcnow() + timedelta(hours=1),
-                last_duration=1,
-                run_count=1,
-                last_num_of_db_queries=1,
+        # Add DAG to the file_parsing_stats
+        stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_duration=1,
+            run_count=1,
+            last_num_of_db_queries=1,
+        )
+        manager._files = [test_dag_path]
+        manager._file_stats[test_dag_path] = stat
+
+        active_dag_count = (
+            session.query(func.count(DagModel.dag_id))
+            .filter(
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path),
+                DagModel.bundle_name == test_dag_path.bundle_name,
             )
-            manager._files = [test_dag_path]
-            manager._file_stats[test_dag_path] = stat
+            .scalar()
+        )
+        assert active_dag_count == 1
 
-            active_dag_count = (
-                session.query(func.count(DagModel.dag_id))
-                .filter(
-                    ~DagModel.is_stale,
-                    DagModel.relative_fileloc == str(test_dag_path.rel_path),
-                    DagModel.bundle_name == test_dag_path.bundle_name,
-                )
-                .scalar()
+        manager._scan_stale_dags()
+
+        active_dag_count = (
+            session.query(func.count(DagModel.dag_id))
+            .filter(
+                ~DagModel.is_stale,
+                DagModel.relative_fileloc == str(test_dag_path.rel_path),
+                DagModel.bundle_name == test_dag_path.bundle_name,
             )
-            assert active_dag_count == 1
+            .scalar()
+        )
+        assert active_dag_count == 0
 
-            manager._scan_stale_dags()
-
-            active_dag_count = (
-                session.query(func.count(DagModel.dag_id))
-                .filter(
-                    ~DagModel.is_stale,
-                    DagModel.relative_fileloc == str(test_dag_path.rel_path),
-                    DagModel.bundle_name == test_dag_path.bundle_name,
-                )
-                .scalar()
-            )
-            assert active_dag_count == 0
-
-            serialized_dag_count = (
-                session.query(func.count(SerializedDagModel.dag_id))
-                .filter(SerializedDagModel.dag_id == dag.dag_id)
-                .scalar()
-            )
-            # Deactivating the DagModel should not delete the SerializedDagModel
-            # SerializedDagModel gives history about Dags
-            assert serialized_dag_count == 1
+        serialized_dag_count = (
+            session.query(func.count(SerializedDagModel.dag_id))
+            .filter(SerializedDagModel.dag_id == dag.dag_id)
+            .scalar()
+        )
+        # Deactivating the DagModel should not delete the SerializedDagModel
+        # SerializedDagModel gives history about Dags
+        assert serialized_dag_count == 1
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
@@ -664,15 +662,15 @@ class TestDagFileProcessorManager:
             any_order=True,
         )
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(
-        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle, test_zip_path
+        self, tmp_path, session, configure_testing_dag_bundle, test_zip_path
     ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
         dagbag.process_file(test_zip_path)
         dag = dagbag.get_dag("test_zip_dag")
-        DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag)
 
         with configure_testing_dag_bundle(test_zip_path):
             manager = DagFileProcessorManager(max_runs=1)
@@ -683,7 +681,7 @@ class TestDagFileProcessorManager:
         # assert code not deleted
         assert DagCode.has_dag(dag.dag_id)
         # assert dag still active
-        assert not dag.get_is_stale()
+        assert session.get(DagModel, dag.dag_id).is_stale is False
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
@@ -738,11 +736,10 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         manager.deactivate_deleted_dags("dag_maker", active_files)
 
-        dagbag = DBDagBag()
         # The DAG from test_dag1.py is still active
-        assert dagbag.get_latest_version_of_dag("test_dag1", session=session).get_is_active() is True
+        assert session.get(DagModel, "test_dag1").is_stale is False
         # and the DAG from test_dag2.py is deactivated
-        assert dagbag.get_latest_version_of_dag("test_dag2", session=session).get_is_active() is False
+        assert session.get(DagModel, "test_dag2").is_stale is True
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):

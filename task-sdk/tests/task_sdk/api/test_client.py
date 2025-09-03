@@ -1029,7 +1029,7 @@ class TestDagRunOperations:
                     json={
                         "detail": {
                             "reason": "already_exists",
-                            "message": "A DAG Run already exists for DAG test_trigger_conflict with run id test_run_id",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict with run id test_run_id",
                         }
                     },
                 )
@@ -1050,7 +1050,7 @@ class TestDagRunOperations:
                     json={
                         "detail": {
                             "reason": "already_exists",
-                            "message": "A DAG Run already exists for DAG test_trigger_conflict with run id test_run_id",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict with run id test_run_id",
                         }
                     },
                 )
@@ -1212,13 +1212,13 @@ class TestDagRunOperations:
         assert result.dag_run.state == "success"
 
     def test_get_previous_not_found(self):
-        """Test get_previous when no previous DAG run exists returns None."""
+        """Test get_previous when no previous Dag run exists returns None."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_dag/previous":
                 assert request.url.params["logical_date"] == logical_date.isoformat()
-                # Return None (null) when no previous DAG run found
+                # Return None (null) when no previous Dag run found
                 return httpx.Response(status_code=200, content="null")
             return httpx.Response(status_code=422)
 
@@ -1302,7 +1302,8 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "user_id": "admin",
+                        "responded_user_id": "admin",
+                        "responded_user_name": "admin",
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1319,7 +1320,8 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.user_id == "admin"
+        assert result.responded_user_id == "admin"
+        assert result.responded_user_name == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
     def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
@@ -1333,7 +1335,8 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "user_id": "admin",
+                        "responded_user_id": "admin",
+                        "responded_user_name": "admin",
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1346,5 +1349,6 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.user_id == "admin"
+        assert result.responded_user_id == "admin"
+        assert result.responded_user_name == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

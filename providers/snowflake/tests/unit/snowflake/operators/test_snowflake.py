@@ -36,12 +36,16 @@ from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeValueCheckOperator,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -237,16 +241,8 @@ def create_context(task, dag=None):
     logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     if AIRFLOW_V_3_0_PLUS:
         from airflow.models.dag_version import DagVersion
-        from airflow.models.dagbundle import DagBundleModel
-        from airflow.models.serialized_dag import SerializedDagModel
 
-        bundle_name = "testing"
-        with create_session() as session:
-            orm_dag_bundle = DagBundleModel(name=bundle_name)
-            session.add(orm_dag_bundle)
-            session.commit()
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        sync_dag_to_db(dag)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         task_instance = TaskInstance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
         dag_run = DagRun(
@@ -350,7 +346,10 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
 
-    @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
+    @pytest.mark.parametrize(
+        "mock_sql, statement_count",
+        [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
     def test_snowflake_sql_api_execute_operator_async(
         self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status

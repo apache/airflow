@@ -56,3 +56,16 @@ export type HourlyCalendarData = {
 export type CalendarGranularity = "daily" | "hourly";
 
 export type CalendarColorMode = "failed" | "total";
+
+export type LegendItem = {
+  readonly color: string | { _dark: string; _light: string };
+  readonly label: string;
+};
+
+export type CalendarScaleType = "empty" | "gradient" | "single_value";
+
+export type CalendarScale = {
+  readonly getColor: (counts: RunCounts) => string | { _dark: string; _light: string };
+  readonly legendItems: Array<LegendItem>;
+  readonly type: CalendarScaleType;
+};

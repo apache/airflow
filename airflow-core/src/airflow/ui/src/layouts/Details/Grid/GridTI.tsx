@@ -18,14 +18,15 @@
  */
 import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React from "react";
+import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 type Props = {
   readonly dagId: string;
@@ -58,6 +59,20 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
+  const location = useLocation();
+
+  const getTaskUrl = useCallback(
+    () =>
+      buildTaskInstanceUrl({
+        currentPathname: location.pathname,
+        dagId,
+        isGroup,
+        isMapped: Boolean(isMapped),
+        runId,
+        taskId,
+      }),
+    [dagId, isGroup, isMapped, location.pathname, runId, taskId],
+  );
 
   return (
     <Flex
@@ -79,7 +94,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
         onClick={onClick}
         replace
         to={{
-          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
+          pathname: getTaskUrl(),
           search,
         }}
       >

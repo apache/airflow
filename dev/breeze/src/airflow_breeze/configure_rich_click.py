@@ -49,6 +49,8 @@ else:
     )
     from airflow_breeze.commands.release_management_commands_config import (
         RELEASE_AIRFLOW_COMMANDS,
+        RELEASE_AIRFLOW_CTL_COMMANDS,
+        RELEASE_AIRFLOW_TASK_SDK_COMMANDS,
         RELEASE_HELM_COMMANDS,
         RELEASE_MANAGEMENT_PARAMETERS,
         RELEASE_OTHER_COMMANDS,
@@ -112,6 +114,8 @@ else:
             RELEASE_AIRFLOW_COMMANDS,
             RELEASE_HELM_COMMANDS,
             RELEASE_PROVIDERS_COMMANDS,
+            RELEASE_AIRFLOW_TASK_SDK_COMMANDS,
+            RELEASE_AIRFLOW_CTL_COMMANDS,
             RELEASE_OTHER_COMMANDS,
         ],
         "breeze sbom": [SBOM_COMMANDS],

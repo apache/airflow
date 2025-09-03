@@ -92,8 +92,8 @@
     "buttons": {
       "options": "Options",
       "showGantt": "Show Gantt",
-      "showGraph": "Show Graph",
-      "showGrid": "Show Grid"
+      "showGraphShortcut": "Show Graph (Press g)",
+      "showGridShortcut": "Show Grid (Press g)"
     },
     "dagRuns": {
       "label": "Number of Dag Runs"
