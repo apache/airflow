@@ -19,8 +19,83 @@
 
 from __future__ import annotations
 
+import logging
+from typing import TYPE_CHECKING
+
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.strings import to_boolean
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+log = logging.getLogger(__name__)
+
+
+@provide_session
+def cleanup_dag_permissions(dag_id: str, session: Session = NEW_SESSION) -> None:
+    """
+    Clean up DAG-specific permissions from Flask-AppBuilder tables.
+
+    When a DAG is deleted, we need to clean up the corresponding permissions
+    to prevent orphaned entries in the ab_view_menu table.
+
+    This addresses issue #50905: Deleted DAGs not removed from ab_view_menu table
+    and show up in permissions.
+
+    :param dag_id: Specific DAG ID to clean up.
+    :param session: Database session.
+    """
+    from sqlalchemy import delete, select
+
+    from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
+    from airflow.security.permissions import RESOURCE_DAG_PREFIX, RESOURCE_DAG_RUN, RESOURCE_DETAILS_MAP
+
+    # Clean up specific DAG permissions
+    dag_resources = session.scalars(
+        select(Resource).filter(
+            Resource.name.in_(
+                [
+                    f"{RESOURCE_DAG_PREFIX}{dag_id}",  # DAG:dag_id
+                    f"{RESOURCE_DETAILS_MAP[RESOURCE_DAG_RUN]['prefix']}{dag_id}",  # DAG_RUN:dag_id
+                ]
+            )
+        )
+    ).all()
+    log.info("Cleaning up DAG-specific permissions for dag_id: %s", dag_id)
+
+    if not dag_resources:
+        return
+
+    dag_resource_ids = [resource.id for resource in dag_resources]
+
+    # Find all permissions associated with these resources
+    dag_permissions = session.scalars(
+        select(Permission).filter(Permission.resource_id.in_(dag_resource_ids))
+    ).all()
+
+    if not dag_permissions:
+        # Delete resources even if no permissions exist
+        session.execute(delete(Resource).where(Resource.id.in_(dag_resource_ids)))
+        return
+
+    dag_permission_ids = [permission.id for permission in dag_permissions]
+
+    # Delete permission-role associations first (foreign key constraint)
+    session.execute(
+        delete(assoc_permission_role).where(
+            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
+        )
+    )
+
+    # Delete permissions
+    session.execute(delete(Permission).where(Permission.resource_id.in_(dag_resource_ids)))
+
+    # Delete resources (ab_view_menu entries)
+    session.execute(delete(Resource).where(Resource.id.in_(dag_resource_ids)))
+
+    log.info("Cleaned up %d DAG-specific permissions", len(dag_permissions))
 
 
 @cli_utils.action_cli
@@ -32,7 +107,11 @@ def permissions_cleanup(args):
     from airflow.models import DagModel
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
     from airflow.providers.fab.auth_manager.models import Resource
-    from airflow.security.permissions import RESOURCE_DAG_PREFIX
+    from airflow.security.permissions import (
+        RESOURCE_DAG_PREFIX,
+        RESOURCE_DAG_RUN,
+        RESOURCE_DETAILS_MAP,
+    )
     from airflow.utils.session import create_session
 
     with get_application_builder() as _:
@@ -44,8 +123,7 @@ def permissions_cleanup(args):
             dag_resources = session.scalars(
                 select(Resource).filter(
                     Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")
-                    | Resource.name.like("DAG Run:%")
-                    | Resource.name.like("Task Instance:%")
+                    | Resource.name.like(f"{RESOURCE_DETAILS_MAP[RESOURCE_DAG_RUN]['prefix']}%")
                 )
             ).all()
 
@@ -57,10 +135,8 @@ def permissions_cleanup(args):
                 dag_id = None
                 if resource.name.startswith(RESOURCE_DAG_PREFIX):
                     dag_id = resource.name[len(RESOURCE_DAG_PREFIX) :]
-                elif resource.name.startswith("DAG Run:"):
-                    dag_id = resource.name[len("DAG Run:") :]
-                elif resource.name.startswith("Task Instance:"):
-                    dag_id = resource.name[len("Task Instance:") :]
+                elif resource.name.startswith(RESOURCE_DETAILS_MAP[RESOURCE_DAG_RUN]["prefix"]):
+                    dag_id = resource.name[len(RESOURCE_DETAILS_MAP[RESOURCE_DAG_RUN]["prefix"]) :]
 
                 # Check if this DAG ID still exists
                 if dag_id and dag_id not in existing_dag_ids:
@@ -102,13 +178,11 @@ def permissions_cleanup(args):
                     else f"clean up permissions for DAG '{args.dag_id}'"
                 )
                 confirm = input(f"\nDo you want to {action}? [y/N]: ")
-                if confirm.lower() not in ("y", "yes"):
+                if not to_boolean(confirm):
                     print("Cleanup cancelled.")
                     return
 
             # Perform the actual cleanup
-            from airflow.providers.fab.auth_manager.dag_permissions import cleanup_dag_permissions
-
             cleanup_count = 0
             for dag_id in orphaned_dag_ids:
                 try:
