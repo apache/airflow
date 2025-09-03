@@ -47,6 +47,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_import_errors,
@@ -54,11 +55,6 @@ from tests_common.test_utils.db import (
     parse_and_sync_to_db,
 )
 from unit.models import TEST_DAGS_FOLDER
-
-try:
-    from airflow.sdk import BaseOperator
-except ImportError:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -372,7 +368,8 @@ class TestCliDags:
     def test_dagbag_dag_col(self, session):
         dagbag = DBDagBag()
         dag_details = dag_command._get_dagbag_dag_details(
-            dagbag.get_latest_version_of_dag("tutorial_dag", session=session)
+            dagbag.get_latest_version_of_dag("tutorial_dag", session=session),
+            session=session,
         )
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
@@ -656,7 +653,7 @@ class TestCliDags:
             is None
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
     def test_dag_test(self, mock_get_dag):
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat()])
         dag_command.dag_test(cli_args)
@@ -674,7 +671,7 @@ class TestCliDags:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
     def test_dag_test_fail_raise_error(self, mock_get_dag):
         logical_date_str = DEFAULT_DATE.isoformat()
         mock_get_dag.return_value.test.return_value = DagRun(
@@ -684,7 +681,7 @@ class TestCliDags:
         with pytest.raises(SystemExit, match=r"DagRun failed"):
             dag_command.dag_test(cli_args)
 
-    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
     def test_dag_test_no_logical_date(self, mock_get_dag, time_machine):
         now = pendulum.now()
         time_machine.move_to(now, tick=False)
@@ -707,7 +704,7 @@ class TestCliDags:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
     def test_dag_test_conf(self, mock_get_dag):
         cli_args = self.parser.parse_args(
             [
@@ -735,7 +732,7 @@ class TestCliDags:
         )
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
-    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag, stdout_capture):
         mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
 
@@ -841,8 +838,8 @@ class TestCliDags:
             include_examples=False,
         )
 
-    @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
+    @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
+    def test_dag_test_with_custom_timetable(self, mock_get_or_create_dagrun):
         """
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -854,11 +851,11 @@ class TestCliDags:
 
         with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", return_value=DEFAULT_DATE):
             dag_command.dag_test(cli_args)
-        assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
+        assert "data_interval" in mock_get_or_create_dagrun.call_args.kwargs
 
-    @mock.patch("airflow.models.dag._get_or_create_dagrun")
+    @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
     def test_dag_with_parsing_context(
-        self, mock__get_or_create_dagrun, testing_dag_bundle, configure_testing_dag_bundle
+        self, mock_get_or_create_dagrun, testing_dag_bundle, configure_testing_dag_bundle
     ):
         """
         airflow parsing context should be set when calling `dags test`.
@@ -874,7 +871,7 @@ class TestCliDags:
             dag_command.dag_test(cli_args)
 
         # if dag_parsing_context is not set, this DAG will only have 1 task
-        assert len(mock__get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
+        assert len(mock_get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
 
     def test_dag_test_run_inline_trigger(self, dag_maker):
         now = timezone.utcnow()
@@ -918,6 +915,7 @@ class TestCliDags:
                 task_two = two(task_one)
                 op = MyOp(task_id="abc", tfield=task_two)
                 task_two >> op
+            sync_dag_to_db(dag)
             dr = dag.test()
 
             trigger_arg = mock_run.call_args_list[0].args[0]
@@ -951,15 +949,18 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "false"})
     def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
         """Test that example DAGs are excluded when bundle names are passed."""
-        from airflow.utils.cli import get_dag
+        try:
+            from airflow.utils.cli import get_bagged_dag
+        except ImportError:  # Prior to Airflow 3.1.0.
+            from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
             # example DAG should not be found since include_examples=False
             with pytest.raises(AirflowException, match="could not be found"):
-                get_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
+                get_bagged_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
 
             # However, "test_sensor.py" should exist
-            dag = get_dag(bundle_names=["testing"], dag_id="test_sensor")
+            dag = get_bagged_dag(bundle_names=["testing"], dag_id="test_sensor")
             assert dag.dag_id == "test_sensor"
 
 

@@ -1392,8 +1392,8 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
      * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
@@ -1696,8 +1696,9 @@ export class DagService {
      * @param data.bundleVersion
      * @param data.orderBy
      * @param data.isFavorite
-     * @param data.hasAssetSchedule Filter DAGs with asset-based scheduling
-     * @param data.assetDependency Filter DAGs by asset dependency (name or URI)
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+     * @param data.hasPendingActions
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1723,7 +1724,8 @@ export class DagService {
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite,
                 has_asset_schedule: data.hasAssetSchedule,
-                asset_dependency: data.assetDependency
+                asset_dependency: data.assetDependency,
+                has_pending_actions: data.hasPendingActions
             },
             errors: {
                 422: 'Validation Error'
@@ -1797,6 +1799,11 @@ export class EventLogService {
      * @param data.includedEvents
      * @param data.before
      * @param data.after
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1818,7 +1825,12 @@ export class EventLogService {
                 excluded_events: data.excludedEvents,
                 included_events: data.includedEvents,
                 before: data.before,
-                after: data.after
+                after: data.after,
+                dag_id_pattern: data.dagIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                run_id_pattern: data.runIdPattern,
+                owner_pattern: data.ownerPattern,
+                event_pattern: data.eventPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -3605,7 +3617,8 @@ export class HumanInTheLoopService {
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
-     * @param data.userId
+     * @param data.respondedUserId
+     * @param data.respondedUserName
      * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns HITLDetailCollection Successful Response
@@ -3626,7 +3639,8 @@ export class HumanInTheLoopService {
                 task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,
-                user_id: data.userId,
+                responded_user_id: data.respondedUserId,
+                responded_user_name: data.respondedUserName,
                 subject_search: data.subjectSearch,
                 body_search: data.bodySearch
             },

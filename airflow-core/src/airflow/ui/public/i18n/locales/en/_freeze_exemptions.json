@@ -7,6 +7,12 @@
   "dag": {},
   "dags": {},
   "dashboard": {},
-  "hitl": {},
+  "hitl": {
+    "requiredActionCount_one": "Required Action ({{count}})",
+    "requiredActionCount_other": "Required Actions ({{count}})",
+    "state": {
+      "noResponseReceived": "No Response Received"
+    }
+  },
   "tasks": {}
 }
