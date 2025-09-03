@@ -55,19 +55,15 @@ export const Login = () => {
   // Set page title for SEO
   useEffect(() => {
     document.title = "Sign In - Apache Airflow";
-
+    
     // Add meta description if not present
     let metaDescription = document.querySelector('meta[name="description"]');
-
     if (!metaDescription) {
-      metaDescription = document.createElement("meta");
-      metaDescription.setAttribute("name", "description");
-      document.head.append(metaDescription);
+      metaDescription = document.createElement('meta');
+      metaDescription.setAttribute('name', 'description');
+      document.head.appendChild(metaDescription);
     }
-    metaDescription.setAttribute(
-      "content",
-      "Sign in to your Apache Airflow account to access workflow management, data pipelines, and orchestration tools.",
-    );
+    metaDescription.setAttribute('content', 'Sign in to your Apache Airflow account to access workflow management, data pipelines, and orchestration tools.');
   }, []);
 
   const onSuccess = (data: LoginResponse) => {
@@ -97,25 +93,25 @@ export const Login = () => {
 
   return (
     <Box
+      as="main"
+      role="main"
+      aria-label="Login page"
       _dark={{
-        bg: "gray.900",
+        bg: "gray.900"
       }}
       alignItems="center"
-      aria-label="Login page"
-      as="main"
       bg="gray.50"
       display="flex"
       justifyContent="center"
       minH="100vh"
       p={4}
-      role="main"
     >
       <Container
-        _dark={{
-          bg: "gray.800",
-        }}
-        aria-labelledby="login-heading"
         as="section"
+        aria-labelledby="login-heading"
+        _dark={{
+          bg: "gray.800"
+        }}
         bg="white"
         borderRadius="lg"
         boxShadow="lg"
@@ -125,14 +121,19 @@ export const Login = () => {
         {/* Header Section with improved semantic structure */}
         <header>
           <HStack gap={3} mb={6}>
-            <AirflowPin aria-hidden="true" height="35px" role="img" width="35px" />
-            <Heading
-              _dark={{ color: "white" }}
+            <AirflowPin 
+              height="35px" 
+              width="35px" 
+              aria-hidden="true"
+              role="img"
+            />
+            <Heading 
               as="h1"
-              color="gray.800"
-              fontWeight="normal"
               id="login-heading"
+              fontWeight="normal" 
               size="xl"
+              color="gray.800"
+              _dark={{ color: "white" }}
             >
               Sign into Airflow
             </Heading>
@@ -141,19 +142,33 @@ export const Login = () => {
 
         {/* Error Alert with improved accessibility */}
         {Boolean(error) && (
-          <Box aria-live="polite" mb={4} role="alert">
+          <Box mb={4} role="alert" aria-live="polite">
             <ErrorAlert error={error} />
           </Box>
         )}
 
-        <Text _dark={{ color: "gray.300" }} color="gray.600" id="login-instructions" mb={4}>
+        <Text 
+          mb={4}
+          color="gray.600"
+          _dark={{ color: "gray.300" }}
+          id="login-instructions"
+        >
           Enter your username and password below:
         </Text>
-
-        <LoginForm aria-describedby="login-instructions" isPending={isPending} onLogin={onLogin} />
-
+        
+        <LoginForm 
+          isPending={isPending} 
+          onLogin={onLogin}
+          aria-describedby="login-instructions"
+        />
+        
         {isBannerDisabled === null && (
-          <Alert.Root aria-labelledby="banner-title" mt={5} role="banner" status="info">
+          <Alert.Root 
+            mt={5} 
+            status="info"
+            role="banner"
+            aria-labelledby="banner-title"
+          >
             <Alert.Indicator aria-hidden="true" />
             <Alert.Content>
               <Alert.Title id="banner-title">Simple auth manager enabled</Alert.Title>
@@ -162,10 +177,10 @@ export const Login = () => {
                 production, ensure that access is controlled through other means. Please read{" "}
                 <Span textDecoration="underline">
                   <a
-                    aria-label="Learn more about simple auth manager (opens in new tab)"
                     href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html"
                     rel="noreferrer noopener"
                     target="_blank"
+                    aria-label="Learn more about simple auth manager (opens in new tab)"
                   >
                     the documentation
                   </a>
@@ -174,7 +189,6 @@ export const Login = () => {
               </Alert.Description>
             </Alert.Content>
             <CloseButton
-              aria-label="Close banner"
               insetEnd="-2"
               onClick={() => {
                 localStorage.setItem(LOCAL_STORAGE_DISABLE_BANNER_KEY, "1");
@@ -182,6 +196,7 @@ export const Login = () => {
               }}
               pos="relative"
               top="-2"
+              aria-label="Close banner"
             />
           </Alert.Root>
         )}

@@ -23,15 +23,15 @@ import { Controller, useForm } from "react-hook-form";
 import type { LoginBody } from "./Login";
 
 type LoginFormProps = {
-  readonly "aria-describedby"?: string;
   readonly isPending: boolean;
   readonly onLogin: (loginBody: LoginBody) => void;
+  readonly "aria-describedby"?: string;
 };
 
-export const LoginForm = ({ "aria-describedby": ariaDescribedBy, isPending, onLogin }: LoginFormProps) => {
+export const LoginForm = ({ isPending, onLogin, "aria-describedby": ariaDescribedBy }: LoginFormProps) => {
   const {
     control,
-    formState: { errors, isValid },
+    formState: { isValid, errors },
     handleSubmit,
   } = useForm<LoginBody>({
     defaultValues: {
@@ -43,45 +43,52 @@ export const LoginForm = ({ "aria-describedby": ariaDescribedBy, isPending, onLo
 
   return (
     <form
-      aria-describedby={ariaDescribedBy}
-      noValidate // We handle validation with react-hook-form
       onSubmit={(event: React.SyntheticEvent) => {
         event.preventDefault();
         void handleSubmit(onLogin)();
       }}
+      aria-describedby={ariaDescribedBy}
+      noValidate // We handle validation with react-hook-form
     >
       <Stack gap={4}>
         <Controller
           control={control}
           name="username"
           render={({ field, fieldState }) => (
-            <Field.Root invalid={Boolean(fieldState.error)} required>
-              <Field.Label htmlFor="username-input">Username</Field.Label>
-              <Input
+            <Field.Root 
+              invalid={Boolean(fieldState.error)} 
+              required
+            >
+              <Field.Label htmlFor="username-input">
+                Username
+              </Field.Label>
+              <Input 
                 {...field}
-                aria-describedby={fieldState.error ? "username-error" : undefined}
-                aria-invalid={Boolean(fieldState.error)}
-                aria-required="true"
-                autoCapitalize="none"
-                autoComplete="username"
-                /* eslint-disable-next-line jsx-a11y/no-autofocus */
-                autoFocus
                 id="username-input"
-                spellCheck="false"
                 type="text"
                 variant="subtle"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck="false"
+                aria-required="true"
+                aria-invalid={Boolean(fieldState.error)}
+                aria-describedby={fieldState.error ? "username-error" : undefined}
+                /* eslint-disable-next-line jsx-a11y/no-autofocus */
+                autoFocus
               />
-              {fieldState.error ? <Field.ErrorText id="username-error" role="alert">
+              {fieldState.error && (
+                <Field.ErrorText id="username-error" role="alert">
                   Username is required
-                </Field.ErrorText> : null}
+                </Field.ErrorText>
+              )}
             </Field.Root>
           )}
-          rules={{
-            minLength: {
-              message: "Username cannot be empty",
-              value: 1,
-            },
+          rules={{ 
             required: "Username is required",
+            minLength: {
+              value: 1,
+              message: "Username cannot be empty"
+            }
           }}
         />
 
@@ -89,47 +96,56 @@ export const LoginForm = ({ "aria-describedby": ariaDescribedBy, isPending, onLo
           control={control}
           name="password"
           render={({ field, fieldState }) => (
-            <Field.Root invalid={Boolean(fieldState.error)} required>
-              <Field.Label htmlFor="password-input">Password</Field.Label>
-              <Input
+            <Field.Root 
+              invalid={Boolean(fieldState.error)} 
+              required
+            >
+              <Field.Label htmlFor="password-input">
+                Password
+              </Field.Label>
+              <Input 
                 {...field}
-                aria-describedby={fieldState.error ? "password-error" : undefined}
-                aria-invalid={Boolean(fieldState.error)}
-                aria-required="true"
-                autoComplete="current-password"
                 id="password-input"
-                type="password"
+                type="password" 
                 variant="subtle"
+                autoComplete="current-password"
+                aria-required="true"
+                aria-invalid={Boolean(fieldState.error)}
+                aria-describedby={fieldState.error ? "password-error" : undefined}
               />
-              {fieldState.error ? <Field.ErrorText id="password-error" role="alert">
+              {fieldState.error && (
+                <Field.ErrorText id="password-error" role="alert">
                   Password is required
-                </Field.ErrorText> : null}
+                </Field.ErrorText>
+              )}
             </Field.Root>
           )}
-          rules={{
-            minLength: {
-              message: "Password cannot be empty",
-              value: 1,
-            },
+          rules={{ 
             required: "Password is required",
+            minLength: {
+              value: 1,
+              message: "Password cannot be empty"
+            }
           }}
         />
 
-        <Button
-          aria-describedby={isPending ? "loading-status" : undefined}
-          colorScheme="blue"
-          disabled={!isValid || isPending}
-          loading={isPending}
-          loadingText="Signing in..."
-          size="lg"
+        <Button 
+          disabled={!isValid || isPending} 
           type="submit"
+          size="lg"
+          colorScheme="blue"
+          aria-describedby={isPending ? "loading-status" : undefined}
+          loadingText="Signing in..."
+          loading={isPending}
         >
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
-
-        {isPending ? <span aria-live="polite" className="sr-only" id="loading-status">
+        
+        {isPending && (
+          <span id="loading-status" className="sr-only" aria-live="polite">
             Signing in, please wait...
-          </span> : null}
+          </span>
+        )}
       </Stack>
     </form>
   );
