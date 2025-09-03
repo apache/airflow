@@ -32,7 +32,12 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocDeleteClusterOperator,
     DataprocSubmitJobOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -48,6 +53,7 @@ REGION = "europe-west1"
 
 # Cluster definition
 CLUSTER_CONFIG = {
+    "cluster_tier": "CLUSTER_TIER_STANDARD",
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",

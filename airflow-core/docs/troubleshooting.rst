@@ -30,7 +30,7 @@ There are many potential causes for a task's state to be changed by a component 
 
 Below are some example scenarios that could cause a task's state to change by a component other than the executor:
 
-- If a task's DAG failed to parse on the worker, the scheduler may mark the task as failed. If confirmed, consider increasing :ref:`core.dagbag_import_timeout <config:core__dagbag_import_timeout>` and :ref:`dag_processor.dag_file_processor_timeout <config:dag_processor__dag_file_processor_timeout>`.
+- If a task's Dag failed to parse on the worker, the scheduler may mark the task as failed. If confirmed, consider increasing :ref:`core.dagbag_import_timeout <config:core__dagbag_import_timeout>` and :ref:`dag_processor.dag_file_processor_timeout <config:dag_processor__dag_file_processor_timeout>`.
 - The scheduler will mark a task as failed if the task has been queued for longer than :ref:`scheduler.task_queued_timeout <config:scheduler__task_queued_timeout>`.
 - If a :ref:`task instance's heartbeat times out <concepts:task-instance-heartbeat-timeout>`, it will be marked failed by the scheduler.
 - A user marked the task as successful or failed in the Airflow UI.
@@ -43,7 +43,7 @@ Sometimes, Airflow or some adjacent system will kill a task instance's ``TaskRun
 
 Here are some examples that could cause such an event:
 
-- A DAG run timeout, specified by ``dagrun_timeout`` in the DAG's definition.
+- A Dag run timeout, specified by ``dagrun_timeout`` in the Dag's definition.
 - An Airflow worker running out of memory
   - Usually, Airflow workers that run out of memory receive a SIGKILL, and the scheduler will fail the corresponding task instance for not having a heartbeat. However, in some scenarios, Airflow kills the task before that happens.
 

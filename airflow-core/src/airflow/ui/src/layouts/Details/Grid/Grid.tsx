@@ -19,13 +19,14 @@
 import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
+import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -40,14 +41,16 @@ dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly limit: number;
+  readonly showGantt?: boolean;
 };
 
-export const Grid = ({ limit }: Props) => {
+export const Grid = ({ limit, showGantt }: Props) => {
   const { t: translate } = useTranslation("dag");
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
-  const { openGroupIds } = useOpenGroups();
+  const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
@@ -76,6 +79,7 @@ export const Grid = ({ limit }: Props) => {
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
   // calculate dag run bar heights relative to max
+
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -84,19 +88,39 @@ export const Grid = ({ limit }: Props) => {
           .map((dr: GridRunsResponse) => dr.duration)
           .filter((duration: number | null): duration is number => duration !== null),
   );
+
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
+  const { setMode } = useNavigation({
+    onToggleGroup: toggleGroupId,
+    runs: gridRuns ?? [],
+    tasks: flatNodes,
+  });
+
   return (
-    <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
+    <Flex
+      justifyContent="flex-start"
+      outline="none"
+      position="relative"
+      pt={20}
+      ref={gridRef}
+      tabIndex={0}
+      width={showGantt ? undefined : "100%"}
+    >
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
-        <TaskNames nodes={flatNodes} />
+        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
         <Flex position="relative">
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
+          <Flex
+            flexDirection="column-reverse"
+            height="100px"
+            position="relative"
+            width={showGantt ? undefined : "100%"}
+          >
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />
@@ -107,7 +131,14 @@ export const Grid = ({ limit }: Props) => {
           </Flex>
           <Flex flexDirection="row-reverse">
             {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar key={dr.run_id} max={max} nodes={flatNodes} run={dr} />
+              <Bar
+                key={dr.run_id}
+                max={max}
+                nodes={flatNodes}
+                onCellClick={() => setMode("TI")}
+                onColumnClick={() => setMode("run")}
+                run={dr}
+              />
             ))}
           </Flex>
           {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (

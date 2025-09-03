@@ -21,22 +21,24 @@ import collections.abc
 import functools
 from collections import Counter
 from collections.abc import Iterator, KeysView
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow import DAG
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -127,9 +129,9 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
+        from airflow.exceptions import NotMapped
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 
         @functools.lru_cache
         def _get_expanded_ti_count() -> int:
@@ -147,10 +149,10 @@ class TriggerRuleDep(BaseTIDep):
             return get_mapped_ti_count(ti.task, ti.run_id, session=session)
 
         def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
-            from airflow.sdk.definitions.mappedoperator import MappedOperator
+            from airflow.models.mappedoperator import is_mapped
 
-            if isinstance(ti.task, MappedOperator):
-                for op in ti.task.iter_mapped_dependencies():
+            if (task := ti.task) is not None and is_mapped(task):
+                for op in task.iter_mapped_dependencies():
                     yield op.task_id
             if task_group and task_group.iter_mapped_task_groups():
                 yield from (
@@ -184,7 +186,9 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                upstream=ti.task.dag.task_dict[upstream_id],
+                # TODO (GH-52141): task_dict in scheduler should contain
+                # scheduler types instead, but currently it inherits SDK's DAG.
+                upstream=cast("MappedOperator | SerializedBaseOperator", ti.task.dag.task_dict[upstream_id]),
                 ti_count=expanded_ti_count,
                 session=session,
             )
@@ -355,6 +359,7 @@ class TriggerRuleDep(BaseTIDep):
             task = ti.task
             upstream_tasks = {t.task_id: t for t in task.upstream_list}
             trigger_rule = task.trigger_rule
+            trigger_rule_str = getattr(trigger_rule, "value", trigger_rule)
 
             finished_upstream_tis = (
                 finished_ti
@@ -471,7 +476,7 @@ class TriggerRuleDep(BaseTIDep):
                 if success <= 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires one upstream task success, "
+                            f"Task's trigger rule '{trigger_rule_str}' requires one upstream task success, "
                             f"but none were found. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
@@ -480,7 +485,7 @@ class TriggerRuleDep(BaseTIDep):
                 if not failed and not upstream_failed:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires one upstream task failure, "
+                            f"Task's trigger rule '{trigger_rule_str}' requires one upstream task failure, "
                             f"but none were found. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
@@ -489,7 +494,7 @@ class TriggerRuleDep(BaseTIDep):
                 if success + failed <= 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' "
+                            f"Task's trigger rule '{trigger_rule_str}' "
                             "requires at least one upstream task failure or success "
                             f"but none were failed or success. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -502,7 +507,7 @@ class TriggerRuleDep(BaseTIDep):
                 if num_failures > 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to have "
                             f"succeeded, but found {num_failures} non-success(es). "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -515,7 +520,7 @@ class TriggerRuleDep(BaseTIDep):
                 if num_success > 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks "
                             f"to have failed, but found {num_success} non-failure(s). "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -525,7 +530,7 @@ class TriggerRuleDep(BaseTIDep):
                 if not upstream_done:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to have "
                             f"completed, but found {len(upstream_tasks) - done} task(s) that were "
                             f"not done. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -538,7 +543,7 @@ class TriggerRuleDep(BaseTIDep):
                 if num_failures > 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to have "
                             f"succeeded or been skipped, but found {num_failures} non-success(es). "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -548,7 +553,7 @@ class TriggerRuleDep(BaseTIDep):
                 if not upstream_done or (skipped > 0):
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to not "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to not "
                             f"have been skipped, but found {skipped} task(s) skipped. "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -559,7 +564,7 @@ class TriggerRuleDep(BaseTIDep):
                 if num_non_skipped > 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have been "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to have been "
                             f"skipped, but found {num_non_skipped} task(s) in non skipped state. "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -569,7 +574,7 @@ class TriggerRuleDep(BaseTIDep):
                 if not upstream_done:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all upstream tasks to have "
                             f"completed, but found {len(upstream_tasks) - done} task(s) that were not done. "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -578,7 +583,7 @@ class TriggerRuleDep(BaseTIDep):
                 elif upstream_setup and not success_setup:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task "
+                            f"Task's trigger rule '{trigger_rule_str}' requires at least one upstream setup task "
                             f"be successful, but found {upstream_setup - success_setup} task(s) that were "
                             f"not. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -595,7 +600,7 @@ class TriggerRuleDep(BaseTIDep):
                 if skipped > 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all non-skipped upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all non-skipped upstream tasks to have "
                             f"completed, but found {skipped} skipped task(s). "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -604,7 +609,7 @@ class TriggerRuleDep(BaseTIDep):
                 elif non_skipped_done < non_skipped_upstream:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all non-skipped upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all non-skipped upstream tasks to have "
                             f"completed, but found {non_skipped_upstream - non_skipped_done} task(s) that were not done. "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
@@ -613,14 +618,16 @@ class TriggerRuleDep(BaseTIDep):
                 elif success == 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all non-skipped upstream tasks to have "
+                            f"Task's trigger rule '{trigger_rule_str}' requires all non-skipped upstream tasks to have "
                             f"completed and at least one upstream task has succeeded, but found "
                             f"{success} successful task(s). upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
             else:
-                yield self._failing_status(reason=f"No strategy to evaluate trigger rule '{trigger_rule}'.")
+                yield self._failing_status(
+                    reason=f"No strategy to evaluate trigger rule '{trigger_rule_str}'."
+                )
 
         if TYPE_CHECKING:
             assert ti.task

@@ -20,7 +20,7 @@ import pytest
 
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
 
-pytest.importorskip("airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider")
+pytest.importorskip("airflow.providers.common.messaging.providers.base_provider")
 
 MOCK_KAFKA_TRIGGER_APPLY_FUNCTION = "mock_kafka_trigger_apply_function"
 
@@ -54,6 +54,19 @@ class TestKafkaMessageQueueProvider:
     def test_queue_matches(self, queue_uri, expected_result):
         """Test the queue_matches method with various URLs."""
         assert self.provider.queue_matches(queue_uri) == expected_result
+
+    @pytest.mark.parametrize(
+        "scheme, expected_result",
+        [
+            pytest.param("kafka", True, id="kafka_scheme"),
+            pytest.param("redis+pubsub", False, id="redis_scheme"),
+            pytest.param("sqs", False, id="sqs_scheme"),
+            pytest.param("unknown", False, id="unknown_scheme"),
+        ],
+    )
+    def test_scheme_matches(self, scheme, expected_result):
+        """Test the scheme_matches method with various schemes."""
+        assert self.provider.scheme_matches(scheme) == expected_result
 
     def test_trigger_class(self):
         """Test the trigger_class method."""

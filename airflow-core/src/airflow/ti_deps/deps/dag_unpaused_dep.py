@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import select
+
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 
@@ -27,7 +29,14 @@ class DagUnpausedDep(BaseTIDep):
     NAME = "Dag Not Paused"
     IGNORABLE = True
 
+    @staticmethod
+    def _is_dag_paused(dag_id: str, session) -> bool:
+        """Check if a dag is paused. Extracted to simplify testing."""
+        from airflow.models.dag import DagModel
+
+        return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == dag_id))
+
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.task.dag.get_is_paused(session):
+        if self._is_dag_paused(ti.dag_id, session):
             yield self._failing_status(reason=f"Task's DAG '{ti.dag_id}' is paused.")

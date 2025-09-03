@@ -83,7 +83,7 @@ need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 
-(Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
+(Modules only imported by Dag files on the other hand do not suffer this problem, as Dag files are not
 loaded/parsed in any long-running Airflow process.)
 
 .. _plugins-interface:
@@ -135,7 +135,7 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-        # A list of timetable classes to register so they can be used in dags.
+        # A list of timetable classes to register so they can be used in Dags.
         timetables = []
 
         # A list of Listeners that plugin provides. Listeners can register to
@@ -227,7 +227,8 @@ definitions in Airflow.
         "bundle_url": "https://example.com/static/js/my_react_app.js",
         # Destination of the react app. This is used to determine where the app will be loaded in the UI.
         # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"], default to "nav".
-        # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]
+        # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
+        # element in the existing page via the css `order` rule which will determine the flex order.
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
@@ -300,8 +301,8 @@ Flask Appbuilder and Flask Blueprints in Airflow 3
 --------------------------------------------------
 
 Airflow 2 supported Flask Appbuilder views (``appbuilder_views``), Flask AppBuilder menu items (``appbuilder_menu_items``),
-and Flask Blueprints (``flask_blueprints``) in plugins. These have been superseded in Airflow 3 by External Views (``external_views``), Fast API apps (``fastapi_apps``)
-and FastAPI middlewares (``fastapi_root_middlewares``) that allow extended functionality and better integration with the Airflow UI.
+and Flask Blueprints (``flask_blueprints``) in plugins. These have been superseded in Airflow 3 by External Views (``external_views``), Fast API apps (``fastapi_apps``),
+FastAPI middlewares (``fastapi_root_middlewares``) and React apps (``react_apps``) that allow extended functionality and better integration with the Airflow UI.
 
 All new plugins should use the new interfaces.
 

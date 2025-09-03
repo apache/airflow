@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.3"
+defaultAirflowTag: "3.0.6"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.3"
+airflowVersion: "3.0.6"
 
 # Images
 images:
@@ -123,7 +123,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
-    tag: v4.3.0
+    tag: v4.4.2
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -1234,6 +1234,8 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  restartPolicy: OnFailure
+
   # Labels specific to createUserJob objects and pods
   labels: {}
 
@@ -1328,6 +1330,8 @@ migrateDatabaseJob:
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  restartPolicy: OnFailure
 
   # Labels specific to migrate database job objects and pods
   labels: {}
@@ -3076,6 +3080,9 @@ dags:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    readinessProbe: {}
+    livenessProbe: {}
+
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:
     #     - name: my-templated-extra-volume
@@ -3117,3 +3124,5 @@ logs:
     storageClassName:
     ## the name of an existing PVC to use
     existingClaim:
+    ## the subpath of the existing PVC to use
+    subPath:

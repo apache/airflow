@@ -33,7 +33,12 @@ from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator

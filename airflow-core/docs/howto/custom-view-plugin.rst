@@ -143,7 +143,7 @@ Create an Airflow plugin that serves your React application:
             {
                 "name": "My Awesome React App",
                 "url_route": "my-awesome-app",
-                "bundle_url": "http://localhost:28080/my-plugin/my-react-app/main.umd.cjs",
+                "bundle_url": "https://airflow-domain/my-plugin/my-react-app/main.umd.cjs",
                 "destination": "nav",
             }
         ]

@@ -24,6 +24,7 @@ import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
+import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -70,6 +71,7 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
+      <NeedsReviewButton taskId={taskId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
