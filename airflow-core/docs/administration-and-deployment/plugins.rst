@@ -83,7 +83,7 @@ need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 
-(Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
+(Modules only imported by Dag files on the other hand do not suffer this problem, as Dag files are not
 loaded/parsed in any long-running Airflow process.)
 
 .. _plugins-interface:
@@ -135,7 +135,7 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-        # A list of timetable classes to register so they can be used in dags.
+        # A list of timetable classes to register so they can be used in Dags.
         timetables = []
 
         # A list of Listeners that plugin provides. Listeners can register to

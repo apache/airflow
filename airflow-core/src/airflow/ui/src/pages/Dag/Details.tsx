@@ -97,10 +97,6 @@ export const Details = () => {
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>{translate("dagDetails.concurrency")}</Table.Cell>
-              <Table.Cell>{dag.concurrency}</Table.Cell>
-            </Table.Row>
-            <Table.Row>
               <Table.Cell>{translate("dagDetails.hasTaskConcurrencyLimits")}</Table.Cell>
               <Table.Cell>{dag.has_task_concurrency_limits.toString()}</Table.Cell>
             </Table.Row>

@@ -7,6 +7,7 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "allOperators": "جميع المُشغِّلات",
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",
@@ -45,7 +46,6 @@
   "dag_zero": "لا يوجد أي Dag",
   "dagDetails": {
     "catchup": "إلحاق",
-    "concurrency": "تزامن",
     "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
     "description": "وصف",
@@ -115,6 +115,17 @@
     "and": "و",
     "any": "أي",
     "or": "أو"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "تصفية حسب الDag",
+    "keyPlaceholder": "تصفية حسب مفتاح XCom",
+    "logicalDateFromPlaceholder": "من التاريخ المنطقي",
+    "logicalDateToPlaceholder": "إلى التاريخ المنطقي",
+    "mapIndexPlaceholder": "تصفية حسب فهرس الخريطة",
+    "runAfterFromPlaceholder": "من تشغيل بعد",
+    "runAfterToPlaceholder": "إلى تشغيل بعد",
+    "runIdPlaceholder": "تصفية حسب معرف التشغيل",
+    "taskIdPlaceholder": "تصفية حسب معرف المهمة"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
@@ -202,6 +213,7 @@
     "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
+    "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",
     "restarting": "إعادة التشغيل",
@@ -248,6 +260,7 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
+  "taskGroup": "مجموعة المهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
     "dagVersion": "إصدار الDag",

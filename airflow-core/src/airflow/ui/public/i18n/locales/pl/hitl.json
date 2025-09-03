@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "Wszystkie",
+      "pending": "Oczekujące",
+      "received": "Zrecenzowane"
+    }
+  },
   "requiredAction_few": "Wymagane akcje",
   "requiredAction_many": "Wymaganych akcji",
   "requiredAction_one": "Wymagana akcja",
@@ -21,5 +28,6 @@
     "rejectionReceived": "Odrzucenie otrzymane",
     "responseReceived": "Odpowiedź otrzymana",
     "responseRequired": "Wymagana odpowiedź"
-  }
+  },
+  "subject": "Temat"
 }

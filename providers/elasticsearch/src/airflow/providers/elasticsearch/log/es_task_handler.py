@@ -41,16 +41,22 @@ from elasticsearch.exceptions import NotFoundError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
-from airflow.providers.elasticsearch.log.es_json_formatter import (
-    ElasticsearchJSONFormatter,
-)
+from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, EsLogMsgType
-from airflow.utils import timezone
+from airflow.providers.elasticsearch.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    EsLogMsgType,
+)
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -235,29 +241,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
 
-        if TYPE_CHECKING:
-            assert ti.task
-        try:
-            dag = ti.task.dag
-        except AttributeError:  # ti.task is not always set.
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-        else:
-            if TYPE_CHECKING:
-                assert dag is not None
-            # TODO: Task-SDK: Where should this function be?
-            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
-
         if self.json_format:
-            data_interval_start = self._clean_date(data_interval[0])
-            data_interval_end = self._clean_date(data_interval[1])
+            data_interval_start = self._clean_date(dag_run.data_interval_start)
+            data_interval_end = self._clean_date(dag_run.data_interval_end)
             logical_date = self._clean_date(dag_run.logical_date)
         else:
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
+            if dag_run.data_interval_start:
+                data_interval_start = dag_run.data_interval_start.isoformat()
             else:
                 data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
+            if dag_run.data_interval_end:
+                data_interval_end = dag_run.data_interval_end.isoformat()
             else:
                 data_interval_end = ""
             logical_date = dag_run.logical_date.isoformat()

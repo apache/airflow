@@ -79,6 +79,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
+from airflow.models.dag_version import DagVersion
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -117,12 +118,12 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.dag import DAG as SchedulerDAG, DagModel
+    from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
-    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -222,7 +223,6 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
-
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
@@ -264,16 +264,14 @@ def clear_task_instances(
         for instance in tis:
             run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
-        drs = (
-            session.query(DagRun)
-            .filter(
+        drs = session.scalars(
+            select(DagRun).where(
                 or_(
                     and_(DagRun.dag_id == dag_id, DagRun.run_id.in_(run_ids))
                     for dag_id, run_ids in run_ids_by_dag_id.items()
                 )
             )
-            .all()
-        )
+        ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             if dr.state in State.finished_dr_states:
@@ -281,6 +279,15 @@ def clear_task_instances(
                 dr.start_date = timezone.utcnow()
                 if run_on_latest_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                    dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                    if dag_version:
+                        # Change the dr.created_dag_version_id so the scheduler doesn't reject this
+                        # version when it sets the dag_run.dag
+                        dr.created_dag_version_id = dag_version.id
+                        dr.dag = dr_dag
+                        dr.verify_integrity(session=session, dag_version_id=dag_version.id)
+                        for ti in dr.task_instances:
+                            ti.dag_version_id = dag_version.id
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
@@ -564,7 +571,7 @@ class TaskInstance(Base, LoggingMixin):
             "executor": task.executor,
             "executor_config": task.executor_config,
             "operator": task.task_type,
-            "custom_operator_name": getattr(task, "custom_operator_name", None),
+            "custom_operator_name": getattr(task, "operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
@@ -652,7 +659,7 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
         query = (
-            session.query(TaskInstance)
+            select(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
@@ -665,9 +672,9 @@ class TaskInstance(Base, LoggingMixin):
         if lock_for_update:
             for attempt in run_with_db_retries(logger=cls.logger()):
                 with attempt:
-                    return query.with_for_update().one_or_none()
+                    return session.execute(query.with_for_update()).scalar_one_or_none()
         else:
-            return query.one_or_none()
+            return session.execute(query).scalar_one_or_none()
 
         return None
 
@@ -749,7 +756,7 @@ class TaskInstance(Base, LoggingMixin):
         self.executor = task.executor
         self.executor_config = task.executor_config
         self.operator = task.task_type
-        self.custom_operator_name = getattr(task, "custom_operator_name", None)
+        self.custom_operator_name = getattr(task, "operator_name", None)
         # Re-apply cluster policy here so that task default do not overload previous data
         task_instance_mutation_hook(self)
 
@@ -817,13 +824,13 @@ class TaskInstance(Base, LoggingMixin):
         if not task.downstream_task_ids:
             return True
 
-        ti = session.query(func.count(TaskInstance.task_id)).filter(
+        ti = select(func.count(TaskInstance.task_id)).where(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
             TaskInstance.state.in_((TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)),
         )
-        count = ti[0][0]
+        count = session.scalar(ti)
         return count == len(task.downstream_task_ids)
 
     @provide_session
@@ -845,8 +852,6 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             return None
 
-        if TYPE_CHECKING:
-            assert isinstance(dag, SchedulerDAG)
         dr = self.get_dagrun(session=session)
         dr.dag = dag
 
@@ -951,12 +956,18 @@ class TaskInstance(Base, LoggingMixin):
 
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
-            # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
-            # we must round up prior to converting to an int, otherwise a divide by zero error
-            # will occur in the modded_hash calculation.
-            # this probably gives unexpected results if a task instance has previously been cleared,
-            # because try_number can increase without bound
-            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            try:
+                # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
+                # we must round up prior to converting to an int, otherwise a divide by zero error
+                # will occur in the modded_hash calculation.
+                # this probably gives unexpected results if a task instance has previously been cleared,
+                # because try_number can increase without bound
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            except OverflowError:
+                min_backoff = MAX_RETRY_DELAY
+                self.log.warning(
+                    "OverflowError occurred while calculating min_backoff, using MAX_RETRY_DELAY for min_backoff."
+                )
 
             # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
             # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
@@ -994,7 +1005,9 @@ class TaskInstance(Base, LoggingMixin):
     def _get_dagrun(dag_id, run_id, session) -> DagRun:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
-        dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+        dr = session.execute(
+            select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ).scalar_one()
         return dr
 
     @provide_session
@@ -1017,7 +1030,6 @@ class TaskInstance(Base, LoggingMixin):
         if getattr(self, "task", None) is not None:
             if TYPE_CHECKING:
                 assert self.task
-                assert isinstance(self.task.dag, SchedulerDAG)
             dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.logical_date` will work correctly
         set_committed_value(self, "dag_run", dr)
@@ -1424,7 +1436,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
-        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+        Mark the task as deferred and sets up the trigger to resume it.
 
         :meta: private
         """
@@ -1584,7 +1596,8 @@ class TaskInstance(Base, LoggingMixin):
         ti.clear_next_method_args()
 
         context = None
-        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with
+        # parse error) we might _not_ have a Task.
         if getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
@@ -1603,18 +1616,13 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task: SerializedBaseOperator | None = None
-        try:
-            if (orig_task := getattr(ti, "task", None)) and context:
-                # TODO (GH-52141): Move runtime unmap into task runner.
-                task = orig_task.unmap((context, session))
-        except Exception:
-            cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
+        # Use the original task directly - scheduler only needs to check email settings
+        # Actual callbacks are handled by the DAG processor, not the scheduler
+        task = getattr(ti, "task", None)
 
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
-            callbacks = task.on_failure_callback if task else None
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
@@ -1627,7 +1635,6 @@ class TaskInstance(Base, LoggingMixin):
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
-            callbacks = task.on_retry_callback if task else None
 
         try:
             get_listener_manager().hook.on_task_instance_failed(
@@ -1640,7 +1647,6 @@ class TaskInstance(Base, LoggingMixin):
             "ti": ti,
             "email_for_state": email_for_state,
             "task": task,
-            "callbacks": callbacks,
             "context": context,
         }
 
@@ -1734,13 +1740,13 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
 
+        from airflow.exceptions import NotMapped
         from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
             TIRunContext,
         )
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.sdk.definitions.param import process_params
         from airflow.sdk.execution_time.context import InletEventsAccessors
         from airflow.utils.context import (
@@ -1847,7 +1853,7 @@ class TaskInstance(Base, LoggingMixin):
                     "_upstream_map_indexes",
                     {
                         upstream.task_id: self.get_relevant_upstream_map_indexes(
-                            cast("Operator", upstream),
+                            upstream,
                             expanded_ti_count,
                             session=session,
                         )
@@ -1943,7 +1949,6 @@ class TaskInstance(Base, LoggingMixin):
             task_ids=task_ids,
             map_indexes=map_indexes,
             include_prior_dates=include_prior_dates,
-            session=session,
         )
 
         # NOTE: Since we're only fetching the value field and not the whole
@@ -1952,8 +1957,14 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(
-                XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
+            first = session.execute(
+                query.with_only_columns(
+                    XComModel.run_id,
+                    XComModel.task_id,
+                    XComModel.dag_id,
+                    XComModel.map_index,
+                    XComModel.value,
+                )
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
@@ -1994,16 +2005,20 @@ class TaskInstance(Base, LoggingMixin):
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
         """Return Number of running TIs from the DB."""
         # .count() is inefficient
-        num_running_task_instances_query = session.query(func.count()).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.state == TaskInstanceState.RUNNING,
+        num_running_task_instances_query = (
+            select(func.count())
+            .select_from(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.state == TaskInstanceState.RUNNING,
+            )
         )
         if same_dagrun:
-            num_running_task_instances_query = num_running_task_instances_query.filter(
+            num_running_task_instances_query = num_running_task_instances_query.where(
                 TaskInstance.run_id == self.run_id
             )
-        return num_running_task_instances_query.scalar()
+        return session.scalar(num_running_task_instances_query)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
@@ -2282,7 +2297,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
     if isinstance(operator, MappedOperator):

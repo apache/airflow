@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.8.6.13",
+    "trove-classifiers==2025.8.26.11",
 ]
 build-backend = "hatchling.build"
 
@@ -62,7 +62,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 
-# Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
+# Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
 version = "3.1.0"
 
 dependencies = [
@@ -212,6 +212,7 @@ exclude = [
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+"../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
@@ -276,3 +277,9 @@ required-version = ">=0.6.3"
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-timezones",
+    "apache-airflow-shared-secrets-masker",
+]
