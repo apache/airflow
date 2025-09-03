@@ -27,27 +27,40 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from airflow.models import DagRun
 
+try:
+    from airflow.sdk.exceptions import (
+        AirflowDagCycleException,
+        AirflowException,
+        AirflowNotFoundException,
+        ParamValidationError,
+        TaskNotFound,
+    )
+except (ImportError, ModuleNotFoundError):
 
-class AirflowException(Exception):
-    """
-    Base class for all Airflow's errors.
+    class AirflowException(Exception):
+        """
+        Base class for all Airflow's errors.
 
-    Each custom exception should be derived from this class.
-    """
+        Each custom exception should be derived from this class.
+        """
 
-    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+        status_code = HTTPStatus.INTERNAL_SERVER_ERROR
 
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+        def serialize(self):
+            cls = self.__class__
+            return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
+    class AirflowNotFoundException(AirflowException):
+        """Raise when the requested object/resource is not available in the system."""
 
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
+    class TaskNotFound(AirflowException):
+        """Raise when a Task is not available in the system."""
 
+    class AirflowDagCycleException(AirflowException):
+        """Raise when there is a cycle in DAG definition."""
 
-class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in DAG definition."""
+    class ParamValidationError(AirflowException):
+        """Raise when DAG params is invalid."""
 
 
 class AirflowBadRequest(AirflowException):
@@ -320,11 +333,6 @@ _DEPRECATED_EXCEPTIONS = {
     "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
 }
 
-_TO_BE_DEPRECATED_EXCEPTIONS = {
-    "ParamValidationError": "airflow.sdk.exceptions.ParamValidationError",
-    "TaskNotFound": "airflow.sdk.exceptions.TaskNotFound",
-}
-
 
 def __getattr__(name: str):
     """Provide backward compatibility for moved exceptions."""
@@ -339,15 +347,6 @@ def __getattr__(name: str):
             DeprecationWarning,
             stacklevel=2,
         )
-        module_path, attr_name = target_path.rsplit(".", 1)
-        return attrgetter(attr_name)(import_module(module_path))
-    if name in _TO_BE_DEPRECATED_EXCEPTIONS:
-        import warnings
-        from importlib import import_module
-        from operator import attrgetter
-
-        target_path = _TO_BE_DEPRECATED_EXCEPTIONS[name]
-
         module_path, attr_name = target_path.rsplit(".", 1)
         return attrgetter(attr_name)(import_module(module_path))
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
