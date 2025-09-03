@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
 from airflow.providers.openlineage.conf import (
     _is_true,
     config_path,
@@ -40,8 +39,9 @@ from airflow.providers.openlineage.conf import (
     spark_inject_transport_info,
     transport,
 )
+from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
 
-from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.config import env_vars, task_sdk_conf_vars as conf_vars
 
 _CONFIG_SECTION = "openlineage"
 _VAR_CONFIG_PATH = "OPENLINEAGE_CONFIG"
