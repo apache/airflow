@@ -187,7 +187,7 @@ export const PanelButtons = ({
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
             aria-label={translate("dag:panel.buttons.showGrid")}
-            colorPalette="button"
+            colorPalette="brand"
             onClick={() => {
               setDagView("grid");
               if (dagView === "grid") {
@@ -201,7 +201,7 @@ export const PanelButtons = ({
           </IconButton>
           <IconButton
             aria-label={translate("dag:panel.buttons.showGraph")}
-            colorPalette="button"
+            colorPalette="brand"
             onClick={() => {
               setDagView("graph");
               if (dagView === "graph") {

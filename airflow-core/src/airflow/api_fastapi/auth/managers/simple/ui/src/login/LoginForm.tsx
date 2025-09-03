@@ -72,7 +72,7 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
           rules={{ required: true }}
         />
 
-        <Button colorPalette="blue" disabled={!isValid || isPending} type="submit">
+        <Button colorPalette="brand" disabled={!isValid || isPending} type="submit">
           Sign in
         </Button>
       </Stack>

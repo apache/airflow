@@ -116,7 +116,7 @@ export const TaskNode = ({
             )}
             {isGroup ? (
               <Button
-                colorPalette="button"
+                colorPalette="brand"
                 cursor="pointer"
                 height={8}
                 onClick={onClick}

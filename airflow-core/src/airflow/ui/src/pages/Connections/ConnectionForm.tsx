@@ -250,7 +250,7 @@ const ConnectionForm = ({
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="button"
+            colorPalette="brand"
             disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !isDirty}
             onClick={() => void handleSubmit(onSubmit)()}
           >

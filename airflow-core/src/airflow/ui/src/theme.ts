@@ -38,9 +38,8 @@ export const customConfig = defineConfig({
   theme: {
     tokens: {
       colors: {
-        black: { value: "oklch(0.23185 0.0323 266.44)" }, // Custom value (Tailwind uses #000)
-        steel: {
-          // This is a 20/80 blend between "blue" and "slate"
+        black: { value: "oklch(0.23185 0.0323 266.44)" }, // Custom value for dark mode
+        brand: {
           "50": { value: "oklch(0.98 0.006 248.717)" },
           "100": { value: "oklch(0.962 0.012 249.460)" },
           "200": { value: "oklch(0.923 0.023 255.082)" },
@@ -54,7 +53,7 @@ export const customConfig = defineConfig({
           "950": { value: "oklch(0.179 0.05 265.487)" },
         },
         gray: {
-          // Values modified from original Tailwind to improve contrast
+          // Values modified from original Tailwind to improve contrast in Chakra UI
           "50": { value: "oklch(0.985 0.004 253)" }, // Original: oklch(0.985 0.002 247.839)
           "100": { value: "oklch(0.955 0.006 253)" }, // Original: oklch(0.967 0.003 264.542)
           "200": { value: "oklch(0.915 0.01 253)" }, // Original: oklch(0.928 0.006 264.531)
@@ -82,7 +81,7 @@ export const customConfig = defineConfig({
           "900": { value: "oklch(0.396 0.141 25.723)" },
           "950": { value: "oklch(0.258 0.092 26.042)" },
         },
-        // Values modified from original Tailwind to improve contrast
+        // Values modified from original Tailwind to improve contrast in Chakra UI
         orange: {
           "50": { value: "oklch(0.982 0.013 83.915)" },
           "100": { value: "oklch(0.961 0.033 82.320)" },
@@ -136,7 +135,7 @@ export const customConfig = defineConfig({
           "950": { value: "oklch(0.274 0.072 132.109)" },
         },
         green: {
-          // Values modified from original Tailwind to improve contrast
+          // Values modified from original Tailwind to improve contrast in Chakra UI
           "50": { value: "oklch(0.982 0.018 155.826)" },
           "100": { value: "oklch(0.962 0.044 156.743)" },
           "200": { value: "oklch(0.925 0.084 155.995)" },
@@ -348,10 +347,7 @@ export const customConfig = defineConfig({
     },
     semanticTokens: {
       colors: {
-        // UI COMPONENTS
-        button: generateSemanticTokens("steel"),
-        input: generateSemanticTokens("steel"),
-        navbar: generateSemanticTokens("steel"),
+        // GENERIC STATE
         danger: generateSemanticTokens("red"),
         info: generateSemanticTokens("blue"),
         warning: generateSemanticTokens("amber"),
@@ -431,7 +427,7 @@ export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperti
   ({
     // Background
     "--xy-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-steel-950)" : "var(--chakra-colors-steel-50)",
+      colorMode === "dark" ? "var(--chakra-colors-brand-950)" : "var(--chakra-colors-brand-50)",
     "--xy-background-pattern-color":
       colorMode === "dark" ? "var(--chakra-colors-gray-200)" : "var(--chakra-colors-gray-800)",
 

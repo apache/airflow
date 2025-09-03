@@ -48,7 +48,7 @@ export const SearchDagsButton = () => {
   return (
     <Box>
       <Button
-        colorPalette="button"
+        colorPalette="brand"
         justifyContent="flex-start"
         minWidth={200}
         onClick={() => setIsOpen(true)}
