@@ -1588,7 +1588,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         )
 
         if self.deadline:
-            deadlines = self.deadline if isinstance(self.deadline, list) else [self.deadline]
+            deadlines = self.deadline
             for deadline in deadlines:
                 if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
                     session.add(

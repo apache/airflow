@@ -2134,6 +2134,7 @@ my_postgres_conn:
         expected_times.sort()
         assert deadline_times == expected_times
 
+
 class TestDagModel:
     def _clean(self):
         clear_db_dags()
@@ -3671,4 +3672,3 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
 
     # but it only gets stamped on the dag run when bundle versioning not disabled
     assert dr.bundle_version == expected
-

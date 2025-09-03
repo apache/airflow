@@ -1224,7 +1224,7 @@ class DagRun(Base, LoggingMixin):
 
             if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
-                deadlines = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
+                deadlines = dag.deadline
                 if any(isinstance(d.reference, DeadlineReference.TYPES.DAGRUN) for d in deadlines):
                     Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
 
