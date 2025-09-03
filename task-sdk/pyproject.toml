@@ -72,9 +72,10 @@ dependencies = [
     "pydantic>2.11.0",
     # End of shared secrets_masker dependencies
     # Start of shared configuration dependencies
-    "packaging",
-    "pyyaml",
-    "typing-extensions",
+    "packaging>=25.0",
+    "pyyaml>=6.0.2",
+    "typing-extensions>=4.14.1",
+    "importlib-metadata>=7.0.0",
     # End of shared configuration dependencies
     # Start of shared secrets-masker dependencies
     "apache-airflow-shared-configuration",

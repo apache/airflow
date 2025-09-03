@@ -146,7 +146,8 @@ dependencies = [
     "apache-airflow-providers-smtp>=2.0.2",
     "apache-airflow-providers-standard>=0.4.0",
     # Start of shared configuration dependencies
-    "pyyaml",
+    "pyyaml>=6.0.2",
+    "importlib-metadata>=7.0.0",
     # End of shared configuration dependencies
     # Start of shared secrets-masker dependencies
     "apache-airflow-shared-configuration",

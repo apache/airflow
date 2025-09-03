@@ -29,6 +29,8 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typing-extensions>=4.14.1",
     "pendulum>=3.1.0",
+    # Dependencies needed for testing with ProvidersManager
+    "importlib-metadata>=7.0.0",
 ]
 
 [dependency-groups]
