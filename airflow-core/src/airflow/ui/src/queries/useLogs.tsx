@@ -220,8 +220,10 @@ export const useLogs = (
     },
   );
 
+  // Log truncation is performed in the frontend because the backend
+  // does not support yet pagination / limits on logs reading endpoint
   const truncatedData = useMemo(() => {
-    if (!data?.content || typeof limit !== "number" || limit <= 0) {
+    if (!data?.content || limit === undefined || limit <= 0) {
       return data;
     }
 
@@ -236,7 +238,7 @@ export const useLogs = (
   }, [data, limit]);
 
   const parsedData = parseLogs({
-    data: parseStreamingLogContent(typeof limit === "number" && limit > 0 ? truncatedData : data),
+    data: parseStreamingLogContent(truncatedData),
     expanded,
     logLevelFilters,
     showSource,
