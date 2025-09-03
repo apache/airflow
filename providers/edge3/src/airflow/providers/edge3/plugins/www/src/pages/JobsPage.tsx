@@ -22,7 +22,13 @@ import { useUiServiceJobs } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 export const JobsPage = () => {
-  const { data, error } = useUiServiceJobs(undefined, { enabled: true, refetchInterval: 5000 });
+  // Note: might use this in future but core-ui-API is not yet bound:
+  // const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
+  const autoRefreshInterval = 5000;
+  const { data, error } = useUiServiceJobs(undefined, {
+    enabled: true,
+    refetchInterval: autoRefreshInterval,
+  });
 
   // TODO to make it proper
   // Beautification of state like in Airflow 2
