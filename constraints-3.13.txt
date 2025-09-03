@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-03T13:53:49.526636
+# This constraints file was automatically generated on 2025-09-03T19:46:28.521307
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -244,7 +244,7 @@ cohere==5.17.0
 colorlog==6.9.0
 comm==0.2.3
 crcmod==1.7
-cron_descriptor==2.0.5
+cron_descriptor==2.0.6
 croniter==6.0.0
 cryptography==45.0.7
 curlify==3.0.0
@@ -445,7 +445,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.2
 oauthlib==3.3.1
-openai==1.104.2
+openai==1.105.0
 openlineage-integration-common==1.37.0
 openlineage-python==1.37.0
 openlineage_sql==1.37.0
@@ -622,7 +622,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.14
+uv==0.8.15
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
