@@ -3563,7 +3563,7 @@ export const $HITLDetail = {
             ],
             title: 'Respondents'
         },
-        user_id: {
+        responded_user_id: {
             anyOf: [
                 {
                     type: 'string'
@@ -3572,7 +3572,18 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'User Id'
+            title: 'Responded User Id'
+        },
+        responded_user_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Responded User Name'
         },
         response_at: {
             anyOf: [
@@ -3639,9 +3650,13 @@ export const $HITLDetailCollection = {
 
 export const $HITLDetailResponse = {
     properties: {
-        user_id: {
+        responded_user_id: {
             type: 'string',
-            title: 'User Id'
+            title: 'Responded User Id'
+        },
+        responded_user_name: {
+            type: 'string',
+            title: 'Responded User Name'
         },
         response_at: {
             type: 'string',
@@ -3663,7 +3678,7 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['user_id', 'response_at', 'chosen_options'],
+    required: ['responded_user_id', 'responded_user_name', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
 } as const;

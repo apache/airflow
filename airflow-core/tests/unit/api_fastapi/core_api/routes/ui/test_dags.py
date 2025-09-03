@@ -160,7 +160,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 defaults=["Approve"],
                 response_at=utcnow(),
                 chosen_options=["Approve"],
-                user_id="test",
+                responded_user_id="test",
             )
             for i in range(3, 5)
         ]

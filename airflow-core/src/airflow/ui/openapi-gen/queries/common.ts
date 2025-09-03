@@ -142,8 +142,9 @@ export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = ({ dagId, dagRunId }:
 export type DagRunServiceGetDagRunsDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRuns>>;
 export type DagRunServiceGetDagRunsQueryResult<TData = DagRunServiceGetDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceGetDagRunsKey = "DagRunServiceGetDagRuns";
-export const UseDagRunServiceGetDagRunsKeyFn = ({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+export const UseDagRunServiceGetDagRunsKeyFn = ({ dagId, dagVersion, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
   dagId: string;
+  dagVersion?: number[];
   endDateGt?: string;
   endDateGte?: string;
   endDateLt?: string;
@@ -171,7 +172,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = ({ dagId, endDateGt, endDateGte, 
   updatedAtGte?: string;
   updatedAtLt?: string;
   updatedAtLte?: string;
-}, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ dagId, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }])];
+}, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ dagId, dagVersion, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }])];
 export type DagRunServiceWaitDagRunUntilFinishedDefaultResponse = Awaited<ReturnType<typeof DagRunService.waitDagRunUntilFinished>>;
 export type DagRunServiceWaitDagRunUntilFinishedQueryResult<TData = DagRunServiceWaitDagRunUntilFinishedDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceWaitDagRunUntilFinishedKey = "DagRunServiceWaitDagRunUntilFinished";
@@ -714,7 +715,7 @@ export const UseHumanInTheLoopServiceGetHitlDetailKeyFn = ({ dagId, dagRunId, ma
 export type HumanInTheLoopServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof HumanInTheLoopService.getHitlDetails>>;
 export type HumanInTheLoopServiceGetHitlDetailsQueryResult<TData = HumanInTheLoopServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useHumanInTheLoopServiceGetHitlDetailsKey = "HumanInTheLoopServiceGetHitlDetails";
-export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }: {
+export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedUserId, respondedUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
   bodySearch?: string;
   dagId?: string;
   dagIdPattern?: string;
@@ -722,13 +723,14 @@ export const UseHumanInTheLoopServiceGetHitlDetailsKeyFn = ({ bodySearch, dagId,
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  respondedUserId?: string[];
+  respondedUserName?: string[];
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
   taskId?: string;
   taskIdPattern?: string;
-  userId?: string[];
-} = {}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [{ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }])];
+} = {}, queryKey?: Array<unknown>) => [useHumanInTheLoopServiceGetHitlDetailsKey, ...(queryKey ?? [{ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedUserId, respondedUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";

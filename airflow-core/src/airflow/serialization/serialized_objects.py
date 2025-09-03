@@ -2382,21 +2382,20 @@ class SerializedDAG(DAG, BaseSerialization):
         cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
     ) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        try:
-            if "dag_id" not in encoded_dag:
-                raise RuntimeError(
-                    "Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
-                )
-        except RuntimeError as err:
-            dag_id = encoded_dag.get("dag_id", None)
-            raise DeserializationError(dag_id) from err
+        if "dag_id" not in encoded_dag:
+            raise DeserializationError(
+                message="Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
+            )
+
+        dag_id = encoded_dag["dag_id"]
 
         try:
             return cls._deserialize_dag_internal(encoded_dag, client_defaults)
-        except _TimetableNotRegistered:
+        except (_TimetableNotRegistered, DeserializationError):
+            # Let specific errors bubble up unchanged
             raise
-        except (ValueError, KeyError) as err:
-            dag_id = encoded_dag.get("dag_id", None)
+        except Exception as err:
+            # Wrap all other errors consistently
             raise DeserializationError(dag_id) from err
 
     @classmethod
