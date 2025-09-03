@@ -320,7 +320,7 @@ class TestPool:
         assert not Pool.is_default_pool(id=pool.id)
         assert Pool.is_default_pool(str(default_pool.id))
 
-    def test_get_team_name(self, testing_team, session):
+    def test_get_team_name(self, testing_team: Team, session: Session):
         pool = Pool(pool="test", include_deferred=False, team_id=testing_team.id)
         session.add(pool)
         session.flush()
