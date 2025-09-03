@@ -385,6 +385,142 @@ class Trigger(Base):
         return result
 
 
+class TriggerWatermark(Base):
+
+    __tablename__ = "trigger_watermark"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Leverage the
+    trigger_hash = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    key = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    # The value is stored as a string. We'll need to have some sort of a "serialization" method that
+    # handles this
+    value = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    @classmethod
+    @provide_session
+    def set(
+        cls,
+        trigger_hash: str,
+        key: str,
+        value: Any = None,
+        session: Session = NEW_SESSION,
+    ):
+        if not trigger_hash:
+            raise ValueError(
+                "Invalid params. A ``trigger_hash`` of type ``str`` must be "
+                "passed to ``set``. This must be done in the ``set_watermark`` "
+                "method of your Trigger."
+            )
+
+        if not key:
+            raise ValueError(
+                "Invalid params. A ``key`` of type ``str`` must be "
+                "passed to ``set``. This must be done in the ``set_watermark`` "
+                "method of your Trigger."
+            )
+
+        # Query and delete the existing value
+        trigger_watermark = session.query(cls).filter(
+            cls.trigger_hash == trigger_hash,
+            cls.key == key
+        ).scalar()
+
+        if not trigger_watermark:
+            log.info(
+                "TriggerWatermark not found for  the provided trigger_hash and "
+                "key. A new watermark will be created using the trigger with "
+                "trigger_hash: %s and key: %s",
+                trigger_hash,
+                key
+            )
+
+        # Set the new value
+        trigger_watermark.value = cls.serialize_value(value)
+        session.flush()
+
+    @classmethod
+    @provide_session
+    def get(
+        cls,
+        trigger_hash: str,
+        key: str,
+        session: Session = NEW_SESSION,
+    ):
+        if not trigger_hash:
+            raise ValueError(
+                "Invalid params. A ``trigger_hash`` of type ``str`` must be "
+                "passed to ``get``. This must be done in the ``set_watermark`` "
+                "method of your Trigger."
+            )
+
+        if not key:
+            raise ValueError(
+                "Invalid params. A ``key`` of type ``str`` must be "
+                "passed to ``set``. This must be done in the ``set_watermark`` "
+                "method of your Trigger."
+            )
+
+        # Query and delete the existing value
+        trigger_watermark = session.query(cls).filter(
+            cls.trigger_hash == trigger_hash,
+            cls.key == key
+        ).scalar()
+
+        if not trigger_watermark:
+            log.warning(
+                "TriggerWatermark not found for trigger_hash: %s and "
+                "key: %s. `None` will be returned.",
+                trigger_hash,
+                key
+            )
+
+            return {key: None}
+
+        return {key: trigger_watermark.value}
+
+    @staticmethod
+    def serialize_value(value):
+        # TODO: Add error handling
+        return str(value)
+
+
 @singledispatch
 def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, session: Session) -> None:
     """
