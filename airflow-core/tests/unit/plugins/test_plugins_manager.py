@@ -375,7 +375,36 @@ class TestPluginsManager:
             plugins_manager.load_providers_plugins()
             assert len(plugins_manager.plugins) == 4
 
+    def test_duplicate_plugin_names_are_reported(self, tmp_path, caplog):
+        """Test that duplicate plugin names are properly reported in logs and import_errors."""
+        from airflow import plugins_manager
 
+        # Create a plugin file with two plugins having the same name
+        plugin_content = """
+from airflow.plugins_manager import AirflowPlugin
+
+class FirstPlugin(AirflowPlugin):
+    name = "test_duplicate_plugin"
+    
+class SecondPlugin(AirflowPlugin):
+    name = "test_duplicate_plugin"
+"""
+        plugin_file = tmp_path / "test_duplicate_plugin.py"
+        plugin_file.write_text(plugin_content)
+
+        with conf_vars({("core", "plugins_folder"): os.fspath(tmp_path)}):
+            with caplog.at_level(logging.ERROR, logger="airflow.plugins_manager"):
+                plugins_manager.load_plugins_from_plugin_directory()
+
+                # Verify the error was logged
+                assert "Duplicate plugin name found in" in caplog.text
+                assert str(plugin_file) in caplog.text
+                assert "test_duplicate_plugin" in caplog.text
+                
+                # Verify the error was added to import_errors
+                assert any("Duplicate plugin name" in str(e) for e in plugins_manager.import_errors.values())
+                
+                          
 class TestPluginsDirectorySource:
     def test_should_return_correct_path_name(self):
         from airflow import plugins_manager
