@@ -18,7 +18,7 @@
  */
 import { Alert, CloseButton, Container, Heading, Span, Text, Box, HStack } from "@chakra-ui/react";
 import type { LoginResponse } from "openapi-gen/requests/types.gen";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useCookies } from "react-cookie";
 import { useSearchParams } from "react-router-dom";
 
@@ -52,20 +52,6 @@ export const Login = () => {
     localStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY),
   );
 
-  // Set page title for SEO
-  useEffect(() => {
-    document.title = "Sign In - Apache Airflow";
-    
-    // Add meta description if not present
-    let metaDescription = document.querySelector('meta[name="description"]');
-    if (!metaDescription) {
-      metaDescription = document.createElement('meta');
-      metaDescription.setAttribute('name', 'description');
-      document.head.appendChild(metaDescription);
-    }
-    metaDescription.setAttribute('content', 'Sign in to your Apache Airflow account to access workflow management, data pipelines, and orchestration tools.');
-  }, []);
-
   const onSuccess = (data: LoginResponse) => {
     // Fallback similar to FabAuthManager, strip off the next
     const fallback = "/";
@@ -93,9 +79,6 @@ export const Login = () => {
 
   return (
     <Box
-      as="main"
-      role="main"
-      aria-label="Login page"
       _dark={{
         bg: "gray.900"
       }}
@@ -107,8 +90,6 @@ export const Login = () => {
       p={4}
     >
       <Container
-        as="section"
-        aria-labelledby="login-heading"
         _dark={{
           bg: "gray.800"
         }}
@@ -118,60 +99,48 @@ export const Login = () => {
         maxW="md"
         p={8}
       >
-        {/* Header Section with improved semantic structure */}
-        <header>
-          <HStack gap={3} mb={6}>
-            <AirflowPin 
-              height="35px" 
-              width="35px" 
-              aria-hidden="true"
-              role="img"
-            />
-            <Heading 
-              as="h1"
-              id="login-heading"
-              fontWeight="normal" 
-              size="xl"
-              color="gray.800"
-              _dark={{ color: "white" }}
-            >
-              Sign into Airflow
-            </Heading>
-          </HStack>
-        </header>
+        <HStack gap={3} mb={6}>
+          <AirflowPin
+            height="35px"
+            width="35px"
+          />
+          <Heading
+            fontWeight="normal"
+            size="xl"
+            color="gray.800"
+            _dark={{ color: "white" }}
+          >
+            Sign into Airflow
+          </Heading>
+        </HStack>
 
-        {/* Error Alert with improved accessibility */}
         {Boolean(error) && (
-          <Box mb={4} role="alert" aria-live="polite">
+          <Box mb={4}>
             <ErrorAlert error={error} />
           </Box>
         )}
 
-        <Text 
+        <Text
           mb={4}
           color="gray.600"
           _dark={{ color: "gray.300" }}
-          id="login-instructions"
         >
           Enter your username and password below:
         </Text>
-        
-        <LoginForm 
-          isPending={isPending} 
+
+        <LoginForm
+          isPending={isPending}
           onLogin={onLogin}
-          aria-describedby="login-instructions"
         />
-        
+
         {isBannerDisabled === null && (
-          <Alert.Root 
-            mt={5} 
+          <Alert.Root
+            mt={5}
             status="info"
-            role="banner"
-            aria-labelledby="banner-title"
           >
-            <Alert.Indicator aria-hidden="true" />
+            <Alert.Indicator />
             <Alert.Content>
-              <Alert.Title id="banner-title">Simple auth manager enabled</Alert.Title>
+              <Alert.Title>Simple auth manager enabled</Alert.Title>
               <Alert.Description>
                 The Simple auth manager is intended for development and testing. If you&apos;re using it in
                 production, ensure that access is controlled through other means. Please read{" "}
@@ -180,7 +149,6 @@ export const Login = () => {
                     href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html"
                     rel="noreferrer noopener"
                     target="_blank"
-                    aria-label="Learn more about simple auth manager (opens in new tab)"
                   >
                     the documentation
                   </a>
@@ -196,7 +164,6 @@ export const Login = () => {
               }}
               pos="relative"
               top="-2"
-              aria-label="Close banner"
             />
           </Alert.Root>
         )}
