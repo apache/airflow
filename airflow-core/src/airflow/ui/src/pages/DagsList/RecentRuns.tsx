@@ -38,14 +38,11 @@ export const RecentRuns = ({
 }) => {
   const { t: translate } = useTranslation();
 
-  // Because of the styling (`row-reverse`), we need to reverse the runs so that the most recent run is on the right.
-  const reversedRuns = [...latestRuns].reverse();
-
-  if (!reversedRuns.length) {
+  if (!latestRuns.length) {
     return undefined;
   }
 
-  const runsWithDuration = reversedRuns.map((run) => ({
+  const runsWithDuration = latestRuns.map((run) => ({
     ...run,
     duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
   }));

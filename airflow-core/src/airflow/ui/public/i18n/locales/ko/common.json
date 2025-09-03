@@ -7,6 +7,7 @@
     "Providers": "제공자들",
     "Variables": "변수들"
   },
+  "allOperators": "모든 오퍼레이터",
   "asset_one": "에셋",
   "asset_other": "에셋들",
   "assetEvent_one": "에셋 이벤트",
@@ -180,6 +181,7 @@
     "failed": "실패",
     "no_status": "상태 없음",
     "none": "상태 없음",
+    "planned": "계획됨",
     "queued": "대기 중",
     "removed": "제거됨",
     "restarting": "다시 시작 중",
@@ -213,7 +215,7 @@
   "task": {
     "documentation": "작업 문서",
     "lastInstance": "마지막 인스턴스",
-    "operator": "연산자",
+    "operator": "오퍼레이터",
     "triggerRule": "트리거 규칙"
   },
   "task_one": "작업",
