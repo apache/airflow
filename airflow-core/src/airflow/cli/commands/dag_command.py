@@ -678,7 +678,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
     """Extract and format schedule information from a Dag."""
     try:
         # Try to get schedule from different possible attributes
-        schedule = getattr(dag, 'schedule', None) or getattr(dag, 'schedule_interval', None)
+        schedule = getattr(dag, "schedule", None) or getattr(dag, "schedule_interval", None)
 
         if schedule is None:
             return "Manual (no schedule)"
@@ -688,42 +688,42 @@ def _get_schedule_info(dag: DAG) -> str | None:
             # Cron expressions or preset schedules
             # Preset schedules like @daily, @hourly
             preset_map = {
-                '@once': 'Once',
-                '@hourly': f'Hourly {cron_presets["@hourly"]}',
-                '@daily': f'Daily {cron_presets["@daily"]}',
-                '@weekly': f'Weekly {cron_presets["@weekly"]}',
-                '@monthly': f'Monthly {cron_presets["@monthly"]}',
-                '@quarterly': f'Quarterly {cron_presets["@quarterly"]}',
-                '@yearly': f'Quarterly {cron_presets["@yearly"]}',
+                "@once": "Once",
+                "@hourly": f"Hourly {cron_presets['@hourly']}",
+                "@daily": f"Daily {cron_presets['@daily']}",
+                "@weekly": f"Weekly {cron_presets['@weekly']}",
+                "@monthly": f"Monthly {cron_presets['@monthly']}",
+                "@quarterly": f"Quarterly {cron_presets['@quarterly']}",
+                "@yearly": f"Quarterly {cron_presets['@yearly']}",
             }
             return preset_map.get(schedule, schedule, f"Cron: `{schedule}`")
 
         # Handle timedelta objects
-        if hasattr(schedule, 'total_seconds'):
+        if hasattr(schedule, "total_seconds"):
             seconds = schedule.total_seconds()
             if seconds >= 86400:  # 24 hours
                 days = int(seconds // 86400)
                 return f"Every {days} day{'s' if days > 1 else ''}"
-            elif seconds >= 3600:  # 1 hour
+            if seconds >= 3600:  # 1 hour
                 hours = int(seconds // 3600)
                 return f"Every {hours} hour{'s' if hours > 1 else ''}"
-            elif seconds >= 60:  # 1 minute
+            if seconds >= 60:  # 1 minute
                 minutes = int(seconds // 60)
                 return f"Every {minutes} minute{'s' if minutes > 1 else ''}"
             return f"Every {int(seconds)} second{'s' if seconds > 1 else ''}"
 
         # Handle timetable objects
-        if getattr(dag, 'timetable', None):
+        if getattr(dag, "timetable", None):
             timetable = dag.timetable
             # Try to get a description from the timetable
-            if hasattr(timetable, 'description'):
+            if hasattr(timetable, "description"):
                 return timetable.description
-            elif hasattr(timetable, 'summary'):
+            if hasattr(timetable, "summary"):
                 return timetable.summary
             return str(timetable.__class__.__name__)
 
         # Handle dataset schedules
-        if hasattr(schedule, '__iter__') and not isinstance(schedule, str):
+        if hasattr(schedule, "__iter__") and not isinstance(schedule, str):
             # Likely a dataset schedule (list/set of datasets)
             try:
                 datasets = list(schedule)
@@ -736,7 +736,7 @@ def _get_schedule_info(dag: DAG) -> str | None:
         # Fallback to string representation
         return str(schedule)
 
-    except Exception:  # noqa: BLE001 - best-effort fallback; schedule parsing is optional
+    except Exception:
         # If anything fails, return None to skip schedule info
         return None
 
@@ -748,10 +748,7 @@ def dag_docs(args) -> None:
     """Display Dag documentation (__doc_md__) at the command line."""
     if args.dag_id:
         # Get specific Dag
-        dags = get_dags(
-            bundle_names=getattr(args, "bundle_name", None),
-            dag_id=args.dag_id
-        )
+        dags = get_dags(bundle_names=getattr(args, "bundle_name", None), dag_id=args.dag_id)
     else:
         # Get all Dags
         dagbag = DagBag(process_subdir(getattr(args, "subdir", None)))
@@ -772,7 +769,7 @@ def dag_docs(args) -> None:
         markdown_output.append("# DAG Documentation\n")
 
     for dag in dags:
-        doc_md = getattr(dag, '__doc_md__', getattr(dag, 'doc_md', None))
+        doc_md = getattr(dag, "__doc_md__", getattr(dag, "doc_md", None))
 
         # Add Dag header
         if len(dags) > 1:
@@ -802,7 +799,7 @@ def dag_docs(args) -> None:
 
     if args.output_file:
         # Write to file
-        with open(args.output_file, 'w', encoding='utf-8') as f:
+        with open(args.output_file, "w", encoding="utf-8") as f:
             f.write(markdown_content)
         print(f"Dag documentation written to: {args.output_file}")
     else:

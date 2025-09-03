@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import redirect_stdout
 import json
 import logging
 import os
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest import mock
@@ -424,16 +424,18 @@ class TestCliDags:
         tutorial_section_start = markdown_output.find("## tutorial_dag")
         if tutorial_section_start != -1:
             next_dag_start = markdown_output.find("## ", tutorial_section_start + 1)
-            tutorial_section = markdown_output[tutorial_section_start:next_dag_start] if next_dag_start != -1 else markdown_output[tutorial_section_start:]
+            tutorial_section = (
+                markdown_output[tutorial_section_start:next_dag_start]
+                if next_dag_start != -1
+                else markdown_output[tutorial_section_start:]
+            )
             assert "*No documentation available*" not in tutorial_section
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_dag_docs_specific_dag(self):
         """Test the dag docs CLI command for a specific DAG."""
         # Test getting docs for a specific DAG
-        args = self.parser.parse_args([
-            "dags", "docs", "--dag-id", "tutorial_dag"
-        ])
+        args = self.parser.parse_args(["dags", "docs", "--dag-id", "tutorial_dag"])
         with redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
@@ -449,7 +451,7 @@ class TestCliDags:
         assert "# DAG Documentation" not in markdown_output
 
         # Should contain actual documentation content
-        assert len(markdown_output.split('\n')) > 2  # More than just header
+        assert len(markdown_output.split("\n")) > 2  # More than just header
 
         # Should not contain placeholder for tutorial_dag
         assert "*No documentation available*" not in markdown_output
@@ -458,9 +460,7 @@ class TestCliDags:
     def test_cli_dag_docs_no_documentation(self):
         """Test the dag docs CLI command for a DAG without documentation."""
         # Test with a DAG that likely has no doc_md
-        args = self.parser.parse_args([
-            "dags", "docs", "--dag-id", "example_complex"
-        ])
+        args = self.parser.parse_args(["dags", "docs", "--dag-id", "example_complex"])
         with redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_docs(args)
             markdown_output = temp_stdout.getvalue()
@@ -479,9 +479,9 @@ class TestCliDags:
     def test_cli_dag_docs_output_to_file(self, tmp_path):
         """Test the dag docs CLI command writes markdown to a file."""
         out_file = tmp_path / "dag_docs.md"
-        args = self.parser.parse_args([
-            "dags", "docs", "--dag-id", "tutorial_dag", "--output-file", str(out_file)
-        ])
+        args = self.parser.parse_args(
+            ["dags", "docs", "--dag-id", "tutorial_dag", "--output-file", str(out_file)]
+        )
         dag_command.dag_docs(args)
         assert out_file.exists()
         content = out_file.read_text(encoding="utf-8")
