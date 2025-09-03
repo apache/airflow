@@ -359,7 +359,7 @@ class TestConnection:
         mock_db_backend.assert_called_once_with(conn_id="test_conn")
 
     @pytest.mark.db_test
-    def test_get_team_name(self, testing_team, session):
+    def test_get_team_name(self, testing_team: Team, session: Session):
         clear_db_connections()
 
         connection = Connection(conn_id="test_conn", conn_type="test_type", team_id=testing_team.id)
