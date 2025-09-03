@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -30,6 +31,10 @@ from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 pytestmark = pytest.mark.db_test
 

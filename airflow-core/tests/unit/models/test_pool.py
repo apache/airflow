@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from airflow import settings
@@ -35,6 +37,10 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     set_default_pool_slots,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 pytestmark = pytest.mark.db_test
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -29,6 +30,10 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.db import clear_db_connections
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 
 class TestConnection:
