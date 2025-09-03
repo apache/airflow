@@ -1910,19 +1910,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
 @conf_vars({("core", "unit_test_mode"): "False"})
 def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
-    import airflow.configuration
+    import airflow._shared.configuration
 
     cfgpath = tmp_path / "airflow-gneerated.cfg"
     # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+    monkeypatch.setattr(airflow._shared.configuration.parser, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow._shared.configuration.parser, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow._shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
     localconf: AirflowConfigParser = airflow._shared.configuration.initialize_config()
     monkeypatch.setattr(airflow.configuration, "conf", localconf)
 
-    airflow.configuration.write_default_airflow_configuration_if_needed()
+    airflow._shared.configuration.write_default_airflow_configuration_if_needed()
 
     assert cfgpath.is_file()
 

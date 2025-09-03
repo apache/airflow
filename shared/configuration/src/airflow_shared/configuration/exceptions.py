@@ -22,5 +22,3 @@ from __future__ import annotations
 
 class AirflowConfigException(Exception):
     """Raised when there is a configuration problem."""
-
-    pass

@@ -58,10 +58,6 @@ class AirflowNotFoundException(AirflowException):
     status_code = HTTPStatus.NOT_FOUND
 
 
-class AirflowConfigException(AirflowException):
-    """Raise when there is configuration problem."""
-
-
 class AirflowSensorTimeout(AirflowException):
     """Raise when there is a timeout on sensor polling."""
 
@@ -533,5 +529,18 @@ def __getattr__(name: str):
             stacklevel=2,
         )
         return AirflowDagCycleException
+
+    if name == "AirflowConfigException":
+        import warnings
+
+        from airflow._shared.configuration.exceptions import AirflowConfigException
+
+        warnings.warn(
+            "airflow.exceptions.AirflowConfigException is deprecated. "
+            "Use airflow._shared.configuration.exceptions.AirflowConfigException instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return AirflowConfigException
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
