@@ -28,7 +28,7 @@ from sqlalchemy import select
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagModel, DagRun
+from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
@@ -1339,6 +1339,13 @@ class TestClearDagRun:
             assert each["state"] == expected_state[index]
         dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
         assert dag_run.state == DAG1_RUN1_STATE
+
+        logs = (
+            session.query(Log)
+            .filter(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
+            .count()
+        )
+        assert logs == 0
 
     def test_clear_dag_run_not_found(self, test_client):
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})

@@ -127,7 +127,11 @@ class HITLTrigger(BaseTrigger):
             resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
             if resp.response_received and resp.chosen_options:
                 self.log.info(
-                    "[HITL] user=%s options=%s at %s", resp.user_id, resp.chosen_options, resp.response_at
+                    "[HITL] responded_by=%s (id=%s) options=%s at %s",
+                    resp.responded_user_name,
+                    resp.responded_user_id,
+                    resp.chosen_options,
+                    resp.response_at,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(

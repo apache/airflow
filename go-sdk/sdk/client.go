@@ -15,29 +15,61 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/*
+Package sdk provides access to the Airflow objects (Variables, Connection, XCom etc) during run time for tasks.
+*/
 package sdk
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 )
 
-func VariableGet(ctx context.Context, key string) (string, error) {
-	client := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+type client struct{}
 
-	resp, err := client.Variables().Get(ctx, key)
+var _ Client = (*client)(nil)
+
+func NewClient() Client {
+	return &client{}
+}
+
+func variableFromEnv(key string) (string, bool) {
+	return os.LookupEnv(VariableEnvPrefix + strings.ToUpper(key))
+}
+
+func (*client) GetVariable(ctx context.Context, key string) (string, error) {
+	// TODO: Let the lookup priority be configurable like it is in Python SDK
+	if env, ok := variableFromEnv(key); ok {
+		return env, nil
+	}
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+
+	resp, err := httpClient.Variables().Get(ctx, key)
 	if err != nil {
 		var httpError *api.GeneralHTTPError
+		errors.As(err, &httpError)
 		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
-			// TODO: return a custom error message!
-			return "", fmt.Errorf("variable %q not found: %d", key, httpError.Response.StatusCode())
+			err = fmt.Errorf("%w: %q", VariableNotFound, key)
 		}
 		return "", err
 	}
-	// TODO: Handle deserialization etc!
 	return *resp.Value, nil
+}
+
+// UnmarshalJSONVariable implements AirflowClient.
+func (c *client) UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error {
+	val, err := c.GetVariable(ctx, key)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(val), pointer)
 }

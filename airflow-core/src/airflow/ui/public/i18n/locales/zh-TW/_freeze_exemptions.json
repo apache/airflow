@@ -8,10 +8,13 @@
   "dags": {},
   "dashboard": {},
   "hitl": {
-    "requiredActionCount_one": "Required Action ({{count}})",
-    "requiredActionCount_other": "Required Actions ({{count}})",
+    "filters": {
+      "response": {
+        "received": "已回應"
+      }
+    },
     "state": {
-      "noResponseReceived": "No Response Received"
+      "noResponseReceived": "未收到回應"
     }
   },
   "tasks": {}

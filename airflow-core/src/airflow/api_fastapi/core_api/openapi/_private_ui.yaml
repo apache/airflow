@@ -257,9 +257,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -267,9 +267,17 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
+      - name: has_pending_actions
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Has Pending Actions
       responses:
         '200':
           description: Successful Response
@@ -1578,6 +1586,11 @@ components:
             $ref: '#/components/schemas/DAGRunResponse'
           type: array
           title: Latest Dag Runs
+        pending_actions:
+          items:
+            $ref: '#/components/schemas/HITLDetail'
+          type: array
+          title: Pending Actions
         file_token:
           type: string
           title: File Token
@@ -1611,6 +1624,7 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - pending_actions
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
@@ -1889,6 +1903,79 @@ components:
       - task_instances
       title: GridTISummaries
       description: DAG Run model for the Grid UI.
+    HITLDetail:
+      properties:
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
+        options:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Options
+        subject:
+          type: string
+          title: Subject
+        body:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Body
+        defaults:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Defaults
+        multiple:
+          type: boolean
+          title: Multiple
+          default: false
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        respondents:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Respondents
+        user_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+        response_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Response At
+        chosen_options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+        response_received:
+          type: boolean
+          title: Response Received
+          default: false
+      type: object
+      required:
+      - task_instance
+      - options
+      - subject
+      title: HITLDetail
+      description: Schema for Human-in-the-loop detail.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -1926,6 +2013,78 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    JobResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        job_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Job Type
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        latest_heartbeat:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Latest Heartbeat
+        executor_class:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor Class
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
+      type: object
+      required:
+      - id
+      - dag_id
+      - state
+      - job_type
+      - start_date
+      - end_date
+      - latest_heartbeat
+      - executor_class
+      - hostname
+      - unixname
+      title: JobResponse
+      description: Job serializer for responses.
     LightGridTaskInstanceSummary:
       properties:
         task_id:
@@ -2130,6 +2289,190 @@ components:
       - nodes
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    TaskInstanceResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        map_index:
+          type: integer
+          title: Map Index
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        try_number:
+          type: integer
+          title: Try Number
+        max_tries:
+          type: integer
+          title: Max Tries
+        task_display_name:
+          type: string
+          title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        pool:
+          type: string
+          title: Pool
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        priority_weight:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority Weight
+        operator:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
+        queued_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
+        pid:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pid
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+        executor_config:
+          type: string
+          title: Executor Config
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        rendered_map_index:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rendered Map Index
+        rendered_fields:
+          additionalProperties: true
+          type: object
+          title: Rendered Fields
+        trigger:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerResponse'
+          - type: 'null'
+        triggerer_job:
+          anyOf:
+          - $ref: '#/components/schemas/JobResponse'
+          - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - task_id
+      - dag_id
+      - dag_run_id
+      - map_index
+      - logical_date
+      - run_after
+      - start_date
+      - end_date
+      - duration
+      - state
+      - try_number
+      - max_tries
+      - task_display_name
+      - dag_display_name
+      - hostname
+      - unixname
+      - pool
+      - pool_slots
+      - queue
+      - priority_weight
+      - operator
+      - operator_name
+      - queued_when
+      - scheduled_when
+      - pid
+      - executor
+      - executor_config
+      - note
+      - rendered_map_index
+      - trigger
+      - triggerer_job
+      - dag_version
+      title: TaskInstanceResponse
+      description: TaskInstance serializer for responses.
     TaskInstanceState:
       type: string
       enum:
@@ -2208,6 +2551,35 @@ components:
       - deferred
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
+    TriggerResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        classpath:
+          type: string
+          title: Classpath
+        kwargs:
+          type: string
+          title: Kwargs
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+        triggerer_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Triggerer Id
+      type: object
+      required:
+      - id
+      - classpath
+      - kwargs
+      - created_date
+      - triggerer_id
+      title: TriggerResponse
+      description: Trigger serializer for responses.
     UIAlert:
       properties:
         text:
