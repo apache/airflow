@@ -296,8 +296,11 @@ def get_asset_events(
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
-    # Build base statement with join to AssetModel for name filtering
-    base_statement = select(AssetEvent).join(AssetModel, AssetEvent.asset_id == AssetModel.id)
+    # Build base statement - only join AssetModel if name filtering is needed
+    base_statement = select(AssetEvent)
+
+    if name_pattern.value:
+        base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
     assets_event_select, total_entries = paginated_select(
         statement=base_statement,
