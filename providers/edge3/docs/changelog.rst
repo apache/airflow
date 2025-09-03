@@ -27,11 +27,16 @@
 Changelog
 ---------
 
-1.1.4
+1.2.0
 .....
 
-
 Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Provide React UI for Edge (#53563)``
+
 
 Bug Fixes
 ~~~~~~~~~

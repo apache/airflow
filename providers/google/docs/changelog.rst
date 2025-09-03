@@ -42,6 +42,8 @@ Features
 * ``feature: Add OpenLineage support for pubsub create subscription operator - include inputs into OL (#54785)``
 * ``feature: Add OpenLineage support for PubSubPublishMessageOperator (#54764)``
 * ``feature: Add OpenLineage support for pubsub create subscription operator (#54707)``
+* ``feature: Add OpenLineage support for OracleToGCSOperator (#54953)``
+* ``feature: Add OpenLineage support for BigQueryToMsSqlOperator (#55168)``
 * ``Add GSheetsHook API endpoint support (Part 1) (#54560)``
 * ``Add cluster_tier flag support to Dataproc ClusterGenerator (#54105)``
 

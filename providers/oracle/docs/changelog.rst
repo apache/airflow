@@ -27,11 +27,15 @@
 Changelog
 ---------
 
-4.1.4
+4.2.0
 .....
 
-
 Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``feature: Add OpenLineage support for OracleToGCSOperator (#54953)``
 
 Misc
 ~~~~
