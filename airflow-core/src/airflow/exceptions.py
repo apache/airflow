@@ -37,7 +37,7 @@ try:
     )
 except (ImportError, ModuleNotFoundError):
 
-    class AirflowException(Exception):
+    class AirflowException(Exception):  # type: ignore[no-redef]
         """
         Base class for all Airflow's errors.
 
@@ -50,16 +50,16 @@ except (ImportError, ModuleNotFoundError):
             cls = self.__class__
             return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
-    class AirflowNotFoundException(AirflowException):
+    class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
         """Raise when the requested object/resource is not available in the system."""
 
-    class TaskNotFound(AirflowException):
+    class TaskNotFound(AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
 
-    class AirflowDagCycleException(AirflowException):
+    class AirflowDagCycleException(AirflowException):  # type: ignore[no-redef]
         """Raise when there is a cycle in DAG definition."""
 
-    class ParamValidationError(AirflowException):
+    class ParamValidationError(AirflowException):  # type: ignore[no-redef]
         """Raise when DAG params is invalid."""
 
 
