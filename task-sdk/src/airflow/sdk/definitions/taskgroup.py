@@ -30,15 +30,14 @@ from typing import TYPE_CHECKING, Any
 import attrs
 import methodtools
 
+from airflow.sdk import TriggerRule
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
-    AirflowException,
     AirflowDagCycleException,
     AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk import TriggerRule
-from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
