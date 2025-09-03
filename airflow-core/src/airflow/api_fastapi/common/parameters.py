@@ -853,6 +853,18 @@ QueryTIDagVersionFilter = Annotated[
         )
     ),
 ]
+QueryDagRunVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            filter_name="dag_version",
+        )
+    ),
+]
 QueryTITryNumberFilter = Annotated[
     FilterParam[list[int]],
     Depends(
