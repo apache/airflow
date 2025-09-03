@@ -104,13 +104,13 @@ class TestKiotaRequestAdapterHook(Base):
 
     @pytest.mark.asyncio
     async def test_get_async_conn_with_custom_base_url(self):
-        connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id,
-            host="api.fabric.microsoft.com",
-            api_version="v1",
-        )
-
-        with self.patch_hook(side_effect=connection):
+        with self.patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                host="api.fabric.microsoft.com",
+                api_version="v1",
+            )
+        ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = await hook.get_async_conn()
 
@@ -119,14 +119,14 @@ class TestKiotaRequestAdapterHook(Base):
 
     @pytest.mark.asyncio
     async def test_get_async_conn_with_proxies_as_string(self):
-        connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id,
-            host="api.fabric.microsoft.com",
-            api_version="v1",
-            proxies="{'http': 'http://proxy:80', 'https': 'https://proxy:80'}",
-        )
-
-        with self.patch_hook(side_effect=connection):
+        with self.patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                host="api.fabric.microsoft.com",
+                api_version="v1",
+                proxies="{'http': 'http://proxy:80', 'https': 'https://proxy:80'}",
+            )
+        ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = await hook.get_async_conn()
 
@@ -136,14 +136,14 @@ class TestKiotaRequestAdapterHook(Base):
 
     @pytest.mark.asyncio
     async def test_get_async_conn_with_proxies_as_invalid_string(self):
-        connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id,
-            host="api.fabric.microsoft.com",
-            api_version="v1",
-            proxies='["http://proxy:80", "https://proxy:80"]',
-        )
-
-        with self.patch_hook(side_effect=connection):
+        with self.patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                host="api.fabric.microsoft.com",
+                api_version="v1",
+                proxies='["http://proxy:80", "https://proxy:80"]',
+            )
+        ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
             with pytest.raises(AirflowConfigException):
@@ -151,14 +151,14 @@ class TestKiotaRequestAdapterHook(Base):
 
     @pytest.mark.asyncio
     async def test_get_async_conn_with_proxies_as_json(self):
-        connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id,
-            host="api.fabric.microsoft.com",
-            api_version="v1",
-            proxies='{"http": "http://proxy:80", "https": "https://proxy:80"}',
-        )
-
-        with self.patch_hook(side_effect=connection):
+        with self.patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                host="api.fabric.microsoft.com",
+                api_version="v1",
+                proxies='{"http": "http://proxy:80", "https": "https://proxy:80"}',
+            )
+        ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = await hook.get_async_conn()
 
@@ -247,12 +247,12 @@ class TestKiotaRequestAdapterHook(Base):
 
     @pytest.mark.asyncio
     async def test_azure_tenant_id(self):
-        connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id,
-            azure_tenant_id="azure-tenant-id",
-        )
-
-        with self.patch_hook(side_effect=connection):
+        with self.patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                azure_tenant_id="azure-tenant-id",
+            )
+        ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = await hook.get_async_conn()
 
@@ -267,13 +267,13 @@ class TestKiotaRequestAdapterHook(Base):
 
     @pytest.mark.asyncio
     async def test_request_information_with_custom_host(self):
-        connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id,
-            host="api.fabric.microsoft.com",
-            api_version="v1",
-        )
-
-        with self.patch_hook(side_effect=connection):
+        with self.patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                host="api.fabric.microsoft.com",
+                api_version="v1",
+            )
+        ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             request_info = hook.request_information(url="myorg/admin/apps", query_parameters={"$top": 5000})
             request_adapter = await hook.get_async_conn()
