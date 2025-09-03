@@ -20,8 +20,6 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
-
 from airflow.providers.google.cloud.transfers.bigquery_to_mysql import BigQueryToMySqlOperator
 
 TASK_ID = "test-bq-create-table-operator"

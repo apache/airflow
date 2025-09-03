@@ -36,6 +36,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
 
+
 class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     """
     Fetch data from a BigQuery table (alternatively fetch selected columns) and insert it into a MySQL table.
