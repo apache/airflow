@@ -66,12 +66,12 @@ export const Graph = () => {
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
-    "white",
-    "black",
-    "gray.200",
-    "gray.800",
-    "gray.200",
-    "gray.800",
+    "bg",
+    "fg",
+    "bg.muted",
+    "bg.emphasized",
+    "bg.muted",
+    "bg.emphasized",
   ]);
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();

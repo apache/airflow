@@ -32,7 +32,7 @@ const CustomEdge = ({ data }: Props) => {
   const { colorMode } = useColorMode();
 
   // corresponds to the "border.inverted" semantic token
-  const [lightStroke, darkStroke] = useToken("colors", ["gray.800", "gray.200"]);
+  const [lightStroke, darkStroke] = useToken("colors", ["fg", "bg.muted"]);
 
   if (data === undefined) {
     return undefined;

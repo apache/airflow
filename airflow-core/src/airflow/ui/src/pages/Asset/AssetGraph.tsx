@@ -46,7 +46,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
     node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
 
-  const [selectedDarkColor, selectedLightColor] = useToken("colors", ["gray.200", "gray.800"]);
+  const [selectedDarkColor, selectedLightColor] = useToken("colors", ["bg.muted", "bg.emphasized"]);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
