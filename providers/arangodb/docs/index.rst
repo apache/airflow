@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <_api/airflow/providers/arangodb/example_dags/index>
+    Example Dags <_api/airflow/providers/arangodb/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-arangodb/>
     Installing from sources <installing-providers-from-sources>
 

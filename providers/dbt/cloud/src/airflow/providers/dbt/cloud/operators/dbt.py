@@ -192,9 +192,11 @@ class DbtCloudRunJobOperator(BaseOperator):
             self.run_id = trigger_job_response.json()["data"]["id"]
             job_run_url = trigger_job_response.json()["data"]["href"]
 
-        # Push the ``job_run_url`` value to XCom regardless of what happens during execution so that the job
-        # run can be monitored via the operator link.
+        # Push the ``job_run_url`` and ``job_run_id`` value to XCom regardless of what happens during execution.
+        # This enables job monitoring via the operator link and provides direct access
+        # to the job run ID without requiring users to parse the URL manually
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
+        context["ti"].xcom_push(key="job_run_id", value=self.run_id)
 
         if self.wait_for_termination and isinstance(self.run_id, int):
             if self.deferrable is False:

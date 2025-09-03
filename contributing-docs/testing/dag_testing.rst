@@ -16,15 +16,15 @@
     specific language governing permissions and limitations
     under the License.
 
-DAG Testing
+Dag Testing
 ===========
 
-To ease and speed up the process of developing DAGs, you can use
+To ease and speed up the process of developing Dags, you can use
 py:meth:`~airflow.models.dag.DAG.test`, which will run a dag in a single process.
 
 To set up the IDE:
 
-1. Add ``main`` block at the end of your DAG file to make it runnable.
+1. Add ``main`` block at the end of your Dag file to make it runnable.
 
 .. code-block:: python
 
@@ -32,7 +32,7 @@ To set up the IDE:
       dag.test()
 
 
-2. Run and debug the DAG file.
+2. Run and debug the Dag file.
 
 
 You can also run the dag in the same manner with the Airflow CLI command ``airflow dags test``:
@@ -46,7 +46,7 @@ By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>
 the directory used by Airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
 
-The DAGs can be run in the main version of Airflow but they also work
+The Dags can be run in the main version of Airflow but they also work
 with older versions.
 
 -----

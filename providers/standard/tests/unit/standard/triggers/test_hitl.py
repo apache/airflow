@@ -79,7 +79,8 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            user_id=None,
+            responded_user_id=None,
+            responded_user_name=None,
             response_at=None,
             chosen_options=None,
             params_input={},
@@ -109,7 +110,8 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            user_id=None,
+            responded_user_id=None,
+            responded_user_name=None,
             response_at=None,
             chosen_options=None,
             params_input={},
@@ -143,7 +145,8 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
-            user_id="test",
+            responded_user_id="test",
+            responded_user_name="test",
             response_at=utcnow(),
             chosen_options=["3"],
             params_input={"input": 50},
@@ -162,7 +165,8 @@ class TestHITLTrigger:
         )
 
         assert mock_log.info.call_args == mock.call(
-            "[HITL] user=%s options=%s at %s",
+            "[HITL] responded_by=%s (id=%s) options=%s at %s",
+            "test",
             "test",
             ["3"],
             datetime(2025, 7, 29, 2, 0, 0, tzinfo=utc),

@@ -84,17 +84,9 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original.task_instance)}>
-                  <Time datetime={original.task_instance.run_after} />
-                </RouterLink>
-              </Link>
-            ) : (
-              <Time datetime={original.task_instance.run_after} />
-            ),
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Time datetime={original.task_instance.run_after} />
+          ),
           header: translate("common:dagRun.runAfter"),
         },
       ]),
@@ -122,7 +114,7 @@ const taskInstanceColumns = ({
 ];
 
 export const HITLTaskInstances = () => {
-  const { t: translate } = useTranslation("hitl");
+  const { t: translate } = useTranslation(["hitl", "_freeze_exemptions"]);
   const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -137,6 +129,7 @@ export const HITLTaskInstances = () => {
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
     responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+    state: responseReceived === "false" ? ["deferred"] : undefined,
     taskId,
   });
 

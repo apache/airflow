@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-tinkerpop/|version|/providers/apache/tinkerpop/tests/system/gremlin>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-tinkerpop/|version|/providers/apache/tinkerpop/tests/system/gremlin>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-tinkerpop/>
     Installing from sources <installing-providers-from-sources>
 

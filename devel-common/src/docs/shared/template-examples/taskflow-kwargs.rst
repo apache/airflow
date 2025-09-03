@@ -28,4 +28,4 @@
         print(f"Duration: {ti.duration}")  # Duration: 0.972019
 
         dr: DagRun = kwargs["dag_run"]
-        print(f"DAG Run queued at: {dr.queued_at}")  # 2023-08-10 00:00:01+02:20
+        print(f"Dag Run queued at: {dr.queued_at}")  # 2023-08-10 00:00:01+02:20

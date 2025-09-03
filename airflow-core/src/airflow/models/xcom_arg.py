@@ -36,9 +36,8 @@ from airflow.utils.types import NOTSET
 __all__ = ["XComArg", "get_task_map_length"]
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.typing_compat import Self
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -46,7 +45,7 @@ if TYPE_CHECKING:
 
 class SchedulerXComArg:
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         """
         Deserialize an XComArg.
 
@@ -92,8 +91,8 @@ class SchedulerPlainXComArg(SchedulerXComArg):
     key: str
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
-        # TODO (GH-52141): SchedulerDAG should return scheduler operator instead.
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
+        # TODO (GH-52141): SerializedDAG should return scheduler operator instead.
         return cls(cast("Operator", dag.get_task(data["task_id"])), data["key"])
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
@@ -106,7 +105,7 @@ class SchedulerMapXComArg(SchedulerXComArg):
     callables: Sequence[str]
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         # We are deliberately NOT deserializing the callables. These are shown
         # in the UI, and displaying a function object is useless.
         return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
@@ -120,7 +119,7 @@ class SchedulerConcatXComArg(SchedulerXComArg):
     args: Sequence[SchedulerXComArg]
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         return cls([deserialize_xcom_arg(arg, dag) for arg in data["args"]])
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
@@ -134,7 +133,7 @@ class SchedulerZipXComArg(SchedulerXComArg):
     fillvalue: Any
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         return cls(
             [deserialize_xcom_arg(arg, dag) for arg in data["args"]],
             fillvalue=data.get("fillvalue", NOTSET),
@@ -219,7 +218,7 @@ def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
     return sum(ready_lengths)
 
 
-def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
+def deserialize_xcom_arg(data: dict[str, Any], dag: SerializedDAG):
     """DAG serialization interface."""
     klass = _XCOM_ARG_TYPES[data.get("type", "")]
     return klass._deserialize(data, dag)
