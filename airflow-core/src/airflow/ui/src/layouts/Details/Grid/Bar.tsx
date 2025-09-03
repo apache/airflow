@@ -48,8 +48,8 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
 
   return (
     <Box
-      _hover={{ bg: "blue.subtle" }}
-      bg={isSelected ? "blue.muted" : undefined}
+      _hover={{ bg: "brand.subtle" }}
+      bg={isSelected ? "brand.muted" : undefined}
       position="relative"
       transition="background-color 0.2s"
     >

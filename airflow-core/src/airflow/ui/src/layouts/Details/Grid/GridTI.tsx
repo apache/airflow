@@ -44,7 +44,7 @@ const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
+    task.style.backgroundColor = "var(--chakra-colors-brand-subtle)";
   });
 };
 
@@ -77,7 +77,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "blue.muted" : undefined}
+      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "brand.muted" : undefined}
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"

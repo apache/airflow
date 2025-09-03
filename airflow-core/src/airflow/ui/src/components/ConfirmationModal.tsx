@@ -49,7 +49,7 @@ export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, o
             </Button>
           </Dialog.ActionTrigger>
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             onClick={() => {
               onConfirm();
               onOpenChange({ open });

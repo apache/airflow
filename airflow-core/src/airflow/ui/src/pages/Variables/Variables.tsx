@@ -57,7 +57,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(row.original.key)}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
       />
     ),
@@ -67,7 +67,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),

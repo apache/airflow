@@ -138,7 +138,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
