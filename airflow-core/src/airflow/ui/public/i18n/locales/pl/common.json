@@ -7,6 +7,7 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "allOperators": "Wszystkie operatory",
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -196,6 +197,7 @@
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
+    "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",

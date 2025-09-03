@@ -70,7 +70,7 @@ class Templater:
     template_ext: Sequence[str]
 
     def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
-        """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
+        """Fetch a Jinja template environment from the Dag or instantiate empty environment if no Dag."""
         # This is imported locally since Jinja2 is heavy and we don't need it
         # for most of the functionalities. It is imported by get_template_env()
         # though, so we don't need to put this after the 'if dag' check.

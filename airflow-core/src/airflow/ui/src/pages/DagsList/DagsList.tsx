@@ -42,6 +42,7 @@ import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay"
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -142,6 +143,14 @@ const createColumns = (
     header: () => translate("dagDetails.tags"),
   },
   {
+    accessorKey: "pending_actions",
+    cell: ({ row: { original: dag } }) => (
+      <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
+    ),
+    enableSorting: false,
+    header: "",
+  },
+  {
     accessorKey: "trigger",
     cell: ({ row: { original } }) => (
       <TriggerDAGButton
@@ -171,7 +180,7 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
+const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, NEEDS_REVIEW, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
   SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
@@ -198,6 +207,7 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -225,6 +235,7 @@ export const DagsList = () => {
 
   let paused = defaultShowPaused;
   let isFavorite = undefined;
+  let pendingHitl = undefined;
 
   if (showPaused === "all") {
     paused = undefined;
@@ -240,6 +251,12 @@ export const DagsList = () => {
     isFavorite = false;
   }
 
+  if (pendingReviews === "true") {
+    pendingHitl = true;
+  } else if (pendingReviews === "false") {
+    pendingHitl = false;
+  }
+
   const { data, error, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
@@ -250,6 +267,7 @@ export const DagsList = () => {
     orderBy: [orderBy],
     owners,
     paused,
+    pendingHitl,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
   });

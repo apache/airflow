@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/|version|/providers/inifluxdb/tests/system/influxdb>
+    Example Dags <https://github.com/apache/airflow/tree/providers-influxdb/|version|/providers/inifluxdb/tests/system/influxdb>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
     Installing from sources <installing-providers-from-sources>
 

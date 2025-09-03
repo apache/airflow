@@ -39,6 +39,9 @@ from packaging.version import Version
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
 
+DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
+
+
 # List of files to update and whether to keep total length of the original value when replacing.
 FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "Dockerfile", False),
@@ -62,11 +65,15 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
+    (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
 ]
+
+for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
+    FILES_TO_UPDATE.append((file, False))
 
 
 def get_latest_pypi_version(package_name: str) -> str:
@@ -97,7 +104,7 @@ def get_latest_python_version(python_major_minor: str, github_token: str | None)
         if versions:
             latest_version = sorted(versions, key=Version, reverse=True)[0]
             break
-    return latest_version
+    return latest_version[1:] if latest_version and latest_version.startswith("v") else latest_version
 
 
 def get_latest_golang_version() -> str:
@@ -124,6 +131,7 @@ class Quoting(Enum):
     SINGLE_QUOTED = 1
     DOUBLE_QUOTED = 2
     REVERSE_SINGLE_QUOTED = 3
+    REVERSE_DOUBLE_QUOTED = 4
 
 
 PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -136,12 +144,17 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 ]
 
 PYTHON_PATTERNS: list[tuple[str, Quoting]] = [
-    (r"(\"{python_major_minor}\": \")(v[0-9.]+)(\")", Quoting.UNQUOTED),
+    (r"(\"{python_major_minor}\": \")([0-9.]+)(\")", Quoting.UNQUOTED),
 ]
 
 GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+]
+
+AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.]+``)( *\|)"), Quoting.REVERSE_DOUBLE_QUOTED),
 ]
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -158,10 +171,6 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
         ),
         Quoting.UNQUOTED,
     ),
-]
-
-SETUPTOOLS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_SETUPTOOLS_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
 ]
 
 PREK_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -195,6 +204,8 @@ def get_replacement(value: str, quoting: Quoting) -> str:
         return f"'{value}'"
     if quoting == Quoting.REVERSE_SINGLE_QUOTED:
         return f"`{value}`"
+    if quoting == Quoting.REVERSE_DOUBLE_QUOTED:
+        return f"``{value}``"
     return value
 
 
@@ -202,7 +213,6 @@ UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", "true").lower() == "true"
 UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", "true").lower() == "true"
-UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PREK: bool = os.environ.get("UPGRADE_PREK", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
 UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", "true").lower() == "true"
@@ -210,7 +220,8 @@ UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true
 UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
 UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
 
 GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
 
@@ -277,12 +288,26 @@ if __name__ == "__main__":
         if UPGRADE_PYTHON:
             for python_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
                 latest_python_version = get_latest_python_version(python_version, GITHUB_TOKEN)
-                if latest_python_version:
+                if not latest_python_version:
                     console.print(
-                        f"[bright_blue]Latest python {python_version} version: {latest_python_version}"
+                        f"[red]Failed to get latest version for python {python_version}. Skipping.[/]"
                     )
-                    for line_format, quoting in PYTHON_PATTERNS:
-                        line_pattern = re.compile(line_format.format(python_major_minor=python_version))
+                    sys.exit(1)
+                console.print(f"[bright_blue]Latest python {python_version} version: {latest_python_version}")
+                for line_format, quoting in PYTHON_PATTERNS:
+                    line_pattern = re.compile(line_format.format(python_major_minor=python_version))
+                    console.print(line_pattern)
+                    new_content = replace_version(
+                        line_pattern,
+                        get_replacement(latest_python_version, quoting),
+                        new_content,
+                        keep_length,
+                    )
+                if python_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
+                    console.print(
+                        f"[bright_blue]Latest image python {python_version} version: {latest_python_version}"
+                    )
+                    for line_pattern, quoting in AIRFLOW_IMAGE_PYTHON_PATTERNS:
                         console.print(line_pattern)
                         new_content = replace_version(
                             line_pattern,
@@ -295,12 +320,6 @@ if __name__ == "__main__":
             for line_pattern, quoting in GOLANG_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(golang_version, quoting), new_content, keep_length
-                )
-        if UPGRADE_SETUPTOOLS:
-            console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
-            for line_pattern, quoting in SETUPTOOLS_PATTERNS:
-                new_content = replace_version(
-                    line_pattern, get_replacement(setuptools_version, quoting), new_content, keep_length
                 )
         if UPGRADE_UV:
             console.print(f"[bright_blue]Latest uv version: {uv_version}")

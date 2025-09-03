@@ -46,7 +46,7 @@ Airflow 3.x Architecture
 - The API server is currently the sole access point for the metadata DB for tasks and workers.
 - It supports several applications: the Airflow REST API, an internal API for the Airflow UI that hosts static JS, and an API for workers to interact with when executing TIs via the task execution interface.
 - Workers communicate with the API server instead of directly with the database.
-- DAG processor and Triggerer utilize the task execution mechanism for their tasks, especially when they require variables or connections.
+- Dag processor and Triggerer utilize the task execution mechanism for their tasks, especially when they require variables or connections.
 
 Database Access Restrictions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -78,19 +78,19 @@ Step 2: Clean and back up your existing Airflow Instance
   upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
-- Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
-  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from dag processing,
-  ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
+- Ensure that there are no errors related to Dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
+  be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from Dag processing,
+  ensure you deploy your changes to your old instance prior to upgrade, and wait until your Dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
-Step 3: Dag authors - Check your Airflow dags for compatibility
+Step 3: Dag authors - Check your Airflow Dags for compatibility
 ----------------------------------------------------------------
 
-To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
+To minimize friction for users upgrading from prior versions of Airflow, we have created a Dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
 The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
 
 The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.13``. The below example demonstrates how to check
-for dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
+for Dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
 
@@ -109,7 +109,7 @@ Some changes can be automatically fixed. To do so, run the following command:
     ruff check dags/ --select AIR301 --fix --preview
 
 
-Some of the fixes are marked as unsafe. Unsafe fixes usually do not break dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
+Some of the fixes are marked as unsafe. Unsafe fixes usually do not break Dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
 To trigger these fixes, run the following command:
 
 .. code-block:: bash
@@ -132,7 +132,7 @@ Step 4: Install the Standard Provider
 
 - Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
   have now been split out into a separate package: ``apache-airflow-providers-standard``.
-- For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
+- For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
 Step 5: Review custom operators for direct db access
@@ -183,7 +183,7 @@ In Airflow 3, the Webserver has become a generic API server. The API server can 
 
     airflow api-server
 
-The dag processor must now be started independently, even for local or development setups:
+The Dag processor must now be started independently, even for local or development setups:
 
 .. code-block:: bash
 
@@ -203,9 +203,9 @@ These include:
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
 - **CeleryKubernetesExecutor and LocalKubernetesExecutor**: Replaced by `Multiple Executor Configuration <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
-- **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.
+- **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`Dag bundles </administration-and-deployment/dag-bundles>`.
 - **REST API** (``/api/v1``) replaced: Use the modern FastAPI-based stable ``/api/v2`` instead; see :doc:`Airflow API v2 </stable-rest-api-ref>` for details.
-- **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
+- **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause Dag errors:
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``
   - ``yesterday_ds``
@@ -218,7 +218,7 @@ These include:
   - ``next_ds_nodash``
   - ``next_ds``
   - ``execution_date``
-- The ``catchup_by_default`` dag parameter is now ``False`` by default.
+- The ``catchup_by_default`` Dag parameter is now ``False`` by default.
 - The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 

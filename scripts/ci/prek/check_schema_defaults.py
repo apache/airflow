@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "packaging>=25",
+# ]
+# ///
+from __future__ import annotations
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
+import sys
+from pathlib import Path
 
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-TEMP_DOCKER_DIR=$(mktemp -d)
-pushd "${TEMP_DOCKER_DIR}"
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_prek_utils import (
+    initialize_breeze_prek,
+    run_command_via_breeze_shell,
+    validate_cmd_result,
+)
 
-cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
+initialize_breeze_prek(__name__, __file__)
 
-# [START build]
-export DOCKER_BUILDKIT=1
+cmd_result = run_command_via_breeze_shell(
+    ["python3", "/opt/airflow/scripts/in_container/run_schema_defaults_check.py"],
+    backend="sqlite",
+    warn_image_upgrade_needed=True,
+)
 
-docker build . \
-    --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow @ https://github.com/apache/airflow/archive/main.tar.gz" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
-    --tag "my-github-main:0.0.1"
-# [END build]
-docker rmi --force "my-github-main:0.0.1"
-popd
-rm -rf "${TEMP_DOCKER_DIR}"
+validate_cmd_result(cmd_result, include_ci_env_check=True)

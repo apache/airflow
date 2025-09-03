@@ -368,12 +368,23 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-                    body = json.loads(e.body)
+                    try:
+                        if e.body:
+                            body = json.loads(e.body)
+                        else:
+                            # If no body content, use reason as the message
+                            body = {"message": e.reason}
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        # If the body is a string (e.g., in a 429 error), it can't be parsed as JSON.
+                        # Use the body directly as the message instead.
+                        body = {"message": e.body}
+
                     retries = self.task_publish_retries[key]
                     # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                    message = body.get("message", "")
                     if (
-                        (str(e.status) == "403" and "exceeded quota" in body["message"])
-                        or (str(e.status) == "409" and "object has been modified" in body["message"])
+                        (str(e.status) == "403" and "exceeded quota" in message)
+                        or (str(e.status) == "409" and "object has been modified" in message)
                     ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -381,7 +392,7 @@ class KubernetesExecutor(BaseExecutor):
                             self.task_publish_max_retries,
                             key,
                             e.reason,
-                            body["message"],
+                            message,
                         )
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
