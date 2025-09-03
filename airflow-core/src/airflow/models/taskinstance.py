@@ -264,16 +264,14 @@ def clear_task_instances(
         for instance in tis:
             run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
-        drs = (
-            session.query(DagRun)
-            .filter(
+        drs = session.scalars(
+            select(DagRun).where(
                 or_(
                     and_(DagRun.dag_id == dag_id, DagRun.run_id.in_(run_ids))
                     for dag_id, run_ids in run_ids_by_dag_id.items()
                 )
             )
-            .all()
-        )
+        ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             if dr.state in State.finished_dr_states:
@@ -661,7 +659,7 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
         query = (
-            session.query(TaskInstance)
+            select(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
@@ -674,9 +672,9 @@ class TaskInstance(Base, LoggingMixin):
         if lock_for_update:
             for attempt in run_with_db_retries(logger=cls.logger()):
                 with attempt:
-                    return query.with_for_update().one_or_none()
+                    return session.execute(query.with_for_update()).scalar_one_or_none()
         else:
-            return query.one_or_none()
+            return session.execute(query).scalar_one_or_none()
 
         return None
 
@@ -826,13 +824,13 @@ class TaskInstance(Base, LoggingMixin):
         if not task.downstream_task_ids:
             return True
 
-        ti = session.query(func.count(TaskInstance.task_id)).filter(
+        ti = select(func.count(TaskInstance.task_id)).where(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
             TaskInstance.state.in_((TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)),
         )
-        count = ti[0][0]
+        count = session.scalar(ti)
         return count == len(task.downstream_task_ids)
 
     @provide_session
@@ -1007,7 +1005,9 @@ class TaskInstance(Base, LoggingMixin):
     def _get_dagrun(dag_id, run_id, session) -> DagRun:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
-        dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+        dr = session.execute(
+            select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ).scalar_one()
         return dr
 
     @provide_session
@@ -1949,7 +1949,6 @@ class TaskInstance(Base, LoggingMixin):
             task_ids=task_ids,
             map_indexes=map_indexes,
             include_prior_dates=include_prior_dates,
-            session=session,
         )
 
         # NOTE: Since we're only fetching the value field and not the whole
@@ -1958,8 +1957,14 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(
-                XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
+            first = session.execute(
+                query.with_only_columns(
+                    XComModel.run_id,
+                    XComModel.task_id,
+                    XComModel.dag_id,
+                    XComModel.map_index,
+                    XComModel.value,
+                )
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
@@ -2000,16 +2005,20 @@ class TaskInstance(Base, LoggingMixin):
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
         """Return Number of running TIs from the DB."""
         # .count() is inefficient
-        num_running_task_instances_query = session.query(func.count()).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.state == TaskInstanceState.RUNNING,
+        num_running_task_instances_query = (
+            select(func.count())
+            .select_from(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.state == TaskInstanceState.RUNNING,
+            )
         )
         if same_dagrun:
-            num_running_task_instances_query = num_running_task_instances_query.filter(
+            num_running_task_instances_query = num_running_task_instances_query.where(
                 TaskInstance.run_id == self.run_id
             )
-        return num_running_task_instances_query.scalar()
+        return session.scalar(num_running_task_instances_query)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
