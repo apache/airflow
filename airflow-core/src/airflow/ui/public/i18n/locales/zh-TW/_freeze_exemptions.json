@@ -2,7 +2,11 @@
   "admin": {},
   "assets": {},
   "browse": {},
-  "common": {},
+  "common": {
+    "filters": {
+      "reset": "重置"
+    }
+  },
   "components": {},
   "dag": {},
   "dags": {},
