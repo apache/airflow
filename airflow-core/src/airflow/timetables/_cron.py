@@ -84,6 +84,7 @@ class CronMixin:
     def _describe_with_dom_dow_fix(self, expression: str) -> str:
         """
         Return cron description with fix for DOM+DOW conflicts.
+
         If both DOM and DOW are restricted, explain them as OR.
         """
         cron_fields = expression.split()
