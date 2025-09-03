@@ -77,7 +77,7 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|ui/openapi-gen/|.*/dist/.*
+        exclude: ^\.github/.*$|ui/openapi-gen/|www/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
@@ -435,7 +435,15 @@ repos:
         entry: ./scripts/ci/prek/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
+        exclude: >
+          (?x)
+          ^clients/gen/go\.sh$|
+          ^\.gitmodules$|
+          ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
+          .*/dist/.*|
+          \.go$|
+          /go\.(mod|sum)$
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
@@ -761,7 +769,8 @@ repos:
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           .*/dist/.*|
-          package-lock\.json$
+          package-lock\.json$|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/pnpm-lock.yaml$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -939,6 +948,13 @@ repos:
         language: node
         files: ^providers/fab/.*/www/
         entry: ./scripts/ci/prek/compile_provider_assets.py fab
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.21']
+      - id: compile-edge-assets
+        name: Compile Edge provider assets
+        language: node
+        files: ^providers/edge3/.*/www/
+        entry: ./scripts/ci/prek/compile_provider_assets.py edge
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
@@ -1344,6 +1360,22 @@ repos:
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: true
         require_serial: true
+      - id: ts-compile-lint-edge-ui
+        name: Compile / format / lint edge UI
+        description: TS types generation / ESLint / Prettier new UI files in Edge Provider
+        language: node
+        files: |
+          (?x)
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$|
+          ^providers/edge3/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml$
+        exclude: |
+          (?x)
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/node-modules/.*|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.pnpm-store
+        entry: ./scripts/ci/prek/ts_compile_lint_edge.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev
@@ -1444,6 +1476,12 @@ repos:
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+      - id: generate-openapi-spec-edge
+        name: Generate the FastAPI API spec for Edge
+        language: python
+        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py edge
+        pass_filenames: false
+        files: ^providers/edge3/src/airflow/providers/edge3/worker_api/.*\.py$
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
         language: python
