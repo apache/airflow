@@ -37,6 +37,7 @@ export enum SearchParamsKeys {
   MAP_INDEX = "map_index",
   MAPPED = "mapped",
   NAME_PATTERN = "name_pattern",
+  NEEDS_REVIEW = "needs_review",
   OFFSET = "offset",
   OPERATOR = "operator",
   OWNERS = "owners",

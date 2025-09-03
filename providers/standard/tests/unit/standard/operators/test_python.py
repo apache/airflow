@@ -63,6 +63,20 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
+from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.types import NOTSET, DagRunType
+
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+    from airflow.sdk.execution_time.context import set_current_context
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
 
 try:
     from airflow.sdk import timezone
@@ -73,20 +87,6 @@ try:
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
-from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, DagRunType
-
-from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-    from airflow.sdk.execution_time.context import set_current_context
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
-
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -164,7 +164,12 @@ class BasePythonTest:
         from airflow.models.serialized_dag import SerializedDagModel
 
         # Update the serialized DAG with any tasks added after initial dag was created
-        self.dag_maker.serialized_model = SerializedDagModel(self.dag_non_serialized)
+        if AIRFLOW_V_3_1_PLUS:
+            self.dag_maker.serialized_model = SerializedDagModel(
+                LazyDeserializedDAG.from_dag(self.dag_non_serialized)
+            )
+        else:
+            self.dag_maker.serialized_model = SerializedDagModel(self.dag_non_serialized)
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
