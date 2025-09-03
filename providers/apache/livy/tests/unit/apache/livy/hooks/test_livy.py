@@ -921,7 +921,7 @@ class TestLivyAsyncHook:
             "status": "success",
         }
         mock_run_method.assert_called_once_with(
-            endpoint=f"/livy/batches/{BATCH_ID}/state",
+            endpoint=f"/batches/{BATCH_ID}/state",
             headers=headers,
         )
 
