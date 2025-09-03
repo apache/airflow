@@ -164,7 +164,7 @@ export const FilterBar = ({
       {filters.length > 0 && (
         <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
           <MdClear />
-          {translate("common:reset")}
+          {translate("common:filters.reset")}
         </Button>
       )}
     </HStack>
