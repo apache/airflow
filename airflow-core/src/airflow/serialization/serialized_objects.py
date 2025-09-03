@@ -99,7 +99,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
 
@@ -2382,21 +2382,20 @@ class SerializedDAG(DAG, BaseSerialization):
         cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
     ) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        try:
-            if "dag_id" not in encoded_dag:
-                raise RuntimeError(
-                    "Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
-                )
-        except RuntimeError as err:
-            dag_id = encoded_dag.get("dag_id", None)
-            raise DeserializationError(dag_id) from err
+        if "dag_id" not in encoded_dag:
+            raise DeserializationError(
+                message="Encoded dag object has no dag_id key. You may need to run `airflow dags reserialize`."
+            )
+
+        dag_id = encoded_dag["dag_id"]
 
         try:
             return cls._deserialize_dag_internal(encoded_dag, client_defaults)
-        except _TimetableNotRegistered:
+        except (_TimetableNotRegistered, DeserializationError):
+            # Let specific errors bubble up unchanged
             raise
-        except (ValueError, KeyError) as err:
-            dag_id = encoded_dag.get("dag_id", None)
+        except Exception as err:
+            # Wrap all other errors consistently
             raise DeserializationError(dag_id) from err
 
     @classmethod
@@ -3592,13 +3591,16 @@ class XComOperatorLink(LoggingMixin):
         self.log.info(
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
-        value = XComModel.get_many(
-            key=self.xcom_key,
-            run_id=ti_key.run_id,
-            dag_ids=ti_key.dag_id,
-            task_ids=ti_key.task_id,
-            map_indexes=ti_key.map_index,
-        ).first()
+        with create_session() as session:
+            value = session.execute(
+                XComModel.get_many(
+                    key=self.xcom_key,
+                    run_id=ti_key.run_id,
+                    dag_ids=ti_key.dag_id,
+                    task_ids=ti_key.task_id,
+                    map_indexes=ti_key.map_index,
+                ).with_only_columns(XComModel.value)
+            ).first()
         if not value:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",
