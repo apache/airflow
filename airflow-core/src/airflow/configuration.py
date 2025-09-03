@@ -138,12 +138,14 @@ def initialize_auth_manager() -> BaseAuthManager:
 
 def get_airflow_home() -> str:
     """Get path to AIRFLOW_HOME."""
-    return AIRFLOW_HOME
+    return expand_env_var(os.environ.get("AIRFLOW_HOME", "~/airflow"))
 
 
-def get_airflow_config(*args, **kwargs) -> str:
+def get_airflow_config(airflow_home: str | None = None) -> str:
     """Get Path to airflow.cfg path."""
-    return AIRFLOW_CONFIG
+    if airflow_home is None:
+        airflow_home = get_airflow_home()
+    return os.environ.get("AIRFLOW_CONFIG") or os.path.join(airflow_home, "airflow.cfg")
 
 
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using

@@ -1478,7 +1478,7 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    @mock.patch("airflow._shared.configuration.parser.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
     ):
@@ -1809,10 +1809,12 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
-        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
+        self.monkeypatch.setattr("airflow._shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
 
     def patch_airflow_config(self, airflow_config):
-        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config))
+        self.monkeypatch.setattr(
+            "airflow._shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
+        )
 
     def test_default(self):
         """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
@@ -1917,7 +1919,7 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
     monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
-    localconf: AirflowConfigParser = airflow.configuration.initialize_config()
+    localconf: AirflowConfigParser = airflow._shared.configuration.initialize_config()
     monkeypatch.setattr(airflow.configuration, "conf", localconf)
 
     airflow.configuration.write_default_airflow_configuration_if_needed()
