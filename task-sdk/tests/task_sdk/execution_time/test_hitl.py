@@ -62,7 +62,8 @@ def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
         response_received=True,
         chosen_options=["Approve"],
         response_at=timestamp,
-        user_id="admin",
+        responded_user_id="admin",
+        responded_user_name="admin",
         params_input={"input_1": 1},
     )
     resp = update_hitl_detail_response(
@@ -74,7 +75,8 @@ def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
         response_received=True,
         chosen_options=["Approve"],
         response_at=timestamp,
-        user_id="admin",
+        responded_user_id="admin",
+        responded_user_name="admin",
         params_input={"input_1": 1},
     )
 
@@ -84,7 +86,8 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
         response_received=False,
         chosen_options=None,
         response_at=None,
-        user_id=None,
+        responded_user_id=None,
+        responded_user_name=None,
         params_input={},
     )
     resp = get_hitl_detail_content_detail(TI_ID)
@@ -92,6 +95,7 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
         response_received=False,
         chosen_options=None,
         response_at=None,
-        user_id=None,
+        responded_user_id=None,
+        responded_user_name=None,
         params_input={},
     )

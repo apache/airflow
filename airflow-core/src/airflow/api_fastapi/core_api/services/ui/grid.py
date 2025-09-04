@@ -26,7 +26,7 @@ from airflow.api_fastapi.common.parameters import state_priority
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmap import TaskMap
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 log = structlog.get_logger(logger_name=__name__)
@@ -78,8 +78,8 @@ def _get_aggs_for_node(detail):
 
 
 def _find_aggregates(
-    node: TaskGroup | MappedTaskGroup | SerializedBaseOperator | TaskMap,
-    parent_node: TaskGroup | MappedTaskGroup | SerializedBaseOperator | TaskMap | None,
+    node: SerializedTaskGroup | SerializedBaseOperator | TaskMap,
+    parent_node: SerializedTaskGroup | SerializedBaseOperator | TaskMap | None,
     ti_details: dict[str, list],
 ) -> Iterable[dict]:
     """Recursively fill the Task Group Map."""
@@ -98,7 +98,7 @@ def _find_aggregates(
         }
 
         return
-    if isinstance(node, TaskGroup):
+    if isinstance(node, SerializedTaskGroup):
         children = []
         for child in get_task_group_children_getter()(node):
             for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):

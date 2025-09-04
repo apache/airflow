@@ -22,21 +22,28 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models import DagRun, TaskInstance
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.file_task_handler import extract_events
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
     get_base_airflow_version_tuple,
 )
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import DAG
+    from airflow.sdk.timezone import datetime
+else:
+    from airflow.models import DAG
+    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
 
 class TestRedisTaskHandler:
@@ -72,20 +79,25 @@ class TestRedisTaskHandler:
         dag_run.set_state(State.RUNNING)
         with create_session() as session:
             session.add(dag_run)
-            session.commit()
+            session.flush()
             session.refresh(dag_run)
+
+            bundle_name = "testing"
+            if AIRFLOW_V_3_1_PLUS:
+                sync_dag_to_db(dag, bundle_name=bundle_name, session=session)
+            elif AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+                from airflow.models.serialized_dag import SerializedDagModel
+                from airflow.serialization.serialized_objects import SerializedDAG
+
+                session.add(DagBundleModel(name=bundle_name))
+                session.flush()
+                SerializedDAG.bulk_write_to_db(bundle_name, None, [dag])
+                SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.dagbundle import DagBundleModel
 
-            bundle_name = "testing"
-            with create_session() as session:
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:

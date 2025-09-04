@@ -114,7 +114,7 @@ const taskInstanceColumns = ({
 ];
 
 export const HITLTaskInstances = () => {
-  const { t: translate } = useTranslation("hitl");
+  const { t: translate } = useTranslation(["hitl", "_freeze_exemptions"]);
   const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -129,6 +129,7 @@ export const HITLTaskInstances = () => {
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
     responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+    state: responseReceived === "false" ? ["deferred"] : undefined,
     taskId,
   });
 

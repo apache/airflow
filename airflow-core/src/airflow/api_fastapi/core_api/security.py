@@ -103,6 +103,7 @@ def requires_access_dag(
         user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
+        dag_id = dag_id if dag_id != "~" else None
         team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(

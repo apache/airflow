@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "Primer {{count}} Dag favorit",
+    "favoriteDags_other": "Primers {{count}} Dags favorits",
+    "noDagRuns": "No hi ha execucions per a aquest Dag encara.",
+    "noFavoriteDags": "No hi ha favorits encara. Fes clic a la icona d'estrella al costat d'un Dag a la llista per a afegir-lo als teus favorits."
+  },
+  "group": "Grup",
+  "health": {
+    "dagProcessor": "Processador de Dags",
+    "health": "Estat de salut",
+    "healthy": "Saludable",
+    "lastHeartbeat": "Últim batec",
+    "metaDatabase": "Base de dades meta",
+    "scheduler": "Programador",
+    "status": "Estat",
+    "triggerer": "Triggerer",
+    "unhealthy": "No saludable"
+  },
+  "history": "Historial",
+  "importErrors": {
+    "dagImportError_one": "Error d'importació de Dag",
+    "dagImportError_other": "Errors d'importació de Dag",
+    "searchByFile": "Cerca per fitxer",
+    "timestamp": "Segell de temps"
+  },
+  "managePools": "Gestionar Pools",
+  "noAssetEvents": "No s'han trobat esdeveniments d'Asset.",
+  "poolSlots": "Slots de Pool",
+  "sortBy": {
+    "newestFirst": "Més recent primer",
+    "oldestFirst": "Més antic primer"
+  },
+  "source": "Font",
+  "stats": {
+    "activeDags": "Dags actius",
+    "failedDags": "Dags fallits",
+    "queuedDags": "Dags en cua",
+    "requiredActions": "Accions requerides",
+    "runningDags": "Dags en execució",
+    "stats": "Estadístiques"
+  },
+  "uri": "Uri",
+  "welcome": "Benvingut"
+}

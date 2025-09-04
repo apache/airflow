@@ -393,8 +393,10 @@ def initialize_ui_plugins():
 
     for plugin in plugins:
         for external_view in plugin.external_views:
-            url_route = external_view["url_route"]
-            if url_route is not None and url_route in seen_url_route:
+            url_route = external_view.get("url_route")
+            if url_route is None:
+                continue
+            if url_route in seen_url_route:
                 log.warning(
                     "Plugin '%s' has an external view with an URL route '%s' "
                     "that conflicts with another plugin '%s'. The view will not be loaded.",
@@ -411,8 +413,10 @@ def initialize_ui_plugins():
             seen_url_route[url_route] = plugin.name
 
         for react_app in plugin.react_apps:
-            url_route = react_app["url_route"]
-            if url_route is not None and url_route in seen_url_route:
+            url_route = react_app.get("url_route")
+            if url_route is None:
+                continue
+            if url_route in seen_url_route:
                 log.warning(
                     "Plugin '%s' has a React App with an URL route '%s' "
                     "that conflicts with another plugin '%s'. The React App will not be loaded.",

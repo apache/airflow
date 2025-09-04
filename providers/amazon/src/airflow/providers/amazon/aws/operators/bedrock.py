@@ -476,10 +476,17 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                     **self.create_knowledge_base_kwargs,
                 )["knowledgeBase"]["knowledgeBaseId"]
             except ClientError as error:
+                error_message = error.response["Error"]["Message"].lower()
+                is_known_retryable_message = (
+                    "no such index" in error_message
+                    # It may also be that permissions haven't even propagated yet to check for the index
+                    or "server returned 401" in error_message
+                    or "User does not have permissions" in error_message
+                )
                 if all(
                     [
                         error.response["Error"]["Code"] == "ValidationException",
-                        "no such index" in error.response["Error"]["Message"],
+                        is_known_retryable_message,
                         self.wait_for_indexing,
                         self.indexing_error_max_attempts > 0,
                     ]

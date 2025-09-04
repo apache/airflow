@@ -3876,6 +3876,27 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_asdict_taskid_max_length_labels_updated(self, mock_hook, to_dict_mock):
+        long_task_id = "a" * 63
+        expected_batch = {
+            **BATCH,
+            "labels": {
+                "airflow-dag-id": TEST_DAG_ID,
+                "airflow-dag-display-name": TEST_DAG_ID,
+                "airflow-task-id": long_task_id,
+            },
+        }
+        DataprocCreateBatchOperator(
+            task_id=long_task_id,
+            dag=DAG(dag_id=TEST_DAG_ID),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_invalid_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id=".task-id",
@@ -3890,7 +3911,7 @@ class TestDataprocCreateBatchOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_long_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
-            task_id="a" * 65,
+            task_id="a" * 64,
             dag=DAG(dag_id=TEST_DAG_ID),
             batch=BATCH,
             region=GCP_REGION,

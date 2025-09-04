@@ -139,6 +139,7 @@ airflow/www/node_modules
 # But ensure UI dist files are included
 !airflow-core/src/airflow/ui/dist
 !providers/fab/src/airflow/providers/fab/www/dist
+!providers/edge3/src/airflow/providers/edge3/plugins/www/dist
 
 # Exclude temporary vi files
 **/*~

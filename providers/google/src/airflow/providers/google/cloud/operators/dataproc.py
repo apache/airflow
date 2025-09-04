@@ -2573,7 +2573,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         dag_id = re.sub(r"[.\s]", "_", self.dag_id.lower())
         task_id = re.sub(r"[.\s]", "_", self.task_id.lower())
 
-        labels_regex = re.compile(r"^[a-z][\w-]{0,63}$")
+        labels_regex = re.compile(r"^[a-z][\w-]{0,62}$")
         if not labels_regex.match(dag_id) or not labels_regex.match(task_id):
             return
 

@@ -22,6 +22,8 @@ import os
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.models import (
@@ -72,8 +74,22 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag_favorite import DagFavorite
 
 
+def _deactivate_unknown_dags(active_dag_ids, session):
+    """
+    Given a list of known DAGs, deactivate any other DAGs that are marked as active in the ORM.
+
+    :param active_dag_ids: list of DAG IDs that are active
+    :return: None
+    """
+    if not active_dag_ids:
+        return
+    for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))):
+        dag.is_stale = True
+        session.merge(dag)
+    session.commit()
+
+
 def _bootstrap_dagbag():
-    from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
 
     if AIRFLOW_V_3_0_PLUS:
@@ -100,7 +116,7 @@ def _bootstrap_dagbag():
             dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
         # Deactivate the unknown ones
-        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
+        _deactivate_unknown_dags(dagbag.dags, session=session)
 
 
 def initial_db_init():
@@ -155,7 +171,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
     with create_session() as session:
         if AIRFLOW_V_3_0_PLUS:
             DagBundlesManager().sync_bundles_to_db(session=session)
-            session.commit()
+            session.flush()
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
         if AIRFLOW_V_3_1_PLUS:
@@ -166,7 +182,6 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
             dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
-        session.commit()
 
     return dagbag
 
