@@ -21,15 +21,17 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
 import { Button } from "src/components/ui";
-import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
+import { reprocessBehaviors, mapReprocessBehavior } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
+import { getUrlParam } from "src/utils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -43,6 +45,7 @@ type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
   readonly onClose: () => void;
 };
+
 const today = new Date().toISOString().slice(0, 16);
 
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
@@ -54,15 +57,20 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
   const { conf } = useParamStore();
+  const { search } = useLocation();
+
+  const params = new URLSearchParams(search);
+  const urlConf = getUrlParam(params, "conf", true);
+  const urlReprocessBehavior = mapReprocessBehavior(getUrlParam(params, "reprocess_behavior") ?? "none");
   const { control, handleSubmit, reset, watch } = useForm<BackfillFormProps>({
     defaultValues: {
-      conf,
+      conf: urlConf ?? (conf || "{}"),
       dag_id: dag.dag_id,
-      from_date: "",
-      max_active_runs: 1,
-      reprocess_behavior: "none",
-      run_backwards: false,
-      to_date: "",
+      from_date: getUrlParam(params, "start_date") ?? "",
+      max_active_runs: parseInt(getUrlParam(params, "max_active_runs") ?? "1", 10),
+      reprocess_behavior: urlReprocessBehavior,
+      run_backwards: ["1", "true"].includes(getUrlParam(params, "run_backwards") ?? ""),
+      to_date: getUrlParam(params, "end_date") ?? "",
     },
     mode: "onBlur",
   });
@@ -248,6 +256,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           errors={errors}
           initialParamsDict={initialParamsDict}
+          openAdvanced={Boolean(urlConf ?? conf)}
           setErrors={setErrors}
           setFormError={setFormError}
         />
