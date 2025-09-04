@@ -139,6 +139,8 @@ export const Nav = () => {
       bg="blue.muted"
       height="100%"
       justifyContent="space-between"
+      overflowX="hidden"
+      overflowY="auto"
       position="fixed"
       py={3}
       top={0}
