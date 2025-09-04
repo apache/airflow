@@ -200,5 +200,17 @@ def init_plugins(app: FastAPI) -> None:
             log.error("'middleware' key is missing for the fastapi middleware: %s", name)
             continue
 
+        # Resolve middleware string to class if needed
+        if isinstance(middleware, str):
+            try:
+                from airflow.utils.module_loading import import_string
+                middleware = import_string(middleware)
+            except ImportError:
+                try:
+                    middleware = plugins_manager.import_from_plugins(middleware)
+                except ImportError as e:
+                    log.error("Failed to import middleware '%s' for plugin '%s': %s", middleware, name, e)
+                    continue
+
         log.debug("Adding root middleware %s", name)
         app.add_middleware(middleware, *args, **kwargs)
