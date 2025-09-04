@@ -61,7 +61,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-azure/|version|/providers/microsoft/azure/tests/system/microsoft/azure>
+    Example Dags <https://github.com/apache/airflow/tree/providers-microsoft-azure/|version|/providers/microsoft/azure/tests/system/microsoft/azure>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-azure/>
     Installing from sources <installing-providers-from-sources>
 
@@ -95,7 +95,7 @@ All classes for this package are included in the ``airflow.providers.microsoft.a
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-microsoft-azure``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

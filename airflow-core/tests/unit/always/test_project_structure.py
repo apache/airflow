@@ -116,6 +116,7 @@ class TestProjectStructure:
             "providers/edge3/tests/unit/edge3/worker_api/test_app.py",
             "providers/edge3/tests/unit/edge3/worker_api/test_auth.py",
             "providers/edge3/tests/unit/edge3/worker_api/test_datamodels.py",
+            "providers/edge3/tests/unit/edge3/worker_api/test_datamodels_ui.py",
             "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_exceptions.py",

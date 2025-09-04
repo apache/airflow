@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "Alle",
+      "pending": "Ausstehend",
+      "received": "Überprüft"
+    }
+  },
   "requiredAction_one": "Erforderliche Interaktion",
   "requiredAction_other": "Erforderliche Interaktionen",
   "requiredActionState": "Status der Interaktion",
