@@ -107,6 +107,7 @@ class TestApiSecretKeySecret:
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
+
 class TestApiserverConfigmap:
     """Tests apiserver configmap."""
 
@@ -122,7 +123,7 @@ class TestApiserverConfigmap:
                     "apiServerConfigConfigMapName": "my-configmap",
                 }
             },
-            show_only=["templates/configmaps/api-server-configmap.yaml"]
+            show_only=["templates/configmaps/api-server-configmap.yaml"],
         )
         assert len(docs) == 0
 
@@ -133,9 +134,11 @@ class TestApiserverConfigmap:
                     "apiServerConfigConfigMapName": "my-custom-configmap",
                 }
             },
-            show_only=["templates/api-server/api-server-deployment.yaml"]
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.volumes[1].configMap.name", docs[0]) == "my-custom-configmap"        
+        assert (
+            jmespath.search("spec.template.spec.volumes[1].configMap.name", docs[0]) == "my-custom-configmap"
+        )
 
     def test_apiserver_config_configmap(self):
         docs = render_chart(
@@ -149,5 +152,3 @@ class TestApiserverConfigmap:
             jmespath.search('data."webserver_config.py"', docs[0]).strip()
             == "CSRF_ENABLED = True  # release-name"
         )
-
-
