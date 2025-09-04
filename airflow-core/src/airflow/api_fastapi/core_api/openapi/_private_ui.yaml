@@ -215,10 +215,10 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs by having import errors. Only Dags that have been
+          description: Filter Dags by having import errors. Only Dags that have been
             successfully loaded before will be returned.
           title: Has Import Errors
-        description: Filter DAGs by having import errors. Only Dags that have been
+        description: Filter Dags by having import errors. Only Dags that have been
           successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
