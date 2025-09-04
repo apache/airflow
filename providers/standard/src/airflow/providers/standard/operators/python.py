@@ -421,6 +421,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "task",
         "params",
         "triggering_asset_events",
+        "extra_links",
         # The following should be removed when Airflow 2 support is dropped.
         "triggering_dataset_events",
     }
