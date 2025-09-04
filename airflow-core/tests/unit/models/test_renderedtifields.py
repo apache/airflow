@@ -19,11 +19,9 @@
 
 from __future__ import annotations
 
-import os
 from collections import Counter
-from datetime import date, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING
-from unittest import mock
 
 import pendulum
 import pytest
@@ -32,12 +30,11 @@ from sqlalchemy import select
 from airflow import settings
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
-from airflow.models import DagRun, Variable
+from airflow.models import DagRun
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import task as task_decorator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
@@ -101,133 +98,6 @@ class TestRenderedTaskInstanceFields:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        ["templated_field", "expected_rendered_field"],
-        [
-            pytest.param(None, None, id="None"),
-            pytest.param([], [], id="list"),
-            pytest.param({}, {}, id="empty_dict"),
-            pytest.param((), [], id="empty_tuple"),
-            pytest.param(set(), "set()", id="empty_set"),
-            pytest.param("test-string", "test-string", id="string"),
-            pytest.param({"foo": "bar"}, {"foo": "bar"}, id="dict"),
-            pytest.param(("foo", "bar"), ["foo", "bar"], id="tuple"),
-            pytest.param({"foo"}, "{'foo'}", id="set"),
-            pytest.param("{{ task.task_id }}", "test", id="templated_string"),
-            (date(2018, 12, 6), "2018-12-06"),
-            pytest.param(datetime(2018, 12, 6, 10, 55), "2018-12-06 10:55:00+00:00", id="datetime"),
-            pytest.param(
-                ClassWithCustomAttributes(
-                    att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
-                ),
-                "ClassWithCustomAttributes({'att1': 'test', 'att2': '{{ task.task_id }}', "
-                "'template_fields': ['att1']})",
-                id="class_with_custom_attributes",
-            ),
-            pytest.param(
-                ClassWithCustomAttributes(
-                    nested1=ClassWithCustomAttributes(
-                        att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
-                    ),
-                    nested2=ClassWithCustomAttributes(
-                        att3="{{ task.task_id }}", att4="{{ task.task_id }}", template_fields=["att3"]
-                    ),
-                    template_fields=["nested1"],
-                ),
-                "ClassWithCustomAttributes({'nested1': ClassWithCustomAttributes("
-                "{'att1': 'test', 'att2': '{{ task.task_id }}', 'template_fields': ['att1']}), "
-                "'nested2': ClassWithCustomAttributes("
-                "{'att3': '{{ task.task_id }}', 'att4': '{{ task.task_id }}', 'template_fields': ['att3']}), "
-                "'template_fields': ['nested1']})",
-                id="nested_class_with_custom_attributes",
-            ),
-            pytest.param(
-                "a" * 5000,
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a' * 5000)[: max_length - 79]!r}... ",
-                id="large_string",
-            ),
-            pytest.param(
-                LargeStrObject(),
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[: max_length - 79]!r}... ",
-                id="large_object",
-            ),
-        ],
-    )
-    def test_get_templated_fields(self, templated_field, expected_rendered_field, dag_maker):
-        """
-        Test that template_fields are rendered correctly, stored in the Database,
-        and are correctly fetched using RTIF.get_templated_fields
-        """
-        with dag_maker("test_serialized_rendered_fields"):
-            task = BashOperator(task_id="test", bash_command=templated_field)
-            task_2 = BashOperator(task_id="test2", bash_command=templated_field)
-        dr = dag_maker.create_dagrun()
-
-        session = dag_maker.session
-
-        ti, ti2 = dr.task_instances
-        ti.task = task
-        ti2.task = task_2
-        rtif = RTIF(ti=ti)
-
-        assert ti.dag_id == rtif.dag_id
-        assert ti.task_id == rtif.task_id
-        assert ti.run_id == rtif.run_id
-        assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
-
-        session.add(rtif)
-        session.flush()
-
-        assert RTIF.get_templated_fields(ti=ti, session=session) == {
-            "bash_command": expected_rendered_field,
-            "env": None,
-            "cwd": None,
-        }
-        # Test the else part of get_templated_fields
-        # i.e. for the TIs that are not stored in RTIF table
-        # Fetching them will return None
-        assert RTIF.get_templated_fields(ti=ti2) is None
-
-    @pytest.mark.enable_redact
-    def test_secrets_are_masked_when_large_string(self, dag_maker):
-        """
-        Test that secrets are masked when the templated field is a large string
-        """
-        Variable.set(
-            key="api_key",
-            value="test api key are still masked" * 5000,
-        )
-        with dag_maker("test_serialized_rendered_fields"):
-            task = BashOperator(task_id="test", bash_command="echo {{ var.value.api_key }}")
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        ti.task = task
-        rtif = RTIF(ti=ti)
-        assert "***" in rtif.rendered_fields.get("bash_command")
-
-    @mock.patch("airflow.models.BaseOperator.render_template")
-    def test_pandas_dataframes_works_with_the_string_compare(self, render_mock, dag_maker):
-        """Test that rendered dataframe gets passed through the serialized template fields."""
-        import pandas
-
-        render_mock.return_value = pandas.DataFrame({"a": [1, 2, 3]})
-        with dag_maker("test_serialized_rendered_fields"):
-
-            @task_decorator
-            def generate_pd():
-                return pandas.DataFrame({"a": [1, 2, 3]})
-
-            @task_decorator
-            def consume_pd(data):
-                return data
-
-            consume_pd(generate_pd())
-
-        dr = dag_maker.create_dagrun()
-        ti, ti2 = dr.task_instances
-        rtif = RTIF(ti=ti2)
-        rtif.write()
-
-    @pytest.mark.parametrize(
         "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",
         [
             (0, 1, 0, 1),
@@ -255,7 +125,12 @@ class TestRenderedTaskInstanceFields:
                 )
                 ti = dr.task_instances[0]
                 ti.task = task
-                rtif_list.append(RTIF(ti))
+                rtif_list.append(
+                    RTIF(
+                        ti,
+                        rendered_fields={"bash_command": f"echo {ti.logical_date}", "env": None, "cwd": None},
+                    )
+                )
 
             session.add_all(rtif_list)
             session.flush()
@@ -301,7 +176,16 @@ class TestRenderedTaskInstanceFields:
                 session.refresh(dr)
                 for ti in dr.task_instances:
                     ti.task = mapped
-                    session.add(RTIF(ti))
+                    session.add(
+                        RTIF(
+                            ti,
+                            rendered_fields={
+                                "bash_command": f"echo {ti.logical_date}",
+                                "env": None,
+                                "cwd": None,
+                            },
+                        )
+                    )
             session.flush()
 
             result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
@@ -321,8 +205,6 @@ class TestRenderedTaskInstanceFields:
         """
         Test records can be written and overwritten
         """
-        Variable.set(key="test_key", value="test_val")
-
         session = settings.Session()
         result = session.query(RTIF).all()
         assert result == []
@@ -334,7 +216,7 @@ class TestRenderedTaskInstanceFields:
         ti = dr.task_instances[0]
         ti.task = task
 
-        rtif = RTIF(ti)
+        rtif = RTIF(ti, rendered_fields={"bash_command": "echo test_val", "env": None, "cwd": None})
         rtif.write()
         result = (
             session.query(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields)
@@ -348,15 +230,15 @@ class TestRenderedTaskInstanceFields:
         assert result == ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None})
 
         # Test that overwrite saves new values to the DB
-        Variable.delete("test_key")
-        Variable.set(key="test_key", value="test_val_updated")
         self.clean_db()
         with dag_maker("test_write"):
             updated_task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = updated_task
-        rtif_updated = RTIF(ti)
+        rtif_updated = RTIF(
+            ti, rendered_fields={"bash_command": "echo test_val_updated", "env": None, "cwd": None}
+        )
         rtif_updated.write()
 
         result_updated = (
@@ -373,32 +255,6 @@ class TestRenderedTaskInstanceFields:
             "test",
             {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         )
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
-    def test_redact(self, dag_maker):
-        with mock.patch("airflow._shared.secrets_masker.redact", autospec=True) as redact:
-            with dag_maker("test_ritf_redact", serialized=True):
-                task = BashOperator(
-                    task_id="test",
-                    bash_command="echo {{ var.value.api_key }}",
-                    env={"foo": "secret", "other_api_key": "masked based on key name"},
-                )
-            dr = dag_maker.create_dagrun()
-            redact.side_effect = [
-                # Order depends on order in Operator template_fields
-                "val 1",  # bash_command
-                "val 2",  # env
-                "val 3",  # cwd
-            ]
-
-            ti = dr.task_instances[0]
-            ti.task = task
-            rtif = RTIF(ti=ti)
-            assert rtif.rendered_fields == {
-                "bash_command": "val 1",
-                "env": "val 2",
-                "cwd": "val 3",
-            }
 
     def test_rtif_deletion_stale_data_error(self, dag_maker, session):
         """
@@ -423,7 +279,7 @@ class TestRenderedTaskInstanceFields:
             ti: TaskInstance = dr.task_instances[0]
             ti.state = TaskInstanceState.SUCCESS
 
-            rtif = RTIF(ti=ti, render_templates=False, rendered_fields={"a": "1"})
+            rtif = RTIF(ti=ti, rendered_fields={"a": "1"})
             session.merge(rtif)
             session.flush()
             return dr
