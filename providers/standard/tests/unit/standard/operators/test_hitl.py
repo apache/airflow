@@ -527,7 +527,7 @@ class TestHITLEntryOperator:
 
 
 class TestHITLBranchOperator:
-    def test_execute_complete(self, dag_maker) -> None:
+    def test_execute_complete(self, dag_maker: DagMaker) -> None:
         with dag_maker("hitl_test_dag", serialized=True):
             branch_op = HITLBranchOperator(
                 task_id="make_choice",
@@ -551,7 +551,7 @@ class TestHITLBranchOperator:
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(2, 6))
 
-    def test_execute_complete_with_multiple_branches(self, dag_maker) -> None:
+    def test_execute_complete_with_multiple_branches(self, dag_maker: DagMaker) -> None:
         with dag_maker("hitl_test_dag", serialized=True):
             branch_op = HITLBranchOperator(
                 task_id="make_choice",
@@ -578,7 +578,7 @@ class TestHITLBranchOperator:
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(4, 6))
 
-    def test_mapping_applies_for_single_choice(self, dag_maker):
+    def test_mapping_applies_for_single_choice(self, dag_maker: DagMaker) -> None:
         # ["Approve"]; map -> "publish"
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -605,7 +605,7 @@ class TestHITLBranchOperator:
         # checks to see that the "archive" task was skipped
         assert set(exc.value.tasks) == {("archive", -1)}
 
-    def test_mapping_with_multiple_choices(self, dag_maker):
+    def test_mapping_with_multiple_choices(self, dag_maker: DagMaker) -> None:
         # multiple=True; mapping applied per option; no dedup implied
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -637,7 +637,7 @@ class TestHITLBranchOperator:
         # publish + keep chosen → only "other" skipped
         assert set(exc.value.tasks) == {("other", -1)}
 
-    def test_fallback_to_option_when_not_mapped(self, dag_maker):
+    def test_fallback_to_option_when_not_mapped(self, dag_maker: DagMaker) -> None:
         # No mapping: option must match downstream task_id
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -662,7 +662,7 @@ class TestHITLBranchOperator:
             )
         assert set(exc.value.tasks) == {("branch_1", -1)}
 
-    def test_error_if_mapped_branch_not_direct_downstream(self, dag_maker):
+    def test_error_if_mapped_branch_not_direct_downstream(self, dag_maker: DagMaker):
         # Don't add the mapped task downstream → expect a clean error
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
