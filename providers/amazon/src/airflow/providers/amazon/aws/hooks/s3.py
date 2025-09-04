@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import time
+import warnings
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import suppress
 from copy import deepcopy
@@ -57,7 +58,7 @@ from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -923,15 +924,59 @@ class S3Hook(AwsBaseHook):
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
     @provide_bucket_name
-    def get_file_metadata(  # type: ignore[return]
+    def get_file_metadata(
         self,
         prefix: str,
         bucket_name: str | None = None,
         page_size: int | None = None,
         max_items: int | None = None,
-    ) -> Iterator | list:
+    ) -> list:
         """
-        Yield metadata objects in a bucket under prefix.
+        [DEPRECATED] Retrieve metadata objects from a bucket under a prefix.
+
+        This method `get_file_metadata` is deprecated. Calling this method will result in all matching keys
+        being loaded into a single list, and can often result in out-of-memory exceptions. Instead, use
+        `yield_file_metadata`.
+        """  # noqa: D401
+        warnings.warn(
+            "This method `get_file_metadata` is deprecated. Calling this method will result in all matching "
+            "keys being loaded into a single list, and can often result in out-of-memory exceptions. "
+            "Instead, use `yield_file_metadata`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+
+        paginator = self.get_conn().get_paginator("list_objects_v2")
+        params = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "PaginationConfig": config,
+        }
+        if self._requester_pays:
+            params["RequestPayer"] = "requester"
+        response = paginator.paginate(**params)
+
+        files = []
+        for page in response:
+            if "Contents" in page:
+                files += page["Contents"]
+        return files
+
+    @provide_bucket_name
+    def yield_file_metadata(
+        self,
+        prefix: str,
+        bucket_name: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> Iterator:
+        """
+        Yield metadata objects from a bucket under a prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
