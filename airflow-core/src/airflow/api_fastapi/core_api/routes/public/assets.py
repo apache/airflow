@@ -296,9 +296,7 @@ def get_asset_events(
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
-    # Build base statement - only join AssetModel if name filtering is needed
     base_statement = select(AssetEvent)
-
     if name_pattern.value:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
