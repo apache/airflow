@@ -67,6 +67,7 @@ Variable                                    Type                  Description
 ``{{ params }}``                            dict[str, Any]        | The user-defined params. This can be overridden by the mapping
                                                                   | passed to ``trigger_dag -c`` if ``dag_run_conf_overrides_params``
                                                                   | is enabled in ``airflow.cfg``.
+``{{ extra_links }}``                       dict[str, str]        Extra operator links available in the task. Keys are link names, values are URLs.
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.

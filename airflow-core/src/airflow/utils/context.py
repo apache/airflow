@@ -86,6 +86,7 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "ts_nodash_with_tz",
     "try_number",
     "var",
+    "extra_links",
 }
 
 
