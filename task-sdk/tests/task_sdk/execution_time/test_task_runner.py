@@ -117,7 +117,6 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
-    get_log_url_from_ti,
     parse,
     run,
     startup,
@@ -2608,7 +2607,6 @@ class TestTaskRunnerCallsListeners:
 
         runtime_ti, context, log = startup()
         assert runtime_ti is not None
-        assert runtime_ti.log_url == get_log_url_from_ti(runtime_ti)
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
