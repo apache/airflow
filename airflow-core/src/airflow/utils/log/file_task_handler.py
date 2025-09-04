@@ -936,12 +936,10 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        logs: LogMessages | list[RawLogStream] | None  # extra typing to void mypy assignment error
-        try:
+        if stream_method := getattr(remote_io, "stream"):
             # Use .stream interface if provider's RemoteIO supports it
-            sources, logs = remote_io.stream(path, ti)
+            sources, logs = stream_method(path, ti)
             return sources, logs or []
-        except (AttributeError, NotImplementedError):
-            # Fallback to .read interface
-            sources, logs = remote_io.read(path, ti)
-            return sources, logs or []
+        # Fallback to .read interface
+        sources, logs = remote_io.read(path, ti)
+        return sources, logs or []
