@@ -1,0 +1,21 @@
+{
+  "admin": {},
+  "assets": {},
+  "browse": {},
+  "common": {},
+  "components": {},
+  "dag": {},
+  "dags": {},
+  "dashboard": {},
+  "hitl": {
+    "filters": {
+      "response": {
+        "received": "已回應"
+      }
+    },
+    "state": {
+      "noResponseReceived": "未收到回應"
+    }
+  },
+  "tasks": {}
+}

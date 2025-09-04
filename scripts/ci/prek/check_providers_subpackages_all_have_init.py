@@ -15,6 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "rich>=13.6.0",
+# ]
+# ///
 from __future__ import annotations
 
 import os
@@ -39,6 +45,10 @@ ACCEPTED_NON_INIT_DIRS = [
     "dist",
     "node_modules",
     "non_python_src",
+]
+
+IGNORE_DIR_PATTERNS = [
+    "airflow/providers/edge3/plugins",
 ]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)'
@@ -121,7 +131,12 @@ def check_dir_init_src_folders(folders: list[Path]) -> None:
             print("Checking: ", root)
             root_path = Path(root)
             # Edit it in place, so we don't recurse to folders we don't care about
-            dirs[:] = [d for d in dirs if d not in ACCEPTED_NON_INIT_DIRS]
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in ACCEPTED_NON_INIT_DIRS
+                and not any(pattern in root for pattern in IGNORE_DIR_PATTERNS)
+            ]
             relative_root_path = root_path.relative_to(providers_base_folder)
             need_path_extension = (
                 root_path == providers_base_folder

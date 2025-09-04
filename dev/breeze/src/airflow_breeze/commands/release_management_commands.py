@@ -88,8 +88,10 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
+from airflow_breeze.commands.release_candidate_command import create_tarball_release
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
+    ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
@@ -226,6 +228,12 @@ option_use_local_hatch = click.option(
     envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
+option_tag = click.option(
+    "--tag",
+    type=str,
+    help="Tag to use for the release processes",
+    default=None,
+)
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(
@@ -245,11 +253,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.8.12"
+AIRFLOW_UV_VERSION = "0.8.14"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.1.0"
-PREK_VERSION = "0.1.1"
+PREK_VERSION = "0.1.4"
 HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
@@ -537,12 +545,14 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
+@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
+    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -573,6 +583,13 @@ def prepare_airflow_distributions(
             version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
+    if tag is not None:
+        # Create the tarball
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name="airflow",
+            tag=tag,
+        )
 
 
 def _prepare_non_core_distributions(
@@ -584,7 +601,10 @@ def _prepare_non_core_distributions(
     distribution_path: Path,
     distribution_name: str,
     distribution_pretty_name: str,
+    full_distribution_pretty_name: str | None = None,
 ):
+    if full_distribution_pretty_name is not None:
+        distribution_pretty_name = full_distribution_pretty_name
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -678,13 +698,15 @@ def _prepare_non_core_distributions(
         with apply_version_suffix_to_non_provider_pyproject_tomls(
             version_suffix=version_suffix,
             init_file_path=init_file_path,
-            pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
+            pyproject_toml_paths=[root_path / "pyproject.toml"],
         ) as pyproject_toml_paths:
             debug_pyproject_tomls(pyproject_toml_paths)
             _build_package_with_docker(
                 build_distribution_format=distribution_format,
             )
-    get_console().print(f"[success]Successfully prepared Airflow {distribution_pretty_name} packages")
+    get_console().print(
+        f"[success]Successfully prepared {f'Airflow {distribution_pretty_name}' if not full_distribution_pretty_name else full_distribution_pretty_name} packages"
+    )
 
 
 @release_management.command(
@@ -694,12 +716,14 @@ def _prepare_non_core_distributions(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
+@option_tag
 @option_verbose
 @option_dry_run
 def prepare_task_sdk_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
+    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -713,21 +737,30 @@ def prepare_task_sdk_distributions(
         distribution_name="task-sdk",
         distribution_pretty_name="Task SDK",
     )
+    if tag is not None:
+        # Create the tarball
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name="task-sdk",
+            tag=tag,
+        )
 
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
-    help="Prepare sdist/whl distributions of Airflow CTL.",
+    help="Prepare sdist/whl distributions of airflowctl.",
 )
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
+@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_ctl_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
+    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -739,8 +772,17 @@ def prepare_airflow_ctl_distributions(
         init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
         distribution_name="airflow-ctl",
-        distribution_pretty_name="CTL",
+        distribution_pretty_name="",
+        full_distribution_pretty_name="airflowctl",
     )
+    print(f"tag passed: {tag}")
+    if tag is not None:
+        # Create the tarball
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name="airflowctl",
+            tag=tag,
+        )
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -1035,6 +1077,7 @@ def _build_provider_distributions(
 @option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_distributions
+@option_tag
 @option_verbose
 def prepare_provider_distributions(
     clean_dist: bool,
@@ -1048,6 +1091,7 @@ def prepare_provider_distributions(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix: str,
+    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1132,6 +1176,13 @@ def prepare_provider_distributions(
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
+    # Create the tarball
+    if tag is not None:
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name="providers",
+            tag=tag,
+        )
 
 
 def run_generate_constraints(
@@ -2146,7 +2197,8 @@ def release_prod_images(
     for python in python_versions:
         build_args = {
             "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-            "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
+            "BASE_IMAGE": "debian:bookworm-slim",
+            "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
             "AIRFLOW_VERSION": airflow_version,
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",

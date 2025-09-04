@@ -59,7 +59,7 @@ Install the chart
   export RELEASE_NAME=example-release
   helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
 
-Use the following code to install the chart with Example dags:
+Use the following code to install the chart with Example Dags:
 
 .. code-block:: bash
 
@@ -88,7 +88,7 @@ Extending Airflow Image
 -----------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However, when you try it out you want to add your own dags, custom dependencies,
+However, when you try it out you want to add your own Dags, custom dependencies,
 packages, or even custom providers.
 
 .. note::
@@ -100,7 +100,7 @@ packages, or even custom providers.
 
 The best way to achieve it, is to build your own, custom image.
 
-Adding dags to your image
+Adding Dags to your image
 .........................
 
 1. Create a project

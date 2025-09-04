@@ -42,7 +42,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     def test_basic_kubernetes(self, args_only: bool):
         """Test basic proper KubernetesPodOperator creation from @task.kubernetes_cmd decorator"""
         expected = ["echo", "Hello world!"]
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -102,7 +102,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         Test that @task.kubernetes_cmd raises an error if the python_callable returns
         an invalid value.
         """
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -123,7 +123,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     @pytest.mark.asyncio
     def test_kubernetes_cmd_with_input_output(self):
         """Verify @task.kubernetes_cmd will run XCom container if do_xcom_push is set."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -200,7 +200,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             context_manager = contextlib.nullcontext()  # type: ignore
 
         expected = ["func", "return"]
-        with self.dag:
+        with self.dag_maker:
             # We need to suppress the warning about `cmds` and `arguments` being unused
             with context_manager:
 
@@ -256,7 +256,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         expected_command: list[str],
     ):
         """Test that templating works in function return value"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -287,7 +287,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     @pytest.mark.asyncio
     def test_basic_context_works(self):
         """Test that decorator works with context as kwargs unpcacked in function arguments"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -318,7 +318,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     @pytest.mark.asyncio
     def test_named_context_variables(self):
         """Test that decorator works with specific context variable as kwargs in function arguments"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
@@ -349,7 +349,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     @pytest.mark.asyncio
     def test_rendering_kubernetes_cmd_decorator_params(self):
         """Test that templating works in decorator parameters"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:{{ dag.dag_id }}",
@@ -379,7 +379,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
     def test_airflow_skip(self):
         """Test that the operator is skipped if the task is skipped"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes_cmd(
                 image="python:3.10-slim-buster",
