@@ -20,6 +20,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from pydantic import BaseModel
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -73,39 +75,22 @@ class BulkService(Generic[T], ABC):
         """Bulk delete entities."""
         raise NotImplementedError
 
-
-class PatchUtil:
-    """
-    Utility class for applying patch operations with support for update masks.
-
-    This helper is used to update only selected fields of a Pydantic model instance,
-    while ensuring:
-      - Only fields present in the update_mask are modified.
-      - Non-updatable fields can be excluded explicitly.
-      - Both raw field names and aliases are handled correctly.
-    """
-
     @staticmethod
     def apply_patch_with_update_mask(
-        model,
-        patch_body,
+        model: DeclarativeMeta,
+        patch_body: BaseModel,
         update_mask: list[str] | None,
         non_update_fields: set[str] | None = None,
-    ):
+    ) -> DeclarativeMeta:
         """
         Apply a patch to the given model using the provided update mask.
 
-        Args:
-            model: The model instance to update.
-            patch_body: Pydantic model containing patch data.
-            update_mask (list[str] | None): Optional list of fields to update.
-            non_update_fields (set[str] | None): Fields that should not be updated.
-
-        Returns:
-            The updated model instance.
-
-        Raises:
-            HTTPException: If invalid fields are provided in update_mask.
+        :param model: The SQLAlchemy model instance to update.
+        :param patch_body: Pydantic model containing patch data.
+        :param update_mask: Optional list of fields to update.
+        :param non_update_fields: Fields that should not be updated.
+        :return: The updated SQLAlchemy model instance.
+        :raises HTTPException: If invalid fields are provided in update_mask.
         """
         # Always dump without aliases for internal validation
         raw_data = patch_body.model_dump(by_alias=False)

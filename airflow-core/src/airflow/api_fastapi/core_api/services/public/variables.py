@@ -34,7 +34,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
 )
-from airflow.api_fastapi.core_api.services.public.common import BulkService, PatchUtil
+from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.variable import Variable
 
 
@@ -42,19 +42,14 @@ def update_orm_from_pydantic(
     variable_key: str, patch_body: VariableBody, update_mask: list[str] | None, session: SessionDep
 ) -> Variable:
     """
-    Patch an existing Variable with provided update fields.
+    Update an existing Variable.
 
-    Args:
-        variable_key (Variable_key):The name of the existing Variable_key to update.
-        patch_body (VariableBody): The patch request body containing fields to update.
-        update_mask (list[str] | None): List of fields to update. If None, all provided fields will be updated.
-        session (SessionDep): The database session dependency.
-
-    Returns:
-        Variable: The updated Variable object.
-
-    Raises:
-        HTTPException: If attempting to update restricted fields (e.g., `key`).
+    :param variable_key: The name of the existing Variable_key to update.
+    :param patch_body: The patch request body containing fields to update.
+    :param update_mask: List of fields to update. If None, all provided fields will be updated.
+    :param session: The database session dependency.
+    :return: The updated Variable object.
+    :raises HTTPException: If attempting to update restricted fields (e.g., ``key``).
     """
     # Key field is immutable → cannot be patched
 
@@ -81,7 +76,7 @@ def update_orm_from_pydantic(
         )
 
     # Apply patch via utility
-    return PatchUtil.apply_patch_with_update_mask(
+    return BulkService.apply_patch_with_update_mask(
         model=old_variable,
         patch_body=patch_body,
         update_mask=update_mask,

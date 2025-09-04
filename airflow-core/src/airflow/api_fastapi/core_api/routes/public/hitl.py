@@ -95,7 +95,7 @@ def _update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
-    map_index: int | None = None,
+    map_index: int,
     update_mask: list[str] | None = Query(None),
 ) -> HITLDetailResponse:
     task_instance = _get_task_instance(
