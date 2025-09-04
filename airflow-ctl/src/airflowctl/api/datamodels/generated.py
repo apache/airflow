@@ -530,7 +530,8 @@ class HITLDetailResponse(BaseModel):
     Response of updating a Human-in-the-loop detail.
     """
 
-    user_id: Annotated[str, Field(title="User Id")]
+    responded_user_id: Annotated[str, Field(title="Responded User Id")]
+    responded_user_name: Annotated[str, Field(title="Responded User Name")]
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
@@ -1265,7 +1266,11 @@ class DAGDetailsResponse(BaseModel):
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
-        int, Field(description="Return max_active_tasks as concurrency.", title="Concurrency")
+        int,
+        Field(
+            description="Return max_active_tasks as concurrency.\n\nDeprecated: Use max_active_tasks instead.",
+            title="Concurrency",
+        ),
     ]
     latest_dag_version: Annotated[
         DagVersionResponse | None, Field(description="Return the latest DagVersion.")
@@ -1822,7 +1827,8 @@ class HITLDetail(BaseModel):
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
-    user_id: Annotated[str | None, Field(title="User Id")] = None
+    responded_user_id: Annotated[str | None, Field(title="Responded User Id")] = None
+    responded_user_name: Annotated[str | None, Field(title="Responded User Name")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None

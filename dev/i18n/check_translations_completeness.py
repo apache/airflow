@@ -17,15 +17,16 @@
 # under the License.
 
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#   "rich",
+#   "rich>=13.6.0",
 #   "rich-click",
 # ]
 # ///
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -124,7 +125,12 @@ def expand_plural_keys(keys: set[str], lang: str) -> set[str]:
 def get_locale_files() -> list[LocaleFiles]:
     return [
         LocaleFiles(
-            locale=locale_dir.name, files=[f.name for f in locale_dir.iterdir() if f.suffix == ".json"]
+            locale=locale_dir.name,
+            files=[
+                f.name
+                for f in locale_dir.iterdir()
+                if f.suffix == ".json" and f.name != "_freeze_exemptions.json"
+            ],
         )
         for locale_dir in LOCALES_DIR.iterdir()
         if locale_dir.is_dir()
@@ -380,6 +386,15 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
             total_todos += file_todos
             total_translated += file_translated
             total_total += file_total
+
+        # check missing translation files
+        en_root = LOCALES_DIR / "en"
+        if diffs := set(os.listdir(en_root)) - {"_freeze_exemptions.json"} - set(all_files):
+            for diff in diffs:
+                with open(en_root / diff) as f:
+                    en_data = json.load(f)
+                file_total = sum(1 for _ in flatten_keys(en_data))
+                table.add_row(diff, str(file_total), "0", str(file_total), "0", "0%", "0%", "0%", style="red")
 
         # Calculate totals for this language
         total_coverage_percent = 100 * total_translated / total_total if total_total else 100

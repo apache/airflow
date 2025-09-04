@@ -10,6 +10,9 @@
       "user": "Utilisateur",
       "when": "Quand"
     },
+    "filters": {
+      "eventType": "Type d'événement"
+    },
     "title": "Journal d'Audit"
   },
   "xcom": {

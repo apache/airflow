@@ -71,6 +71,9 @@ dependencies = [
     "numpy>=1.26.0; python_version=='3.12'",
     "numpy>=2.1.0; python_version>='3.13'",
 ]
+"openlineage" = [
+    "apache-airflow-providers-openlineage"
+]
 
 [dependency-groups]
 dev = [
@@ -78,6 +81,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "numpy>=1.22.4; python_version<'3.11'",
     "numpy>=1.23.2; python_version=='3.11'",

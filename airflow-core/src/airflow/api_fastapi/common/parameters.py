@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select
+from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -114,7 +114,7 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
 
 
 class _FavoriteFilter(BaseParam[bool]):
-    """Filter DAGs by favorite status."""
+    """Filter Dags by favorite status."""
 
     def __init__(self, user_id: str, value: T | None = None, skip_none: bool = True) -> None:
         super().__init__(skip_none=skip_none)
@@ -131,7 +131,7 @@ class _FavoriteFilter(BaseParam[bool]):
         else:
             select_stmt = select_stmt.where(
                 not_(
-                    select(DagFavorite)
+                    sql_select(DagFavorite)
                     .where(and_(DagFavorite.dag_id == DagModel.dag_id, DagFavorite.user_id == self.user_id))
                     .exists()
                 )
@@ -379,14 +379,16 @@ def filter_param_factory(
     default_factory: Callable[[], T | None] | None = None,
     skip_none: bool = True,
     transform_callable: Callable[[T | None], Any] | None = None,
+    *,
+    description: str | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
     # can only set either default_value or default_factory
     query = (
-        Query(alias=filter_name, default_factory=default_factory)
+        Query(alias=filter_name, default_factory=default_factory, description=description)
         if default_factory is not None
-        else Query(alias=filter_name, default=default_value)
+        else Query(alias=filter_name, default=default_value, description=description)
     )
 
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
@@ -607,7 +609,7 @@ def float_range_filter_factory(
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[str | None, AfterValidator(_safe_parse_datetime_optional)]
 
-# DAG
+# Dag
 QueryLimit = Annotated[LimitFilter, Depends(LimitFilter.depends)]
 QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter.depends)]
 QueryPausedFilter = Annotated[
@@ -635,6 +637,96 @@ QueryDagIdPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+
+
+class _HasAssetScheduleFilter(BaseParam[bool]):
+    """Filter Dags that have asset-based scheduling."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        asset_ref_subquery = sql_select(DagScheduleAssetReference.dag_id).distinct()
+
+        if self.value:
+            # Filter Dags that have asset-based scheduling
+            return select.where(DagModel.dag_id.in_(asset_ref_subquery))
+
+        # Filter Dags that do NOT have asset-based scheduling
+        return select.where(DagModel.dag_id.notin_(asset_ref_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        has_asset_schedule: bool | None = Query(None, description="Filter Dags with asset-based scheduling"),
+    ) -> _HasAssetScheduleFilter:
+        return cls().set_value(has_asset_schedule)
+
+
+class _AssetDependencyFilter(BaseParam[str]):
+    """Filter Dags by specific asset dependencies."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        asset_dag_subquery = (
+            sql_select(DagScheduleAssetReference.dag_id)
+            .join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id)
+            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+            .distinct()
+        )
+
+        return select.where(DagModel.dag_id.in_(asset_dag_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        asset_dependency: str | None = Query(
+            None, description="Filter Dags by asset dependency (name or URI)"
+        ),
+    ) -> _AssetDependencyFilter:
+        return cls().set_value(asset_dependency)
+
+
+QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
+QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
+
+
+class _PendingActionsFilter(BaseParam[bool]):
+    """Filter Dags by having pending HITL actions (more than 1)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        from airflow.models.hitl import HITLDetail
+        from airflow.models.taskinstance import TaskInstance
+
+        # Join with HITLDetail and TaskInstance to find Dags
+        pending_actions_count_subquery = (
+            sql_select(func.count(HITLDetail.ti_id))
+            .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .where(HITLDetail.response_at.is_(None))
+            .where(TaskInstance.dag_id == DagModel.dag_id)
+            .scalar_subquery()
+        )
+
+        if self.value is True:
+            # Filter to show only Dags with pending actions
+            where_clause = pending_actions_count_subquery >= 1
+        else:
+            # Filter to show only Dags without pending actions
+            where_clause = pending_actions_count_subquery == 0
+
+        return select.where(where_clause)
+
+    @classmethod
+    def depends(cls, has_pending_actions: bool | None = Query(None)) -> _PendingActionsFilter:
+        return cls().set_value(has_pending_actions)
+
+
+QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
@@ -694,7 +786,7 @@ QueryDagRunRunTypesFilter = Annotated[
     ),
 ]
 
-# DAGTags
+# DagTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
 ]
@@ -761,6 +853,18 @@ QueryTIDagVersionFilter = Annotated[
         )
     ),
 ]
+QueryDagRunVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            filter_name="dag_version",
+        )
+    ),
+]
 QueryTITryNumberFilter = Annotated[
     FilterParam[list[int]],
     Depends(
@@ -770,6 +874,14 @@ QueryTITryNumberFilter = Annotated[
     ),
 ]
 
+QueryTIOperatorFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
 
 # XCom
 QueryXComKeyPatternSearch = Annotated[
@@ -895,15 +1007,27 @@ QueryHITLDetailResponseReceivedFilter = Annotated[
         )
     ),
 ]
-QueryHITLDetailUserIdFilter = Annotated[
+QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.user_id,
+            HITLDetail.responded_user_id,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="user_id",
+            filter_name="responded_user_id",
+        )
+    ),
+]
+QueryHITLDetailRespondedUserNameFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            HITLDetail.responded_user_name,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            filter_name="responded_user_name",
         )
     ),
 ]
