@@ -623,7 +623,7 @@ QueryHasImportErrorsFilter = Annotated[
             DagModel.has_import_errors,
             bool | None,
             filter_name="has_import_errors",
-            description="Filter DAGs by having import errors. Only DAGs that have been successfully loaded before will be returned.",
+            description="Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.",
         )
     ),
 ]
