@@ -31,11 +31,9 @@ Please refer to the :ref:`howto/connection:azure_service_bus` documentation for 
 Using the Trigger
 -----------------
 
-.. example::
+This example shows how to use the ``AzureServiceBusQueueTrigger``.
 
-   This example shows how to use the ``AzureServiceBusQueueTrigger``.
-
-   .. code-block:: python
+.. code-block:: python
 
       from airflow.providers.microsoft.azure.triggers.message_bus import AzureServiceBusQueueTrigger
 
@@ -64,11 +62,9 @@ Please refer to the :ref:`howto/connection:azure_service_bus` documentation for 
 Using the Trigger
 -----------------
 
-.. example::
+This example shows how to use the ``AzureServiceBusSubscriptionTrigger``.
 
-   This example shows how to use the ``AzureServiceBusSubscriptionTrigger``.
-
-   .. code-block:: python
+.. code-block:: python
 
       from airflow.providers.microsoft.azure.triggers.message_bus import AzureServiceBusSubscriptionTrigger
 

@@ -23,7 +23,6 @@ import pytest
 from airflow.providers.microsoft.azure.triggers.message_bus import (
     AzureServiceBusQueueTrigger,
     AzureServiceBusSubscriptionTrigger,
-    BaseAzureServiceBusTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
@@ -32,16 +31,17 @@ class TestBaseAzureServiceBusTrigger:
     """Test the base trigger functionality."""
 
     def test_init_with_defaults(self):
-        """Test initialization with default values."""
-        trigger = BaseAzureServiceBusTrigger()
+        """Test initialization with default values using queue trigger."""
+        trigger = AzureServiceBusQueueTrigger(queues=["test_queue"])
 
         assert trigger.max_wait_time is None
         assert trigger.poll_interval == 60
         assert hasattr(trigger, "message_hook")
 
     def test_init_with_custom_values(self):
-        """Test initialization with custom values."""
-        trigger = BaseAzureServiceBusTrigger(
+        """Test initialization with custom values using queue trigger."""
+        trigger = AzureServiceBusQueueTrigger(
+            queues=["test_queue"],
             poll_interval=30,
             azure_service_bus_conn_id="custom_conn",
             max_wait_time=120,
@@ -146,6 +146,7 @@ class TestAzureServiceBusSubscriptionTrigger:
             topics=["test_topic"],
             subscription_name="test-sub",
             poll_interval=0.01,  # Very short for testing
+            azure_service_bus_conn_id="test_conn",
         )
 
         # Mock the read_subscription_message method
@@ -207,14 +208,16 @@ class TestIntegrationScenarios:
 
     def test_subscription_trigger_with_empty_topics_list(self):
         """Test subscription trigger with empty topics list."""
-        trigger = AzureServiceBusSubscriptionTrigger(topics=[], subscription_name="test-sub")
+        trigger = AzureServiceBusSubscriptionTrigger(
+            topics=[], subscription_name="test-sub", azure_service_bus_conn_id="test_conn"
+        )
         assert trigger.topics == []
 
     @patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook")
     def test_message_hook_initialization(self, mock_hook_class):
         """Test that MessageHook is properly initialized."""
         conn_id = "test_connection"
-        trigger = AzureServiceBusQueueTrigger(queues=["test"], azure_service_bus_conn_id=conn_id)
+        AzureServiceBusQueueTrigger(queues=["test"], azure_service_bus_conn_id=conn_id)
 
         mock_hook_class.assert_called_with(azure_service_bus_conn_id=conn_id)
 
@@ -222,7 +225,7 @@ class TestIntegrationScenarios:
     def test_message_hook_properly_configured(self, mock_hook_class):
         """Test that MessageHook is properly configured with connection."""
         conn_id = "test_connection"
-        trigger = BaseAzureServiceBusTrigger(azure_service_bus_conn_id=conn_id)
+        trigger = AzureServiceBusQueueTrigger(queues=["test"], azure_service_bus_conn_id=conn_id)
 
         mock_hook_class.assert_called_with(azure_service_bus_conn_id=conn_id)
         assert hasattr(trigger, "message_hook")

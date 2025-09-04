@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
+from abc import abstractmethod
+from collections.abc import AsyncIterator
 from typing import Any
+
 from asgiref.sync import sync_to_async
 
 from airflow.providers.microsoft.azure.hooks.asb import MessageHook
@@ -59,7 +61,15 @@ class BaseAzureServiceBusTrigger(BaseTrigger):
         self.poll_interval = (
             poll_interval if poll_interval else BaseAzureServiceBusTrigger.default_poll_interval
         )
-        self.message_hook = MessageHook(azure_service_bus_conn_id=azure_service_bus_conn_id)
+        self.message_hook = MessageHook(azure_service_bus_conn_id=self.connection_id)
+
+    @abstractmethod
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize the trigger instance."""
+
+    @abstractmethod
+    def run(self) -> AsyncIterator[TriggerEvent]:
+        """Run the trigger logic."""
 
 
 class AzureServiceBusQueueTrigger(BaseAzureServiceBusTrigger):
@@ -104,8 +114,8 @@ class AzureServiceBusQueueTrigger(BaseAzureServiceBusTrigger):
             },
         )
 
-    async def run(self) -> AsyncGenerator[TriggerEvent, None]:
-        read_queue_message_async = sync_to_async(self.message_hook.read_eue_message)
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        read_queue_message_async = sync_to_async(self.message_hook.read_message)
 
         while True:
             for queue_name in self.queues:
@@ -164,7 +174,7 @@ class AzureServiceBusSubscriptionTrigger(BaseAzureServiceBusTrigger):
             },
         )
 
-    async def run(self) -> AsyncGenerator[TriggerEvent, None]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         read_subscription_message_async = sync_to_async(self.message_hook.read_subscription_message)
 
         while True:
