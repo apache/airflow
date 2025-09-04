@@ -1334,17 +1334,18 @@ def _run_task(*, ti, task, run_triggerer=False):
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
             ti.set_state(State.QUEUED)
+            task_sdk_ti = TaskInstanceSDK(
+                id=ti.id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                dag_version_id=ti.dag_version_id,
+            )
 
             taskrun_result = run_task_in_process(
-                ti=TaskInstanceSDK(
-                    id=ti.id,
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                    try_number=ti.try_number,
-                    map_index=ti.map_index,
-                    dag_version_id=ti.dag_version_id,
-                ),
+                ti=task_sdk_ti,
                 task=task,
             )
 
@@ -1361,7 +1362,7 @@ def _run_task(*, ti, task, run_triggerer=False):
 
                 log.info("[DAG TEST] running trigger in line")
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
-                event = _run_inline_trigger(trigger)
+                event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
@@ -1382,13 +1383,10 @@ def _run_task(*, ti, task, run_triggerer=False):
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
 
 
-def _run_inline_trigger(trigger):
-    import asyncio
+def _run_inline_trigger(trigger, task_sdk_ti):
+    from airflow.sdk.execution_time.supervisor import InProcessTestSupervisor
 
-    async def _run_inline_trigger_main():
-        return await anext(trigger.run(), None)
-
-    return asyncio.run(_run_inline_trigger_main())
+    return InProcessTestSupervisor.run_trigger_in_process(trigger=trigger, ti=task_sdk_ti)
 
 
 # Since we define all the attributes of the class with attrs, we can compute this statically at parse time
