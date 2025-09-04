@@ -131,7 +131,8 @@ def _check_flag_and_exit_if_server_response_error(func):
 def _date_safe_dict_from_pydantic(obj: T) -> dict:
     """
     Convert a Pydantic model to a dict to be sent to the API server.
-    To be used for any pydantic method which will be sent to API.
+
+    It meant to be used for any pydantic method which will be sent to API.
 
     :param obj: Pydantic model
     :return: dict
