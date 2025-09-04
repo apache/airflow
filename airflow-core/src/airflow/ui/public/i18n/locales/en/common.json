@@ -102,7 +102,6 @@
   },
   "filters": {
     "dagDisplayNamePlaceholder": "Filter by Dag",
-    "filter": "Filter",
     "keyPlaceholder": "Filter by XCom key",
     "logicalDateFromPlaceholder": "Logical Date From",
     "logicalDateToPlaceholder": "Logical Date To",

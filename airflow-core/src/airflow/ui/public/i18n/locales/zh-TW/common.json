@@ -101,7 +101,6 @@
   },
   "filters": {
     "dagDisplayNamePlaceholder": "依 Dag 名稱篩選",
-    "filter": "篩選",
     "keyPlaceholder": "依 XCom 鍵篩選",
     "logicalDateFromPlaceholder": "邏輯日期起始",
     "logicalDateToPlaceholder": "邏輯日期結束",
