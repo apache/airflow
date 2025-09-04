@@ -26,18 +26,16 @@ import { DateTimeInput } from "src/components/DateTimeInput";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
+const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
+const filterKeys = [START_DATE, END_DATE, DAG_ID, TASK_ID];
+
 export const AssetEventsFilter = () => {
   const { t: translate } = useTranslation("common");
-  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
   const [searchParams, setSearchParams] = useSearchParams();
   const startDate = searchParams.get(START_DATE) ?? "";
   const endDate = searchParams.get(END_DATE) ?? "";
   const dagId = searchParams.get(DAG_ID) ?? "";
   const taskId = searchParams.get(TASK_ID) ?? "";
-  const filterKeys = useMemo(
-    () => [START_DATE, END_DATE, DAG_ID, TASK_ID],
-    [START_DATE, END_DATE, DAG_ID, TASK_ID],
-  );
   const [resetKey, setResetKey] = useState(0);
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
@@ -52,13 +50,13 @@ export const AssetEventsFilter = () => {
   );
   const filterCount = useMemo(
     () => filterKeys.reduce((acc, key) => (searchParams.get(key) === null ? acc : acc + 1), 0),
-    [searchParams, filterKeys],
+    [searchParams],
   );
   const handleResetFilters = useCallback(() => {
     filterKeys.forEach((key) => searchParams.delete(key));
     setSearchParams(searchParams);
     setResetKey((prev) => prev + 1);
-  }, [searchParams, setSearchParams, filterKeys]);
+  }, [searchParams, setSearchParams]);
 
   return (
     <VStack align="start" gap={4} paddingY="4px">
