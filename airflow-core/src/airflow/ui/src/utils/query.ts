@@ -47,3 +47,45 @@ export const useAutoRefresh = ({ dagId, isPaused }: { dagId?: string; isPaused?:
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;
 };
+
+export const decodeParam = (params: URLSearchParams, key: string): string | null => {
+  const value = params.get(key);
+
+  if (value === null) {
+    return null;
+  }
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    // Return original value if decoding fails
+    return value;
+  }
+};
+
+export const parseJsonSafe = (raw: string | null): string | null => {
+  if (raw === null) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    // Return original string if parsing fails
+    return raw;
+  }
+};
+
+export const getUrlParam = (
+  params: URLSearchParams,
+  key: string,
+  parseAsJson: boolean = false,
+): string | null => {
+  const decoded = decodeParam(params, key);
+
+  if (parseAsJson && decoded !== null && decoded.trim().length > 0) {
+    return parseJsonSafe(decoded);
+  }
+
+  return decoded;
+};
