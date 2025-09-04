@@ -62,7 +62,8 @@ class TestPermissionsCommand:
                 yield
 
     @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
-    def test_permissions_cleanup_success(self, mock_cleanup_dag_permissions):
+    @patch("airflow.providers.fab.auth_manager.models.Resource")
+    def test_permissions_cleanup_success(self, mock_resource, mock_cleanup_dag_permissions):
         """Test successful cleanup of DAG permissions."""
         # Mock args
         args = argparse.Namespace()
@@ -71,17 +72,38 @@ class TestPermissionsCommand:
         args.yes = True
         args.verbose = True
 
-        with redirect_stdout(StringIO()) as stdout:
+        # Mock orphaned resources
+        mock_orphaned_resource = MagicMock()
+        mock_orphaned_resource.name = "DAG:orphaned_dag"
+
+        with (
+            patch("airflow.providers.fab.auth_manager.cli_commands.utils.get_application_builder"),
+            patch("airflow.utils.session.create_session") as mock_session_ctx,
+            patch("sqlalchemy.select"),
+            redirect_stdout(StringIO()),
+        ):
+            mock_session = MagicMock()
+            mock_session_ctx.return_value.__enter__.return_value = mock_session
+
+            # Mock DagModel query - return existing DAGs
+            mock_dag_result = MagicMock()
+            mock_dag_result.all.return_value = [MagicMock(dag_id="existing_dag")]
+
+            # Mock Resource query - return orphaned resources
+            mock_resource_result = MagicMock()
+            mock_resource_result.all.return_value = [mock_orphaned_resource]
+
+            # Setup session.scalars to return different results for different queries
+            mock_session.scalars.side_effect = [mock_dag_result, mock_resource_result]
+
             permissions_command.permissions_cleanup(args)
 
-        # Verify function calls - it should be called for real DAGs
-        output = stdout.getvalue()
-        # Should either call cleanup or report no orphaned permissions found
-        assert (
-            "Successfully cleaned up permissions" in output or "No orphaned DAG permissions found" in output
-        )
+        # Verify function calls - it should be called exactly once for the orphaned DAG
+        mock_cleanup_dag_permissions.assert_called_once_with("orphaned_dag", mock_session)
 
-    def test_permissions_cleanup_dry_run(self):
+    @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
+    @patch("airflow.providers.fab.auth_manager.models.Resource")
+    def test_permissions_cleanup_dry_run(self, mock_resource, mock_cleanup_dag_permissions):
         """Test dry run mode for permissions cleanup."""
         # Mock args
         args = argparse.Namespace()
@@ -89,34 +111,86 @@ class TestPermissionsCommand:
         args.dry_run = True
         args.verbose = True
 
-        with redirect_stdout(StringIO()) as stdout:
+        # Mock orphaned resources
+        mock_orphaned_resource = MagicMock()
+        mock_orphaned_resource.name = "DAG:orphaned_dag"
+
+        with (
+            patch("airflow.providers.fab.auth_manager.cli_commands.utils.get_application_builder"),
+            patch("airflow.utils.session.create_session") as mock_session_ctx,
+            patch("sqlalchemy.select"),
+            redirect_stdout(StringIO()) as stdout,
+        ):
+            mock_session = MagicMock()
+            mock_session_ctx.return_value.__enter__.return_value = mock_session
+
+            # Mock DagModel query - return existing DAGs
+            mock_dag_result = MagicMock()
+            mock_dag_result.all.return_value = [MagicMock(dag_id="existing_dag")]
+
+            # Mock Resource query - return orphaned resources
+            mock_resource_result = MagicMock()
+            mock_resource_result.all.return_value = [mock_orphaned_resource]
+
+            # Setup session.scalars to return different results for different queries
+            mock_session.scalars.side_effect = [mock_dag_result, mock_resource_result]
+
             permissions_command.permissions_cleanup(args)
 
         output = stdout.getvalue()
         assert "Dry run mode" in output or "No orphaned DAG permissions found" in output
+        # In dry run mode, cleanup_dag_permissions should NOT be called
+        mock_cleanup_dag_permissions.assert_not_called()
 
-    def test_permissions_cleanup_specific_dag(self):
+    @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
+    @patch("airflow.providers.fab.auth_manager.models.Resource")
+    def test_permissions_cleanup_specific_dag(self, mock_resource, mock_cleanup_dag_permissions):
         """Test cleanup for a specific DAG."""
         # Mock args
         args = argparse.Namespace()
         args.dag_id = "test_dag"
-        args.dry_run = True
+        args.dry_run = False
+        args.yes = True
         args.verbose = True
 
-        with redirect_stdout(StringIO()) as stdout:
+        # Mock orphaned resource for the specific DAG
+        mock_orphaned_resource = MagicMock()
+        mock_orphaned_resource.name = "DAG:test_dag"
+
+        with (
+            patch("airflow.providers.fab.auth_manager.cli_commands.utils.get_application_builder"),
+            patch("airflow.utils.session.create_session") as mock_session_ctx,
+            patch("sqlalchemy.select"),
+            redirect_stdout(StringIO()),
+        ):
+            mock_session = MagicMock()
+            mock_session_ctx.return_value.__enter__.return_value = mock_session
+
+            # Mock DagModel query - return existing DAGs (NOT including the target DAG)
+            mock_dag_result = MagicMock()
+            mock_dag_result.all.return_value = [
+                MagicMock(dag_id="existing_dag"),
+                MagicMock(dag_id="another_existing_dag"),
+            ]
+
+            # Mock Resource query - return orphaned resources
+            mock_resource_result = MagicMock()
+            mock_resource_result.all.return_value = [mock_orphaned_resource]
+
+            # Setup session.scalars to return different results for different queries
+            mock_session.scalars.side_effect = [mock_dag_result, mock_resource_result]
+
             permissions_command.permissions_cleanup(args)
 
-        output = stdout.getvalue()
-        # Check for appropriate output indicating DAG-specific operation
-        assert (
-            "test_dag" in output
-            or "No orphaned permissions found for DAG" in output
-            or "not found in orphaned permissions" in output
-            or "No orphaned DAG permissions found" in output
-        )
+        # Should call cleanup_dag_permissions specifically for test_dag
+        mock_cleanup_dag_permissions.assert_called_once_with("test_dag", mock_session)
 
+    @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
+    @patch("airflow.providers.fab.auth_manager.models.Resource")
     @patch("builtins.input", return_value="n")
-    def test_permissions_cleanup_no_confirmation(self, mock_input):
+    def test_permissions_cleanup_no_confirmation(
+        self, mock_input, mock_resource, mock_cleanup_dag_permissions
+    ):
         """Test cleanup cancellation when user doesn't confirm."""
         # Mock args
         args = argparse.Namespace()
@@ -125,158 +199,155 @@ class TestPermissionsCommand:
         args.yes = False
         args.verbose = False
 
-        with redirect_stdout(StringIO()) as stdout:
+        # Mock orphaned resources
+        mock_orphaned_resource = MagicMock()
+        mock_orphaned_resource.name = "DAG:orphaned_dag"
+
+        with (
+            patch("airflow.providers.fab.auth_manager.cli_commands.utils.get_application_builder"),
+            patch("airflow.utils.session.create_session") as mock_session_ctx,
+            patch("sqlalchemy.select"),
+            redirect_stdout(StringIO()) as stdout,
+        ):
+            mock_session = MagicMock()
+            mock_session_ctx.return_value.__enter__.return_value = mock_session
+
+            # Mock DagModel query - return existing DAGs
+            mock_dag_result = MagicMock()
+            mock_dag_result.all.return_value = [MagicMock(dag_id="existing_dag")]
+
+            # Mock Resource query - return orphaned resources
+            mock_resource_result = MagicMock()
+            mock_resource_result.all.return_value = [mock_orphaned_resource]
+
+            # Setup session.scalars to return different results for different queries
+            mock_session.scalars.side_effect = [mock_dag_result, mock_resource_result]
+
             permissions_command.permissions_cleanup(args)
 
         output = stdout.getvalue()
         # Should not call cleanup if user declines or no orphaned permissions found
         assert "Cleanup cancelled" in output or "No orphaned DAG permissions found" in output
 
+        # cleanup_dag_permissions should NOT be called when user cancels
+        if "Cleanup cancelled" in output:
+            mock_cleanup_dag_permissions.assert_not_called()
+
 
 class TestDagPermissions:
-    """Test cases for cleanup_dag_permissions function."""
+    """Test cases for cleanup_dag_permissions function with real database operations."""
 
-    def test_cleanup_dag_permissions_with_session(self):
-        """Test cleanup_dag_permissions with provided session."""
+    @pytest.fixture(autouse=True)
+    def _setup_fab_test(self):
+        """Setup FAB for testing."""
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
+        ):
+            with get_application_builder():
+                yield
+
+    def test_cleanup_dag_permissions_removes_specific_dag_resources(self):
+        """Test that cleanup_dag_permissions removes only the specified DAG resources."""
+        from sqlalchemy import select
+
         from airflow.providers.fab.auth_manager.cli_commands.permissions_command import (
             cleanup_dag_permissions,
         )
+        from airflow.providers.fab.auth_manager.models import Action, Permission, Resource
+        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+        from airflow.utils.session import create_session
 
-        # Mock FAB models and select/delete
-        with (
-            patch("airflow.providers.fab.auth_manager.models") as mock_models,
-            patch("sqlalchemy.select"),
-            patch("sqlalchemy.delete"),
-        ):
-            mock_resource = MagicMock()
-            mock_permission = MagicMock()
-            mock_assoc = MagicMock()
-            mock_models.Resource = mock_resource
-            mock_models.Permission = mock_permission
-            mock_models.assoc_permission_role = mock_assoc
+        with create_session() as session:
+            # Create resources for two different DAGs
+            target_resource = Resource(name=f"{RESOURCE_DAG_PREFIX}target_dag")
+            keep_resource = Resource(name=f"{RESOURCE_DAG_PREFIX}keep_dag")
+            session.add_all([target_resource, keep_resource])
+            session.flush()
 
-            # Mock session with SQLAlchemy 2.0 methods
-            mock_session = MagicMock()
-            mock_session.scalars.return_value.all.return_value = []
-            mock_session.execute.return_value = None
+            # Get or create action
+            read_action = session.scalars(select(Action).where(Action.name == "can_read")).first()
+            if not read_action:
+                read_action = Action(name="can_read")
+                session.add(read_action)
+                session.flush()
 
-            cleanup_dag_permissions("test_dag", mock_session)
+            # Create permissions
+            target_perm = Permission(action=read_action, resource=target_resource)
+            keep_perm = Permission(action=read_action, resource=keep_resource)
+            session.add_all([target_perm, keep_perm])
+            session.commit()
 
-            # Should call session.scalars and session.execute for SQLAlchemy 2.0
-            assert mock_session.scalars.called or mock_session.execute.called
+            # Execute cleanup
+            cleanup_dag_permissions("target_dag", session)
 
-    def test_cleanup_dag_permissions_without_session(self):
-        """Test cleanup_dag_permissions without provided session (creates new session)."""
+            # Verify: target resource deleted, keep resource remains
+            assert not session.get(Resource, target_resource.id)
+            assert session.get(Resource, keep_resource.id)
+            assert not session.get(Permission, target_perm.id)
+            assert session.get(Permission, keep_perm.id)
+
+    def test_cleanup_dag_permissions_handles_no_matching_resources(self):
+        """Test that cleanup_dag_permissions handles DAGs with no matching resources gracefully."""
+        from sqlalchemy import func, select
+
         from airflow.providers.fab.auth_manager.cli_commands.permissions_command import (
             cleanup_dag_permissions,
         )
+        from airflow.providers.fab.auth_manager.models import Resource
+        from airflow.utils.session import create_session
 
-        # Mock FAB models and select/delete
-        with (
-            patch("airflow.providers.fab.auth_manager.models") as mock_models,
-            patch("sqlalchemy.select"),
-            patch("sqlalchemy.delete"),
-        ):
-            mock_resource = MagicMock()
-            mock_permission = MagicMock()
-            mock_assoc = MagicMock()
-            mock_models.Resource = mock_resource
-            mock_models.Permission = mock_permission
-            mock_models.assoc_permission_role = mock_assoc
+        with create_session() as session:
+            initial_count = session.scalar(select(func.count(Resource.id)))
+            cleanup_dag_permissions("non_existent_dag", session)
+            assert session.scalar(select(func.count(Resource.id))) == initial_count
 
-            # Mock create_session
-            with patch("airflow.utils.session.create_session") as mock_create_session:
-                mock_session = MagicMock()
-                mock_create_session.return_value.__enter__.return_value = mock_session
-                mock_session.scalars.return_value.all.return_value = []
-                mock_session.execute.return_value = None
-
-                cleanup_dag_permissions("test_dag")
-
-                # Should create a new session
-                mock_create_session.assert_called_once()
-
-    def test_cleanup_dag_permissions_with_resources_and_permissions(self):
-        """Test cleanup_dag_permissions with actual resources and permissions."""
+    def test_cleanup_dag_permissions_handles_resources_without_permissions(self):
+        """Test cleanup when resources exist but have no permissions."""
         from airflow.providers.fab.auth_manager.cli_commands.permissions_command import (
             cleanup_dag_permissions,
         )
+        from airflow.providers.fab.auth_manager.models import Resource
+        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+        from airflow.utils.session import create_session
 
-        # Mock FAB models and select/delete
-        with (
-            patch("airflow.providers.fab.auth_manager.models") as mock_models,
-            patch("sqlalchemy.select"),
-            patch("sqlalchemy.delete"),
-        ):
-            mock_resource = MagicMock()
-            mock_permission = MagicMock()
-            mock_assoc = MagicMock()
-            mock_models.Resource = mock_resource
-            mock_models.Permission = mock_permission
-            mock_models.assoc_permission_role = mock_assoc
+        with create_session() as session:
+            # Create resource without permissions
+            resource = Resource(name=f"{RESOURCE_DAG_PREFIX}test_dag")
+            session.add(resource)
+            session.commit()
+            resource_id = resource.id
 
-            # Mock session
-            mock_session = MagicMock()
+            cleanup_dag_permissions("test_dag", session)
+            assert not session.get(Resource, resource_id)
 
-            # Mock resources exist
-            mock_dag_resource = MagicMock()
-            mock_dag_resource.id = 1
+    def test_cleanup_dag_permissions_with_default_session(self):
+        """Test cleanup_dag_permissions when no session is provided (uses default)."""
+        from sqlalchemy import func, select
 
-            # Mock permissions exist
-            mock_dag_permission = MagicMock()
-            mock_dag_permission.id = 1
-
-            # Setup mock returns for different select queries
-            def mock_scalars_side_effect(stmt):
-                mock_result = MagicMock()
-                # Return resources for resource queries
-                mock_result.all.return_value = [mock_dag_resource]
-                return mock_result
-
-            mock_session.scalars.side_effect = mock_scalars_side_effect
-            mock_session.execute.return_value = None
-
-            cleanup_dag_permissions("test_dag", mock_session)
-
-            # Should perform database operations
-            assert mock_session.scalars.called or mock_session.execute.called
-
-    def test_cleanup_dag_permissions_with_resources_but_no_permissions(self):
-        """Test cleanup_dag_permissions with resources but no permissions."""
         from airflow.providers.fab.auth_manager.cli_commands.permissions_command import (
             cleanup_dag_permissions,
         )
+        from airflow.providers.fab.auth_manager.models import Resource
+        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+        from airflow.utils.session import create_session
 
-        # Mock FAB models and select/delete
-        with (
-            patch("airflow.providers.fab.auth_manager.models") as mock_models,
-            patch("sqlalchemy.select"),
-            patch("sqlalchemy.delete"),
-        ):
-            mock_resource = MagicMock()
-            mock_permission = MagicMock()
-            mock_assoc = MagicMock()
-            mock_models.Resource = mock_resource
-            mock_models.Permission = mock_permission
-            mock_models.assoc_permission_role = mock_assoc
+        # Setup test data
+        with create_session() as session:
+            resource = Resource(name=f"{RESOURCE_DAG_PREFIX}test_dag")
+            session.add(resource)
+            session.commit()
 
-            # Mock session
-            mock_session = MagicMock()
+        # Call cleanup without session parameter
+        cleanup_dag_permissions("test_dag")
 
-            # Mock resources exist but no permissions
-            mock_dag_resource = MagicMock()
-            mock_dag_resource.id = 1
-
-            def mock_scalars_side_effect(stmt):
-                mock_result = MagicMock()
-                # Return resources for resource queries
-                mock_result.all.return_value = [mock_dag_resource]
-                return mock_result
-
-            mock_session.scalars.side_effect = mock_scalars_side_effect
-            mock_session.execute.return_value = None
-
-            cleanup_dag_permissions("test_dag", mock_session)
-
-            # Should still perform database operations
-            assert mock_session.scalars.called or mock_session.execute.called
+        # Verify deletion
+        with create_session() as session:
+            count = session.scalar(
+                select(func.count(Resource.id)).where(Resource.name == f"{RESOURCE_DAG_PREFIX}test_dag")
+            )
+            assert count == 0
