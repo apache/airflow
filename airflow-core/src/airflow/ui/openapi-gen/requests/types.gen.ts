@@ -2374,7 +2374,7 @@ export type GetDagsData = {
      */
     hasAssetSchedule?: boolean | null;
     /**
-     * Filter DAGs by having import errors. Only DAGs that have been successfully loaded before will be returned.
+     * Filter DAGs by having import errors. Only Dags that have been successfully loaded before will be returned.
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
@@ -2481,7 +2481,7 @@ export type GetDagsUiData = {
      */
     hasAssetSchedule?: boolean | null;
     /**
-     * Filter DAGs by having import errors. Only DAGs that have been successfully loaded before will be returned.
+     * Filter DAGs by having import errors. Only Dags that have been successfully loaded before will be returned.
      */
     hasImportErrors?: boolean | null;
     hasPendingActions?: boolean | null;
