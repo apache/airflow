@@ -37,7 +37,6 @@ from airflow_shared.secrets_masker.secrets_masker import (
     merge,
     redact,
     reset_secrets_masker,
-    should_hide_value_for_key,
 )
 
 from tests_common.test_utils.config import env_vars
@@ -258,11 +257,8 @@ class TestSecretsMasker:
         filt = SecretsMasker()
         configure_secrets_masker_for_test(filt)
 
-        try:
-            filt.add_mask(value, name)
-            assert filt.patterns == expected_mask
-        finally:
-            reset_secrets_masker()
+        filt.add_mask(value, name)
+        assert filt.patterns == expected_mask
 
     @pytest.mark.parametrize(
         ("patterns", "name", "value", "expected"),
@@ -447,16 +443,9 @@ class TestShouldHideValueForKey:
         ],
     )
     def test_hiding_defaults(self, key, expected_result):
-        # Configure the global secrets masker for this test
-        from airflow_shared.secrets_masker.secrets_masker import _secrets_masker
-
-        masker = _secrets_masker()
+        masker = SecretsMasker()
         configure_secrets_masker_for_test(masker)
-
-        try:
-            assert expected_result == should_hide_value_for_key(key)
-        finally:
-            reset_secrets_masker()
+        assert expected_result == masker.should_hide_value_for_key(key)
 
     @pytest.mark.parametrize(
         ("sensitive_variable_fields", "key", "expected_result"),
@@ -474,9 +463,7 @@ class TestShouldHideValueForKey:
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
         env_value = str(sensitive_variable_fields) if sensitive_variable_fields is not None else ""
         with env_vars({"AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES": env_value}):
-            from airflow_shared.secrets_masker.secrets_masker import DEFAULT_SENSITIVE_FIELDS, _secrets_masker
-
-            masker = _secrets_masker()
+            masker = SecretsMasker()
             configure_secrets_masker_for_test(masker)
             if sensitive_variable_fields:
                 additional_fields = {
@@ -486,10 +473,7 @@ class TestShouldHideValueForKey:
             else:
                 masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
 
-            try:
-                assert expected_result == should_hide_value_for_key(key)
-            finally:
-                reset_secrets_masker()
+            assert expected_result == masker.should_hide_value_for_key(key)
 
 
 class ShortExcFormatter(logging.Formatter):
@@ -836,6 +820,10 @@ class TestMixedDataScenarios:
 class TestSecretsMaskerMerge:
     """Test the merge functionality for restoring original values from redacted data."""
 
+    def setup_method(self):
+        self.masker = SecretsMasker()
+        configure_secrets_masker_for_test(self.masker)
+
     @pytest.mark.parametrize(
         ("new_value", "old_value", "name", "expected"),
         [
@@ -848,7 +836,7 @@ class TestSecretsMaskerMerge:
         ],
     )
     def test_merge_simple_strings(self, new_value, old_value, name, expected):
-        result = merge(new_value, old_value, name)
+        result = self.masker.merge(new_value, old_value, name)
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -900,7 +888,7 @@ class TestSecretsMaskerMerge:
         ],
     )
     def test_merge_dictionaries(self, old_data, new_data, expected):
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -984,17 +972,19 @@ class TestSecretsMaskerMerge:
         ],
     )
     def test_merge_collections(self, old_data, new_data, name, expected):
-        result = merge(new_data, old_data, name)
+        result = self.masker.merge(new_data, old_data, name)
         assert result == expected
 
     def test_merge_mismatched_types(self):
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
         old_data = {"key": "value"}
         new_data = "some_string"  # Different type
 
         # When types don't match, prefer the new item
         expected = "some_string"
 
-        result = merge(new_data, old_data)
+        result = masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_with_missing_keys(self):
@@ -1012,7 +1002,7 @@ class TestSecretsMaskerMerge:
             "common_key": "new_common",
         }
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_complex_redacted_structures(self):
@@ -1029,7 +1019,7 @@ class TestSecretsMaskerMerge:
             "normal_field": "new_normal_value",
         }
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         expected = {
             "some_config": {
                 "nested_password": "original_nested_password",
@@ -1070,7 +1060,7 @@ class TestSecretsMaskerMerge:
             }
         }
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_max_depth(self):
@@ -1080,14 +1070,14 @@ class TestSecretsMaskerMerge:
         result = merge(new_data, old_data, max_depth=1)
         assert result == new_data
 
-        result = merge(new_data, old_data, max_depth=10)
+        result = self.masker.merge(new_data, old_data, max_depth=10)
         assert result["level1"]["level2"]["level3"]["password"] == "original_password"
 
     def test_merge_enum_values(self):
         old_enum = MyEnum.testname
         new_enum = MyEnum.testname2
 
-        result = merge(new_enum, old_enum)
+        result = self.masker.merge(new_enum, old_enum)
         assert result == new_enum
         assert isinstance(result, MyEnum)
 
@@ -1100,7 +1090,7 @@ class TestSecretsMaskerMerge:
         }
 
         # Step 1: Redact the original data
-        redacted_dict = redact(original_config)
+        redacted_dict = self.masker.redact(original_config)
 
         # Verify sensitive fields are redacted
         assert redacted_dict["database"]["password"] == "***"
@@ -1115,7 +1105,7 @@ class TestSecretsMaskerMerge:
         # User left password as "***" (unchanged)
 
         # Step 3: Merge to restore unchanged sensitive values
-        final_dict = merge(updated_dict, original_config)
+        final_dict = self.masker.merge(updated_dict, original_config)
 
         # Verify the results
         assert final_dict["database"]["password"] == "super_secret_password"  # Restored
