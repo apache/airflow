@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
+from urllib.parse import quote
 
 import attrs
 import lazy_object_proxy
@@ -147,8 +148,6 @@ class RuntimeTaskInstance(TaskInstance):
 
     rendered_map_index: str | None = None
 
-    log_url: str | None = None
-
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -182,8 +181,6 @@ class RuntimeTaskInstance(TaskInstance):
             "run_id": self.run_id,
             "task": self.task,
             "task_instance": self,
-            # TODO: Ensure that ti.log_url and such are available to use in context
-            #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
             "inlet_events": InletEventsAccessors(self.task.inlets),
@@ -552,6 +549,26 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.state
 
+    @property
+    def log_url(self) -> str:
+        run_id = quote(self.run_id)
+        base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
+        map_index_value = self.map_index
+        map_index = (
+            f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
+        )
+        try_number_value = self.try_number
+        try_number = (
+            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
+        )
+        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        return _log_uri
+
+    @property
+    def mark_success_url(self) -> str:
+        """URL to mark TI success."""
+        return self.log_url
+
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
@@ -728,7 +745,6 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
-        ti.log_url = get_log_url_from_ti(ti)
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
