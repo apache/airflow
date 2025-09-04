@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-04T07:46:36.665816
+# This constraints file was automatically generated on 2025-09-04T13:57:06.971026
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -479,7 +479,7 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.105.0
+openai==1.106.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.37.0
@@ -592,7 +592,7 @@ requests==2.32.5
 requests_ntlm==1.3.0
 retryhttp==1.3.3
 rich-argparse==1.7.1
-rich-toolkit==0.15.0
+rich-toolkit==0.15.1
 rich==13.9.4
 rpds-py==0.27.1
 rsa==4.9.1
@@ -607,7 +607,7 @@ scramp==1.4.6
 scrapbook==0.5.0
 segment-analytics-python==2.3.4
 sendgrid==6.12.4
-sentry-sdk==2.35.2
+sentry-sdk==2.36.0
 setproctitle==1.3.6
 shapely==2.1.1
 shellingham==1.5.4
