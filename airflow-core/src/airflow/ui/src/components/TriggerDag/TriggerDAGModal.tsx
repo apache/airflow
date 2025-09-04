@@ -19,7 +19,7 @@
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
@@ -50,9 +50,15 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   open,
 }) => {
   const { t: translate } = useTranslation("components");
-  const { search } = useLocation();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
   const params = new URLSearchParams(search);
   const urlRunMode = decodeParam(params, "mode");
+
+  const handleClose = () => {
+    navigate(pathname, { replace: true });
+    onClose();
+  };
 
   // Initialize runMode based on URL parameter or default to SINGLE
   const getInitialRunMode = (): RunMode => (urlRunMode === "backfill" ? RunMode.BACKFILL : RunMode.SINGLE);
@@ -88,7 +94,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
           </VStack>
         </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+        <Dialog.CloseTrigger onClick={handleClose} />
 
         <Dialog.Body>
           {isLoading ? (
@@ -139,7 +145,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   open={open}
                 />
               ) : (
-                hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />
+                hasSchedule && dag && <RunBackfillForm dag={dag} onClose={handleClose} />
               )}
             </>
           )}
