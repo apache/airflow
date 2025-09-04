@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     import structlog.typing
@@ -47,6 +47,11 @@ class RemoteLogIO(Protocol):
     def read(self, relative_path: str, ti: RuntimeTI) -> LegacyLogResponse:
         """Read logs from the given remote log path."""
         ...
+
+
+@runtime_checkable
+class RemoteLogStreamIO(Protocol):
+    """Interface for remote task loggers with stream-based read support."""
 
     def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         """Stream-based read interface for reading logs from the given remote log path."""
