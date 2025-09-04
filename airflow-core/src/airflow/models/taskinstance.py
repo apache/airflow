@@ -124,8 +124,8 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
 
@@ -1534,12 +1534,9 @@ class TaskInstance(Base, LoggingMixin):
             assert original_task is not None
             assert original_task.dag is not None
 
-        serialized_task = SerializedDAG.deserialize_dag(
-            SerializedDAG.serialize_dag(original_task.dag)
-        ).task_dict[original_task.task_id]
-        # TODO (GH-52141): task_dict in scheduler should contain scheduler
-        # types instead, but currently it inherits SDK's DAG.
-        self.task = cast("Operator", serialized_task)
+        self.task = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag)).task_dict[
+            original_task.task_id
+        ]
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
@@ -2286,7 +2283,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
 
-def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
+def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> SerializedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""
     if node1.dag is None or node2.dag is None or node1.dag_id != node2.dag_id:
         return None
@@ -2295,16 +2292,15 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
     return next(common_groups, None)
 
 
-def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
+def _is_further_mapped_inside(operator: Operator, container: SerializedTaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.models.mappedoperator import is_mapped
 
-    if isinstance(operator, MappedOperator):
+    if is_mapped(operator):
         return True
     task_group = operator.task_group
     while task_group is not None and task_group.group_id != container.group_id:
-        if isinstance(task_group, MappedTaskGroup):
+        if is_mapped(task_group):
             return True
         task_group = task_group.parent_group
     return False
