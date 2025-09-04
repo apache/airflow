@@ -29,6 +29,11 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
+    TaskInstance as TIDataModel,
+    TIRunContext,
+)
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, TaskInstanceNotFound
@@ -38,6 +43,7 @@ from airflow.models.dagrun import DagRun, get_or_create_dagrun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -53,7 +59,6 @@ from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -429,7 +434,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
     if not dag:
-        dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        dag = get_bagged_dag(args.bundle_name, args.dag_id, args.dagfile_path)
     serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
     ti, _ = _get_ti(
         serialized_dag.get_task(task_id=args.task_id),
@@ -438,27 +443,32 @@ def task_render(args, dag: DAG | None = None) -> None:
         create_if_necessary="memory",
     )
 
-    with create_session() as session, set_current_task_instance_session(session=session):
-        context = ti.get_template_context(session=session)
-        task = dag.get_task(args.task_id)
-        # TODO (GH-52141): After sdk separation, ti.get_template_context() would
-        # contain serialized operators, but we need the real operators for
-        # rendering. This does not make sense and eventually we should rewrite
-        # this entire function so "ti" is a RuntimeTaskInstance instead, but for
-        # now we'll just manually fix it to contain the right objects.
-        context["task"] = context["ti"].task = task
-        task.render_template_fields(context)
-        for attr in context["task"].template_fields:
-            print(
-                textwrap.dedent(
-                    f"""\
-                    # ----------------------------------------------------------
-                    # property: {attr}
-                    # ----------------------------------------------------------
-                    """
-                )
-                + str(getattr(context["task"], attr))  # This shouldn't be dedented.
+    task = dag.get_task(args.task_id)
+
+    rti = RuntimeTaskInstance.model_construct(
+        **TIDataModel.model_validate(ti).model_dump(),
+        task=task,
+        _ti_context_from_server=TIRunContext(
+            dag_run=DRDataModel.model_validate(ti.dag_run),
+            max_tries=ti.max_tries,
+        ),
+        max_tries=ti.max_tries,
+        start_date=ti.start_date,
+    )
+
+    rti.render_templates()
+
+    for attr in rti.task.template_fields:
+        print(
+            textwrap.dedent(
+                f"""\
+                # ----------------------------------------------------------
+                # property: {attr}
+                # ----------------------------------------------------------
+                """
             )
+            + str(getattr(rti.task, attr))  # This shouldn't be dedented.
+        )
 
 
 @cli_utils.action_cli(check_db=False)
