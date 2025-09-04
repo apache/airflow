@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
+from airflow.models import DagBag
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
