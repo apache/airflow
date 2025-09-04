@@ -476,8 +476,8 @@ class SerializedDagModel(Base):
         """
         # Subquery to get the latest serdag per dag_id
         latest_serdag_subquery = (
-            session.query(cls.dag_id, func.max(cls.created_at).label("created_at"))
-            .filter(cls.dag_id.in_(dag_ids))
+            select(cls.dag_id, func.max(cls.created_at).label("created_at"))
+            .where(cls.dag_id.in_(dag_ids))
             .group_by(cls.dag_id)
             .subquery()
         )
@@ -501,9 +501,7 @@ class SerializedDagModel(Base):
         :returns: a dict of DAGs read from database
         """
         latest_serialized_dag_subquery = (
-            session.query(cls.dag_id, func.max(cls.created_at).label("max_created"))
-            .group_by(cls.dag_id)
-            .subquery()
+            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
         )
         serialized_dags = session.scalars(
             select(cls).join(

@@ -534,17 +534,6 @@ class SecretsMasker(logging.Filter):
 
         return conf.getimport("logging", "secret_mask_adapter", fallback=None)
 
-    @cached_property
-    def _test_mode(self) -> bool:
-        """
-        Pulls the unit test mode flag from config.
-
-        This lives in a function here to be cached and only hit the config once.
-        """
-        from airflow.configuration import conf
-
-        return conf.getboolean("core", "unit_test_mode")
-
     def _adaptations(self, secret: str) -> Generator[str, None, None]:
         """Yield the secret along with any adaptations to the secret that should be masked."""
         yield secret

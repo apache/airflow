@@ -73,8 +73,6 @@ from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowInactiveAssetInInletOrOutletException,
-    TaskDeferralError,
-    TaskDeferred,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
@@ -124,8 +122,8 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
 
@@ -264,16 +262,14 @@ def clear_task_instances(
         for instance in tis:
             run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
-        drs = (
-            session.query(DagRun)
-            .filter(
+        drs = session.scalars(
+            select(DagRun).where(
                 or_(
                     and_(DagRun.dag_id == dag_id, DagRun.run_id.in_(run_ids))
                     for dag_id, run_ids in run_ids_by_dag_id.items()
                 )
             )
-            .all()
-        )
+        ).all()
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             if dr.state in State.finished_dr_states:
@@ -288,6 +284,8 @@ def clear_task_instances(
                         dr.created_dag_version_id = dag_version.id
                         dr.dag = dr_dag
                         dr.verify_integrity(session=session, dag_version_id=dag_version.id)
+                        for ti in dr.task_instances:
+                            ti.dag_version_id = dag_version.id
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
@@ -659,7 +657,7 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
         query = (
-            session.query(TaskInstance)
+            select(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
@@ -672,9 +670,9 @@ class TaskInstance(Base, LoggingMixin):
         if lock_for_update:
             for attempt in run_with_db_retries(logger=cls.logger()):
                 with attempt:
-                    return query.with_for_update().one_or_none()
+                    return session.execute(query.with_for_update()).scalar_one_or_none()
         else:
-            return query.one_or_none()
+            return session.execute(query).scalar_one_or_none()
 
         return None
 
@@ -824,13 +822,13 @@ class TaskInstance(Base, LoggingMixin):
         if not task.downstream_task_ids:
             return True
 
-        ti = session.query(func.count(TaskInstance.task_id)).filter(
+        ti = select(func.count(TaskInstance.task_id)).where(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
             TaskInstance.state.in_((TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)),
         )
-        count = ti[0][0]
+        count = session.scalar(ti)
         return count == len(task.downstream_task_ids)
 
     @provide_session
@@ -1005,7 +1003,9 @@ class TaskInstance(Base, LoggingMixin):
     def _get_dagrun(dag_id, run_id, session) -> DagRun:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
-        dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+        dr = session.execute(
+            select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ).scalar_one()
         return dr
 
     @provide_session
@@ -1432,82 +1432,6 @@ class TaskInstance(Base, LoggingMixin):
             )
 
     @provide_session
-    def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
-        """
-        Mark the task as deferred and sets up the trigger to resume it.
-
-        :meta: private
-        """
-        from airflow.models.trigger import Trigger
-
-        # TODO: TaskSDK add start_trigger_args to SDK definitions
-        if TYPE_CHECKING:
-            assert self.task is not None
-
-        timeout: timedelta | None
-        if exception is not None:
-            trigger_row = Trigger.from_object(exception.trigger)
-            next_method = exception.method_name
-            next_kwargs = exception.kwargs
-            timeout = exception.timeout
-        elif self.task is not None and self.task.start_trigger_args is not None:
-            context = self.get_template_context()
-            start_trigger_args = self.task.expand_start_trigger_args(context=context)
-            if start_trigger_args is None:
-                raise TaskDeferralError(
-                    "A none 'None' start_trigger_args has been change to 'None' during expandion"
-                )
-
-            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
-            next_kwargs = start_trigger_args.next_kwargs
-            next_method = start_trigger_args.next_method
-            timeout = start_trigger_args.timeout
-            trigger_row = Trigger(
-                classpath=self.task.start_trigger_args.trigger_cls,
-                kwargs=trigger_kwargs,
-            )
-        else:
-            raise TaskDeferralError("exception and ti.task.start_trigger_args cannot both be None")
-
-        # First, make the trigger entry
-        session.add(trigger_row)
-        session.flush()
-
-        if TYPE_CHECKING:
-            assert self.task
-
-        # Then, update ourselves so it matches the deferral request
-        # Keep an eye on the logic in `check_and_change_state_before_execution()`
-        # depending on self.next_method semantics
-        self.state = TaskInstanceState.DEFERRED
-        self.trigger_id = trigger_row.id
-        self.next_method = next_method
-        self.next_kwargs = next_kwargs or {}
-
-        # Calculate timeout too if it was passed
-        if timeout is not None:
-            self.trigger_timeout = timezone.utcnow() + timeout
-        else:
-            self.trigger_timeout = None
-
-        # If an execution_timeout is set, set the timeout to the minimum of
-        # it and the trigger timeout
-        execution_timeout = self.task.execution_timeout
-        if execution_timeout:
-            if TYPE_CHECKING:
-                assert self.start_date
-            if self.trigger_timeout:
-                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
-            else:
-                self.trigger_timeout = self.start_date + execution_timeout
-        if self.test_mode:
-            _add_log(event=self.state, task_instance=self, session=session)
-
-        if exception is not None:
-            session.merge(self)
-            session.commit()
-
-    @provide_session
     def run(
         self,
         verbose: bool = True,
@@ -1532,12 +1456,9 @@ class TaskInstance(Base, LoggingMixin):
             assert original_task is not None
             assert original_task.dag is not None
 
-        serialized_task = SerializedDAG.deserialize_dag(
-            SerializedDAG.serialize_dag(original_task.dag)
-        ).task_dict[original_task.task_id]
-        # TODO (GH-52141): task_dict in scheduler should contain scheduler
-        # types instead, but currently it inherits SDK's DAG.
-        self.task = cast("Operator", serialized_task)
+        self.task = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag)).task_dict[
+            original_task.task_id
+        ]
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
@@ -1947,7 +1868,6 @@ class TaskInstance(Base, LoggingMixin):
             task_ids=task_ids,
             map_indexes=map_indexes,
             include_prior_dates=include_prior_dates,
-            session=session,
         )
 
         # NOTE: Since we're only fetching the value field and not the whole
@@ -1956,8 +1876,14 @@ class TaskInstance(Base, LoggingMixin):
 
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(
-                XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
+            first = session.execute(
+                query.with_only_columns(
+                    XComModel.run_id,
+                    XComModel.task_id,
+                    XComModel.dag_id,
+                    XComModel.map_index,
+                    XComModel.value,
+                )
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
@@ -1998,16 +1924,20 @@ class TaskInstance(Base, LoggingMixin):
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
         """Return Number of running TIs from the DB."""
         # .count() is inefficient
-        num_running_task_instances_query = session.query(func.count()).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id == self.task_id,
-            TaskInstance.state == TaskInstanceState.RUNNING,
+        num_running_task_instances_query = (
+            select(func.count())
+            .select_from(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.state == TaskInstanceState.RUNNING,
+            )
         )
         if same_dagrun:
-            num_running_task_instances_query = num_running_task_instances_query.filter(
+            num_running_task_instances_query = num_running_task_instances_query.where(
                 TaskInstance.run_id == self.run_id
             )
-        return num_running_task_instances_query.scalar()
+        return session.scalar(num_running_task_instances_query)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
@@ -2275,7 +2205,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
 
-def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
+def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> SerializedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""
     if node1.dag is None or node2.dag is None or node1.dag_id != node2.dag_id:
         return None
@@ -2284,16 +2214,15 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
     return next(common_groups, None)
 
 
-def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
+def _is_further_mapped_inside(operator: Operator, container: SerializedTaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.models.mappedoperator import is_mapped
 
-    if isinstance(operator, MappedOperator):
+    if is_mapped(operator):
         return True
     task_group = operator.task_group
     while task_group is not None and task_group.group_id != container.group_id:
-        if isinstance(task_group, MappedTaskGroup):
+        if is_mapped(task_group):
             return True
         task_group = task_group.parent_group
     return False
