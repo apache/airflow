@@ -22,7 +22,6 @@ import hashlib
 import itertools
 import logging
 import math
-import operator
 import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
@@ -73,8 +72,6 @@ from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowInactiveAssetInInletOrOutletException,
-    TaskDeferralError,
-    TaskDeferred,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
@@ -1434,82 +1431,6 @@ class TaskInstance(Base, LoggingMixin):
             )
 
     @provide_session
-    def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
-        """
-        Mark the task as deferred and sets up the trigger to resume it.
-
-        :meta: private
-        """
-        from airflow.models.trigger import Trigger
-
-        # TODO: TaskSDK add start_trigger_args to SDK definitions
-        if TYPE_CHECKING:
-            assert self.task is not None
-
-        timeout: timedelta | None
-        if exception is not None:
-            trigger_row = Trigger.from_object(exception.trigger)
-            next_method = exception.method_name
-            next_kwargs = exception.kwargs
-            timeout = exception.timeout
-        elif self.task is not None and self.task.start_trigger_args is not None:
-            context = self.get_template_context()
-            start_trigger_args = self.task.expand_start_trigger_args(context=context)
-            if start_trigger_args is None:
-                raise TaskDeferralError(
-                    "A none 'None' start_trigger_args has been change to 'None' during expandion"
-                )
-
-            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
-            next_kwargs = start_trigger_args.next_kwargs
-            next_method = start_trigger_args.next_method
-            timeout = start_trigger_args.timeout
-            trigger_row = Trigger(
-                classpath=self.task.start_trigger_args.trigger_cls,
-                kwargs=trigger_kwargs,
-            )
-        else:
-            raise TaskDeferralError("exception and ti.task.start_trigger_args cannot both be None")
-
-        # First, make the trigger entry
-        session.add(trigger_row)
-        session.flush()
-
-        if TYPE_CHECKING:
-            assert self.task
-
-        # Then, update ourselves so it matches the deferral request
-        # Keep an eye on the logic in `check_and_change_state_before_execution()`
-        # depending on self.next_method semantics
-        self.state = TaskInstanceState.DEFERRED
-        self.trigger_id = trigger_row.id
-        self.next_method = next_method
-        self.next_kwargs = next_kwargs or {}
-
-        # Calculate timeout too if it was passed
-        if timeout is not None:
-            self.trigger_timeout = timezone.utcnow() + timeout
-        else:
-            self.trigger_timeout = None
-
-        # If an execution_timeout is set, set the timeout to the minimum of
-        # it and the trigger timeout
-        execution_timeout = self.task.execution_timeout
-        if execution_timeout:
-            if TYPE_CHECKING:
-                assert self.start_date
-            if self.trigger_timeout:
-                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
-            else:
-                self.trigger_timeout = self.start_date + execution_timeout
-        if self.test_mode:
-            _add_log(event=self.state, task_instance=self, session=session)
-
-        if exception is not None:
-            session.merge(self)
-            session.commit()
-
-    @provide_session
     def run(
         self,
         verbose: bool = True,
@@ -1592,34 +1513,19 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
-        context = None
-        # In extreme cases (task instance heartbeat timeout in case of dag with
-        # parse error) we might _not_ have a Task.
-        if getattr(ti, "task", None):
-            context = ti.get_template_context(session)
-
-        if context is not None:
-            context["exception"] = error
-
         # Set state correctly and figure out how to log it and decide whether
         # to email
-
-        # Note, callback invocation needs to be handled by caller of
-        # _run_raw_task to avoid race conditions which could lead to duplicate
-        # invocations or miss invocation.
 
         # Since this function is called only when the TaskInstance state is running,
         # try_number contains the current try_number (not the next). We
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        # Use the original task directly - scheduler only needs to check email settings
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
-            email_for_state = operator.attrgetter("email_on_failure")
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
@@ -1631,7 +1537,6 @@ class TaskInstance(Base, LoggingMixin):
                 ti.prepare_db_for_next_try(session)
 
             ti.state = State.UP_FOR_RETRY
-            email_for_state = operator.attrgetter("email_on_retry")
 
         try:
             get_listener_manager().hook.on_task_instance_failed(
@@ -1640,12 +1545,7 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             log.exception("error calling listener")
 
-        return {
-            "ti": ti,
-            "email_for_state": email_for_state,
-            "task": task,
-            "context": context,
-        }
+        return ti
 
     @staticmethod
     @provide_session
@@ -1678,7 +1578,7 @@ class TaskInstance(Base, LoggingMixin):
             fail_fast = False
         if test_mode is None:
             test_mode = self.test_mode
-        failure_context = TaskInstance.fetch_handle_failure_context(
+        ti = TaskInstance.fetch_handle_failure_context(
             ti=self,
             error=error,
             test_mode=test_mode,
@@ -1687,23 +1587,9 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         _log_state(task_instance=self)
-        if (
-            (failure_task := failure_context["task"])
-            and failure_context["email_for_state"](failure_task)
-            and (failure_email := failure_task.email)
-        ):
-            try:
-                import structlog
-
-                from airflow.sdk.execution_time.task_runner import _send_task_error_email
-
-                log = structlog.get_logger(logger_name="task")
-                _send_task_error_email(failure_email, self, error, log=log)
-            except Exception:
-                log.exception("Failed to send email to: %s", failure_email)
 
         if not test_mode:
-            TaskInstance.save_to_db(failure_context["ti"], session)
+            TaskInstance.save_to_db(ti, session)
 
     def is_eligible_to_retry(self) -> bool:
         """Is task instance is eligible for retry."""
