@@ -3563,7 +3563,7 @@ export const $HITLDetail = {
             ],
             title: 'Respondents'
         },
-        user_id: {
+        responded_user_id: {
             anyOf: [
                 {
                     type: 'string'
@@ -3572,7 +3572,18 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'User Id'
+            title: 'Responded User Id'
+        },
+        responded_user_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Responded User Name'
         },
         response_at: {
             anyOf: [
@@ -3639,9 +3650,13 @@ export const $HITLDetailCollection = {
 
 export const $HITLDetailResponse = {
     properties: {
-        user_id: {
+        responded_user_id: {
             type: 'string',
-            title: 'User Id'
+            title: 'Responded User Id'
+        },
+        responded_user_name: {
+            type: 'string',
+            title: 'Responded User Name'
         },
         response_at: {
             type: 'string',
@@ -3663,7 +3678,7 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['user_id', 'response_at', 'chosen_options'],
+    required: ['responded_user_id', 'responded_user_name', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
 } as const;
@@ -7135,6 +7150,13 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Latest Dag Runs'
         },
+        pending_actions: {
+            items: {
+                '$ref': '#/components/schemas/HITLDetail'
+            },
+            type: 'array',
+            title: 'Pending Actions'
+        },
         file_token: {
             type: 'string',
             title: 'File Token',
@@ -7143,7 +7165,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'asset_expression', 'latest_dag_runs', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;

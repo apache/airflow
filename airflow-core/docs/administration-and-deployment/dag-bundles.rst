@@ -165,3 +165,8 @@ Other Considerations
 - **Concurrency**: Workers may create many bundles simultaneously, and does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
   that is problematic for the underlying technology. For example, if you are cloning a git repo, the bundle class is responsible for locking to ensure only 1 bundle
   object is cloning at a time. There is a ``lock`` method in the base class that can be used for this purpose, if necessary.
+
+- **Triggerer Limitation**: DAG bundles are not initialized in the triggerer component. In practice, this means that triggers cannot come from a DAG bundle.
+  This is because the triggerer does not deal with changes in trigger code over time, as everything happens in the main process.
+  Triggers can come from anywhere else on ``sys.path`` instead. If you need to use custom triggers, ensure they are available in the Python environment's
+  ``sys.path`` rather than being sourced from DAG bundles.

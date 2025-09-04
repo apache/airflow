@@ -33,10 +33,11 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.models.team import Team
 from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -57,11 +58,12 @@ class Variable(Base, LoggingMixin):
     is_encrypted = Column(Boolean, unique=False, default=False)
     team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
-    def __init__(self, key=None, val=None, description=None):
+    def __init__(self, key=None, val=None, description=None, team_id=None):
         super().__init__()
         self.key = key
         self.val = val
         self.description = description
+        self.team_id = team_id
 
     @reconstructor
     def on_db_load(self):
@@ -452,3 +454,11 @@ class Variable(Base, LoggingMixin):
 
         SecretCache.save_variable(key, var_val)  # we save None as well
         return var_val
+
+    @staticmethod
+    @provide_session
+    def get_team_name(variable_key: str, session=NEW_SESSION) -> str | None:
+        stmt = (
+            select(Team.name).join(Variable, Team.id == Variable.team_id).where(Variable.key == variable_key)
+        )
+        return session.scalar(stmt)

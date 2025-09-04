@@ -23,9 +23,22 @@ from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    ConnectionDetails,
+    DagAccessEntity,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.api_fastapi.core_api.security import is_safe_url, requires_access_dag, resolve_user_from_token
+from airflow.api_fastapi.core_api.security import (
+    is_safe_url,
+    requires_access_connection,
+    requires_access_dag,
+    requires_access_pool,
+    requires_access_variable,
+    resolve_user_from_token,
+)
+from airflow.models import Connection, Pool, Variable
 
 from tests_common.test_utils.config import conf_vars
 
@@ -141,3 +154,78 @@ class TestFastApiSecurity:
         request = Mock()
         request.base_url = "https://requesting_server_base_url.com/prefix2"
         assert is_safe_url(url, request=request) == expected_is_safe
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "team_name",
+        [None, "team1"],
+    )
+    @patch.object(Connection, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_connection(self, mock_get_auth_manager, mock_get_team_name, team_name):
+        auth_manager = Mock()
+        auth_manager.is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock()
+        fastapi_request.path_params = {"connection_id": "conn_id"}
+        mock_get_team_name.return_value = team_name
+        user = Mock()
+
+        requires_access_connection("GET")(fastapi_request, user)
+
+        auth_manager.is_authorized_connection.assert_called_once_with(
+            method="GET",
+            details=ConnectionDetails(conn_id="conn_id", team_name=team_name),
+            user=user,
+        )
+        mock_get_team_name.assert_called_once_with("conn_id")
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "team_name",
+        [None, "team1"],
+    )
+    @patch.object(Variable, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_variable(self, mock_get_auth_manager, mock_get_team_name, team_name):
+        auth_manager = Mock()
+        auth_manager.is_authorized_variable.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock()
+        fastapi_request.path_params = {"variable_key": "var_key"}
+        mock_get_team_name.return_value = team_name
+        user = Mock()
+
+        requires_access_variable("GET")(fastapi_request, user)
+
+        auth_manager.is_authorized_variable.assert_called_once_with(
+            method="GET",
+            details=VariableDetails(key="var_key", team_name=team_name),
+            user=user,
+        )
+        mock_get_team_name.assert_called_once_with("var_key")
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "team_name",
+        [None, "team1"],
+    )
+    @patch.object(Pool, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_pool(self, mock_get_auth_manager, mock_get_team_name, team_name):
+        auth_manager = Mock()
+        auth_manager.is_authorized_pool.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock()
+        fastapi_request.path_params = {"pool_name": "pool"}
+        mock_get_team_name.return_value = team_name
+        user = Mock()
+
+        requires_access_pool("GET")(fastapi_request, user)
+
+        auth_manager.is_authorized_pool.assert_called_once_with(
+            method="GET",
+            details=PoolDetails(name="pool", team_name=team_name),
+            user=user,
+        )
+        mock_get_team_name.assert_called_once_with("pool")

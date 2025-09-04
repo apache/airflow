@@ -42,6 +42,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
+from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
@@ -103,6 +104,7 @@ def requires_access_dag(
         user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
+        dag_id = dag_id if dag_id != "~" else None
         team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(
@@ -222,10 +224,11 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
+        team_name = Pool.get_team_name(pool_name) if pool_name else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
-                method=method, details=PoolDetails(name=pool_name), user=user
+                method=method, details=PoolDetails(name=pool_name, team_name=team_name), user=user
             )
         )
 
@@ -238,10 +241,13 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
+        team_name = Connection.get_team_name(connection_id) if connection_id else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
-                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
+                method=method,
+                details=ConnectionDetails(conn_id=connection_id, team_name=team_name),
+                user=user,
             )
         )
 
@@ -272,10 +278,11 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
+        team_name = Variable.get_team_name(variable_key) if variable_key else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
-                method=method, details=VariableDetails(key=variable_key), user=user
+                method=method, details=VariableDetails(key=variable_key, team_name=team_name), user=user
             ),
         )
 
