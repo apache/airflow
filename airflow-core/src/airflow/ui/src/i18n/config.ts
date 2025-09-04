@@ -34,6 +34,7 @@ export const supportedLanguages = [
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
+  { code: "pt", name: "Português" },
   { code: "zh-TW", name: "繁體中文" },
   { code: "tr", name: "Türkçe" },
 ] as const;
