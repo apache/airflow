@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-amazon``
 
 Release: ``9.12.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
@@ -103,6 +102,26 @@ Dependent package                                                               
 `apache-airflow-providers-salesforce <https://airflow.apache.org/docs/apache-airflow-providers-salesforce>`_              ``salesforce``
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                            ``ssh``
 ========================================================================================================================  ====================
+
+Optional dependencies
+----------------------
+``aiobotocore`` : aiobotocore[boto3]&gt;=2.21.1
+``cncf.kubernetes`` : apache-airflow-providers-cncf-kubernetes&gt;=7.2.0
+``s3fs`` : s3fs&gt;=2023.10.0
+``python3-saml`` : python3-saml&gt;=1.16.0; python_version &lt; &#39;3.13&#39;, xmlsec&gt;=1.3.14; python_version &lt; &#39;3.13&#39;, lxml&gt;=6.0.0; python_version &lt; &#39;3.13&#39;
+``apache.hive`` : apache-airflow-providers-apache-hive
+``exasol`` : apache-airflow-providers-exasol
+``fab`` : apache-airflow-providers-fab&gt;=2.2.0; python_version &lt; &#39;3.13&#39;
+``ftp`` : apache-airflow-providers-ftp
+``google`` : apache-airflow-providers-google
+``imap`` : apache-airflow-providers-imap
+``microsoft.azure`` : apache-airflow-providers-microsoft-azure
+``mongo`` : apache-airflow-providers-mongo
+``openlineage`` : apache-airflow-providers-openlineage&gt;=2.3.0
+``salesforce`` : apache-airflow-providers-salesforce
+``ssh`` : apache-airflow-providers-ssh
+``standard`` : apache-airflow-providers-standard
+``common.messaging`` : apache-airflow-providers-common-messaging&gt;=1.0.3
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.12.0/changelog.html>`_.
