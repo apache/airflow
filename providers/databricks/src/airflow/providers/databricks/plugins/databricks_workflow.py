@@ -27,9 +27,8 @@ from flask_appbuilder import BaseView
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink, TaskGroup, XCom
@@ -89,7 +88,7 @@ def get_databricks_task_ids(
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
-    def _get_dag(dag_id: str, session: Session) -> DAG:
+    def _get_dag(dag_id: str, session: Session):
         from airflow.models.serialized_dag import SerializedDagModel
 
         dag = SerializedDagModel.get_dag(dag_id, session=session)
@@ -97,7 +96,7 @@ if not AIRFLOW_V_3_0_PLUS:
             raise AirflowException("Dag not found.")
         return dag
 
-    def _get_dagrun(dag: DAG, run_id: str, session: Session) -> DagRun:
+    def _get_dagrun(dag, run_id: str, session: Session) -> DagRun:
         """
         Retrieve the DagRun object associated with the specified DAG and run_id.
 

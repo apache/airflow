@@ -43,6 +43,7 @@ from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.compat import EmptyOperator, PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
@@ -199,7 +200,7 @@ class TestOpenLineageListenerAirflow2:
         )
         t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
         run_id = str(uuid.uuid1())
-        dagrun = dag.create_dagrun(
+        dagrun = create_scheduler_dag(dag).create_dagrun(
             run_id=run_id,
             data_interval=(date, date),
             run_type=types.DagRunType.MANUAL,
@@ -1059,7 +1060,7 @@ class TestOpenLineageListenerAirflow3:
             "triggered_by": types.DagRunTriggeredByType.TEST,
         }
 
-        dagrun = dag.create_dagrun(
+        dagrun = create_scheduler_dag(dag).create_dagrun(
             run_id=run_id,
             data_interval=(date, date),
             start_date=date,

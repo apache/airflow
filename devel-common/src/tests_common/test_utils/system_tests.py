@@ -71,6 +71,7 @@ def get_test_run(dag, **test_kwargs):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.serialization.serialized_objects import LazyDeserializedDAG
             from airflow.settings import Session
 
             s = Session()
@@ -78,7 +79,7 @@ def get_test_run(dag, **test_kwargs):
             d = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
             s.add(d)
             s.commit()
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
 
         dag_run = dag.test(
             use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1",

@@ -31,11 +31,12 @@ from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
     QueryHITLDetailDagRunIdFilter,
+    QueryHITLDetailRespondedUserIdFilter,
+    QueryHITLDetailRespondedUserNameFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
     QueryHITLDetailTaskIdFilter,
     QueryHITLDetailTaskIdPatternSearch,
-    QueryHITLDetailUserIdFilter,
     QueryLimit,
     QueryOffset,
     QueryTIStateFilter,
@@ -51,6 +52,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
@@ -121,19 +123,21 @@ def _update_hitl_detail(
             ),
         )
 
+    user_id = user.get_id()
+    user_name = user.get_name()
     if hitl_detail_model.respondents:
-        user_id = user.get_id()
         if isinstance(user_id, int):
             # FabAuthManager (ab_user) store user id as integer, but common interface is string type
             user_id = str(user_id)
         if user_id not in hitl_detail_model.respondents:
-            log.error("User=%s is not a respondent for the task", user_id)
+            log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
-                f"User={user_id} is not a respondent for the task.",
+                f"User={user_name} (id={user_id}) is not a respondent for the task.",
             )
 
-    hitl_detail_model.user_id = user.get_id()
+    hitl_detail_model.responded_user_id = user_id
+    hitl_detail_model.responded_user_name = user_name
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
@@ -243,17 +247,18 @@ def get_hitl_details(
         SortParam,
         Depends(
             SortParam(
-                [
+                allowed_attrs=[
                     "ti_id",
                     "subject",
                     "response_at",
-                    "task_instance.dag_id",
-                    "task_instance.run_id",
                 ],
-                HITLDetailModel,
+                model=HITLDetailModel,
                 to_replace={
                     "dag_id": TI.dag_id,
                     "run_id": TI.run_id,
+                    "run_after": DagRun.run_after,
+                    "rendered_map_index": TI.rendered_map_index,
+                    "task_instance_operator": TI.operator,
                 },
             ).dynamic_depends(),
         ),
@@ -269,7 +274,8 @@ def get_hitl_details(
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
-    user_id: QueryHITLDetailUserIdFilter,
+    responded_user_id: QueryHITLDetailRespondedUserIdFilter,
+    responded_user_name: QueryHITLDetailRespondedUserNameFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
 ) -> HITLDetailCollection:
@@ -277,7 +283,12 @@ def get_hitl_details(
     query = (
         select(HITLDetailModel)
         .join(TI, HITLDetailModel.ti_id == TI.id)
-        .options(joinedload(HITLDetailModel.task_instance))
+        .join(TI.dag_run)
+        .options(
+            joinedload(HITLDetailModel.task_instance).options(
+                joinedload(TI.dag_run),
+            )
+        )
     )
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
@@ -292,7 +303,8 @@ def get_hitl_details(
             ti_state,
             # hitl detail related filter
             response_received,
-            user_id,
+            responded_user_id,
+            responded_user_name,
             subject_patten,
             body_patten,
         ],
