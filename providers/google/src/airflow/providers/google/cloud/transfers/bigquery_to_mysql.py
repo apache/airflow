@@ -27,10 +27,6 @@ from typing import TYPE_CHECKING
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
-from airflow.providers.google.common.hooks.base_google import (
-    PROVIDE_PROJECT_ID,
-    GoogleBaseHook,
-)
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 if TYPE_CHECKING:
@@ -92,10 +88,6 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
 
     def get_sql_hook(self) -> MySqlHook:
         return self.mysql_hook
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def get_source_project_dataset_table(self, project_id: str = PROVIDE_PROJECT_ID) -> str:
-        return project_id
 
     def execute(self, context):
         # Set source_project_dataset_table here, after hooks are initialized and project_id is available
