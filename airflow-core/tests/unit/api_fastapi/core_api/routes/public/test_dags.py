@@ -490,27 +490,23 @@ class TestGetDags(TestDagEndpoint):
         response = unauthorized_test_client.get("/dags")
         assert response.status_code == 403
 
-    def test_get_dags_filter_has_import_errors_true(self, session, test_client):
+    @pytest.mark.parametrize(
+        "filter_value, expected_ids",
+        [
+            (True, [DAG1_ID]),
+            (False, [DAG2_ID]),
+        ],
+    )
+    def test_get_dags_filter_has_import_errors(self, session, test_client, filter_value, expected_ids):
         dag = session.get(DagModel, DAG1_ID)
         dag.has_import_errors = True
         session.commit()
 
-        response = test_client.get("/dags", params={"has_import_errors": True})
+        response = test_client.get("/dags", params={"has_import_errors": filter_value})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 1
-        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
-
-    def test_get_dags_filter_has_import_errors_false(self, session, test_client):
-        dag = session.get(DagModel, DAG1_ID)
-        dag.has_import_errors = True
-        session.commit()
-
-        response = test_client.get("/dags", params={"has_import_errors": False})
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 1
-        assert [dag["dag_id"] for dag in body["dags"]] == [DAG2_ID]
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
 
 class TestPatchDag(TestDagEndpoint):
