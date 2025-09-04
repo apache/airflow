@@ -34,8 +34,6 @@ import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
 import { useMemo, useRef } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
@@ -54,9 +52,6 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createChartOptions } from "./utils";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 ChartJS.register(
   CategoryScale,
