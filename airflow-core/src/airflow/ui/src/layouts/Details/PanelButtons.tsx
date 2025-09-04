@@ -186,7 +186,7 @@ export const PanelButtons = ({
       <Flex justifyContent="space-between">
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
-            aria-label={translate("dag:panel.buttons.showGrid")}
+            aria-label={translate("dag:panel.buttons.showGridShortcut")}
             colorPalette="brand"
             onClick={() => {
               setDagView("grid");
@@ -194,13 +194,13 @@ export const PanelButtons = ({
                 handleFocus("grid");
               }
             }}
-            title={translate("dag:panel.buttons.showGrid")}
+            title={translate("dag:panel.buttons.showGridShortcut")}
             variant={dagView === "grid" ? "solid" : "outline"}
           >
             <FiGrid />
           </IconButton>
           <IconButton
-            aria-label={translate("dag:panel.buttons.showGraph")}
+            aria-label={translate("dag:panel.buttons.showGraphShortcut")}
             colorPalette="brand"
             onClick={() => {
               setDagView("graph");
@@ -208,7 +208,7 @@ export const PanelButtons = ({
                 handleFocus("graph");
               }
             }}
-            title={translate("dag:panel.buttons.showGraph")}
+            title={translate("dag:panel.buttons.showGraphShortcut")}
             variant={dagView === "graph" ? "solid" : "outline"}
           >
             <MdOutlineAccountTree />
