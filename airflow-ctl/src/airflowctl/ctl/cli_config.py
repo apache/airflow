@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import datetime
 import getpass
 import inspect
 import os
@@ -37,6 +36,7 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
+from airflow._shared.timezones.timezone import parse as parsedate
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -445,7 +445,7 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
-    def _python_type_from_string(type_name: str) -> type:
+    def _python_type_from_string(type_name: str) -> type | Callable:
         """
         Return the corresponding Python *type* for a primitive type name string.
 
@@ -455,7 +455,7 @@ class CommandFactory:
         leading to type errors or unexpected behaviour when invoking the REST
         API.
         """
-        mapping: dict[str, type] = {
+        mapping: dict[str, type | Callable] = {
             "int": int,
             "float": float,
             "bool": bool,
@@ -465,7 +465,7 @@ class CommandFactory:
             "dict": dict,
             "tuple": tuple,
             "set": set,
-            "datetime.datetime": datetime.datetime,
+            "datetime.datetime": parsedate,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
@@ -474,7 +474,7 @@ class CommandFactory:
     @staticmethod
     def _create_arg(
         arg_flags: tuple,
-        arg_type: type,
+        arg_type: type | Callable,
         arg_help: str,
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,

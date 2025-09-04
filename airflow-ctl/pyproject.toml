@@ -62,6 +62,9 @@ path = "src/airflowctl/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflowctl"]
 
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
+
 [tool.ruff]
 extend = "../pyproject.toml"
 src = ["src"]
