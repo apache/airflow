@@ -20,6 +20,7 @@ import { Box, Table } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
@@ -29,7 +30,6 @@ export const WorkerPage = () => {
   });
 
   // TODO to make it proper
-  // Beautification of state like in Airflow 2
   // Use DataTable as component from Airflow-Core UI
   // Add actions for maintenance / delete of orphan worker
   // Add sorting
@@ -56,8 +56,20 @@ export const WorkerPage = () => {
             {data.workers.map((worker) => (
               <Table.Row key={worker.worker_name}>
                 <Table.Cell>{worker.worker_name}</Table.Cell>
-                <Table.Cell>{worker.state}</Table.Cell>
-                <Table.Cell>{worker.queues}</Table.Cell>
+                <Table.Cell>
+                  <WorkerStateBadge state={worker.state}>{worker.state}</WorkerStateBadge>
+                </Table.Cell>
+                <Table.Cell>
+                  {worker.queues ? (
+                    <ul>
+                      {worker.queues.map((queue) => (
+                        <li key={queue}>{queue}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "(default)"
+                  )}
+                </Table.Cell>
                 <Table.Cell>{worker.first_online}</Table.Cell>
                 <Table.Cell>{worker.last_heartbeat}</Table.Cell>
                 <Table.Cell>{worker.jobs_active}</Table.Cell>
