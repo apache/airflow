@@ -40,11 +40,13 @@ Misc
 
 * ``Bump the fab-ui-package-updates group across 1 directory with 8 updates (#54517)``
 * ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+* ``Update 'is_authorized_dag' method in 'FabAuthManager' (#54926)``
 
 Doc-only
 ~~~~~~~~
 
 * ``Make term Dag consistent in providers docs (#55101)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

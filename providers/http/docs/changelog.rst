@@ -49,6 +49,9 @@ Doc-only
    * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
    * ``Conn docs extra fix (#53942)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 5.3.3
 .....
 

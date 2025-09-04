@@ -84,6 +84,9 @@ Doc-only
    * ``make bundle_name not nullable (#47592)``
    * ``Remove SDK BaseOperator in TaskInstance (#53223)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 1.6.0
 .....
 

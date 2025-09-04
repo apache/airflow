@@ -48,6 +48,9 @@ Doc-only
    * ``Make slack providers tests db independent (#54660)``
    * ``Switch pre-commit to prek (#54258)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 9.1.4
 .....
 

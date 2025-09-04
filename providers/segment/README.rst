@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-segment``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Segment <https://segment.com/>`__
 

@@ -48,6 +48,9 @@ Doc-only
    * ``Switch pre-commit to prek (#54258)``
    * ``Add CI support for SQLAlchemy 2.0 (#52233)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 5.2.2
 .....
 

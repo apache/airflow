@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-microsoft-winrm``
 
 Release: ``3.11.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 

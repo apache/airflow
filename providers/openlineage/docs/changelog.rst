@@ -66,6 +66,10 @@ Doc-only
    * ``Remove SDK BaseOperator in TaskInstance (#53223)``
    * ``chore: Adjust OL system tests to latest changes (#54352)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Move email notifications from scheduler to DAG processor (#55238)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 2.6.1
 .....
 

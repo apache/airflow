@@ -57,6 +57,7 @@ Bug Fixes
 * ``update logic of BQ to be able to use WRITE_TRUNCATE_DATA' (#54417)``
 * ``Remove MappedOperator inheritance (#53696)``
 * ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+* ``Validate Dataproc batch labels max 63 characters (#55196)``
 
 Misc
 ~~~~
@@ -64,11 +65,14 @@ Misc
 * ``Add rudimentary support for psycopg3 (#52976)``
 * ``Add get_secret function to the common/utils (#54213)``
 * ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+* ``Add return row count to SpannerQueryDatabaseInstanceOperator (#55127)``
+* ``Add composer_dag_run_id as optional parameter to CloudComposerDAGRunSensor (#54977)``
 
 Doc-only
 ~~~~~~~~
 
 * ``Make term Dag consistent in providers docs (#55101)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -82,6 +86,7 @@ Doc-only
    * ``Add missing schedule parameter for the system tests of Google provider (#54270)``
    * ``Update Vertex AI dataset system test (#54220)``
    * ``Bump pytest-asyncio to 1.1.0 (#54123)``
+   * ``Update google-provider system tests beam sdk to the latest version (#55210)``
 
 17.1.0
 ......

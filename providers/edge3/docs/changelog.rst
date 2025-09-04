@@ -36,6 +36,7 @@ Features
 ~~~~~~~~
 
 * ``Provide React UI for Edge (#53563)``
+* ``Feature/add auto refresh to edge react UI (#54994)``
 
 
 Bug Fixes
@@ -48,6 +49,7 @@ Doc-only
 
 * ``Make term Dag consistent in providers docs (#55101)``
 * ``Add a note to edgeexecutor doc regarding multiple executors (#54077)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

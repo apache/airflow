@@ -49,6 +49,9 @@ Bug Fixes
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
    * ``Switch pre-commit to prek (#54258)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 4.10.3
 ......
 

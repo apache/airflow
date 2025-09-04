@@ -47,6 +47,10 @@ Doc-only
    * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
    * ``Switch pre-commit to prek (#54258)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``switch to DataflowJobStateCompleteTrigger to work with modern google-provider (#55156)``
+
 6.1.3
 .....
 

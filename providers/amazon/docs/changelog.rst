@@ -44,6 +44,8 @@ Bug Fixes
 
 * ``Fix SqlToS3Operator _partition_dataframe for proper polars support (#54588)``
 * ``fixing file extension issue on SqlToS3Operator (#54187)``
+* ``Fix connection management for EKS token generation (#55195)``
+* ``Retry on more edge cases for bedrock (#55201)``
 
 Misc
 ~~~~
@@ -74,6 +76,10 @@ Doc-only
    * ``Mock AWS during Athena tests (#54576)``
    * ``make bundle_name not nullable (#47592)``
    * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Update models used in bedrock system tests (#55229)``
 
 9.12.0
 ......

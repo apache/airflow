@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-trino``
 
 Release: ``6.3.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Trino <https://trino.io/>`__
 

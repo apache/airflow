@@ -49,6 +49,9 @@ Misc
    * ``Update main with Airflow 3.0.4 release details (#54294)``
    * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 4.2.0
 .....
 

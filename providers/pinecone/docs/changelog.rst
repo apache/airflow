@@ -35,6 +35,9 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 2.3.3
 .....
 

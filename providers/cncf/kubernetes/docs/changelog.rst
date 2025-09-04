@@ -70,6 +70,9 @@ Doc-only
    * ``make bundle_name not nullable (#47592)``
    * ``Bump pytest-asyncio to 1.1.0 (#54123)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 10.7.0
 ......
 

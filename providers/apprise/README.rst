@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apprise``
 
 Release: ``2.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apprise <https://github.com/caronc/apprise>`__
 
