@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 import operator
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard, overload
 
 import attrs
@@ -297,6 +298,18 @@ class MappedOperator(DAGNode):
     @property
     def outlets(self) -> list[Any]:
         return self.partial_kwargs.get("outlets", [])
+
+    @property
+    def email(self) -> str | Iterable[str] | None:
+        return self.partial_kwargs.get("email")
+
+    @property
+    def email_on_failure(self) -> bool:
+        return self.partial_kwargs.get("email_on_failure", True)
+
+    @property
+    def email_on_retry(self) -> bool:
+        return self.partial_kwargs.get("email_on_retry", True)
 
     @property
     def on_failure_fail_dagrun(self) -> bool:
