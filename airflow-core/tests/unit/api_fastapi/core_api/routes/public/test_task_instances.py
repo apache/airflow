@@ -33,14 +33,14 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagRun, TaskInstance
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
+from airflow.sdk import BaseOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -2391,7 +2391,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
-        check_last_log(session, dag_id=request_dag, event="post_clear_task_instances", logical_date=None)
+
+        if not payload.get("dry_run", True):
+            check_last_log(session, dag_id=request_dag, event="post_clear_task_instances", logical_date=None)
 
     @pytest.mark.parametrize("flag", ["include_future", "include_past"])
     def test_dag_run_with_future_or_past_flag_returns_400(self, test_client, session, flag):
@@ -2978,6 +2980,35 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 404
         assert "The Dag with ID: `non-existent-dag` was not found" in response.text
 
+    @pytest.mark.parametrize(
+        "dry_run, audit_log_count",
+        [
+            (True, 0),
+            (False, 1),
+        ],
+    )
+    def test_dry_run_audit_log(self, test_client, session, dry_run, audit_log_count):
+        dag_id = "example_python_operator"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        event = "post_clear_task_instances"
+
+        payload = {"dry_run": dry_run, "dag_run_id": dag_run_id}
+        self.create_task_instances(session, dag_id)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+
+        logs = (
+            session.query(Log)
+            .filter(Log.dag_id == dag_id, Log.run_id == dag_run_id, Log.event == event)
+            .count()
+        )
+
+        assert response.status_code == 200
+        assert logs == audit_log_count
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, test_client, session):
@@ -3378,7 +3409,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == state
         assert listener.state == listener_state
 
-    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
 
@@ -3711,7 +3742,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
     def test_update_mask_should_call_mocked_api(
         self,
         mock_set_ti_state,
@@ -4023,7 +4054,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response_ti["note"] == new_note_value
         _check_task_instance_note(session, response_ti["id"], {"content": new_note_value, "user_id": "test"})
 
-    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
     def test_should_raise_409_for_updating_same_task_instance_state(
         self, mock_set_ti_state, test_client, session
     ):
@@ -4049,7 +4080,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     RUN_ID = "TEST_DAG_RUN_ID"
     DAG_DISPLAY_NAME = "example_python_operator"
 
-    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
 
@@ -4407,7 +4438,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
     def test_update_mask_should_call_mocked_api(
         self,
         mock_set_ti_state,
@@ -4440,7 +4471,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == expected_json
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
-    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
     def test_should_return_empty_list_for_updating_same_task_instance_state(
         self, mock_set_ti_state, test_client, session
     ):

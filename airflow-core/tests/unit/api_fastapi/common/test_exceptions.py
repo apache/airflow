@@ -16,22 +16,36 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+import re
+from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException, status
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.exceptions import _DatabaseDialect, _UniqueConstraintErrorHandler
+from airflow.api_fastapi.common.exceptions import (
+    DagErrorHandler,
+    _DatabaseDialect,
+    _UniqueConstraintErrorHandler,
+)
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
+from airflow.models.dagbag import DBDagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
+if TYPE_CHECKING:
+    from tests_common.pytest_plugin import DagMaker
 pytestmark = pytest.mark.db_test
 
 CURRENT_DATABASE_DIALECT = conf.get_mandatory_value("database", "sql_alchemy_conn").lower()
@@ -285,3 +299,57 @@ class TestUniqueConstraintErrorHandler:
 
             assert response_detail == expected_detail
             assert "INSERT INTO dag_run" in actual_statement
+        assert exeinfo_response_error.value.detail == expected_exception.detail
+
+
+class TestDagErrorHandler:
+    @pytest.mark.parametrize(
+        "cause",
+        [
+            RuntimeError("Error during Dag serialization process"),
+            KeyError("required_field"),
+            ValueError("Missing Dag ID in serialized Dag"),
+        ],
+        ids=[
+            "RuntimeError",
+            "KeyError",
+            "ValueError",
+        ],
+    )
+    def test_handle_deserialization_error(self, cause: Exception) -> None:
+        deserialization_error = DeserializationError("test_dag_id")
+        deserialization_error.__cause__ = cause
+
+        expected_exception = HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while trying to deserialize Dag: {deserialization_error}",
+        )
+
+        with pytest.raises(HTTPException, match=re.escape(expected_exception.detail)):
+            DagErrorHandler().exception_handler(Mock(), deserialization_error)
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.need_serialized_dag
+    def test_handle_real_dag_deserialization_error(self, session: Session, dag_maker: DagMaker) -> None:
+        """Test handling a real Dag deserialization error with actual serialized Dag."""
+        dag_id = "test_dag"
+        with dag_maker(dag_id, serialized=True):
+            EmptyOperator(task_id="task_1")
+
+        s_dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+        data = s_dag_model.data
+        del data["dag"]["dag_id"]
+        session.execute(
+            update(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id).values(_data=data)
+        )
+        session.commit()
+
+        dag_bag = DBDagBag()
+        with pytest.raises(DeserializationError) as exc_info:
+            dag_bag.get_latest_version_of_dag(dag_id, session=session)
+
+        with pytest.raises(
+            HTTPException,
+            match=re.escape(f"An error occurred while trying to deserialize Dag: {exc_info.value}"),
+        ):
+            DagErrorHandler().exception_handler(Mock(), exc_info.value)

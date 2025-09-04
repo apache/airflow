@@ -26,8 +26,7 @@ import { DateTimeInput } from "src/components/DateTimeInput";
 import { SearchBar } from "src/components/SearchBar";
 import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-
-import { getFilterCount } from "./filterUtils";
+import { getFilterCount } from "src/utils/filterUtils";
 
 const {
   AFTER: AFTER_PARAM,

@@ -316,7 +316,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
-        return operator._task_module + "." + operator._task_type
+        return operator._task_module + "." + operator.task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 

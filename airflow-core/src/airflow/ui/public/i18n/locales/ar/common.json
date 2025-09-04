@@ -7,6 +7,7 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "allOperators": "جميع المُشغِّلات",
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",
@@ -212,6 +213,7 @@
     "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
+    "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",
     "restarting": "إعادة التشغيل",

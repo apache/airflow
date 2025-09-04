@@ -42,16 +42,16 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { createTooltipContent, generateDailyCalendarData, getCalendarCellColor } from "./calendarUtils";
-import type { CalendarColorMode } from "./types";
+import { createTooltipContent, generateDailyCalendarData } from "./calendarUtils";
+import type { CalendarScale } from "./types";
 
 type Props = {
-  readonly colorMode: CalendarColorMode;
   readonly data: Array<CalendarTimeRangeResponse>;
+  readonly scale: CalendarScale;
   readonly selectedYear: number;
 };
 
-export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
+export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
   const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear);
 
@@ -112,7 +112,7 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
 
                 return (
                   <CalendarCell
-                    backgroundColor={getCalendarCellColor(day.runs, colorMode)}
+                    backgroundColor={scale.getColor(day.counts)}
                     content={createTooltipContent(day)}
                     key={day.date}
                   />

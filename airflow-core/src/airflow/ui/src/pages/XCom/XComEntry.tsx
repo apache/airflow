@@ -74,8 +74,9 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
   });
   // When deserialize=true, the API returns a stringified representation
   // so we don't need to JSON.stringify it again
-  const valueFormatted =
-    typeof data?.value === "string" ? data.value : JSON.stringify(data?.value, undefined, 4);
+  const xcomValue = data?.value;
+  const isObjectOrArray = Array.isArray(xcomValue) || (xcomValue !== null && typeof xcomValue === "object");
+  const valueFormatted = typeof xcomValue === "string" ? xcomValue : JSON.stringify(xcomValue, undefined, 4);
 
   return isLoading ? (
     <Skeleton
@@ -86,16 +87,16 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
     />
   ) : (
     <HStack>
-      {["array", "object"].includes(typeof data?.value) ? (
-        <RenderedJsonField content={data?.value as object} enableClipboard={false} />
+      {isObjectOrArray ? (
+        <RenderedJsonField content={xcomValue as object} enableClipboard={false} />
       ) : (
         <Text>{renderTextWithLinks(valueFormatted)}</Text>
       )}
-      {Boolean(data?.value) ? (
+      {xcomValue === undefined || xcomValue === null ? undefined : (
         <ClipboardRoot value={valueFormatted}>
           <ClipboardIconButton />
         </ClipboardRoot>
-      ) : undefined}
+      )}
     </HStack>
   );
 };

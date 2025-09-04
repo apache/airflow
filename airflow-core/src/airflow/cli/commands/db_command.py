@@ -220,7 +220,7 @@ def check_migrations(args):
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
-def _quote_mysql_password_for_cnf(password: str | None | None) -> str:
+def _quote_mysql_password_for_cnf(password: str | None) -> str:
     """Escape and quote MySQL password for use in my.cnf option file."""
     if password is None or password == "":
         return ""

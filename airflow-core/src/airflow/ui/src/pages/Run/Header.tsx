@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box } from "@chakra-ui/react";
+import { HStack, Text, Box, Link } from "@chakra-ui/react";
 import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
@@ -30,6 +31,7 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration, useContainerWidth } from "src/utils";
 
@@ -119,7 +121,15 @@ export const Header = ({
             : [
                 {
                   label: translate("dagRun.triggeringUser"),
-                  value: <Text>{dagRun.triggering_user_name}</Text>,
+                  value: (
+                    <Link asChild color="fg.info">
+                      <RouterLink
+                        to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
+                      >
+                        <Text>{dagRun.triggering_user_name}</Text>
+                      </RouterLink>
+                    </Link>
+                  ),
                 },
               ]),
           {
