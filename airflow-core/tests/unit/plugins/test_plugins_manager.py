@@ -161,7 +161,7 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [{"url_route": "/test_route"}]
+            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
