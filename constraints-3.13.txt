@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-03T19:46:28.521307
+# This constraints file was automatically generated on 2025-09-04T02:17:07.406694
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -341,7 +341,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.32.0
+google-genai==1.33.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.21
@@ -408,7 +408,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.2
 linkify-it-py==2.0.3
-litellm==1.76.1
+litellm==1.76.2
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.4.0
