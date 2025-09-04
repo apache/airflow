@@ -43,7 +43,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun, DagRunType
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk import DAG, BaseOperator, Context, TriggerRule
@@ -51,8 +50,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import ScheduleArg
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.sdk.types import DagRunProtocol
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.sdk.types import DagRunProtocol, Operator
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -892,10 +891,17 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag.__enter__()
             if self.want_serialized:
+                factory = self
 
                 class DAGProxy(lazy_object_proxy.Proxy):
-                    # Make `@dag.task` decorator work when need_serialized_dag marker is set
-                    task = self.dag.task
+                    """Wrapper to make test patterns work with serialized dag."""
+
+                    task = factory.dag.task  # Expose the @dag.task decorator.
+
+                    # When adding a task to the dag, automatically re-serialize.
+                    def add_task(self, task):
+                        factory.dag.add_task(task)
+                        factory._make_serdag(factory.dag)
 
                 return DAGProxy(self._serialized_dag)
             return self.dag
@@ -2310,13 +2316,12 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
-    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import TimeRestriction
 
     timezone = _import_timezone()
 
     def _create_task_instance(
-        task: MappedOperator | SerializedBaseOperator,
+        task: Operator,
         dag_id: str = "test_dag",
         run_id: str = "test_run",
         logical_date: str | datetime | None = "2024-12-01T01:00:00Z",
@@ -2353,14 +2358,7 @@ def create_runtime_ti(mocked_parse):
             ti_id = uuid7()
 
         if not task.has_dag():
-            dag = SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3)))
-            )
-            # Fixture only helps in regular base operator tasks, so mypy is wrong here
-            task.dag = dag
-            # TODO (GH-52141): Scheduler DAG should contain scheduler tasks, but
-            # currently this inherits from SDK DAG.
-            task = dag.task_dict[task.task_id]  # type: ignore[assignment]
+            task.dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
 
         if TYPE_CHECKING:
             assert task.dag is not None
