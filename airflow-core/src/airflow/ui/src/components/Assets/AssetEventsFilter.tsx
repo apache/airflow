@@ -26,7 +26,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 export const AssetEventsFilter = () => {
-  const { t: translate } = useTranslation(["common"]);
+  const { t: translate } = useTranslation("common");
   const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
   const [searchParams, setSearchParams] = useSearchParams();
   const startDate = searchParams.get(START_DATE) ?? "";
