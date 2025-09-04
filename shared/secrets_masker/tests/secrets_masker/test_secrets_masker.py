@@ -464,15 +464,14 @@ class TestShouldHideValueForKey:
         env_value = str(sensitive_variable_fields) if sensitive_variable_fields is not None else ""
         with env_vars({"AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES": env_value}):
             masker = SecretsMasker()
-            configure_secrets_masker_for_test(masker)
+            sensitive_fields = list(DEFAULT_SENSITIVE_FIELDS)
             if sensitive_variable_fields:
                 additional_fields = {
                     field.strip() for field in sensitive_variable_fields.split(",") if field.strip()
                 }
-                masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS | additional_fields)
-            else:
-                masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+                sensitive_fields = list(DEFAULT_SENSITIVE_FIELDS | additional_fields)
 
+            configure_secrets_masker_for_test(masker, sensitive_fields=sensitive_fields)
             assert expected_result == masker.should_hide_value_for_key(key)
 
 
@@ -976,15 +975,13 @@ class TestSecretsMaskerMerge:
         assert result == expected
 
     def test_merge_mismatched_types(self):
-        masker = SecretsMasker()
-        configure_secrets_masker_for_test(masker)
         old_data = {"key": "value"}
         new_data = "some_string"  # Different type
 
         # When types don't match, prefer the new item
         expected = "some_string"
 
-        result = masker.merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_with_missing_keys(self):
