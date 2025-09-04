@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 _alias_to_executors: dict[str, ExecutorName] = {}
 _module_to_executors: dict[str, ExecutorName] = {}
 # Used to lookup an ExecutorName via the team id.
-_team_id_to_executors: dict[str | None, ExecutorName] = {}
+_team_name_to_executors: dict[str | None, ExecutorName] = {}
 _classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
@@ -73,7 +73,7 @@ class ExecutorLoader:
         all_executor_names: list[tuple[str | None, list[str]]] = cls._get_team_executor_configs()
 
         executor_names = []
-        for team_id, executor_names_config in all_executor_names:
+        for team_name, executor_names_config in all_executor_names:
             executor_names_per_team = []
             for name in executor_names_config:
                 if len(split_name := name.split(":")) == 1:
@@ -82,12 +82,12 @@ class ExecutorLoader:
                     # paths won't be provided by the user in that case.
                     if core_executor_module := cls.executors.get(name):
                         executor_names_per_team.append(
-                            ExecutorName(module_path=core_executor_module, alias=name, team_id=team_id)
+                            ExecutorName(module_path=core_executor_module, alias=name, team_name=team_name)
                         )
                     # A module path was provided
                     else:
                         executor_names_per_team.append(
-                            ExecutorName(alias=None, module_path=name, team_id=team_id)
+                            ExecutorName(alias=None, module_path=name, team_name=team_name)
                         )
                 # An alias was provided with the module path
                 elif len(split_name) == 2:
@@ -104,7 +104,7 @@ class ExecutorLoader:
                             f"configuration must be a module path but received: {module_path}"
                         )
                     executor_names_per_team.append(
-                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
+                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_name=team_name)
                     )
                 else:
                     raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
@@ -128,7 +128,7 @@ class ExecutorLoader:
                 _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a team id. It _may_ be None, for now that means it is a system
             # level executor
-            _team_id_to_executors[executor_name.team_id] = executor_name
+            _team_name_to_executors[executor_name.team_name] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
             _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
@@ -182,8 +182,8 @@ class ExecutorLoader:
                 # Split by comma to get the individual executor names and strip spaces off of them
                 configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
             else:
-                team_id, executor_names = team_executor_config.split("=")
-                configs.append((team_id, [name.strip() for name in executor_names.split(",")]))
+                team_name, executor_names = team_executor_config.split("=")
+                configs.append((team_name, [name.strip() for name in executor_names.split(",")]))
         return configs
 
     @classmethod
@@ -266,8 +266,8 @@ class ExecutorLoader:
         try:
             executor_cls, import_source = cls.import_executor_cls(_executor_name)
             log.debug("Loading executor %s from %s", _executor_name, import_source.value)
-            if _executor_name.team_id:
-                executor = executor_cls(team_id=_executor_name.team_id)
+            if _executor_name.team_name:
+                executor = executor_cls(team_name=_executor_name.team_name)
             else:
                 executor = executor_cls()
 

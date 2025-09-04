@@ -72,7 +72,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.sdk.types import Operator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 router = VersionedAPIRouter()
 
@@ -254,7 +255,14 @@ def ti_run(
 
         if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
             upstream_map_indexes = dict(
-                _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session)
+                _get_upstream_map_indexes(
+                    # TODO (GH-52141): This get_task should return scheduler
+                    # types instead, but currently it inherits SDK's DAG.
+                    cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id)),
+                    ti.map_index,
+                    ti.run_id,
+                    session=session,
+                )
             )
         else:
             upstream_map_indexes = None
@@ -285,7 +293,7 @@ def ti_run(
 
 
 def _get_upstream_map_indexes(
-    task: Operator, ti_map_index: int, run_id: str, session: SessionDep
+    task: MappedOperator | SerializedBaseOperator, ti_map_index: int, run_id: str, session: SessionDep
 ) -> Iterator[tuple[str, int | list[int] | None]]:
     task_mapped_group = task.get_closest_mapped_task_group()
     for upstream_task in task.upstream_list:

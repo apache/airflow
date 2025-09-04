@@ -32,7 +32,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -113,7 +113,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             )
         return values
 
-    def validate_context(self, dag: DAG) -> dict:
+    def validate_context(self, dag: SerializedDAG) -> dict:
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None
