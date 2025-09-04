@@ -63,3 +63,7 @@ class HITLTriggerEventError(Exception):
 
 class HITLTimeoutError(HITLTriggerEventError):
     """Raised when HITLOperator timeouts."""
+
+
+class HITLRejectException(AirflowException):
+    """Raised when an ApprovalOperator receives a "Reject" response when fail_on_reject is set to True."""
