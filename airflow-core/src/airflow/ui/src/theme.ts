@@ -347,6 +347,8 @@ export const customConfig = defineConfig({
     },
     semanticTokens: {
       colors: {
+        // Brand colors for consistent theming
+        brand: generateSemanticTokens("brand"),
         // GENERIC STATE
         danger: generateSemanticTokens("red"),
         info: generateSemanticTokens("blue"),
