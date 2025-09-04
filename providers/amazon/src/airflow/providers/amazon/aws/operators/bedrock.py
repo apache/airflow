@@ -481,7 +481,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                     "no such index" in error_message
                     # It may also be that permissions haven't even propagated yet to check for the index
                     or "server returned 401" in error_message
-                    or "User does not have permissions" in error_message
+                    or "user does not have permissions" in error_message
                 )
                 if all(
                     [
@@ -495,7 +495,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                     self.log.warning(
                         "Vector index not ready, retrying in %s seconds.", self.indexing_error_retry_delay
                     )
-                    self.log.debug("%s retries remaining.", self.indexing_error_max_attempts)
+                    self.log.info("%s retries remaining.", self.indexing_error_max_attempts)
                     sleep(self.indexing_error_retry_delay)
                     return _create_kb()
                 raise
