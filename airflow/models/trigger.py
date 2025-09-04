@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, Iterable
 
-from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import Column, Integer, String, Text, and_, delete, func, or_, select, update
 from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
@@ -31,7 +31,7 @@ from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -294,14 +294,52 @@ class Trigger(Base):
         """
         Get sorted triggers based on capacity and alive triggerer ids.
 
+        This method will exclude triggers from paused or deactivated DAGs.
+
         :param capacity: The capacity of the triggerer.
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
         :param session: The database session.
         """
+        from airflow.models.dag import DagModel  # Avoid circular import
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
+        # Subquery to get active DAGs (not paused and not deleted)
+        active_dags = (
+            select(DagModel.dag_id)
+            .where(
+                DagModel.is_active.is_(True),
+                DagModel.is_paused.is_(False),
+            )
+            .subquery()
+        )
+
+        # Get active DAG runs
+        active_dag_runs = (
+            select(DagRun.dag_id, DagRun.run_id).where(DagRun.state == DagRunState.RUNNING).subquery()
+        )
+
         query = with_row_locks(
             select(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
-            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
+            .join(
+                active_dag_runs,
+                and_(
+                    TaskInstance.dag_id == active_dag_runs.c.dag_id,
+                    TaskInstance.run_id == active_dag_runs.c.run_id,
+                ),
+                isouter=False,
+            )
+            .join(
+                active_dags,
+                TaskInstance.dag_id == active_dags.c.dag_id,
+                isouter=False,
+            )
+            .where(
+                or_(
+                    cls.triggerer_id.is_(None),
+                    cls.triggerer_id.not_in(alive_triggerer_ids),
+                )
+            )
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date)
             .limit(capacity),
             session,

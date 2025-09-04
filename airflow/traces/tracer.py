@@ -42,24 +42,78 @@ def gen_links_from_kv_list(list):
     return gen_links_from_kv_list(list)
 
 
-def span(func):
-    """Decorate a function with span."""
+class _SpanContextManager:
+    """Context manager for span that can be used with 'with' statement."""
 
-    def wrapper(*args, **kwargs):
-        func_name = func.__name__
-        qual_name = func.__qualname__
-        module_name = func.__module__
-        if "." in qual_name:
-            component = f"{qual_name.rsplit('.', 1)[0]}"
-        else:
-            component = module_name
-        with Trace.start_span(span_name=func_name, component=component):
-            if len(inspect.signature(func).parameters) > 0:
-                return func(*args, **kwargs)
+    def __init__(self, span_name, component):
+        self.span_name = span_name
+        self.component = component
+        self.span = None
+
+    def __enter__(self):
+        self.span = Trace.start_span(span_name=self.span_name, component=self.component)
+        return self.span
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if hasattr(self.span, "end"):
+            self.span.end()
+
+
+def span(*args, **kwargs):
+    """
+    Run a function or code block with tracing.
+
+    Can be used as:
+    1. @span
+    2. @span(span_name="custom_name")
+    3. with span(span_name="custom_name", component="component_name"):
+           ...
+    """
+    # Case 3: Used as context manager
+    if not args and kwargs:
+        return _SpanContextManager(
+            span_name=kwargs.get("span_name", "span"), component=kwargs.get("component", "default")
+        )
+
+    # Case 1 & 2: Used as decorator
+    def decorator(func):
+        nonlocal kwargs
+        if len(args) == 1 and callable(args[0]) and not kwargs:
+            # Case 1: @span
+            func = args[0]
+            kwargs = {}
+
+        def wrapper(*f_args, **f_kwargs):
+            func_name = kwargs.get("span_name", func.__name__)
+            qual_name = func.__qualname__
+            module_name = func.__module__
+            if "." in qual_name:
+                component = f"{qual_name.rsplit('.', 1)[0]}"
             else:
-                return func()
+                component = module_name
 
-    return wrapper
+            # Create the span
+            span = Trace.start_span(span_name=func_name, component=component)
+            try:
+                # Call the wrapped function
+                if len(inspect.signature(func).parameters) > 0:
+                    return func(*f_args, **f_kwargs)
+                return func()
+            finally:
+                # Ensure the span is properly ended
+                if hasattr(span, "end"):
+                    span.end()
+
+        # Return the wrapper for decorator case
+        if len(args) == 1 and callable(args[0]) and not kwargs:
+            return wrapper
+        return wrapper
+
+    # If we have a function to decorate, return the decorator result
+    if len(args) == 1 and callable(args[0]):
+        return decorator(args[0])
+    # Otherwise, return the decorator
+    return decorator
 
 
 class EmptyContext:
