@@ -22,6 +22,18 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
 
+pytest.importorskip("airflow.providers.fab")
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    pytest.skip(
+        "``airflow/providers/databricks/plugins/databricks_workflow.py`` is only compatible with Airflow 2.X.",
+        allow_module_level=True,
+    )
+
+from flask import url_for
+
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
@@ -168,8 +180,6 @@ def test_get_task_instance_airflow2():
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
 @pytest.mark.db_test
 def test_get_return_url_dag_id_run_id_airflow2():
-    from flask import url_for
-
     from airflow.www.app import create_app
 
     dag_id = "example_dag"
@@ -207,7 +217,7 @@ def test_workflow_job_run_link_airflow2():
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom_result:
                 with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
+                    "airflow.providers.databricks.plugins.databricks_workflow._get_dag"
                 ) as mock_get_dag:
                     mock_connection = Mock()
                     mock_connection.extra_dejson = {"host": "mockhost"}
@@ -438,15 +448,15 @@ class TestDatabricksWorkflowPluginAirflow2:
             with patch(
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom:
-                with patch("airflow.providers.databricks.plugins.databricks_workflow.DagBag") as mock_dag_bag:
+                with patch(
+                    "airflow.providers.databricks.plugins.databricks_workflow._get_dag"
+                ) as mock_get_dag:
                     with patch(
                         "airflow.providers.databricks.plugins.databricks_workflow.DatabricksHook"
                     ) as mock_hook:
                         mock_get_ti.return_value = Mock(key=ti_key)
                         mock_get_xcom.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
-                        mock_dag_bag.return_value.get_dag.return_value.get_task.return_value = Mock(
-                            task_id="test_task"
-                        )
+                        mock_get_dag.return_value.get_task.return_value = Mock(task_id="test_task")
 
                         mock_hook_instance = Mock()
                         mock_hook_instance.host = "test-host"

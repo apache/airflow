@@ -19,17 +19,15 @@ from __future__ import annotations
 import itertools
 import json
 import logging
-from typing import Annotated
 
 import pendulum
-from fastapi import Depends, Request
+from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 
-from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.core_api.security import get_user_with_exception_handling
+from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
-from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +38,12 @@ def _mask_connection_fields(extra_fields):
     for k, v in extra_fields.items():
         if k == "extra" and v:
             try:
-                extra = json.loads(v)
-                extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
-                result[k] = dict(extra)
+                parsed_extra = json.loads(v)
+                if isinstance(parsed_extra, dict):
+                    masked_extra = {ek: secrets_masker.redact(ev, ek) for ek, ev in parsed_extra.items()}
+                    result[k] = masked_extra
+                else:
+                    result[k] = "Expected JSON object in `extra` field, got non-dict JSON"
             except json.JSONDecodeError:
                 result[k] = "Encountered non-JSON in `extra` field"
         else:
@@ -76,10 +77,11 @@ def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
         session: SessionDep,
-        user: Annotated[BaseUser, Depends(get_user_with_exception_handling)],
+        user: GetUserDep,
     ):
         """Log user actions."""
         event_name = event or request.scope["endpoint"].__name__
+        skip_dry_run_events = {"clear_dag_run", "post_clear_task_instances"}
 
         if not user:
             user_name = "anonymous"
@@ -96,6 +98,9 @@ def action_logging(event: str | None = None):
         else:
             request_body = {}
             masked_body_json = {}
+
+        if event_name in skip_dry_run_events and request_body.get("dry_run", True):
+            return
 
         fields_skip_logging = {
             "csrf_token",
@@ -132,7 +137,7 @@ def action_logging(event: str | None = None):
         if has_json_body:
             params.update(masked_body_json)
         if params and "is_paused" in params:
-            extra_fields["is_paused"] = params["is_paused"] == "false"
+            extra_fields["is_paused"] = params["is_paused"]
 
         extra_fields["method"] = request.method
 

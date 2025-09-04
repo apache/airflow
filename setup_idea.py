@@ -85,6 +85,7 @@ source_root_modules: list[str] = [
     "docker-tests",
     "kubernetes-tests",
     "helm-tests",
+    "task-sdk-tests",
 ]
 
 all_module_paths: list[str] = []
@@ -94,12 +95,14 @@ IDEA_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".idea"
 AIRFLOW_IML_FILE = IDEA_FOLDER_PATH / "airflow.iml"
 MODULES_XML_FILE = IDEA_FOLDER_PATH / "modules.xml"
 
-ROOT_PROVIDERS_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / "providers"
-
 
 def setup_idea():
     # Providers discovery
-    for pyproject_toml_file in ROOT_PROVIDERS_FOLDER_PATH.rglob("pyproject.toml"):
+    for pyproject_toml_file in ROOT_AIRFLOW_FOLDER_PATH.rglob("providers/**/pyproject.toml"):
+        relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
+        source_root_modules.append(f"{relative_path}")
+    # Shared discovery
+    for pyproject_toml_file in ROOT_AIRFLOW_FOLDER_PATH.rglob("shared/*/pyproject.toml"):
         relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
         source_root_modules.append(f"{relative_path}")
 

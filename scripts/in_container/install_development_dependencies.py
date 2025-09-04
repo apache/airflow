@@ -19,7 +19,7 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "packaging>=23.2",
+#   "packaging>=25",
 #   "click>=8.1.8",
 #   "rich-click>=1.7.1",
 #   "rich>=13.6.0",

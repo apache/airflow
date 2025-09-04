@@ -20,15 +20,24 @@ import uuid
 from datetime import datetime
 
 import pytest
+from pydantic import TypeAdapter
 
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
+    TaskInstance as TIDataModel,
+    TIRunContext,
+)
 from airflow.callbacks.callback_requests import (
+    CallbackRequest,
     DagCallbackRequest,
+    DagRunContext,
+    EmailNotificationRequest,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
@@ -114,3 +123,300 @@ class TestCallbackRequest:
         )
 
         assert request.is_failure_callback == expected_is_failure
+
+
+class TestDagRunContext:
+    def test_dagrun_context_creation(self):
+        """Test DagRunContext can be created with dag_run and first_ti"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        assert context.dag_run == dag_run_data
+        assert context.last_ti == ti_data
+
+    def test_dagrun_context_none_values(self):
+        """Test DagRunContext can be created with None values"""
+        context = DagRunContext()
+        assert context.dag_run is None
+        assert context.last_ti is None
+
+    def test_dagrun_context_serialization(self):
+        """Test DagRunContext can be serialized and deserialized"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        # Test serialization
+        serialized = context.model_dump_json()
+
+        # Test deserialization
+        deserialized = DagRunContext.model_validate_json(serialized)
+
+        assert deserialized.dag_run.dag_id == context.dag_run.dag_id
+        assert deserialized.last_ti.task_id == context.last_ti.task_id
+
+
+class TestDagCallbackRequestWithContext:
+    def test_dag_callback_request_with_context_from_server(self):
+        """Test DagCallbackRequest with context_from_server field"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context_from_server = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=context_from_server,
+            is_failure_callback=True,
+            msg="test_failure",
+        )
+
+        assert request.context_from_server is not None
+        assert request.context_from_server.dag_run.dag_id == "test_dag"
+        assert request.context_from_server.last_ti.task_id == "test_task"
+
+    def test_dag_callback_request_without_context_from_server(self):
+        """Test DagCallbackRequest without context_from_server field"""
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="test_failure",
+        )
+
+        assert request.context_from_server is None
+
+    def test_dag_callback_request_serialization_with_context(self):
+        """Test DagCallbackRequest can be serialized and deserialized with context_from_server"""
+        current_time = timezone.utcnow()
+        dag_run_data = DRDataModel(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=current_time,
+            data_interval_start=current_time,
+            data_interval_end=current_time,
+            run_after=current_time,
+            start_date=current_time,
+            end_date=None,
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        context_from_server = DagRunContext(dag_run=dag_run_data, last_ti=ti_data)
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=context_from_server,
+            is_failure_callback=True,
+            msg="test_failure",
+        )
+
+        # Test serialization
+        json_str = request.to_json()
+
+        # Test deserialization
+        result = DagCallbackRequest.from_json(json_str)
+
+        assert result == request
+        assert result.context_from_server is not None
+        assert result.context_from_server.dag_run.dag_id == "test_dag"
+        assert result.context_from_server.last_ti.task_id == "test_task"
+
+
+class TestEmailNotificationRequest:
+    def test_email_notification_request_serialization(self):
+        """Test EmailNotificationRequest can be serialized and used in CallbackRequest union."""
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+
+        # Create EmailNotificationRequest
+        email_request = EmailNotificationRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=ti_data,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+            msg="Task failed",
+        )
+
+        # Test serialization
+        json_str = email_request.to_json()
+        assert "EmailNotificationRequest" in json_str
+        assert "failure" in json_str
+
+        # Test deserialization
+        result = EmailNotificationRequest.from_json(json_str)
+        assert result == email_request
+        assert result.email_type == "failure"
+        assert result.ti.task_id == "test_task"
+
+    def test_callback_request_union_with_email_notification(self):
+        """Test EmailNotificationRequest works in CallbackRequest union type."""
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+
+        context_from_server = TIRunContext(
+            dag_run=DRDataModel(
+                dag_id="test_dag",
+                run_id="test_run",
+                logical_date="2023-01-01T00:00:00Z",
+                data_interval_start=current_time,
+                data_interval_end=current_time,
+                run_after=current_time,
+                start_date=current_time,
+                end_date=None,
+                run_type="manual",
+                state="running",
+                consumed_asset_events=[],
+            ),
+            max_tries=2,
+        )
+
+        email_data = {
+            "type": "EmailNotificationRequest",
+            "filepath": "/path/to/dag.py",
+            "bundle_name": "test_bundle",
+            "bundle_version": "1.0.0",
+            "ti": ti_data.model_dump(),
+            "context_from_server": context_from_server.model_dump(),
+            "email_type": "retry",
+            "msg": "Task retry",
+        }
+
+        # Validate as CallbackRequest union
+        adapter = TypeAdapter(CallbackRequest)
+        callback_request = adapter.validate_python(email_data)
+
+        # Verify it's correctly identified as EmailNotificationRequest
+        assert isinstance(callback_request, EmailNotificationRequest)
+        assert callback_request.email_type == "retry"
+        assert callback_request.ti.task_id == "test_task"

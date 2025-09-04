@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from importlib import import_module
 from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +34,7 @@ log = logging.getLogger(__name__)
 
 
 REMOTE_TASK_LOG: RemoteLogIO | None
+DEFAULT_REMOTE_CONN_ID: str | None = None
 
 
 def __getattr__(name: str):
@@ -44,7 +46,7 @@ def __getattr__(name: str):
 
 def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
-    global REMOTE_TASK_LOG
+    global REMOTE_TASK_LOG, DEFAULT_REMOTE_CONN_ID
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
 
@@ -70,10 +72,13 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
             f"to: {type(err).__name__}:{err}"
         )
     else:
-        mod = logging_class_path.rsplit(".", 1)[0]
+        modpath = logging_class_path.rsplit(".", 1)[0]
         try:
-            remote_task_log = import_string(f"{mod}.REMOTE_TASK_LOG")
-            REMOTE_TASK_LOG = remote_task_log
+            mod = import_module(modpath)
+
+            # Load remote logging configuration from the custom module
+            REMOTE_TASK_LOG = getattr(mod, "REMOTE_TASK_LOG")
+            DEFAULT_REMOTE_CONN_ID = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
         except Exception as err:
             log.info("Remote task logs will not be available due to an error:  %s", err)
 

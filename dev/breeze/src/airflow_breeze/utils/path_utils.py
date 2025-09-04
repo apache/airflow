@@ -93,14 +93,14 @@ def get_package_setup_metadata_hash() -> str:
     """
     # local imported to make sure that autocomplete works
     try:
-        from importlib.metadata import distribution  # type: ignore[attr-defined]
+        from importlib.metadata import distribution
     except ImportError:
-        from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
+        from importlib_metadata import distribution  # type: ignore[assignment]
 
     prefix = "Package config hash: "
     metadata = distribution("apache-airflow-breeze").metadata
     try:
-        description = metadata.json["description"]  # type: ignore[attr-defined]
+        description = metadata.json["description"]
     except (AttributeError, KeyError):
         description = str(metadata["Description"]) if "Description" in metadata else ""
 

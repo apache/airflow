@@ -1715,6 +1715,7 @@ def test_sensitive_values():
     # items not matching this pattern must be added here manually
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
+        ("database", "sql_alchemy_conn_async"),
         ("core", "fernet_key"),
         ("api_auth", "jwt_secret"),
         ("api", "secret_key"),
@@ -1730,7 +1731,7 @@ def test_sensitive_values():
         ("opensearch", "password"),
         ("webserver", "secret_key"),
     }
-    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
+    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v["options"]}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
         ("aws_batch_executor", "submit_job_kwargs"),
@@ -1890,21 +1891,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
     def test_mask_conf_values(self, mock_sensitive_config_values):
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-        target = (
-            "airflow.sdk.execution_time.secrets_masker.mask_secret"
-            if AIRFLOW_V_3_0_PLUS
-            else "airflow.utils.log.secrets_masker.mask_secret"
-        )
-
-        with patch(target) as mock_mask_secret:
+        with (
+            patch("airflow._shared.secrets_masker.mask_secret") as mock_mask_secret_core,
+            patch("airflow.sdk.log.mask_secret") as mock_mask_secret_sdk,
+        ):
             conf.mask_secrets()
 
-            mock_mask_secret.assert_any_call("supersecret1")
-            mock_mask_secret.assert_any_call("supersecret2")
+            mock_mask_secret_core.assert_any_call("supersecret1")
+            mock_mask_secret_core.assert_any_call("supersecret2")
+            assert mock_mask_secret_core.call_count == 2
 
-            assert mock_mask_secret.call_count == 2
+            mock_mask_secret_sdk.assert_any_call("supersecret1")
+            mock_mask_secret_sdk.assert_any_call("supersecret2")
+            assert mock_mask_secret_sdk.call_count == 2
 
 
 @conf_vars({("core", "unit_test_mode"): "False"})

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class DagRunProtocol(Protocol):
-    """Minimal interface for a DAG run available during the execution."""
+    """Minimal interface for a Dag run available during the execution."""
 
     dag_id: str
     run_id: str
@@ -85,6 +85,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_template_context(self) -> Context: ...
 
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+
+    def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
 
     @staticmethod
     def get_ti_count(

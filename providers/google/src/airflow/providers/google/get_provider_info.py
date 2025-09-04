@@ -144,13 +144,6 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Cloud Life Sciences",
-                "external-doc-url": "https://cloud.google.com/life-sciences/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst"],
-                "logo": "/docs/integration-logos/Google-Cloud-Life-Sciences.png",
-                "tags": ["gcp"],
-            },
-            {
                 "integration-name": "Google Cloud Managed Service for Apache Kafka",
                 "external-doc-url": "https://cloud.google.com/managed-service-for-apache-kafka/docs/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/managed_kafka.rst"],
@@ -582,10 +575,6 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.kubernetes_engine"],
             },
             {
-                "integration-name": "Google Cloud Life Sciences",
-                "python-modules": ["airflow.providers.google.cloud.operators.life_sciences"],
-            },
-            {
                 "integration-name": "Google Machine Learning Engine",
                 "python-modules": ["airflow.providers.google.cloud.operators.mlengine"],
             },
@@ -926,10 +915,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Kubernetes Engine",
                 "python-modules": ["airflow.providers.google.cloud.hooks.kubernetes_engine"],
-            },
-            {
-                "integration-name": "Google Cloud Life Sciences",
-                "python-modules": ["airflow.providers.google.cloud.hooks.life_sciences"],
             },
             {
                 "integration-name": "Google Machine Learning Engine",
@@ -1483,7 +1468,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggersListLink",
             "airflow.providers.google.cloud.links.cloud_build.CloudBuildTriggerDetailsLink",
-            "airflow.providers.google.cloud.links.life_sciences.LifeSciencesLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsDetailsLink",
             "airflow.providers.google.cloud.links.cloud_functions.CloudFunctionsListLink",
             "airflow.providers.google.cloud.links.cloud_storage_transfer.CloudStorageTransferListLink",

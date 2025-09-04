@@ -21,10 +21,11 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard
 
 import attrs
 import methodtools
+from lazy_object_proxy import Proxy
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
@@ -42,7 +43,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
-    TaskStateChangeCallback,
+    TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -52,8 +53,6 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
-from airflow.typing_compat import Literal, TypeAlias, TypeGuard
-from airflow.utils.helpers import is_container, prevent_duplicates
 
 if TYPE_CHECKING:
     import datetime
@@ -65,20 +64,12 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule, XComArg
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
-    from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
-    from airflow.utils.context import Context
-    from airflow.utils.operator_resources import Resources
-    from airflow.utils.task_group import TaskGroup
-    from airflow.utils.trigger_rule import TriggerRule
 
-TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 ValidationSource = Literal["expand"] | Literal["partial"]
 
 
@@ -113,6 +104,16 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
     raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
+def _is_container(obj: Any) -> bool:
+    """Test if an object is a container (iterable) but not a string."""
+    if isinstance(obj, Proxy):
+        # Proxy of any object is considered a container because it implements __iter__
+        # to forward the call to the lazily initialized object
+        # Unwrap Proxy before checking __iter__ to evaluate the proxied object
+        obj = obj.__wrapped__
+    return hasattr(obj, "__iter__") and not isinstance(obj, str)
+
+
 def ensure_xcomarg_return_value(arg: Any) -> None:
     from airflow.sdk.definitions.xcom_arg import XComArg
 
@@ -120,7 +121,7 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
         for operator, key in arg.iter_references():
             if key != BaseXCom.XCOM_RETURN_KEY:
                 raise ValueError(f"cannot map over XCom with custom key {key!r} from {operator}")
-    elif not is_container(arg):
+    elif not _is_container(arg):
         return
     elif isinstance(arg, Mapping):
         for v in arg.values():
@@ -146,14 +147,29 @@ def is_mappable_value(value: Any) -> TypeGuard[Collection]:
     return True
 
 
+def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
+
+    :raises TypeError: If common keys are found.
+    """
+    duplicated_keys = set(kwargs1).intersection(kwargs2)
+    if not duplicated_keys:
+        return
+    if len(duplicated_keys) == 1:
+        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
+    duplicated_keys_display = ", ".join(sorted(duplicated_keys))
+    raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
+
+
 @attrs.define(kw_only=True, repr=False)
 class OperatorPartial:
     """
     An "intermediate state" returned by ``BaseOperator.partial()``.
 
-    This only exists at DAG-parsing time; the only intended usage is for the
+    This only exists at Dag-parsing time; the only intended usage is for the
     user to call ``.expand()`` on it at some point (usually in a method chain) to
-    create a ``MappedOperator`` to add into the DAG.
+    create a ``MappedOperator`` to add into the Dag.
     """
 
     operator_class: type[BaseOperator]
@@ -200,7 +216,7 @@ class OperatorPartial:
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.utils.skipmixin import SkipMixin
-        from airflow.sensors.base import BaseSensorOperator
+        from airflow.sdk import BaseSensorOperator
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
@@ -253,23 +269,18 @@ class OperatorPartial:
 @attrs.define(
     kw_only=True,
     # Disable custom __getstate__ and __setstate__ generation since it interacts
-    # badly with Airflow's DAG serialization and pickling. When a mapped task is
+    # badly with Airflow's Dag serialization and pickling. When a mapped task is
     # deserialized, subclasses are coerced into MappedOperator, but when it goes
-    # through DAG pickling, all attributes defined in the subclasses are dropped
+    # through Dag pickling, all attributes defined in the subclasses are dropped
     # by attrs's custom state management. Since attrs does not do anything too
     # special here (the logic is only important for slots=True), we use Python's
     # built-in implementation, which works (as proven by good old BaseOperator).
     getstate_setstate=False,
 )
 class MappedOperator(AbstractOperator):
-    """Object representing a mapped operator in a DAG."""
+    """Object representing a mapped operator in a Dag."""
 
-    # This attribute serves double purpose. For a "normal" operator instance
-    # loaded from DAG, this holds the underlying non-mapped operator class that
-    # can be used to create an unmapped operator for execution. For an operator
-    # recreated from a serialized DAG, however, this holds the serialized data
-    # that can be used to unmap this into a SerializedBaseOperator.
-    operator_class: type[BaseOperator] | dict[str, Any]
+    operator_class: type[BaseOperator]
 
     _is_mapped: bool = attrs.field(init=False, default=True)
 
@@ -279,7 +290,6 @@ class MappedOperator(AbstractOperator):
     # Needed for serialization.
     task_id: str
     params: ParamsDict | dict
-    deps: frozenset[BaseTIDep] = attrs.field(init=False)
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
@@ -290,7 +300,7 @@ class MappedOperator(AbstractOperator):
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
-    _task_type: str
+    task_type: str
     _operator_name: str
     start_trigger_args: StartTriggerArgs | None
     start_from_trigger: bool
@@ -320,17 +330,11 @@ class MappedOperator(AbstractOperator):
         ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
 
-    @deps.default
-    def _deps(self):
-        from airflow.models.baseoperator import BaseOperator
-
-        return BaseOperator.deps
-
     def __hash__(self):
         return id(self)
 
     def __repr__(self):
-        return f"<Mapped({self._task_type}): {self.task_id}>"
+        return f"<Mapped({self.task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
         from airflow.sdk.definitions.xcom_arg import XComArg
@@ -342,7 +346,7 @@ class MappedOperator(AbstractOperator):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
-        XComArg.apply_upstream_relationship(self, self.expand_input.value)
+        XComArg.apply_upstream_relationship(self, self._get_specified_expand_input().value)
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
@@ -351,10 +355,9 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return (frozenset(attrs.fields_dict(MappedOperator)) | {"task_type"}) - {
+        return (frozenset(attrs.fields_dict(MappedOperator))) - {
             "_is_empty",
             "_can_skip_downstream",
-            "_task_type",
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
@@ -363,21 +366,15 @@ class MappedOperator(AbstractOperator):
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",
+            "operator_class",
+            "_needs_expansion",
+            "partial_kwargs",
+            "operator_extra_links",
         }
-
-    @property
-    def task_type(self) -> str:
-        """Implementing Operator."""
-        return self._task_type
 
     @property
     def operator_name(self) -> str:
         return self._operator_name
-
-    @property
-    def inherits_from_empty_operator(self) -> bool:
-        """Implementing an empty Operator."""
-        return self._is_empty
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
@@ -394,7 +391,7 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("task_display_name") or self.task_id
 
     @property
-    def owner(self) -> str:  # type: ignore[override]
+    def owner(self) -> str:
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
     @owner.setter
@@ -404,6 +401,14 @@ class MappedOperator(AbstractOperator):
     @property
     def email(self) -> None | str | Iterable[str]:
         return self.partial_kwargs.get("email")
+
+    @property
+    def email_on_failure(self) -> bool:
+        return self.partial_kwargs.get("email_on_failure", True)
+
+    @property
+    def email_on_retry(self) -> bool:
+        return self.partial_kwargs.get("email_on_retry", True)
 
     @property
     def map_index_template(self) -> None | str:
@@ -538,7 +543,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
-    def priority_weight(self) -> int:  # type: ignore[override]
+    def priority_weight(self) -> int:
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
     @priority_weight.setter
@@ -546,7 +551,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> PriorityWeightStrategy:  # type: ignore[override]
+    def weight_rule(self) -> PriorityWeightStrategy:
         return validate_and_load_priority_weight_strategy(
             self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
         )
@@ -616,6 +621,26 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["on_skipped_callback"] = value or []
 
     @property
+    def has_on_execute_callback(self) -> bool:
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        return bool(self.on_skipped_callback)
+
+    @property
     def run_as_user(self) -> str | None:
         return self.partial_kwargs.get("run_as_user")
 
@@ -627,20 +652,20 @@ class MappedOperator(AbstractOperator):
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
-    @property  # type: ignore[override]
-    def inlets(self) -> list[Any]:  # type: ignore[override]
+    @property
+    def inlets(self) -> list[Any]:
         return self.partial_kwargs.get("inlets", [])
 
     @inlets.setter
-    def inlets(self, value: list[Any]) -> None:  # type: ignore[override]
+    def inlets(self, value: list[Any]) -> None:
         self.partial_kwargs["inlets"] = value
 
-    @property  # type: ignore[override]
-    def outlets(self) -> list[Any]:  # type: ignore[override]
+    @property
+    def outlets(self) -> list[Any]:
         return self.partial_kwargs.get("outlets", [])
 
     @outlets.setter
-    def outlets(self, value: list[Any]) -> None:  # type: ignore[override]
+    def outlets(self, value: list[Any]) -> None:
         self.partial_kwargs["outlets"] = value
 
     @property
@@ -727,48 +752,25 @@ class MappedOperator(AbstractOperator):
         """
         Get the "normal" Operator after applying the current mapping.
 
-        The *resolve* argument is only used if ``operator_class`` is a real
-        class, i.e. if this operator is not serialized. If ``operator_class`` is
-        not a class (i.e. this DAG has been deserialized), this returns a
-        SerializedBaseOperator that "looks like" the actual unmapping result.
-
         :meta private:
         """
-        if isinstance(self.operator_class, type):
-            if isinstance(resolve, Mapping):
-                kwargs = resolve
-            elif resolve is not None:
-                kwargs, _ = self._expand_mapped_kwargs(*resolve)
-            else:
-                raise RuntimeError("cannot unmap a non-serialized operator without context")
-            kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
-            is_setup = kwargs.pop("is_setup", False)
-            is_teardown = kwargs.pop("is_teardown", False)
-            on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-            kwargs["task_id"] = self.task_id
-            op = self.operator_class(**kwargs, _airflow_from_mapped=True)
-            op.is_setup = is_setup
-            op.is_teardown = is_teardown
-            op.on_failure_fail_dagrun = on_failure_fail_dagrun
-            op.downstream_task_ids = self.downstream_task_ids
-            op.upstream_task_ids = self.upstream_task_ids
-            return op
-
-        # TODO: TaskSDK: This probably doesn't need to live in definition time as the next section of code is
-        # for unmapping a deserialized DAG -- i.e. in the scheduler.
-
-        # After a mapped operator is serialized, there's no real way to actually
-        # unmap it since we've lost access to the underlying operator class.
-        # This tries its best to simply "forward" all the attributes on this
-        # mapped operator to a new SerializedBaseOperator instance.
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-        op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
-        for partial_attr, value in self.partial_kwargs.items():
-            setattr(op, partial_attr, value)
-        SerializedBaseOperator.populate_operator(op, self.operator_class)
-        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
-            SerializedBaseOperator.set_task_dag_references(op, self.dag)  # type: ignore[arg-type]
+        if isinstance(resolve, Mapping):
+            kwargs = resolve
+        elif resolve is not None:
+            kwargs, _ = self._expand_mapped_kwargs(*resolve)
+        else:
+            raise RuntimeError("cannot unmap a non-serialized operator without context")
+        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+        is_setup = kwargs.pop("is_setup", False)
+        is_teardown = kwargs.pop("is_teardown", False)
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        kwargs["task_id"] = self.task_id
+        op = self.operator_class(**kwargs, _airflow_from_mapped=True)
+        op.is_setup = is_setup
+        op.is_teardown = is_teardown
+        op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.downstream_task_ids = self.downstream_task_ids
+        op.upstream_task_ids = self.upstream_task_ids
         return op
 
     def _get_specified_expand_input(self) -> ExpandInput:
@@ -781,6 +783,7 @@ class MappedOperator(AbstractOperator):
         # we don't need to create a copy of the MappedOperator here.
         return self
 
+    # TODO (GH-52141): Do we need this in the SDK?
     def iter_mapped_dependencies(self) -> Iterator[AbstractOperator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
         from airflow.sdk.definitions.xcom_arg import XComArg
@@ -832,4 +835,43 @@ class MappedOperator(AbstractOperator):
             context=context,
             jinja_env=jinja_env,
             seen_oids=seen_oids,
+        )
+
+    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
+        """
+        Get the kwargs to create the unmapped start_trigger_args.
+
+        This method is for allowing mapped operator to start execution from triggerer.
+        """
+        from airflow.triggers.base import StartTriggerArgs
+
+        if not self.start_trigger_args:
+            return None
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        trigger_kwargs = mapped_kwargs.get(
+            "trigger_kwargs",
+            self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
+        )
+        next_kwargs = mapped_kwargs.get(
+            "next_kwargs",
+            self.partial_kwargs.get("next_kwargs", self.start_trigger_args.next_kwargs),
+        )
+        timeout = mapped_kwargs.get(
+            "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
+        )
+        return StartTriggerArgs(
+            trigger_cls=self.start_trigger_args.trigger_cls,
+            trigger_kwargs=trigger_kwargs,
+            next_method=self.start_trigger_args.next_method,
+            next_kwargs=next_kwargs,
+            timeout=timeout,
         )

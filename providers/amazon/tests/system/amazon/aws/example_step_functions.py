@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.operators.step_function import (
@@ -29,18 +28,14 @@ from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecu
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 

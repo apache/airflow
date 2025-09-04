@@ -27,9 +27,10 @@ import attrs
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
-    from airflow.typing_compat import TypeGuard
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
@@ -202,11 +203,14 @@ class DictOfListsExpandInput(ResolveMixin):
 
         # TODO: This initiates one API call for each XComArg. Would it be
         # more efficient to do one single call and unpack the value here?
+
         resolved = {
             k: v.resolve(context) if _needs_run_time_resolution(v) else v for k, v in self.value.items()
         }
 
-        all_lengths = self._get_map_lengths(resolved, upstream_map_indexes)
+        sized_resolved = {k: v for k, v in resolved.items() if isinstance(v, Sized)}
+
+        all_lengths = self._get_map_lengths(sized_resolved, upstream_map_indexes)
 
         data = {k: self._expand_mapped_field(k, v, map_index, all_lengths) for k, v in resolved.items()}
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}

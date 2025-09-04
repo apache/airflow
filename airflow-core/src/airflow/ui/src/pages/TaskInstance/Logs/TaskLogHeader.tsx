@@ -19,7 +19,6 @@
 import {
   Badge,
   Box,
-  ButtonGroup,
   createListCollection,
   HStack,
   IconButton,
@@ -27,12 +26,20 @@ import {
 } from "@chakra-ui/react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { MdCompress, MdExpand, MdOutlineOpenInFull } from "react-icons/md";
+import {
+  MdAccessTime,
+  MdCode,
+  MdCompress,
+  MdExpand,
+  MdOutlineOpenInFull,
+  MdSettings,
+  MdWrapText,
+} from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, Select, Tooltip } from "src/components/ui";
+import { Button, Menu, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
@@ -41,10 +48,14 @@ type Props = {
   readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly showSource: boolean;
+  readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
+  readonly toggleSource: () => void;
+  readonly toggleTimestamp: () => void;
   readonly toggleWrap: () => void;
   readonly tryNumber?: number;
   readonly wrap: boolean;
@@ -54,10 +65,14 @@ export const TaskLogHeader = ({
   expanded,
   isFullscreen = false,
   onSelectTryNumber,
+  showSource,
+  showTimestamp,
   sourceOptions,
   taskInstance,
   toggleExpanded,
   toggleFullscreen,
+  toggleSource,
+  toggleTimestamp,
   toggleWrap,
   tryNumber,
   wrap,
@@ -188,43 +203,39 @@ export const TaskLogHeader = ({
           </Select.Root>
         ) : undefined}
         <HStack gap={1}>
-          <Tooltip closeDelay={100} content={translate("wrap.tooltip", { hotkey: "w" })} openDelay={100}>
-            <Button
-              aria-label={wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
-              bg="bg.panel"
-              m={0}
-              onClick={toggleWrap}
-              px={4}
-              py={2}
-              variant="outline"
-            >
-              {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
-            </Button>
-          </Tooltip>
-          <Tooltip closeDelay={100} content={translate("expand.tooltip", { hotkey: "e" })} openDelay={100}>
-            <ButtonGroup attached size="md" variant="outline">
-              <IconButton
-                aria-label={translate("expand.expand")}
-                bg="bg.panel"
-                disabled={expanded}
-                onClick={expanded ? undefined : toggleExpanded}
-                size="md"
-                variant="surface"
-              >
-                <MdExpand />
-              </IconButton>
-              <IconButton
-                aria-label={translate("expand.collapse")}
-                bg="bg.panel"
-                disabled={!expanded}
-                onClick={expanded ? toggleExpanded : undefined}
-                size="md"
-                variant="outline"
-              >
-                <MdCompress />
-              </IconButton>
-            </ButtonGroup>
-          </Tooltip>
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <Button variant="outline">
+                <MdSettings /> {translate("dag:logs.settings")}
+              </Button>
+            </Menu.Trigger>
+            <Menu.Content zIndex={zIndex}>
+              <Menu.Item onClick={toggleWrap} value="wrap">
+                <MdWrapText /> {wrap ? translate("wrap.unwrap") : translate("wrap.wrap")}
+                <Menu.ItemCommand>{translate("wrap.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleTimestamp} value="timestamp">
+                <MdAccessTime /> {showTimestamp ? translate("timestamp.hide") : translate("timestamp.show")}
+                <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleExpanded} value="expand">
+                {expanded ? (
+                  <>
+                    <MdCompress /> {translate("expand.collapse")}
+                  </>
+                ) : (
+                  <>
+                    <MdExpand /> {translate("expand.expand")}
+                  </>
+                )}
+                <Menu.ItemCommand>{translate("expand.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={toggleSource} value="source">
+                <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
+                <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+            </Menu.Content>
+          </Menu.Root>
           {!isFullscreen && (
             <Tooltip
               closeDelay={100}

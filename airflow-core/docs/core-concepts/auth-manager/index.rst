@@ -63,7 +63,7 @@ users does not need the same user management as an environment used by thousand 
 This is why the whole user management (user authentication and user authorization) is packaged in one component
 called auth manager. So that it is easy to plug-and-play an auth manager that suits your specific needs.
 
-By default, Airflow comes with the :doc:`apache-airflow-providers-fab:auth-manager/index`.
+By default, Airflow comes with the :doc:`simple/index`.
 
 .. note::
     Switching to a different auth manager is a heavy operation and should be considered as such. It will
@@ -123,19 +123,19 @@ Let's go over the different parameters used by most of these methods.
   * ``POST``: Can the user create a resource?
   * ``PUT``: Can the user modify the resource?
   * ``DELETE``: Can the user delete the resource?
-  * ``MENU``: Can the user see the resource in the menu?
 
 * ``details``: Optional details about the resource being accessed.
 * ``user``: The user trying to access the resource.
+
 
 These authorization methods are:
 
 * ``is_authorized_configuration``: Return whether the user is authorized to access Airflow configuration. Some details about the configuration can be provided (e.g. the config section).
 * ``is_authorized_connection``: Return whether the user is authorized to access Airflow connections. Some details about the connection can be provided (e.g. the connection ID).
-* ``is_authorized_dag``: Return whether the user is authorized to access a DAG. Some details about the DAG can be provided (e.g. the DAG ID).
-  Also, ``is_authorized_dag`` is called for any entity related to dags (e.g. task instances, dag runs, ...). This information is passed in ``access_entity``.
+* ``is_authorized_dag``: Return whether the user is authorized to access a Dag. Some details about the Dag can be provided (e.g. the Dag ID).
+  Also, ``is_authorized_dag`` is called for any entity related to Dags (e.g. task instances, Dag runs, ...). This information is passed in ``access_entity``.
   Example: ``auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.Run, details=DagDetails(id="dag-1"))`` asks
-  whether the user has permission to read the Dag runs of the dag "dag-1".
+  whether the user has permission to read the Dag runs of the Dag "dag-1".
 * ``is_authorized_backfill``: Return whether the user is authorized to access Airflow backfills. Some details about the backfill can be provided (e.g. the backfill ID).
 * ``is_authorized_asset``: Return whether the user is authorized to access Airflow assets. Some details about the asset can be provided (e.g. the asset ID).
 * ``is_authorized_asset_alias``: Return whether the user is authorized to access Airflow asset aliases. Some details about the asset alias can be provided (e.g. the asset alias ID).
@@ -145,6 +145,9 @@ These authorization methods are:
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
 
+It should be noted that the ``method`` parameter listed above may only have relevance for a specific subset of the auth manager's authorization methods.
+For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.
+
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The auth manager is responsible for creating the JWT token needed to interact with Airflow public API.
@@ -152,10 +155,9 @@ To achieve this, the auth manager **must** provide an endpoint to create this JW
 available at ``POST /auth/token``.
 Please double check the auth manager documentation to find the accurate token generation endpoint.
 
-The auth manager is also responsible of passing the JWT token to Airflow UI. The protocol to exchange the JWT
+The auth manager is also responsible for passing the JWT token to the Airflow UI. The protocol to exchange the JWT
 token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
-cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it and
-delete the cookie.
+cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it, and delete it.
 
 .. code-block:: python
 
@@ -163,7 +165,7 @@ delete the cookie.
 
     response = RedirectResponse(url="/")
 
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 
@@ -177,7 +179,10 @@ Optional methods recommended to override for optimization
 The following methods aren't required to override to have a functional Airflow auth manager. However, it is recommended to override these to make your auth manager faster (and potentially less costly):
 
 * ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it will call ``is_authorized_dag`` for every single item.
-* ``get_authorized_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
+* ``get_authorized_dag_ids``: Return the list of Dag IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single Dag available in the environment.
+
+  * Note: To filter the results of ``get_authorized_dag_ids``, it is recommended that you define the filtering logic in your ``filter_authorized_dag_ids`` method. For example, this may be useful if you rely on per-Dag access controls derived from one or more fields on a given Dag (e.g. Dag tags).
+  * This method requires an active session with the Airflow metadata database. As such, overriding the ``get_authorized_dag_ids`` method is an advanced use case, which should be considered carefully -- it is recommended you refer to the :doc:`../../database-erd-ref`.
 
 CLI
 ^^^
@@ -228,6 +233,31 @@ Other optional methods
 * ``get_db_manager``: If your auth manager requires one or several database managers (see :class:`~airflow.utils.db_manager.BaseDBManager`),
   their class paths need to be returned as part of this method. By doing so, they will be automatically added to the
   config ``[database] external_db_managers``.
+
+
+Additional Caveats
+^^^^^^^^^^^^^^^^^^
+
+* Your auth manager should not reference anything from the ``airflow.security.permissions`` module, as that module is in the process of being deprecated.
+  Instead, your code should use the definitions in ``airflow.api_fastapi.auth.managers.models.resource_details``. For more details on the ``airflow.security.permissions`` deprecation, see :doc:`/security/deprecated_permissions`
+* The ``access_control`` attribute of a Dag instance is only compatible with the FAB auth manager. Custom auth manager implementations should leverage ``get_authorized_dag_ids`` for Dag instance attribute-based access controls in more customizable ways (e.g. authorization based on Dag tags, Dag bundles, etc.).
+* You may find it useful to define a private, generalized ``_is_authorized`` method which acts as the standardized authorization mechanism, and which each
+  public ``is_authorized_*`` method calls with the appropriate parameters.
+  For concrete examples of this, refer to the ``SimpleAuthManager._is_authorized_method``. Further, it may be useful to optionally use the ``airflow.api_fastapi.auth.managers.base_auth_manager.ExtendedResourceMethod`` reference within your private method.
+
+Dag and Dag Sub-Component Authorization
+---------------------------------------
+
+Given the hierarchical structure of Dags and their composite resources, the auth manager's ``is_authorized_dag`` method should also handle the authorization logic for Dag runs, tasks, and task instances.
+The ``access_entity`` parameter passed to ``is_authorized_dag`` indicates which (if any) Dag sub-component the user is attempting to access. This leads to a few important points:
+
+* If the ``access_entity`` parameter is ``None``, then the user is attempting to interact directly with the Dag, not any of its sub-components.
+* When the ``access_entity`` parameter is not ``None``, it means the user is attempting to access some sub-component of the Dag. This is noteworthy, as in some cases the ``method`` parameter may be valid
+  for the Dag's sub-entity, but not a valid action directly on the Dag itself. For example, the ``POST`` method is valid for Dag runs, but **not** for Dags.
+* One potential way to model the example request mentioned above -- where the ``method`` only has meaning for the Dag sub-component -- is to authorize the user if **both** statements are true:
+
+  * The user has ``PUT`` ("edit") permissions for the given Dag.
+  * The user has ``POST`` ("create") permissions for Dag runs.
 
 Next Steps
 ----------

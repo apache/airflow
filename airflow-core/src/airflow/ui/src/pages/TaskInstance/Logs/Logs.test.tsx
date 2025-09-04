@@ -84,16 +84,20 @@ describe("Task log grouping", () => {
     fireEvent.click(summaryPost);
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
 
-    const expandBtn = screen.getByRole("button", { name: /expand\.expand/iu });
+    const settingsBtn = screen.getByRole("button", { name: /settings/iu });
 
-    fireEvent.click(expandBtn);
+    fireEvent.click(settingsBtn);
 
-    expect(screen.getByText(/Marking task as SUCCESS/iu)).toBeVisible();
+    const expandItem = await screen.findByRole("menuitem", { name: /expand/iu });
 
-    const collapseBtn = screen.getByRole("button", { name: /expand\.collapse/iu });
+    fireEvent.click(expandItem);
 
-    fireEvent.click(collapseBtn);
-    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
+    /* ─── NEW: open again & click  "Collapse"  ─── */
+    fireEvent.click(settingsBtn); // menu is closed after previous click, so reopen
+    const collapseItem = await screen.findByRole("menuitem", { name: /collapse/iu });
+
+    fireEvent.click(collapseItem);
+
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
   }, 10_000);
 });

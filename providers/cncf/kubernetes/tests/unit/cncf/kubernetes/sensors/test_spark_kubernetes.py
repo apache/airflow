@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from kubernetes.client.rest import ApiException
@@ -841,9 +841,7 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        log_info_call = info_log_call.mock_calls[2]
-        log_value = log_info_call[1][0]
-        assert log_value == TEST_POD_LOG_RESULT
+        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
@@ -888,6 +886,4 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        log_info_call = info_log_call.mock_calls[2]
-        log_value = log_info_call[1][0]
-        assert log_value == TEST_POD_LOG_RESULT
+        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls

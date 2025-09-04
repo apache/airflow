@@ -1,7 +1,13 @@
 {
+  "favorite": {
+    "favoriteDags_one": "{{count}} premier Dag favori",
+    "favoriteDags_other": "{{count}} premiers Dags favoris",
+    "noDagRuns": "Il n'y a pas encore d'exécution pour ce Dag.",
+    "noFavoriteDags": "Aucun favori pour le moment. Cliquez sur l'icône étoile à côté d'un Dag dans la liste pour l'ajouter à vos favoris."
+  },
   "group": "Groupe",
   "health": {
-    "dagProcessor": "Analyseur de DAG",
+    "dagProcessor": "Analyseur de Dag",
     "health": "État de santé",
     "healthy": "Sain",
     "lastHeartbeat": "Dernier battement",
@@ -13,8 +19,8 @@
   },
   "history": "Historique",
   "importErrors": {
-    "dagImportError_one": "Erreur d'importation de DAG",
-    "dagImportError_other": "Erreurs d'importation de DAG",
+    "dagImportError_one": "Erreur d'importation de Dag",
+    "dagImportError_other": "Erreurs d'importation de Dag",
     "searchByFile": "Rechercher par fichier",
     "timestamp": "Horodatage"
   },
@@ -27,10 +33,11 @@
   },
   "source": "Source",
   "stats": {
-    "activeDags": "DAGs actifs",
-    "failedDags": "DAGs échoués",
-    "queuedDags": "DAGs en attente",
-    "runningDags": "DAGs en cours d'exécution",
+    "activeDags": "Dags actifs",
+    "failedDags": "Dags échoués",
+    "queuedDags": "Dags en attente",
+    "requiredActions": "Actions requises",
+    "runningDags": "Dags en cours d'exécution",
     "stats": "Statistiques"
   },
   "uri": "URI",

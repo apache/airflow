@@ -40,6 +40,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.redis.operators.redis_publish"],
             }
         ],
+        "queues": ["airflow.providers.redis.queues.redis.RedisPubSubMessageQueueProvider"],
         "sensors": [
             {
                 "integration-name": "Redis",
@@ -47,6 +48,12 @@ def get_provider_info():
                     "airflow.providers.redis.sensors.redis_key",
                     "airflow.providers.redis.sensors.redis_pub_sub",
                 ],
+            }
+        ],
+        "triggers": [
+            {
+                "integration-name": "Redis",
+                "python-modules": ["airflow.providers.redis.triggers.redis_await_message"],
             }
         ],
         "hooks": [{"integration-name": "Redis", "python-modules": ["airflow.providers.redis.hooks.redis"]}],

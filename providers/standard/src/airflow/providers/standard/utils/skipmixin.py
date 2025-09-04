@@ -22,17 +22,12 @@ from types import GeneratorType
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.node import DAGNode
-    from airflow.sdk.types import RuntimeTaskInstanceProtocol
-
-    if AIRFLOW_V_3_1_PLUS:
-        from airflow.sdk.types import Operator
-    else:
-        from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator, RuntimeTaskInstanceProtocol
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -45,12 +40,12 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 
 def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
-    if AIRFLOW_V_3_1_PLUS:
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     else:
         from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-        from airflow.models.mappedoperator import MappedOperator  # type: ignore[no-redef]
+        from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment,no-redef]
 
     return [n for n in nodes if isinstance(n, (BaseOperator, MappedOperator))]
 
@@ -134,14 +129,17 @@ class SkipMixin(LoggingMixin):
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
+            # Handle the case where invalid values are passed as elements of an Iterable
+            # Non-string values are considered invalid elements
             branch_task_id_set = set(branch_task_ids)
             invalid_task_ids_type = {
                 (bti, type(bti).__name__) for bti in branch_task_id_set if not isinstance(bti, str)
             }
             if invalid_task_ids_type:
                 raise AirflowException(
-                    f"'branch_task_ids' expected all task IDs are strings. "
-                    f"Invalid tasks found: {invalid_task_ids_type}."
+                    f"Unable to branch to the specified tasks. "
+                    f"The branching function returned invalid 'branch_task_ids': {invalid_task_ids_type}. "
+                    f"Please check that your function returns an Iterable of valid task IDs that exist in your DAG."
                 )
         elif branch_task_ids is None:
             branch_task_id_set = set()

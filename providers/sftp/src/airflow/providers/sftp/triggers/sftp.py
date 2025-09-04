@@ -84,7 +84,7 @@ class SFTPTrigger(BaseTrigger):
           check whether the last modified time is greater, if true return file if false it polls again.
         """
         hook = self._get_async_hook()
-        exc = None
+
         if isinstance(self.newer_than, str):
             self.newer_than = parse_date(self.newer_than)
         _newer_than = convert_to_utc(self.newer_than) if self.newer_than else None

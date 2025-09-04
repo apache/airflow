@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 
 import google.auth
 import google.oauth2.service_account
-from google.auth import impersonated_credentials  # type: ignore[attr-defined]
+from google.auth import impersonated_credentials
 from google.auth.credentials import AnonymousCredentials, Credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 

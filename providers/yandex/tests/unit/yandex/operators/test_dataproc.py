@@ -21,6 +21,8 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -30,8 +32,6 @@ from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateSparkJobOperator,
     DataprocDeleteClusterOperator,
 )
-
-yandexcloud = pytest.importorskip("yandexcloud")
 
 # Airflow connection with type "yandexcloud"
 CONNECTION_ID = "yandexcloud_default"
@@ -93,6 +93,7 @@ class TestDataprocClusterCreateOperator:
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
     @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("yandexcloud._wrappers.dataproc.Dataproc.create_cluster")
+    @patch("yandexcloud.__version__", "0.308.0")
     def test_create_cluster(self, mock_create_cluster, *_):
         operator = DataprocCreateClusterOperator(
             task_id="create_cluster",
@@ -146,6 +147,73 @@ class TestDataprocClusterCreateOperator:
             security_group_ids=None,
             labels=None,
             initialization_actions=None,
+        )
+        context["task_instance"].xcom_push.assert_has_calls(
+            [
+                call(key="cluster_id", value=mock_create_cluster().response.id),
+                call(key="yandexcloud_connection_id", value=CONNECTION_ID),
+            ]
+        )
+
+    @patch("airflow.providers.yandex.utils.credentials.get_credentials")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    @patch("yandexcloud._wrappers.dataproc.Dataproc.create_cluster")
+    @patch("yandexcloud.__version__", "0.350.0")
+    def test_create_cluster_with_350_sdk(self, mock_create_cluster, *_):
+        operator = DataprocCreateClusterOperator(
+            task_id="create_cluster",
+            ssh_public_keys=SSH_PUBLIC_KEYS,
+            folder_id=FOLDER_ID,
+            subnet_id=SUBNET_ID,
+            zone=AVAILABILITY_ZONE_ID,
+            connection_id=CONNECTION_ID,
+            s3_bucket=S3_BUCKET_NAME_FOR_LOGS,
+            cluster_image_version=CLUSTER_IMAGE_VERSION,
+            log_group_id=LOG_GROUP_ID,
+        )
+        context = {"task_instance": MagicMock()}
+        operator.execute(context)
+        mock_create_cluster.assert_called_once_with(
+            cluster_description="",
+            cluster_image_version="1.4",
+            cluster_name=None,
+            computenode_count=0,
+            computenode_disk_size=None,
+            computenode_disk_type=None,
+            computenode_resource_preset=None,
+            computenode_max_hosts_count=None,
+            computenode_measurement_duration=None,
+            computenode_warmup_duration=None,
+            computenode_stabilization_duration=None,
+            computenode_preemptible=False,
+            computenode_cpu_utilization_target=None,
+            computenode_decommission_timeout=None,
+            datanode_count=1,
+            datanode_disk_size=None,
+            datanode_disk_type=None,
+            datanode_resource_preset=None,
+            folder_id="my_folder_id",
+            masternode_disk_size=None,
+            masternode_disk_type=None,
+            masternode_resource_preset=None,
+            s3_bucket="my_bucket_name",
+            service_account_id=None,
+            services=("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
+            ssh_public_keys=[
+                "ssh-rsa AAA5B3NzaC1yc2EAA1ADA2ABA3AA4QCxO38tKA0XIs9ivPxt7AYdf3bgtAR1ow3Qkb9GPQ6wkFHQq"
+                "cFDe6faKCxH6iDRt2o4D8L8Bx6zN42uZSB0nf8jkIxFTcEU3mFSXEbWByg78ao3dMrAAj1tyr1H1pON6P0="
+            ],
+            subnet_id="my_subnet_id",
+            zone="ru-central1-c",
+            log_group_id=LOG_GROUP_ID,
+            properties=None,
+            enable_ui_proxy=False,
+            host_group_ids=None,
+            security_group_ids=None,
+            labels=None,
+            initialization_actions=None,
+            environment=None,
+            oslogin_enabled=False,
         )
         context["task_instance"].xcom_push.assert_has_calls(
             [

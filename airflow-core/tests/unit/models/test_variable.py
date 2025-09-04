@@ -322,12 +322,7 @@ class TestVariable:
     ],
 )
 def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values, session):
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.execution_time.secrets_masker import _secrets_masker
-    else:
-        from airflow.utils.log.secrets_masker import _secrets_masker
+    from airflow._shared.secrets_masker import _secrets_masker
 
     SecretCache.reset()
 

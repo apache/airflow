@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from airflow._shared.timezones import timezone
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

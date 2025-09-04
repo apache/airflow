@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import sys
 from datetime import datetime
 from http import HTTPStatus
 from multiprocessing import Process
@@ -59,6 +60,11 @@ if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
+
+if sys.platform == "darwin":
+    setproctitle = lambda title: logger.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle
 
 
 def _edge_hostname() -> str:
@@ -176,8 +182,6 @@ class EdgeWorker:
         def _run_job_via_supervisor(
             workload: ExecuteTask,
         ) -> int:
-            from setproctitle import setproctitle
-
             from airflow.sdk.execution_time.supervisor import supervise
 
             # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
@@ -188,8 +192,8 @@ class EdgeWorker:
 
             try:
                 api_url = conf.get("edge", "api_url")
-                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback=...)
-                if execution_api_server_url is ...:
+                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
+                if not execution_api_server_url:
                     parsed = urlparse(api_url)
                     execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
 

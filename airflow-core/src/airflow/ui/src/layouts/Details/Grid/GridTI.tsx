@@ -18,20 +18,25 @@
  */
 import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React from "react";
-import { Link, useParams } from "react-router-dom";
+import React, { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Link, useLocation, useParams } from "react-router-dom";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
+import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 type Props = {
   readonly dagId: string;
+  readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly onClick?: () => void;
   readonly runId: string;
   readonly search: string;
-  readonly state?: TaskInstanceState | null;
   readonly taskId: string;
 };
 
@@ -51,8 +56,23 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { t: translate } = useTranslation();
+  const location = useLocation();
+
+  const getTaskUrl = useCallback(
+    () =>
+      buildTaskInstanceUrl({
+        currentPathname: location.pathname,
+        dagId,
+        isGroup,
+        isMapped: Boolean(isMapped),
+        runId,
+        taskId,
+      }),
+    [dagId, isGroup, isMapped, location.pathname, runId, taskId],
+  );
 
   return (
     <Flex
@@ -64,38 +84,56 @@ const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Pr
       key={taskId}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      position="relative"
       px="2px"
       py={0}
       transition="background-color 0.2s"
-      zIndex={1}
     >
       <Link
+        id={`grid-${runId}-${taskId}`}
+        onClick={onClick}
         replace
         to={{
-          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
+          pathname: getTaskUrl(),
           search,
         }}
       >
-        <Badge
-          borderRadius={4}
-          colorPalette={state === null ? "none" : state}
-          height="14px"
-          minH={0}
-          opacity={state === "success" ? 0.6 : 1}
-          p={0}
-          variant="solid"
-          width="14px"
+        <Tooltip
+          content={
+            <>
+              {translate("taskId")}: {taskId}
+              <br />
+              {translate("state")}: {instance.state}
+              {instance.min_start_date !== null && (
+                <>
+                  <br />
+                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
+                </>
+              )}
+              {instance.max_end_date !== null && (
+                <>
+                  <br />
+                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
+                </>
+              )}
+            </>
+          }
         >
-          {state === undefined ? undefined : (
-            <StateIcon
-              size={10}
-              state={state}
-              style={{
-                marginLeft: "2px",
-              }}
-            />
-          )}
-        </Badge>
+          <Badge
+            alignItems="center"
+            borderRadius={4}
+            colorPalette={instance.state ?? "none"}
+            display="flex"
+            height="14px"
+            justifyContent="center"
+            minH={0}
+            p={0}
+            variant="solid"
+            width="14px"
+          >
+            <StateIcon size={10} state={instance.state} />
+          </Badge>
+        </Tooltip>
       </Link>
     </Flex>
   );

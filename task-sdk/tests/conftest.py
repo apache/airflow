@@ -128,7 +128,7 @@ def captured_logs(request):
         structlog.configure(processors=processors)
         task_logger = logging.getLogger("airflow.task")
 
-        from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker
 
         task_logger.addFilter(SecretsMasker())
         yield cap.entries
@@ -196,7 +196,7 @@ class MakeTIContextDictCallable(Protocol):
 @pytest.fixture
 def make_ti_context() -> MakeTIContextCallable:
     """Factory for creating TIRunContext objects."""
-    from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
+    from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
 
     def _make_context(
         dag_id: str = "test_dag",
@@ -225,6 +225,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
+                state=DagRunState.RUNNING,
                 conf=conf,  # type: ignore
                 consumed_asset_events=list(consumed_asset_events),
             ),

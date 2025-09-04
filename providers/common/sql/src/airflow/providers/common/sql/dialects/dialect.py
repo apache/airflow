@@ -158,7 +158,7 @@ class Dialect(LoggingMixin):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None:
         return self.hook.run(sql, autocommit, parameters, handler, split_statements, return_last)
 
     def get_records(

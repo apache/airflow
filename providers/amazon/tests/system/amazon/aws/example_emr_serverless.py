@@ -43,7 +43,11 @@ else:
         # Airflow 2.10 compat
         from airflow.models.baseoperator import chain
         from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -134,7 +138,7 @@ with DAG(
         force_stop=True,
     )
     # [END howto_operator_emr_serverless_stop_application]
-    stop_app.waiter_check_interval_seconds = 1
+    stop_app.waiter_delay = 1
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
@@ -142,7 +146,7 @@ with DAG(
         application_id=emr_serverless_app_id,
     )
     # [END howto_operator_emr_serverless_delete_application]
-    delete_app.waiter_check_interval_seconds = 1
+    delete_app.waiter_delay = 1
     delete_app.trigger_rule = TriggerRule.ALL_DONE
 
     delete_s3_bucket = S3DeleteBucketOperator(

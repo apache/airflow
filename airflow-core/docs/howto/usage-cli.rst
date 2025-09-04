@@ -65,22 +65,22 @@ Creating a Connection
 
 For information on creating connections using the CLI, see :ref:`connection/cli`
 
-Exporting DAG structure as an image
+Exporting Dag structure as an image
 -----------------------------------
 
-Airflow lets you print or save your DAG structure as an image. This is useful for documenting or sharing your DAG structure. You'll need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
+Airflow lets you print or save your Dag structure as an image. This is useful for documenting or sharing your Dag structure. You'll need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
 
-For example, to print the ``example_complex`` DAG to the terminal:
+For example, to print the ``example_complex`` Dag to the terminal:
 
 .. code-block:: bash
 
   airflow dags show example_complex
 
-This will print the rendered DAG structure to the screen in DOT format.
+This will print the rendered Dag structure to the screen in DOT format.
 
 Multiple file formats are supported. To use them, add the argument ``--save [filename].[format]``.
 
-To save the ``example_complex`` DAG as a PNG file:
+To save the ``example_complex`` Dag as a PNG file:
 
 .. code-block:: bash
 
@@ -91,7 +91,7 @@ This will save the following image as a file:
 .. figure:: /img/usage_cli_export.png
     :width: 100%
 
-    Example DAG representation
+    Example Dag representation
 
 The following file formats are supported:
 
@@ -133,24 +133,24 @@ The following file formats are supported:
  * ``xlib``
  * ``x11``
 
-By default, Airflow looks for dags in the directory specified by the ``dags_folder`` option in the
+By default, Airflow looks for Dags in the directory specified by the ``dags_folder`` option in the
 ``[core]`` section of the ``airflow.cfg`` file. You can select a new directory with the ``--subdir`` argument.
 
-Display dag structure
+Display Dag structure
 ---------------------
 
-Sometimes you will work on dags that contain complex dependencies. It is helpful then to preview
-the DAG to see if it is correct.
+Sometimes you will work on Dags that contain complex dependencies. It is helpful then to preview
+the Dag to see if it is correct.
 
 If you have macOS, you can use `iTerm2 <https://iterm2.com/>`__ together with
-the `imgcat <https://www.iterm2.com/documentation-images.html>`__ script to display the DAG structure in the
+the `imgcat <https://www.iterm2.com/documentation-images.html>`__ script to display the Dag structure in the
 console. You also need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
 
 Other terminals do not support the display of high-quality graphics. You can convert the image to a text
 form, but its resolution will prevent you from reading it.
 
 To do this, you should use the ``--imgcat`` switch in the ``airflow dags show`` command. For example, if you
-want to display ``example_bash_operator`` DAG  then you can use the following command:
+want to display ``example_bash_operator`` Dag  then you can use the following command:
 
 .. code-block:: bash
 
@@ -160,7 +160,7 @@ You will see a similar result as in the screenshot below.
 
 .. figure:: /img/usage_cli_imgcat.png
 
-    Preview of DAG in iTerm2
+    Preview of Dag in iTerm2
 
 Formatting commands output
 --------------------------
@@ -249,15 +249,15 @@ Beware cascading deletes
 
 Keep in mind that some tables have foreign key relationships defined with ``ON DELETE CASCADE`` so deletes in one table may trigger deletes in others.  For example, the ``task_instance`` table keys to the ``dag_run`` table, so if a DagRun record is deleted, all of its associated task instances will also be deleted.
 
-Special handling for DAG runs
+Special handling for Dag runs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Commonly, Airflow determines which DagRun to run next by looking up the latest DagRun.  If you delete all DAG runs, Airflow may schedule an old DAG run that was already completed, e.g. if you have set ``catchup=True``.  So the ``db clean`` command will preserve the latest non-manually-triggered DAG run to preserve continuity in scheduling.
+Commonly, Airflow determines which DagRun to run next by looking up the latest DagRun.  If you delete all Dag runs, Airflow may schedule an old Dag run that was already completed, e.g. if you have set ``catchup=True``.  So the ``db clean`` command will preserve the latest non-manually-triggered Dag run to preserve continuity in scheduling.
 
-Considerations for backfillable dags
+Considerations for backfillable Dags
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Not all dags are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete DAG runs, and if you run backfill over a range of dates that includes the deleted DAG runs, those runs will be recreated and run again.  For this reason, if you have dags that fall into this category you may want to refrain from deleting DAG runs and only clean other large tables such as task instance and log etc.
+Not all Dags are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete Dag runs, and if you run backfill over a range of dates that includes the deleted Dag runs, those runs will be recreated and run again.  For this reason, if you have Dags that fall into this category you may want to refrain from deleting Dag runs and only clean other large tables such as task instance and log etc.
 
 .. _cli-db-migrate:
 
@@ -291,8 +291,8 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
 
 .. note::
 
-    It's highly recommended that you reserialize your dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
-    This is to ensure that the serialized dags are compatible with the downgraded version of Airflow.
+    It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
+    This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
 
 .. _cli-export-connections:
 
@@ -381,10 +381,10 @@ JSON example output:
     airflow_db={"conn_type": "mysql", "login": "root", "password": "plainpassword", "host": "mysql", "schema": "airflow"}
     druid_broker_default={"conn_type": "druid", "host": "druid-broker", "port": 8082, "extra": "{\"endpoint\": \"druid/v2/sql\"}"}
 
-Testing for DAG Import Errors
+Testing for Dag Import Errors
 -----------------------------
-The CLI can be used to check whether any discovered dags have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any dags cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format.
-For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or pre-commit to speed up the review process and testing.
+The CLI can be used to check whether any discovered Dags have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any Dags cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format.
+For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or as prek hook to speed up the review process and testing.
 
 Example command that fails if there are any errors, using `jq <https://jqlang.github.io/jq/>`__ to parse the output:
 
@@ -402,7 +402,7 @@ Example in a Jenkins pipeline:
 
 .. code-block:: groovy
 
-    stage('All dags are loadable') {
+    stage('All Dags are loadable') {
         steps {
             sh 'airflow dags list-import-errors | tee import_errors.txt && jq -e \'select(type=="array" and length == 0)\' import_errors.txt'
         }

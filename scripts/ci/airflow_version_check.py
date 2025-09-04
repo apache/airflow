@@ -19,9 +19,9 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "packaging>=23.2",
+#   "packaging>=25",
 #   "requests>=2.28.1",
-#   "rich>=13.3.5",
+#   "rich>=13.6.0",
 # ]
 # ///
 from __future__ import annotations

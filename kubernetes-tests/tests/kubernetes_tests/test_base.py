@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -50,7 +51,7 @@ print()
 
 class StringContainingId(str):
     def __eq__(self, other):
-        return self in other
+        return self in other.strip() or self in other
 
 
 class BaseK8STest:
@@ -60,6 +61,8 @@ class BaseK8STest:
     temp_dir = Path(tempfile.gettempdir())  # Refers to global temp directory, in linux it usual "/tmp"
     session: requests.Session
     test_id: str
+    use_fab_auth_manager: bool = os.environ.get("USE_FAB_AUTH_MANAGER", "true").lower() == "true"
+    password: str = "admin"  # Default password for FAB auth manager
 
     @pytest.fixture(autouse=True)
     def base_tests_setup(self, request):
@@ -67,6 +70,13 @@ class BaseK8STest:
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
         self.ensure_resource_health("airflow-api-server")
+        if not self.use_fab_auth_manager:
+            # If we are not using FAB auth manager, we need to retrieve the admin password from
+            # the airflow-api-server pod
+            self.password = self.get_generated_admin_password(namespace="airflow")
+            print("Using retrieved admin password for API calls from generated file")
+        else:
+            print("Using default 'admin' password for API calls")
         try:
             self.session = self._get_session_with_retries()
             self._ensure_airflow_api_server_is_healthy()
@@ -115,7 +125,7 @@ class BaseK8STest:
             print("=" * 80, file=output_file)
 
     @staticmethod
-    def _num_pods_in_namespace(namespace):
+    def _num_pods_in_namespace(namespace: str):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
         air_pod = air_pod.splitlines()
         names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
@@ -143,7 +153,9 @@ class BaseK8STest:
                     jwt_token = None
                     while attempts < 5:
                         try:
-                            jwt_token = generate_access_token("admin", "admin", KUBERNETES_HOST_PORT)
+                            jwt_token = generate_access_token(
+                                "admin", BaseK8STest.password, KUBERNETES_HOST_PORT
+                            )
                             break
                         except Exception:
                             attempts += 1
@@ -154,7 +166,7 @@ class BaseK8STest:
                     response = super().send(request, **kwargs)
                 return response
 
-        jwt_token = generate_access_token("admin", "admin", KUBERNETES_HOST_PORT)
+        jwt_token = generate_access_token("admin", self.password, KUBERNETES_HOST_PORT)
         session = requests.Session()
         session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(
@@ -342,3 +354,30 @@ class BaseK8STest:
                 break
         assert run_after is not None, f"No run_after can be found for the dag with {dag_id}"
         return dag_run_id, logical_date
+
+    def get_generated_admin_password(self, namespace: str) -> str:
+        api_sever_pod = (
+            check_output(["kubectl", "get", "pods", "--namespace", namespace]).decode().splitlines()
+        )
+        names = [re.compile(r"\s+").split(x)[0] for x in api_sever_pod if "airflow-api-server" in x]
+        if not names:
+            self._describe_resources(namespace)
+            raise ValueError("There should be exactly one airflow-api-server pod running.")
+        airflow_api_server_pod_name = names[0]
+        temp_generated_passwords_json_file_path = (
+            self.temp_dir / "simple_auth_manager_passwords.json.generated"
+        )
+        check_call(
+            [
+                "kubectl",
+                "cp",
+                "--container",
+                "api-server",
+                f"{namespace}/{airflow_api_server_pod_name}:simple_auth_manager_passwords.json.generated",
+                temp_generated_passwords_json_file_path.as_posix(),
+            ]
+        )
+        users = json.loads(temp_generated_passwords_json_file_path.read_text())
+        if "admin" not in users:
+            raise ValueError(f"There should be an admin user in the generated passwords file: {users}")
+        return users["admin"]

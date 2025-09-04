@@ -45,6 +45,7 @@ class SampleConn:
 
 class TestBaseSecretsBackend:
     def setup_method(self) -> None:
+        clear_db_connections()
         clear_db_variables()
 
     def teardown_method(self) -> None:

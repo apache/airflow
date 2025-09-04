@@ -77,17 +77,37 @@ class TaskCallbackRequest(BaseCallbackRequest):
         }
 
 
+class EmailNotificationRequest(BaseCallbackRequest):
+    """Email notification request for task failures/retries."""
+
+    ti: ti_datamodel.TaskInstance
+    """Simplified Task Instance representation"""
+    email_type: Literal["failure", "retry"] = "failure"
+    """Whether this is for a failure or retry email"""
+    context_from_server: ti_datamodel.TIRunContext
+    """Task execution context from the Server"""
+    type: Literal["EmailNotificationRequest"] = "EmailNotificationRequest"
+
+
+class DagRunContext(BaseModel):
+    """Class to pass context info from the server to build a Execution context object."""
+
+    dag_run: ti_datamodel.DagRun | None = None
+    last_ti: ti_datamodel.TaskInstance | None = None
+
+
 class DagCallbackRequest(BaseCallbackRequest):
     """A Class with information about the success/failure DAG callback to be executed."""
 
     dag_id: str
     run_id: str
+    context_from_server: DagRunContext | None = None
     is_failure_callback: bool | None = True
     """Flag to determine whether it is a Failure Callback or Success Callback"""
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
 
 
 CallbackRequest = Annotated[
-    DagCallbackRequest | TaskCallbackRequest,
+    DagCallbackRequest | TaskCallbackRequest | EmailNotificationRequest,
     Field(discriminator="type"),
 ]

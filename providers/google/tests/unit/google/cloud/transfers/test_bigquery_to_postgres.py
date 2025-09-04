@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from psycopg2.extras import Json
 
 from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
 
@@ -85,3 +86,16 @@ class TestBigQueryToPostgresOperator:
                 selected_fields=selected_fields,
                 replace_index=replace_index,
             )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.register_adapter")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.BigQueryHook")
+    def test_adapters_to_json_registered(self, mock_hook, mock_register_adapter):
+        BigQueryToPostgresOperator(
+            task_id=TASK_ID,
+            dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
+            target_table_name=TEST_DESTINATION_TABLE,
+            replace=False,
+        ).execute(context=mock.MagicMock())
+
+        mock_register_adapter.assert_any_call(list, Json)
+        mock_register_adapter.assert_any_call(dict, Json)

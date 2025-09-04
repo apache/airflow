@@ -1103,6 +1103,8 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection_uri
 
     def _get_instance_socket_name(self) -> str:
+        if self.project_id is None:
+            raise ValueError("The project_id should not be none")
         return self.project_id + ":" + self.location + ":" + self.instance
 
     def _get_sqlproxy_instance_specification(self) -> str:
@@ -1135,6 +1137,8 @@ class CloudSQLDatabaseHook(BaseHook):
             raise ValueError("Proxy runner can only be retrieved in case of use_proxy = True")
         if not self.sql_proxy_unique_path:
             raise ValueError("The sql_proxy_unique_path should be set")
+        if self.project_id is None:
+            raise ValueError("The project_id should not be None")
         return CloudSqlProxyRunner(
             path_prefix=self.sql_proxy_unique_path,
             instance_specification=self._get_sqlproxy_instance_specification(),
@@ -1171,9 +1175,9 @@ class CloudSQLDatabaseHook(BaseHook):
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
                 raise ValueError(f"The db_hook should be PostgresHook and is {type(self.db_hook)}")
-            conn = getattr(self.db_hook, "conn")
-            if conn and conn.notices:
-                for output in self.db_hook.conn.notices:
+            conn = getattr(self.db_hook, "conn", None)
+            if conn and hasattr(conn, "notices") and conn.notices:
+                for output in conn.notices:
                     self.log.info(output)
 
     def reserve_free_tcp_port(self) -> None:

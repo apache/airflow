@@ -36,7 +36,7 @@ export const useGridStructure = ({
     {
       dagId,
       limit,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
     },
     undefined,
     {

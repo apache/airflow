@@ -5,6 +5,33 @@
     "reason": "原因",
     "title": "依賴 (Dependencies) 阻礙任務排程"
   },
+  "calendar": {
+    "daily": "每日",
+    "hourly": "每小時",
+    "legend": {
+      "less": "較少",
+      "more": "較多"
+    },
+    "navigation": {
+      "nextMonth": "下一月",
+      "nextYear": "下一年",
+      "previousMonth": "上一月",
+      "previousYear": "上一年"
+    },
+    "noData": "沒有可用的資料",
+    "noRuns": "沒有執行",
+    "totalRuns": "總執行數",
+    "week": "第 {{weekNumber}} 週",
+    "weekdays": {
+      "friday": "五",
+      "monday": "一",
+      "saturday": "六",
+      "sunday": "日",
+      "thursday": "四",
+      "tuesday": "二",
+      "wednesday": "三"
+    }
+  },
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
@@ -19,18 +46,29 @@
   },
   "header": {
     "buttons": {
+      "advanced": "進階功能",
       "dagDocs": "Dag 文件"
     }
   },
   "logs": {
     "allLevels": "所有日誌等級",
     "allSources": "所有來源",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
     "fullscreen": {
       "button": "全螢幕",
       "tooltip": "按下 {{hotkey}} 進入全螢幕"
     },
+    "info": "INFO",
     "noTryNumber": "沒有嘗試次數",
-    "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})"
+    "settings": "日誌設定",
+    "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "導航: {{arrow}}",
+    "toggleGroup": "展開/收合群組: 空白鍵"
   },
   "overview": {
     "buttons": {
@@ -53,8 +91,9 @@
   "panel": {
     "buttons": {
       "options": "選項",
-      "showGraph": "顯示圖表",
-      "showGrid": "顯示網格"
+      "showGantt": "顯示甘特圖",
+      "showGraphShortcut": "顯示圖表 (按 g)",
+      "showGridShortcut": "顯示網格 (按 g)"
     },
     "dagRuns": {
       "label": "Dag 執行次數"
@@ -89,6 +128,7 @@
     "assetEvents": "資源事件",
     "auditLog": "審計日誌",
     "backfills": "回填",
+    "calendar": "日曆",
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
@@ -96,6 +136,7 @@
     "mappedTaskInstances_other": "任務實例 [{{count}}]",
     "overview": "總覽",
     "renderedTemplates": "渲染後的範本",
+    "requiredActions": "待回應的任務實例",
     "runs": "執行紀錄",
     "taskInstances": "任務實例",
     "tasks": "任務",

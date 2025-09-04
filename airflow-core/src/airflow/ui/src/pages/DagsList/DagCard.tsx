@@ -24,6 +24,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
+import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -56,20 +57,32 @@ export const DagCard = ({ dag }: Props) => {
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack>
+          <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
           <TogglePause
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}
             isPaused={dag.is_paused}
             pr={2}
           />
-          <TriggerDAGButton dag={dag} withText={false} />
+          <TriggerDAGButton
+            dagDisplayName={dag.dag_display_name}
+            dagId={dag.dag_id}
+            isPaused={dag.is_paused}
+            withText={false}
+          />
           <FavoriteDagButton dagId={dag.dag_id} withText={false} />
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
         <Stat label={translate("dagDetails.schedule")}>
-          <Schedule dag={dag} />
+          <Schedule
+            assetExpression={dag.asset_expression}
+            dagId={dag.dag_id}
+            latestRunAfter={latestRun?.run_after}
+            timetableDescription={dag.timetable_description}
+            timetableSummary={dag.timetable_summary}
+          />
         </Stat>
         <Stat label={translate("dagDetails.latestRun")}>
           {latestRun ? (

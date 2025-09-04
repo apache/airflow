@@ -70,7 +70,9 @@ This package provides remote execution capabilities via the
 <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 3.1.1
+Release: 3.1.2
+
+Release Date: ``|PypiReleaseDate|``
 
 Provider package
 ----------------
@@ -81,7 +83,7 @@ All classes for this package are included in the ``airflow.providers.microsoft.p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-microsoft-psrp``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

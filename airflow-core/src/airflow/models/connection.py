@@ -21,20 +21,22 @@ import json
 import logging
 import re
 import sys
+import warnings
 from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.sdk import SecretCache
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -44,7 +46,7 @@ log = logging.getLogger(__name__)
 # the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
 #
 # You can try the regex here: https://regex101.com/r/69033B/1
-RE_SANITIZE_CONN_ID = re.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+RE_SANITIZE_CONN_ID = re.compile(r"^[\w#!()\-.:/\\]{1,}$")
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
 
@@ -133,6 +135,7 @@ class Connection(Base, LoggingMixin):
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
     _extra = Column("extra", Text())
 
     def __init__(
@@ -473,10 +476,15 @@ class Connection(Base, LoggingMixin):
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
+            warnings.warn(
+                "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
+                "Please use `get` on Connection from sdk(`airflow.sdk.Connection`) instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
             try:
                 conn = TaskSDKConnection.get(conn_id=conn_id)
                 if isinstance(conn, TaskSDKConnection):
@@ -544,6 +552,18 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            from airflow.sdk import Connection as TaskSDKConnection
+
+            warnings.warn(
+                "Using Connection.from_json from `airflow.models` is deprecated."
+                "Please use `from_json` on Connection from sdk(airflow.sdk.Connection) instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+            return TaskSDKConnection.from_json(value, conn_id=conn_id)  # type: ignore[return-value]
+
         kwargs = json.loads(value)
         extra = kwargs.pop("extra", None)
         if extra:

@@ -25,6 +25,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -38,7 +39,6 @@ from airflow.models.backfill import (
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -154,7 +154,8 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert all(x.conf == expected_run_conf for x in dag_runs)
 
 
-def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
+@pytest.mark.parametrize("run_on_latest_version", [True, False])
+def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_on_latest_version):
     """
     Verify that when backfill clears an existing dag run, bundle version is cleared.
     """
@@ -193,11 +194,13 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
         dag_run_conf=None,
         triggering_user_name="pytest",
         reprocess_behavior=ReprocessBehavior.FAILED,
+        run_on_latest_version=run_on_latest_version,
     )
     session.commit()
 
     # verify that the old dag run (not included in backfill) still has first bundle version
-    # but the latter 5, which are included in the backfill, have the latest bundle version
+    # but the latter 5, which are included in the backfill, have the latest bundle version if run_on_latest_version
+    # is True, otherwise they have the first bundle version
     dag_runs = sorted(
         session.scalars(
             select(DagRun).where(
@@ -206,7 +209,15 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session):
         ),
         key=lambda x: x.logical_date,
     )
-    expected = [first_bundle_version] + 5 * [new_bundle_version]
+    if run_on_latest_version:
+        expected = [first_bundle_version] + 5 * [new_bundle_version]
+    else:
+        expected = (
+            [first_bundle_version]
+            + [new_bundle_version]
+            + 2 * [first_bundle_version]
+            + 2 * [new_bundle_version]
+        )
     assert [x.bundle_version for x in dag_runs] == expected
 
 
@@ -402,7 +413,7 @@ def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_
     base_date = timezone.datetime(2021, 1, 1)
     from_date = base_date + timedelta(days=days_between)
     with dag_maker(dag_id="abc123", serialized=True, catchup=catchup) as dag:
-        op = PythonOperator(task_id="dep_on_past", python_callable=lambda: print, depends_on_past=True)
+        PythonOperator(task_id="dep_on_past", python_callable=lambda: print, depends_on_past=True)
     dr = dag_maker.create_dagrun(logical_date=base_date, run_type=first_run_type)
     dr.state = DagRunState.FAILED
     for ti in dr.task_instances:
@@ -438,7 +449,7 @@ def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_
     # so now the first backfill dag run follows the other one immediately
 
     ti: TaskInstance = next_run.get_task_instances(session=session)[0]
-    ti.task = op
+    ti.task = dag.task_dict[ti.task_id]
 
     dep_statuses = ti.get_failed_dep_statuses(dep_context=DepContext(), session=session)
     if is_backfill:

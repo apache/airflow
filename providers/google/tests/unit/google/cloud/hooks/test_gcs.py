@@ -28,11 +28,10 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import dateutil
+import google.cloud.storage as storage
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
-
-# dynamic storage type in google.cloud needs to be type-ignored
-from google.cloud import exceptions, storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import NotFound
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
@@ -559,9 +558,9 @@ class TestGCSHook:
         bucket_method = mock_service.return_value.bucket
         blob = bucket_method.return_value.blob
         delete_method = blob.return_value.delete
-        delete_method.side_effect = exceptions.NotFound(message="Not Found")
+        delete_method.side_effect = NotFound(message="Not Found")
 
-        with pytest.raises(exceptions.NotFound):
+        with pytest.raises(NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -598,9 +597,7 @@ class TestGCSHook:
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
-        mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
-            message="Not Found"
-        )
+        mock_service.return_value.bucket.return_value.delete.side_effect = NotFound(message="Not Found")
         test_bucket = "test bucket"
         with caplog.at_level(logging.INFO):
             self.gcs_hook.delete_bucket(bucket_name=test_bucket)

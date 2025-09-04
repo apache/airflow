@@ -381,7 +381,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
 class TestCloudDataCatalogCreateTagTemplateFieldOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{"return_value.create_tag_template_field.return_value": TEST_TAG_TEMPLATE_FIELD},  # type: ignore
+        **{"return_value.create_tag_template_field.return_value": TEST_TAG_TEMPLATE_FIELD},
     )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -589,7 +589,7 @@ class TestCloudDataCatalogDeleteTagTemplateFieldOperator:
 class TestCloudDataCatalogGetEntryOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{"return_value.get_entry.return_value": TEST_ENTRY},  # type: ignore
+        **{"return_value.get_entry.return_value": TEST_ENTRY},
     )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -624,7 +624,7 @@ class TestCloudDataCatalogGetEntryOperator:
 class TestCloudDataCatalogGetEntryGroupOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{"return_value.get_entry_group.return_value": TEST_ENTRY_GROUP},  # type: ignore
+        **{"return_value.get_entry_group.return_value": TEST_ENTRY_GROUP},
     )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -659,7 +659,7 @@ class TestCloudDataCatalogGetEntryGroupOperator:
 class TestCloudDataCatalogGetTagTemplateOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{"return_value.get_tag_template.return_value": TEST_TAG_TEMPLATE},  # type: ignore
+        **{"return_value.get_tag_template.return_value": TEST_TAG_TEMPLATE},
     )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -729,7 +729,7 @@ class TestCloudDataCatalogListTagsOperator:
 class TestCloudDataCatalogLookupEntryOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
-        **{"return_value.lookup_entry.return_value": TEST_ENTRY},  # type: ignore
+        **{"return_value.lookup_entry.return_value": TEST_ENTRY},
     )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning):

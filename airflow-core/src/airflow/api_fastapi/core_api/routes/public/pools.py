@@ -49,7 +49,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
 
 
 @pools_router.delete(
-    "/{pool_name}",
+    "/{pool_name:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
@@ -74,7 +74,7 @@ def delete_pool(
 
 
 @pools_router.get(
-    "/{pool_name}",
+    "/{pool_name:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_pool(method="GET"))],
 )
@@ -124,7 +124,7 @@ def get_pools(
 
 
 @pools_router.patch(
-    "/{pool_name}",
+    "/{pool_name:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,

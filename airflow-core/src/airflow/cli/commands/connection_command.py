@@ -66,9 +66,7 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 def connections_get(args):
     """Get a connection."""
     try:
-        from airflow.sdk import BaseHook
-
-        conn = BaseHook.get_connection(args.conn_id)
+        conn = Connection.get_connection_from_secrets(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
     AirflowConsole().print_as(

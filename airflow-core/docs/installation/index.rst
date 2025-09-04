@@ -346,8 +346,8 @@ The requirements that Airflow might need depend on many factors, including (but 
     with more (or less) pods and containers that are needed that might depend on particular choice of
     the technology/cloud/integration of monitoring etc.
   * Technical details of database, hardware, network, etc. that your deployment is running on
-  * The complexity of the code you add to your DAGS, configuration, plugins, settings etc. (note, that
-    Airflow runs the code that DAG author and Deployment Manager provide)
+  * The complexity of the code you add to your Dags, configuration, plugins, settings etc. (note, that
+    Airflow runs the code that Dag author and Deployment Manager provide)
   * The number and choice of providers you install and use (Airflow has more than 80 providers) that can
     be installed by choice of the Deployment Manager and using them might require more resources.
   * The choice of parameters that you use when tuning Airflow. Airflow has many configuration parameters
@@ -355,7 +355,7 @@ The requirements that Airflow might need depend on many factors, including (but 
   * The number of DagRuns and tasks instances you run with parallel instances of each in consideration
   * How complex are the tasks you run
 
-The above "DAG" characteristics will change over time and even will change depending on the time of the day
+The above "Dag" characteristics will change over time and even will change depending on the time of the day
 or week, so you have to be prepared to continuously monitor the system and adjust the parameters to make
 it works smoothly.
 

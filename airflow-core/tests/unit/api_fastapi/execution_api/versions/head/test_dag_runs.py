@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.db import clear_db_runs
@@ -314,3 +314,142 @@ class TestGetDagRunCount:
         )
         assert response.status_code == 200
         assert response.json() == 2
+
+
+class TestGetPreviousDagRun:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_get_previous_dag_run_basic(self, client, session, dag_maker):
+        """Test getting the previous DAG run without state filtering."""
+        dag_id = "test_get_previous_basic"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        # Create multiple DAG runs
+        dag_maker.create_dagrun(
+            run_id="run1", logical_date=timezone.datetime(2025, 1, 1), state=DagRunState.SUCCESS
+        )
+        dag_maker.create_dagrun(
+            run_id="run2", logical_date=timezone.datetime(2025, 1, 5), state=DagRunState.FAILED
+        )
+        dag_maker.create_dagrun(
+            run_id="run3", logical_date=timezone.datetime(2025, 1, 10), state=DagRunState.SUCCESS
+        )
+        session.commit()
+
+        # Query for previous DAG run before 2025-01-10
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/previous",
+            params={
+                "logical_date": timezone.datetime(2025, 1, 10).isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["dag_id"] == dag_id
+        assert result["run_id"] == "run2"  # Most recent before 2025-01-10
+        assert result["state"] == "failed"
+
+    def test_get_previous_dag_run_with_state_filter(self, client, session, dag_maker):
+        """Test getting the previous DAG run with state filtering."""
+        dag_id = "test_get_previous_with_state"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        # Create multiple DAG runs with different states
+        dag_maker.create_dagrun(
+            run_id="run1", logical_date=timezone.datetime(2025, 1, 1), state=DagRunState.SUCCESS
+        )
+        dag_maker.create_dagrun(
+            run_id="run2", logical_date=timezone.datetime(2025, 1, 5), state=DagRunState.FAILED
+        )
+        dag_maker.create_dagrun(
+            run_id="run3", logical_date=timezone.datetime(2025, 1, 8), state=DagRunState.SUCCESS
+        )
+        session.commit()
+
+        # Query for previous successful DAG run before 2025-01-10
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/previous",
+            params={"logical_date": timezone.datetime(2025, 1, 10).isoformat(), "state": "success"},
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["dag_id"] == dag_id
+        assert result["run_id"] == "run3"  # Most recent successful run before 2025-01-10
+        assert result["state"] == "success"
+
+    def test_get_previous_dag_run_no_previous_found(self, client, session, dag_maker):
+        """Test getting previous DAG run when none exists returns null."""
+        dag_id = "test_get_previous_none"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        # Create only one DAG run - no previous should exist
+        dag_maker.create_dagrun(
+            run_id="run1", logical_date=timezone.datetime(2025, 1, 1), state=DagRunState.SUCCESS
+        )
+
+        response = client.get(f"/execution/dag-runs/{dag_id}/previous?logical_date=2025-01-01T00:00:00Z")
+
+        assert response.status_code == 200
+        assert response.json() is None  # Should return null
+
+    def test_get_previous_dag_run_no_matching_state(self, client, session, dag_maker):
+        """Test getting previous DAG run with state filter that matches nothing returns null."""
+        dag_id = "test_get_previous_no_match"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        # Create DAG runs with different states
+        dag_maker.create_dagrun(
+            run_id="run1", logical_date=timezone.datetime(2025, 1, 1), state=DagRunState.FAILED
+        )
+        dag_maker.create_dagrun(
+            run_id="run2", logical_date=timezone.datetime(2025, 1, 2), state=DagRunState.FAILED
+        )
+
+        # Look for previous success but only failed runs exist
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/previous?logical_date=2025-01-03T00:00:00Z&state=success"
+        )
+
+        assert response.status_code == 200
+        assert response.json() is None
+
+    def test_get_previous_dag_run_dag_not_found(self, client, session):
+        """Test getting previous DAG run for non-existent DAG returns 404."""
+        response = client.get(
+            "/execution/dag-runs/nonexistent_dag/previous?logical_date=2025-01-01T00:00:00Z"
+        )
+
+        assert response.status_code == 200
+        assert response.json() is None
+
+    def test_get_previous_dag_run_invalid_state_parameter(self, client, session, dag_maker):
+        """Test that invalid state parameter returns 422 validation error."""
+        dag_id = "test_get_previous_invalid_state"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(
+            run_id="run1", logical_date=timezone.datetime(2025, 1, 1), state=DagRunState.SUCCESS
+        )
+        session.commit()
+
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/previous?logical_date=2025-01-02T00:00:00Z&state=invalid_state"
+        )
+
+        assert response.status_code == 422

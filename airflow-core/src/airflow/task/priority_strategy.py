@@ -22,6 +22,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
+from airflow.task.weight_rule import WeightRule
+
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
@@ -52,7 +54,7 @@ class PriorityWeightStrategy(ABC):
         was returned by ``serialize`` during DAG serialization. The default
         implementation constructs the priority weight strategy without any arguments.
         """
-        return cls(**data)  # type: ignore[call-arg]
+        return cls(**data)
 
     def serialize(self) -> dict[str, Any]:
         """
@@ -111,9 +113,9 @@ class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
 
 
 airflow_priority_weight_strategies: dict[str, type[PriorityWeightStrategy]] = {
-    "absolute": _AbsolutePriorityWeightStrategy,
-    "downstream": _DownstreamPriorityWeightStrategy,
-    "upstream": _UpstreamPriorityWeightStrategy,
+    WeightRule.ABSOLUTE: _AbsolutePriorityWeightStrategy,
+    WeightRule.DOWNSTREAM: _DownstreamPriorityWeightStrategy,
+    WeightRule.UPSTREAM: _UpstreamPriorityWeightStrategy,
 }
 
 

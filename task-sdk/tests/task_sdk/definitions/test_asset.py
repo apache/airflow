@@ -246,14 +246,14 @@ def create_test_assets():
 def test_asset_trigger_setup_and_serialization(create_test_assets):
     assets = create_test_assets
 
-    # Create DAG with asset triggers
+    # Create Dag with asset triggers
     with DAG(dag_id="test", schedule=AssetAny(*assets), catchup=False) as dag:
         EmptyOperator(task_id="hello")
 
     # Verify assets are set up correctly
-    assert isinstance(dag.timetable.asset_condition, AssetAny), "DAG assets should be an instance of AssetAny"
+    assert isinstance(dag.timetable.asset_condition, AssetAny), "Dag assets should be an instance of AssetAny"
 
-    # Round-trip the DAG through serialization
+    # Round-trip the Dag through serialization
     deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
     # Verify serialization and deserialization integrity

@@ -70,7 +70,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
+    DagRun,
     DagRunStateResponse,
+    HITLDetailRequest,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
@@ -83,6 +85,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
+    UpdateHITLDetailPayload,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -95,6 +98,7 @@ try:
 except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
+
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -202,6 +206,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         return self._get_response()
 
+    async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
+        """Send a request to the parent without blocking."""
+        raise NotImplementedError
+
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
 
@@ -228,15 +236,16 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         length = int.from_bytes(len_bytes, byteorder="big")
 
         buffer = bytearray(length)
-        nread = self.socket.recv_into(buffer)
-        if nread != length:
-            raise RuntimeError(
-                f"unable to read full response in child. (We read {nread}, but expected {length})"
-            )
-        if nread == 0:
-            raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+        mv = memoryview(buffer)
 
-        resp = self.resp_decoder.decode(buffer)
+        pos = 0
+        while pos < length:
+            nread = self.socket.recv_into(mv[pos:])
+            if nread == 0:
+                raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
+            pos += nread
+
+        resp = self.resp_decoder.decode(mv)
         if maxfds:
             return resp, fds or []
         return resp
@@ -491,6 +500,13 @@ class DagRunStateResult(DagRunStateResponse):
         return cls(**dr_state_response.model_dump(exclude_defaults=True), type="DagRunStateResult")
 
 
+class PreviousDagRunResult(BaseModel):
+    """Response containing previous Dag run information."""
+
+    dag_run: DagRun | None = None
+    type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
+
+
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
     type: Literal["PrevSuccessfulDagRunResult"] = "PrevSuccessfulDagRunResult"
 
@@ -535,7 +551,7 @@ class TaskStatesResult(TaskStatesResponse):
 
 
 class DRCount(BaseModel):
-    """Response containing count of DAG Runs matching certain filters."""
+    """Response containing count of Dag Runs matching certain filters."""
 
     count: int
     type: Literal["DRCount"] = "DRCount"
@@ -557,6 +573,18 @@ class SentFDs(BaseModel):
     fds: list[int]
 
 
+class CreateHITLDetailPayload(HITLDetailRequest):
+    """Add the input request part of a Human-in-the-loop response."""
+
+    type: Literal["CreateHITLDetailPayload"] = "CreateHITLDetailPayload"
+
+
+class HITLDetailRequestResult(HITLDetailRequest):
+    """Response to CreateHITLDetailPayload request."""
+
+    type: Literal["HITLDetailRequestResult"] = "HITLDetailRequestResult"
+
+
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
@@ -576,7 +604,10 @@ ToTask = Annotated[
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
-    | OKResponse,
+    | CreateHITLDetailPayload
+    | HITLDetailRequestResult
+    | OKResponse
+    | PreviousDagRunResult,
     Field(discriminator="type"),
 ]
 
@@ -680,6 +711,7 @@ class GetXComSequenceSlice(BaseModel):
     start: int | None
     stop: int | None
     step: int | None
+    include_prior_dates: bool = False
     type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
 
 
@@ -772,6 +804,13 @@ class GetDagRunState(BaseModel):
     type: Literal["GetDagRunState"] = "GetDagRunState"
 
 
+class GetPreviousDagRun(BaseModel):
+    dag_id: str
+    logical_date: AwareDatetime
+    state: str | None = None
+    type: Literal["GetPreviousDagRun"] = "GetPreviousDagRun"
+
+
 class GetAssetByName(BaseModel):
     name: str
     type: Literal["GetAssetByName"] = "GetAssetByName"
@@ -838,6 +877,31 @@ class GetDRCount(BaseModel):
     type: Literal["GetDRCount"] = "GetDRCount"
 
 
+class GetHITLDetailResponse(BaseModel):
+    """Get the response content part of a Human-in-the-loop response."""
+
+    ti_id: UUID
+    type: Literal["GetHITLDetailResponse"] = "GetHITLDetailResponse"
+
+
+class UpdateHITLDetail(UpdateHITLDetailPayload):
+    """Update the response content part of an existing Human-in-the-loop response."""
+
+    type: Literal["UpdateHITLDetail"] = "UpdateHITLDetail"
+
+
+class MaskSecret(BaseModel):
+    """Add a new value to be redacted in task logs."""
+
+    # This is needed since calls to `mask_secret` in the Task process will otherwise only add the mask value
+    # to the child process, but the redaction happens in the parent.
+    # We cannot use `string | Iterable | dict here` (would be more intuitive) because bug in Pydantic
+    # https://github.com/pydantic/pydantic/issues/9541 turns iterable into a ValidatorIterator
+    value: JsonValue
+    name: str | None = None
+    type: Literal["MaskSecret"] = "MaskSecret"
+
+
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
@@ -849,6 +913,7 @@ ToSupervisor = Annotated[
     | GetDagRunState
     | GetDRCount
     | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates
@@ -868,6 +933,10 @@ ToSupervisor = Annotated[
     | TaskState
     | TriggerDagRun
     | DeleteVariable
-    | ResendLoggingFD,
+    | ResendLoggingFD
+    | CreateHITLDetailPayload
+    | UpdateHITLDetail
+    | GetHITLDetailResponse
+    | MaskSecret,
     Field(discriminator="type"),
 ]

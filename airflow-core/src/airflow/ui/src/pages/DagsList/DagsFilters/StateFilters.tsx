@@ -18,6 +18,7 @@
  */
 import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { LuUserRoundPen } from "react-icons/lu";
 
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { StateBadge } from "src/components/StateBadge";
@@ -25,13 +26,23 @@ import { StateBadge } from "src/components/StateBadge";
 type Props = {
   readonly isAll: boolean;
   readonly isFailed: boolean;
+  readonly isQueued: boolean;
   readonly isRunning: boolean;
   readonly isSuccess: boolean;
+  readonly needsReview: boolean;
   readonly onStateChange: React.MouseEventHandler<HTMLButtonElement>;
 };
 
-export const StateFilters = ({ isAll, isFailed, isRunning, isSuccess, onStateChange }: Props) => {
-  const { t: translate } = useTranslation(["dags", "common"]);
+export const StateFilters = ({
+  isAll,
+  isFailed,
+  isQueued,
+  isRunning,
+  isSuccess,
+  needsReview,
+  onStateChange,
+}: Props) => {
+  const { t: translate } = useTranslation(["dags", "common", "hitl"]);
 
   return (
     <HStack>
@@ -46,6 +57,15 @@ export const StateFilters = ({ isAll, isFailed, isRunning, isSuccess, onStateCha
       >
         <StateBadge state="failed" />
         {translate("common:states.failed")}
+      </QuickFilterButton>
+      <QuickFilterButton
+        data-testid="dags-queued-filter"
+        isActive={isQueued}
+        onClick={onStateChange}
+        value="queued"
+      >
+        <StateBadge state="queued" />
+        {translate("common:states.queued")}
       </QuickFilterButton>
       <QuickFilterButton
         data-testid="dags-running-filter"
@@ -64,6 +84,17 @@ export const StateFilters = ({ isAll, isFailed, isRunning, isSuccess, onStateCha
       >
         <StateBadge state="success" />
         {translate("common:states.success")}
+      </QuickFilterButton>
+      <QuickFilterButton
+        data-testid="dags-needs-review-filter"
+        isActive={needsReview}
+        onClick={onStateChange}
+        value="needs_review"
+      >
+        <StateBadge colorPalette="deferred">
+          <LuUserRoundPen />
+        </StateBadge>
+        {translate("hitl:requiredAction_other")}
       </QuickFilterButton>
     </HStack>
   );

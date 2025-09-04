@@ -24,6 +24,255 @@
 
 .. towncrier release notes start
 
+Airflow 3.0.6 (2025-08-29)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- Fix Connection extra field masking errors when connections use masked values (#54780)
+- UI: Fix ``TriggerDagRunLink`` broken page when clicking "Triggered DAG" button (#54760)
+- Fix remote logging connection availability in Task SDK supervisor when connections are created via UI (#54720)
+- Fix ``task_queued_timeout`` not working after first DAG run by properly resetting ``queued_by_job_id`` (#54604)
+- Fix DAG version determination to use bundle path and relative fileloc instead of absolute fileloc (#54483)
+- Remove Kerberos replay cache (``KRB5CCNAME`` env) when running tasks with user impersonation (#54672)
+- Skip additional span-related database queries when tracing is disabled (#54626)
+- Fix ``max_active_tasks`` persisting after removal from DAG code (#54639)
+- UI: Automatically switch to the triggered DAG run in Graph/Grid view when manually triggering a DAG run (#54336)
+- UI: Fix "Maximum update depth exceeded" errors in Task Log Preview by filtering out empty log entries (#54628)
+- Fix custom logging configuration failures preventing triggerer and scheduler startup with simple module paths (#54686)
+- Fix MySQL UUID generation in task_instance migration (#54814)
+- Only redirect on the dag detail page (#54921)
+- Fix local executor task execution (#54922)
+
+Miscellaneous
+"""""""""""""
+
+- Add logging when triggerer reaches maximum trigger capacity for better observability (#54549)
+- Point deprecation warning in Variable methods to specific alternatives (#54871)
+- Point deprecation warning in Connection method to specific alternatives (#54872)
+- Bump ``axios`` UI dependency from ``1.8.0`` to ``1.11.0`` (#54733)
+- Bump ``pluggy`` to ``1.6.0`` (#54728, #54730)
+
+Doc Only Changes
+""""""""""""""""
+
+- Fix broken link for Listener spec (#54535)
+- Remove experimental status from ``get_parsing_context`` function (#54802)
+- Correct Trigger-Form UI documentation for current Airflow 3 features (#54806)
+- Add backfill through UI to docs (#54910)
+
+Airflow 3.0.5 (2025-08-20)
+--------------------------
+
+This release has been yanked.
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- UI: Fix JSON field display in dark mode when using system OS theme detection (#54260)
+- Restore proper DAG callback execution context (#53684)
+- Restore ``get_previous_dagrun`` functionality for task context (#53655)
+- Fix scheduler crashes with ``DetachedInstanceError`` when processing executor events (#54334)
+- Fix ``DetachedInstanceError`` when accessing ``DagRun.created_dag_version`` (#54362)
+- Fix Task SDK to respect custom default queue configuration from config settings (#52786)
+- Fix: Cannot edit or delete pools with ``"/"`` in the name in the UI  (#54268)
+- Fix: Validate and handle invalid ``extra`` field in connections UI and API (#53963, #54034, #54235)
+- Fix: Apply DAG permission filter to dashboard (#54215)
+- Fix API validation error when DAG runs have bundle_version but no created_dag_version (#54010)
+- Fix task configuration defaults not being read from configuration settings (#52871)
+- Fix duplicate task group prefixes in task IDs when unmapping ``MappedOperators`` within ``TaskGroups`` (#53532)
+- Fix custom ``XCom`` backends not being used when ``BaseXCom.get_all()`` is called (#53814)
+- Fix ``xcom_pull`` ignoring ``include_prior_dates`` parameter when ``map_indexes`` is not specified (#53809)
+- Allow setting and deleting Variables and XComs from triggers (#53514)
+- Fix ``AttributeError`` when reading logs for previous task attempts with ``TaskInstanceHistory`` (#54114)
+- Skip database queries for spans and metrics when tracing/metrics are disabled (#54404)
+- UI: Fix Graph view edge rendering issues for nested task groups with excessive bends and misalignment (#54412)
+- Allow database downgrade from Airflow 3.x to 2.11 (#54399, #54508)
+- Reduce excessive warning logs when multiple deferred tasks are queued in triggerer (#54441)
+- Fix log retrieval failures for in-progress tasks by properly configuring JWT authentication (#54444)
+- Fix DAG import errors for invalid access control roles to persist consistently in UI (#54432)
+- Fix task failure callbacks missing ``end_date`` and ``duration`` by populating ``TaskInstance`` data before invoking callbacks (#54458)
+- Fix task retry overflow errors when calculating next retry datetime by capping delay to maximum configured value (#54460)
+- Add missing ordering to ``AssetEvent`` queries in scheduler to maintain consistent event processing order (#52231)
+- Fix XCom lookup failures in nested mapped task groups by correctly resolving ``map_index`` for upstream tasks (#54249)
+- UI: Fix task name indentation in Graph view for deeply nested task groups beyond 5 levels (#54419)
+- Run failure callbacks for task instances that get stuck in queued state and fail after requeue attempts (#54401)
+- Make secrets masking work when connections are loaded from secrets backends (#54574, #54612)
+
+Miscellaneous
+"""""""""""""
+
+- Set minimum version for ``common.messaging`` to ``1.0.3`` (#54176)
+- Add IP validation to example_dag_decorator DAG (#54208)
+
+Doc Only Changes
+""""""""""""""""
+
+- Fix doc redirects for operators moved to the standard provider (#54251)
+- Add FAQ entry about testing connections and "Canary" Dag (#54151)
+- Add note about ruff rules and preview flag (#53331)
+- Fix broken link in advanced logging config docs (#53460)
+- Update dag bundles docs; add s3, fix git classpath (#53473)
+- Fix example to use proper task context and logging instead of ``dag.log`` (#54463)
+- Improve documentation navigation by hiding Public Interface subsections from sidebar while preserving page links (#54465)
+
+Airflow 3.0.4 (2025-08-08)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- Fix scheduler heartbeat timeout failures with intermittent ``DetachedInstanceError`` crashes (#53838) (#53858)
+- Fix connection editing where sensitive fields like passwords and extras were lost when updating connections (#53943) (#53973)
+- Fix BaseOperator ``on_kill`` functionality not working when tasks are killed externally in TaskSDK (#53718) (#53832)
+- Fix TaskInstance notes not refreshing automatically without manual page refresh (#53307) (#54025)
+- Fix invalid execution API URLs causing failures in task supervisor (#53082) (#53518)
+- Fix task failure callbacks not running on DAG Processor when tasks are externally killed (#53058) (#53143)
+- Fix ``task_success_overtime`` configuration option not being configurable (#53342) (#53351)
+- Fix CSS warning for nth-child selector (#53982) (#54000)
+- Fix DAG filtering where "all" option did not show all DAGs as expected (#53656) (#53672)
+- Fix accordion child contents not being visible when content overflows (#53595) (#53602)
+- Fix navbar positioning for anchor calculations (#52016) (#53581)
+- Fix DagBag safe mode configuration resolution in DAG processor (#52694) (#53507)
+- Fix large log reading causing out-of-memory issues in API server (#49470) (#53167)
+- Fix connection exceptions consistency between Airflow 2.x and 3.x (#52968) (#53093)
+- Remove unnecessary ``group_by`` clause in event logs query for performance (#53733) (#53807)
+- Allow remote logging providers to load connections from API Server (#53719) (#53761)
+- Add certificate support for API server client communication with self-signed certificates (#53574) (#53793)
+- Respect ``apps`` flags for API server command configuration (#52929) (#53775)
+- Skip empty DAG run configuration rows and set statement timeout (#50788) (#53619)
+- Remove incorrect warning for ``BaseOperator.executor`` attribute (#53496) (#53519)
+- Add back DAG parsing pre-import optimization for improved performance (#50371) (#52698)
+- Flexible form use ReactMarkdown instead of default Markdown component (#54032) (#54040)
+- Unconditionally disable ``start_from_trigger`` functionality (#53744) (#53750)
+- Serialize NaN and infinity values to string (#53835) (#53844)
+- Make log redaction safer in edge case when redaction has an error (#54046) (#54048)
+- Flexible form use ReactMarkdown instead of default Markdown component (#54032) (#54040)
+- Fix inconsistent casing in UI of decorated tasks (#54056) (#54092)
+
+Miscellaneous
+"""""""""""""
+
+- Fix AIRFLOW_API_APPS constant in API server command (#54007) (#54012)
+- Add deprecation notice for using Connection from models in favor of SDK approach (#53594) (#53621)
+- Remove remnants of ``~=`` used in requires-python configuration (#52985) (#52987)
+- Remove upper-binding for "python-requires" specification (#52980) (#52984)
+- Update GitPython from 3.1.44 to 3.1.45 (#53725) (#53731)(#53724) (#53732)
+
+Doc Only Changes
+""""""""""""""""
+
+- Update DAG author documentation to use "DAG author" terminology (#53857) (#53950)
+- Update architecture diagrams labels from "Webserver(s)" to "API Server(s)" (#53917) (#54020)
+- Remove bold formatting for Public Interface documentation in Airflow 3.0+ (#53955) (#53964)
+- Add user-facing documentation for running separate Task Execution API server (#53789) (#53794)
+- Add documentation for self-signed certificate configuration (#53788) (#53792)
+- Update systemd unit files and documentation for Airflow 3.0 compatibility (#52294) (#53609)
+- Update public interface documentation to reflect airflow.sdk and AIP-72 changes (#52197) (#53117)
+- Update BaseOperator documentation string for clarity (#53403) (#53404)
+- Remove extra slash from endpoint URL formatting (#53755) (#53764)
+- Clarify our security model for sensitive connection information (#54088) (#54100)
+
+Airflow 3.0.3 (2025-07-14)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- Fix task execution failures with large data by improving internal communication protocol (#51924, #53194)
+- Fix reschedule sensors failing after multiple re-queue attempts over long periods (#52706)
+- Improve ``xcom_pull`` to cover different scenarios for mapped tasks (#51568)
+- Fix connection retrieval failures in triggerer when schema field is used (#52691)
+- Add back user impersonation (``run_as_user``) support for task execution (#51780)
+- Fix DAG version not updating when bundle name changes without DAG structure changes (#51939)
+- Add back ``exception`` to context for task callbacks (#52066)
+- Fix task log retrieval for retry attempts showing incorrect logs (#51592)
+- Fix data interval handling for DAGs created before AIP-39 during serialization (#51913)
+- Fix lingering task supervisors when ``EOF`` is missed (#51180) (#51970)
+- Persist ``EventsTimetable``'s description during serialization (#51926)
+- Delete import error when a dag bundle becomes inactive (#51921)
+- Cleanup import errors during DB migration (#51919)
+- Fix ``EOF`` detection of subprocesses in Dag Processor (#51895)
+- Stop streaming task logs if end of log mark is missing (#51482)
+- Allow more empty loops before stopping log streaming (#52624)
+- Fix Jinja2 Template deep copy error with ``dag.test`` (#51673)
+- Explicitly close log file descriptor in the supervise function (#51654)
+- Improve structured logging format and layout (#51567) (#51626)
+- Use Connection Hook Names for Dropdown instead of connection IDs (#51613)
+- Add back config setting to control exposing stacktrace (#51617)
+- Fix task level alias resolution in structure endpoint (#51579)
+- Fix backfill creation to include DAG run configuration from form (#51584)
+- Fix structure edges in API responses (#51489)
+- Make ``dag.test`` consistent with ``airflow dags test`` CLI command (#51476)
+- Fix downstream asset attachment at task level in structure endpoint (#51425)
+- Fix Task Instance ``No Status`` Filter (#52154)
+- UI: Fix backfill creation to respect run backwards setting from form (#52168)
+- UI: Set downstream option to default on task instance clear (#52246)
+- UI: Enable iframe script execution (#52568)
+- UI: Fix DAG tags filter not showing all tags in UI when tags are greater than 50 (#52714)
+- UI: Add real-time clock updates to timezone selector (#52414)
+- Improve Grid view performance and responsiveness with optimized data loading (#52718,#52822,#52919)
+- Fix editing connection with sensitive extra field (#52445)
+- Fix archival for cascading deletes by archiving dependent tables first (#51952)
+- Fix whitespace handling in DAG owners parsing for multiple owners (#52221)
+- Fix SQLite migration from 2.7.0 to 3.0.0 (#51431)
+- Fix http exception when ti not found for extra links API (#51465)
+- Fix Starting from Trigger when using ``MappedOperator`` (#52681)
+- Add ti information to re-queue logs (#49995)
+- Task SDK: Fix ``AssetEventOperations.get`` to use ``alias_name`` when specified (#52324)
+- Ensure trigger kwargs are properly deserialized during trigger execution (#52721)
+- Fixing bad cadwyn migration for upstream map indexes (#52797)
+- Run trigger expansion logic only when ``start_from_trigger`` is True (#52873)
+- Fix example dag ``example_external_task_parent_deferrable.py`` imports (#52957)
+- Fixes pagination in DAG run lists (#52989)
+- Fix db downgrade check condition (#53005)
+- Fix log viewing for skipped task (#53028,#53101)
+- Fixes Grid view refresh after user actions (#53086)
+- Fix ``no_status`` and ``duration`` for grid summaries (#53092)
+- Fix ``ti.log_url`` not in Task Context (#50376)
+- Fix XCom data deserialization when using ``XCom.get_all()`` method (#53102)
+
+Miscellaneous
+"""""""""""""
+
+- Update ``connections_test`` CLI to use Connection instead of BaseHook (#51834) (#51917)
+- Fix table pagination when DAG filtering changes (#51795)
+- UI: Move asset events to its own tab (#51655)
+- Exclude ``libcst`` 1.8.1 for Python 3.9 (#51609)
+- UI: Implement navigation on bar click (#50416)
+- Reduce unnecessary logging when retrieving connections and variables (#51826)
+
+Doc Only Changes
+""""""""""""""""
+
+- Add note about payload size considerations in API docs (#51768)
+- Enhance ENV vars and conns visibility docs (#52026)
+- Add http-only warning when running behind proxy in documentation (#52699)
+- Publish separate docs for Task SDK (#52682)
+- Streamline Taskflow examples and link to core tutorial (#52709)
+- Refresh Public Interface & align how-to guides for Airflow 3.0+ (#53011)
+
 Airflow 3.0.2 (2025-06-10)
 --------------------------
 
@@ -350,6 +599,10 @@ DAG Versioning (AIP-66)
 Airflow 3.0 introduces native DAG versioning. DAG structure changes (e.g., renamed tasks, dependency shifts) are now
 tracked directly in the metadata database. This allows users to inspect historical DAG structures through the UI and API,
 and lays the foundation for safer backfills, improved observability, and runtime-determined DAG logic.
+
+**Note**: DAG bundles are not initialized in the triggerer. In practice, this means that triggers cannot come from a
+DAG bundle. This is because the triggerer does not deal with changes in trigger code over time, as everything happens
+in the main process. Triggers can come from anywhere else on ``sys.path`` instead.
 
 React UI Rewrite (AIP-38, AIP-84)
 """""""""""""""""""""""""""""""""
@@ -775,6 +1028,16 @@ been **moved to the new ``[api]`` section**. The following configuration keys ha
 - ``[webserver] web_server_ssl_key`` → ``[api] ssl_key``
 - ``[webserver] access_logfile`` → ``[api] access_logfile``
 
+The following DAG parsing configuration options were **moved to the new ``[dag_processor]`` section**:
+
+- ``[core] dag_file_processor_timeout`` → ``[dag_processor] dag_file_processor_timeout``
+- ``[scheduler] parsing_processes`` → ``[dag_processor] parsing_processes``
+- ``[scheduler] file_parsing_sort_mode`` → ``[dag_processor] file_parsing_sort_mode``
+- ``[scheduler] max_callbacks_per_loop`` → ``[dag_processor] max_callbacks_per_loop``
+- ``[scheduler] min_file_process_interval`` → ``[dag_processor] min_file_process_interval``
+- ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
+- ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
+
 Users should review their ``airflow.cfg`` files or use the ``airflow config lint`` command to identify outdated or
 removed options.
 
@@ -855,7 +1118,6 @@ Airflow 3.0 completes the migration of several core operators, sensors, and hook
 - ``PythonOperator``
 - ``BashOperator``
 - ``EmailOperator``
-- ``SimpleHttpOperator``
 - ``ShortCircuitOperator``
 
 These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
@@ -874,6 +1136,8 @@ replaced with:
 .. code-block:: python
 
     from airflow.providers.standard.operators.python import PythonOperator
+
+The SimpleHttpOperator has been migrated to apache-airflow-providers-http and renamed to HttpOperator
 
 UI & Usability Improvements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1967,7 +2231,7 @@ supported Database Backend.
 As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
 
 A migration script which can help migrating the database *before* upgrading to Airflow 2.9.0 is available in
-`airflow-mssql-migration repo on Github <https://github.com/apache/airflow-mssql-migration>`_.
+`airflow-mssql-migration repo on GitHub <https://github.com/apache/airflow-mssql-migration>`_.
 Note that the migration script is provided without support and warranty.
 
 This does not affect the existing provider packages (operators and hooks), DAGs can still access and process data from MsSQL.

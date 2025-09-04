@@ -18,7 +18,7 @@
 Adding a New API Endpoint in Apache Airflow
 ===========================================
 
-This documentation outlines the steps required to add a new API endpoint in Apache Airflow. It includes implementing the logic, running pre-commit checks, and documenting the changes.
+This documentation outlines the steps required to add a new API endpoint in Apache Airflow. It includes implementing the logic, running prek hooks, and documenting the changes.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
@@ -54,7 +54,7 @@ Example:
       paused: bool | None = None,
       order_by: str = "dag_id",
       session: SessionDep,
-  ) -> DAGCollectionResponse:
+  ) -> DagCollectionResponse:
       pass
 
 
@@ -67,19 +67,19 @@ Step 2: Add tests for your Endpoints
 
 Step 3: Documentation
 ---------------------
-Documentation is built automatically by FastAPI and our pre-commit hooks. Verify by going to ``/docs`` that the documentation is clear and appears as expected (body and return types, query params, validation)
+Documentation is built automatically by FastAPI and our prek hooks. Verify by going to ``/docs`` that the documentation is clear and appears as expected (body and return types, query params, validation)
 
 
-Step 4: Run Pre-commit Hooks
------------------------------
-1. Ensure all code meets the project's quality standards by running pre-commit hooks.
-2. Pre-commit hooks include static code checks, formatting, and other validations.
+Step 4: Run prek Hooks
+----------------------
+1. Ensure all code meets the project's quality standards by running prek hooks.
+2. Prek hooks include static code checks, formatting, and other validations.
 3. Persisted openapi spec is located in ``v2-rest-api-generated.yaml` and a hook will take care of updating it based on your new endpoint, you just need to add and commit the change.
-4. Run the following command to execute all pre-commit hooks:
+4. Run the following command to execute all prek hooks:
 
 .. code-block:: bash
 
-   pre-commit run --all-files
+   prek --all-files
 
 
 Optional: Adding Pydantic Model
@@ -88,8 +88,8 @@ In some cases, you may need to define additional models for new data structures.
 
 .. code-block:: python
 
-    class DAGModelResponse(BaseModel):
-        """DAG serializer for responses."""
+    class DagModelResponse(BaseModel):
+        """Dag serializer for responses."""
 
         dag_id: str
         dag_display_name: str
@@ -99,7 +99,7 @@ In some cases, you may need to define additional models for new data structures.
 
 These models are defined to structure and validate the data handled by the API. Once defined, these models will automatically be added to the OpenAPI spec file as long as they are actually used by one endpoint.
 
-After adding or modifying Pydantic models, make sure to run the pre-commit hooks again to update any generated files.
+After adding or modifying Pydantic models, make sure to run the prek hooks again to update any generated files.
 
 ------
 

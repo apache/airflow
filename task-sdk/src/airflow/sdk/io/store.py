@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, ClassVar
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
-    from airflow.io.typedef import Properties
+    from airflow.sdk.io.typedef import Properties
 
 
 class ObjectStore:
@@ -57,7 +57,7 @@ class ObjectStore:
 
     @cached_property
     def fs(self) -> AbstractFileSystem:
-        from airflow.io import get_fs
+        from airflow.sdk.io import get_fs
 
         # if the fs is provided in init, the next statement will be ignored
         return get_fs(self.protocol, self.conn_id)
@@ -78,7 +78,7 @@ class ObjectStore:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
     def serialize(self):
-        from airflow.utils.module_loading import qualname
+        from airflow.sdk.module_loading import qualname
 
         return {
             "protocol": self.protocol,
@@ -89,7 +89,7 @@ class ObjectStore:
 
     @classmethod
     def deserialize(cls, data: dict[str, str], version: int):
-        from airflow.io import has_fs
+        from airflow.sdk.io import has_fs
 
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} for {cls.__name__}")

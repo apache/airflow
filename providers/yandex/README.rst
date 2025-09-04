@@ -23,8 +23,9 @@
 
 Package ``apache-airflow-providers-yandex``
 
-Release: ``4.1.1``
+Release: ``4.2.0``
 
+Release Date: ``|PypiReleaseDate|``
 
 This package is for Yandex, including:
 
@@ -38,12 +39,12 @@ This is a provider package for ``yandex`` provider. All classes for this provide
 are in ``airflow.providers.yandex`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.2.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-yandex``
 
@@ -52,13 +53,13 @@ The package supports the following python versions: 3.10,3.11,3.12
 Requirements
 ------------
 
-=======================  ==================
+=======================  ======================================
 PIP package              Version required
-=======================  ==================
+=======================  ======================================
 ``apache-airflow``       ``>=2.10.0``
-``yandexcloud``          ``>=0.308.0``
-``yandex-query-client``  ``>=0.1.4``
-=======================  ==================
+``yandexcloud``          ``>=0.308.0; python_version < "3.13"``
+``yandex-query-client``  ``>=0.1.4; python_version < "3.13"``
+=======================  ======================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.2.0/changelog.html>`_.

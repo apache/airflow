@@ -24,16 +24,16 @@ Use the :class:`~airflow.providers.standard.operators.datetime.BranchDateTimeOpe
 depending on whether the time falls into the range given by two target arguments,
 
 This operator has two modes. First mode is to use current time (machine clock time at the
-moment the DAG is executed), and the second mode is to use the ``logical_date`` of the DAG run it is run
+moment the Dag is executed), and the second mode is to use the ``logical_date`` of the Dag run it is run
 with.
 
 
 Usage with current time
 -----------------------
 
-The usages above might be useful in certain situations - for example when DAG is used to perform cleanups
-and maintenance and is not really supposed to be used for any DAGs that are supposed to be back-filled,
-because the "current time" make back-filling non-idempotent, its result depend on the time when the DAG
+The usages above might be useful in certain situations - for example when Dag is used to perform cleanups
+and maintenance and is not really supposed to be used for any Dags that are supposed to be back-filled,
+because the "current time" make back-filling non-idempotent, its result depend on the time when the Dag
 actually was run. It's also slightly non-deterministic potentially even if it is run on schedule. It can
 take some time between when the DAGRun was scheduled and executed and it might mean that even if
 the DAGRun was scheduled properly, the actual time used for branching decision will be different than the
@@ -62,8 +62,8 @@ will raise an exception.
 Usage with logical date
 -----------------------
 
-The usage is much more "data range" friendly. The ``logical_date`` does not change when the DAG is re-run and
-it is not affected by execution delays, so this approach is suitable for idempotent DAG runs that might be
+The usage is much more "data range" friendly. The ``logical_date`` does not change when the Dag is re-run and
+it is not affected by execution delays, so this approach is suitable for idempotent Dag runs that might be
 back-filled.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_branch_datetime_operator.py

@@ -22,10 +22,14 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.edges import EdgeModifier
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    Operator: TypeAlias = BaseOperator | MappedOperator
 
 # TODO: Should this all just live on DAGNode?
 
@@ -127,7 +131,7 @@ class ResolveMixin:
         """
         Find underlying XCom references this contains.
 
-        This is used by the DAG parser to recursively find task dependencies.
+        This is used by the Dag parser to recursively find task dependencies.
 
         :meta private:
         """

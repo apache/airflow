@@ -20,17 +20,17 @@ from __future__ import annotations
 import logging
 import re
 from abc import ABCMeta, abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
 
 
@@ -87,6 +87,9 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
         super().__init__()
+
+    def get_dag(self) -> DAG | None:
+        return self.dag
 
     @property
     @abstractmethod
@@ -174,27 +177,27 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
                     )
                 task_list.append(task)
 
-        # relationships can only be set if the tasks share a single DAG. Tasks
-        # without a DAG are assigned to that DAG.
+        # relationships can only be set if the tasks share a single Dag. Tasks
+        # without a Dag are assigned to that Dag.
         dags: set[DAG] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
 
         if len(dags) > 1:
-            raise RuntimeError(f"Tried to set relationships between tasks in more than one DAG: {dags}")
+            raise RuntimeError(f"Tried to set relationships between tasks in more than one Dag: {dags}")
         if len(dags) == 1:
             dag = dags.pop()
         else:
             raise ValueError(
-                "Tried to create relationships between tasks that don't have DAGs yet. "
-                f"Set the DAG for at least one task and try again: {[self, *task_list]}"
+                "Tried to create relationships between tasks that don't have Dags yet. "
+                f"Set the Dag for at least one task and try again: {[self, *task_list]}"
             )
 
         if not self.has_dag():
-            # If this task does not yet have a dag, add it to the same dag as the other task.
+            # If this task does not yet have a Dag, add it to the same Dag as the other task.
             self.dag = dag
 
         for task in task_list:
             if dag and not task.has_dag():
-                # If the other task does not yet have a dag, add it to the same dag as this task and
+                # If the other task does not yet have a Dag, add it to the same Dag as this task and
                 dag.add_task(task)  # type: ignore[arg-type]
             if upstream:
                 task.downstream_task_ids.add(self.node_id)
@@ -227,14 +230,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     def downstream_list(self) -> Iterable[Operator]:
         """List of nodes directly downstream."""
         if not self.dag:
-            raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+            raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
     def upstream_list(self) -> Iterable[Operator]:
         """List of nodes directly upstream."""
         if not self.dag:
-            raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+            raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
@@ -248,6 +251,87 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         if upstream:
             return self.upstream_list
         return self.downstream_list
+
+    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
+        """
+        Get a flat set of relative IDs, upstream or downstream.
+
+        Will recurse each relative found in the direction specified.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        """
+        dag = self.get_dag()
+        if not dag:
+            return set()
+
+        relatives: set[str] = set()
+
+        # This is intentionally implemented as a loop, instead of calling
+        # get_direct_relative_ids() recursively, since Python has significant
+        # limitation on stack level, and a recursive implementation can blow up
+        # if a DAG contains very long routes.
+        task_ids_to_trace = self.get_direct_relative_ids(upstream)
+        while task_ids_to_trace:
+            task_ids_to_trace_next: set[str] = set()
+            for task_id in task_ids_to_trace:
+                if task_id in relatives:
+                    continue
+                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
+                relatives.add(task_id)
+            task_ids_to_trace = task_ids_to_trace_next
+
+        return relatives
+
+    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
+        """Get a flat list of relatives, either upstream or downstream."""
+        dag = self.get_dag()
+        if not dag:
+            return set()
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+
+    def get_upstreams_follow_setups(self) -> Iterable[Operator]:
+        """All upstreams and, for each upstream setup, its respective teardowns."""
+        for task in self.get_flat_relatives(upstream=True):
+            yield task
+            if task.is_setup:
+                for t in task.downstream_list:
+                    if t.is_teardown and t != self:
+                        yield t
+
+    def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
+        """
+        Only *relevant* upstream setups and their teardowns.
+
+        This method is meant to be used when we are clearing the task (non-upstream) and we need
+        to add in the *relevant* setups and their teardowns.
+
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
+        or the setup has no teardowns.
+        """
+        downstream_teardown_ids = {
+            x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
+        }
+        for task in self.get_flat_relatives(upstream=True):
+            if not task.is_setup:
+                continue
+            has_no_teardowns = not any(x.is_teardown for x in task.downstream_list)
+            # if task has no teardowns or has teardowns downstream of self
+            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
+                yield task
+                for t in task.downstream_list:
+                    if t.is_teardown and t != self:
+                        yield t
+
+    def get_upstreams_only_setups(self) -> Iterable[Operator]:
+        """
+        Return relevant upstream setups.
+
+        This method is meant to be used when we are checking task dependencies where we need
+        to wait for all the upstream setups to complete before we can run the task.
+        """
+        for task in self.get_upstreams_only_setups_and_teardowns():
+            if task.is_setup:
+                yield task
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize a task group's content; used by TaskGroupSerialization."""

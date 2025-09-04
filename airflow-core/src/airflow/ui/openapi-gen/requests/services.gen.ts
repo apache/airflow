@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetLatestRunData, GetLatestRunResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, RefreshData, RefreshResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -109,7 +109,9 @@ export class AssetService {
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.timestampGte
+     * @param data.timestampGt
      * @param data.timestampLte
+     * @param data.timestampLt
      * @returns AssetEventCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -127,7 +129,9 @@ export class AssetService {
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 timestamp_gte: data.timestampGte,
-                timestamp_lte: data.timestampLte
+                timestamp_gt: data.timestampGt,
+                timestamp_lte: data.timestampLte,
+                timestamp_lt: data.timestampLt
             },
             errors: {
                 401: 'Unauthorized',
@@ -971,19 +975,31 @@ export class DagRunService {
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.runType
      * @param data.state
+     * @param data.dagVersion
      * @param data.orderBy
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -998,19 +1014,31 @@ export class DagRunService {
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 run_type: data.runType,
                 state: data.state,
+                dag_version: data.dagVersion,
                 order_by: data.orderBy,
-                run_id_pattern: data.runIdPattern
+                run_id_pattern: data.runIdPattern,
+                triggering_user_name_pattern: data.triggeringUserNamePattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1364,10 +1392,18 @@ export class DagService {
      * @param data.excludeStale
      * @param data.paused
      * @param data.lastDagRunState
+     * @param data.bundleName
+     * @param data.bundleVersion
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
+     * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
+     * @param data.dagRunStartDateLt
      * @param data.dagRunEndDateGte
+     * @param data.dagRunEndDateGt
      * @param data.dagRunEndDateLte
+     * @param data.dagRunEndDateLt
      * @param data.dagRunState
      * @param data.orderBy
      * @param data.isFavorite
@@ -1389,10 +1425,18 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
+                bundle_name: data.bundleName,
+                bundle_version: data.bundleVersion,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
+                dag_run_start_date_gt: data.dagRunStartDateGt,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
+                dag_run_start_date_lt: data.dagRunStartDateLt,
                 dag_run_end_date_gte: data.dagRunEndDateGte,
+                dag_run_end_date_gt: data.dagRunEndDateGt,
                 dag_run_end_date_lte: data.dagRunEndDateLte,
+                dag_run_end_date_lt: data.dagRunEndDateLt,
                 dag_run_state: data.dagRunState,
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite
@@ -1650,8 +1694,13 @@ export class DagService {
      * @param data.excludeStale
      * @param data.paused
      * @param data.lastDagRunState
+     * @param data.bundleName
+     * @param data.bundleVersion
      * @param data.orderBy
      * @param data.isFavorite
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+     * @param data.hasPendingActions
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1672,10 +1721,37 @@ export class DagService {
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 last_dag_run_state: data.lastDagRunState,
+                bundle_name: data.bundleName,
+                bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
-                is_favorite: data.isFavorite
+                is_favorite: data.isFavorite,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency,
+                has_pending_actions: data.hasPendingActions
             },
             errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Latest Run Info
+     * Get latest run.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static getLatestRunInfo(data: GetLatestRunInfoData): CancelablePromise<GetLatestRunInfoResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/{dag_id}/latest_run',
+            path: {
+                dag_id: data.dagId
+            },
+            errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -1725,6 +1801,11 @@ export class EventLogService {
      * @param data.includedEvents
      * @param data.before
      * @param data.after
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1746,7 +1827,12 @@ export class EventLogService {
                 excluded_events: data.excludedEvents,
                 included_events: data.includedEvents,
                 before: data.before,
-                after: data.after
+                after: data.after,
+                dag_id_pattern: data.dagIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                run_id_pattern: data.runIdPattern,
+                owner_pattern: data.ownerPattern,
+                event_pattern: data.eventPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1933,22 +2019,36 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.durationGte
+     * @param data.durationGt
      * @param data.durationLte
+     * @param data.durationLt
      * @param data.state
      * @param data.pool
      * @param data.queue
      * @param data.executor
      * @param data.versionNumber
+     * @param data.tryNumber
+     * @param data.operator
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -1966,22 +2066,36 @@ export class TaskInstanceService {
             },
             query: {
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 state: data.state,
                 pool: data.pool,
                 queue: data.queue,
                 executor: data.executor,
                 version_number: data.versionNumber,
+                try_number: data.tryNumber,
+                operator: data.operator,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2198,23 +2312,37 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.durationGte
+     * @param data.durationGt
      * @param data.durationLte
+     * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
      * @param data.queue
      * @param data.executor
      * @param data.versionNumber
+     * @param data.tryNumber
+     * @param data.operator
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2232,23 +2360,37 @@ export class TaskInstanceService {
             query: {
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
                 state: data.state,
                 pool: data.pool,
                 queue: data.queue,
                 executor: data.executor,
                 version_number: data.versionNumber,
+                try_number: data.tryNumber,
+                operator: data.operator,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2627,9 +2769,13 @@ export class JobService {
      * @param data The data for the request.
      * @param data.isAlive
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2647,9 +2793,13 @@ export class JobService {
             query: {
                 is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
@@ -2986,6 +3136,19 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
+     * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.mapIndexFilter
+     * @param data.logicalDateGte
+     * @param data.logicalDateGt
+     * @param data.logicalDateLte
+     * @param data.logicalDateLt
+     * @param data.runAfterGte
+     * @param data.runAfterGt
+     * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3002,7 +3165,20 @@ export class XcomService {
                 xcom_key: data.xcomKey,
                 map_index: data.mapIndex,
                 limit: data.limit,
-                offset: data.offset
+                offset: data.offset,
+                xcom_key_pattern: data.xcomKeyPattern,
+                dag_display_name_pattern: data.dagDisplayNamePattern,
+                run_id_pattern: data.runIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                map_index_filter: data.mapIndexFilter,
+                logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
+                logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
+                run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3360,6 +3536,126 @@ export class DagVersionService {
     
 }
 
+export class HumanInTheLoopService {
+    /**
+     * Update Hitl Detail
+     * Update a Human-in-the-loop detail.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.requestBody
+     * @param data.mapIndex
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static updateHitlDetail(data: UpdateHitlDetailData): CancelablePromise<UpdateHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            query: {
+                map_index: data.mapIndex
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Detail
+     * Get a Human-in-the-loop detail of a specific task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @returns HITLDetail Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetail(data: GetHitlDetailData): CancelablePromise<GetHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId
+            },
+            query: {
+                map_index: data.mapIndex
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Details
+     * Get Human-in-the-loop details.
+     * @param data The data for the request.
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy
+     * @param data.dagId
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.state
+     * @param data.responseReceived
+     * @param data.respondedUserId
+     * @param data.respondedUserName
+     * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @returns HITLDetailCollection Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetails(data: GetHitlDetailsData = {}): CancelablePromise<GetHitlDetailsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/hitlDetails/',
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy,
+                dag_id: data.dagId,
+                dag_id_pattern: data.dagIdPattern,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                task_id_pattern: data.taskIdPattern,
+                state: data.state,
+                response_received: data.responseReceived,
+                responded_user_id: data.respondedUserId,
+                responded_user_name: data.respondedUserName,
+                subject_search: data.subjectSearch,
+                body_search: data.bodySearch
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
 export class MonitorService {
     /**
      * Get Health
@@ -3426,6 +3722,28 @@ export class LoginService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v2/auth/logout',
+            query: {
+                next: data.next
+            },
+            errors: {
+                307: 'Temporary Redirect',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Refresh
+     * Refresh the authentication token.
+     * @param data The data for the request.
+     * @param data.next
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static refresh(data: RefreshData = {}): CancelablePromise<RefreshResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/auth/refresh',
             query: {
                 next: data.next
             },
@@ -3563,7 +3881,9 @@ export class GridService {
      * @param data.limit
      * @param data.orderBy
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -3579,7 +3899,9 @@ export class GridService {
                 limit: data.limit,
                 order_by: data.orderBy,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3598,7 +3920,9 @@ export class GridService {
      * @param data.limit
      * @param data.orderBy
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -3614,7 +3938,9 @@ export class GridService {
                 limit: data.limit,
                 order_by: data.orderBy,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3660,31 +3986,6 @@ export class GridService {
         });
     }
     
-    /**
-     * Get Latest Run
-     * Get information about the latest dag run by run_after.
-     *
-     * This is used by the UI to figure out if it needs to rerun queries and resume auto refresh.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @returns unknown Successful Response
-     * @throws ApiError
-     */
-    public static getLatestRun(data: GetLatestRunData): CancelablePromise<GetLatestRunResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/ui/grid/latest_run/{dag_id}',
-            path: {
-                dag_id: data.dagId
-            },
-            errors: {
-                400: 'Bad Request',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
 }
 
 export class CalendarService {
@@ -3695,7 +3996,9 @@ export class CalendarService {
      * @param data.dagId
      * @param data.granularity
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @returns CalendarTimeRangeCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3709,7 +4012,9 @@ export class CalendarService {
             query: {
                 granularity: data.granularity,
                 logical_date_gte: data.logicalDateGte,
-                logical_date_lte: data.logicalDateLte
+                logical_date_gt: data.logicalDateGt,
+                logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt
             },
             errors: {
                 422: 'Validation Error'

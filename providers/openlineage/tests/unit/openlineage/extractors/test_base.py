@@ -211,7 +211,7 @@ class OperatorDifferentOperatorLineageClass(BaseOperator):
             job_facets: dict[str, BaseFacet] = Factory(dict)
             some_other_param: dict = Factory(dict)
 
-        return DifferentOperatorLineage(  # type: ignore
+        return DifferentOperatorLineage(
             name="unused",
             inputs=INPUTS,
             outputs=OUTPUTS,
@@ -232,7 +232,7 @@ class OperatorWrongOperatorLineageClass(BaseOperator):
             outputs: list[Dataset] = Factory(list)
             some_other_param: dict = Factory(dict)
 
-        return WrongOperatorLineage(  # type: ignore
+        return WrongOperatorLineage(
             inputs=INPUTS,
             outputs=OUTPUTS,
             some_other_param={"asdf": "fdsa"},

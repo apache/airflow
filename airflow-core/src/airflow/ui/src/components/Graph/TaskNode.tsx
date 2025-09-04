@@ -103,7 +103,6 @@ export const TaskNode = ({
               fontSize="sm"
               overflow="hidden"
               textOverflow="ellipsis"
-              textTransform="capitalize"
               whiteSpace="nowrap"
             >
               {isGroup ? translate("graph.taskGroup") : operator}
@@ -128,9 +127,7 @@ export const TaskNode = ({
                 variant="plain"
               >
                 {isOpen ? "- " : "+ "}
-                {childCount !== undefined && childCount > 1
-                  ? translate("graph.taskCount_other", { count: childCount })
-                  : translate("graph.taskCount_one", { count: childCount ?? 0 })}
+                {translate("graph.taskCount", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
           </Box>

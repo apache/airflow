@@ -21,17 +21,12 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Collection, Sequence
 from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.utils.trigger_rule import TriggerRule
-
 if TYPE_CHECKING:
-    from collections.abc import Sized
-
     from airflow.models import DagRun
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.utils.state import DagRunState
@@ -100,10 +95,6 @@ class AirflowTaskTimeout(BaseException):
 
 class AirflowTaskTerminated(BaseException):
     """Raise when the task execution is terminated."""
-
-
-class AirflowWebServerTimeout(AirflowException):
-    """Raise when the web server times out."""
 
 
 class AirflowSkipException(AirflowException):
@@ -181,42 +172,6 @@ class XComNotFound(AirflowException):
         )
 
 
-class XComForMappingNotPushed(AirflowException):
-    """Raise when a mapped downstream's dependency fails to push XCom for task mapping."""
-
-    def __str__(self) -> str:
-        return "did not push XCom for task mapping"
-
-
-class UnmappableXComTypePushed(AirflowException):
-    """Raise when an unmappable type is pushed as a mapped downstream's dependency."""
-
-    def __init__(self, value: Any, *values: Any) -> None:
-        super().__init__(value, *values)
-
-    def __str__(self) -> str:
-        typename = type(self.args[0]).__qualname__
-        for arg in self.args[1:]:
-            typename = f"{typename}[{type(arg).__qualname__}]"
-        return f"unmappable return type {typename!r}"
-
-
-class UnmappableXComLengthPushed(AirflowException):
-    """Raise when the pushed value is too large to map as a downstream's dependency."""
-
-    def __init__(self, value: Sized, max_length: int) -> None:
-        super().__init__(value)
-        self.value = value
-        self.max_length = max_length
-
-    def __str__(self) -> str:
-        return f"unmappable return value length: {len(self.value)} > {self.max_length}"
-
-
-class AirflowDagCycleException(AirflowException):
-    """Raise when there is a cycle in DAG definition."""
-
-
 class AirflowDagDuplicatedIdException(AirflowException):
     """Raise when a DAG's ID is already used by another DAG."""
 
@@ -284,33 +239,6 @@ class DagRunAlreadyExists(AirflowBadRequest):
         )
 
 
-class DagFileExists(AirflowBadRequest):
-    """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
-
-
-class FailFastDagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
-
-    _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
-
-    @classmethod
-    def check(cls, *, fail_fast: bool, trigger_rule: TriggerRule):
-        """
-        Check that fail_fast dag tasks have allowable trigger rules.
-
-        :meta private:
-        """
-        if fail_fast and trigger_rule not in cls._allowed_rules:
-            raise cls()
-
-    def __str__(self) -> str:
-        return f"A 'fail_fast' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
-
-
 class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG."""
 
@@ -346,6 +274,10 @@ class TaskNotFound(AirflowNotFoundException):
 
 class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a task instance is not available in the system."""
+
+
+class NotMapped(Exception):
+    """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
 class PoolNotFound(AirflowNotFoundException):
@@ -394,8 +326,16 @@ class AirflowFileParseException(AirflowException):
         return result
 
 
+class AirflowUnsupportedFileTypeException(AirflowException):
+    """Raise when a file type is not supported."""
+
+
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
+
+
+class VariableNotUnique(AirflowException):
+    """Raise when multiple values are found for the same variable name."""
 
 
 class DownstreamTasksSkipped(AirflowException):
@@ -558,3 +498,40 @@ class DeserializingResultError(ValueError):
 
 class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
+
+
+class DeserializationError(Exception):
+    """
+    Raised when a Dag cannot be deserialized.
+
+    This exception should be raised using exception chaining:
+    `raise DeserializationError(dag_id) from original_exception`
+    """
+
+    def __init__(self, dag_id: str | None = None, message: str | None = None):
+        self.dag_id = dag_id
+        if message:
+            # Use custom message if provided
+            super().__init__(message)
+        elif dag_id is None:
+            super().__init__("Missing Dag ID in serialized Dag")
+        else:
+            super().__init__(f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'")
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved exceptions."""
+    if name == "AirflowDagCycleException":
+        import warnings
+
+        from airflow.sdk.exceptions import AirflowDagCycleException
+
+        warnings.warn(
+            "airflow.exceptions.AirflowDagCycleException is deprecated. "
+            "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return AirflowDagCycleException
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

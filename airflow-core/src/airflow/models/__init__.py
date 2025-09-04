@@ -36,6 +36,7 @@ __all__ = [
     "DagRun",
     "DagTag",
     "DbCallbackRequest",
+    "Deadline",
     "Log",
     "MappedOperator",
     "Operator",
@@ -44,6 +45,7 @@ __all__ = [
     "RenderedTaskInstanceFields",
     "SkipMixin",
     "TaskInstance",
+    "TaskInstanceHistory",
     "TaskReschedule",
     "Trigger",
     "Variable",
@@ -68,6 +70,7 @@ def import_all_models():
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.models.team
     import airflow.models.xcom
 
 
@@ -88,11 +91,11 @@ def __getattr__(name):
 
 __lazy_imports = {
     "Job": "airflow.jobs.job",
-    "DAG": "airflow.models.dag",
+    "DAG": "airflow.sdk",
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
-    "BaseOperator": "airflow.models.baseoperator",
-    "BaseOperatorLink": "airflow.sdk.bases.operatorlink",
+    "BaseOperator": "airflow.sdk",
+    "BaseOperatorLink": "airflow.sdk",
     "BaseXCom": "airflow.sdk.bases.xcom",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
@@ -103,14 +106,15 @@ __lazy_imports = {
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",
     "Log": "airflow.models.log",
+    "HITLDetail": "airflow.models.hitl",
     "MappedOperator": "airflow.models.mappedoperator",
-    "Operator": "airflow.models.operator",
     "Param": "airflow.sdk.definitions.param",
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
     "SkipMixin": "airflow.models.skipmixin",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
+    "Team": "airflow.models.team",
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
     "XCom": "airflow.sdk.execution_time.xcom",
@@ -121,9 +125,8 @@ if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
     from airflow.models.base import ID_LEN, Base
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.connection import Connection
-    from airflow.models.dag import DAG, DagModel, DagTag
+    from airflow.models.dag import DagModel, DagTag
     from airflow.models.dagbag import DagBag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
@@ -131,7 +134,6 @@ if TYPE_CHECKING:
     from airflow.models.deadline import Deadline
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.models.operator import Operator
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.skipmixin import SkipMixin
@@ -140,9 +142,8 @@ if TYPE_CHECKING:
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
-    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Param
     from airflow.sdk.bases.xcom import BaseXCom
-    from airflow.sdk.definitions.param import Param
     from airflow.sdk.execution_time.xcom import XCom
 
 
@@ -156,11 +157,21 @@ __deprecated_classes = {
         "DEFAULT_TASK_EXECUTION_TIMEOUT": "airflow.sdk.definitions._internal.abstractoperator.DEFAULT_TASK_EXECUTION_TIMEOUT",
     },
     "param": {
-        "Param": "airflow.sdk.definitions.param.Param",
+        "Param": "airflow.sdk.Param",
         "ParamsDict": "airflow.sdk.definitions.param.ParamsDict",
     },
+    "baseoperator": {
+        "BaseOperator": "airflow.sdk.bases.operator.BaseOperator",
+        "chain": "airflow.sdk.bases.operator.chain",
+        "chain_linear": "airflow.sdk.bases.operator.chain_linear",
+        "cross_downstream": "airflow.sdk.bases.operator.cross_downstream",
+    },
     "baseoperatorlink": {
-        "BaseOperatorLink": "airflow.sdk.bases.operatorlink.BaseOperatorLink",
+        "BaseOperatorLink": "airflow.sdk.BaseOperatorLink",
+    },
+    "operator": {
+        "BaseOperator": "airflow.sdk.BaseOperator",
+        "Operator": "airflow.sdk.types.Operator",
     },
 }
 add_deprecated_classes(__deprecated_classes, __name__)

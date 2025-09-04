@@ -20,7 +20,6 @@ import json
 import logging
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
 
@@ -38,24 +37,23 @@ from airflow.providers.amazon.aws.sensors.bedrock import BedrockBatchInferenceSe
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain, task
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
-from airflow.utils.trigger_rule import TriggerRule
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 log = logging.getLogger(__name__)
-
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -69,7 +67,7 @@ DAG_ID = "example_bedrock_batch_inference"
 #   the Amazon Bedrock console and may take up to 24 hours to apply:
 #######################################################################
 
-CLAUDE_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 
 # Batch inferences currently require a minimum of 100 prompts per batch.
@@ -197,7 +195,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

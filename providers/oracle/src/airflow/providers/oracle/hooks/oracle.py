@@ -20,9 +20,13 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import oracledb
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -116,6 +120,20 @@ class OracleHook(DbApiHook):
         self.thick_mode_config_dir = thick_mode_config_dir
         self.fetch_decimals = fetch_decimals
         self.fetch_lobs = fetch_lobs
+        self._service_name: str | None = None
+        self._sid: str | None = None
+
+    @property
+    def service_name(self) -> str | None:
+        if self._service_name is None:
+            self._service_name = self.get_connection(self.get_conn_id()).extra_dejson.get("service_name")
+        return self._service_name
+
+    @property
+    def sid(self) -> str | None:
+        if self._sid is None:
+            self._sid = self.get_connection(self.get_conn_id()).extra_dejson.get("sid")
+        return self._sid
 
     def get_conn(self) -> oracledb.Connection:
         """
@@ -144,7 +162,7 @@ class OracleHook(DbApiHook):
 
 
         """
-        conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
+        conn = self.get_connection(self.get_conn_id())
         conn_config: dict[str, Any] = {"user": conn.login, "password": conn.password}
         sid = conn.extra_dejson.get("sid")
         mod = conn.extra_dejson.get("module")
@@ -231,18 +249,18 @@ class OracleHook(DbApiHook):
         if expire_time:
             conn_config["expire_time"] = expire_time
 
-        conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
+        oracle_conn = oracledb.connect(**conn_config)
         if mod is not None:
-            conn.module = mod  # type: ignore[attr-defined]
+            oracle_conn.module = mod
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
         # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
         if schema and service_name:
-            conn.current_schema = schema  # type: ignore[attr-defined]
+            oracle_conn.current_schema = schema
 
-        return conn  # type: ignore[return-value]
+        return oracle_conn
 
     def insert_rows(
         self,
@@ -292,7 +310,7 @@ class OracleHook(DbApiHook):
         conn = self.get_conn()
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
-        cur = conn.cursor()  # type: ignore[attr-defined]
+        cur = conn.cursor()
         i = 0
         for row in rows:
             i += 1
@@ -312,11 +330,11 @@ class OracleHook(DbApiHook):
             sql = f"INSERT /*+ APPEND */ INTO {table} {target_fields} VALUES ({','.join(values)})"
             cur.execute(sql)
             if i % commit_every == 0:
-                conn.commit()  # type: ignore[attr-defined]
+                conn.commit()
                 self.log.info("Loaded %s into %s rows so far", i, table)
-        conn.commit()  # type: ignore[attr-defined]
+        conn.commit()
         cur.close()
-        conn.close()  # type: ignore[attr-defined]
+        conn.close()
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     def bulk_insert_rows(
@@ -349,7 +367,7 @@ class OracleHook(DbApiHook):
         conn = self.get_conn()
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
-        cursor = conn.cursor()  # type: ignore[attr-defined]
+        cursor = conn.cursor()
         values_base = target_fields or rows[0]
 
         if bool(sequence_column) ^ bool(sequence_name):
@@ -358,21 +376,19 @@ class OracleHook(DbApiHook):
             )
 
         if sequence_column and sequence_name:
-            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-                tablename=table,
-                columns="({})".format(", ".join([sequence_column] + target_fields))
+            columns = (
+                f"({', '.join([sequence_column] + target_fields)})"
                 if target_fields
-                else f"({sequence_column})",
-                values=", ".join(
-                    [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
-                ),
+                else f"({sequence_column})"
+            )
+            value_placeholders = ", ".join(
+                [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
             )
         else:
-            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-                tablename=table,
-                columns="({})".format(", ".join(target_fields)) if target_fields else "",
-                values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
-            )
+            columns = f"({', '.join(target_fields)})" if target_fields else ""
+            value_placeholders = ", ".join(f":{i}" for i in range(1, len(values_base) + 1))
+        prepared_stm = f"insert into {table} {columns} values ({value_placeholders})"
+
         row_count = 0
         # Chunk the rows
         row_chunk = []
@@ -382,7 +398,7 @@ class OracleHook(DbApiHook):
             if row_count % commit_every == 0:
                 cursor.prepare(prepared_stm)
                 cursor.executemany(None, row_chunk)
-                conn.commit()  # type: ignore[attr-defined]
+                conn.commit()
                 self.log.info("[%s] inserted %s rows", table, row_count)
                 # Empty chunk
                 row_chunk = []
@@ -390,10 +406,10 @@ class OracleHook(DbApiHook):
         if row_chunk:
             cursor.prepare(prepared_stm)
             cursor.executemany(None, row_chunk)
-            conn.commit()  # type: ignore[attr-defined]
+            conn.commit()
             self.log.info("[%s] inserted %s rows", table, row_count)
         cursor.close()
-        conn.close()  # type: ignore[attr-defined]
+        conn.close()
 
     def callproc(
         self,
@@ -450,9 +466,36 @@ class OracleHook(DbApiHook):
 
         return result
 
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
+        """Return Oracle specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=DEFAULT_DB_PORT),
+            information_schema_table_name="ALL_TAB_COLUMNS",
+            information_schema_columns=[
+                "owner",
+                "table_name",
+                "column_name",
+                "column_id",
+                "data_type",
+            ],
+            database=self.service_name or self.sid,
+            normalize_name_method=lambda name: name.upper(),
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        """Return database dialect."""
+        return "oracle"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return current schema."""
+        return self.get_first("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual")[0]
+
     def get_uri(self) -> str:
         """Get the URI for the Oracle connection."""
-        conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
+        conn = self.get_connection(self.get_conn_id())
         login = conn.login
         password = conn.password
         host = conn.host

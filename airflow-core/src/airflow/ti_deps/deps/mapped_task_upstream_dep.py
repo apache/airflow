@@ -18,19 +18,23 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import select
 
-from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 class MappedTaskUpstreamDep(BaseTIDep):
@@ -51,11 +55,14 @@ class MappedTaskUpstreamDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.models.mappedoperator import is_mapped
+        from airflow.models.taskinstance import TaskInstance
 
-        if isinstance(ti.task, MappedOperator):
+        if ti.task is None:
+            return
+        elif is_mapped(ti.task):
             mapped_dependencies = ti.task.iter_mapped_dependencies()
-        elif ti.task is not None and (task_group := ti.task.get_closest_mapped_task_group()) is not None:
+        elif (task_group := ti.task.get_closest_mapped_task_group()) is not None:
             mapped_dependencies = task_group.iter_mapped_dependencies()
         else:
             return

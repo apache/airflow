@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk import BaseOperator, get_current_context
+from airflow.sdk import BaseOperator, get_current_context, timezone
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
@@ -58,12 +58,11 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
-    _convert_connection_result_conn,
     _convert_variable_result_to_variable,
+    _process_connection_result_conn,
     context_to_airflow_vars,
     set_current_context,
 )
-from airflow.utils import timezone
 
 
 def test_convert_connection_result_conn():
@@ -78,7 +77,7 @@ def test_convert_connection_result_conn():
         port=1234,
         extra='{"extra_key": "extra_value"}',
     )
-    conn = _convert_connection_result_conn(conn)
+    conn = _process_connection_result_conn(conn)
     assert conn == Connection(
         conn_id="test_conn",
         conn_type="mysql",

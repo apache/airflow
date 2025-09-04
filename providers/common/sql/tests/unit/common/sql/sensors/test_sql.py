@@ -80,8 +80,8 @@ class TestSqlSensor:
         op2 = SqlSensor(
             task_id="sql_sensor_check_2",
             conn_id="postgres_default",
-            sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
-            parameters=["table_name"],
+            sql="SELECT count(*) FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = %s",
+            parameters=["information_schema"],
             dag=self.dag,
         )
         op2.execute({})
@@ -226,7 +226,7 @@ class TestSqlSensor:
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
-            failure=[1],  # type: ignore[arg-type]
+            failure=[1],
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
@@ -246,7 +246,7 @@ class TestSqlSensor:
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
-            success=[1],  # type: ignore[arg-type]
+            success=[1],
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
