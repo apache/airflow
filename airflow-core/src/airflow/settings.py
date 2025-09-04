@@ -591,8 +591,10 @@ def configure_adapters():
 
 def _configure_secrets_masker():
     """Configure the secrets masker with values from config."""
-    from airflow._shared.secrets_masker import _secrets_masker as secrets_masker_core, \
-        DEFAULT_SENSITIVE_FIELDS
+    from airflow._shared.secrets_masker import (
+        DEFAULT_SENSITIVE_FIELDS,
+        _secrets_masker as secrets_masker_core,
+    )
     from airflow.configuration import conf
 
     min_length_to_mask = conf.getint("logging", "min_length_masked_secret", fallback=5)
@@ -602,13 +604,13 @@ def _configure_secrets_masker():
     if sensitive_variable_fields:
         sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(",")})
 
-
     core_masker = secrets_masker_core()
     core_masker.min_length_to_mask = min_length_to_mask
     core_masker.sensitive_variables_fields = list(sensitive_fields)
     core_masker.secret_mask_adapter = secret_mask_adapter
 
     from airflow.sdk._shared.secrets_masker import _secrets_masker as sdk_secrets_masker
+
     sdk_masker = sdk_secrets_masker()
     sdk_masker.min_length_to_mask = min_length_to_mask
     sdk_masker.sensitive_variables_fields = list(sensitive_fields)

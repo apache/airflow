@@ -109,14 +109,12 @@ else:
                 Redactable,
                 Redacted,
                 SecretsMasker,
-                should_hide_value_for_key,
             )
         except ImportError:
             from airflow.utils.log.secrets_masker import (
                 Redactable,
                 Redacted,
                 SecretsMasker,
-                should_hide_value_for_key,
             )
 
 log = logging.getLogger(__name__)
@@ -864,7 +862,7 @@ class OpenLineageRedactor(SecretsMasker):
                     # Those are deprecated values in _DEPRECATION_REPLACEMENTS
                     # in airflow.utils.context.Context
                     return "<<non-redactable: Proxy>>"
-                if name and should_hide_value_for_key(name):
+                if name and self.should_hide_value_for_key(name):
                     return self._redact_all(item, depth, max_depth)
                 if attrs.has(type(item)):
                     # TODO: FIXME when mypy gets compatible with new attrs

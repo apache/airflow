@@ -46,7 +46,9 @@ pytestmark = pytest.mark.enable_redact
 p = "password"
 
 
-def configure_secrets_masker_for_test(masker: SecretsMasker, min_length: int = 5, sensitive_fields: list[str] = None):
+def configure_secrets_masker_for_test(
+    masker: SecretsMasker, min_length: int = 5, sensitive_fields: list[str] = None
+):
     """Helper function to configure a SecretsMasker instance for testing."""
     masker.min_length_to_mask = min_length
     if sensitive_fields is None:
@@ -253,8 +255,7 @@ class TestSecretsMasker:
         ],
     )
     def test_mask_secret(self, name, value, expected_mask):
-        from airflow_shared.secrets_masker.secrets_masker import _secrets_masker
-        filt = _secrets_masker()
+        filt = SecretsMasker()
         configure_secrets_masker_for_test(filt)
 
         try:
@@ -448,6 +449,7 @@ class TestShouldHideValueForKey:
     def test_hiding_defaults(self, key, expected_result):
         # Configure the global secrets masker for this test
         from airflow_shared.secrets_masker.secrets_masker import _secrets_masker
+
         masker = _secrets_masker()
         configure_secrets_masker_for_test(masker)
 
@@ -472,13 +474,14 @@ class TestShouldHideValueForKey:
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
         env_value = str(sensitive_variable_fields) if sensitive_variable_fields is not None else ""
         with env_vars({"AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES": env_value}):
-            from airflow_shared.secrets_masker.secrets_masker import _secrets_masker, DEFAULT_SENSITIVE_FIELDS
+            from airflow_shared.secrets_masker.secrets_masker import DEFAULT_SENSITIVE_FIELDS, _secrets_masker
 
             masker = _secrets_masker()
             configure_secrets_masker_for_test(masker)
             if sensitive_variable_fields:
-                additional_fields = {field.strip() for field in sensitive_variable_fields.split(",") if
-                                     field.strip()}
+                additional_fields = {
+                    field.strip() for field in sensitive_variable_fields.split(",") if field.strip()
+                }
                 masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS | additional_fields)
             else:
                 masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
@@ -552,6 +555,7 @@ class TestMaskSecretAdapter:
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
         import urllib.parse
+
         with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": "urllib.parse.quote"}):
             # Manually configure the adapter since we don't read from config anymore
             self.secrets_masker.secret_mask_adapter = urllib.parse.quote
@@ -561,6 +565,7 @@ class TestMaskSecretAdapter:
 
     def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
         import urllib.parse
+
         with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": "urllib.parse.urlparse"}):
             # Manually configure the adapter since we don't read from config anymore
             self.secrets_masker.secret_mask_adapter = urllib.parse.urlparse
