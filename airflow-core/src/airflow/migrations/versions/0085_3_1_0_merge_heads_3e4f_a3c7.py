@@ -17,7 +17,7 @@
 # under the License.
 
 """
-merge heads 3e4f, a3c7
+merge heads 3e4f, a3c7.
 
 Revision ID: 2d6e7c3a3864
 Revises: 3e4f92b7c1a2, a3c7f2b18d4e
@@ -36,10 +36,10 @@ airflow_version = "3.1.0"
 
 
 def upgrade():
-    """Apply merge heads 3e4f, a3c7"""
+    """Apply merge heads 3e4f, a3c7."""
     pass
 
 
 def downgrade():
-    """Unapply merge heads 3e4f, a3c7"""
+    """Unapply merge heads 3e4f, a3c7."""
     pass
