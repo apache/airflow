@@ -1031,7 +1031,7 @@ class BaseSerialization:
     @classmethod
     def _deserialize_param(cls, param_dict: dict) -> SerializedParam:
         """
-        Deserialize Param using server-side class to avoid SDK coupling.
+        Deserialize an encoded Param to a server-side SerializedParam.
 
         In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
         this class's ``serialize`` method.  So before running through ``deserialize``,
@@ -1054,9 +1054,10 @@ class BaseSerialization:
                     val = cls.deserialize(val)
                 kwargs[attr] = val
 
-        # Use server-side class instead of SDK class
         return SerializedParam(
-            default=kwargs.get("default"), description=kwargs.get("description"), **kwargs.get("schema", {})
+            default=kwargs.get("default"),
+            description=kwargs.get("description"),
+            **(kwargs.get("schema") or {}),
         )
 
     @classmethod
@@ -1080,21 +1081,19 @@ class BaseSerialization:
 
     @classmethod
     def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> SerializedParamsDict:
-        """Deserialize a DAG's Params dict using server-side classes."""
+        """Deserialize an encoded ParamsDict to a server-side SerializedParamsDict."""
         if isinstance(encoded_params, collections.abc.Mapping):
             # in 2.9.2 or earlier params were serialized as JSON objects
             encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
         else:
             encoded_param_pairs = encoded_params
 
-        op_params = {}
-        for k, v in encoded_param_pairs:
-            if isinstance(v, dict) and "__class" in v:
-                op_params[k] = cls._deserialize_param(v)
-            else:
-                # Old style params, convert it using server-side class
-                op_params[k] = SerializedParam(v)
+        def deserialized_param(v):
+            if not isinstance(v, dict) or "__class" not in v:
+                return SerializedParam(v)  # Old style param serialization format.
+            return cls._deserialize_param(v)
 
+        op_params = {k: deserialized_param(v) for k, v in encoded_param_pairs}
         return SerializedParamsDict(op_params)
 
     @classmethod
@@ -1287,7 +1286,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     outlets: Sequence = []
     owner: str = "airflow"
-    params: SerializedParamsDict | dict[str, Any] = SerializedParamsDict()
+    params: SerializedParamsDict = SerializedParamsDict()
     pool: str = "default_pool"
     pool_slots: int = 1
     priority_weight: int = 1
@@ -2375,7 +2374,7 @@ class SerializedDAG(BaseSerialization):
     max_active_tasks: int
     max_consecutive_failed_dag_runs: int
     owner_links: dict[str, str]
-    params: ParamsDict  # TODO (GH-52141): Should use a scheduler-specific type.
+    params: SerializedParamsDict
     partial: bool
     render_template_as_native_obj: bool
     start_date: datetime.datetime | None
@@ -2410,7 +2409,7 @@ class SerializedDAG(BaseSerialization):
         self.max_active_tasks = 16  # Schema default
         self.max_consecutive_failed_dag_runs = 0  # Schema default
         self.owner_links = {}
-        self.params = ParamsDict()
+        self.params = SerializedParamsDict()
         self.partial = False
         self.render_template_as_native_obj = False
         self.start_date = None
@@ -3250,7 +3249,8 @@ class SerializedDAG(BaseSerialization):
                 )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-
+        copied_params = self.params.deep_merge(conf)
+        copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
             run_id=run_id,
