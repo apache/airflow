@@ -24,7 +24,7 @@ import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
 
 import { StatsCard } from "./StatsCard";
 
-export const PendingActionsButton = ({
+export const NeedsReviewButton = ({
   dagId,
   runId,
   taskId,
@@ -41,7 +41,7 @@ export const PendingActionsButton = ({
   });
 
   const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
-  const { t: translate } = useTranslation("dashboard");
+  const { t: translate } = useTranslation("hitl");
 
   return hitlTIsCount > 0 ? (
     <Box maxW="250px">
@@ -50,8 +50,8 @@ export const PendingActionsButton = ({
         count={hitlTIsCount}
         icon={<LuUserRoundPen />}
         isLoading={isLoading}
-        label={translate("stats.requiredActions")}
-        link="required_actions?response_received=false"
+        label={translate("requiredAction_other")}
+        link="dags?needs_review=true"
       />
     </Box>
   ) : undefined;
