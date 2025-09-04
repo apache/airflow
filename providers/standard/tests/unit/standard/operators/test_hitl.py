@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.standard.exceptions import HITLRejectException
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -405,7 +407,7 @@ class TestApprovalOperator:
             "params_input": {},
         }
 
-    def test_execute_complete_with_downstream_tasks(self, dag_maker) -> None:
+    def test_execute_complete_with_downstream_tasks(self, dag_maker: DagMaker) -> None:
         with dag_maker("hitl_test_dag", serialized=True):
             hitl_op = ApprovalOperator(
                 task_id="hitl_test",
@@ -422,6 +424,20 @@ class TestApprovalOperator:
                 event={"chosen_options": ["Reject"], "params_input": {}},
             )
         assert set(exc_info.value.tasks) == {"op1"}
+
+    def test_execute_complete_with_fail_on_reject_set_to_true(self, dag_maker: DagMaker) -> None:
+        with dag_maker("hitl_test_dag", serialized=True):
+            hitl_op = ApprovalOperator(task_id="hitl_test", subject="This is subject", fail_on_reject=True)
+            (hitl_op >> EmptyOperator(task_id="op1"))
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("hitl_test")
+
+        with pytest.raises(HITLRejectException):
+            hitl_op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={"chosen_options": ["Reject"], "params_input": {}},
+            )
 
 
 class TestHITLEntryOperator:
