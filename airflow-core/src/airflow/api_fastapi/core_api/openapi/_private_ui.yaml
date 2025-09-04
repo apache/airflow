@@ -151,6 +151,16 @@ paths:
             type: string
           - type: 'null'
           title: Tags Match Mode
+      - name: tags_advanced_query
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Advanced tag query, e.g. (tag1 OR tag2) AND tag3
+          title: Tags Advanced Query
+        description: Advanced tag query, e.g. (tag1 OR tag2) AND tag3
       - name: owners
         in: query
         required: false

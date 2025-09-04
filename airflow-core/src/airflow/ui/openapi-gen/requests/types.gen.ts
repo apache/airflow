@@ -2381,6 +2381,10 @@ export type GetDagsData = {
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
+    /**
+    * Advanced tag query, e.g. (tag1 OR tag2) AND tag3
+    */
+    tagsAdvancedQuery?: string | null;
     tagsMatchMode?: 'any' | 'all' | null;
 };
 
@@ -2485,6 +2489,10 @@ export type GetDagsUiData = {
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
+    /**
+    * Advanced tag query, e.g. (tag1 OR tag2) AND tag3
+    */
+    tagsAdvancedQuery?: string | null;
     tagsMatchMode?: 'any' | 'all' | null;
 };
 
