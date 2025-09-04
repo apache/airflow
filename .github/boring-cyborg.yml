@@ -458,7 +458,6 @@ labelPRBasedOnFilePath:
 
   area:Secrets:
     - airflow-core/src/airflow/secrets/**/*
-    - airflow-core/tests/unit/secrets/**/*
     - providers/**/secrets/*
     - airflow-core/docs/security/secrets/**/*
 
