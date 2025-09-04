@@ -514,6 +514,8 @@ def initialize_fastapi_plugins():
     fastapi_root_middlewares = []
 
     for plugin in plugins:
+        for app_dict in plugin.fastapi_apps:
+            app_dict["plugin_name"] = plugin.name
         fastapi_apps.extend(plugin.fastapi_apps)
         fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
 
@@ -656,6 +658,9 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     plugins_info = []
     if plugins:
         for plugin in plugins:
+            if plugin.name in import_errors:
+                log.warning("Skipping plugin %s because it has an invalid 'url_prefix'", plugin.name)
+                continue
             info: dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):

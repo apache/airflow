@@ -178,12 +178,17 @@ def init_plugins(app: FastAPI) -> None:
     for subapp_dict in cast("list", plugins_manager.fastapi_apps):
         name = subapp_dict.get("name")
         subapp = subapp_dict.get("app")
+        plugin_name = subapp_dict.get("plugin_name")
         if subapp is None:
             log.error("'app' key is missing for the fastapi app: %s", name)
             continue
         url_prefix = subapp_dict.get("url_prefix")
         if url_prefix is None:
             log.error("'url_prefix' key is missing for the fastapi app: %s", name)
+            continue
+        if url_prefix == "":
+            log.error("'url_prefix' key is empty string for the fastapi app: %s", name)
+            plugins_manager.import_errors[plugin_name] = "'url_prefix' key is empty"
             continue
 
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
