@@ -79,13 +79,13 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    if (conf) {
+    if (urlConf === null && conf) {
       reset((prevValues) => ({
         ...prevValues,
         conf,
       }));
     }
-  }, [conf, reset]);
+  }, [urlConf, conf, reset]);
 
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));

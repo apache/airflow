@@ -102,13 +102,13 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   }, [dateValidationError]);
 
   useEffect(() => {
-    if (conf) {
+    if (urlConf === null && conf) {
       reset((prevValues) => ({
         ...prevValues,
         conf,
       }));
     }
-  }, [conf, reset]);
+  }, [urlConf, conf, reset]);
 
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
