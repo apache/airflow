@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from airflow import settings
@@ -35,6 +37,10 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     set_default_pool_slots,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -319,3 +325,10 @@ class TestPool:
         default_pool = Pool.get_default_pool()
         assert not Pool.is_default_pool(id=pool.id)
         assert Pool.is_default_pool(str(default_pool.id))
+
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        pool = Pool(pool="test", include_deferred=False, team_id=testing_team.id)
+        session.add(pool)
+        session.flush()
+
+        assert Pool.get_team_name("test", session=session) == "testing"

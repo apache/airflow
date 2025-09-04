@@ -30,19 +30,20 @@ class HITLDetailRequest(BaseModel):
     """Schema for the request part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
-    options: list[str]
+    options: list[str] = Field(min_length=1)
     subject: str
     body: str | None = None
     defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
+    respondents: list[str] | None = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
     """Schema for writing the response part of a Human-in-the-loop detail for a specific task instance."""
 
     ti_id: UUID
-    chosen_options: list[str]
+    chosen_options: list[str] = Field(min_length=1)
     params_input: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -50,8 +51,10 @@ class HITLDetailResponse(BaseModel):
     """Schema for the response part of a Human-in-the-loop detail for a specific task instance."""
 
     response_received: bool
-    user_id: str | None
+    responded_user_name: str | None
+    responded_user_id: str | None
     response_at: datetime | None
+    # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
 
@@ -60,7 +63,8 @@ class HITLDetailResponse(BaseModel):
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
             response_at=hitl_detail.response_at,
-            user_id=hitl_detail.user_id,
+            responded_user_id=hitl_detail.responded_user_id,
+            responded_user_name=hitl_detail.responded_user_name,
             chosen_options=hitl_detail.chosen_options,
             params_input=hitl_detail.params_input or {},
         )

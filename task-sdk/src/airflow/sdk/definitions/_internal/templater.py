@@ -29,12 +29,12 @@ import jinja2.sandbox
 
 from airflow.sdk import ObjectStoragePath
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.utils.helpers import render_template_as_native, render_template_to_string
+from airflow.sdk.definitions.context import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.types import Operator
 
 
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ class Templater:
     template_ext: Sequence[str]
 
     def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
-        """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
+        """Fetch a Jinja template environment from the Dag or instantiate empty environment if no Dag."""
         # This is imported locally since Jinja2 is heavy and we don't need it
         # for most of the functionalities. It is imported by get_template_env()
         # though, so we don't need to put this after the 'if dag' check.
@@ -89,7 +89,7 @@ class Templater:
 
     def resolve_template_files(self) -> None:
         """Get the content of files for template_field / template_ext."""
-        if self.template_ext:
+        if getattr(self, "template_ext", None):
             for field in self.template_fields:
                 content = getattr(self, field, None)
                 if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
@@ -170,7 +170,7 @@ class Templater:
             jinja_env = self.get_template_env()
 
         if isinstance(value, str):
-            if value.endswith(tuple(self.template_ext)):  # A filepath.
+            if hasattr(self, "template_ext") and value.endswith(tuple(self.template_ext)):  # A filepath.
                 template = jinja_env.get_template(value)
             else:
                 template = jinja_env.from_string(value)

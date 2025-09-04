@@ -133,7 +133,8 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 ### 5.5. Adding or rephrasing terms
 
 - When new terms are added to the default locale, all translation owners SHOULD create a follow-up PR to comply with the changes in their assigned locale.
-- When existing terms are rephrased in the default language (key is the same but value changed), all translation owners SHOULD do the same as above, if the change in the intent or meaning affects the translation.
+- When existing terms are rephrased in the default language (key is the same but value changed), all translation owners SHOULD do the same as above.
+- As the change of the default language might be un-noticed by translators (translation keys would stay valid) it is recommended to rename the translation key to force a detection of language gaps (translations would have 1 orphan (old) key and a missing (new) key).
 - In busy times with many parallel UI changes it is acceptable to batch changes together. Differences SHOULD be cleared prior to a release at the latest.
 
 > [!NOTE]
@@ -258,7 +259,7 @@ uv run dev/i18n/check_translations_completeness.py --language <language_code> --
 > The following describe the desired future state of compliance and enforcement.
 
 - Automated checks SHOULD verify once in a while that all languages have corresponding entries for new terms in the default language. When translations are missing, relevant code owners should be notified.
-- Automated checks SHOULD allow a person doing translation to select the language and aid them in adding new translations so that they do not have to compare them manually. Possibly it can be done by adding `-–add-missing` to the verifying script that will add new entries with `TODO: translate: ENGLISH VERSION` and add pre-commit to not allow such `TODO:` entries to be committed.
+- Automated checks SHOULD allow a person doing translation to select the language and aid them in adding new translations so that they do not have to compare them manually. Possibly it can be done by adding `-–add-missing` to the verifying script that will add new entries with `TODO: translate: ENGLISH VERSION` and add prek hook to not allow such `TODO:` entries to be committed.
 
 ## 10. Exceptions
 

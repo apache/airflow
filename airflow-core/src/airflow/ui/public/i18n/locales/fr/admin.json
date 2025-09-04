@@ -12,10 +12,10 @@
     "title": "Configuration d'Airflow"
   },
   "connections": {
-    "add": "Ajouter une Connexion",
+    "add": "Ajouter une connexion",
     "columns": {
-      "connectionId": "ID de la connexion",
-      "connectionType": "Type de la connexion",
+      "connectionId": "ID de connexion",
+      "connectionType": "Type de connexion",
       "host": "Hôte",
       "port": "Port"
     },
@@ -28,7 +28,7 @@
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "title": "Supprimer la Connexion"
     },
-    "edit": "Modifier la Connexion",
+    "edit": "Modifier la connexion",
     "form": {
       "connectionIdRequired": "L'ID de la connexion est requis",
       "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
@@ -36,14 +36,18 @@
       "extraFields": "Champs Supplémentaires",
       "extraFieldsJson": "Champs Supplémentaires JSON",
       "helperText": "Le type de la connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
-      "selectConnectionType": "Sélectionner le Type de Connexion",
-      "standardFields": "Champs Standards"
+      "helperTextForRedactedFields": "Les champs masqués ('***') resteront inchangés s'ils ne sont pas modifiés.",
+      "selectConnectionType": "Sélectionner le type de connexion",
+      "standardFields": "Champs standards"
     },
     "nothingFound": {
-      "title": "Aucune connexion trouvée!"
+      "description": "Les connexions définies via des variables d'environnement ou des gestionnaires de secrets ne sont pas listées ici.",
+      "documentationLink": "En savoir plus dans la documentation Airflow.",
+      "learnMore": "Celles-ci sont résolues à l'exécution et ne sont pas visibles dans l'UI.",
+      "title": "Aucune connexion trouvée !"
     },
     "searchPlaceholder": "Rechercher les connexions",
-    "test": "Test la connexion",
+    "test": "Tester la connexion",
     "testDisabled": "Le test de connexion est désactivé. Veuillez contacter un administrateur pour l'activer.",
     "typeMeta": {
       "error": "Échec de la récupération des métadonnées du type de connexion",
@@ -80,13 +84,13 @@
     "searchPlaceholder": "Rechercher par fichier"
   },
   "pools": {
-    "add": "Ajouter un Pool",
+    "add": "Ajouter un pool",
     "deferredSlotsIncluded": "Slots Différés Inclus",
     "delete": {
       "title": "Supprimer le Pool",
       "warning": "Cela supprimera toutes les métadonnées liées au pool et peut affecter les tâches utilisant ce pool."
     },
-    "edit": "Modifier le Pool",
+    "edit": "Modifier le pool",
     "form": {
       "checkbox": "Cochez pour inclure les tâches différées lors du calcul des slots libres du pool",
       "description": "Description",
@@ -112,7 +116,7 @@
     }
   },
   "variables": {
-    "add": "Ajouter une Variable",
+    "add": "Ajouter une variable",
     "columns": {
       "isEncrypted": "Est chiffrée"
     },
@@ -124,7 +128,7 @@
       "title": "Supprimer la Variable",
       "tooltip": "Supprimer les variables sélectionnées"
     },
-    "edit": "Modifier la Variable",
+    "edit": "Modifier la variable",
     "export": "Exporter",
     "exportTooltip": "Exporter les variables sélectionnées",
     "form": {

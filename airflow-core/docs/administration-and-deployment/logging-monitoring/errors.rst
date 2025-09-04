@@ -64,7 +64,7 @@ Tags
 ======================================= ==================================================
 Name                                    Description
 ======================================= ==================================================
-``dag_id``                              Dag name of the dag that failed
+``dag_id``                              Dag name of the Dag that failed
 ``task_id``                             Task name of the task that failed
 ``data_interval_start``                 Start of data interval when the task failed
 ``data_interval_end``                   End of data interval when the task failed
@@ -79,7 +79,7 @@ in favor of ``data_interval_start``.
 Breadcrumbs
 ------------
 
-When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current DAG run.
+When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current Dag run.
 
 ======================================= ==============================================================
 Name                                    Description

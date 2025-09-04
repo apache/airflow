@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from google.cloud.storage_transfer_v1.types.transfer_types import TransferOperation
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
@@ -124,23 +126,28 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRANSFER_HOOK_PATH}.CloudDataTransferServiceAsyncHook.get_conn")
-    @mock.patch("google.api_core.protobuf_helpers.from_any_pb")
-    async def test_list_transfer_operations(self, from_any_pb, mock_conn, hook_async):
-        expected_operations = [mock.MagicMock(), mock.MagicMock()]
-        from_any_pb.side_effect = expected_operations
+    @mock.patch(f"{TRANSFER_HOOK_PATH}.MessageToDict")
+    async def test_list_transfer_operations(self, message_to_dict, mock_conn, hook_async):
+        expected = [{"name": "op1"}, {"name": "op2"}]
+        message_to_dict.side_effect = expected
 
-        mock_conn.return_value.list_operations.side_effect = [
-            mock.MagicMock(next_page_token="token", operations=[mock.MagicMock()]),
-            mock.MagicMock(next_page_token=None, operations=[mock.MagicMock()]),
-        ]
+        op_with_pb = SimpleNamespace(_pb=mock.sentinel.pb1)
+        op_without_pb = object()
 
-        actual_operations = await hook_async.list_transfer_operations(
-            request_filter={
-                "project_id": TEST_PROJECT_ID,
-            },
+        first_page = mock.MagicMock(next_page_token="token", operations=[op_with_pb])
+        second_page = mock.MagicMock(next_page_token=None, operations=[op_without_pb])
+        mock_conn.return_value.list_operations.side_effect = [first_page, second_page]
+
+        actual = await hook_async.list_transfer_operations(
+            request_filter={"project_id": TEST_PROJECT_ID},
         )
-        assert actual_operations == expected_operations
+
+        assert actual == expected
         assert mock_conn.return_value.list_operations.call_count == 2
+        assert message_to_dict.call_args_list == [
+            mock.call(mock.sentinel.pb1, preserving_proto_field_name=True, use_integers_for_enums=True),
+            mock.call(op_without_pb, preserving_proto_field_name=True, use_integers_for_enums=True),
+        ]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -158,14 +165,23 @@ class TestCloudDataTransferServiceAsyncHook:
         ],
     )
     async def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
-        operations = [mock.MagicMock(**{"status.name": status}) for status in statuses]
+        def to_name(x):
+            return x.name if hasattr(x, "name") else x
+
+        def proto_int(name: str) -> int:
+            return int(getattr(TransferOperation.Status, name))
+
+        operations = [{"metadata": {"status": proto_int(to_name(s))}} for s in statuses]
+
+        expected_names = tuple(to_name(s) for s in expected_statuses)
 
         with pytest.raises(
             AirflowException,
-            match=f"An unexpected operation status was encountered. Expected: {', '.join(expected_statuses)}",
+            match=f"An unexpected operation status was encountered. Expected: {', '.join(expected_names)}",
         ):
             await CloudDataTransferServiceAsyncHook.operations_contain_expected_statuses(
-                operations, GcpTransferOperationStatus.IN_PROGRESS
+                operations,
+                GcpTransferOperationStatus.IN_PROGRESS,
             )
 
     @pytest.mark.asyncio
@@ -193,10 +209,17 @@ class TestCloudDataTransferServiceAsyncHook:
         ],
     )
     async def test_operations_contain_expected_statuses_green_path(self, statuses, expected_statuses):
-        operations = [mock.MagicMock(**{"status.name": status}) for status in statuses]
+        to_name = lambda x: x.name if hasattr(x, "name") else x
+        name_to_proto_int = lambda name: int(getattr(TransferOperation.Status, name))
+
+        operations = [{"metadata": {"status": name_to_proto_int(to_name(s))}} for s in statuses]
+
+        if isinstance(expected_statuses, (list, tuple, set)):
+            expected_norm = {to_name(s) for s in expected_statuses}
+        else:
+            expected_norm = to_name(expected_statuses)
 
         result = await CloudDataTransferServiceAsyncHook.operations_contain_expected_statuses(
-            operations, expected_statuses
+            operations, expected_norm
         )
-
-        assert result
+        assert result is True

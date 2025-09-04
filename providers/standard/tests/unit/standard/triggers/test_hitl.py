@@ -70,7 +70,7 @@ class TestHITLTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
     async def test_run_failed_due_to_timeout(self, mock_update, mock_supervisor_comms):
         trigger = HITLTrigger(
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
@@ -79,7 +79,8 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            user_id=None,
+            responded_user_id=None,
+            responded_user_name=None,
             response_at=None,
             chosen_options=None,
             params_input={},
@@ -99,7 +100,7 @@ class TestHITLTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch.object(HITLTrigger, "log")
-    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
     async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_log, mock_supervisor_comms):
         trigger = HITLTrigger(
             defaults=["1"],
@@ -109,7 +110,8 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            user_id=None,
+            responded_user_id=None,
+            responded_user_name=None,
             response_at=None,
             chosen_options=None,
             params_input={},
@@ -131,7 +133,7 @@ class TestHITLTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch.object(HITLTrigger, "log")
-    @mock.patch("airflow.sdk.execution_time.hitl.update_htil_detail_response")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
     async def test_run(self, mock_update, mock_log, mock_supervisor_comms, time_machine):
         time_machine.move_to(datetime(2025, 7, 29, 2, 0, 0))
 
@@ -143,7 +145,8 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
-            user_id="test",
+            responded_user_id="test",
+            responded_user_name="test",
             response_at=utcnow(),
             chosen_options=["3"],
             params_input={"input": 50},
@@ -162,7 +165,8 @@ class TestHITLTrigger:
         )
 
         assert mock_log.info.call_args == mock.call(
-            "[HITL] user=%s options=%s at %s",
+            "[HITL] responded_by=%s (id=%s) options=%s at %s",
+            "test",
             "test",
             ["3"],
             datetime(2025, 7, 29, 2, 0, 0, tzinfo=utc),

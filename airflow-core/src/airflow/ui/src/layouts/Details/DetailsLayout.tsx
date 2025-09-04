@@ -39,6 +39,7 @@ import { Tooltip } from "src/components/ui/Tooltip";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
+import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
@@ -52,12 +53,14 @@ type Props = {
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
-  const { dagId = "" } = useParams();
+  const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+
+  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -87,15 +90,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Tooltip content={translate("common:showDetailsPanel")}>
             <IconButton
               aria-label={translate("common:showDetailsPanel")}
-              bg="bg.surface"
-              borderRadius="full"
+              bg="fg.subtle"
+              borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
               boxShadow="md"
-              cursor="pointer"
-              left={direction === "rtl" ? 0 : undefined}
+              left={direction === "rtl" ? "-5px" : undefined}
               onClick={() => setIsRightPanelCollapsed(false)}
               position="absolute"
-              right={direction === "ltr" ? 0 : undefined}
-              size="sm"
+              right={direction === "ltr" ? "-5px" : undefined}
+              size="2xs"
               top="50%"
               zIndex={10}
             >
@@ -110,7 +112,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           key={`${dagView}-${direction}`}
           ref={panelGroupRef}
         >
-          <Panel defaultSize={dagView === "graph" ? 70 : 20} id="main-panel" minSize={6} order={1}>
+          <Panel
+            defaultSize={dagView === "graph" ? 70 : 20}
+            id="main-panel"
+            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 30 : 6}
+            order={1}
+          >
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
               <PanelButtons
                 dagView={dagView}
@@ -118,8 +125,17 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 panelGroupRef={panelGroupRef}
                 setDagView={setDagView}
                 setLimit={setLimit}
+                setShowGantt={setShowGantt}
+                showGantt={showGantt}
               />
-              {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
+              {dagView === "graph" ? (
+                <Graph />
+              ) : (
+                <HStack gap={0}>
+                  <Grid limit={limit} showGantt={Boolean(runId) && showGantt} />
+                  {showGantt ? <Gantt limit={limit} /> : undefined}
+                </HStack>
+              )}
             </Box>
           </Panel>
           {!isRightPanelCollapsed && (
@@ -143,25 +159,31 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   justifyContent="center"
                   position="relative"
                   w={0.5}
-                >
+                  // onClick={(e) => console.log(e)}
+                />
+              </PanelResizeHandle>
+
+              {/* Collapse button positioned next to the resize handle */}
+
+              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Box display="flex" flexDirection="column" h="100%" position="relative">
                   <Tooltip content={translate("common:collapseDetailsPanel")}>
                     <IconButton
                       aria-label={translate("common:collapseDetailsPanel")}
-                      bg="bg.surface"
-                      borderRadius="full"
+                      bg="fg.subtle"
+                      borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
                       boxShadow="md"
-                      cursor="pointer"
+                      left={direction === "ltr" ? "-5px" : undefined}
                       onClick={() => setIsRightPanelCollapsed(true)}
-                      size="xs"
+                      position="absolute"
+                      right={direction === "rtl" ? "-5px" : undefined}
+                      size="2xs"
+                      top="50%"
                       zIndex={2}
                     >
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
                   </Tooltip>
-                </Box>
-              </PanelResizeHandle>
-              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
-                <Box display="flex" flexDirection="column" h="100%">
                   {children}
                   {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                     <>

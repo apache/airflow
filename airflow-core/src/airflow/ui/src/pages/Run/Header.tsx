@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box } from "@chakra-ui/react";
+import { HStack, Text, Box, Link } from "@chakra-ui/react";
 import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiMessageSquare } from "react-icons/fi";
+import { FiBarChart } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
@@ -30,6 +31,7 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration, useContainerWidth } from "src/utils";
 
@@ -42,6 +44,8 @@ export const Header = ({
 }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
+
+  const hasContent = Boolean(dagRun.note?.trim());
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -75,14 +79,13 @@ export const Header = ({
           <>
             <EditableMarkdownButton
               header={translate("note.dagRun")}
-              icon={<FiMessageSquare />}
               isPending={isPending}
-              mdContent={note}
+              mdContent={dagRun.note}
               onConfirm={onConfirm}
               onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
-              text={Boolean(dagRun.note) ? translate("note.label") : translate("note.add")}
+              text={hasContent ? translate("note.label") : translate("note.add")}
               withText={containerWidth > 700}
             />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
@@ -113,6 +116,22 @@ export const Header = ({
           { label: translate("startDate"), value: <Time datetime={dagRun.start_date} /> },
           { label: translate("endDate"), value: <Time datetime={dagRun.end_date} /> },
           { label: translate("duration"), value: getDuration(dagRun.start_date, dagRun.end_date) },
+          ...(dagRun.triggering_user_name === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.triggeringUser"),
+                  value: (
+                    <Link asChild color="fg.info">
+                      <RouterLink
+                        to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
+                      >
+                        <Text>{dagRun.triggering_user_name}</Text>
+                      </RouterLink>
+                    </Link>
+                  ),
+                },
+              ]),
           {
             label: translate("dagRun.dagVersions"),
             value: (

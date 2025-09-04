@@ -36,6 +36,7 @@
     "activeDags": "啟用中的 Dags",
     "failedDags": "失敗的 Dags",
     "queuedDags": "排隊中的 Dags",
+    "requiredActions": "待回應的任務實例",
     "runningDags": "執行中的 Dags",
     "stats": "統計"
   },
