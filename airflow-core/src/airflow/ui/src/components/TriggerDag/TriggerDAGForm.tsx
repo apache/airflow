@@ -22,11 +22,13 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
+import { useLocation } from "react-router-dom";
 
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
+import { getUrlParam } from "src/utils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -57,16 +59,21 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-
   const { mutate: togglePause } = useTogglePause({ dagId });
+  const { search } = useLocation();
+
+  const params = new URLSearchParams(search);
+  const urlConf = getUrlParam(params, "conf", true);
+  const urlDagRunId = getUrlParam(params, "run_id");
+  const urlLogicalDate = getUrlParam(params, "logical_date");
+  const urlNote = getUrlParam(params, "note");
 
   const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
-      conf,
-      dagRunId: "",
-      // Default logical date to now, show it in the selected timezone
-      logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-      note: "",
+      conf: urlConf ?? (conf || "{}"),
+      dagRunId: urlDagRunId ?? "",
+      logicalDate: urlLogicalDate ?? dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      note: urlNote ?? "",
     },
   });
 
@@ -102,6 +109,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         control={control}
         errors={errors}
         initialParamsDict={initialParamsDict}
+        openAdvanced={Boolean(urlConf ?? urlDagRunId ?? urlLogicalDate ?? urlNote)}
         setErrors={setErrors}
         setFormError={setFormError}
       >
