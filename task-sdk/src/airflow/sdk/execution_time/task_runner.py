@@ -196,6 +196,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "value": VariableAccessor(deserialize_json=False),
             },
             "conn": ConnectionAccessor(),
+            "extra_links": {},
         }
         if from_server:
             dag_run = from_server.dag_run
@@ -1377,6 +1378,15 @@ def finalize(
         link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push_to_db(ti, key=xcom_key, value=link)
+
+    if context.get("extra_links"):
+        for link_name, url in context["extra_links"].items():
+            log.debug("Setting xcom for context extra link", link_name=link_name, url=url)
+            _xcom_push_to_db(
+                ti,
+                key=f"extra_link:{link_name}",
+                value=url,
+            )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
