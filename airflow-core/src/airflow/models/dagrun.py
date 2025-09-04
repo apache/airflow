@@ -1676,9 +1676,7 @@ class DagRun(Base, LoggingMixin):
 
         # Create the missing tasks, including mapped tasks
         tis_to_create = self._create_tasks(
-            # TODO (GH-52141): task_dict in scheduler should contain scheduler
-            # types instead, but currently it inherits SDK's DAG.
-            (task for task in cast("Iterable[Operator]", dag.task_dict.values()) if task_filter(task)),
+            (task for task in dag.task_dict.values() if task_filter(task)),
             task_creator,
             session=session,
         )

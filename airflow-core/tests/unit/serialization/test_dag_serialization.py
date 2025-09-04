@@ -2914,7 +2914,7 @@ def test_taskflow_expand_kwargs_serde(strict):
 def test_mapped_task_group_serde():
     from airflow.models.expandinput import SchedulerDictOfListsExpandInput
     from airflow.sdk.definitions.decorators.task_group import task_group
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
 
@@ -2955,7 +2955,7 @@ def test_mapped_task_group_serde():
 
     serde_dag = SerializedDAG.deserialize_dag(ser_dag[Encoding.VAR])
     serde_tg = serde_dag.task_group.children["tg"]
-    assert isinstance(serde_tg, MappedTaskGroup)
+    assert isinstance(serde_tg, SerializedTaskGroup)
     assert serde_tg._expand_input == SchedulerDictOfListsExpandInput({"a": [".", ".."]})
 
 
