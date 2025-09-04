@@ -81,9 +81,12 @@ def build_task_kwargs() -> dict:
         if not cluster.get("defaultCapacityProviderStrategy"):
             task_kwargs[all_config_keys.LAUNCH_TYPE] = ECS_LAUNCH_TYPE_FARGATE
 
-    # If you're using the EC2 launch type, you should not/can not provide the platform_version. In this
-    # case we'll drop it on the floor on behalf of the user, instead of throwing an exception.
-    if is_launch_type_ec2:
+    # The platform_version should be provided for FARGATE launch type only. In other
+    # cases we'll drop it on the floor on behalf of the user, instead of throwing an exception.
+    is_launch_type_fargate: bool = (
+        task_kwargs.get(all_config_keys.LAUNCH_TYPE, None) == ECS_LAUNCH_TYPE_FARGATE
+    )
+    if not is_launch_type_fargate:
         task_kwargs.pop(all_config_keys.PLATFORM_VERSION, None)
 
     # There can only be 1 count of these containers
