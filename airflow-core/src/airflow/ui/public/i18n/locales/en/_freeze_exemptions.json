@@ -4,6 +4,7 @@
   "browse": {},
   "common": {
     "filters": {
+      "filter": "Filter",
       "reset": "Reset"
     }
   },

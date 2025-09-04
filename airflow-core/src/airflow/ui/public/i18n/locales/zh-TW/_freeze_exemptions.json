@@ -4,6 +4,7 @@
   "browse": {},
   "common": {
     "filters": {
+      "filter": "篩選",
       "reset": "重置"
     }
   },
