@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, HStack, Box, Text } from "@chakra-ui/react";
-import { useCallback } from "react";
+import { VStack, HStack, Box, Text, Button } from "@chakra-ui/react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -33,6 +33,7 @@ export const AssetEventsFilter = () => {
   const endDate = searchParams.get(END_DATE) ?? "";
   const dagId = searchParams.get(DAG_ID) ?? "";
   const taskId = searchParams.get(TASK_ID) ?? "";
+  const [resetKey, setResetKey] = useState(0);
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
       if (value === "") {
@@ -44,6 +45,14 @@ export const AssetEventsFilter = () => {
     },
     [searchParams, setSearchParams],
   );
+  const handleResetFilters = useCallback(() => {
+    searchParams.delete(START_DATE);
+    searchParams.delete(END_DATE);
+    searchParams.delete(DAG_ID);
+    searchParams.delete(TASK_ID);
+    setSearchParams(searchParams);
+    setResetKey((prev) => prev + 1);
+  }, [searchParams, setSearchParams, START_DATE, END_DATE, DAG_ID, TASK_ID]);
 
   return (
     <VStack align="start" gap={4} paddingY="4px">
@@ -68,6 +77,7 @@ export const AssetEventsFilter = () => {
             defaultValue={dagId}
             hideAdvanced
             hotkeyDisabled={true}
+            key={`dag-id-${resetKey}`}
             onChange={handleFilterChange(DAG_ID)}
             placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
           />
@@ -78,10 +88,14 @@ export const AssetEventsFilter = () => {
             defaultValue={taskId}
             hideAdvanced
             hotkeyDisabled={true}
+            key={`task-id-${resetKey}`}
             onChange={handleFilterChange(TASK_ID)}
             placeHolder={translate("common:filters.taskIdPlaceholder")}
           />
         </Box>
+        <Button onClick={handleResetFilters} w="200px">
+          {translate("common:table.filterReset_other")}
+        </Button>
       </HStack>
     </VStack>
   );
