@@ -19,10 +19,12 @@
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { decodeParam } from "src/utils";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -48,7 +50,14 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   open,
 }) => {
   const { t: translate } = useTranslation("components");
-  const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const urlRunMode = decodeParam(params, "mode");
+
+  // Initialize runMode based on URL parameter or default to SINGLE
+  const getInitialRunMode = (): RunMode => (urlRunMode === "backfill" ? RunMode.BACKFILL : RunMode.SINGLE);
+  const [runMode, setRunMode] = useState<RunMode>(getInitialRunMode);
+
   const {
     data: dag,
     isError,
