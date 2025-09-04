@@ -1,19 +1,19 @@
 {
-  "columns":{
+  "columns": {
     "description": "Descrizione",
     "key": "Chiave",
     "name": "Nome",
     "value": "Valore"
   },
-  "config":{
-    "columns":{
+  "config": {
+    "columns": {
       "section": "Sezione"
     },
     "title": "Configurazione di Airflow"
   },
-  "connections":{
-    "add":"Aggiungi Connessione",
-    "columns":{
+  "connections": {
+    "add": "Aggiungi Connessione",
+    "columns": {
       "connectionId": "ID Connessione",
       "connectionType": "Tipo di Connessione",
       "host": "Host",
@@ -21,7 +21,7 @@
     },
     "connection_one": "Connessione",
     "connection_other": "Connessioni",
-    "delete":{
+    "delete": {
       "deleteConnection_one": "Elimina 1 connessione",
       "deleteConnection_other": "Elimina {{count}} connessioni",
       "firstConfirmMessage_one": "Stai per eliminare la seguente connessione:",
@@ -29,7 +29,7 @@
       "title": "Elimina Connessione"
     },
     "edit": "Modifica Connessione",
-    "form":{
+    "form": {
       "connectionIdRequired": "L'ID della connessione è obbligatorio",
       "connectionIdRequirement": "L'ID della connessione non può contenere solo spazi",
       "connectionTypeRequired": "Il tipo di connessione è obbligatorio",
@@ -40,10 +40,10 @@
       "standardFields": "Campi Standard"
     },
     "nothingFound": {
-        "description": "Le connessioni definite tramite variabili d'ambiente o gestori di segreti non sono elencate qui.",
-        "documentationLink": "Scopri di più nella documentazione di Airflow.",
-        "learnMore": "Queste sono risolte in fase di runtime e non sono visibili nell'interfaccia utente.",
-        "title": "Nessuna connessione trovata!"
+      "description": "Le connessioni definite tramite variabili d'ambiente o gestori di segreti non sono elencate qui.",
+      "documentationLink": "Scopri di più nella documentazione di Airflow.",
+      "learnMore": "Queste sono risolte in fase di runtime e non sono visibili nell'interfaccia utente.",
+      "title": "Nessuna connessione trovata!"
     },
     "searchPlaceholder": "Cerca Connessioni",
     "test": "Test Connessione",
@@ -60,9 +60,9 @@
       }
     }
   },
-  "deleteActions":{
+  "deleteActions": {
     "button": "Elimina",
-    "modal":{
+    "modal": {
       "confirmButton": "Sì, Elimina",
       "secondConfirmMessage": "Questa azione è permanente e non può essere annullata.",
       "thirdConfirmMessage": "Confermi di voler procedere?"
@@ -70,7 +70,7 @@
     "selected": "Selezionato",
     "tooltip": "Elimina le connessioni selezionate"
   },
-  "formActions":{
+  "formActions": {
     "reset": "Resetta",
     "save": "Salva"
   },
@@ -85,7 +85,7 @@
   "pools": {
     "add": "Aggiungi Pool",
     "deferredSlotsIncluded": "Slots Deferiti Inclusi",
-    "delete":{
+    "delete": {
       "title": "Elimina Pool",
       "warning": "Questo rimuoverà tutti i metadati relativi al pool e potrebbe influenzare le tare che lo utilizzano."
     },
@@ -127,7 +127,7 @@
       "title": "Elimina Variabile",
       "tooltip": "Elimina le variabili selezionate"
     },
-    "edit":  "Modifica Variabile",
+    "edit": "Modifica Variabile",
     "export": "Esporta",
     "exportTooltip": "Esporta le variabili selezionate",
     "form": {
