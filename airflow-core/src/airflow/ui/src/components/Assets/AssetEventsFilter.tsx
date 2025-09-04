@@ -34,11 +34,11 @@ export const AssetEventsFilter = () => {
   const endDate = searchParams.get(END_DATE) ?? "";
   const dagId = searchParams.get(DAG_ID) ?? "";
   const taskId = searchParams.get(TASK_ID) ?? "";
-  const [resetKey, setResetKey] = useState(0);
   const filterKeys = useMemo(
     () => [START_DATE, END_DATE, DAG_ID, TASK_ID],
     [START_DATE, END_DATE, DAG_ID, TASK_ID],
   );
+  const [resetKey, setResetKey] = useState(0);
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
       if (value === "") {
