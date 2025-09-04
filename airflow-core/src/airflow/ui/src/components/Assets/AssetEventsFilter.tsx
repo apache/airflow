@@ -17,8 +17,9 @@
  * under the License.
  */
 import { VStack, HStack, Box, Text, Button } from "@chakra-ui/react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 
 import { DateTimeInput } from "src/components/DateTimeInput";
@@ -34,6 +35,10 @@ export const AssetEventsFilter = () => {
   const dagId = searchParams.get(DAG_ID) ?? "";
   const taskId = searchParams.get(TASK_ID) ?? "";
   const [resetKey, setResetKey] = useState(0);
+  const filterKeys = useMemo(
+    () => [START_DATE, END_DATE, DAG_ID, TASK_ID],
+    [START_DATE, END_DATE, DAG_ID, TASK_ID],
+  );
   const handleFilterChange = useCallback(
     (paramKey: string) => (value: string) => {
       if (value === "") {
@@ -45,14 +50,15 @@ export const AssetEventsFilter = () => {
     },
     [searchParams, setSearchParams],
   );
+  const filterCount = useMemo(
+    () => filterKeys.reduce((acc, key) => (searchParams.get(key) === null ? acc : acc + 1), 0),
+    [searchParams, filterKeys],
+  );
   const handleResetFilters = useCallback(() => {
-    searchParams.delete(START_DATE);
-    searchParams.delete(END_DATE);
-    searchParams.delete(DAG_ID);
-    searchParams.delete(TASK_ID);
+    filterKeys.forEach((key) => searchParams.delete(key));
     setSearchParams(searchParams);
     setResetKey((prev) => prev + 1);
-  }, [searchParams, setSearchParams, START_DATE, END_DATE, DAG_ID, TASK_ID]);
+  }, [searchParams, setSearchParams, filterKeys]);
 
   return (
     <VStack align="start" gap={4} paddingY="4px">
@@ -93,9 +99,14 @@ export const AssetEventsFilter = () => {
             placeHolder={translate("common:filters.taskIdPlaceholder")}
           />
         </Box>
-        <Button onClick={handleResetFilters} w="200px">
-          {translate("common:table.filterReset_other")}
-        </Button>
+        <Box alignSelf="end">
+          {filterCount > 0 && (
+            <Button onClick={handleResetFilters} size="md" variant="outline">
+              <LuX />
+              {translate("common:table.filterReset", { count: filterCount })}
+            </Button>
+          )}
+        </Box>
       </HStack>
     </VStack>
   );
