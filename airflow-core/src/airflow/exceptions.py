@@ -22,17 +22,25 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from airflow.models import DagRun
+    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 
 try:
     from airflow.sdk.exceptions import (
         AirflowDagCycleException,
         AirflowException,
+        AirflowFailException,
+        AirflowInactiveAssetInInletOrOutletException,
         AirflowNotFoundException,
+        AirflowSkipException,
+        AirflowTaskTimeout,
         ParamValidationError,
+        TaskDeferred,
         TaskNotFound,
     )
 except (ImportError, ModuleNotFoundError):
@@ -61,6 +69,88 @@ except (ImportError, ModuleNotFoundError):
 
     class ParamValidationError(AirflowException):  # type: ignore[no-redef]
         """Raise when DAG params is invalid."""
+
+    class AirflowFailException(AirflowException):  # type: ignore[no-redef]
+        """Raise when the task should be failed without retrying."""
+
+    class AirflowSkipException(AirflowException):  # type: ignore[no-redef]
+        """Raise when the task should be skipped."""
+
+    class AirflowTaskTimeout(BaseException):  # type: ignore[no-redef]
+        """Raise when the task execution times-out."""
+
+    class TaskDeferred(BaseException):
+        """
+        Signal an operator moving to deferred state.
+
+        Special exception raised to signal that the operator it was raised from
+        wishes to defer until a trigger fires. Triggers can send execution back to task or end the task instance
+        directly. If the trigger should end the task instance itself, ``method_name`` does not matter,
+        and can be None; otherwise, provide the name of the method that should be used when
+        resuming execution in the task.
+        """
+
+        def __init__(
+            self,
+            *,
+            trigger,
+            method_name: str,
+            kwargs: dict[str, Any] | None = None,
+            timeout=None,
+        ):
+            super().__init__()
+            self.trigger = trigger
+            self.method_name = method_name
+            self.kwargs = kwargs
+            self.timeout = timeout
+
+        def serialize(self):
+            cls = self.__class__
+            return (
+                f"{cls.__module__}.{cls.__name__}",
+                (),
+                {
+                    "trigger": self.trigger,
+                    "method_name": self.method_name,
+                    "kwargs": self.kwargs,
+                    "timeout": self.timeout,
+                },
+            )
+
+        def __repr__(self) -> str:
+            return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
+
+    class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):  # type: ignore[no-redef]
+        main_message: str
+
+        def __init__(
+            self, inactive_asset_keys: Collection[AssetUniqueKey | AssetNameRef | AssetUriRef]
+        ) -> None:
+            self.inactive_asset_keys = inactive_asset_keys
+
+        @staticmethod
+        def _render_asset_key(key: AssetUniqueKey | AssetNameRef | AssetUriRef) -> str:
+            from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+
+            if isinstance(key, AssetUniqueKey):
+                return f"Asset(name={key.name!r}, uri={key.uri!r})"
+            if isinstance(key, AssetNameRef):
+                return f"Asset.ref(name={key.name!r})"
+            if isinstance(key, AssetUriRef):
+                return f"Asset.ref(uri={key.uri!r})"
+            return repr(key)  # Should not happen, but let's fails more gracefully in an exception.
+
+        def __str__(self) -> str:
+            return f"{self.main_message}: {self.inactive_assets_message}"
+
+        @property
+        def inactive_assets_message(self) -> str:
+            return ", ".join(self._render_asset_key(key) for key in self.inactive_asset_keys)
+
+    class AirflowInactiveAssetInInletOrOutletException(_AirflowExecuteWithInactiveAssetExecption):  # type: ignore[no-redef]
+        """Raise when the task is executed with inactive assets in its inlet or outlet."""
+
+        main_message = "Task has the following inactive assets in its inlets or outlets"
 
 
 class AirflowBadRequest(AirflowException):
@@ -316,21 +406,16 @@ class DeserializationError(Exception):
 
 
 _DEPRECATED_EXCEPTIONS = {
-    "AirflowInactiveAssetInInletOrOutletException": "airflow.sdk.exceptions.AirflowInactiveAssetInInletOrOutletException",
     "AirflowTaskTerminated": "airflow.sdk.exceptions.AirflowTaskTerminated",
     "DuplicateTaskIdFound": "airflow.sdk.exceptions.DuplicateTaskIdFound",
     "FailFastDagInvalidTriggerRule": "airflow.sdk.exceptions.FailFastDagInvalidTriggerRule",
     "TaskAlreadyInTaskGroup": "airflow.sdk.exceptions.TaskAlreadyInTaskGroup",
-    "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
     "TaskDeferralTimeout": "airflow.sdk.exceptions.TaskDeferralTimeout",
     "XComNotFound": "airflow.sdk.exceptions.XComNotFound",
-    "TaskDeferred": "airflow.sdk.exceptions.TaskDeferred",
     "DownstreamTasksSkipped": "airflow.sdk.exceptions.DownstreamTasksSkipped",
-    "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
-    "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
     "AirflowSensorTimeout": "airflow.sdk.exceptions.AirflowSensorTimeout",
-    "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
     "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
+    "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
 }
 
 
