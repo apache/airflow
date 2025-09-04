@@ -923,13 +923,13 @@ class S3Hook(AwsBaseHook):
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
     @provide_bucket_name
-    def get_file_metadata(
+    def get_file_metadata(  # type: ignore[return]
         self,
         prefix: str,
         bucket_name: str | None = None,
         page_size: int | None = None,
         max_items: int | None = None,
-    ) -> Iterator:
+    ) -> Iterator | list:
         """
         Yield metadata objects in a bucket under prefix.
 
