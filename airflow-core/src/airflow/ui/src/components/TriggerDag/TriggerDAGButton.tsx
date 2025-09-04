@@ -18,8 +18,10 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
+import { useLocation } from "react-router-dom";
 
 import ActionButton from "../ui/ActionButton";
 import TriggerDAGModal from "./TriggerDAGModal";
@@ -31,9 +33,20 @@ type Props = {
   readonly withText?: boolean;
 };
 
+const TRIGGER_QUERY_KEY = "trigger";
+const isTruthy = (value: string | null) => value === "true" || value === "1";
+
 const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, withText = true }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("components");
+  const { search } = useLocation();
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+
+  useEffect(() => {
+    if (!open && isTruthy(params.get(TRIGGER_QUERY_KEY))) {
+      onOpen();
+    }
+  }, [search, onOpen, open, params]);
 
   return (
     <Box>
