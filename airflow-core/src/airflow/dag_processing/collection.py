@@ -379,7 +379,9 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                SerializedDAG.bulk_write_to_db(bundle_name, bundle_version, dags, parse_duration, session=session)
+                SerializedDAG.bulk_write_to_db(
+                    bundle_name, bundle_version, dags, parse_duration, session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
