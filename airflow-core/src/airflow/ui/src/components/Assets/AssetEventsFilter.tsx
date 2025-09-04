@@ -1,0 +1,88 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { VStack, HStack, Box, Text } from "@chakra-ui/react";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
+
+import { DateTimeInput } from "src/components/DateTimeInput";
+import { SearchBar } from "src/components/SearchBar";
+import { SearchParamsKeys } from "src/constants/searchParams";
+
+export const AssetEventsFilter = () => {
+  const { t: translate } = useTranslation(["dashboard", "common", "dag"]);
+  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const startDate = searchParams.get(START_DATE) ?? "";
+  const endDate = searchParams.get(END_DATE) ?? "";
+  const dagId = searchParams.get(DAG_ID) ?? "";
+  const taskId = searchParams.get(TASK_ID) ?? "";
+  const handleFilterChange = useCallback(
+    (paramKey: string) => (value: string) => {
+      if (value === "") {
+        searchParams.delete(paramKey);
+      } else {
+        searchParams.set(paramKey, value);
+      }
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  return (
+    <VStack align="start" gap={4} paddingY="4px">
+      <HStack flexWrap="wrap" gap={4}>
+        <Box w="200px">
+          <Text fontSize="xs">{translate("common:table.from")}</Text>
+          <DateTimeInput
+            onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
+            value={startDate}
+          />
+        </Box>
+        <Box w="200px">
+          <Text fontSize="xs">{translate("common:table.to")}</Text>
+          <DateTimeInput
+            onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
+            value={endDate}
+          />
+        </Box>
+        <Box w="200px">
+          <Text fontSize="xs">{translate("common:filters.dagDisplayNamePlaceholder")}</Text>
+          <SearchBar
+            defaultValue={dagId}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleFilterChange(DAG_ID)}
+            placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
+          />
+        </Box>
+        <Box w="200px">
+          <Text fontSize="xs">{translate("common:filters.taskIdPlaceholder")}</Text>
+          <SearchBar
+            defaultValue={taskId}
+            hideAdvanced
+            hotkeyDisabled={true}
+            onChange={handleFilterChange(TASK_ID)}
+            placeHolder={translate("common:filters.taskIdPlaceholder")}
+          />
+        </Box>
+      </HStack>
+    </VStack>
+  );
+};

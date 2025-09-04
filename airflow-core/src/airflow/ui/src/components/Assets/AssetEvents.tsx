@@ -16,23 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, HStack, Skeleton, Separator, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
 import type { BoxProps } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
-import { DateTimeInput } from "src/components/DateTimeInput";
 import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
-import { SearchBar } from "../SearchBar";
 import { AssetEvent } from "./AssetEvent";
-import { useSearchParamFilters } from "./utils/useSearchParamFilters";
+import { AssetEventsFilter } from "./AssetEventsFilter";
 
 const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
   card: ({ row }) => <AssetEvent assetId={assetId} event={row} />,
@@ -68,8 +65,6 @@ export const AssetEvents = ({
       { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
-  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
-  const { dagId, endDate, handleFilterChange, startDate, taskId } = useSearchParamFilters();
 
   return (
     <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
@@ -107,44 +102,7 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
-      <VStack align="start" gap={4} paddingY="4px">
-        <HStack flexWrap="wrap" gap={4}>
-          <Box w="200px">
-            <Text fontSize="xs">{translate("common:table.from")}</Text>
-            <DateTimeInput
-              onChange={(event) => handleFilterChange(START_DATE)(event.target.value)}
-              value={startDate}
-            />
-          </Box>
-          <Box w="200px">
-            <Text fontSize="xs">{translate("common:table.to")}</Text>
-            <DateTimeInput
-              onChange={(event) => handleFilterChange(END_DATE)(event.target.value)}
-              value={endDate}
-            />
-          </Box>
-          <Box w="200px">
-            <Text fontSize="xs">{translate("common:filters.dagDisplayNamePlaceholder")}</Text>
-            <SearchBar
-              defaultValue={dagId}
-              hideAdvanced
-              hotkeyDisabled={true}
-              onChange={handleFilterChange(DAG_ID)}
-              placeHolder={translate("common:filters.dagDisplayNamePlaceholder")}
-            />
-          </Box>
-          <Box w="200px">
-            <Text fontSize="xs">{translate("common:filters.taskIdPlaceholder")}</Text>
-            <SearchBar
-              defaultValue={taskId}
-              hideAdvanced
-              hotkeyDisabled={true}
-              onChange={handleFilterChange(TASK_ID)}
-              placeHolder={translate("common:filters.taskIdPlaceholder")}
-            />
-          </Box>
-        </HStack>
-      </VStack>
+      <AssetEventsFilter />
       <Separator mt={2.5} />
       <DataTable
         cardDef={cardDef(assetId)}
