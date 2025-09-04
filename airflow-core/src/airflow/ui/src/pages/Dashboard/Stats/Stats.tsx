@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
 import { useDashboardServiceDagStats } from "openapi/queries";
-import { PendingActionsButton } from "src/components/PendingActionsButton";
+import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
@@ -50,7 +50,7 @@ export const Stats = () => {
       </Flex>
 
       <HStack gap={4}>
-        <PendingActionsButton />
+        <NeedsReviewButton />
 
         <StatsCard
           colorScheme="failed"

@@ -29,13 +29,7 @@ from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
 from urllib.parse import urlsplit
 
 import attrs
@@ -829,15 +823,9 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from typing import TypeGuard
-
-        from airflow.models.mappedoperator import MappedOperator as DbMappedOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         def is_task(obj) -> TypeGuard[Operator]:
-            if isinstance(obj, (DbMappedOperator, SerializedBaseOperator)):
-                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
             return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all

@@ -65,6 +65,8 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
   const shouldRenderOptionButton =
     hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
 
+  const isPending = hitlDetail.task_instance.state === "deferred";
+
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
     dagRunId: hitlDetail.task_instance.dag_run_id,
@@ -107,7 +109,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         variant="enclosed"
       >
         <FlexibleForm
-          disabled={hitlDetail.response_received}
+          disabled={!isPending || hitlDetail.response_received}
           flexFormDescription={hitlDetail.body ?? undefined}
           flexibleFormDefaultSection={hitlDetail.subject}
           initialParamsDict={{
@@ -127,7 +129,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
-                disabled={errors || isSubmitting || hitlDetail.response_received}
+                disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
                 variant={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "solid" : "subtle"}

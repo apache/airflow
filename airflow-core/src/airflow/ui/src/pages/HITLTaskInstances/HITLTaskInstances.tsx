@@ -129,6 +129,7 @@ export const HITLTaskInstances = () => {
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
     responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+    state: responseReceived === "false" ? ["deferred"] : undefined,
     taskId,
   });
 

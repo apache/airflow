@@ -27,6 +27,7 @@ from urllib.request import urlretrieve
 import boto3
 from botocore.exceptions import ClientError
 from opensearchpy import (
+    AuthenticationException,
     AuthorizationException,
     AWSV4SignerAuth,
     OpenSearch,
@@ -265,7 +266,7 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
             response = oss_client.indices.create(index=index_name, body=json.dumps(index_config))
             log.info("Creating index: %s.", response)
             break
-        except AuthorizationException as e:
+        except (AuthorizationException, AuthenticationException) as e:
             # Index creation can take up to a minute and there is no (apparent?) way to check the current state.
             log.info(
                 "Access denied; policy permissions have likely not yet propagated, %s tries remaining.",

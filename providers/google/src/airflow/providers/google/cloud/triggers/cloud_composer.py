@@ -179,6 +179,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         start_date: datetime,
         end_date: datetime,
         allowed_states: list[str],
+        composer_dag_run_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
@@ -192,6 +193,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         self.start_date = start_date
         self.end_date = end_date
         self.allowed_states = allowed_states
+        self.composer_dag_run_id = composer_dag_run_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
@@ -213,6 +215,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 "start_date": self.start_date,
                 "end_date": self.end_date,
                 "allowed_states": self.allowed_states,
+                "composer_dag_run_id": self.composer_dag_run_id,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
@@ -261,6 +264,12 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 return False
         return True
 
+    def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
+        for dag_run in dag_runs:
+            if dag_run["run_id"] == self.composer_dag_run_id and dag_run["state"] in self.allowed_states:
+                return True
+        return False
+
     async def run(self):
         try:
             while True:
@@ -273,14 +282,24 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                         await asyncio.sleep(self.poll_interval)
                         continue
 
-                    self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
-                    if self._check_dag_runs_states(
-                        dag_runs=dag_runs,
-                        start_date=self.start_date,
-                        end_date=self.end_date,
-                    ):
-                        yield TriggerEvent({"status": "success"})
-                        return
+                    if self.composer_dag_run_id:
+                        self.log.info(
+                            "Sensor waits for allowed states %s for specified RunID: %s",
+                            self.allowed_states,
+                            self.composer_dag_run_id,
+                        )
+                        if self._check_composer_dag_run_id_states(dag_runs=dag_runs):
+                            yield TriggerEvent({"status": "success"})
+                            return
+                    else:
+                        self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
+                        if self._check_dag_runs_states(
+                            dag_runs=dag_runs,
+                            start_date=self.start_date,
+                            end_date=self.end_date,
+                        ):
+                            yield TriggerEvent({"status": "success"})
+                            return
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
         except AirflowException as ex:

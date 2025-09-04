@@ -81,6 +81,7 @@ def action_logging(event: str | None = None):
     ):
         """Log user actions."""
         event_name = event or request.scope["endpoint"].__name__
+        skip_dry_run_events = {"clear_dag_run", "post_clear_task_instances"}
 
         if not user:
             user_name = "anonymous"
@@ -97,6 +98,9 @@ def action_logging(event: str | None = None):
         else:
             request_body = {}
             masked_body_json = {}
+
+        if event_name in skip_dry_run_events and request_body.get("dry_run", True):
+            return
 
         fields_skip_logging = {
             "csrf_token",

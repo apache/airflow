@@ -81,7 +81,7 @@ const CHART_ROW_HEIGHT = 20;
 const MIN_BAR_WIDTH = 10;
 
 export const Gantt = ({ limit }: Props) => {
-  const { dagId = "", groupId: selectedGroupId, runId, taskId: selectedTaskId } = useParams();
+  const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
@@ -107,7 +107,7 @@ export const Gantt = ({ limit }: Props) => {
   // Get grid summaries for groups (which have min/max times)
   const { data: gridTiSummaries, isLoading: summariesLoading } = useGridTiSummaries({
     dagId,
-    runId: runId ?? "",
+    runId,
     state: selectedRun?.state,
   });
 
@@ -115,7 +115,7 @@ export const Gantt = ({ limit }: Props) => {
   const { data: taskInstancesData, isLoading: tiLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
-      dagRunId: runId ?? "~",
+      dagRunId: runId,
     },
     undefined,
     {
@@ -132,7 +132,7 @@ export const Gantt = ({ limit }: Props) => {
   const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
 
   const data = useMemo(() => {
-    if (isLoading || runId === undefined) {
+    if (isLoading || runId === "") {
       return [];
     }
 
@@ -233,7 +233,7 @@ export const Gantt = ({ limit }: Props) => {
     ],
   );
 
-  if (runId === undefined) {
+  if (runId === "") {
     return undefined;
   }
 

@@ -790,13 +790,12 @@ class DagRun(Base, LoggingMixin):
 
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
-        dag_runs = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag_id)
+        dag_runs = session.scalars(
+            select(DagRun)
+            .where(DagRun.dag_id == dag_id)
             .order_by(DagRun.logical_date.desc())
             .limit(max_consecutive_failed_dag_runs)
-            .all()
-        )
+        ).all()
         """ Marking dag as paused, if needed"""
         to_be_paused = len(dag_runs) >= max_consecutive_failed_dag_runs and all(
             dag_run.state == DagRunState.FAILED for dag_run in dag_runs
@@ -1677,9 +1676,7 @@ class DagRun(Base, LoggingMixin):
 
         # Create the missing tasks, including mapped tasks
         tis_to_create = self._create_tasks(
-            # TODO (GH-52141): task_dict in scheduler should contain scheduler
-            # types instead, but currently it inherits SDK's DAG.
-            (task for task in cast("Iterable[Operator]", dag.task_dict.values()) if task_filter(task)),
+            (task for task in dag.task_dict.values() if task_filter(task)),
             task_creator,
             session=session,
         )

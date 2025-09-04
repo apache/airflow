@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard, overload
 
 import attrs
 import methodtools
@@ -31,7 +31,7 @@ from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
@@ -57,8 +57,16 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
-    return task.is_mapped
+@overload
+def is_mapped(obj: Operator) -> TypeGuard[MappedOperator]: ...
+
+
+@overload
+def is_mapped(obj: SerializedTaskGroup) -> TypeGuard[SerializedMappedTaskGroup]: ...
+
+
+def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator | SerializedMappedTaskGroup]:
+    return obj.is_mapped
 
 
 @attrs.define(
@@ -100,8 +108,11 @@ class MappedOperator(DAGNode):
     start_from_trigger: bool = False
     _needs_expansion: bool = True
 
-    dag: SerializedDAG = attrs.field(init=False)
-    task_group: TaskGroup = attrs.field(init=False)
+    # TODO (GH-52141): These should contain serialized containers, but currently
+    # this class inherits from an SDK one.
+    dag: SerializedDAG = attrs.field(init=False)  # type: ignore[assignment]
+    task_group: SerializedTaskGroup = attrs.field(init=False)  # type: ignore[assignment]
+
     start_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     end_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
@@ -388,7 +399,7 @@ class MappedOperator(DAGNode):
         return getattr(self, self._expand_input_attr)
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+    def iter_mapped_task_groups(self) -> Iterator[SerializedMappedTaskGroup]:
         """
         Return mapped task groups this task belongs to.
 
@@ -401,7 +412,7 @@ class MappedOperator(DAGNode):
         yield from group.iter_mapped_task_groups()
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
+    def get_closest_mapped_task_group(self) -> SerializedMappedTaskGroup | None:
         """
         Get the mapped task group "closest" to this task in the DAG.
 
@@ -504,7 +515,7 @@ def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Ses
 
 
 @get_mapped_ti_count.register
-def _(group: TaskGroup, run_id: str, *, session: Session) -> int:
+def _(group: SerializedTaskGroup, run_id: str, *, session: Session) -> int:
     """
     Return the number of instances a task in this group should be mapped to at run time.
 
@@ -523,7 +534,7 @@ def _(group: TaskGroup, run_id: str, *, session: Session) -> int:
 
     def iter_mapped_task_group_lengths(group) -> Iterator[int]:
         while group is not None:
-            if isinstance(group, MappedTaskGroup):
+            if isinstance(group, SerializedMappedTaskGroup):
                 exp_input = group._expand_input
                 # TODO (GH-52141): 'group' here should be scheduler-bound and returns scheduler expand input.
                 if not hasattr(exp_input, "get_total_map_length"):

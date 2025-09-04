@@ -73,7 +73,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_job"},
@@ -87,7 +87,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )
@@ -99,7 +99,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         deferrable=True,
@@ -113,7 +113,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_deferrable"},
