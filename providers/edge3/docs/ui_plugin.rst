@@ -30,13 +30,13 @@ REST API endpoints
 
 The Edge provider adds the following REST API endpoints to the Airflow API:
 
-- ``/api/v1/edge/health``: Check that the API endpoint is deployed and active
-- ``/api/v1/edge/jobs``: Endpoints to fetch jobs for workers and report state
-- ``/api/v1/edge/logs``: Endpoint to push log chunks from workers to the Airflow cluster
-- ``/api/v1/edge/workers``: Endpoints to register and manage workers, report heartbeat
+- ``/edge_worker/v1/jobs``: Endpoints to fetch jobs for workers and report state
+- ``/edge_worker/v1/logs``: Endpoint to push log chunks from workers to the Airflow cluster
+- ``/edge_worker/v1/workers``: Endpoints to register and manage workers, report heartbeat
+- ``/edge_worker/v1/health``: Check that the API endpoint is deployed and active
 
 To see full documentation of the API endpoints open the Airflow web UI and navigate to
-the sub-path ``/edge_worker/v1/docs`` (Airflow 3.0) or ``/edge_worker/v1/ui`` (Airflow 2.10).
+the sub-path ``/edge_worker/docs`` (Airflow 3.0) or ``/edge_worker/v1/ui`` (Airflow 2.10).
 
 Web UI Plugin (Airflow 2.10 only)
 ---------------------------------

@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.8.13"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.8.14"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -376,7 +376,7 @@ jobs:
       - name: "Check Airflow RC process command"
         run: >
           breeze release-management start-rc-process
-          --version 3.1.0rc1 --previous-version 3.0.0 --answer yes --dry-run
+          --version 3.1.0rc1 --previous-version 3.0.0 --task-sdk-version 1.0.0rc1 --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
           breeze release-management start-release --release-candidate 3.1.0rc1

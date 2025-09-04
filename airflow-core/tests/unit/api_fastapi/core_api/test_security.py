@@ -84,25 +84,27 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
+    @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_dag_authorized(self, mock_get_auth_manager):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         fastapi_request = Mock()
-        fastapi_request.path_params.return_value = {}
+        fastapi_request.path_params = {}
 
         requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
 
         auth_manager.is_authorized_dag.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
         fastapi_request = Mock()
-        fastapi_request.path_params.return_value = {}
+        fastapi_request.path_params = {}
 
         mock_request = Mock()
         mock_request.path_params.return_value = {}

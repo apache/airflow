@@ -385,21 +385,31 @@ class TestSecretsMasker:
             got = redact(val)
             assert got == val
 
-    def test_property_for_log_masking(self):
+    def test_property_for_log_masking(self, monkeypatch):
         """Test that log masking enable/disable methods."""
-        masker1 = SecretsMasker()
-        masker2 = SecretsMasker()
 
-        assert masker1.is_log_masking_enabled()
-        assert masker2.is_log_masking_enabled()
+        # store the original state before any patching
+        state = SecretsMasker.mask_secrets_in_logs
 
-        masker2.disable_log_masking()
-        assert not masker1.is_log_masking_enabled()
-        assert not masker2.is_log_masking_enabled()
+        with monkeypatch.context() as mp:
+            mp.setattr(SecretsMasker, "mask_secrets_in_logs", True)
 
-        masker1.enable_log_masking()
-        assert masker1.is_log_masking_enabled()
-        assert masker2.is_log_masking_enabled()
+            masker1 = SecretsMasker()
+            masker2 = SecretsMasker()
+
+            assert masker1.is_log_masking_enabled()
+            assert masker2.is_log_masking_enabled()
+
+            masker2.disable_log_masking()
+            assert not masker1.is_log_masking_enabled()
+            assert not masker2.is_log_masking_enabled()
+
+            masker1.enable_log_masking()
+            assert masker1.is_log_masking_enabled()
+            assert masker2.is_log_masking_enabled()
+
+        # assert we restored the original state
+        assert SecretsMasker.mask_secrets_in_logs == state
 
 
 class TestShouldHideValueForKey:

@@ -224,7 +224,7 @@ The BteqOperator supports executing conditional logic within your BTEQ scripts. 
     :start-after: [START bteq_operator_howto_guide_conditional_logic]
     :end-before: [END bteq_operator_howto_guide_conditional_logic]
 
-Conditional execution enables more intelligent data pipelines that can adapt to different scenarios without requiring separate DAG branches.
+Conditional execution enables more intelligent data pipelines that can adapt to different scenarios without requiring separate Dag branches.
 
 
 Error Handling in BTEQ Scripts
@@ -253,10 +253,10 @@ When your workflow completes or requires cleanup, you can use the BteqOperator t
     :end-before: [END bteq_operator_howto_guide_drop_table]
 
 
-The complete Teradata Operator DAG
+The complete Teradata Operator Dag
 ----------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_bteq.py
     :language: python

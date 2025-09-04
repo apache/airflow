@@ -151,7 +151,7 @@ codegen = [
     "datamodel-code-generator[http]==0.32.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "rich>=12.4.4",
+    "rich>=13.6.0",
 ]
 dev = [
     "apache-airflow-providers-common-sql",

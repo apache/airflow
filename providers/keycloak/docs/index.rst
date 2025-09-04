@@ -44,6 +44,7 @@
     Python API <_api/airflow/providers/keycloak/index>
     Configuration <configurations-ref>
     Keycloak auth manager token API <api-ref/token-api-ref>
+    CLI <cli-refs>
 
 .. toctree::
     :hidden:
@@ -90,7 +91,7 @@ All classes for this package are included in the ``airflow.providers.keycloak`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-keycloak``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

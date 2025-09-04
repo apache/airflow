@@ -42,8 +42,8 @@ GCSTimeSpanFileTransformOperator
 Use the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSTimeSpanFileTransformOperator`
 to transform files that were modified in a specific time span (the data interval).
-The time span is defined by the time span's start and end timestamps. If a DAG
-does not have a *next* DAG instance scheduled, the time span end infinite, meaning the operator
+The time span is defined by the time span's start and end timestamps. If a Dag
+does not have a *next* Dag instance scheduled, the time span end infinite, meaning the operator
 processes all files older than ``data_interval_start``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_transform_timespan.py
