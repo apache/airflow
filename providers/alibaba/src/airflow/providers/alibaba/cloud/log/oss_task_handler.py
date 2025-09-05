@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogResponse, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
 @attrs.define(kw_only=True)
@@ -94,9 +94,6 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
             logs.append(self.oss_read(relative_path, return_error=True))
             return messages, logs
         return messages, None
-
-    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
-        raise NotImplementedError
 
     def oss_log_exists(self, remote_log_location):
         """
