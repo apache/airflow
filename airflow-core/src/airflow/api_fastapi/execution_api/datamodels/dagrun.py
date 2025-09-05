@@ -30,9 +30,16 @@ class TriggerDAGRunPayload(StrictBaseModel):
     logical_date: UtcDateTime | None = None
     conf: dict = Field(default_factory=dict)
     reset_dag_run: bool = False
+    reset_mode: str = "all"
 
 
 class DagRunStateResponse(BaseModel):
     """Schema for DAG Run State response."""
 
     state: DagRunState
+
+
+class DAGRunClearPayload(StrictBaseModel):
+    """Schema for DAG Run Clear Body."""
+
+    only_failed: bool = False
