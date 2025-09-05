@@ -81,6 +81,7 @@ class Context(TypedDict, total=False):
     ts_nodash: str
     ts_nodash_with_tz: str
     var: Any
+    extra_links: dict[str, str]
 
 
 KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
