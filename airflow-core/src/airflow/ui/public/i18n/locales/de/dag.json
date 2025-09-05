@@ -84,6 +84,8 @@
       "assetEvent_other": "Erstellte Datenset-Ereignisse"
     },
     "failedLogs": {
+      "hideLogs": "Protokolle ausblenden",
+      "showLogs": "Protokolle anzeigen",
       "title": "Protokolle kürzlich fehlgeschlagener Tasks",
       "viewFullLogs": "Vollständige Protokolle ansehen"
     }
