@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-05T13:48:29.793543
+# This constraints file was automatically generated on 2025-09-05T19:44:34.056311
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -463,7 +463,7 @@ pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyenchant==3.2.2
-pyexasol==1.0.1
+pyexasol==1.1.0
 pygraphviz==1.14
 pyiceberg==0.9.1
 pykerberos==1.2.4
@@ -591,7 +591,7 @@ sympy==1.14.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.39
+teradatasql==20.0.0.40
 teradatasqlalchemy==20.0.0.6
 termcolor==3.1.0
 testcontainers==4.12.0
@@ -612,7 +612,7 @@ traitlets==5.14.3
 trino==0.336.0
 trove-classifiers==2025.8.26.11
 twine==6.2.0
-typer==0.17.3
+typer==0.17.4
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250809
 types-PyMySQL==1.1.0.20250822
