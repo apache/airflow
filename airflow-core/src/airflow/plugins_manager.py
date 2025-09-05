@@ -723,13 +723,10 @@ def import_from_plugins(class_name: str):
     for plugin_instance in plugins:
         plugin_module_name = plugin_instance.__class__.__module__
 
-        # Get the plugin module from sys.modules
-        if plugin_module_name in sys.modules:
-            plugin_module = sys.modules[plugin_module_name]
-
-            # Check if the class exists in this plugin module
-            if hasattr(plugin_module, class_name):
-                return getattr(plugin_module, class_name)
+        # Get the plugin module from sys.modules and check if class exists
+        if plugin_module_name not in sys.modules or not hasattr(plugin_module := sys.modules[plugin_module_name], class_name):
+            continue
+        return getattr(plugin_module, class_name)
 
     # If not found in plugins, raise ImportError
     raise ImportError(f'Class "{class_name}" not found in any loaded plugin modules')
