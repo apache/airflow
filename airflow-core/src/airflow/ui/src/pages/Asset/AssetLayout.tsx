@@ -132,6 +132,7 @@ export const AssetLayout = () => {
               <AssetEvents
                 assetId={asset?.id}
                 data={data}
+                enableFilter={true}
                 isLoading={isLoadingEvents}
                 setOrderBy={setOrderBy}
                 setTableUrlState={setTableURLState}
