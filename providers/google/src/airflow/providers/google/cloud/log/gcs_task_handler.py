@@ -45,7 +45,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogResponse, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 _DEFAULT_SCOPESS = frozenset(
     [
@@ -176,9 +176,6 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             if not AIRFLOW_V_3_0_PLUS:
                 messages.append(f"Unable to read remote log {e}")
         return messages, logs
-
-    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
-        raise NotImplementedError
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
