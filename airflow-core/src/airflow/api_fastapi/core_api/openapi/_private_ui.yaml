@@ -208,6 +208,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
