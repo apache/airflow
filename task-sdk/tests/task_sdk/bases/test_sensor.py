@@ -24,7 +24,12 @@ from unittest.mock import Mock
 import pytest
 import time_machine
 
-from airflow.exceptions import (
+from airflow.models.trigger import TriggerFailureReason
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import timezone
+from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
+from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
@@ -32,11 +37,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
 )
-from airflow.models.trigger import TriggerFailureReason
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import timezone
-from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
-from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import RescheduleTask, TaskRescheduleStartDate
 from airflow.sdk.timezone import datetime
 from airflow.utils.state import State

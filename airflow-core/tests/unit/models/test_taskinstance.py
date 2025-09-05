@@ -35,12 +35,7 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow._shared.timezones import timezone
-from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowInactiveAssetInInletOrOutletException,
-    AirflowSkipException,
-)
+from airflow.exceptions import AirflowException
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
@@ -67,6 +62,11 @@ from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetRespo
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.exceptions import (
+    AirflowFailException,
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowSkipException,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
