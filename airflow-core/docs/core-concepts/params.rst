@@ -349,9 +349,41 @@ The following features are supported in the Trigger UI Form:
 - If you want to have params not being displayed, use the ``const`` attribute. These Params will be submitted but hidden in the Form.
   The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
-  If you want to change values manually, the JSON configuration can be adjusted. Changes in the JSON will be reflected in the form fields.
+  If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
+- To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger/single`` or ``/dags/<dag_name>/trigger/backfill`` (default is single mode),
+  and add query parameter to the URL in the form, you can check the parameters and examples below.
 - Fields can be required or optional. Typed fields are required by default to ensure they pass JSON schema validation. To make typed fields optional, you must allow the "null" type.
 - Fields without a "section" will be rendered in the default area. Additional sections will be collapsed by default.
+
+There are two trigger form URLs available, each supporting a different set of query parameters:
+
+* ``/trigger/single``:
+
+  - ``conf`` – JSON configuration.
+  - ``run_id`` – run identifier.
+  - ``logical_date`` – execution date in ``YYYY-MM-DDTHH:mm:ss.SSS`` format. Defaults to the current timestamp if not provided.
+  - ``note`` – note attached to the DAG run.
+
+* ``/trigger/backfill``:
+
+  - ``conf`` – JSON configuration, applied to all runs.
+  - ``start_date`` – start of the backfill window in ``YYYY-MM-DDTHH:mm:ss`` format.
+  - ``end_date`` – end of the backfill window in ``YYYY-MM-DDTHH:mm:ss`` format.
+  - ``max_active_runs`` – maximum concurrent runs. Defaults to ``1``.
+  - ``reprocess_behavior`` – determines how existing runs are reprocessed. Supported values are:
+
+    * ``failed`` – Missing and Errored Runs
+    * ``completed`` – All Runs
+    * ``none`` – Missing Runs
+
+  - ``run_backwards`` – if set to true, the backfill is scheduled in reverse order. Defaults to ``false``.
+
+For example, you can pass the pathname and query like below:
+
+``/dags/{dag_id}/trigger/single?run_id=my_run_dag&logical_date=2025-09-06T12:34:56.789&conf={"foo":"bar"}&note=run_note``
+
+``/dags/{dag_id}/trigger/backfill?start_date=2025-09-01T00:00:00&end_date=2025-09-03T23:59:59&conf={"abc":"loo"}&max_active_runs=2&reprocess_behavior=failed&run_backwards=true``
+
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the Dag is defined with
