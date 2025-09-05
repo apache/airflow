@@ -21,7 +21,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 
 
 class LightGridTaskInstanceSummary(BaseModel):

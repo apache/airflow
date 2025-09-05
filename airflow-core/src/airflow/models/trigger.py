@@ -33,12 +33,11 @@ from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column, with_row_locks
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -406,7 +405,7 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
-    from airflow.utils.state import TaskInstanceState
+    from airflow.models.taskinstance import TaskInstanceState
 
     # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
     next_kwargs = task_instance.next_kwargs or {}
@@ -438,7 +437,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     """
     from airflow.callbacks.callback_requests import TaskCallbackRequest
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-    from airflow.utils.state import TaskInstanceState
+    from airflow.models.taskinstance import TaskInstanceState
 
     # Mark the task with terminal state and prevent it from resuming on worker
     task_instance.trigger_id = None

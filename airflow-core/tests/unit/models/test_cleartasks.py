@@ -25,14 +25,20 @@ from sqlalchemy import select
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import (
+    DagRunState,
+    TaskInstance,
+    TaskInstance as TI,
+    TaskInstanceState,
+    clear_task_instances,
+)
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db

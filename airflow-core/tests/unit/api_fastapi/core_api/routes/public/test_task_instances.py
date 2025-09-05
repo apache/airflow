@@ -38,12 +38,13 @@ from airflow.models import DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.hitl import HITLDetail
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.taskinstance import DagRunState, TaskInstanceState
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
 from airflow.sdk import BaseOperator
 from airflow.utils.platform import getuser
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note

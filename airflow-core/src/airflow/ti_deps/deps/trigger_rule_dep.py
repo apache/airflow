@@ -25,10 +25,9 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
 
-from airflow.models.taskinstance import PAST_DEPENDS_MET
+from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstanceState
 from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

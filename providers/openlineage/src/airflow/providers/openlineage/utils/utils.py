@@ -73,6 +73,7 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
+    from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_1_PLUS
     from airflow.sdk import DAG, BaseOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
@@ -81,8 +82,11 @@ if TYPE_CHECKING:
         SecretsMasker,
     )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.utils.state import DagRunState, TaskInstanceState
 
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk import DagRunState, TaskInstanceState
+    else:
+        from airflow.utils.state import DagRunState, TaskInstanceState  # type: ignore[attr-defined,no-redef]
     AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
 else:
     try:

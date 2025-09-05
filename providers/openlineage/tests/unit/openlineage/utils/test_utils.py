@@ -28,7 +28,14 @@ from uuid6 import uuid7
 
 from airflow import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (

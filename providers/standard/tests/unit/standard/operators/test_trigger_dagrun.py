@@ -34,7 +34,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import parse_and_sync_to_db
@@ -42,10 +41,12 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DagRunTriggerException
+
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
+    from airflow.sdk import DagRunState, TaskInstanceState, timezone
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.state import DagRunState, TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 

@@ -33,9 +33,13 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

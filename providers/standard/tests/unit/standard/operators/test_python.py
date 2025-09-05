@@ -63,7 +63,7 @@ from airflow.providers.standard.operators.python import (
 )
 from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
@@ -76,6 +76,11 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import DagRunState, TaskInstanceState
+else:
+    from airflow.utils.state import DagRunState, TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 try:
     from airflow.sdk import timezone

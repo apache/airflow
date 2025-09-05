@@ -94,7 +94,7 @@ from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 
 
 class TerminalTIState(str, Enum):
@@ -102,7 +102,7 @@ class TerminalTIState(str, Enum):
 
     SUCCESS = "success"
     FAILED = "failed"
-    SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
+    SKIPPED = "skipped"  # A user can raise an AirflowSkipException from a task & it will be marked as skipped
     UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
 
@@ -119,6 +119,55 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class TaskInstanceState(str, Enum):
+    """
+    All possibles state that a Task Instance can be in.
+
+    Note that None is also allowed, so always use this in a type hint with Optional.
+    """
+
+    # The scheduler sets a TaskInstance state to None when it's created but not
+    # yet run, but we don't list it here since TaskInstance is a string enum.
+    # Use None instead if need this state.
+
+    # Set by the scheduler
+    REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
+    SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
+
+    # Set by the task instance itself
+    QUEUED = IntermediateTIState.QUEUED  # Executor has enqueued the task
+    RUNNING = "running"  # Task is executing
+    SUCCESS = TerminalTIState.SUCCESS  # Task completed
+    RESTARTING = IntermediateTIState.RESTARTING  # External request to restart (e.g. cleared when running)
+    FAILED = TerminalTIState.FAILED  # Task errored out
+    UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
+    UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
+    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
+    SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
+    DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class DagRunState(str, Enum):
+    """
+    All-possible states that a DagRun can be in.
+
+    These are "shared" with TaskInstanceState in some parts of the code,
+    so please ensure that their values always match the ones with the
+    same name in TaskInstanceState.
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
 
     def __str__(self) -> str:
         return self.value

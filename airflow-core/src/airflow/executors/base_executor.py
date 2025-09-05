@@ -32,12 +32,12 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")

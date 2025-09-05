@@ -42,6 +42,7 @@ from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.models.hitl import HITLDetail
 from airflow.models.hitl_history import HITLDetailHistory
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
@@ -50,7 +51,7 @@ from airflow.utils.sqlalchemy import (
     UtcDateTime,
     mapped_column,
 )
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

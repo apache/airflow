@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.listeners import hookimpl
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 
 started_component: Any = None
 stopped_component: Any = None
