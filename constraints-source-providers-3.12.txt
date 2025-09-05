@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-03T12:55:26.202480
+# This constraints file was automatically generated on 2025-09-05T10:17:58.932144
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -26,7 +26,7 @@ GitPython==3.1.45
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.8.2
+Markdown==3.9
 MarkupSafe==3.0.2
 PyAthena==3.17.1
 PyGithub==2.8.1
@@ -117,7 +117,7 @@ azure-servicebus==7.14.2
 azure-storage-blob==12.26.0
 azure-storage-file-datalake==12.21.0
 azure-storage-file-share==12.22.0
-azure-synapse-artifacts==0.20.0
+azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
@@ -160,7 +160,7 @@ confluent-kafka==2.11.1
 connexion==2.14.2
 coverage==7.10.6
 crcmod==1.7
-cron_descriptor==2.0.5
+cron_descriptor==2.0.6
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
@@ -229,11 +229,11 @@ google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.4
 google-cloud-batch==0.17.36
 google-cloud-bigquery-datatransfer==3.19.2
-google-cloud-bigquery-storage==2.32.0
+google-cloud-bigquery-storage==2.33.0
 google-cloud-bigquery==3.36.0
 google-cloud-bigtable==2.32.0
 google-cloud-build==3.32.0
-google-cloud-compute==1.36.0
+google-cloud-compute==1.37.0
 google-cloud-container==2.59.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
@@ -261,13 +261,13 @@ google-cloud-speech==2.33.0
 google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.3
-google-cloud-texttospeech==2.28.0
+google-cloud-texttospeech==2.29.0
 google-cloud-translate==3.21.1
 google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.32.0
+google-genai==1.33.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
@@ -329,7 +329,7 @@ jeepney==0.9.0
 jiter==0.10.0
 jmespath==0.10.0
 joblib==1.5.2
-joserfc==1.3.1
+joserfc==1.3.2
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -355,7 +355,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.2
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.76.1
+litellm==1.76.2
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==5.3.2
@@ -389,7 +389,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.4
 mypy-boto3-appflow==1.40.17
-mypy-boto3-rds==1.40.20
+mypy-boto3-rds==1.40.24
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.0
 mypy==1.9.0
@@ -407,7 +407,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.104.2
+openai==1.106.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -508,12 +508,12 @@ pytest-cov==6.2.1
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
-pytest-mock==3.14.1
+pytest-mock==3.15.0
 pytest-rerunfailures==16.0.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
-pytest==8.4.1
+pytest==8.4.2
 python-arango==8.2.2
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -551,7 +551,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.1
 rich-click==1.8.9
-rich-toolkit==0.15.0
+rich-toolkit==0.15.1
 rich==13.9.4
 rignore==0.6.4
 roman-numerals-py==3.1.0
@@ -570,7 +570,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.1.1
-sentry-sdk==2.35.2
+sentry-sdk==2.36.0
 setproctitle==1.3.6
 setuptools==80.9.0
 shapely==2.1.1
@@ -641,7 +641,7 @@ tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
 trove-classifiers==2025.8.26.11
-twine==6.1.0
+twine==6.2.0
 typer==0.17.3
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250809
@@ -693,7 +693,7 @@ wheel==0.45.1
 wirerope==1.0.0
 wrapt==1.17.3
 xmlsec==1.3.16
-xmltodict==0.14.2
+xmltodict==0.15.0
 yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
