@@ -383,7 +383,9 @@ class TestCalculatedDeadlineDatabaseCalls:
                     with mock.patch.object(session, "execute") as mock_execute:
                         # Mock the result object that execute() returns
                         mock_result = mock.Mock()
-                        mock_result.scalar.return_value = 3600  # 1 hour in seconds
+                        mock_scalars = mock.Mock()
+                        mock_scalars.all.return_value = [3600]  # 1 hour in seconds
+                        mock_result.scalars.return_value = mock_scalars
                         mock_execute.return_value = mock_result
                         result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
                         mock_fetch.assert_not_called()

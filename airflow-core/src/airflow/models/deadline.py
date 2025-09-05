@@ -376,18 +376,39 @@ class ReferenceModels:
             from airflow.models import DagRun
 
             dag_id = kwargs["dag_id"]
+            limit = kwargs.get("limit", 10)  # Default to 10 runs if not specified
 
             # Query for completed DAG runs with both start and end dates
-            query = select(func.avg(func.extract("epoch", DagRun.end_date - DagRun.start_date))).filter(
-                DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None)
+            # Order by logical_date descending to get most recent runs first
+            query = (
+                select(func.extract("epoch", DagRun.end_date - DagRun.start_date))
+                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .order_by(DagRun.logical_date.desc())
             )
 
-            avg_seconds = session.execute(query).scalar()
-            if avg_seconds is None:
-                logger.info("No completed DAG runs found for dag_id: %s, defaulting to 0 seconds", dag_id)
+            # Apply limit (defaults to 10)
+            query = query.limit(limit)
+            logger.info(
+                "Limiting average runtime calculation to latest %d runs for dag_id: %s", limit, dag_id
+            )
+
+            # Get all durations and calculate average
+            durations = session.execute(query).scalars().all()
+
+            if not durations:
+                logger.warning(
+                    "In the AverageRuntimeDeadline, no completed DAG runs found for dag_id: %s, defaulting to 0 seconds",
+                    dag_id,
+                )
                 avg_seconds = 0
             else:
-                logger.info("Average runtime for dag_id %s: %.2f seconds", dag_id, avg_seconds)
+                avg_seconds = sum(durations) / len(durations)
+                logger.info(
+                    "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                    dag_id,
+                    len(durations),
+                    avg_seconds,
+                )
 
             return timezone.utcnow() + timedelta(seconds=avg_seconds)
 
