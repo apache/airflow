@@ -936,12 +936,12 @@ class S3Hook(AwsBaseHook):
 
         This method `get_file_metadata` is deprecated. Calling this method will result in all matching keys
         being loaded into a single list, and can often result in out-of-memory exceptions. Instead, use
-        `yield_file_metadata`.
+        `iter_file_metadata`.
         """  # noqa: D401
         warnings.warn(
             "This method `get_file_metadata` is deprecated. Calling this method will result in all matching "
             "keys being loaded into a single list, and can often result in out-of-memory exceptions. "
-            "Instead, use `yield_file_metadata`.",
+            "Instead, use `iter_file_metadata`.",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
@@ -968,7 +968,7 @@ class S3Hook(AwsBaseHook):
         return files
 
     @provide_bucket_name
-    def yield_file_metadata(
+    def iter_file_metadata(
         self,
         prefix: str,
         bucket_name: str | None = None,

@@ -126,9 +126,9 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
             key_matches: list[str] = []
 
             # Is check_fn is None, then we can return True without having to iterate through each value in
-            # yielded by yield_file_metadata. Otherwise, we'll check for a match, and add all matches to the
+            # yielded by iter_file_metadata. Otherwise, we'll check for a match, and add all matches to the
             # key_matches list
-            for k in self.hook.yield_file_metadata(prefix, bucket_name):
+            for k in self.hook.iter_file_metadata(prefix, bucket_name):
                 if fnmatch.fnmatch(k["Key"], key):
                     if self.check_fn is not None:
                         key_matches.append(k)
@@ -156,7 +156,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
                 files.append(metadata)
 
         elif self.use_regex:
-            for k in self.hook.yield_file_metadata("", bucket_name):
+            for k in self.hook.iter_file_metadata("", bucket_name):
                 if re.match(pattern=key, string=k["Key"]):
                     return True
             return False
