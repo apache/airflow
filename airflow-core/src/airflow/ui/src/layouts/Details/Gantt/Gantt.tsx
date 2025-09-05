@@ -178,7 +178,8 @@ export const Gantt = ({ limit }: Props) => {
         {
           backgroundColor: data.map(
             (dataItem) =>
-              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state}.600`)?.value as string,
+              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state ?? "none"}.600`)
+                ?.value as string,
           ),
           data,
           maxBarThickness: CHART_ROW_HEIGHT,
