@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Annotated, Literal
 from pydantic import BaseModel, Field
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self

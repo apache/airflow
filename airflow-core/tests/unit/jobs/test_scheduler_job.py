@@ -63,7 +63,7 @@ from airflow.models.deadline import Deadline, DeadlineCallbackState
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -75,7 +75,7 @@ from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

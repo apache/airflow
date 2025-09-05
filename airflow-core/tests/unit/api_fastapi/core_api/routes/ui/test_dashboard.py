@@ -23,8 +23,8 @@ import pendulum
 import pytest
 
 from airflow.models.dagbag import DBDagBag
+from airflow.models.taskinstance import DagRunState, TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs

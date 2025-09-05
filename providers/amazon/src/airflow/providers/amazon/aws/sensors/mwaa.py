@@ -26,7 +26,12 @@ from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger, MwaaTaskCompletedTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import DagRunState, TaskInstanceState
+else:
+    from airflow.utils.state import DagRunState, TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

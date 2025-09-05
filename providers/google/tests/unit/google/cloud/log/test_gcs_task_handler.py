@@ -25,7 +25,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
-from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
