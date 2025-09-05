@@ -62,12 +62,12 @@ if AIRFLOW_V_3_1_PLUS:
 elif AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.secrets_masker import (  # type: ignore[no-redef]
         DEFAULT_SENSITIVE_FIELDS,
-        _secrets_masker as SecretsMasker,
+        SecretsMasker,
     )
 else:
     from airflow.utils.log.secrets_masker import (  # type: ignore[attr-defined,no-redef]
         DEFAULT_SENSITIVE_FIELDS,
-        _secrets_masker as SecretsMasker,
+        SecretsMasker,
     )
 
 if AIRFLOW_V_3_0_PLUS:
