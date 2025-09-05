@@ -110,7 +110,9 @@ class SmtpNotifier(BaseNotifier):
         """Smtp Events Hook."""
         return SmtpHook(smtp_conn_id=self.smtp_conn_id, auth_type=self.auth_type)
 
-    def _build_email_content(self, smtp: SmtpHook, context: Context):
+    def _build_email_content(self, smtp: SmtpHook, context: Context, use_templates: bool = True):
+        # TODO:  use_templates is temporary until templating on the Triggerer is sorted out.
+
         fields_to_re_render = []
         if self.from_email is None:
             if smtp.from_email is not None:
@@ -138,7 +140,7 @@ class SmtpNotifier(BaseNotifier):
                 ).as_posix()
             self.html_content = self._read_template(smtp_default_templated_html_content_path)
             fields_to_re_render.append("html_content")
-        if fields_to_re_render:
+        if fields_to_re_render and use_templates:
             jinja_env = self.get_template_env(dag=context["dag"])
             self._do_render_template_fields(self, fields_to_re_render, context, jinja_env, set())
 
@@ -163,8 +165,9 @@ class SmtpNotifier(BaseNotifier):
     async def async_notify(self, context: Context):
         """Send a email via smtp server (async)."""
         async with self.hook as smtp:
-            # TODO:   Context is not yet available, uncomment this once implemented
-            # self._build_email_content(smtp, context)
+            # TODO:  use_templates is temporary until templating on the Triggerer is sorted out.
+            #   Once that iks done, we can remove that flag.
+            self._build_email_content(smtp, context, use_templates=False)
             await smtp.asend_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
                 from_email=self.from_email,

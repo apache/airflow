@@ -306,19 +306,11 @@ class TestSmtpNotifierAsync:
         mock_smtp_client.html_content_template = None
         mock_smtp_client.from_email = None
 
-        mock_ti = mock_task_instance(
-            dag_id="test_dag",
-            task_id="op",
-            run_id="test",
-            try_number=NUM_TRY,
-            max_tries=0,
-            state=None,
-        )
-
         notifier = SmtpNotifier(
             from_email="any email",
             to="test_reciver@test.com",
-            context={"dag": create_dag_without_db("test_dag"), "ti": mock_ti},
+            subject="subject",
+            html_content="body",
         )
 
         await notifier
@@ -327,7 +319,7 @@ class TestSmtpNotifierAsync:
             smtp_conn_id="smtp_default",
             from_email="any email",
             to="test_reciver@test.com",
-            subject="DAG test_dag - Task op - Run ID test in State None",
+            subject="subject",
             html_content=mock.ANY,
             files=None,
             cc=None,
@@ -336,48 +328,34 @@ class TestSmtpNotifierAsync:
             mime_charset="utf-8",
             custom_headers=None,
         )
-        content = mock_smtp_client.asend_email_smtp.call_args.kwargs["html_content"]
-        assert f"{NUM_TRY} of 1" in content
 
     @pytest.mark.asyncio
     async def test_async_notifier_with_nondefault_connection_extra(
         self, mock_smtp_hook, mock_smtp_client, create_dag_without_db, mock_task_instance
     ):
-        ti = mock_task_instance(
-            dag_id="test_dag",
-            task_id="op",
-            run_id="test_run",
-            try_number=NUM_TRY,
-            max_tries=0,
-            state=None,
-        )
-
         with (
             tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject,
             tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_content,
         ):
-            f_subject.write("Task {{ ti.task_id }} failed")
+            f_subject.write("Connection Default Subject")
             f_subject.flush()
 
             f_content.write("Mock content goes here")
             f_content.flush()
 
-            mock_smtp_client.from_email = "{{ ti.task_id }}@test.com"
+            mock_smtp_client.from_email = "connection_default@test.com"
             mock_smtp_client.subject_template = f_subject.name
             mock_smtp_client.html_content_template = f_content.name
 
-            notifier = SmtpNotifier(
-                to="test_reciver@test.com",
-                context={"dag": create_dag_without_db("test_dag"), "ti": ti},
-            )
+            notifier = SmtpNotifier(to="test_reciver@test.com")
 
             await notifier
 
             mock_smtp_client.asend_email_smtp.assert_called_once_with(
                 smtp_conn_id="smtp_default",
-                from_email="op@test.com",
+                from_email="connection_default@test.com",
                 to="test_reciver@test.com",
-                subject="Task op failed",
+                subject="Connection Default Subject",
                 html_content="Mock content goes here",
                 files=None,
                 cc=None,
