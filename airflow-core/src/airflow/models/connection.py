@@ -27,7 +27,7 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
 
@@ -36,10 +36,12 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.models.team import Team
 from airflow.sdk import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
+from airflow.utils.session import NEW_SESSION, provide_session
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -150,6 +152,7 @@ class Connection(Base, LoggingMixin):
         port: int | None = None,
         extra: str | dict | None = None,
         uri: str | None = None,
+        team_id: str | None = None,
     ):
         super().__init__()
         self.conn_id = sanitize_conn_id(conn_id)
@@ -178,6 +181,7 @@ class Connection(Base, LoggingMixin):
         if self.password:
             mask_secret(self.password)
             mask_secret(quote(self.password))
+        self.team_id = team_id
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -584,3 +588,13 @@ class Connection(Base, LoggingMixin):
         conn_repr = self.to_dict(prune_empty=True, validate=False)
         conn_repr.pop("conn_id", None)
         return json.dumps(conn_repr)
+
+    @staticmethod
+    @provide_session
+    def get_team_name(connection_id: str, session=NEW_SESSION) -> str | None:
+        stmt = (
+            select(Team.name)
+            .join(Connection, Team.id == Connection.team_id)
+            .where(Connection.conn_id == connection_id)
+        )
+        return session.scalar(stmt)

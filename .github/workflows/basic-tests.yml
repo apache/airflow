@@ -112,7 +112,7 @@ jobs:
           persist-credentials: false
       - name: "Install uv"
         run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
-      - name: "Run shared secrets masker tests"
+      - name: "Run shared ${{ matrix.shared-distribution }} tests"
         run: uv run --group dev pytest --color=yes -n auto
         working-directory: shared/${{ matrix.shared-distribution }}
   tests-ui:
