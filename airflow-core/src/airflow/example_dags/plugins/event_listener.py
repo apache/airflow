@@ -24,8 +24,8 @@ from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstanceState
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.utils.state import TaskInstanceState
 
 
 # [START howto_listen_ti_running_task]

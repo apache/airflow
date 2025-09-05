@@ -24,7 +24,7 @@ from pydantic import computed_field
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.utils.types import DagRunType
 
 

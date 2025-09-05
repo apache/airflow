@@ -26,9 +26,13 @@ from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

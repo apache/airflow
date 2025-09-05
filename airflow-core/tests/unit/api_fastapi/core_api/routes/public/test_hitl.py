@@ -32,7 +32,7 @@ from airflow._shared.timezones.timezone import utcnow
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.sdk.execution_time.hitl import HITLUser
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient

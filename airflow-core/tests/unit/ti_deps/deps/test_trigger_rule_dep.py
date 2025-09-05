@@ -26,14 +26,13 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task, task_group
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.task.trigger_rule import TriggerRule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.utils.state import DagRunState, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 

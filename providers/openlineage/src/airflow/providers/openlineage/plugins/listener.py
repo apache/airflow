@@ -48,10 +48,14 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
-from airflow.providers.openlineage.version_compat import timeout, timezone
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_1_PLUS, timeout, timezone
 from airflow.settings import configure_orm
 from airflow.stats import Stats
-from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance

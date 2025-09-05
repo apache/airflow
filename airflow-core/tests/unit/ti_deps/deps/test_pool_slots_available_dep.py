@@ -22,10 +22,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow.models import Pool
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.utils.session import create_session
-from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils import db
 
