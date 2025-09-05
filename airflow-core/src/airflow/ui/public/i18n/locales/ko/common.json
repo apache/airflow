@@ -193,8 +193,6 @@
     "up_for_retry": "재시도 대기 중",
     "upstream_failed": "업스트림 실패"
   },
-  "switchToDarkMode": "다크 모드로 전환",
-  "switchToLightMode": "라이트 모드로 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",

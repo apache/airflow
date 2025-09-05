@@ -193,8 +193,6 @@
     "up_for_retry": "Wartet auf neuen Versuch",
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
-  "switchToDarkMode": "Zum Dunkelmodus wechseln",
-  "switchToLightMode": "Zum Hellmodus wechseln",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
