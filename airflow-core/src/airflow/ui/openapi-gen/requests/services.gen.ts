@@ -1407,6 +1407,7 @@ export class DagService {
      * @param data.dagRunState
      * @param data.orderBy
      * @param data.isFavorite
+     * @param data.timetableType
      * @returns DAGCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1439,7 +1440,8 @@ export class DagService {
                 dag_run_end_date_lt: data.dagRunEndDateLt,
                 dag_run_state: data.dagRunState,
                 order_by: data.orderBy,
-                is_favorite: data.isFavorite
+                is_favorite: data.isFavorite,
+                timetable_type: data.timetableType
             },
             errors: {
                 401: 'Unauthorized',
