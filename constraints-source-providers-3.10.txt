@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-05T07:45:13.538230
+# This constraints file was automatically generated on 2025-09-05T13:49:05.443680
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -47,7 +47,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2025.8.0
 aenum==3.1.16
-aiobotocore==2.24.1
+aiobotocore==2.24.2
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -132,8 +132,8 @@ bitarray==3.7.1
 black==25.1.0
 bleach==6.2.0
 blinker==1.9.0
-boto3==1.39.11
-botocore==1.39.11
+boto3==1.40.18
+botocore==1.40.18
 build==1.3.0
 cachelib==0.13.0
 cachetools==5.5.2
@@ -576,8 +576,8 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.12.4
-sentry-sdk==2.36.0
-setproctitle==1.3.6
+sentry-sdk==2.37.0
+setproctitle==1.3.7
 shapely==2.1.1
 shellingham==1.5.4
 simple-salesforce==1.12.9
