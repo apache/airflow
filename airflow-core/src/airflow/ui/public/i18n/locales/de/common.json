@@ -8,6 +8,12 @@
     "Variables": "Variablen"
   },
   "allOperators": "Alle Operatoren",
+  "appearance": {
+    "appearance": "Darstellung",
+    "darkMode": "Dunkelmodus",
+    "lightMode": "Hellmodus",
+    "systemMode": "Systemeinstellung folgen"
+  },
   "asset_one": "Datenset (Asset)",
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
