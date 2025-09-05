@@ -209,8 +209,6 @@
     "up_for_retry": "Do ponownej próby",
     "upstream_failed": "Niepowodzenie poprzednika"
   },
-  "switchToDarkMode": "Przełącz na tryb ciemny",
-  "switchToLightMode": "Przełącz na tryb jasny",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",

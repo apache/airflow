@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -388,7 +389,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         database_id: str,
         queries: list[str],
         project_id: str,
-    ) -> None:
+    ) -> list[int]:
         """
         Execute an arbitrary DML query (INSERT, UPDATE, DELETE).
 
@@ -398,12 +399,31 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
+        :return: list of numbers of affected rows by DML query
         """
-        self._get_client(project_id=project_id).instance(instance_id=instance_id).database(
-            database_id=database_id
-        ).run_in_transaction(lambda transaction: self._execute_sql_in_transaction(transaction, queries))
+        db = (
+            self._get_client(project_id=project_id)
+            .instance(instance_id=instance_id)
+            .database(database_id=database_id)
+        )
+
+        def _tx_runner(tx: Transaction) -> dict[str, int]:
+            return self._execute_sql_in_transaction(tx, queries)
+
+        result = db.run_in_transaction(_tx_runner)
+
+        result_rows_count_per_query = []
+        for i, (sql, rc) in enumerate(result.items(), start=1):
+            if not sql.startswith("SELECT"):
+                preview = sql if len(sql) <= 300 else sql[:300] + "…"
+                self.log.info("[DML %d/%d] affected rows=%d | %s", i, len(result), rc, preview)
+                result_rows_count_per_query.append(rc)
+        return result_rows_count_per_query
 
     @staticmethod
-    def _execute_sql_in_transaction(transaction: Transaction, queries: list[str]):
+    def _execute_sql_in_transaction(transaction: Transaction, queries: list[str]) -> dict[str, int]:
+        counts: OrderedDict[str, int] = OrderedDict()
         for sql in queries:
-            transaction.execute_update(sql)
+            rc = transaction.execute_update(sql)
+            counts[sql] = rc
+        return counts

@@ -191,8 +191,6 @@
     "up_for_retry": "ממתין לניסיון חוזר",
     "upstream_failed": "משימות קודמות נכשלו"
   },
-  "switchToDarkMode": "עבור למצב כהה",
-  "switchToLightMode": "עבור למצב בהיר",
   "table": {
     "completedAt": "הושלם בתאריך",
     "createdAt": "נוצר בתאריך",
