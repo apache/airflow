@@ -58,6 +58,7 @@ Misc
 * ``Remove redundant exception handling in AWS hook (#54485)``
 * ``Remove end_from_trigger attribute in trigger (#54531)``
 * ``Unify error handling when connection is not found in aws hook (#54299)``
+* ``Fix a small typo and improve logging in bedrock error handling (#55271)``
 
 Doc-only
 ~~~~~~~~
@@ -76,8 +77,6 @@ Doc-only
    * ``Mock AWS during Athena tests (#54576)``
    * ``make bundle_name not nullable (#47592)``
    * ``Add CI support for SQLAlchemy 2.0 (#52233)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
    * ``Update models used in bedrock system tests (#55229)``
 

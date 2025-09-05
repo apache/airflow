@@ -37,7 +37,7 @@ Features
 
 * ``Provide React UI for Edge (#53563)``
 * ``Feature/add auto refresh to edge react UI (#54994)``
-
+* ``Feature/add state badge to edge react UI (#54993)``
 
 Bug Fixes
 ~~~~~~~~~
