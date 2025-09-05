@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-04T19:49:14.742381
+# This constraints file was automatically generated on 2025-09-05T02:19:19.271886
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ GitPython==3.1.45
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.8.2
+Markdown==3.9
 MarkupSafe==3.0.2
 PyAthena==3.17.1
 PyGithub==2.8.1
@@ -259,7 +259,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.2.1
 clickclick==20.10.2
-cloudpickle==3.0.0
+cloudpickle==3.1.1
 cohere==5.17.0
 colorama==0.4.6
 colorful==0.5.7
@@ -619,7 +619,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowflake-connector-python==3.17.3
-snowflake-snowpark-python==1.37.0
+snowflake-snowpark-python==1.38.0
 snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
 soupsieve==2.8
@@ -686,7 +686,7 @@ websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.3
 xmlsec==1.3.16
-xmltodict==0.14.2
+xmltodict==0.15.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1

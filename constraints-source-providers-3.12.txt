@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-04T19:46:05.107054
+# This constraints file was automatically generated on 2025-09-05T02:15:52.777774
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -26,7 +26,7 @@ GitPython==3.1.45
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
-Markdown==3.8.2
+Markdown==3.9
 MarkupSafe==3.0.2
 PyAthena==3.17.1
 PyGithub==2.8.1
@@ -151,7 +151,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
-cloudpickle==3.0.0
+cloudpickle==3.1.1
 cohere==5.17.0
 colorama==0.4.6
 colorful==0.5.7
@@ -511,7 +511,7 @@ pytest-cov==6.2.1
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
-pytest-mock==3.14.1
+pytest-mock==3.15.0
 pytest-rerunfailures==16.0.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
@@ -587,7 +587,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
 snowflake-connector-python==3.17.3
-snowflake-snowpark-python==1.37.0
+snowflake-snowpark-python==1.38.0
 snowflake-sqlalchemy==1.7.6
 sortedcontainers==2.4.0
 soupsieve==2.8
@@ -698,7 +698,7 @@ wheel==0.45.1
 wirerope==1.0.0
 wrapt==1.17.3
 xmlsec==1.3.16
-xmltodict==0.14.2
+xmltodict==0.15.0
 yamllint==1.37.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
