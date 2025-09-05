@@ -1391,6 +1391,7 @@ export class DagService {
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
+     * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
@@ -1424,6 +1425,7 @@ export class DagService {
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
@@ -1693,6 +1695,7 @@ export class DagService {
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
+     * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
@@ -1720,6 +1723,7 @@ export class DagService {
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
