@@ -33,7 +33,6 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
@@ -47,4 +46,4 @@ except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.timeout import timeout  # type: ignore[assignment,attr-defined,no-redef]
 
-__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseOperator", "timeout", "timezone"]
+__all__ = ["AIRFLOW_V_3_0_PLUS", "BaseOperator", "timeout", "timezone"]
