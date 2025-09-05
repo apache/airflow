@@ -52,7 +52,11 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
+from airflow.providers.openlineage.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    get_base_airflow_version_tuple,
+)
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
 
@@ -838,6 +842,10 @@ class OpenLineageRedactor(SecretsMasker):
         instance = cls()
         instance.patterns = other.patterns
         instance.replacer = other.replacer
+        if AIRFLOW_V_3_1_PLUS:
+            instance.sensitive_variables_fields = other.sensitive_variables_fields
+            instance.min_length_to_mask = other.min_length_to_mask
+            instance.secret_mask_adapter = other.secret_mask_adapter
         return instance
 
     def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int, **kwargs) -> Redacted:  # type: ignore[override]
