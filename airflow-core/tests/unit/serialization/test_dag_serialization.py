@@ -3021,8 +3021,8 @@ def test_python_callable_in_partial_kwargs():
     assert serialized["partial_kwargs"]["python_callable_name"] == qualname(empty_function)
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
-    assert "python_callable" not in getattr(deserialized, "partial_kwargs")
-    assert getattr(deserialized, "partial_kwargs")["python_callable_name"] == qualname(empty_function)
+    assert "python_callable" not in deserialized.partial_kwargs
+    assert deserialized.partial_kwargs["python_callable_name"] == qualname(empty_function)
 
 
 def test_handle_v1_serdag():
