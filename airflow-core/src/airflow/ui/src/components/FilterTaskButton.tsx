@@ -36,7 +36,7 @@ const filterOptions = [
   { buttonLabel: "Both upstream & downstream", label: "Both upstream & downstream", value: "both" },
 ];
 
-const TaskFilterTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
+const FilterTaskButton = ({ taskInstance, withText = true }: Props) => {
   const dagId = taskInstance.dag_id;
   const [selected, setSelected] = useLocalStorage<string>(`upstreamDownstreamFilter-${dagId}`, "all");
 
@@ -75,4 +75,4 @@ const TaskFilterTaskInstanceButton = ({ taskInstance, withText = true }: Props) 
   );
 };
 
-export default TaskFilterTaskInstanceButton;
+export default FilterTaskButton;

@@ -38,7 +38,6 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
-import { useGridStore } from "./useGridStore";
 import { buildEdges, filterNodesByDirection, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -126,22 +125,10 @@ export const Grid = ({ limit, showGantt }: Props) => {
     [flatNodes, edges, taskId, taskFilter],
   );
 
-  const setGridFocus = useCallback(
-    (focused: boolean) => {
-      setIsGridFocused(focused);
-      if (focused) {
-        gridRef.current?.focus();
-      } else {
-        gridRef.current?.blur();
-      }
-    },
-    [setIsGridFocused],
-  );
-
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
-    tasks: flatNodes,
+    tasks: filteredNodes,
   });
 
   return (
