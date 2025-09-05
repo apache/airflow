@@ -76,7 +76,6 @@ if TYPE_CHECKING:
         Redactable,
         Redacted,
         SecretsMasker,
-        should_hide_value_for_key,
     )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -101,7 +100,6 @@ else:
             Redactable,
             Redacted,
             SecretsMasker,
-            should_hide_value_for_key,
         )
     except ImportError:
         try:
