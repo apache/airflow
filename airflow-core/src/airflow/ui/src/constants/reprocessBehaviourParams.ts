@@ -16,21 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReprocessBehavior } from "openapi/requests/types.gen";
-
 export const reprocessBehaviors = [
   { label: "backfill.missingRuns", value: "none" },
   { label: "backfill.missingAndErroredRuns", value: "failed" },
   { label: "backfill.allRuns", value: "completed" },
 ];
-
-export const mapReprocessBehavior = (param: string): ReprocessBehavior => {
-  switch (param) {
-    case "all_runs":
-      return "completed";
-    case "missing_and_errored_runs":
-      return "failed";
-    default:
-      return "none";
-  }
-};
