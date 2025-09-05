@@ -1202,23 +1202,9 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
-    # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
+    # If downgrading to less than 3.0.0, we need to handle the FAB provider
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
-        try:
-            from airflow.providers.fab.auth_manager.models.db import FABDBManager
-        except ImportError:
-            # Raise the error with a new message
-            raise RuntimeError(
-                "Import error occurred while importing FABDBManager. We need that to exist before we can "
-                "downgrade to <3.0.0"
-            )
-        dbm = FABDBManager(session)
-        if hasattr(dbm, "reset_to_2_x"):
-            dbm.reset_to_2_x()
-        else:
-            # Older version before we added that function, it only has a single migration so we can just
-            # created
-            dbm.create_db_from_orm()
+        _handle_fab_downgrade(session=session)
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
@@ -1229,6 +1215,62 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations to Airflow database.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+
+def _get_fab_migration_version(*, session: Session) -> str | None:
+    """
+    Get the current FAB migration version from the database.
+
+    This intentionally queries the db directly, as the FAB provider and FABDBManager may not even be installed.
+
+    :param session: sqlalchemy session for connection to airflow metadata database
+    :return: The current FAB migration revision, or None if not found
+    """
+    try:
+        result = session.execute(text("SELECT version_num FROM alembic_version_fab LIMIT 1"))
+        row = result.fetchone()
+        return row[0] if row else None
+    except Exception:
+        # Table might not exist or other database error
+        return None
+
+
+def _handle_fab_downgrade(*, session: Session) -> None:
+    """
+    Handle FAB downgrade requirements for downgrades to Airflow versions < 3.0.0.
+
+    First, checks if the FAB db version matches the known version from 1.4.0.
+    If it matches, no FAB db tables need to be touched.
+    Otherwise, imports the FABDBManager and calls its downgrade method.
+
+    :param session: sqlalchemy session for connection to airflow metadata database
+    :raises RuntimeError: If FAB provider is required but cannot be imported
+    """
+    fab_version = _get_fab_migration_version(session=session)
+    if fab_version == "6709f7a774b9":  # 1.4.0
+        # FAB version matches - we can proceed without touching the FAB db tables
+        log.info(
+            "FAB migration version %s matches known version from 1.4.0. "
+            "FAB provider is not required for downgrade.",
+            fab_version,
+        )
+        return
+
+    # FAB db version is different or not found - require the FAB provider
+    try:
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
+    except ImportError:
+        raise RuntimeError(
+            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "downgrade to <3.0.0."
+        )
+    dbm = FABDBManager(session)
+    if hasattr(dbm, "reset_to_2_x"):
+        dbm.reset_to_2_x()
+    else:
+        # Older version before we added that function, it only has a single migration so we can just create the tables
+        # to ensure they are there
+        dbm.create_db_from_orm()
 
 
 def drop_airflow_models(connection):

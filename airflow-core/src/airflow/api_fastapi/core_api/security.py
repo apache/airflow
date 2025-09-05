@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
@@ -28,6 +28,11 @@ from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.batch_apis import (
+    IsAuthorizedConnectionRequest,
+    IsAuthorizedPoolRequest,
+    IsAuthorizedVariableRequest,
+)
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     AssetAliasDetails,
@@ -41,7 +46,12 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.core_api.base import OrmClause
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBody
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
+from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
+from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
@@ -65,6 +75,12 @@ auth_description = (
 )
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description, auto_error=False)
 bearer_scheme = HTTPBearer(auto_error=False)
+
+MAP_BULK_ACTION_TO_AUTH_METHOD: dict[BulkAction, ResourceMethod] = {
+    BulkAction.CREATE: "POST",
+    BulkAction.DELETE: "DELETE",
+    BulkAction.UPDATE: "PUT",
+}
 
 
 async def resolve_user_from_token(token_str: str | None) -> BaseUser:
@@ -103,6 +119,7 @@ def requires_access_dag(
         user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
+        dag_id = dag_id if dag_id != "~" else None
         team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(
@@ -222,10 +239,42 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
+        team_name = Pool.get_team_name(pool_name) if pool_name else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
-                method=method, details=PoolDetails(name=pool_name), user=user
+                method=method, details=PoolDetails(name=pool_name, team_name=team_name), user=user
+            )
+        )
+
+    return inner
+
+
+def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[PoolBody],
+        user: GetUserDep,
+    ) -> None:
+        requests: list[IsAuthorizedPoolRequest] = []
+        for action in request.actions:
+            requests.extend(
+                [
+                    {
+                        "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                        "details": PoolDetails(
+                            name=cast("str", pool)
+                            if action.action == BulkAction.DELETE
+                            else cast("PoolBody", pool).pool
+                        ),
+                    }
+                    for pool in action.entities
+                ]
+            )
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_pool(
+                requests=requests,
+                user=user,
             )
         )
 
@@ -238,10 +287,44 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
+        team_name = Connection.get_team_name(connection_id) if connection_id else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
-                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
+                method=method,
+                details=ConnectionDetails(conn_id=connection_id, team_name=team_name),
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[ConnectionBody],
+        user: GetUserDep,
+    ) -> None:
+        requests: list[IsAuthorizedConnectionRequest] = []
+        for action in request.actions:
+            requests.extend(
+                [
+                    {
+                        "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                        "details": ConnectionDetails(
+                            conn_id=cast("str", connection)
+                            if action.action == BulkAction.DELETE
+                            else cast("ConnectionBody", connection).connection_id
+                        ),
+                    }
+                    for connection in action.entities
+                ]
+            )
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_connection(
+                requests=requests,
+                user=user,
             )
         )
 
@@ -272,11 +355,43 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
+        team_name = Variable.get_team_name(variable_key) if variable_key else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
-                method=method, details=VariableDetails(key=variable_key), user=user
+                method=method, details=VariableDetails(key=variable_key, team_name=team_name), user=user
             ),
+        )
+
+    return inner
+
+
+def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[VariableBody],
+        user: GetUserDep,
+    ) -> None:
+        requests: list[IsAuthorizedVariableRequest] = []
+        for action in request.actions:
+            requests.extend(
+                [
+                    {
+                        "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                        "details": VariableDetails(
+                            key=cast("str", entity)
+                            if action.action == BulkAction.DELETE
+                            else cast("VariableBody", entity).key
+                        ),
+                    }
+                    for entity in action.entities
+                ]
+            )
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
+                requests=requests,
+                user=user,
+            )
         )
 
     return inner

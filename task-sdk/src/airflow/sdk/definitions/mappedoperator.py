@@ -403,6 +403,14 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("email")
 
     @property
+    def email_on_failure(self) -> bool:
+        return self.partial_kwargs.get("email_on_failure", True)
+
+    @property
+    def email_on_retry(self) -> bool:
+        return self.partial_kwargs.get("email_on_retry", True)
+
+    @property
     def map_index_template(self) -> None | str:
         return self.partial_kwargs.get("map_index_template")
 

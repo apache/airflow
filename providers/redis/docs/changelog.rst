@@ -35,8 +35,22 @@ Features
 
 * ``AIP-82: Add RedisPubSubMessageQueueProvider (#53556)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
+Misc
+~~~~
+
+* ``Refactor Common Queue Interface (#54651)``
+
+
+.. Review and move the new changes to one of the sections above:
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Update main with Airflow 3.0.4 release details (#54294)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 4.2.0
 .....

@@ -8,6 +8,12 @@
     "Variables": "Variables"
   },
   "allOperators": "All Operators",
+  "appearance": {
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "systemMode": "Follow System Setting"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -193,8 +199,6 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
-  "switchToDarkMode": "Switch to Dark Mode",
-  "switchToLightMode": "Switch to Light Mode",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

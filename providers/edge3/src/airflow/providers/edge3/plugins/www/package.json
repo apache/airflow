@@ -1,0 +1,80 @@
+{
+  "name": "edge",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/main.js",
+  "module": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "types": "./dist/main.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "vite build",
+    "build:types": "tsc --p tsconfig.lib.json",
+    "build:lib": "vite build",
+    "lint": "eslint --quiet && tsc --p tsconfig.app.json",
+    "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
+    "format": "pnpm prettier --write .",
+    "preview": "vite preview",
+    "codegen": "openapi-rq -i ../../openapi/v2-edge-generated.yaml -c axios --format prettier -o openapi-gen --operationId",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^3.20.0",
+    "@emotion/react": "^11.14.0",
+    "@tanstack/react-query": "^5.75.1",
+    "axios": "^1.11.0",
+    "next-themes": "^0.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^6.30.0"
+  },
+  "devDependencies": {
+    "@7nohe/openapi-react-query-codegen": "^1.6.2",
+    "@eslint/compat": "^1.2.9",
+    "@eslint/js": "^9.25.1",
+    "@stylistic/eslint-plugin": "^2.13.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "^18.3.19",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react-swc": "^3.9.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-perfectionist": "^4.12.3",
+    "eslint-plugin-prettier": "^5.2.6",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "eslint-plugin-unicorn": "^55.0.0",
+    "globals": "^15.15.0",
+    "happy-dom": "^17.4.6",
+    "prettier": "^3.5.3",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.31.1",
+    "vite": "^5.4.19",
+    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^2.1.9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild"
+    ]
+  }
+}

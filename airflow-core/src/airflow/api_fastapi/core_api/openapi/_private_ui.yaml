@@ -208,6 +208,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -1943,11 +1955,16 @@ components:
             type: array
           - type: 'null'
           title: Respondents
-        user_id:
+        responded_user_id:
           anyOf:
           - type: string
           - type: 'null'
-          title: User Id
+          title: Responded User Id
+        responded_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responded User Name
         response_at:
           anyOf:
           - type: string
