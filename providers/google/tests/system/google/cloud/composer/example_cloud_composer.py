@@ -40,6 +40,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerListEnvironmentsOperator,
     CloudComposerListImageVersionsOperator,
     CloudComposerRunAirflowCLICommandOperator,
+    CloudComposerTriggerDAGRunOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
 from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerDAGRunSensor
@@ -218,6 +219,16 @@ with DAG(
     )
     # [END howto_sensor_dag_run_deferrable_mode]
 
+    # [START howto_operator_trigger_dag_run]
+    trigger_dag_run = CloudComposerTriggerDAGRunOperator(
+        task_id="trigger_dag_run",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        composer_dag_id="airflow_monitoring",
+    )
+    # [END howto_operator_trigger_dag_run]
+
     # [START howto_operator_delete_composer_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
@@ -250,6 +261,7 @@ with DAG(
         [update_env, defer_update_env],
         [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
         [dag_run_sensor, defer_dag_run_sensor],
+        trigger_dag_run,
         # TEST TEARDOWN
         [delete_env, defer_delete_env],
     )

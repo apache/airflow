@@ -197,3 +197,15 @@ or you can define the same sensor in the deferrable mode:
     :dedent: 4
     :start-after: [START howto_sensor_dag_run_deferrable_mode]
     :end-before: [END howto_sensor_dag_run_deferrable_mode]
+
+Trigger a DAG run
+-----------------
+
+You can trigger a DAG in another Composer environment, use:
+:class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerTriggerDAGRunOperator`
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_trigger_dag_run]
+    :end-before: [END howto_operator_trigger_dag_run]
