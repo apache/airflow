@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -66,7 +66,7 @@ def _get_task_instance(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int,
+    map_index: int | None,
 ) -> TI:
     query = select(TI).where(
         TI.dag_id == dag_id,
@@ -98,6 +98,7 @@ def _update_hitl_detail(
     user: GetUserDep,
     session: SessionDep,
     map_index: int,
+    update_mask: list[str] | None = Query(None),
 ) -> HITLDetailResponse:
     task_instance = _get_task_instance(
         dag_id=dag_id,
@@ -132,15 +133,31 @@ def _update_hitl_detail(
         if user_id not in hitl_detail_model.respondents:
             log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
             raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"User={user_name} (id={user_id}) is not a respondent for the task.",
+                status_code=status.HTTP_403_FORBIDDEN,
             )
+    fields_to_update = (
+        update_mask
+        if update_mask
+        else [
+            "user_id",
+            "response_at",
+            "chosen_options",
+            "params_input",
+        ]
+    )
 
-    hitl_detail_model.responded_user_id = user_id
-    hitl_detail_model.responded_user_name = user_name
-    hitl_detail_model.response_at = timezone.utcnow()
-    hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+    if "user_id" in fields_to_update:
+        hitl_detail_model.user_id = user.get_id()
+
+    if "response_at" in fields_to_update:
+        hitl_detail_model.response_at = timezone.utcnow()
+
+    if "chosen_options" in fields_to_update:
+        hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
+
+    if "params_input" in fields_to_update:
+        hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+        
     session.add(hitl_detail_model)
     session.commit()
     return HITLDetailResponse.model_validate(hitl_detail_model)
@@ -151,7 +168,7 @@ def _get_hitl_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int,
+    map_index: int | None = None,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance = _get_task_instance(
@@ -199,6 +216,7 @@ def update_hitl_detail(
     user: GetUserDep,
     session: SessionDep,
     map_index: int = -1,
+    update_mask: list[str] | None = Query(None),
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
     return _update_hitl_detail(
@@ -209,6 +227,7 @@ def update_hitl_detail(
         update_hitl_detail_payload=update_hitl_detail_payload,
         user=user,
         map_index=map_index,
+        update_mask=update_mask,
     )
 
 

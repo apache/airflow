@@ -2226,6 +2226,7 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
 * @param data.taskId
 * @param data.requestBody
 * @param data.mapIndex
+* @param data.updateMask
 * @returns HITLDetailResponse Successful Response
 * @throws ApiError
 */
@@ -2235,13 +2236,15 @@ export const useHumanInTheLoopServiceUpdateHitlDetail = <TData = Common.HumanInT
   mapIndex?: number;
   requestBody: UpdateHITLDetailPayload;
   taskId: string;
+  updateMask?: string[];
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
   requestBody: UpdateHITLDetailPayload;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => HumanInTheLoopService.updateHitlDetail({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) => HumanInTheLoopService.updateHitlDetail({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Asset Queued Events
 * Delete queued asset events for an asset.
