@@ -41,10 +41,10 @@ const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
 type AssetEventProps = {
   readonly assetId?: number;
   readonly data?: AssetEventCollectionResponse;
-  readonly enableFilter?: boolean;
   readonly isLoading?: boolean;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
+  readonly showFilters?: boolean;
   readonly tableUrlState?: TableState;
   readonly titleKey?: string;
 };
@@ -52,10 +52,10 @@ type AssetEventProps = {
 export const AssetEvents = ({
   assetId,
   data,
-  enableFilter = false,
   isLoading,
   setOrderBy,
   setTableUrlState,
+  showFilters = false,
   tableUrlState,
   titleKey,
   ...rest
@@ -104,7 +104,7 @@ export const AssetEvents = ({
           </Select.Root>
         )}
       </Flex>
-      {enableFilter ? <AssetEventsFilter /> : null}
+      {showFilters ? <AssetEventsFilter /> : null}
       <Separator mt={2.5} />
       <DataTable
         cardDef={cardDef(assetId)}
