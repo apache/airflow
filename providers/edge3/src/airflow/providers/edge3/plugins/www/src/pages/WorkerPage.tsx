@@ -16,22 +16,178 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Table } from "@chakra-ui/react";
+import { Box, Button, Table, Textarea, VStack, HStack } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
+import type { Worker } from "openapi/requests/types.gen";
+import { useState } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { autoRefreshInterval } from "src/utils";
 
+interface MaintenanceFormProps {
+  onSubmit: (comment: string) => void;
+  onCancel: () => void;
+}
+
+const MaintenanceForm = ({ onCancel, onSubmit }: MaintenanceFormProps) => {
+  const [comment, setComment] = useState("");
+
+  const handleSubmit = () => {
+    if (comment.trim()) {
+      onSubmit(comment.trim());
+    }
+  };
+
+  return (
+    <VStack gap={2} align="stretch">
+      <Textarea
+        placeholder="Enter maintenance comment (required)"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        required
+        maxLength={1024}
+        size="sm"
+      />
+      <HStack gap={2}>
+        <Button size="sm" colorScheme="blue" onClick={handleSubmit} disabled={!comment.trim()}>
+          Confirm Maintenance
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </HStack>
+    </VStack>
+  );
+};
+
 export const WorkerPage = () => {
-  const { data, error } = useUiServiceWorker(undefined, {
+  const { data, error, refetch } = useUiServiceWorker(undefined, {
     enabled: true,
     refetchInterval: autoRefreshInterval,
   });
+  const [activeMaintenanceForm, setActiveMaintenanceForm] = useState<string | null>(null);
+
+  const requestMaintenance = async (workerName: string, comment: string) => {
+    try {
+      console.log(`Requesting maintenance for worker: ${workerName}, comment: ${comment}`);
+
+      // Get CSRF token from meta tag (common Airflow pattern)
+      const csrfToken =
+        document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
+        document.querySelector('input[name="csrf_token"]')?.getAttribute("value");
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Add CSRF token if available
+      if (csrfToken) {
+        headers["X-CSRFToken"] = csrfToken;
+      }
+
+      const response = await fetch(`/edge_worker/ui/worker/${workerName}/maintenance`, {
+        body: JSON.stringify({ maintenance_comment: comment }),
+        credentials: "same-origin",
+        headers,
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Maintenance request failed:", response.status, errorText);
+        throw new Error(`Failed to request maintenance: ${response.status} ${errorText}`);
+      }
+
+      console.log("Maintenance request successful");
+      setActiveMaintenanceForm(null);
+      refetch();
+    } catch (error) {
+      console.error("Error requesting maintenance:", error);
+      alert(`Error requesting maintenance: ${error}`);
+    }
+  };
+
+  const exitMaintenance = async (workerName: string) => {
+    try {
+      console.log(`Exiting maintenance for worker: ${workerName}`);
+
+      // Get CSRF token from meta tag (common Airflow pattern)
+      const csrfToken =
+        document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
+        document.querySelector('input[name="csrf_token"]')?.getAttribute("value");
+
+      const headers: Record<string, string> = {};
+
+      // Add CSRF token if available
+      if (csrfToken) {
+        headers["X-CSRFToken"] = csrfToken;
+      }
+
+      const response = await fetch(`/edge_worker/ui/worker/${workerName}/maintenance`, {
+        credentials: "same-origin",
+        headers,
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Exit maintenance failed:", response.status, errorText);
+        throw new Error(`Failed to exit maintenance: ${response.status} ${errorText}`);
+      }
+
+      console.log("Exit maintenance successful");
+      refetch();
+    } catch (error) {
+      console.error("Error exiting maintenance:", error);
+      alert(`Error exiting maintenance: ${error}`);
+    }
+  };
+
+  const renderOperationsCell = (worker: Worker) => {
+    const workerName = worker.worker_name;
+    const state = worker.state;
+
+    if (state === "idle" || state === "running") {
+      if (activeMaintenanceForm === workerName) {
+        return (
+          <MaintenanceForm
+            onSubmit={(comment) => requestMaintenance(workerName, comment)}
+            onCancel={() => setActiveMaintenanceForm(null)}
+          />
+        );
+      }
+      return (
+        <Button size="sm" colorScheme="blue" onClick={() => setActiveMaintenanceForm(workerName)}>
+          Enter Maintenance
+        </Button>
+      );
+    }
+
+    if (
+      state === "maintenance pending" ||
+      state === "maintenance mode" ||
+      state === "maintenance request" ||
+      state === "maintenance exit" ||
+      state === "offline maintenance"
+    ) {
+      return (
+        <VStack gap={2} align="stretch">
+          <Box fontSize="sm" whiteSpace="pre-wrap">
+            {worker.maintenance_comments || "No comment"}
+          </Box>
+          <Button size="sm" colorScheme="blue" onClick={() => exitMaintenance(workerName)}>
+            Exit Maintenance
+          </Button>
+        </VStack>
+      );
+    }
+
+    return null;
+  };
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
-  // Add actions for maintenance / delete of orphan worker
   // Add sorting
   // Add filtering
   // Add links to see jobs on worker
@@ -86,7 +242,7 @@ export const WorkerPage = () => {
                     "N/A"
                   )}
                 </Table.Cell>
-                <Table.Cell>{worker.maintenance_comments}</Table.Cell>
+                <Table.Cell>{renderOperationsCell(worker)}</Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>
