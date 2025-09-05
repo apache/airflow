@@ -41,6 +41,7 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
+from airflow.jobs.asyncio_monitor import AsyncioStallMonitor
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
@@ -832,6 +833,9 @@ class TriggerRunner:
 
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
+    monitor_stall: bool = conf.getboolean("triggerer", "enable_stall_monitor")
+    stall_monitor_threshold: float = conf.getfloat("triggerer", "stall_monitor_threshold")
+    watchdog = None
 
     comms_decoder: TriggerCommsDecoder
 
@@ -844,6 +848,7 @@ class TriggerRunner:
         self.events = deque()
         self.failed_triggers = deque()
         self.job_id = None
+        self._stall_monitor = None
 
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
@@ -858,14 +863,25 @@ class TriggerRunner:
         # Make sure comms are initialized before allowing any Triggers to run
         await self.init_comms()
 
-        watchdog = asyncio.create_task(self.block_watchdog())
+        if self.monitor_stall:
+            loop = asyncio.get_running_loop()
+            self._stall_monitor = AsyncioStallMonitor(
+                loop=loop,
+                threshold=self.stall_monitor_threshold,
+                heartbeat_interval=0.10,  # post heartbeat every 100ms
+                min_report_interval=0.70,  # coalesce long stalls; update at most every 700ms
+                max_frames=30,  # bound captured stack depth
+            )
+            self._stall_monitor.start()
+        else:
+            self.watchdog = asyncio.create_task(self.block_watchdog())
 
         last_status = time.monotonic()
         try:
             while not self.stop:
                 # Raise exceptions from the tasks
-                if watchdog.done():
-                    watchdog.result()
+                if self.watchdog and self.watchdog.done():
+                    self.watchdog.result()
 
                 # Run core logic
 
@@ -887,8 +903,16 @@ class TriggerRunner:
                 await log.aexception("Trigger runner failed")
             self.stop = True
             raise
-        # Wait for supporting tasks to complete
-        await watchdog
+        finally:
+            try:
+                if self._stall_monitor:
+                    self._stall_monitor.stop()
+            except Exception:
+                # don't let monitor teardown mask real exceptions
+                pass
+            if self.watchdog:
+                # Wait for supporting tasks to complete
+                await self.watchdog
 
     async def init_comms(self):
         """
@@ -1077,7 +1101,6 @@ class TriggerRunner:
         they need to wait; this loop tries to run every 100ms to see if
         there are badly-written triggers taking longer than that and blocking
         the event loop.
-
         Unfortunately, we can't tell what trigger is blocking things, but
         we can at least detect the top-level problem.
         """
