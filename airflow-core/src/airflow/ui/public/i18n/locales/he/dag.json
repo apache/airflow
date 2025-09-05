@@ -5,6 +5,33 @@
     "reason": "סיבה",
     "title": "תלויות החוסמות את תזמון המשימה"
   },
+  "calendar": {
+    "daily": "יומי",
+    "hourly": "שעתי",
+    "legend": {
+      "less": "פחות",
+      "more": "יותר"
+    },
+    "navigation": {
+      "nextMonth": "החודש הבא",
+      "nextYear": "השנה הבאה",
+      "previousMonth": "החודש הקודם",
+      "previousYear": "השנה הקודמת"
+    },
+    "noData": "אין נתונים זמינים",
+    "noRuns": "אין הרצות",
+    "totalRuns": "סה״כ הרצות",
+    "week": "שבוע {{weekNumber}}",
+    "weekdays": {
+      "friday": "ו׳",
+      "monday": "ב׳",
+      "saturday": "ש׳",
+      "sunday": "א׳",
+      "thursday": "ה׳",
+      "tuesday": "ג׳",
+      "wednesday": "ד׳"
+    }
+  },
   "code": {
     "bundleUrl": "כתובת החבילה",
     "noCode": "לא נמצא קוד",
@@ -45,8 +72,8 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_one": "הרצה שנכשלה",
-      "failedRun_other": "הרצות שנכשלו",
+      "failedRun_one": "ריצה שנכשלה",
+      "failedRun_other": "ריצות שנכשלו",
       "failedTask_one": "משימה שנכשלה",
       "failedTask_other": "משימות שנכשלו",
       "failedTaskInstance_one": "מופע משימה שנכשל",
@@ -57,6 +84,8 @@
       "assetEvent_other": "אירועי בנכסים שנוצרו"
     },
     "failedLogs": {
+      "hideLogs": "הסתר רישומים",
+      "showLogs": "הצג רישומים",
       "title": "רישומים אחרונים של משימות שנכשלו",
       "viewFullLogs": "צפה ברישומים המלאים"
     }
@@ -64,8 +93,9 @@
   "panel": {
     "buttons": {
       "options": "אפשרויות",
-      "showGraph": "הצג תרשים",
-      "showGrid": "הצג רשת"
+      "showGantt": "הצג גאנט",
+      "showGraphShortcut": "הצג תרשים (לחץ g)",
+      "showGridShortcut": "הצג רשת (לחץ g)"
     },
     "dagRuns": {
       "label": "מספר הרצות Dag"
@@ -100,6 +130,7 @@
     "assetEvents": "אירועי משאבים",
     "auditLog": "יומן ביקורת",
     "backfills": "השלמות רטרואקטיביות",
+    "calendar": "לוח שנה",
     "code": "קוד תכנות",
     "details": "פרטים",
     "logs": "רישומים",
