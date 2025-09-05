@@ -172,6 +172,8 @@ export const Gantt = ({ limit }: Props) => {
       .filter((item) => item !== undefined);
   }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
 
+  const chartLabels = useMemo(() => flatNodes.map((node) => node.id), [flatNodes]);
+
   const chartData = useMemo(
     () => ({
       datasets: [
@@ -185,9 +187,9 @@ export const Gantt = ({ limit }: Props) => {
           minBarLength: MIN_BAR_WIDTH,
         },
       ],
-      labels: [],
+      labels: chartLabels,
     }),
-    [data],
+    [data, chartLabels],
   );
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
