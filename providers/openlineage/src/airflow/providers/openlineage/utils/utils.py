@@ -52,10 +52,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    get_base_airflow_version_tuple,
-)
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
 
