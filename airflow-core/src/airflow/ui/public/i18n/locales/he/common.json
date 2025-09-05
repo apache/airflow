@@ -8,6 +8,12 @@
     "Variables": "משתנים"
   },
   "allOperators": "כל האופרטורים",
+  "appearance": {
+    "appearance": "מראה",
+    "darkMode": "מצב כהה",
+    "lightMode": "מצב בהיר",
+    "systemMode": "עקוב אחר הגדרות המערכת"
+  },
   "asset_one": "נכס",
   "asset_other": "נכסים",
   "assetEvent_one": "אירוע נכס",
