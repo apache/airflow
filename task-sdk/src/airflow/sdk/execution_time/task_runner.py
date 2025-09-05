@@ -1295,7 +1295,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             rendered = outlet.render_event_extra_template(context, jinja_env=task.dag.get_template_env())
             outlet_events[outlet].extra.update(rendered or {})
 
-
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
     if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:

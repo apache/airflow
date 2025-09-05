@@ -942,10 +942,12 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[ {
+                outlet_events=[
+                    {
                         "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
                         "extra": {},
-                    }],
+                    }
+                ],
             ),
             id="asset",
         ),
@@ -970,7 +972,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                     }
                 ],
             ),
-            id="asset_with_event_extra_template",   
+            id="asset_with_event_extra_template",
         ),
         pytest.param(
             [Dataset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -981,7 +983,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
                 outlet_events=[
-                     {
+                    {
                         "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
                         "extra": {},
                     }
@@ -1021,7 +1023,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
                 outlet_events=[
-                     {
+                    {
                         "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
                         "extra": {},
                     }

@@ -481,8 +481,9 @@ class Asset(os.PathLike, BaseAsset):
         :meta private:
         """
         return AssetProfile(name=self.name or None, uri=self.uri or None, type=Asset.__name__)
-    
+
     import jinja2
+
     from airflow.sdk.definitions.context import Context
 
     def render_event_extra_template(
