@@ -30,8 +30,6 @@ export const mapReprocessBehavior = (param: string): ReprocessBehavior => {
       return "completed";
     case "missing_and_errored_runs":
       return "failed";
-    case "missing_runs":
-      return "none";
     default:
       return "none";
   }
