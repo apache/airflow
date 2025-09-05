@@ -394,6 +394,7 @@ def set_xcom(
             task_id=task_id,
             dag_id=dag_id,
             map_index=map_index,
+            serialize=False,
             session=session,
         )
     except ValueError as e:
