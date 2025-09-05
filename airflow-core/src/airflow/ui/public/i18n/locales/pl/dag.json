@@ -100,8 +100,8 @@
     "buttons": {
       "options": "Opcje",
       "showGantt": "Pokaż diagram Gantta",
-      "showGraph": "Pokaż graf",
-      "showGrid": "Pokaż siatkę"
+      "showGraphShortcut": "Pokaż graf (naciśnij g)",
+      "showGridShortcut": "Pokaż siatkę (naciśnij g)"
     },
     "dagRuns": {
       "label": "Liczba wykonań Daga"

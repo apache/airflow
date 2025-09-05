@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import datetime
+from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
@@ -607,6 +609,63 @@ class TestGetHITLDetailsEndpoint:
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count
         assert len(response.json()["hitl_details"]) == expected_ti_count
+
+    @pytest.mark.usefixtures("sample_hitl_details")
+    @pytest.mark.parametrize("asc_desc_mark", ["", "-"], ids=["asc", "desc"])
+    @pytest.mark.parametrize(
+        "key, get_key_lambda",
+        [
+            # ti key
+            ("ti_id", lambda x: x["task_instance"]["id"]),
+            ("dag_id", lambda x: x["task_instance"]["dag_id"]),
+            ("run_id", lambda x: x["task_instance"]["dag_run_id"]),
+            ("run_after", lambda x: x["task_instance"]["run_after"]),
+            ("rendered_map_index", lambda x: x["task_instance"]["rendered_map_index"]),
+            ("task_instance_operator", lambda x: x["task_instance"]["operator_name"]),
+            # htil key
+            ("subject", itemgetter("subject")),
+            ("response_at", itemgetter("response_at")),
+        ],
+        ids=[
+            "ti_id",
+            "dag_id",
+            "run_id",
+            "run_after",
+            "rendered_map_index",
+            "task_instance_operator",
+            "subject",
+            "response_at",
+        ],
+    )
+    def test_should_respond_200_with_existing_response_and_order_by(
+        self,
+        test_client: TestClient,
+        asc_desc_mark: str,
+        key: str,
+        get_key_lambda: Callable,
+    ) -> None:
+        reverse = asc_desc_mark == "-"
+
+        response = test_client.get("/hitlDetails/", params={"order_by": f"{asc_desc_mark}{key}"})
+        data = response.json()
+        hitl_details = data["hitl_details"]
+
+        assert response.status_code == 200
+        assert data["total_entries"] == 8
+        assert len(hitl_details) == 8
+
+        sorted_hitl_details = sorted(
+            hitl_details,
+            key=lambda x: (
+                # pull none to the last no matter it's asc or desc
+                (get_key_lambda(x) is not None) if reverse else (get_key_lambda(x) is None),
+                get_key_lambda(x),
+                x["task_instance"]["id"],
+            ),
+            reverse=reverse,
+        )
+
+        assert hitl_details == sorted_hitl_details
 
     def test_should_respond_200_without_response(self, test_client: TestClient) -> None:
         response = test_client.get("/hitlDetails/")

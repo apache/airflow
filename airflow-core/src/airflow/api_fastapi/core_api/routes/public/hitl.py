@@ -52,6 +52,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel
 from airflow.models.taskinstance import TaskInstance as TI
 
@@ -246,17 +247,18 @@ def get_hitl_details(
         SortParam,
         Depends(
             SortParam(
-                [
+                allowed_attrs=[
                     "ti_id",
                     "subject",
                     "response_at",
-                    "task_instance.dag_id",
-                    "task_instance.run_id",
                 ],
-                HITLDetailModel,
+                model=HITLDetailModel,
                 to_replace={
                     "dag_id": TI.dag_id,
                     "run_id": TI.run_id,
+                    "run_after": DagRun.run_after,
+                    "rendered_map_index": TI.rendered_map_index,
+                    "task_instance_operator": TI.operator,
                 },
             ).dynamic_depends(),
         ),
@@ -281,7 +283,12 @@ def get_hitl_details(
     query = (
         select(HITLDetailModel)
         .join(TI, HITLDetailModel.ti_id == TI.id)
-        .options(joinedload(HITLDetailModel.task_instance))
+        .join(TI.dag_run)
+        .options(
+            joinedload(HITLDetailModel.task_instance).options(
+                joinedload(TI.dag_run),
+            )
+        )
     )
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
