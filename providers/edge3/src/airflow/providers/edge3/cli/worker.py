@@ -177,10 +177,6 @@ class EdgeWorker:
 
     @staticmethod
     def _run_job_via_supervisor(workload) -> int:
-        if TYPE_CHECKING:
-            from airflow.executors.workloads import ExecuteTask
-
-        workload: ExecuteTask = workload
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
@@ -195,8 +191,6 @@ class EdgeWorker:
             if not execution_api_server_url:
                 parsed = urlparse(api_url)
                 execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
-
-            logger.info("Worker starting up server=execution_api_server_url=%s", execution_api_server_url)
 
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
