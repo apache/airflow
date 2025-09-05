@@ -773,8 +773,7 @@ This is an example test want to verify the structure of a code-generated Dag aga
 
     import pendulum
 
-    from airflow.sdk import DAG
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk import DAG, TaskInstanceState
 
 
     def test_my_custom_operator_execute_no_trigger(dag):
