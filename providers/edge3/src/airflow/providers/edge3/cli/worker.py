@@ -175,48 +175,51 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
+    @staticmethod
+    def _run_job_via_supervisor(workload) -> int:
+        if TYPE_CHECKING:
+            from airflow.executors.workloads import ExecuteTask
+
+        workload: ExecuteTask = workload
+        from airflow.sdk.execution_time.supervisor import supervise
+
+        # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        logger.info("Worker starting up pid=%d", os.getpid())
+        setproctitle(f"airflow edge worker: {workload.ti.key}")
+
+        try:
+            api_url = conf.get("edge", "api_url")
+            execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
+            if not execution_api_server_url:
+                parsed = urlparse(api_url)
+                execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
+
+            logger.info("Worker starting up server=execution_api_server_url=%s", execution_api_server_url)
+
+            supervise(
+                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                # Same like in airflow/executors/local_executor.py:_execute_work()
+                ti=workload.ti,  # type: ignore[arg-type]
+                dag_rel_path=workload.dag_rel_path,
+                bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=execution_api_server_url,
+                log_path=workload.log_path,
+            )
+            return 0
+        except Exception as e:
+            logger.exception("Task execution failed: %s", e)
+            return 1
+
     def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
         if TYPE_CHECKING:
             from airflow.executors.workloads import ExecuteTask
 
-        def _run_job_via_supervisor(
-            workload: ExecuteTask,
-        ) -> int:
-            from airflow.sdk.execution_time.supervisor import supervise
-
-            # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-            signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-            logger.info("Worker starting up pid=%d", os.getpid())
-            setproctitle(f"airflow edge worker: {workload.ti.key}")
-
-            try:
-                api_url = conf.get("edge", "api_url")
-                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-                if not execution_api_server_url:
-                    parsed = urlparse(api_url)
-                    execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
-
-                logger.info("Worker starting up server=execution_api_server_url=%s", execution_api_server_url)
-
-                supervise(
-                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                    # Same like in airflow/executors/local_executor.py:_execute_work()
-                    ti=workload.ti,  # type: ignore[arg-type]
-                    dag_rel_path=workload.dag_rel_path,
-                    bundle_info=workload.bundle_info,
-                    token=workload.token,
-                    server=execution_api_server_url,
-                    log_path=workload.log_path,
-                )
-                return 0
-            except Exception as e:
-                logger.exception("Task execution failed: %s", e)
-                return 1
-
         workload: ExecuteTask = edge_job.command
         process = Process(
-            target=_run_job_via_supervisor,
+            target=EdgeWorker._run_job_via_supervisor,
             kwargs={"workload": workload},
         )
         process.start()
