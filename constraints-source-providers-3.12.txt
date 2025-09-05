@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-05T02:15:52.777774
+# This constraints file was automatically generated on 2025-09-05T07:44:59.701301
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -118,7 +118,7 @@ azure-servicebus==7.14.2
 azure-storage-blob==12.26.0
 azure-storage-file-datalake==12.21.0
 azure-storage-file-share==12.22.0
-azure-synapse-artifacts==0.20.0
+azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
