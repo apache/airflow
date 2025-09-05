@@ -72,8 +72,8 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_one": "הרצה שנכשלה",
-      "failedRun_other": "הרצות שנכשלו",
+      "failedRun_one": "ריצה שנכשלה",
+      "failedRun_other": "ריצות שנכשלו",
       "failedTask_one": "משימה שנכשלה",
       "failedTask_other": "משימות שנכשלו",
       "failedTaskInstance_one": "מופע משימה שנכשל",

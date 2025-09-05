@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
-    "affected_other": "{{count}} ריצות תופעלנה.",
+    "affected_other": "{{count}} ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
@@ -24,7 +24,7 @@
       }
     },
     "tooltip": "Backfill דורש לוח זמנים",
-    "unpause": "הפעל את {{dag_display_name}} בעת ההרצה",
+    "unpause": "הפעל את {{dag_display_name}} בעת הריצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
