@@ -730,11 +730,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         session = self.get_session(region_name=region_name, deferrable=deferrable)
         endpoint_url = self.conn_config.get_service_endpoint_url(service_name=service_name)
         if not isinstance(session, boto3.session.Session):
+            # Fetch credentials from Airflow connection
+            credentials = self._get_async_credentials()
+            account_id_endpoint_mode = "standard"
             return session.create_client(
                 service_name=service_name,
                 endpoint_url=endpoint_url,
                 config=self._get_config(config),
                 verify=self.verify,
+                credentials=credentials,
+                account_id_endpoint_mode=account_id_endpoint_mode,
             )
 
         return session.client(
@@ -743,6 +748,35 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             config=self._get_config(config),
             verify=self.verify,
         )
+    
+    def _get_async_credentials(self):
+        """
+        Retrieve AWS credentials from the Airflow connection for use with aiobotocore.
+        Returns a dict with keys: access_key, secret_key, token.
+        """
+        conn = self.get_connection(self.aws_conn_id)
+        extras = conn.extra_dejson
+
+        access_key = extras.get('aws_access_key_id')
+        secret_key = extras.get('aws_secret_access_key')
+        token = extras.get('aws_session_token')
+
+        # Fallback to environment variables if not in connection
+        if not access_key:
+            access_key = os.environ.get('AWS_ACCESS_KEY_ID')
+        if not secret_key:
+            secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+        if not token:
+            token = os.environ.get('AWS_SESSION_TOKEN')
+
+        if not access_key or not secret_key:
+            raise AirflowException("AWS credentials not found in connection or environment variables.")
+
+        return {
+            "access_key": access_key,
+            "secret_key": secret_key,
+            "token": token,
+        }
 
     def get_resource_type(
         self,
