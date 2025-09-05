@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``2.4.1``
+Release: ``2.4.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
@@ -37,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.4.2/>`_.
 
 Installation
 ------------
@@ -88,4 +87,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/2.4.2/changelog.html>`_.

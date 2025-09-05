@@ -26,6 +26,60 @@
 Changelog
 ---------
 
+9.13.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``feature: Add OpenLineage support for transfer operators between GCS and S3 (#54269)``
+* ``Update HiveToDynamoDBOperator to support Polars (#54221)``
+* ``Update 'SqlToS3Operator' to support Polars and deprecate 'read_pd_kwargs' (#54195)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SqlToS3Operator _partition_dataframe for proper polars support (#54588)``
+* ``fixing file extension issue on SqlToS3Operator (#54187)``
+* ``Fix connection management for EKS token generation (#55195)``
+* ``Retry on more edge cases for bedrock (#55201)``
+
+Misc
+~~~~
+
+* ``Refactor Common Queue Interface (#54651)``
+* ``Introduce 'LIST' logic in AWS auth manager (#54987)``
+* ``Move secrets_masker over to airflow_shared distribution (#54449)``
+* ``Handle task-sdk connection retrieval import error in BaseHook (#54692)``
+* ``Remove end_from_trigger attribute in trigger (#54567)``
+* ``Remove redundant exception handling in AWS hook (#54485)``
+* ``Remove end_from_trigger attribute in trigger (#54531)``
+* ``Unify error handling when connection is not found in aws hook (#54299)``
+* ``Fix a small typo and improve logging in bedrock error handling (#55271)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Mark Batch Executor as stable (#54924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Add missing test for amazon/aws/executors/ecs/boto_schema.py (#54930)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Make AWS notifier tests db independent (#54668)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Mock AWS during Athena tests (#54576)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Update models used in bedrock system tests (#55229)``
+
 9.12.0
 ......
 

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-cassandra``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Cassandra <https://cassandra.apache.org/>`__.
 

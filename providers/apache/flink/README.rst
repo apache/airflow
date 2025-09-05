@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-flink``
 
 Release: ``1.7.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Flink <https://flink.apache.org/>`__
 
