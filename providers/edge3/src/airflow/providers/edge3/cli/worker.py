@@ -207,7 +207,8 @@ class EdgeWorker:
             logger.exception("Task execution failed: %s", e)
             return 1
 
-    def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
+    @staticmethod
+    def _launch_job_af3(edge_job: EdgeJobFetched) -> tuple[Process, Path]:
         if TYPE_CHECKING:
             from airflow.executors.workloads import ExecuteTask
 
@@ -223,7 +224,8 @@ class EdgeWorker:
         logfile = Path(base_log_folder, workload.log_path)
         return process, logfile
 
-    def _launch_job_af2_10(self, edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
+    @staticmethod
+    def _launch_job_af2_10(edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
         """Compatibility for Airflow 2.10 Launch."""
         env = os.environ.copy()
         env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
@@ -234,14 +236,15 @@ class EdgeWorker:
         logfile = logs_logfile_path(edge_job.key)
         return process, logfile
 
-    def _launch_job(self, edge_job: EdgeJobFetched):
+    @staticmethod
+    def _launch_job(edge_job: EdgeJobFetched):
         """Get the received job executed."""
         process: Popen | Process
         if AIRFLOW_V_3_0_PLUS:
-            process, logfile = self._launch_job_af3(edge_job)
+            process, logfile = EdgeWorker._launch_job_af3(edge_job)
         else:
             # Airflow 2.10
-            process, logfile = self._launch_job_af2_10(edge_job)
+            process, logfile = EdgeWorker._launch_job_af2_10(edge_job)
         EdgeWorker.jobs.append(Job(edge_job, process, logfile, 0))
 
     def start(self):
@@ -313,7 +316,7 @@ class EdgeWorker:
         edge_job = jobs_fetch(self.hostname, self.queues, self.free_concurrency)
         if edge_job:
             logger.info("Received job: %s", edge_job)
-            self._launch_job(edge_job)
+            EdgeWorker._launch_job(edge_job)
             jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
