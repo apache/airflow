@@ -8,6 +8,12 @@
     "Variables": "Zmienne"
   },
   "allOperators": "Wszystkie operatory",
+  "appearance": {
+    "appearance": "Wygląd",
+    "darkMode": "Tryb ciemny",
+    "lightMode": "Tryb jasny",
+    "systemMode": "Użyj ustawień systemu"
+  },
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -140,7 +146,7 @@
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
-    "add": "Dodać notatkę",
+    "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
