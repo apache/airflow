@@ -205,6 +205,17 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     Test that k8s_pod_yaml is rendered correctly, stored in the Database,
     and are correctly fetched using RTIF.get_k8s_pod_yaml
     """
+    try:
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+    except ImportError:
+        try:
+            from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+        except ImportError:
+            from airflow.utils.log.secrets_masker import _secrets_masker
+
+    masker = _secrets_masker()
+    masker.patterns = {}
+
     with dag_maker("test_get_k8s_pod_yaml") as dag:
         task = BashOperator(task_id="test", bash_command="echo hi")
     dr = dag_maker.create_dagrun()
@@ -221,7 +232,7 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     assert ti.task_id == rtif.task_id
     assert ti.run_id == rtif.run_id
 
-    # Expect redacted version
+    # With clean masker, expect correct redaction behavior
     expected_pod_yaml = {"I'm a": "pod", "secret": "***"}
 
     assert rtif.k8s_pod_yaml == expected_pod_yaml
