@@ -175,6 +175,15 @@ export const routerConfig = [
       },
       {
         children: [
+          { element: <Overview />, index: true },
+          { element: <Overview />, path: "single" },
+          { element: <Overview />, path: "backfill" },
+        ],
+        element: <Dag />,
+        path: "dags/:dagId/trigger",
+      },
+      {
+        children: [
           { element: <TaskInstances />, index: true },
           { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },

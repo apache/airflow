@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Button, Box, Spacer, HStack, Input, Field, Stack } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -28,7 +27,7 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
-import { getUrlParam } from "src/utils";
+import { getPreloadTriggerFormData } from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -57,23 +56,25 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
+  const { search } = useLocation();
   const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
   const { mutate: togglePause } = useTogglePause({ dagId });
-  const { search } = useLocation();
 
-  const params = new URLSearchParams(search);
-  const urlConf = getUrlParam(params, "conf", true);
-  const urlDagRunId = getUrlParam(params, "run_id");
-  const urlLogicalDate = getUrlParam(params, "logical_date");
-  const urlNote = getUrlParam(params, "note");
+  const searchParams = new URLSearchParams(search);
+  const {
+    conf: urlConf,
+    dagRunId: urlDagRunId,
+    logicalDate: urlLogicalDate,
+    note: urlNote,
+  } = getPreloadTriggerFormData(searchParams);
 
   const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf: urlConf ?? (conf || "{}"),
-      dagRunId: urlDagRunId ?? "",
-      logicalDate: urlLogicalDate ?? dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
-      note: urlNote ?? "",
+      dagRunId: urlDagRunId,
+      logicalDate: urlLogicalDate,
+      note: urlNote,
     },
   });
 
@@ -109,7 +110,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         control={control}
         errors={errors}
         initialParamsDict={initialParamsDict}
-        openAdvanced={Boolean(urlConf ?? urlDagRunId ?? urlLogicalDate ?? urlNote)}
+        openAdvanced={Boolean(urlConf ?? (urlDagRunId || urlLogicalDate || urlNote))}
         setErrors={setErrors}
         setFormError={setFormError}
       >
