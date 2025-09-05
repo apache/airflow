@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -27,6 +28,12 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
+
+from tests_common.test_utils.db import clear_db_connections
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 
 class TestConnection:
@@ -355,3 +362,14 @@ class TestConnection:
         # Verify the backends were called
         mock_env_backend.assert_called_once_with(conn_id="test_conn")
         mock_db_backend.assert_called_once_with(conn_id="test_conn")
+
+    @pytest.mark.db_test
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        clear_db_connections()
+
+        connection = Connection(conn_id="test_conn", conn_type="test_type", team_id=testing_team.id)
+        session.add(connection)
+        session.flush()
+
+        assert Connection.get_team_name("test_conn", session=session) == "testing"
+        clear_db_connections()

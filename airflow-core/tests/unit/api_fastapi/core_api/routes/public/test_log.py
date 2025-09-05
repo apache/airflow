@@ -32,11 +32,11 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.file_task_handler import convert_list_to_stream
 
@@ -275,8 +275,7 @@ class TestTaskInstancesLog:
         # Recreate DAG without tasks
         dagbag = create_dag_bag()
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag)
 
         self.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 

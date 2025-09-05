@@ -19,7 +19,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import {
   UseDagRunServiceGetDagRunsKeyFn,
@@ -37,6 +37,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("components");
   const navigate = useNavigate();
+  const { dagId: selectedDagId } = useParams();
 
   const onSuccess = async (dagRun: TriggerDagRunResponse) => {
     const queryKeys = [
@@ -55,7 +56,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
     onSuccessConfirm();
 
-    navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
+    // Only redirect if we're already on the dag page
+    if (selectedDagId === dagRun.dag_id) {
+      navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
+    }
   };
 
   const onError = (_error: unknown) => {

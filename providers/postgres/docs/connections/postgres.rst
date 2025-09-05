@@ -75,6 +75,7 @@ Extra (optional)
       - ``namedtuplecursor``: Returns query results as named tuples using ``psycopg2.extras.NamedTupleCursor``.
 
       For more information, refer to the psycopg2 documentation on `connection and cursor subclasses <https://www.psycopg.org/docs/extras.html#connection-and-cursor-subclasses>`_.
+      If using psycopg (v3), refer to the documentation on `connection classes <https://www.psycopg.org/psycopg3/docs/api/connections.html>`_.
 
     More details on all Postgres parameters supported can be found in
     `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_.

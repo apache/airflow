@@ -38,7 +38,12 @@ from airflow.providers.google.cloud.operators.alloy_db import (
     AlloyDBUpdateInstanceOperator,
     AlloyDBUpdateUserOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "alloy_db"

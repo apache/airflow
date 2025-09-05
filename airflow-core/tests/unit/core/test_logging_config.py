@@ -24,7 +24,7 @@ import os
 import pathlib
 import sys
 import tempfile
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 
@@ -94,6 +94,11 @@ LOGGING_CONFIG = {
 
 SETTINGS_FILE_EMPTY = """
 # Other settings here
+"""
+
+SETTINGS_FILE_WITH_REMOTE_VARS = f"""{SETTINGS_FILE_VALID}
+REMOTE_TASK_LOG = None
+DEFAULT_REMOTE_CONN_ID = "test_conn_id"
 """
 
 SETTINGS_DEFAULT_NAME = "custom_airflow_local_settings"
@@ -190,6 +195,15 @@ class TestLoggingSettings:
         reset_logging()
         importlib.reload(airflow_local_settings)
         configure_logging()
+
+    def _verify_basic_logging_config(
+        self, logging_config: dict, logging_class_path: str, expected_path: str
+    ) -> None:
+        """Helper method to verify basic logging config structure"""
+        assert isinstance(logging_config, dict)
+        assert logging_config["version"] == 1
+        assert "airflow.task" in logging_config["loggers"]
+        assert logging_class_path == expected_path
 
     # When we try to load an invalid config file, we expect an error
     def test_loading_invalid_local_settings(self):
@@ -365,3 +379,44 @@ class TestLoggingSettings:
             airflow.logging_config.configure_logging()
 
         assert isinstance(airflow.logging_config.REMOTE_TASK_LOG, HdfsRemoteLogIO)
+
+    @pytest.mark.parametrize(
+        "settings_content,module_structure,expected_path",
+        [
+            (SETTINGS_FILE_WITH_REMOTE_VARS, None, f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG"),
+            (
+                SETTINGS_FILE_WITH_REMOTE_VARS,
+                "nested.config.module",
+                f"nested.config.module.{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG",
+            ),
+        ],
+    )
+    def test_load_logging_config_module_paths(
+        self, settings_content: str, module_structure: str, expected_path: str
+    ):
+        """Test that load_logging_config works with different module path structures"""
+        dir_structure = module_structure.replace(".", "/") if module_structure else None
+
+        with settings_context(settings_content, dir_structure):
+            from airflow.logging_config import load_logging_config
+
+            logging_config, logging_class_path = load_logging_config()
+            self._verify_basic_logging_config(logging_config, logging_class_path, expected_path)
+
+    def test_load_logging_config_fallback_behavior(self):
+        """Test that load_logging_config falls back gracefully when remote logging vars are missing"""
+        with settings_context(SETTINGS_FILE_VALID):
+            from airflow.logging_config import load_logging_config
+
+            with patch("airflow.logging_config.log") as mock_log:
+                logging_config, logging_class_path = load_logging_config()
+
+                self._verify_basic_logging_config(
+                    logging_config, logging_class_path, f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG"
+                )
+
+                mock_log.info.mock_calls = [
+                    call(
+                        "Remote task logs will not be available due to an error:  %s",
+                    )
+                ]

@@ -206,6 +206,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         return self._get_response()
 
+    async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
+        """Send a request to the parent without blocking."""
+        raise NotImplementedError
+
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
 
@@ -497,7 +501,7 @@ class DagRunStateResult(DagRunStateResponse):
 
 
 class PreviousDagRunResult(BaseModel):
-    """Response containing previous DAG run information."""
+    """Response containing previous Dag run information."""
 
     dag_run: DagRun | None = None
     type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
@@ -547,7 +551,7 @@ class TaskStatesResult(TaskStatesResponse):
 
 
 class DRCount(BaseModel):
-    """Response containing count of DAG Runs matching certain filters."""
+    """Response containing count of Dag Runs matching certain filters."""
 
     count: int
     type: Literal["DRCount"] = "DRCount"
@@ -886,6 +890,18 @@ class UpdateHITLDetail(UpdateHITLDetailPayload):
     type: Literal["UpdateHITLDetail"] = "UpdateHITLDetail"
 
 
+class MaskSecret(BaseModel):
+    """Add a new value to be redacted in task logs."""
+
+    # This is needed since calls to `mask_secret` in the Task process will otherwise only add the mask value
+    # to the child process, but the redaction happens in the parent.
+    # We cannot use `string | Iterable | dict here` (would be more intuitive) because bug in Pydantic
+    # https://github.com/pydantic/pydantic/issues/9541 turns iterable into a ValidatorIterator
+    value: JsonValue
+    name: str | None = None
+    type: Literal["MaskSecret"] = "MaskSecret"
+
+
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
@@ -920,6 +936,7 @@ ToSupervisor = Annotated[
     | ResendLoggingFD
     | CreateHITLDetailPayload
     | UpdateHITLDetail
-    | GetHITLDetailResponse,
+    | GetHITLDetailResponse
+    | MaskSecret,
     Field(discriminator="type"),
 ]

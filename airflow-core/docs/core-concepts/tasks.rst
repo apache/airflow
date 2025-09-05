@@ -22,13 +22,13 @@ A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`
 
 There are three basic kinds of Task:
 
-* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your dags.
+* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your Dags.
 
 * :doc:`sensors`, a special subclass of Operators which are entirely about waiting for an external event to happen.
 
 * A :doc:`taskflow`-decorated ``@task``, which is a custom Python function packaged up as a Task.
 
-Internally, these are all actually subclasses of Airflow's ``BaseOperator``, and the concepts of Task and Operator are somewhat interchangeable, but it's useful to think of them as separate concepts - essentially, Operators and Sensors are *templates*, and when you call one in a DAG file, you're making a Task.
+Internally, these are all actually subclasses of Airflow's ``BaseOperator``, and the concepts of Task and Operator are somewhat interchangeable, but it's useful to think of them as separate concepts - essentially, Operators and Sensors are *templates*, and when you call one in a Dag file, you're making a Task.
 
 
 Relationships
@@ -63,9 +63,9 @@ Tasks don't pass information to each other by default, and run entirely independ
 Task Instances
 --------------
 
-Much in the same way that a DAG is instantiated into a :ref:`DAG Run <concepts-dag-run>` each time it runs, the tasks under a DAG are instantiated into *Task Instances*.
+Much in the same way that a Dag is instantiated into a :ref:`Dag Run <concepts-dag-run>` each time it runs, the tasks under a Dag are instantiated into *Task Instances*.
 
-An instance of a Task is a specific run of that task for a given DAG (and thus for a given data interval). They are also the representation of a Task that has *state*, representing what stage of the lifecycle it is in.
+An instance of a Task is a specific run of that task for a given Dag (and thus for a given data interval). They are also the representation of a Task that has *state*, representing what stage of the lifecycle it is in.
 
 .. _concepts:task-states:
 
@@ -83,7 +83,7 @@ The possible states for a Task Instance are:
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
 * ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`
-* ``removed``: The task has vanished from the DAG since the run started
+* ``removed``: The task has vanished from the Dag since the run started
 
 .. image:: /img/diagram_task_lifecycle.png
 
@@ -101,9 +101,9 @@ Firstly, it can have *upstream* and *downstream* tasks::
 
     task1 >> task2 >> task3
 
-When a DAG runs, it will create instances for each of these tasks that are upstream/downstream of each other, but which all have the same data interval.
+When a Dag runs, it will create instances for each of these tasks that are upstream/downstream of each other, but which all have the same data interval.
 
-There may also be instances of the *same task*, but for different data intervals - from other runs of the same DAG. We call these *previous* and *next* - it is a different relationship to *upstream* and *downstream*!
+There may also be instances of the *same task*, but for different data intervals - from other runs of the same Dag. We call these *previous* and *next* - it is a different relationship to *upstream* and *downstream*!
 
 .. note::
 
@@ -153,7 +153,7 @@ is periodically executed and rescheduled until it succeeds.
 SLAs
 ----
 
-The SLA feature from Airflow 2 has been removed in 3.0 and will be replaced with a new implementation in Airflow 3.1
+The SLA feature from Airflow 2 has been removed in 3.0 and was replaced in Airflow 3.1 with :doc:`Deadlines Alerts <../howto/deadline-alerts>`.
 
 Special Exceptions
 ------------------
@@ -196,7 +196,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
     export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL=5
 
 
-2. Have a DAG with a task that takes about 10 minutes to complete(i.e. a long-running task). For example, you could use the below DAG:
+2. Have a Dag with a task that takes about 10 minutes to complete(i.e. a long-running task). For example, you could use the below Dag:
 
 .. code-block:: python
 
@@ -216,7 +216,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
     sleep_dag()
 
 
-Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout> seconds.
+Run the above Dag and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout> seconds.
 
 
 

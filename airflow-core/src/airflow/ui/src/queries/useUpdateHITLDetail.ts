@@ -24,8 +24,8 @@ import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   useHumanInTheLoopServiceGetHitlDetailsKey,
-  useHumanInTheLoopServiceGetMappedTiHitlDetailKey,
-  useHumanInTheLoopServiceUpdateMappedTiHitlDetail,
+  useHumanInTheLoopServiceGetHitlDetailKey,
+  useHumanInTheLoopServiceUpdateHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
@@ -53,7 +53,7 @@ export const useUpdateHITLDetail = ({
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
       [useHumanInTheLoopServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
-      [useHumanInTheLoopServiceGetMappedTiHitlDetailKey, { dagId, dagRunId }],
+      [useHumanInTheLoopServiceGetHitlDetailKey, { dagId, dagRunId }],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
@@ -72,7 +72,7 @@ export const useUpdateHITLDetail = ({
     });
   };
 
-  const { isPending, mutate } = useHumanInTheLoopServiceUpdateMappedTiHitlDetail({
+  const { isPending, mutate } = useHumanInTheLoopServiceUpdateHitlDetail({
     onError,
     onSuccess,
   });
@@ -82,7 +82,7 @@ export const useUpdateHITLDetail = ({
       mutate({
         dagId,
         dagRunId,
-        mapIndex: mapIndex ?? -1,
+        mapIndex,
         requestBody: {
           chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
           params_input: updateHITLResponseRequestBody.params_input ?? {},

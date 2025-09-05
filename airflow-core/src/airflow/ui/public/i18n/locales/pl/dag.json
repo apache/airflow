@@ -5,6 +5,33 @@
     "reason": "Powód",
     "title": "Zależności blokujące zaplanowanie zadania"
   },
+  "calendar": {
+    "daily": "Dziennie",
+    "hourly": "Godzinowo",
+    "legend": {
+      "less": "Mniej",
+      "more": "Więcej"
+    },
+    "navigation": {
+      "nextMonth": "Następny miesiąc",
+      "nextYear": "Następny rok",
+      "previousMonth": "Poprzedni miesiąc",
+      "previousYear": "Poprzedni rok"
+    },
+    "noData": "Brak danych",
+    "noRuns": "Brak wykonań",
+    "totalRuns": "Łączna liczba wykonań",
+    "week": "Tydzień {{weekNumber}}",
+    "weekdays": {
+      "friday": "Pt",
+      "monday": "Pn",
+      "saturday": "So",
+      "sunday": "Nd",
+      "thursday": "Cz",
+      "tuesday": "Wt",
+      "wednesday": "Śr"
+    }
+  },
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
@@ -39,6 +66,10 @@
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "navigation": "Przewiń: {{arrow}}",
+    "toggleGroup": "Przełącz grupę: Space"
+  },
   "overview": {
     "buttons": {
       "failedRun_few": "Nieudane wykonania",
@@ -68,8 +99,9 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
-      "showGraph": "Pokaż graf",
-      "showGrid": "Pokaż siatkę"
+      "showGantt": "Pokaż diagram Gantta",
+      "showGraphShortcut": "Pokaż graf (naciśnij g)",
+      "showGridShortcut": "Pokaż siatkę (naciśnij g)"
     },
     "dagRuns": {
       "label": "Liczba wykonań Daga"
@@ -104,6 +136,7 @@
     "assetEvents": "Zdarzenia zasobów",
     "auditLog": "Log audytu",
     "backfills": "Wypełnienia wsteczne",
+    "calendar": "Kalendarz",
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",

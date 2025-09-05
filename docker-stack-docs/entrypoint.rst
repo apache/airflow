@@ -169,7 +169,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
           backfill          Manage backfills
           config            View configuration
           connections       Manage connections
-          dags              Manage DAGs
+          dags              Manage Dags
           db                Database operations
           jobs              Manage jobs
           pools             Manage pools
