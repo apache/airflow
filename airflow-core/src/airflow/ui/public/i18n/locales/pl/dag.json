@@ -92,6 +92,8 @@
       "assetEvent_other": "Utworzone zdarzenia zasobów"
     },
     "failedLogs": {
+      "hideLogs": "Ukryj logi",
+      "showLogs": "🐌 🐌 Pokaż logi",
       "title": "Ostatnie logi nieudanych zadań",
       "viewFullLogs": "Zobacz pełne logi"
     }
