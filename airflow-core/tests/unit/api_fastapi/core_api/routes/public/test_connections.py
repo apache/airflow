@@ -232,6 +232,20 @@ class TestGetConnections(TestConnectionEndpoint):
         response = unauthorized_test_client.get("/connections", params={})
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_connections"
+    )
+    def test_should_call_get_authorized_connections(self, mock_get_authorized_connections, test_client):
+        self.create_connections()
+        mock_get_authorized_connections.return_value = {TEST_CONN_ID}
+        response = test_client.get("/connections")
+        mock_get_authorized_connections.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 1
+        assert [connection["connection_id"] for connection in body["connections"]] == [TEST_CONN_ID]
+
 
 class TestPostConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(

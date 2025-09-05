@@ -308,6 +308,20 @@ class TestGetVariables(TestVariableEndpoint):
         response = unauthorized_test_client.get("/variables")
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_variables"
+    )
+    def test_should_call_get_authorized_variables(self, mock_get_authorized_variables, test_client):
+        self.create_variables()
+        mock_get_authorized_variables.return_value = {TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2}
+        response = test_client.get("/variables")
+        mock_get_authorized_variables.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [variable["key"] for variable in body["variables"]] == [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2]
+
 
 class TestPatchVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact

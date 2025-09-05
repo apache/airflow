@@ -38,7 +38,11 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_variable, requires_access_variable_bulk
+from airflow.api_fastapi.core_api.security import (
+    ReadableVariablesFilterDep,
+    requires_access_variable,
+    requires_access_variable_bulk,
+)
 from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
@@ -99,13 +103,14 @@ def get_variables(
             ).dynamic_depends()
         ),
     ],
+    readable_variables_filter: ReadableVariablesFilterDep,
     session: SessionDep,
-    varaible_key_pattern: QueryVariableKeyPatternSearch,
+    variable_key_pattern: QueryVariableKeyPatternSearch,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
         statement=select(Variable),
-        filters=[varaible_key_pattern],
+        filters=[variable_key_pattern, readable_variables_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
