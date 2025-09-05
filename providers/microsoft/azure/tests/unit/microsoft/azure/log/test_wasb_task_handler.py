@@ -59,11 +59,6 @@ class TestWasbRemoteLogIO:
         # setup task instance
         self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
 
-    def test_stream(self):
-        """Test that the stream method raises NotImplementedError."""
-        with pytest.raises(NotImplementedError):
-            self.wasb_remote_log_io.stream("some/log/path", self.ti)
-
 
 class TestWasbTaskHandler:
     @pytest.fixture(autouse=True)
