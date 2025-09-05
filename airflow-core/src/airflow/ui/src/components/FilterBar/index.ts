@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-export { capitalize } from "./capitalize";
-export { getDuration, renderDuration } from "./datetimeUtils";
-export { getMetaKey } from "./getMetaKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
+export { FilterBar } from "./FilterBar";
+export { FilterPill } from "./FilterPill";
+export { defaultFilterIcons, getDefaultFilterIcon } from "./defaultIcons";
+export { DateFilter } from "./filters/DateFilter";
+export { NumberFilter } from "./filters/NumberFilter";
+export { TextSearchFilter } from "./filters/TextSearchFilter";
+export type * from "./types";

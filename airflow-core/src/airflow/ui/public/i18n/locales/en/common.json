@@ -52,6 +52,7 @@
     "tags": "Tags"
   },
   "dagId": "Dag ID",
+  "dagName": "Dag Name",
   "dagRun": {
     "conf": "Conf",
     "dagVersions": "Dag Version(s)",

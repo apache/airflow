@@ -2,7 +2,12 @@
   "admin": {},
   "assets": {},
   "browse": {},
-  "common": {},
+  "common": {
+    "filters": {
+      "filter": "Filter",
+      "reset": "Reset"
+    }
+  },
   "components": {},
   "dag": {},
   "dags": {},
