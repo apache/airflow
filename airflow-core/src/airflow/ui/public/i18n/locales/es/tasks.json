@@ -1,0 +1,10 @@
+{
+  "mapped": "Tareas mapeadas",
+  "notMapped": "No mapeadas",
+  "retries": "Reintentos",
+  "searchTasks": "Buscar tareas",
+  "selectMapped": "Seleccionar tareas mapeadas",
+  "selectOperator": "Seleccionar operadores",
+  "selectRetryValues": "Seleccionar valores de reintento",
+  "selectTriggerRules": "Seleccionar reglas de activación"
+}
