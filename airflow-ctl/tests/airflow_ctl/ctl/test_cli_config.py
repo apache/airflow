@@ -252,8 +252,6 @@ class TestCommandFactory:
             for sub_command in generated_group_command.subcommands:
                 if sub_command.name == "create":
                     for arg, test_arg in zip(sub_command.args, test_args_create):
-                        print(f"{arg.flags[0]} - {test_arg[0]}")
-                        print(f"type(arg.kwargs['type']): {arg.kwargs['type']} - {test_arg[1]['type']}")
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
                         assert arg.kwargs["action"] == test_arg[1]["action"]
