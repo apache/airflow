@@ -46,7 +46,7 @@ import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
-import { system } from "src/theme";
+import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
@@ -92,6 +92,38 @@ export const Gantt = ({ limit }: Props) => {
   ]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
+
+  // Get all possible task state colors using the correct semantic token names
+  const taskStateColors = useToken("colors", [
+    "success.solid",
+    "failed.solid", 
+    "queued.solid",
+    "scheduled.solid",
+    "running.solid",
+    "restarting.solid",
+    "up_for_retry.solid",
+    "up_for_reschedule.solid",
+    "upstream_failed.solid",
+    "skipped.solid",
+    "deferred.solid",
+    "removed.solid",
+  ]);
+
+  // Create a mapping of state to color using computed CSS variable values
+  const stateColorMap = {
+    success: getComputedCSSVariableValue(taskStateColors[0] || "oklch(0.5 0 0)"),
+    failed: getComputedCSSVariableValue(taskStateColors[1] || "oklch(0.5 0 0)"),
+    queued: getComputedCSSVariableValue(taskStateColors[2] || "oklch(0.5 0 0)"),
+    scheduled: getComputedCSSVariableValue(taskStateColors[3] || "oklch(0.5 0 0)"),
+    running: getComputedCSSVariableValue(taskStateColors[4] || "oklch(0.5 0 0)"),
+    restarting: getComputedCSSVariableValue(taskStateColors[5] || "oklch(0.5 0 0)"),
+    up_for_retry: getComputedCSSVariableValue(taskStateColors[6] || "oklch(0.5 0 0)"),
+    up_for_reschedule: getComputedCSSVariableValue(taskStateColors[7] || "oklch(0.5 0 0)"),
+    upstream_failed: getComputedCSSVariableValue(taskStateColors[8] || "oklch(0.5 0 0)"),
+    skipped: getComputedCSSVariableValue(taskStateColors[9] || "oklch(0.5 0 0)"),
+    deferred: getComputedCSSVariableValue(taskStateColors[10] || "oklch(0.5 0 0)"),
+    removed: getComputedCSSVariableValue(taskStateColors[11] || "oklch(0.5 0 0)"),
+  };
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({ limit });
@@ -177,8 +209,7 @@ export const Gantt = ({ limit }: Props) => {
       datasets: [
         {
           backgroundColor: data.map(
-            (dataItem) =>
-              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state}.600`)?.value as string,
+            (dataItem) => stateColorMap[dataItem.state as keyof typeof stateColorMap] || stateColorMap.scheduled,
           ),
           data,
           maxBarThickness: CHART_ROW_HEIGHT,
@@ -187,7 +218,7 @@ export const Gantt = ({ limit }: Props) => {
       ],
       labels: [],
     }),
-    [data],
+    [data, stateColorMap],
   );
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
