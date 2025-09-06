@@ -25,13 +25,12 @@ import type { CalendarCellData } from "./types";
 
 type Props = {
   readonly backgroundColor: Record<string, string> | string;
-  readonly content: string;
   readonly index?: number;
   readonly marginRight?: string;
   readonly cellData?: CalendarCellData; // For rich tooltip content
 };
 
-export const CalendarCell = ({ backgroundColor, content, index, marginRight, cellData }: Props) => {
+export const CalendarCell = ({ backgroundColor, index, marginRight, cellData }: Props) => {
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
 
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
@@ -49,7 +48,7 @@ export const CalendarCell = ({ backgroundColor, content, index, marginRight, cel
         marginRight={computedMarginRight}
         width="14px"
       />
-      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : content} />
+      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : ""} />
     </Box>
   );
 };
