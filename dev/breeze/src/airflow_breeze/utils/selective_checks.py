@@ -85,12 +85,15 @@ LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-
+ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
+
+# Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
+FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = True
 
 
 class FileGroupForCi(Enum):
@@ -125,6 +128,7 @@ class FileGroupForCi(Enum):
     ASSET_FILES = "asset_files"
     UNIT_TEST_FILES = "unit_test_files"
     DEVEL_TOML_FILES = "devel_toml_files"
+    UI_ENGLISH_TRANSLATION_FILES = "ui_english_translation_files"
 
 
 class AllProvidersSentinel:
@@ -298,6 +302,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
+        ],
+        FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
+            r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
         ],
     }
 )
@@ -1518,3 +1525,31 @@ class SelectiveChecks:
     @cached_property
     def shared_distributions_as_json(self):
         return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])
+
+    @cached_property
+    def ui_english_translation_changed(self) -> bool:
+        _translation_changed = bool(
+            self._matching_files(
+                FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES,
+                CI_FILE_GROUP_MATCHES,
+            )
+        )
+        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed:
+            if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
+                get_console().print(
+                    "[warning]The 'allow translation change' label is set and English "
+                    "translation files changed. Bypassing the freeze period."
+                )
+                return True
+            get_console().print(
+                "[error]English translation changed but we are in a period of translation"
+                "freeze and label to allow it ('allow translation change') is not set"
+            )
+            get_console().print()
+            get_console().print(
+                "[warning]To allow translation change, please set the label "
+                "'allow translation change' on the PR, but this has to be communicated "
+                "and agreed to at the #i18n channel in slack"
+            )
+            sys.exit(1)
+        return _translation_changed
