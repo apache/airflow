@@ -120,8 +120,10 @@ class Callback(ABC):
     path: str
     kwargs: dict | None
 
-    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+    def __init__(self, callback_callable: Callable | str, kwargs: dict[str, Any] | None = None):
         self.path = self.get_callback_path(callback_callable)
+        if kwargs and "context" in kwargs:
+            raise ValueError("context is a reserved kwarg for this class")
         self.kwargs = kwargs
 
     @classmethod
