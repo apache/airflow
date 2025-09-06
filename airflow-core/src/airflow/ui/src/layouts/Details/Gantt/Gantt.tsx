@@ -228,7 +228,7 @@ export const Gantt = ({ limit }: Props) => {
   }
 
   return (
-    <Box height={`${fixedHeight}px`} minW="200px" ml={-2} mt={36} w="100%">
+    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} mt={36} w="100%">
       <Bar
         data={chartData}
         options={chartOptions}
