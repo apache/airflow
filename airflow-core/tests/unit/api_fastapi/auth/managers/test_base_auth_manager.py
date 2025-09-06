@@ -326,42 +326,226 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_per_dag, dag_ids, expected",
+        "access_per_dag, access_per_team, rows, expected",
         [
+            # Without teams
             # No access to any dag
             (
                 {},
-                ["dag1", "dag2"],
+                {},
+                [("dag1", None), ("dag2", None)],
                 set(),
             ),
             # Access to specific dags
             (
                 {"dag1": True},
-                ["dag1", "dag2"],
+                {},
+                [("dag1", None), ("dag2", None)],
                 {"dag1"},
+            ),
+            # With teams
+            # No access to any dag
+            (
+                {},
+                {},
+                [("dag1", "team1"), ("dag2", "team2")],
+                set(),
+            ),
+            # Access to a specific team
+            (
+                {},
+                {"team1": True},
+                [("dag1", "team1"), ("dag2", "team1"), ("dag3", "team2")],
+                {"dag1", "dag2"},
             ),
         ],
     )
-    def test_get_authorized_dag_ids(self, auth_manager, access_per_dag: dict, dag_ids: list, expected: set):
+    def test_get_authorized_dag_ids(
+        self, auth_manager, access_per_dag: dict, access_per_team: dict, rows: list, expected: set
+    ):
         def side_effect_func(
             *,
             method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
             access_entity: DagAccessEntity | None = None,
             details: DagDetails | None = None,
-            user: BaseAuthManagerUserTest | None = None,
         ):
             if not details:
                 return False
-            return access_per_dag.get(details.id, False)
+            return access_per_dag.get(details.id, False) or access_per_team.get(details.team_name, False)
 
         auth_manager.is_authorized_dag = MagicMock(side_effect=side_effect_func)
         user = Mock()
         session = Mock()
-        dags = []
-        for dag_id in dag_ids:
-            mock = Mock()
-            mock.dag_id = dag_id
-            dags.append(mock)
-        session.execute.return_value = dags
+        session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_dag_ids(user=user, session=session)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "access_per_connection, access_per_team, rows, expected",
+        [
+            # Without teams
+            # No access to any connection
+            (
+                {},
+                {},
+                [("conn1", None), ("conn2", None)],
+                set(),
+            ),
+            # Access to specific connections
+            (
+                {"conn1": True},
+                {},
+                [("conn1", None), ("conn2", None)],
+                {"conn1"},
+            ),
+            # With teams
+            # No access to any connection
+            (
+                {},
+                {},
+                [("conn1", "team1"), ("conn2", "team2")],
+                set(),
+            ),
+            # Access to a specific team
+            (
+                {},
+                {"team1": True},
+                [("conn1", "team1"), ("conn2", "team1"), ("conn3", "team2")],
+                {"conn1", "conn2"},
+            ),
+        ],
+    )
+    def test_get_authorized_connections(
+        self, auth_manager, access_per_connection: dict, access_per_team: dict, rows: list, expected: set
+    ):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: ConnectionDetails | None = None,
+        ):
+            if not details:
+                return False
+            return access_per_connection.get(details.conn_id, False) or access_per_team.get(
+                details.team_name, False
+            )
+
+        auth_manager.is_authorized_connection = MagicMock(side_effect=side_effect_func)
+        user = Mock()
+        session = Mock()
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_connections(user=user, session=session)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "access_per_variable, access_per_team, rows, expected",
+        [
+            # Without teams
+            # No access to any variable
+            (
+                {},
+                {},
+                [("var1", None), ("var2", None)],
+                set(),
+            ),
+            # Access to specific variables
+            (
+                {"var1": True},
+                {},
+                [("var1", None), ("var2", None)],
+                {"var1"},
+            ),
+            # With teams
+            # No access to any variable
+            (
+                {},
+                {},
+                [("var1", "team1"), ("var2", "team2")],
+                set(),
+            ),
+            # Access to a specific team
+            (
+                {},
+                {"team1": True},
+                [("var1", "team1"), ("var2", "team1"), ("var3", "team2")],
+                {"var1", "var2"},
+            ),
+        ],
+    )
+    def test_get_authorized_variables(
+        self, auth_manager, access_per_variable: dict, access_per_team: dict, rows: list, expected: set
+    ):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: VariableDetails | None = None,
+        ):
+            if not details:
+                return False
+            return access_per_variable.get(details.key, False) or access_per_team.get(
+                details.team_name, False
+            )
+
+        auth_manager.is_authorized_variable = MagicMock(side_effect=side_effect_func)
+        user = Mock()
+        session = Mock()
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_variables(user=user, session=session)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "access_per_pool, access_per_team, rows, expected",
+        [
+            # Without teams
+            # No access to any pool
+            (
+                {},
+                {},
+                [("pool1", None), ("pool2", None)],
+                set(),
+            ),
+            # Access to specific pools
+            (
+                {"pool1": True},
+                {},
+                [("pool1", None), ("pool2", None)],
+                {"pool1"},
+            ),
+            # With teams
+            # No access to any pool
+            (
+                {},
+                {},
+                [("pool1", "team1"), ("pool2", "team2")],
+                set(),
+            ),
+            # Access to a specific team
+            (
+                {},
+                {"team1": True},
+                [("pool1", "team1"), ("pool2", "team1"), ("pool3", "team2")],
+                {"pool1", "pool2"},
+            ),
+        ],
+    )
+    def test_get_authorized_pools(
+        self, auth_manager, access_per_pool: dict, access_per_team: dict, rows: list, expected: set
+    ):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: PoolDetails | None = None,
+        ):
+            if not details:
+                return False
+            return access_per_pool.get(details.name, False) or access_per_team.get(details.team_name, False)
+
+        auth_manager.is_authorized_pool = MagicMock(side_effect=side_effect_func)
+        user = Mock()
+        session = Mock()
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_pools(user=user, session=session)
         assert result == expected

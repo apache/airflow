@@ -40,7 +40,11 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_pool, requires_access_pool_bulk
+from airflow.api_fastapi.core_api.security import (
+    ReadablePoolsFilterDep,
+    requires_access_pool,
+    requires_access_pool_bulk,
+)
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
@@ -103,12 +107,13 @@ def get_pools(
         Depends(SortParam(["id", "pool"], Pool, to_replace={"name": "pool"}).dynamic_depends()),
     ],
     pool_name_pattern: QueryPoolNamePatternSearch,
+    readable_pools_filter: ReadablePoolsFilterDep,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
-        filters=[pool_name_pattern],
+        filters=[pool_name_pattern, readable_pools_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
