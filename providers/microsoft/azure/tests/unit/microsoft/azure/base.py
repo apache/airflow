@@ -16,24 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
+from collections.abc import Callable
+from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
+from asgiref.sync import sync_to_async
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
-
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 class Base:
@@ -41,13 +34,24 @@ class Base:
         KiotaRequestAdapterHook.cached_request_adapters.clear()
 
     @contextmanager
+    def patch_hook(self, side_effect: Callable = get_airflow_connection):
+        with ExitStack() as stack:
+            patches = [
+                patch.object(BaseHook, "get_connection", side_effect=side_effect),
+                patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(side_effect))
+                if hasattr(BaseHook, "aget_connection")
+                else None,
+            ]
+            entered = [stack.enter_context(p) for p in patches if p is not None]
+            yield entered  # expose entered mocks to the caller
+
+    @contextmanager
     def patch_hook_and_request_adapter(self, response):
-        with (
-            patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response,
-        ):
-            if isinstance(response, Exception):
-                mock_get_http_response.side_effect = response
-            else:
-                mock_get_http_response.return_value = response
-            yield
+        with self.patch_hook() as hook_mocks:
+            with patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
+                if isinstance(response, Exception):
+                    mock_get_http_response.side_effect = response
+                else:
+                    mock_get_http_response.return_value = response
+
+                yield [*hook_mocks, mock_get_http_response]
