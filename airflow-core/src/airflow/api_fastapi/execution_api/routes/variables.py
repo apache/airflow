@@ -55,7 +55,7 @@ log = logging.getLogger(__name__)
 
 
 @router.get(
-    "/{variable_key}",
+    "/{variable_key:path}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
@@ -78,7 +78,7 @@ def get_variable(variable_key: str) -> VariableResponse:
 
 
 @router.put(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -92,7 +92,7 @@ def put_variable(variable_key: str, body: VariablePostBody):
 
 
 @router.delete(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
