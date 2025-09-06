@@ -31,6 +31,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
+import pendulum
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
@@ -75,6 +76,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -85,6 +87,11 @@ if TYPE_CHECKING:
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
     from requests import Session
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk.definitions.context import Context
+    else:
+        from airflow.utils.context import Context
 
 log = logging.getLogger(__name__)
 
@@ -1274,7 +1281,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_api_repr.result(timeout=timeout, retry=retry)
         return job_api_repr
 
-    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False) -> str:
+    def generate_job_id(self, job_id, dag_id, task_id, date, configuration, force_rerun=False) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -1285,9 +1292,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if job_id:
             return f"{job_id}_{uniqueness_suffix}"
 
-        exec_date = logical_date.isoformat()
+        exec_date = date.isoformat()
         job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
+
+    def get_exec_date(self, context: Context) -> pendulum.DateTime:
+        date = context.get("logical_date", None)
+        if AIRFLOW_V_3_0_PLUS and date is None:
+            if dag_run := context.get("dag_run"):
+                date = pendulum.instance(dag_run.run_after)
+        return date if date is not None else pendulum.now("UTC")
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
