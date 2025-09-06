@@ -61,13 +61,15 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             },
         )
 
-    def get_hook(self) -> DbApiHook:
+    async def get_hook(self) -> DbApiHook:
         """
         Return DbApiHook.
 
         :return: DbApiHook for this connection
         """
-        connection = BaseHook.get_connection(self.conn_id)
+        from asgiref.sync import sync_to_async
+
+        connection = await sync_to_async(BaseHook.get_connection)(conn_id=self.conn_id)
         hook = connection.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
@@ -81,7 +83,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            hook = self.get_hook()
+            hook = await self.get_hook()
 
             self.log.info("Extracting data from %s", self.conn_id)
             self.log.info("Executing: \n %s", self.sql)

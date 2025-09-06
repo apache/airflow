@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
@@ -52,3 +54,16 @@ class TestSQLExecuteQueryTrigger:
         assert isinstance(actual[0], TriggerEvent)
         assert actual[0].payload["status"] == "success"
         assert actual[0].payload["results"] == data
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    async def test_get_hook(self, mock_get_connection):
+        mock_connection = mock.MagicMock(spec=Connection)
+        mock_hook = mock.MagicMock(spec=DbApiHook)
+        mock_get_connection.return_value = mock_connection
+        mock_connection.get_hook.side_effect = lambda hook_params: mock_hook
+
+        trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
+        actual = await trigger.get_hook()
+
+        assert actual == mock_hook
