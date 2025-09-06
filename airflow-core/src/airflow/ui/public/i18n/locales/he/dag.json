@@ -74,14 +74,18 @@
     "buttons": {
       "failedRun_one": "ריצה שנכשלה",
       "failedRun_other": "ריצות שנכשלו",
+      "failedRun_two": "ריצות שנכשלו",
       "failedTask_one": "משימה שנכשלה",
       "failedTask_other": "משימות שנכשלו",
+      "failedTask_two": "משימות שנכשלו",
       "failedTaskInstance_one": "מופע משימה שנכשל",
-      "failedTaskInstance_other": "מופעי משימות שנכשלו"
+      "failedTaskInstance_other": "מופעי משימות שנכשלו",
+      "failedTaskInstance_two": "מופעי משימות שנכשלו"
     },
     "charts": {
       "assetEvent_one": "אירוע בנכס שנוצר",
-      "assetEvent_other": "אירועי בנכסים שנוצרו"
+      "assetEvent_other": "אירועי בנכסים שנוצרו",
+      "assetEvent_two": "אירועים בנכסים שנוצרו"
     },
     "failedLogs": {
       "hideLogs": "הסתר רישומים",
@@ -135,7 +139,8 @@
     "details": "פרטים",
     "logs": "רישומים",
     "mappedTaskInstances_one": "מופע משימה [{{count}}]",
-    "mappedTaskInstances_other": "מופעי משימות [{{count}}]",
+    "mappedTaskInstances_other": "מופעי משימה [{{count}}]",
+    "mappedTaskInstances_two": "מופעי משימה [{{count}}]",
     "overview": "סקירה כללית",
     "renderedTemplates": "תבניות מעובדות",
     "requiredActions": "פעולות נדרשות",
