@@ -33,6 +33,7 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
+import dayjs from "dayjs";
 import { useMemo, useRef } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
@@ -123,6 +124,8 @@ export const Gantt = ({ limit }: Props) => {
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
+  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
+
   const data = useMemo(() => {
     if (isLoading || runId === "") {
       return [];
@@ -153,6 +156,9 @@ export const Gantt = ({ limit }: Props) => {
           const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
           if (taskInstance) {
+            const hasTaskRunning = isStatePending(taskInstance.state);
+            const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
+
             return {
               isGroup: node.isGroup,
               isMapped: node.is_mapped,
@@ -160,7 +166,7 @@ export const Gantt = ({ limit }: Props) => {
               taskId: taskInstance.task_id,
               x: [
                 formatDate(taskInstance.start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-                formatDate(taskInstance.end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+                formatDate(endTime, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
               ],
               y: taskInstance.task_id,
             };
@@ -170,7 +176,7 @@ export const Gantt = ({ limit }: Props) => {
         return undefined;
       })
       .filter((item) => item !== undefined);
-  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
+  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
 
   const chartData = useMemo(
     () => ({
