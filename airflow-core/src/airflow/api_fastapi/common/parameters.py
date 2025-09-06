@@ -55,11 +55,10 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
-from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:

@@ -33,7 +33,13 @@ from airflow.providers.standard.utils.sensor_helper import (
     _get_count,
     _get_external_task_group_task_ids,
 )
-from airflow.utils.state import DagRunState, TaskInstanceState
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import DagRunState, TaskInstanceState
+else:
+    from airflow.utils.state import DagRunState, TaskInstanceState  # type: ignore[attr-defined,no-redef]
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db

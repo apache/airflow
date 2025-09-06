@@ -26,9 +26,9 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
 
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession

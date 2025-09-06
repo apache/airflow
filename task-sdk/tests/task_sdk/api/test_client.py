@@ -38,6 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunStateResponse,
     HITLDetailResponse,
+    TerminalTIState,
     VariableResponse,
     XComResponse,
 )
@@ -51,7 +52,6 @@ from airflow.sdk.execution_time.comms import (
     RescheduleTask,
     TaskRescheduleStartDate,
 )
-from airflow.utils.state import TerminalTIState
 
 if TYPE_CHECKING:
     from time_machine import TimeMachineFixture

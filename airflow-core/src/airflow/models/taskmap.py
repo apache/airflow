@@ -28,9 +28,10 @@ from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, S
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

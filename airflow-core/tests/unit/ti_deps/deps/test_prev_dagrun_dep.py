@@ -23,10 +23,10 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 
 from airflow._shared.timezones.timezone import convert_to_utc, datetime
+from airflow.models.taskinstance import DagRunState, TaskInstanceState
 from airflow.sdk import DAG, BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
-from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db

@@ -36,6 +36,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -56,7 +57,6 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_ta
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
 from airflow.utils.file import iter_airflow_imports
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger

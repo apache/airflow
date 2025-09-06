@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from airflow._shared.timezones import timezone
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
 
 
 class ReadyToRescheduleDep(BaseTIDep):
