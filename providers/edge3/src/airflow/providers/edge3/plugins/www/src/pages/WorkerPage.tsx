@@ -17,7 +17,11 @@
  * under the License.
  */
 import { Box, Table } from "@chakra-ui/react";
-import { useUiServiceWorker } from "openapi/queries";
+import {
+  useUiServiceWorker,
+  useUiServiceRequestWorkerMaintenance,
+  useUiServiceExitWorkerMaintenance,
+} from "openapi/queries";
 import { useState } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -32,80 +36,40 @@ export const WorkerPage = () => {
   });
   const [activeMaintenanceForm, setActiveMaintenanceForm] = useState<string | null>(null);
 
-  const requestMaintenance = async (workerName: string, comment: string) => {
-    try {
-      console.log(`Requesting maintenance for worker: ${workerName}, comment: ${comment}`);
-
-      // Get CSRF token from meta tag (common Airflow pattern)
-      const csrfToken =
-        document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
-        document.querySelector('input[name="csrf_token"]')?.getAttribute("value");
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      // Add CSRF token if available
-      if (csrfToken) {
-        headers["X-CSRFToken"] = csrfToken;
-      }
-
-      const response = await fetch(`/edge_worker/ui/worker/${workerName}/maintenance`, {
-        body: JSON.stringify({ maintenance_comment: comment }),
-        credentials: "same-origin",
-        headers,
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Maintenance request failed:", response.status, errorText);
-        throw new Error(`Failed to request maintenance: ${response.status} ${errorText}`);
-      }
-
+  const requestMaintenanceMutation = useUiServiceRequestWorkerMaintenance({
+    onError: (error) => {
+      console.error("Error requesting maintenance:", error);
+      alert(`Error requesting maintenance: ${error}`);
+    },
+    onSuccess: () => {
       console.log("Maintenance request successful");
       setActiveMaintenanceForm(null);
       refetch();
-    } catch (error) {
-      console.error("Error requesting maintenance:", error);
-      alert(`Error requesting maintenance: ${error}`);
-    }
-  };
+    },
+  });
 
-  const exitMaintenance = async (workerName: string) => {
-    try {
-      console.log(`Exiting maintenance for worker: ${workerName}`);
-
-      // Get CSRF token from meta tag (common Airflow pattern)
-      const csrfToken =
-        document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
-        document.querySelector('input[name="csrf_token"]')?.getAttribute("value");
-
-      const headers: Record<string, string> = {};
-
-      // Add CSRF token if available
-      if (csrfToken) {
-        headers["X-CSRFToken"] = csrfToken;
-      }
-
-      const response = await fetch(`/edge_worker/ui/worker/${workerName}/maintenance`, {
-        credentials: "same-origin",
-        headers,
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Exit maintenance failed:", response.status, errorText);
-        throw new Error(`Failed to exit maintenance: ${response.status} ${errorText}`);
-      }
-
-      console.log("Exit maintenance successful");
-      refetch();
-    } catch (error) {
+  const exitMaintenanceMutation = useUiServiceExitWorkerMaintenance({
+    onError: (error) => {
       console.error("Error exiting maintenance:", error);
       alert(`Error exiting maintenance: ${error}`);
-    }
+    },
+    onSuccess: () => {
+      console.log("Exit maintenance successful");
+      refetch();
+    },
+  });
+
+  const requestMaintenance = (workerName: string, comment: string) => {
+    console.log(`Requesting maintenance for worker: ${workerName}, comment: ${comment}`);
+    requestMaintenanceMutation.mutate({
+      requestBody: { maintenance_comment: comment },
+      workerName,
+    });
+  };
+
+  const exitMaintenance = (workerName: string) => {
+    console.log(`Exiting maintenance for worker: ${workerName}`);
+    exitMaintenanceMutation.mutate({ workerName });
   };
 
   // TODO to make it proper
