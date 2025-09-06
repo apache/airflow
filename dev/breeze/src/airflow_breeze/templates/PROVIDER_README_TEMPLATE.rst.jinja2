@@ -102,6 +102,16 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 {{ CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST | safe }}
 
 {%- endif %}
+{%- if OPTIONAL_DEPENDENCIES %}
+
+Optional dependencies
+----------------------
+
+{%- for extra_name, dependencies in OPTIONAL_DEPENDENCIES.items() %}
+``{{ extra_name }}`` : {{ ", ".join(dependencies) }}
+{%- endfor %}
+
+{%- endif %}
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/changelog.html>`_.

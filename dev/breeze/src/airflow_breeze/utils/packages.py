@@ -292,6 +292,11 @@ def get_provider_requirements(provider_id: str) -> list[str]:
     return package_metadata["dependencies"] if package_metadata else []
 
 
+def get_provider_optional_dependencies(provider_id: str) -> dict[str, list[str]]:
+    package_metadata = get_provider_distributions_metadata().get(provider_id)
+    return package_metadata.get("optional-dependencies", {}) if package_metadata else {}
+
+
 @lru_cache
 def get_available_distributions(
     include_non_provider_doc_packages: bool = False,
@@ -679,6 +684,7 @@ def get_provider_jinja_context(
         ),
         "REQUIRES_PYTHON": requires_python_version,
         "EXTRA_PROJECT_METADATA": provider_details.extra_project_metadata,
+        "OPTIONAL_DEPENDENCIES": get_provider_optional_dependencies(provider_id),
     }
     return context
 
