@@ -27,6 +27,7 @@ import operator
 import re
 import subprocess
 import sys
+import textwrap
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -45,7 +46,14 @@ from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_bagged_dag, suppress_logs_and_warning, validate_dag_bundle_arg
+from airflow.utils.cli import (
+    get_bagged_dag,
+    get_dags,
+    process_subdir,
+    suppress_logs_and_warning,
+    validate_dag_bundle_arg,
+)
+from airflow.utils.dates import cron_presets
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.platform import getuser
@@ -664,6 +672,139 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 
     if dr and dr.state == DagRunState.FAILED:
         raise SystemExit("DagRun failed")
+
+
+def _get_schedule_info(dag: DAG) -> str | None:
+    """Extract and format schedule information from a Dag."""
+    try:
+        # Try to get schedule from different possible attributes
+        schedule = getattr(dag, "schedule", None) or getattr(dag, "schedule_interval", None)
+
+        if schedule is None:
+            return "Manual (no schedule)"
+
+        # Handle different schedule types
+        if isinstance(schedule, str):
+            # Cron expressions or preset schedules
+            # Preset schedules like @daily, @hourly
+            preset_map = {
+                "@once": "Once",
+                "@hourly": f"Hourly {cron_presets['@hourly']}",
+                "@daily": f"Daily {cron_presets['@daily']}",
+                "@weekly": f"Weekly {cron_presets['@weekly']}",
+                "@monthly": f"Monthly {cron_presets['@monthly']}",
+                "@quarterly": f"Quarterly {cron_presets['@quarterly']}",
+                "@yearly": f"Quarterly {cron_presets['@yearly']}",
+            }
+            return preset_map.get(schedule, schedule, f"Cron: `{schedule}`")
+
+        # Handle timedelta objects
+        if hasattr(schedule, "total_seconds"):
+            seconds = schedule.total_seconds()
+            if seconds >= 86400:  # 24 hours
+                days = int(seconds // 86400)
+                return f"Every {days} day{'s' if days > 1 else ''}"
+            if seconds >= 3600:  # 1 hour
+                hours = int(seconds // 3600)
+                return f"Every {hours} hour{'s' if hours > 1 else ''}"
+            if seconds >= 60:  # 1 minute
+                minutes = int(seconds // 60)
+                return f"Every {minutes} minute{'s' if minutes > 1 else ''}"
+            return f"Every {int(seconds)} second{'s' if seconds > 1 else ''}"
+
+        # Handle timetable objects
+        if getattr(dag, "timetable", None):
+            timetable = dag.timetable
+            # Try to get a description from the timetable
+            if hasattr(timetable, "description"):
+                return timetable.description
+            if hasattr(timetable, "summary"):
+                return timetable.summary
+            return str(timetable.__class__.__name__)
+
+        # Handle dataset schedules
+        if hasattr(schedule, "__iter__") and not isinstance(schedule, str):
+            # Likely a dataset schedule (list/set of datasets)
+            try:
+                datasets = list(schedule)
+                if datasets:
+                    dataset_names = [str(ds) for ds in datasets]
+                    return f"Dataset-triggered: {', '.join(dataset_names)}"
+            except TypeError:
+                pass
+
+        # Fallback to string representation
+        return str(schedule)
+
+    except Exception:
+        # If anything fails, return None to skip schedule info
+        return None
+
+
+@cli_utils.action_cli
+@suppress_logs_and_warning
+@providers_configuration_loaded
+def dag_docs(args) -> None:
+    """Display Dag documentation (__doc_md__) at the command line."""
+    if args.dag_id:
+        # Get specific Dag
+        dags = get_dags(bundle_names=getattr(args, "bundle_name", None), dag_id=args.dag_id)
+    else:
+        # Get all Dags
+        dagbag = DagBag(process_subdir(getattr(args, "subdir", None)))
+        if dagbag.import_errors:
+            from rich import print as rich_print
+
+            rich_print(
+                "[red][bold]Error:[/bold] Failed to load all files. "
+                "For details, run `airflow dags list-import-errors`",
+                file=sys.stderr,
+            )
+        dags = sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id"))
+
+    # Generate markdown output
+    markdown_output: list[str] = []
+
+    if len(dags) > 1:
+        markdown_output.append("# DAG Documentation\n")
+
+    for dag in dags:
+        doc_md = getattr(dag, "__doc_md__", getattr(dag, "doc_md", None))
+
+        # Add Dag header
+        if len(dags) > 1:
+            markdown_output.append(f"## {dag.dag_id}\n")
+        else:
+            markdown_output.append(f"# {dag.dag_id}\n")
+
+        # Add schedule information
+        schedule_info = _get_schedule_info(dag)
+        if schedule_info:
+            markdown_output.append(f"**Schedule:** {schedule_info}\n\n")
+
+        # Add documentation content
+        if doc_md:
+            # Ensure proper spacing and formatting, dedent common whitespace
+            doc_content = textwrap.dedent(doc_md).strip()
+            markdown_output.append(f"{doc_content}\n\n")
+        else:
+            markdown_output.append("*No documentation available*\n\n")
+
+        # Add separator between Dags (except for the last one)
+        if len(dags) > 1 and dag != dags[-1]:
+            markdown_output.append("---\n")
+
+    # Output the markdown
+    markdown_content = "".join(markdown_output)
+
+    if args.output_file:
+        # Write to file
+        with open(args.output_file, "w", encoding="utf-8") as f:
+            f.write(markdown_content)
+        print(f"Dag documentation written to: {args.output_file}")
+    else:
+        # Print to stdout
+        print(markdown_content)
 
 
 @cli_utils.action_cli
