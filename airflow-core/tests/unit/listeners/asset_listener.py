@@ -23,7 +23,8 @@ import typing
 from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import Asset, AssetEvent
+    from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk.types import AssetEvent
 
 
 changed: list[Asset] = []

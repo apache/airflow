@@ -47,9 +47,9 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import (
         Asset,
         AssetAlias,
-        AssetEvent as PublicAssetEvent,
         AssetUniqueKey,
     )
+    from airflow.sdk.types import AssetEvent as PublicAssetEvent
 
 log = structlog.get_logger(__name__)
 

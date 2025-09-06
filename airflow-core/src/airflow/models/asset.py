@@ -810,7 +810,8 @@ class AssetEvent(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
     def to_public(self):
-        from airflow.sdk.definitions.asset import AssetEvent, AssetUniqueKey
+        from airflow.sdk.definitions.asset import AssetUniqueKey
+        from airflow.sdk.types import AssetEvent
 
         return AssetEvent(
             asset_key=AssetUniqueKey(name=self.name, uri=self.uri),
