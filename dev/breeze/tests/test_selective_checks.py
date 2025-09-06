@@ -2659,3 +2659,38 @@ def test_is_log_mocked_in_the_tests_not_fail_with_label(
         default_branch="main",
     )
     assert selective_checks.is_log_mocked_in_the_tests
+
+
+def test_ui_english_translation_changed_false():
+    selective_checks = SelectiveChecks(
+        files=("README.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed is False
+
+
+def test_ui_english_translation_changed_fail_on_change():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=(translation_file,),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).ui_english_translation_changed
+
+
+def test_ui_english_translation_changed_allowed_with_label():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    selective_checks = SelectiveChecks(
+        files=(translation_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("allow translation change",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed is True
