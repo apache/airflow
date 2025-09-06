@@ -51,5 +51,10 @@ with DAG(
     bash_task = BashOperator(
         task_id="bash_task",
         bash_command='echo "Here is the message: $message"',
-        env={"message": '{{ dag_run.conf.get("message") }}'},
+        # SECURITY NOTE: When using user-provided conf values in bash commands,
+        # always sanitize input to prevent command injection. This example escapes
+        # common bash special characters that could be used maliciously.
+        env={
+            "message": '{{ dag_run.conf.get("message", "") | replace("\\", "\\\\") | replace("\"", "\\\"") | replace("`", "\\`") | replace("$", "\\$") }}'
+        },
     )
