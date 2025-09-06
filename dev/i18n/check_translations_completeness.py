@@ -487,7 +487,7 @@ def cli(language: str | None = None, add_missing: bool = False):
     if not found_difference and not has_todos:
         console.print("\n[green]All translations are complete and consistent![/green]\n\n")
     else:
-        console.print("\n[red]Some translations are not consistent![/red]\n\n")
+        console.print("\n[red]Some translations are neither complete nor consistent![/red]\n\n")
 
 
 def add_missing_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
