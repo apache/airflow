@@ -424,7 +424,7 @@ labelPRBasedOnFilePath:
 
   area:Logging:
     - airflow-core/src/airflow/config_templates/airflow_local_settings.py
-    - airflow-core/tests/unit/core/test_logging_config.py
+    - shared/logging/**/*
     - airflow-core/src/airflow/utils/log/**/*
     - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
     - airflow-core/tests/unit/utils/log/**/*

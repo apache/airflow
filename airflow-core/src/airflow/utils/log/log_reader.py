@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import Generator, Iterator
 from datetime import datetime, timezone
@@ -25,7 +26,7 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
-from airflow.utils.log.file_task_handler import StructuredLogMessage
+from airflow.utils.log.file_task_handler import FileTaskHandler, StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -167,6 +168,10 @@ class TaskLogReader:
             """
             yield from logging.getLogger("airflow.task").handlers
             yield from logging.getLogger().handlers
+
+            fallback = FileTaskHandler(os.devnull)
+            fallback.name = task_log_reader
+            yield fallback
 
         return next((h for h in handlers() if h.name == task_log_reader), None)
 

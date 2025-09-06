@@ -27,10 +27,10 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import logging
 import traceback
 from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
+import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 def _create_orm_dags(

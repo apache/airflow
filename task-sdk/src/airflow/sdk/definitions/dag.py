@@ -1138,29 +1138,6 @@ class DAG:
         from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-        if TYPE_CHECKING:
-            from airflow.models.taskinstance import TaskInstance
-
-        def add_logger_if_needed(ti: TaskInstance):
-            """
-            Add a formatted logger to the task instance.
-
-            This allows all logs to surface to the command line, instead of into
-            a task file. Since this is a local test run, it is much better for
-            the user to see logs in the command line, rather than needing to
-            search for a log file.
-
-            :param ti: The task instance that will receive a logger.
-            """
-            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
-            handler = logging.StreamHandler(sys.stdout)
-            handler.level = logging.INFO
-            handler.setFormatter(format)
-            # only add log handler once
-            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
-                log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
-                ti.log.addHandler(handler)
-
         exit_stack = ExitStack()
 
         if conn_file_path or variable_file_path:
@@ -1291,7 +1268,6 @@ class DAG:
                     else:
                         # Run the task locally
                         try:
-                            add_logger_if_needed(ti)
                             if mark_success:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -139,14 +140,15 @@ class TestWasbTaskHandler:
         "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
         **{"return_value.read_file.side_effect": AzureHttpError("failed to connect", 404)},
     )
-    def test_wasb_read_raises(self, mock_hook):
+    def test_wasb_read_raises(self, mock_hook, caplog):
         handler = self.wasb_task_handler
-        with mock.patch.object(handler.io.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             handler.io.wasb_read(self.remote_log_location, return_error=True)
-            mock_error.assert_called_once_with(
-                "Could not read logs from remote/log/location/1.log",
-                exc_info=True,
-            )
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.message == "Could not read logs from remote/log/location/1.log"
+        assert rec.exc_info is not None
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     @mock.patch.object(WasbRemoteLogIO, "wasb_read")
@@ -180,17 +182,19 @@ class TestWasbTaskHandler:
             "text", self.container_name, self.remote_log_location, overwrite=True
         )
 
-    def test_write_raises(self):
+    def test_write_raises(self, caplog):
         handler = self.wasb_task_handler
-        with mock.patch.object(handler.io.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
                 mock_hook.return_value.load_string.side_effect = AzureHttpError("failed to connect", 404)
 
                 handler.io.write("text", self.remote_log_location, append=False)
 
-            mock_error.assert_called_once_with(
-                "Could not write logs to %s", "remote/log/location/1.log", exc_info=True
-            )
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.message == "Could not write logs to remote/log/location/1.log"
+        assert rec.exc_info is not None
 
     @pytest.mark.parametrize(
         "delete_local_copy, expected_existence_of_local_copy",

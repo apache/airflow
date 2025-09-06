@@ -24,8 +24,6 @@ import dataclasses
 import importlib
 import importlib.util
 import json
-import logging
-import logging.config
 import multiprocessing
 import os
 import pickle
@@ -48,7 +46,6 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow._shared.timezones import timezone
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -446,9 +443,6 @@ def timetable_plugin(monkeypatch):
 
 class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
-
-    def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):

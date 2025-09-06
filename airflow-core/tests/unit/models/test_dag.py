@@ -1567,7 +1567,6 @@ my_postgres_conn:
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
-    @pytest.mark.usefixtures("clear_all_logger_handlers")
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
@@ -1596,7 +1595,7 @@ my_postgres_conn:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
-            assert record.getMessage() == (
+            assert record.message == (
                 f"Failed to fetch run info after data interval {data_interval} "
                 f"for DAG 'test_next_dagrun_info_timetable_exception'"
             )
@@ -2537,7 +2536,6 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     assert expected_infos == list(iterator)
 
 
-@pytest.mark.usefixtures("clear_all_logger_handlers")
 def test_iter_dagrun_infos_between_error(caplog):
     start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
     end = pendulum.instance(DEFAULT_DATE)
@@ -2578,7 +2576,7 @@ def test_iter_dagrun_infos_between_error(caplog):
             f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
         ),
     ]
-    assert caplog.records[0].exc_info is not None, "should contain exception context"
+    assert caplog.entries[0].get("exc_info") is not None, "should contain exception context"
 
 
 @pytest.mark.parametrize(
