@@ -107,13 +107,12 @@ export const DailyCalendarView = ({ colorMode, data, selectedYear }: Props) => {
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {
-                  return <CalendarCell backgroundColor="transparent" content="" key={day.date} />;
+                  return <CalendarCell backgroundColor="transparent" key={day.date} />;
                 }
 
                 return (
                   <CalendarCell
                     backgroundColor={getCalendarCellColor(day.runs, colorMode)}
-                    content=""
                     cellData={day}
                     key={day.date}
                   />
