@@ -1027,7 +1027,7 @@ def _handle_current_task_success(
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
 
-    # Record success metrics - following the same pattern as ti_failures in airflow-core
+    # Record success metrics
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
