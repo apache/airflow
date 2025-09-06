@@ -66,10 +66,12 @@ if TYPE_CHECKING:
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
+    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.typing_compat import Self
 
     Operator: TypeAlias = BaseOperator | MappedOperator
@@ -1138,9 +1140,6 @@ class DAG:
         from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-        if TYPE_CHECKING:
-            from airflow.models.taskinstance import TaskInstance
-
         def add_logger_if_needed(ti: TaskInstance):
             """
             Add a formatted logger to the task instance.
@@ -1312,7 +1311,7 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti, task, run_triggerer=False):
+def _run_task(*, ti: TaskInstance, task: Operator, run_triggerer: bool = False) -> TaskRunResult | None:
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1350,8 +1349,7 @@ def _run_task(*, ti, task, run_triggerer=False):
             )
 
             msg = taskrun_result.msg
-            ti.set_state(taskrun_result.ti.state)
-            ti.task = taskrun_result.ti.task
+            ti.set_state(taskrun_result.state)
 
             if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 from airflow.utils.session import create_session
@@ -1381,6 +1379,7 @@ def _run_task(*, ti, task, run_triggerer=False):
             raise
 
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    return None
 
 
 def _run_inline_trigger(trigger, task_sdk_ti):
