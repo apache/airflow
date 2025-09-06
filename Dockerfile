@@ -1096,7 +1096,8 @@ function install_from_sources() {
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
         uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-download --no-managed-python
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -1140,8 +1141,10 @@ function install_from_sources() {
                 for project_folder in "${projects_with_devel_dependencies[@]}"; do
                     echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
                     set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" --constraint "${HOME}/constraints.txt" --group dev; then
-                        fallback_no_constraints_installation="true"
+                    if ! uv pip install --editable .  --directory "${project_folder}" \
+                        --constraint "${HOME}/constraints.txt" --group dev \
+                        --no-python-downloads --no-managed-python; then
+                            fallback_no_constraints_installation="true"
                     fi
                     set +x
                 done
@@ -1159,7 +1162,8 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+                --no-python-downloads --no-managed-python
             set +x
         fi
     fi
