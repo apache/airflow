@@ -75,7 +75,7 @@ const CHART_ROW_HEIGHT = 20;
 const MIN_BAR_WIDTH = 10;
 
 export const Gantt = ({ limit }: Props) => {
-  const { dagId = "", groupId: selectedGroupId, runId, taskId: selectedTaskId } = useParams();
+  const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
@@ -101,7 +101,7 @@ export const Gantt = ({ limit }: Props) => {
   // Get grid summaries for groups (which have min/max times)
   const { data: gridTiSummaries, isLoading: summariesLoading } = useGridTiSummaries({
     dagId,
-    runId: runId ?? "",
+    runId,
     state: selectedRun?.state,
   });
 
@@ -109,7 +109,7 @@ export const Gantt = ({ limit }: Props) => {
   const { data: taskInstancesData, isLoading: tiLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
-      dagRunId: runId ?? "~",
+      dagRunId: runId,
     },
     undefined,
     {
@@ -124,7 +124,7 @@ export const Gantt = ({ limit }: Props) => {
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
   const data = useMemo(() => {
-    if (isLoading || runId === undefined) {
+    if (isLoading || runId === "") {
       return [];
     }
 
@@ -135,10 +135,10 @@ export const Gantt = ({ limit }: Props) => {
       .map((node) => {
         const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
 
-        if (node.isGroup && gridSummary) {
-          // Group node - use min/max times from grid summary
+        if ((node.isGroup ?? node.is_mapped) && gridSummary) {
+          // Use min/max times from grid summary
           return {
-            isGroup: true,
+            isGroup: node.isGroup,
             isMapped: node.is_mapped,
             state: gridSummary.state,
             taskId: gridSummary.task_id,
@@ -154,7 +154,7 @@ export const Gantt = ({ limit }: Props) => {
 
           if (taskInstance) {
             return {
-              isGroup: false,
+              isGroup: node.isGroup,
               isMapped: node.is_mapped,
               state: taskInstance.state,
               taskId: taskInstance.task_id,
@@ -178,7 +178,8 @@ export const Gantt = ({ limit }: Props) => {
         {
           backgroundColor: data.map(
             (dataItem) =>
-              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state}.600`)?.value as string,
+              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state ?? "none"}.600`)
+                ?.value as string,
           ),
           data,
           maxBarThickness: CHART_ROW_HEIGHT,
@@ -222,7 +223,7 @@ export const Gantt = ({ limit }: Props) => {
     ],
   );
 
-  if (runId === undefined) {
+  if (runId === "") {
     return undefined;
   }
 

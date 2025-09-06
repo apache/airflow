@@ -490,6 +490,24 @@ class TestGetDags(TestDagEndpoint):
         response = unauthorized_test_client.get("/dags")
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        "filter_value, expected_ids",
+        [
+            (True, [DAG1_ID]),
+            (False, [DAG2_ID]),
+        ],
+    )
+    def test_get_dags_filter_has_import_errors(self, session, test_client, filter_value, expected_ids):
+        dag = session.get(DagModel, DAG1_ID)
+        dag.has_import_errors = True
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_import_errors": filter_value})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
 
 class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
@@ -564,6 +582,21 @@ class TestPatchDag(TestDagEndpoint):
     def test_patch_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "is_paused_value",
+        [True, False],
+    )
+    def test_patch_dag_audit_log_payload(self, test_client, is_paused_value, session):
+        """Test that audit log payload correctly reflects the is_paused value."""
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": is_paused_value})
+        assert response.status_code == 200
+
+        # Check that the audit log has the correct is_paused value
+        expected_extra = {"is_paused": is_paused_value, "method": "PATCH"}
+        check_last_log(
+            session, dag_id=DAG1_ID, event="patch_dag", logical_date=None, expected_extra=expected_extra
+        )
 
 
 class TestPatchDags(TestDagEndpoint):

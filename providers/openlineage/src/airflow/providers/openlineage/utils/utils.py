@@ -76,7 +76,6 @@ if TYPE_CHECKING:
         Redactable,
         Redacted,
         SecretsMasker,
-        should_hide_value_for_key,
     )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -316,7 +315,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
-        return operator._task_module + "." + operator._task_type
+        return operator._task_module + "." + operator.task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
@@ -842,7 +841,18 @@ class OpenLineageRedactor(SecretsMasker):
         instance = cls()
         instance.patterns = other.patterns
         instance.replacer = other.replacer
+        for attr in ["sensitive_variables_fields", "min_length_to_mask", "secret_mask_adapter"]:
+            if hasattr(other, attr):
+                setattr(instance, attr, getattr(other, attr))
         return instance
+
+    def _should_hide_value_for_key(self, name):
+        """Compatibility helper for should_hide_value_for_key across Airflow versions."""
+        try:
+            return self.should_hide_value_for_key(name)
+        except AttributeError:
+            # fallback to module level function
+            return should_hide_value_for_key(name)
 
     def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int, **kwargs) -> Redacted:  # type: ignore[override]
         if AIRFLOW_V_3_0_PLUS:
@@ -864,7 +874,7 @@ class OpenLineageRedactor(SecretsMasker):
                     # Those are deprecated values in _DEPRECATION_REPLACEMENTS
                     # in airflow.utils.context.Context
                     return "<<non-redactable: Proxy>>"
-                if name and should_hide_value_for_key(name):
+                if name and self._should_hide_value_for_key(name):
                     return self._redact_all(item, depth, max_depth)
                 if attrs.has(type(item)):
                     # TODO: FIXME when mypy gets compatible with new attrs

@@ -20,15 +20,13 @@ from datetime import datetime
 
 import pytest
 
-from airflow import settings
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
-from airflow.models.dag import DAG
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dagbundle import DagBundleModel
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
+from tests_common.test_utils.dag import sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
     clear_db_dags,
@@ -57,6 +55,7 @@ class TestTaskEndpoint:
         with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
             task1 = EmptyOperator(task_id=self.task_id, params={"foo": "bar"})
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
+            task1 >> task2
 
         with DAG(self.mapped_dag_id, schedule=None, start_date=self.task1_start_date) as mapped_dag:
             EmptyOperator(task_id=self.task_id3)
@@ -67,21 +66,10 @@ class TestTaskEndpoint:
         with DAG(self.unscheduled_dag_id, start_date=None, schedule=None) as unscheduled_dag:
             task4 = EmptyOperator(task_id=self.unscheduled_task_id1, params={"is_unscheduled": True})
             task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
+            task4 >> task5
 
-        task1 >> task2
-        task4 >> task5
-        session = settings.Session()
-        bundle_name = "testing"
-        dag_bundle = DagBundleModel(name=bundle_name)
-        session.merge(dag_bundle)
-        session.commit()
-        DAG.bulk_write_to_db(bundle_name, None, [dag, mapped_dag, unscheduled_dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
-        SerializedDagModel.write_dag(mapped_dag, bundle_name=bundle_name)
-        SerializedDagModel.write_dag(unscheduled_dag, bundle_name=bundle_name)
-        dag_bag = DBDagBag()
-
-        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag
+        sync_dags_to_db([dag, mapped_dag, unscheduled_dag])
+        test_client.app.dependency_overrides[dag_bag_from_app] = DBDagBag
 
     @staticmethod
     def clear_db():
@@ -245,11 +233,9 @@ class TestGetTask(TestTaskEndpoint):
         with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
             task1 = EmptyOperator(task_id=self.task_id, params={"foo": "bar"})
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
-
             task1 >> task2
-        bundle_name = "testing"
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+
+        sync_dag_to_db(dag)
 
         dag_bag = DBDagBag()
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dag_bag

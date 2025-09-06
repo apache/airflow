@@ -191,8 +191,6 @@
     "up_for_retry": "À réessayer",
     "upstream_failed": "Échec en amont"
   },
-  "switchToDarkMode": "Passer en mode sombre",
-  "switchToLightMode": "Passer en mode clair",
   "table": {
     "completedAt": "Terminé à",
     "createdAt": "Créé à",

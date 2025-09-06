@@ -1,0 +1,18 @@
+{
+  "admin": {},
+  "assets": {},
+  "browse": {},
+  "common": {},
+  "components": {},
+  "dag": {},
+  "dags": {},
+  "dashboard": {},
+  "hitl": {
+    "requiredActionCount_one": "פעולה נדרשת ({{count}})",
+    "requiredActionCount_other": "פעולות נדרשות ({{count}})",
+    "state": {
+      "noResponseReceived": "לא התקבלה תגובה"
+    }
+  },
+  "tasks": {}
+}

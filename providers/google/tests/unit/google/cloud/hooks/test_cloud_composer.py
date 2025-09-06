@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -55,6 +56,10 @@ TEST_TIMEOUT = None
 TEST_METADATA = [("key", "value")]
 TEST_PARENT = "test-parent"
 TEST_NAME = "test-name"
+
+TEST_COMPOSER_AIRFLOW_URI = "test-composer-airflow-uri"
+TEST_COMPOSER_DAG_ID = "test-composer-dag-id"
+TEST_COMPOSER_DAG_CONF = {"test-key": "test-value"}
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 COMPOSER_STRING = "airflow.providers.google.cloud.hooks.cloud_composer.{}"
@@ -255,6 +260,27 @@ class TestCloudComposerHook:
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
+        )
+
+    @mock.patch(COMPOSER_STRING.format("CloudComposerHook.make_composer_airflow_api_request"))
+    def test_trigger_dag_run(self, mock_composer_airflow_api_request) -> None:
+        self.hook.get_credentials = mock.MagicMock()
+        self.hook.trigger_dag_run(
+            composer_airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            composer_dag_conf=TEST_COMPOSER_DAG_CONF,
+            timeout=TEST_TIMEOUT,
+        )
+        mock_composer_airflow_api_request.assert_called_once_with(
+            method="POST",
+            airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            path=f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns",
+            data=json.dumps(
+                {
+                    "conf": TEST_COMPOSER_DAG_CONF,
+                }
+            ),
+            timeout=TEST_TIMEOUT,
         )
 
 
