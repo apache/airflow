@@ -135,10 +135,10 @@ export const Gantt = ({ limit }: Props) => {
       .map((node) => {
         const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
 
-        if (node.isGroup && gridSummary) {
-          // Group node - use min/max times from grid summary
+        if ((node.isGroup ?? node.is_mapped) && gridSummary) {
+          // Use min/max times from grid summary
           return {
-            isGroup: true,
+            isGroup: node.isGroup,
             isMapped: node.is_mapped,
             state: gridSummary.state,
             taskId: gridSummary.task_id,
@@ -154,7 +154,7 @@ export const Gantt = ({ limit }: Props) => {
 
           if (taskInstance) {
             return {
-              isGroup: false,
+              isGroup: node.isGroup,
               isMapped: node.is_mapped,
               state: taskInstance.state,
               taskId: taskInstance.task_id,
