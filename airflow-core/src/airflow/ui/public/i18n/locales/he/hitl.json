@@ -25,6 +25,7 @@
     "approvalRequired": "נדרש אישור",
     "choiceReceived": "הבחירה התקבלה",
     "choiceRequired": "נדרשת בחירה",
+    "noResponseReceived": "לא התקבלה תגובה",
     "rejectionReceived": "הדחייה התקבלה",
     "responseReceived": "התגובה התקבלה",
     "responseRequired": "נדרשת תגובה"
