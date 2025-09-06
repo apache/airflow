@@ -378,6 +378,25 @@ There are two trigger form URLs available, each supporting a different set of qu
 
   - ``run_backwards`` – if set to true, the backfill is scheduled in reverse order. Defaults to ``false``.
 
+The trigger form now supports two different ways of providing ``conf`` values. The available input methods are summarized in the table below:
+
+.. list-table:: ``conf`` parameter usage
+   :header-rows: 1
+   :widths: 15 35 55
+
+   * - Form
+     - Usage
+     - Example
+   * - JSON (explicit)
+     - Provide the entire configuration as a JSON object.
+       This form has higher priority if present.
+     - ``/dags/{dag_id}/trigger/single?conf={"foo":"bar","x":123}``
+   * - Key-value (implicit)
+     - If ``conf`` is not specified, any query parameter that is not a reserved keyword
+       will be automatically collected into ``conf``.
+     - ``/dags/{dag_id}/trigger/single?run_id=myrun&foo=bar&x=123``
+       results in ``conf={"foo":"bar","x":"123"}``
+
 For example, you can pass the pathname and query like below:
 
 ``/dags/{dag_id}/trigger/single?run_id=my_run_dag&logical_date=2025-09-06T12:34:56.789&conf={"foo":"bar"}&note=run_note``
