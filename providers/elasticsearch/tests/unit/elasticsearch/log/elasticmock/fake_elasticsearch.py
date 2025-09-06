@@ -80,7 +80,7 @@ class FakeElasticsearch(Elasticsearch):
         }
 
     @query_params()
-    def sample_log_response(self, headers=None, params=None):
+    def sample_airflow_2_log_response(self, headers=None, params=None):
         return {
             "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
             "hits": {
@@ -116,10 +116,6 @@ class FakeElasticsearch(Elasticsearch):
                             "example_bash_operator.run_after_loop ",
                             "task_id": "run_after_loop",
                             "try_number": "1",
-                            "event": "Dependencies all met for "
-                            "dep_context=non-requeueable deps "
-                            "ti=<TaskInstance: "
-                            "example_bash_operator.run_after_loop ",
                         },
                         "_type": "_doc",
                     },
@@ -149,7 +145,6 @@ class FakeElasticsearch(Elasticsearch):
                             "log.offset": 1688888863917961216,
                             "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
                             "message": "Starting attempt 1 of 1",
-                            "event": "Starting attempt 1 of 1",
                             "task_id": "run_after_loop",
                             "try_number": "1",
                         },
@@ -183,6 +178,115 @@ class FakeElasticsearch(Elasticsearch):
                             "message": "Executing <Task(BashOperator): "
                             "run_after_loop> on 2023-07-09 "
                             "07:47:32+00:00",
+                            "task_id": "run_after_loop",
+                            "try_number": "1",
+                        },
+                        "_type": "_doc",
+                    },
+                ],
+                "max_score": 2.482621,
+                "total": {"relation": "eq", "value": 36},
+            },
+            "timed_out": False,
+            "took": 7,
+        }
+
+    @query_params()
+    def sample_airflow_3_log_response(self, headers=None, params=None):
+        return {
+            "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
+            "hits": {
+                "hits": [
+                    {
+                        "_id": "jdeZT4kBjAZqZnexVUxk",
+                        "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
+                        "_score": 2.482621,
+                        "_source": {
+                            "@timestamp": "2023-07-13T14:13:15.140Z",
+                            "asctime": "2023-07-09T07:47:43.907+0000",
+                            "container": {"id": "airflow"},
+                            "dag_id": "example_bash_operator",
+                            "ecs": {"version": "8.0.0"},
+                            "execution_date": "2023_07_09T07_47_32_000000",
+                            "filename": "taskinstance.py",
+                            "input": {"type": "log"},
+                            "levelname": "INFO",
+                            "lineno": 1144,
+                            "log": {
+                                "file": {
+                                    "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
+                                    "dag_id=example_bash_operator'"
+                                    "/run_id=run_run/task_id=run_after_loop/attempt=1.log"
+                                },
+                                "offset": 0,
+                            },
+                            "log.offset": 1688888863907337472,
+                            "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
+                            "task_id": "run_after_loop",
+                            "try_number": "1",
+                            "event": "Dependencies all met for "
+                            "dep_context=non-requeueable deps "
+                            "ti=<TaskInstance: "
+                            "example_bash_operator.run_after_loop ",
+                        },
+                        "_type": "_doc",
+                    },
+                    {
+                        "_id": "qteZT4kBjAZqZnexVUxl",
+                        "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
+                        "_score": 2.482621,
+                        "_source": {
+                            "@timestamp": "2023-07-13T14:13:15.141Z",
+                            "asctime": "2023-07-09T07:47:43.917+0000",
+                            "container": {"id": "airflow"},
+                            "dag_id": "example_bash_operator",
+                            "ecs": {"version": "8.0.0"},
+                            "execution_date": "2023_07_09T07_47_32_000000",
+                            "filename": "taskinstance.py",
+                            "input": {"type": "log"},
+                            "levelname": "INFO",
+                            "lineno": 1347,
+                            "log": {
+                                "file": {
+                                    "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
+                                    "dag_id=example_bash_operator"
+                                    "/run_id=run_run/task_id=run_after_loop/attempt=1.log"
+                                },
+                                "offset": 988,
+                            },
+                            "log.offset": 1688888863917961216,
+                            "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
+                            "event": "Starting attempt 1 of 1",
+                            "task_id": "run_after_loop",
+                            "try_number": "1",
+                        },
+                        "_type": "_doc",
+                    },
+                    {
+                        "_id": "v9eZT4kBjAZqZnexVUx2",
+                        "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
+                        "_score": 2.482621,
+                        "_source": {
+                            "@timestamp": "2023-07-13T14:13:15.143Z",
+                            "asctime": "2023-07-09T07:47:43.928+0000",
+                            "container": {"id": "airflow"},
+                            "dag_id": "example_bash_operator",
+                            "ecs": {"version": "8.0.0"},
+                            "execution_date": "2023_07_09T07_47_32_000000",
+                            "filename": "taskinstance.py",
+                            "input": {"type": "log"},
+                            "levelname": "INFO",
+                            "lineno": 1368,
+                            "log": {
+                                "file": {
+                                    "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
+                                    "dag_id=example_bash_operator"
+                                    "/run_id=run_run/task_id=run_after_loop/attempt=1.log"
+                                },
+                                "offset": 1372,
+                            },
+                            "log.offset": 1688888863928218880,
+                            "log_id": "example_bash_operator-run_after_loop-run_run--1-1",
                             "task_id": "run_after_loop",
                             "try_number": "1",
                             "event": "Executing <Task(BashOperator): "

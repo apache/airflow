@@ -347,15 +347,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
         if logs_by_host:
-            # In Airflow 2.x, the log record JSON has a "message" key, e.g.:
-            # {
-            #   "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
-            #   "offset": 1755011166339518208,
-            #   "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
-            # }
-            #
-            # In Airflow 3.x, the "message" field is renamed to "event".
-            # We check the correct attribute depending on the Airflow major version.
             end_mark_found = any(
                 self._get_log_message(x[-1]) == self.end_of_log_mark for x in logs_by_host.values()
             )
@@ -391,23 +382,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if int(offset) != int(next_offset) or "last_log_timestamp" not in metadata:
             metadata["last_log_timestamp"] = str(cur_ts)
 
-        # If we hit the end of the log, remove the actual end_of_log message
-        # to prevent it from showing in the UI.
-        def concat_logs(hits: list[Hit]) -> str:
-            # In Airflow 2.x, the log record JSON has a "message" key, e.g.:
-            # {
-            #   "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
-            #   "offset": 1755011166339518208,
-            #   "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
-            # }
-            #
-            # In Airflow 3.x, the "message" field is renamed to "event".
-            # We check the correct attribute depending on the Airflow major version.
-            log_range = (
-                (len(hits) - 1) if self._get_log_message(hits[-1]) == self.end_of_log_mark else len(hits)
-            )
-            return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
-
         if logs_by_host:
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
@@ -430,7 +404,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 ]
             else:
                 message = [
-                    (host, concat_logs(hits))  # type: ignore[misc]
+                    (host, self.concat_logs(hits))  # type: ignore[misc]
                     for host, hits in logs_by_host.items()
                 ]
         else:
@@ -448,15 +422,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 )
 
         # Just a safe-guard to preserve backwards-compatibility
-        # In Airflow 2.x, the log record JSON has a "message" key, e.g.:
-        # {
-        #   "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
-        #   "offset": 1755011166339518208,
-        #   "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
-        # }
-        #
-        # In Airflow 3.x, the "message" field is renamed to "event".
-        # We check the correct attribute depending on the Airflow major version.
         return self._get_log_message(hit)
 
     def emit(self, record):
@@ -603,12 +568,28 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return callback(hit)
 
     def _get_log_message(self, hit: Hit) -> str:
-        """Get log message from hit, supporting both Airflow 2.x and 3.x formats."""
+        """
+        Get log message from hit, supporting both Airflow 2.x and 3.x formats.
+
+        In Airflow 2.x, the log record JSON has a "message" key, e.g.:
+        {
+          "message": "Dag name:dataset_consumes_1 queued_at:2025-08-12 15:05:57.703493+00:00",
+          "offset": 1755011166339518208,
+          "log_id": "dataset_consumes_1-consuming_1-manual__2025-08-12T15:05:57.691303+00:00--1-1"
+        }
+
+        In Airflow 3.x, the "message" field is renamed to "event".
+        We check the correct attribute depending on the Airflow major version.
+        """
         if hasattr(hit, "event"):
             return hit.event
         if hasattr(hit, "message"):
             return hit.message
         return ""
+
+    def concat_logs(self, hits: list[Hit]) -> str:
+        log_range = (len(hits) - 1) if self._get_log_message(hits[-1]) == self.end_of_log_mark else len(hits)
+        return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
 
 @attrs.define(kw_only=True)

@@ -133,17 +133,20 @@ class TestElasticsearchTaskHandler:
     def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
-    def test_es_response(self):
-        sample_response = self.es.sample_log_response()
-        es_response = ElasticSearchResponse(self.es_task_handler, sample_response)
+    @pytest.mark.parametrize(
+        "sample_response",
+        [
+            pytest.param(lambda self: self.es.sample_airflow_2_log_response(), id="airflow_2"),
+            pytest.param(lambda self: self.es.sample_airflow_3_log_response(), id="airflow_3"),
+        ],
+    )
+    def test_es_response(self, sample_response):
+        response = sample_response(self)
+        es_response = ElasticSearchResponse(self.es_task_handler, response)
         logs_by_host = self.es_task_handler.io._group_logs_by_host(es_response)
 
-        def concat_logs(lines):
-            log_range = -1 if lines[-1].message == self.es_task_handler.end_of_log_mark else None
-            return "\n".join(self.es_task_handler._format_msg(line) for line in lines[:log_range])
-
         for hosted_log in logs_by_host.values():
-            message = concat_logs(hosted_log)
+            message = self.es_task_handler.concat_logs(hosted_log)
 
         assert (
             message == "Dependencies all met for dep_context=non-requeueable"
