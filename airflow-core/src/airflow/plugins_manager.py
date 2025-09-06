@@ -298,10 +298,33 @@ def load_plugins_from_plugin_directory():
                 sys.modules[spec.name] = mod
                 loader.exec_module(mod)
 
-                for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
-                    plugin_instance = mod_attr_value()
-                    plugin_instance.source = PluginsDirectorySource(file_path)
-                    register_plugin(plugin_instance)
+                # First pass: collect all plugin classes in this file
+                plugin_classes = [m for m in mod.__dict__.values() if is_valid_plugin(m)]
+                
+                # Check for duplicate plugin names within the same file
+                plugin_names = {}
+                for plugin_class in plugin_classes:
+                    plugin_instance = plugin_class()
+                    plugin_name = plugin_instance.name
+                    if not plugin_name:
+                        raise AirflowPluginException(
+                            f"Plugin in {file_path} has no name. "
+                            f"Please set the 'name' attribute for the plugin class."
+                        )
+                    if plugin_name in plugin_names:
+                        raise AirflowPluginException("Duplicate plugin name found in {file_path}. ")
+                    plugin_names[plugin_name] = plugin_class
+                
+                # Second pass: register all plugins
+                for plugin_class in plugin_classes:
+                    try:
+                        plugin_instance = plugin_class()
+                        plugin_instance.source = PluginsDirectorySource(file_path)
+                        register_plugin(plugin_instance)
+                    except Exception as e:
+                        log.exception("Failed to import plugin %s from %s", plugin_class.__name__, file_path)
+                        import_errors[file_path] = str(e)
+
             except Exception as e:
                 log.exception("Failed to import plugin %s", file_path)
                 import_errors[file_path] = str(e)
