@@ -16,50 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Table, Textarea, VStack, HStack } from "@chakra-ui/react";
+import { Box, Table } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
-import type { Worker } from "openapi/requests/types.gen";
 import { useState } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { OperationsCell } from "src/components/OperationsCell";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { autoRefreshInterval } from "src/utils";
-
-interface MaintenanceFormProps {
-  onSubmit: (comment: string) => void;
-  onCancel: () => void;
-}
-
-const MaintenanceForm = ({ onCancel, onSubmit }: MaintenanceFormProps) => {
-  const [comment, setComment] = useState("");
-
-  const handleSubmit = () => {
-    if (comment.trim()) {
-      onSubmit(comment.trim());
-    }
-  };
-
-  return (
-    <VStack gap={2} align="stretch">
-      <Textarea
-        placeholder="Enter maintenance comment (required)"
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        required
-        maxLength={1024}
-        size="sm"
-      />
-      <HStack gap={2}>
-        <Button size="sm" colorScheme="blue" onClick={handleSubmit} disabled={!comment.trim()}>
-          Confirm Maintenance
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-      </HStack>
-    </VStack>
-  );
-};
 
 export const WorkerPage = () => {
   const { data, error, refetch } = useUiServiceWorker(undefined, {
@@ -144,48 +108,6 @@ export const WorkerPage = () => {
     }
   };
 
-  const renderOperationsCell = (worker: Worker) => {
-    const workerName = worker.worker_name;
-    const state = worker.state;
-
-    if (state === "idle" || state === "running") {
-      if (activeMaintenanceForm === workerName) {
-        return (
-          <MaintenanceForm
-            onSubmit={(comment) => requestMaintenance(workerName, comment)}
-            onCancel={() => setActiveMaintenanceForm(null)}
-          />
-        );
-      }
-      return (
-        <Button size="sm" colorScheme="blue" onClick={() => setActiveMaintenanceForm(workerName)}>
-          Enter Maintenance
-        </Button>
-      );
-    }
-
-    if (
-      state === "maintenance pending" ||
-      state === "maintenance mode" ||
-      state === "maintenance request" ||
-      state === "maintenance exit" ||
-      state === "offline maintenance"
-    ) {
-      return (
-        <VStack gap={2} align="stretch">
-          <Box fontSize="sm" whiteSpace="pre-wrap">
-            {worker.maintenance_comments || "No comment"}
-          </Box>
-          <Button size="sm" colorScheme="blue" onClick={() => exitMaintenance(workerName)}>
-            Exit Maintenance
-          </Button>
-        </VStack>
-      );
-    }
-
-    return null;
-  };
-
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
   // Add sorting
@@ -242,7 +164,15 @@ export const WorkerPage = () => {
                     "N/A"
                   )}
                 </Table.Cell>
-                <Table.Cell>{renderOperationsCell(worker)}</Table.Cell>
+                <Table.Cell>
+                  <OperationsCell
+                    worker={worker}
+                    activeMaintenanceForm={activeMaintenanceForm}
+                    onSetActiveMaintenanceForm={setActiveMaintenanceForm}
+                    onRequestMaintenance={requestMaintenance}
+                    onExitMaintenance={exitMaintenance}
+                  />
+                </Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>
