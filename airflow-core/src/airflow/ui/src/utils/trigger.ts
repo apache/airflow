@@ -38,32 +38,41 @@ export const normalizeTriggerPath = (pathname: string, runMode: RunMode | null) 
   return `${basePath}/trigger/${runMode}`;
 };
 
-const getPreloadTriggerConf = (searchParams: URLSearchParams) => {
+const getPreloadTriggerConf = (searchParams: URLSearchParams, reservedParams: Array<string> = []) => {
   const conf = searchParams.get("conf");
-  let preloadedTriggerConf: string | null = null;
 
+  //   if using conf JSON type, we ignore the key=value type params
   if (conf !== null) {
     try {
-      const parsed: Record<string, unknown> = JSON.parse(decodeURIComponent(conf)) as Record<string, unknown>;
+      const parsed = JSON.parse(decodeURIComponent(conf)) as Record<string, unknown>;
 
-      preloadedTriggerConf = JSON.stringify(parsed, undefined, 2);
+      return JSON.stringify(parsed, null, 2);
     } catch {
-      preloadedTriggerConf = null;
+      return null;
     }
   }
 
-  return preloadedTriggerConf;
+  //   collect the params not in reservedParams, which means key=value type params
+  const collected: Record<string, unknown> = {};
+
+  searchParams.forEach((value, key) => {
+    if (!reservedParams.includes(key)) {
+      collected[key] = value;
+    }
+  });
+
+  return Object.keys(collected).length ? JSON.stringify(collected, null, 2) : null;
 };
 
 export const getPreloadTriggerFormData = (searchParams: URLSearchParams) => ({
-  conf: getPreloadTriggerConf(searchParams),
+  conf: getPreloadTriggerConf(searchParams, ["run_id", "logical_date", "note"]),
   dagRunId: searchParams.get("run_id") ?? "",
   logicalDate: searchParams.get("logical_date") ?? dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   note: searchParams.get("note") ?? "",
 });
 
 export const getPreloadBackfillFormData = (searchParams: URLSearchParams) => ({
-  conf: getPreloadTriggerConf(searchParams),
+  conf: getPreloadTriggerConf(searchParams, ["max_active_runs", "reprocess_behavior", "run_backwards"]),
   from_date: searchParams.get("start_date") ?? "",
   max_active_runs: parseInt(searchParams.get("max_active_runs") ?? "1", 10),
   reprocess_behavior: (searchParams.get("reprocess_behavior") ?? "none") as ReprocessBehavior,
