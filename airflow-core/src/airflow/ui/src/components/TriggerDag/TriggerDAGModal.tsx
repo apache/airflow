@@ -17,12 +17,14 @@
  * under the License.
  */
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { getRunModeFromPathname, normalizeTriggerPath } from "src/utils/trigger";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -48,7 +50,11 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   open,
 }) => {
   const { t: translate } = useTranslation("components");
-  const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+
+  const [runMode, setRunMode] = useState<RunMode>(getRunModeFromPathname(pathname));
+
   const {
     data: dag,
     isError,
@@ -67,6 +73,19 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
+  useEffect(() => {
+    // Only sync URL when already within trigger route to avoid interfering with close navigation
+    if (!open || !/\/trigger(\/(single|backfill))?$/u.test(pathname)) {
+      return;
+    }
+
+    const targetPath = normalizeTriggerPath(pathname, runMode);
+
+    if (pathname !== targetPath) {
+      navigate({ pathname: targetPath, search }, { replace: true });
+    }
+  }, [runMode, pathname, search, navigate, open]);
+
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
       <Dialog.Content backdrop>
@@ -79,7 +98,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
           </VStack>
         </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+        <Dialog.CloseTrigger onClick={onClose} />
 
         <Dialog.Body>
           {isLoading ? (

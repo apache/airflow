@@ -20,6 +20,9 @@ import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { normalizeTriggerPath, RunMode } from "src/utils/trigger";
 
 import ActionButton from "../ui/ActionButton";
 import TriggerDAGModal from "./TriggerDAGModal";
@@ -32,8 +35,27 @@ type Props = {
 };
 
 const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, withText = true }) => {
-  const { onClose, onOpen, open } = useDisclosure();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const defaultOpen =
+    pathname.endsWith("/trigger") ||
+    pathname.endsWith("/trigger/single") ||
+    pathname.endsWith("/trigger/backfill");
+  const { onClose, onOpen, open } = useDisclosure({ defaultOpen });
   const { t: translate } = useTranslation("components");
+
+  const handleOpen = () => {
+    // Default to single mode when opening from button
+    const singlePath = normalizeTriggerPath(pathname, RunMode.SINGLE);
+
+    navigate(singlePath, { replace: true });
+    onOpen();
+  };
+
+  const handleClose = () => {
+    navigate(normalizeTriggerPath(pathname, null), { replace: true });
+    onClose();
+  };
 
   return (
     <Box>
@@ -41,7 +63,7 @@ const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, wi
         actionName={translate("triggerDag.title")}
         colorPalette="blue"
         icon={<FiPlay />}
-        onClick={onOpen}
+        onClick={handleOpen}
         text={translate("triggerDag.button")}
         variant="solid"
         withText={withText}
@@ -51,7 +73,7 @@ const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, wi
         dagDisplayName={dagDisplayName}
         dagId={dagId}
         isPaused={isPaused}
-        onClose={onClose}
+        onClose={handleClose}
         open={open}
       />
     </Box>
