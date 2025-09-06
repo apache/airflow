@@ -1027,7 +1027,7 @@ def _handle_current_task_success(
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
 
-    # Record success metrics
+    # Record operator and task instance success metrics
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
@@ -1397,7 +1397,7 @@ def finalize(
     if ti.start_date and ti.end_date:
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
         stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-        # Legacy format and new format with tags (following same pattern as queued_duration/scheduled_duration)
+
         Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
         Stats.timing("task.duration", duration_ms, tags=stats_tags)
 
