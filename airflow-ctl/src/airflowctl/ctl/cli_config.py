@@ -445,7 +445,7 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
-    def _python_type_from_string(type_name: str) -> type | Callable:
+    def _python_type_from_string(type_name: str | type) -> type | Callable:
         """
         Return the corresponding Python *type* for a primitive type name string.
 
@@ -455,6 +455,8 @@ class CommandFactory:
         leading to type errors or unexpected behaviour when invoking the REST
         API.
         """
+        if "|" in str(type_name):
+            type_name = [t.strip() for t in str(type_name).split("|") if t.strip() != "None"].pop()
         mapping: dict[str, type | Callable] = {
             "int": int,
             "float": float,
@@ -469,6 +471,8 @@ class CommandFactory:
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
+        if isinstance(type_name, type):
+            type_name = type_name.__name__
         return mapping.get(type_name, str)
 
     @staticmethod
@@ -537,12 +541,11 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        python_type = self._python_type_from_string(parameter_type)
                         is_bool = parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=None if is_bool else python_type,
+                                arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if is_bool else None,
