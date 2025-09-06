@@ -697,6 +697,17 @@ class DagModel(Base):
         )
         return session.scalar(stmt)
 
+    @staticmethod
+    @provide_session
+    def get_bulk_team_name(dag_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+        stmt = (
+            select(DagModel.dag_id, Team.name)
+            .join(DagBundleModel.teams)
+            .join(DagModel, DagModel.bundle_name == DagBundleModel.name)
+            .where(DagModel.dag_id.in_(dag_ids))
+        )
+        return {dag_id: team_name for dag_id, team_name in session.execute(stmt)}
+
 
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False

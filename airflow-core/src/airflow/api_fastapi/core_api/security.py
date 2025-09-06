@@ -255,21 +255,28 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         request: BulkBody[PoolBody],
         user: GetUserDep,
     ) -> None:
+        existing_pool_names = [
+            cast("str", entity) if action.action == BulkAction.DELETE else cast("PoolBody", entity).pool
+            for action in request.actions
+            for entity in action.entities
+            if action.action != BulkAction.CREATE
+        ]
+        teams = Pool.get_bulk_team_name(existing_pool_names)
+
         requests: list[IsAuthorizedPoolRequest] = []
         for action in request.actions:
-            requests.extend(
-                [
-                    {
-                        "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                        "details": PoolDetails(
-                            name=cast("str", pool)
-                            if action.action == BulkAction.DELETE
-                            else cast("PoolBody", pool).pool
-                        ),
-                    }
-                    for pool in action.entities
-                ]
-            )
+            for pool in action.entities:
+                pool_name = (
+                    cast("str", pool) if action.action == BulkAction.DELETE else cast("PoolBody", pool).pool
+                )
+                req: IsAuthorizedPoolRequest = {
+                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                    "details": PoolDetails(
+                        name=pool_name,
+                        team_name=teams.get(pool_name),
+                    ),
+                }
+                requests.append(req)
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_pool(
@@ -305,21 +312,32 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
         request: BulkBody[ConnectionBody],
         user: GetUserDep,
     ) -> None:
+        existing_connection_ids = [
+            cast("str", entity)
+            if action.action == BulkAction.DELETE
+            else cast("ConnectionBody", entity).connection_id
+            for action in request.actions
+            for entity in action.entities
+            if action.action != BulkAction.CREATE
+        ]
+        teams = Connection.get_bulk_team_name(existing_connection_ids)
+
         requests: list[IsAuthorizedConnectionRequest] = []
         for action in request.actions:
-            requests.extend(
-                [
-                    {
-                        "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                        "details": ConnectionDetails(
-                            conn_id=cast("str", connection)
-                            if action.action == BulkAction.DELETE
-                            else cast("ConnectionBody", connection).connection_id
-                        ),
-                    }
-                    for connection in action.entities
-                ]
-            )
+            for connection in action.entities:
+                connection_id = (
+                    cast("str", connection)
+                    if action.action == BulkAction.DELETE
+                    else cast("ConnectionBody", connection).connection_id
+                )
+                req: IsAuthorizedConnectionRequest = {
+                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                    "details": ConnectionDetails(
+                        conn_id=connection_id,
+                        team_name=teams.get(connection_id),
+                    ),
+                }
+                requests.append(req)
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_connection(
@@ -371,21 +389,30 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         request: BulkBody[VariableBody],
         user: GetUserDep,
     ) -> None:
+        existing_variable_keys = [
+            cast("str", entity) if action.action == BulkAction.DELETE else cast("VariableBody", entity).key
+            for action in request.actions
+            for entity in action.entities
+            if action.action != BulkAction.CREATE
+        ]
+        teams = Variable.get_bulk_team_name(existing_variable_keys)
+
         requests: list[IsAuthorizedVariableRequest] = []
         for action in request.actions:
-            requests.extend(
-                [
-                    {
-                        "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                        "details": VariableDetails(
-                            key=cast("str", entity)
-                            if action.action == BulkAction.DELETE
-                            else cast("VariableBody", entity).key
-                        ),
-                    }
-                    for entity in action.entities
-                ]
-            )
+            for variable in action.entities:
+                variable_key = (
+                    cast("str", variable)
+                    if action.action == BulkAction.DELETE
+                    else cast("VariableBody", variable).key
+                )
+                req: IsAuthorizedVariableRequest = {
+                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                    "details": VariableDetails(
+                        key=variable_key,
+                        team_name=teams.get(variable_key),
+                    ),
+                }
+                requests.append(req)
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
