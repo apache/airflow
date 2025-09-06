@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     import structlog.typing
 
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LegacyLogResponse, LogResponse
+    from airflow.utils.log.file_task_handler import LogResponse, StreamingLogResponse
 
 
 class RemoteLogIO(Protocol):
@@ -44,7 +44,7 @@ class RemoteLogIO(Protocol):
         """Upload the given log path to the remote storage."""
         ...
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LegacyLogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         """Read logs from the given remote log path."""
         ...
 
@@ -53,6 +53,6 @@ class RemoteLogIO(Protocol):
 class RemoteLogStreamIO(Protocol):
     """Interface for remote task loggers with stream-based read support."""
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
         """Stream-based read interface for reading logs from the given remote log path."""
         ...
