@@ -66,7 +66,18 @@ In both cases token is securely stored in the keyring backend. Only configuratio
 is the API URL and the environment name. The token is stored in the keyring backend and is not persisted in the
 configuration file. The keyring backend is used to securely store the token and is not accessible to the user.
 
+Datetime Usage
+''''''''''''''
+For datetime parameters, date should be timezone aware and in ISO format.
+For example: ``2023-10-10T10:00:00+00:00``
+Let's take example of triggering a DAG run with a logical date, run after and a note.
 
+.. code-block:: bash
+
+  airflowctl dagrun trigger --dag-id="example_xcom" --logical-date="2025-09-01T15:31:44" --note="test"
+
+More Usage and Help Pictures
+''''''''''''''
 For more information use
 
 .. code-block:: bash
@@ -87,7 +98,6 @@ You can use the command ``airflowctl --help`` to see the list of available comma
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_main.svg
   :width: 60%
   :alt: airflowctl Help
-
 
 All Available Group Command References
 --------------------------------------

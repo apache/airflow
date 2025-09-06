@@ -36,7 +36,7 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflow._shared.timezones.timezone import parse as parsedate
+from airflowctl._shared.timezones.timezone import parse as parsedate
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
