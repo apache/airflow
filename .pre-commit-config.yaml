@@ -203,6 +203,13 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-translations-completeness
+        name: Check translation completeness (manual)
+        entry: ./dev/i18n/check_translations_completeness.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/prek/update_chart_dependencies.py

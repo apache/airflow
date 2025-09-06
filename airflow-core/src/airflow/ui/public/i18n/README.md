@@ -316,6 +316,13 @@ Adding missing translations (with `TODO: translate` prefix):
 uv run dev/i18n/check_translations_completeness.py --language <language_code> --add-missing
 ```
 
+The script is also added as a prek hook (manual) so that it can be run from within `prek` and CI:
+
+```bash
+prek run --hook-stage manual check-translations-completeness --verbose --all-files
+```
+
+
 ## 9. Compliance & enforcement
 
 > [!NOTE]
