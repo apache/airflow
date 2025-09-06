@@ -49,6 +49,7 @@ from kubernetes.client import models as k8s
 import airflow
 from airflow._shared.timezones import timezone
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -56,7 +57,6 @@ from airflow.exceptions import (
 )
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
-from airflow.models.dagbag import DagBag
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator

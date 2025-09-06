@@ -34,7 +34,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
     requires_access_dag,
 )
-from airflow.models.dagbag import DagBag
+from airflow.dag_processing.dagbag import DagBag
 
 dag_report_router = AirflowRouter(tags=["DagReport"], prefix="/dagReports")
 

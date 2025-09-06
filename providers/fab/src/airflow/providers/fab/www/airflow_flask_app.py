@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 from flask import Flask
 
 if TYPE_CHECKING:
-    from airflow.models.dagbag import DagBag
+    from airflow.models import DagBag
 
 
 class AirflowApp(Flask):
