@@ -39,6 +39,7 @@
     "fileLocation": "File Location",
     "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
     "lastExpired": "Last Expired",
+    "lastParseDuration": "Last Parse Duration",
     "lastParsed": "Last Parsed",
     "latestDagVersion": "Latest Dag Version",
     "latestRun": "Latest Run",

@@ -2694,6 +2694,7 @@ class SerializedDAG(DAG, BaseSerialization):
         bundle_name: str,
         bundle_version: str | None,
         dags: Collection[DAG | LazyDeserializedDAG],
+        parse_duration: float | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -2715,7 +2716,7 @@ class SerializedDAG(DAG, BaseSerialization):
         )
 
         orm_dags = dag_op.add_dags(session=session)
-        dag_op.update_dags(orm_dags, session=session)
+        dag_op.update_dags(orm_dags, parse_duration, session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
