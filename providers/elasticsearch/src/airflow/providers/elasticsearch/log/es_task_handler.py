@@ -44,19 +44,14 @@ import airflow.logging_config as alc
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
-from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     EsLogMsgType,
 )
-from airflow.models.taskinstance import TaskInstance
-from airflow.providers.elasticsearch.log.es_json_formatter import (
-    ElasticsearchJSONFormatter,
-)
-from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, EsLogMsgType
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -140,6 +135,7 @@ def getattr_nested(obj, item, default):
         return attrgetter(item)(obj)
     except AttributeError:
         return default
+
 
 def _render_log_id(ti: TaskInstance | TaskInstanceKey, try_number: int, json_format: bool) -> str:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -627,13 +623,14 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             local_loc = self.base_log_folder.joinpath(path)
 
+        log_id = _render_log_id(ti, ti.try_number, self.json_format)  # type: ignore[arg-type]
         # Convert the runtimeTI to the real TaskInstance that via fetching from DB
         ti = TaskInstance.get_task_instance(
             ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1
         )  # type: ignore[assignment]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
-            log_lines = self._parse_raw_log(local_loc.read_text(), ti)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, ti)
             for line in log_lines:
                 sys.stdout.write(json.dumps(line) + "\n")
                 sys.stdout.flush()
@@ -644,11 +641,10 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             if success and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 
-    def _parse_raw_log(self, log: str, ti: RuntimeTI) -> list[dict[str, Any]]:
+    def _parse_raw_log(self, log: str, log_id: str, ti: RuntimeTI) -> list[dict[str, Any]]:
         logs = log.split("\n")
         parsed_logs = []
         offset = 1
-        log_id = _render_log_id(ti, ti.try_number, self.json_format)  # type: ignore[arg-type]
         for line in logs:
             # Make sure line is not empty
             if line.strip():
