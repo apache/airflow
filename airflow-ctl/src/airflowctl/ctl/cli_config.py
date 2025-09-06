@@ -507,7 +507,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=field_type.annotation,
+                        arg_type=self._python_type_from_string(field_type.annotation),
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
@@ -522,7 +522,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=annotation,
+                        arg_type=self._python_type_from_string(annotation),
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,

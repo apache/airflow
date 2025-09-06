@@ -69,15 +69,15 @@ configuration file. The keyring backend is used to securely store the token and 
 Datetime Usage
 ''''''''''''''
 For datetime parameters, date should be timezone aware and in ISO format.
-For example: ``2023-10-10T10:00:00+00:00``
+For example: ``2025-10-10T10:00:00+00:00``
 Let's take example of triggering a DAG run with a logical date, run after and a note.
 
 .. code-block:: bash
 
-  airflowctl dagrun trigger --dag-id="example_xcom" --logical-date="2025-09-01T15:31:44" --note="test"
+  airflowctl dagrun trigger --dag-id="example_bash_operator" --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
 
 More Usage and Help Pictures
-''''''''''''''
+''''''''''''''''''''''''''''
 For more information use
 
 .. code-block:: bash
