@@ -16,9 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack, Textarea, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, IconButton, Textarea, VStack } from "@chakra-ui/react";
 import type { Worker } from "openapi/requests/types.gen";
 import { useState } from "react";
+import { FcCheckmark } from "react-icons/fc";
+import { HiOutlineWrenchScrewdriver } from "react-icons/hi2";
+import { ImCross } from "react-icons/im";
+import { IoMdExit } from "react-icons/io";
 
 interface MaintenanceFormProps {
   onSubmit: (comment: string) => void;
@@ -45,12 +49,18 @@ const MaintenanceForm = ({ onCancel, onSubmit }: MaintenanceFormProps) => {
         size="sm"
       />
       <HStack gap={2}>
-        <Button size="sm" colorScheme="blue" onClick={handleSubmit} disabled={!comment.trim()}>
-          Confirm Maintenance
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
+        <IconButton
+          size="sm"
+          colorScheme="green"
+          onClick={handleSubmit}
+          disabled={!comment.trim()}
+          aria-label="Confirm Maintenance"
+        >
+          <FcCheckmark />
+        </IconButton>
+        <IconButton size="sm" colorScheme="red" variant="outline" onClick={onCancel} aria-label="Cancel">
+          <ImCross />
+        </IconButton>
       </HStack>
     </VStack>
   );
@@ -74,40 +84,55 @@ export const OperationsCell = ({
   const workerName = worker.worker_name;
   const state = worker.state;
 
+  let cellContent = null;
+
   if (state === "idle" || state === "running") {
     if (activeMaintenanceForm === workerName) {
-      return (
+      cellContent = (
         <MaintenanceForm
           onSubmit={(comment) => onRequestMaintenance(workerName, comment)}
           onCancel={() => onSetActiveMaintenanceForm(null)}
         />
       );
+    } else {
+      cellContent = (
+        <Flex justifyContent="end">
+          <IconButton
+            size="sm"
+            variant="ghost"
+            onClick={() => onSetActiveMaintenanceForm(workerName)}
+            aria-label="Enter Maintenance"
+          >
+            <HiOutlineWrenchScrewdriver />
+          </IconButton>
+        </Flex>
+      );
     }
-    return (
-      <Button size="sm" colorScheme="blue" onClick={() => onSetActiveMaintenanceForm(workerName)}>
-        Enter Maintenance
-      </Button>
-    );
-  }
-
-  if (
+  } else if (
     state === "maintenance pending" ||
     state === "maintenance mode" ||
     state === "maintenance request" ||
     state === "maintenance exit" ||
     state === "offline maintenance"
   ) {
-    return (
+    cellContent = (
       <VStack gap={2} align="stretch">
         <Box fontSize="sm" whiteSpace="pre-wrap">
           {worker.maintenance_comments || "No comment"}
         </Box>
-        <Button size="sm" colorScheme="blue" onClick={() => onExitMaintenance(workerName)}>
-          Exit Maintenance
-        </Button>
+        <Flex justifyContent="end">
+          <IconButton
+            size="sm"
+            variant="ghost"
+            onClick={() => onExitMaintenance(workerName)}
+            aria-label="Exit Maintenance"
+          >
+            <IoMdExit />
+          </IconButton>
+        </Flex>
       </VStack>
     );
   }
 
-  return null;
+  return cellContent;
 };
