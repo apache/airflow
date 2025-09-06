@@ -213,6 +213,7 @@ class ClusterGenerator:
     :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
+    :param cluster_tier: The tier of the cluster (e.g. "CLUSTER_TIER_STANDARD" / "CLUSTER_TIER_PREMIUM").
     """
 
     def __init__(
@@ -261,6 +262,8 @@ class ClusterGenerator:
         secondary_worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
         secondary_worker_accelerator_type: str | None = None,
         secondary_worker_accelerator_count: int | None = None,
+        *,
+        cluster_tier: str | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -308,6 +311,7 @@ class ClusterGenerator:
         self.secondary_worker_instance_flexibility_policy = secondary_worker_instance_flexibility_policy
         self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
+        self.cluster_tier = cluster_tier
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -512,6 +516,9 @@ class ClusterGenerator:
 
         if self.driver_pool_size > 0:
             cluster_data["auxiliary_node_groups"] = [self._build_driver_pool()]
+
+        if self.cluster_tier:
+            cluster_data["cluster_tier"] = self.cluster_tier
 
         cluster_data = self._build_gce_cluster_config(cluster_data)
 
@@ -1945,9 +1952,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         job_state = event["job_state"]
         job_id = event["job_id"]
         job = event["job"]
-        if job_state == JobStatus.State.ERROR:
+        if job_state == JobStatus.State.ERROR.name:  # type: ignore
             raise AirflowException(f"Job {job_id} failed:\n{job}")
-        if job_state == JobStatus.State.CANCELLED:
+        if job_state == JobStatus.State.CANCELLED.name:  # type: ignore
             raise AirflowException(f"Job {job_id} was cancelled:\n{job}")
         self.log.info("%s completed successfully.", self.task_id)
         return job_id
@@ -2455,7 +2462,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 if not self.hook.check_error_for_resource_is_not_ready_msg(batch.state_message):
                     break
 
-        self.handle_batch_status(context, batch.state, batch_id, batch.state_message)
+        self.handle_batch_status(context, batch.state.name, batch_id, batch.state_message)
         return Batch.to_dict(batch)
 
     @cached_property
@@ -2480,19 +2487,19 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             self.operation.cancel()
 
     def handle_batch_status(
-        self, context: Context, state: Batch.State, batch_id: str, state_message: str | None = None
+        self, context: Context, state: str, batch_id: str, state_message: str | None = None
     ) -> None:
         # The existing batch may be a number of states other than 'SUCCEEDED'\
         # wait_for_operation doesn't fail if the job is cancelled, so we will check for it here which also
         # finds a cancelling|canceled|unspecified job from wait_for_batch or the deferred trigger
         link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, batch_id=batch_id)
-        if state == Batch.State.FAILED:
+        if state == Batch.State.FAILED.name:  # type: ignore
             raise AirflowException(
                 f"Batch job {batch_id} failed with error: {state_message}.\nDriver logs: {link}"
             )
-        if state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
+        if state in (Batch.State.CANCELLED.name, Batch.State.CANCELLING.name):  # type: ignore
             raise AirflowException(f"Batch job {batch_id} was cancelled.\nDriver logs: {link}")
-        if state == Batch.State.STATE_UNSPECIFIED:
+        if state == Batch.State.STATE_UNSPECIFIED.name:  # type: ignore
             raise AirflowException(f"Batch job {batch_id} unspecified.\nDriver logs: {link}")
         self.log.info("Batch job %s completed.\nDriver logs: %s", batch_id, link)
 
@@ -2566,7 +2573,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         dag_id = re.sub(r"[.\s]", "_", self.dag_id.lower())
         task_id = re.sub(r"[.\s]", "_", self.task_id.lower())
 
-        labels_regex = re.compile(r"^[a-z][\w-]{0,63}$")
+        labels_regex = re.compile(r"^[a-z][\w-]{0,62}$")
         if not labels_regex.match(dag_id) or not labels_regex.match(task_id):
             return
 

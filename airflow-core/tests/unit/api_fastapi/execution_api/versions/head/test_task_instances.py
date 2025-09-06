@@ -301,6 +301,81 @@ class TestTIRunState:
             upstream_map_indexes = response.json()["upstream_map_indexes"]
             assert upstream_map_indexes == expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
 
+    def test_nested_mapped_task_group_upstream_indexes(self, client, dag_maker):
+        """
+        Test that upstream_map_indexes are correctly computed for tasks in nested mapped task groups.
+        """
+        with dag_maker("test_nested_mapped_tg", serialized=True):
+
+            @task
+            def alter_input(inp: str) -> str:
+                return f"{inp}_Altered"
+
+            @task
+            def print_task(orig_input: str, altered_input: str) -> str:
+                return f"orig:{orig_input},altered:{altered_input}"
+
+            @task_group
+            def inner_task_group(orig_input: str) -> None:
+                altered_input = alter_input(orig_input)
+                print_task(orig_input, altered_input)
+
+            @task_group
+            def expandable_task_group(param: str) -> None:
+                inner_task_group(param)
+
+            expandable_task_group.expand(param=["One", "Two", "Three"])
+
+        dr = dag_maker.create_dagrun()
+
+        # Set all alter_input tasks to success so print_task can run
+        for ti in dr.get_task_instances():
+            if "alter_input" in ti.task_id and ti.map_index >= 0:
+                ti.state = State.SUCCESS
+            elif "print_task" in ti.task_id and ti.map_index >= 0:
+                ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        # Expected upstream_map_indexes for each print_task instance
+        expected_upstream_map_indexes = {
+            ("expandable_task_group.inner_task_group.print_task", 0): {
+                "expandable_task_group.inner_task_group.alter_input": 0
+            },
+            ("expandable_task_group.inner_task_group.print_task", 1): {
+                "expandable_task_group.inner_task_group.alter_input": 1
+            },
+            ("expandable_task_group.inner_task_group.print_task", 2): {
+                "expandable_task_group.inner_task_group.alter_input": 2
+            },
+        }
+
+        # Get only the expanded print_task instances (not the template)
+        print_task_tis = [
+            ti for ti in dr.get_task_instances() if "print_task" in ti.task_id and ti.map_index >= 0
+        ]
+
+        # Test each print_task instance
+        for ti in print_task_tis:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+            assert response.status_code == 200
+            upstream_map_indexes = response.json()["upstream_map_indexes"]
+            expected = expected_upstream_map_indexes[(ti.task_id, ti.map_index)]
+
+            assert upstream_map_indexes == expected, (
+                f"Task {ti.task_id}[{ti.map_index}] should have upstream_map_indexes {expected}, "
+                f"but got {upstream_map_indexes}"
+            )
+
     def test_dynamic_task_mapping_with_xcom(self, client, dag_maker, create_task_instance, session, run_task):
         """
         Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances with xcom

@@ -76,6 +76,11 @@ The bootstrap tool is located in ``dev/react-plugin-tools/`` and provides a simp
 
 This generates a complete React project with Vite, TypeScript, Chakra UI integration, and proper configuration for building as a library that integrates with Airflow's UI.
 
+.. warning:: It is highly recommended to use the bootstrap tool to create a new React Plugin project. There are specific bundling configurations required
+   to ensure compatibility with Airflow's Core UI and manually setting up a project may lead to integration issues. If you already have an existing React project that
+   you want to integrate, you can take a look at the bootstrap tool code and the generated build configuration files for reference.
+   React and React-DOM are shared dependencies with the host application and need to have compatible versions.
+
 React Development Workflow
 ---------------------------
 

@@ -357,6 +357,7 @@ labelPRBasedOnFilePath:
     - providers/**/docs/**/*
     - providers-summary-docs/**/*
     - docker-stack-docs/**/*
+    - airflow-ctl/docs/**/*
 
   area:helm-chart:
     - chart/**/*
@@ -374,6 +375,9 @@ labelPRBasedOnFilePath:
   translation:ar:
     - airflow-core/src/airflow/ui/public/i18n/locales/ar/*
 
+  translation:ca:
+    - airflow-core/src/airflow/ui/public/i18n/locales/ca/*
+
   translation:de:
     - airflow-core/src/airflow/ui/public/i18n/locales/de/*
 
@@ -386,6 +390,12 @@ labelPRBasedOnFilePath:
   translation:he:
     - airflow-core/src/airflow/ui/public/i18n/locales/he/*
 
+  translation:hi:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hi/*
+
+  translation:hu:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hu/*
+
   translation:ko:
     - airflow-core/src/airflow/ui/public/i18n/locales/ko/*
 
@@ -394,6 +404,9 @@ labelPRBasedOnFilePath:
 
   translation:pl:
     - airflow-core/src/airflow/ui/public/i18n/locales/pl/*
+
+  translation:tr:
+    - airflow-core/src/airflow/ui/public/i18n/locales/tr/*
 
   translation:zh-TW:
     - airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/*
@@ -445,7 +458,6 @@ labelPRBasedOnFilePath:
 
   area:Secrets:
     - airflow-core/src/airflow/secrets/**/*
-    - airflow-core/tests/unit/secrets/**/*
     - providers/**/secrets/*
     - airflow-core/docs/security/secrets/**/*
 
@@ -519,8 +531,8 @@ firstPRWelcomeComment: >
 
   Here are some useful points:
 
-  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
-  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-pre-commit-hooks)
+  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [prek-hooks](
+  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-prek-hooks)
   will help you with that.
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).

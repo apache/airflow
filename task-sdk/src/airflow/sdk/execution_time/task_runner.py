@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
+from urllib.parse import quote
 
 import attrs
 import lazy_object_proxy
@@ -147,8 +148,6 @@ class RuntimeTaskInstance(TaskInstance):
 
     rendered_map_index: str | None = None
 
-    log_url: str | None = None
-
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -182,8 +181,6 @@ class RuntimeTaskInstance(TaskInstance):
             "run_id": self.run_id,
             "task": self.task,
             "task_instance": self,
-            # TODO: Ensure that ti.log_url and such are available to use in context
-            #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
             "inlet_events": InletEventsAccessors(self.task.inlets),
@@ -310,8 +307,8 @@ class RuntimeTaskInstance(TaskInstance):
             manually). To remove the filter, pass *None*.
         :param task_ids: Only XComs from tasks with matching ids will be
             pulled. Pass *None* to remove the filter.
-        :param dag_id: If provided, only pulls XComs from this DAG. If *None*
-            (default), the DAG of the calling task is used.
+        :param dag_id: If provided, only pulls XComs from this Dag. If *None*
+            (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
             If *None* (default), this is inferred from the task(s) being pulled
             (see below for details).
@@ -443,13 +440,13 @@ class RuntimeTaskInstance(TaskInstance):
         return response.start_date
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRun | None:
-        """Return the previous DAG run before the given logical date, optionally filtered by state."""
+        """Return the previous Dag run before the given logical date, optionally filtered by state."""
         context = self.get_template_context()
         dag_run = context.get("dag_run")
 
         log = structlog.get_logger(logger_name="task")
 
-        log.debug("Getting previous DAG run", dag_run=dag_run)
+        log.debug("Getting previous Dag run", dag_run=dag_run)
 
         if dag_run is None:
             return None
@@ -527,7 +524,7 @@ class RuntimeTaskInstance(TaskInstance):
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
     ) -> int:
-        """Return the number of DAG runs matching the given criteria."""
+        """Return the number of Dag runs matching the given criteria."""
         response = SUPERVISOR_COMMS.send(
             GetDRCount(
                 dag_id=dag_id,
@@ -544,13 +541,33 @@ class RuntimeTaskInstance(TaskInstance):
 
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str:
-        """Return the state of the DAG run with the given Run ID."""
+        """Return the state of the Dag run with the given Run ID."""
         response = SUPERVISOR_COMMS.send(msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
 
         if TYPE_CHECKING:
             assert isinstance(response, DagRunStateResult)
 
         return response.state
+
+    @property
+    def log_url(self) -> str:
+        run_id = quote(self.run_id)
+        base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
+        map_index_value = self.map_index
+        map_index = (
+            f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
+        )
+        try_number_value = self.try_number
+        try_number = (
+            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
+        )
+        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        return _log_uri
+
+    @property
+    def mark_success_url(self) -> str:
+        """URL to mark TI success."""
+        return self.log_url
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
@@ -630,7 +647,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         dag = bag.dags[what.ti.dag_id]
     except KeyError:
         log.error(
-            "DAG not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
+            "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
         exit(1)
 
@@ -640,7 +657,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         task = dag.task_dict[what.ti.task_id]
     except KeyError:
         log.error(
-            "Task not found in DAG during start up",
+            "Task not found in Dag during start up",
             dag_id=dag.dag_id,
             task_id=what.ti.task_id,
             bundle=bundle_info,
@@ -689,6 +706,8 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+        # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
+        os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
         msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
@@ -726,8 +745,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
-        ti.log_url = get_log_url_from_ti(ti)
-    log.debug("DAG file parsed", file=msg.dag_rel_path)
+    log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
@@ -903,6 +921,7 @@ def run(
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
                     run_id=ti.run_id,
+                    map_index=ti.map_index,
                 )
 
         with set_current_context(context):
@@ -956,9 +975,10 @@ def run(
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
+        ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.FAILED
@@ -973,9 +993,10 @@ def run(
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
+        ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.FAILED
@@ -1002,10 +1023,12 @@ def _handle_current_task_success(
     context: Context,
     ti: RuntimeTaskInstance,
 ) -> tuple[SucceedTask, TaskInstanceState]:
+    end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = end_date
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
-        end_date=datetime.now(tz=timezone.utc),
+        end_date=end_date,
         task_outlets=task_outlets,
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
@@ -1017,11 +1040,15 @@ def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = end_date
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
-    return TaskState(
-        state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
-    ), TaskInstanceState.FAILED
+    return (
+        TaskState(
+            state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
+        ),
+        TaskInstanceState.FAILED,
+    )
 
 
 def _handle_trigger_dag_run(
@@ -1159,8 +1186,7 @@ def _get_email_subject_content(
     :meta private:
     """
     from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-    from airflow.sdk.definitions.context import Context
-    from airflow.utils.helpers import render_template_to_string
+    from airflow.sdk.definitions.context import Context, render_template_to_string
 
     exception_html = str(exception).replace("\n", "<br>")
 
@@ -1191,7 +1217,7 @@ def _get_email_subject_content(
         "max_tries": task_instance.max_tries,
     }
 
-    # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+    # Use the Dag's get_template_env() to set force_sandboxed. Don't add
     # the flag to the function on task object -- that function can be
     # overridden, and adding a flag breaks backward compatibility.
     dag = task_instance.task.get_dag()
@@ -1295,7 +1321,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
-    """Render named map index if the DAG author defined map_index_template at the task level."""
+    """Render named map index if the Dag author defined map_index_template at the task level."""
     if (template := context.get("map_index_template")) is None:
         return None
     jinja_env = ti.task.dag.get_template_env()

@@ -32,7 +32,7 @@ from asgiref.sync import sync_to_async
 
 from airflow.sdk.execution_time.hitl import (
     get_hitl_detail_content_detail,
-    update_htil_detail_response,
+    update_hitl_detail_response,
 )
 from airflow.sdk.timezone import utcnow
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -98,6 +98,26 @@ class HITLTrigger(BaseTrigger):
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
             if self.timeout_datetime and self.timeout_datetime < utcnow():
+                # Fetch latest HITL detail before fallback
+                resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
+                if resp.response_received and resp.chosen_options:
+                    # Response already received, yield success and exit
+                    self.log.info(
+                        "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
+                        resp.responded_user_name,
+                        resp.responded_user_id,
+                        resp.chosen_options,
+                        resp.response_at,
+                    )
+                    yield TriggerEvent(
+                        HITLTriggerEventSuccessPayload(
+                            chosen_options=resp.chosen_options,
+                            params_input=resp.params_input or {},
+                            timedout=False,
+                        )
+                    )
+                    return
+
                 if self.defaults is None:
                     yield TriggerEvent(
                         HITLTriggerEventFailurePayload(
@@ -107,7 +127,7 @@ class HITLTrigger(BaseTrigger):
                     )
                     return
 
-                await sync_to_async(update_htil_detail_response)(
+                await sync_to_async(update_hitl_detail_response)(
                     ti_id=self.ti_id,
                     chosen_options=self.defaults,
                     params_input=self.params,
@@ -127,12 +147,16 @@ class HITLTrigger(BaseTrigger):
             resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
             if resp.response_received and resp.chosen_options:
                 self.log.info(
-                    "[HITL] user=%s options=%s at %s", resp.user_id, resp.chosen_options, resp.response_at
+                    "[HITL] responded_by=%s (id=%s) options=%s at %s",
+                    resp.responded_user_name,
+                    resp.responded_user_id,
+                    resp.chosen_options,
+                    resp.response_at,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
-                        params_input=resp.params_input,
+                        params_input=resp.params_input or {},
                         timedout=False,
                     )
                 )

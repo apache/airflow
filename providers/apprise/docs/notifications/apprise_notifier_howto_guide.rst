@@ -21,7 +21,7 @@ How-to Guide for Apprise notifications
 Introduction
 ------------
 The apprise notifier (:class:`airflow.providers.apprise.notifications.apprise.AppriseNotifier`) allows users to send
-messages to `multiple service <https://github.com/caronc/apprise#supported-notifications>`_ using the various ``on_*_callbacks`` at both the DAG level and Task level.
+messages to `multiple service <https://github.com/caronc/apprise#supported-notifications>`_ using the various ``on_*_callbacks`` at both the Dag level and Task level.
 
 Example Code:
 -------------
@@ -29,18 +29,18 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import DAG
+    from airflow import Dag
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.apprise.notifications.apprise import send_apprise_notification
     from apprise import NotifyType
 
-    with DAG(
+    with Dag(
         dag_id="apprise_notifier_testing",
         schedule=None,
         start_date=datetime(2024, 1, 1),
         catchup=False,
         on_success_callback=[
-            send_apprise_notification(body="The dag {{ dag.dag_id }} succeeded", notify_type=NotifyType.SUCCESS)
+            send_apprise_notification(body="The Dag {{ dag.dag_id }} succeeded", notify_type=NotifyType.SUCCESS)
         ],
     ):
         BashOperator(

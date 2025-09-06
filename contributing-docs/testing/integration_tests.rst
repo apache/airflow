@@ -298,9 +298,6 @@ Then, create the integration test file under ``tests/integration`` - remember to
 and to use the ``@pytest.mark.integration`` decorator. It is recommended to define setup and teardown methods
 (``setup_method`` and ``teardown_method``, respectively) - you could look at existing integration tests to learn more.
 
-Before pushing to GitHub, make sure to run static checks (``breeze static-checks --only-my-changes``) to apply linters
-on the Python logic, as well as to update the commands images under ``dev/breeze/docs/images``.
-
 When writing integration tests for components that also require Kerberos, you could enforce auto-enabling the latter by
 updating ``compose_file()`` method in ``airflow_breeze.params.shell_params.ShellParams``. For example, to ensure that
 Kerberos is active for ``trino`` integration tests, the following code has been introduced:

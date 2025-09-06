@@ -20,6 +20,41 @@
 Changelog
 ---------
 
+2.4.2
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove query obj from providers fab (#53953)``
+* ``fix: Add cookies options into FAB provider.yaml (#54995)``
+* ``To fix Fab auth manager returns get_id of integer type where str is expected  (#54384)``
+* ``Potential fix for code scanning alert no. 519: Clear-text logging of sensitive information (#54742)``
+* ``Create FAB's user/role tables on migration, not only on initdb (#54227)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 8 updates (#54517)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+* ``Update 'is_authorized_dag' method in 'FabAuthManager' (#54926)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Move secrets_masker over to airflow_shared distribution (#54449)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+
 2.4.1
 .....
 

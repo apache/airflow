@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-airbyte``
 
 Release: ``5.2.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Airbyte <https://airbyte.com/>`__
 
@@ -42,7 +41,7 @@ in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-airbyte``
 
