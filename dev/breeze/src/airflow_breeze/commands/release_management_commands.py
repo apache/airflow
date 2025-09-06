@@ -538,6 +538,22 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
+def create_tarball_from_tag(
+    version_suffix: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    if tag is not None:
+        get_console().print(f"Tag Used for source tarball creation: {tag}")
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name=distribution_name,
+            tag=tag,
+        )
+    else:
+        get_console().print("No tag provided, skipping source tarball creation.")
+
+
 @release_management.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
@@ -583,13 +599,13 @@ def prepare_airflow_distributions(
             version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
-    if tag is not None:
-        # Create the tarball
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="airflow",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="airflow",
+        tag=tag,
+    )
 
 
 def _prepare_non_core_distributions(
@@ -737,13 +753,13 @@ def prepare_task_sdk_distributions(
         distribution_name="task-sdk",
         distribution_pretty_name="Task SDK",
     )
-    if tag is not None:
-        # Create the tarball
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="task-sdk",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="task-sdk",
+        tag=tag,
+    )
 
 
 @release_management.command(
@@ -775,14 +791,13 @@ def prepare_airflow_ctl_distributions(
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
     )
-    print(f"tag passed: {tag}")
-    if tag is not None:
-        # Create the tarball
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="airflowctl",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="airflowctl",
+        tag=tag,
+    )
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -1176,13 +1191,13 @@ def prepare_provider_distributions(
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
-    # Create the tarball
-    if tag is not None:
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="providers",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="providers",
+        tag=tag,
+    )
 
 
 def run_generate_constraints(
