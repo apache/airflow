@@ -630,18 +630,18 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         )  # type: ignore[assignment]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
-            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, ti)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
             for line in log_lines:
                 sys.stdout.write(json.dumps(line) + "\n")
                 sys.stdout.flush()
 
         if local_loc.is_file() and self.write_to_es:
-            log_lines = self._parse_raw_log(local_loc.read_text(), ti)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
             success = self._write_to_es(log_lines)
             if success and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 
-    def _parse_raw_log(self, log: str, log_id: str, ti: RuntimeTI) -> list[dict[str, Any]]:
+    def _parse_raw_log(self, log: str, log_id: str) -> list[dict[str, Any]]:
         logs = log.split("\n")
         parsed_logs = []
         offset = 1
