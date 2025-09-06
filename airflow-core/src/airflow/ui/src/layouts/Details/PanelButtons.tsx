@@ -55,7 +55,9 @@ type Props = {
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setShowVersionIndicator: React.Dispatch<React.SetStateAction<boolean>>;
   readonly showGantt: boolean;
+  readonly showVersionIndicator: boolean;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -89,7 +91,9 @@ export const PanelButtons = ({
   setDagView,
   setLimit,
   setShowGantt,
+  setShowVersionIndicator,
   showGantt,
+  showVersionIndicator,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -186,7 +190,7 @@ export const PanelButtons = ({
             <MdOutlineAccountTree />
           </IconButton>
         </ButtonGroup>
-        <Flex gap={1}>
+        <Flex gap={1} mr={3}>
           <ToggleGroups />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
@@ -296,6 +300,13 @@ export const PanelButtons = ({
                           <VStack alignItems="flex-start" px={1}>
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
                               {translate("dag:panel.buttons.showGantt")}
+                            </Checkbox>
+                            <Checkbox
+                              checked={showVersionIndicator}
+                              onChange={() => setShowVersionIndicator(!showVersionIndicator)}
+                              size="sm"
+                            >
+                              {translate("dag:panel.buttons.showVersionIndicator")}
                             </Checkbox>
                           </VStack>
                         ) : undefined}

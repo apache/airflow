@@ -96,6 +96,7 @@
       "showGantt": "Show Gantt",
       "showGraphShortcut": "Show Graph (Press g)",
       "showGridShortcut": "Show Grid (Press g)"
+      "showVersionIndicator": "Show Version Indicator"
     },
     "dagRuns": {
       "label": "Number of Dag Runs"

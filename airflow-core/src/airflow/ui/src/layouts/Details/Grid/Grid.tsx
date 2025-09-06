@@ -42,9 +42,12 @@ dayjs.extend(dayjsDuration);
 type Props = {
   readonly limit: number;
   readonly showGantt?: boolean;
+  readonly showVersionIndicator?: boolean;
 };
 
-export const Grid = ({ limit, showGantt }: Props) => {
+type GridRunsWithFlags = { isVersionChange: boolean } & GridRunsResponse;
+
+export const Grid = ({ limit, showGantt, showVersionIndicator }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -78,6 +81,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
   }, [gridRuns, setHasActiveRun]);
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+
   // calculate dag run bar heights relative to max
 
   const max = Math.max.apply(
@@ -96,6 +100,21 @@ export const Grid = ({ limit, showGantt }: Props) => {
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
+
+  const processedRuns: Array<GridRunsWithFlags> = useMemo(() => {
+    if (!gridRuns) {
+      return [];
+    }
+
+    return gridRuns.map((dr, index) => {
+      const prevRun = index < gridRuns.length - 1 ? gridRuns[index + 1] : undefined;
+
+      return {
+        ...dr,
+        isVersionChange: Boolean(prevRun && prevRun.dag_version_number !== dr.dag_version_number),
+      };
+    });
+  }, [gridRuns]);
 
   return (
     <Flex
@@ -130,7 +149,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
+            {processedRuns.map((dr) => (
               <Bar
                 key={dr.run_id}
                 max={max}
@@ -138,10 +157,12 @@ export const Grid = ({ limit, showGantt }: Props) => {
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
+                showVersionIndicator={Boolean(showVersionIndicator) && dr.isVersionChange}
+                versionNumber={dr.dag_version_number}
               />
             ))}
           </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+          {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>
               <IconButton
                 aria-label={translate("grid.buttons.resetToLatest")}
@@ -156,7 +177,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
                 <FiChevronsRight />
               </IconButton>
             </Link>
-          )}
+          ) : undefined}
         </Flex>
       </Box>
     </Flex>

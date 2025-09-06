@@ -61,6 +61,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
+  const [showVersionIndicator, setShowVersionIndicator] = useLocalStorage<boolean>(
+    `show_version_indicator-${dagId}`,
+    true,
+  );
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -126,13 +130,19 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 setDagView={setDagView}
                 setLimit={setLimit}
                 setShowGantt={setShowGantt}
+                setShowVersionIndicator={setShowVersionIndicator}
                 showGantt={showGantt}
+                showVersionIndicator={showVersionIndicator}
               />
               {dagView === "graph" ? (
                 <Graph />
               ) : (
                 <HStack gap={0}>
-                  <Grid limit={limit} showGantt={Boolean(runId) && showGantt} />
+                  <Grid
+                    limit={limit}
+                    showGantt={Boolean(runId) && showGantt}
+                    showVersionIndicator={showVersionIndicator}
+                  />
                   {showGantt ? <Gantt limit={limit} /> : undefined}
                 </HStack>
               )}

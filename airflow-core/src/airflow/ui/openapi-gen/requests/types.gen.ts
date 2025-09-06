@@ -1847,6 +1847,7 @@ export type GridRunsResponse = {
     run_after: string;
     state: TaskInstanceState | null;
     run_type: DagRunType;
+    dag_version_number?: number | null;
     readonly duration: number;
 };
 
@@ -1879,6 +1880,7 @@ export type LightGridTaskInstanceSummary = {
 } | null;
     min_start_date: string | null;
     max_end_date: string | null;
+    dag_version_number?: number | null;
 };
 
 /**
