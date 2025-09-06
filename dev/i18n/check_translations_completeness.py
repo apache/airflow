@@ -125,12 +125,7 @@ def expand_plural_keys(keys: set[str], lang: str) -> set[str]:
 def get_locale_files() -> list[LocaleFiles]:
     return [
         LocaleFiles(
-            locale=locale_dir.name,
-            files=[
-                f.name
-                for f in locale_dir.iterdir()
-                if f.suffix == ".json" and f.name != "_freeze_exemptions.json"
-            ],
+            locale=locale_dir.name, files=[f.name for f in locale_dir.iterdir() if f.suffix == ".json"]
         )
         for locale_dir in LOCALES_DIR.iterdir()
         if locale_dir.is_dir()
@@ -389,7 +384,7 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
 
         # check missing translation files
         en_root = LOCALES_DIR / "en"
-        if diffs := set(os.listdir(en_root)) - {"_freeze_exemptions.json"} - set(all_files):
+        if diffs := set(os.listdir(en_root)) - set(all_files):
             for diff in diffs:
                 with open(en_root / diff) as f:
                     en_data = json.load(f)
