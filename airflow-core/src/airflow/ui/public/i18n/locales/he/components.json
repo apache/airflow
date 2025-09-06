@@ -2,6 +2,7 @@
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
     "affected_other": "{{count}} ריצות יופעלו.",
+    "affected_two": "שתי ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
@@ -46,25 +47,30 @@
     "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_one": "שגיאה אחת",
-    "error_other": "שגיאה אחת",
+    "error_one": "שגיאה",
+    "error_other": "שגיאות",
+    "error_two": "שגיאות",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
-    "warning_other": "{{count}} אזהרות"
+    "warning_other": "{{count}} אזהרות",
+    "warning_two": "שתי אזהרות"
   },
   "durationChart": {
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
     "lastDagRun_other": "{{count}} ריצות Dag אחרונות",
-    "lastTaskInstance_one": "משימה אחרונה",
-    "lastTaskInstance_other": "{{count}} משימות אחרונות",
+    "lastDagRun_two": "שתי ריצות Dag אחרונות",
+    "lastTaskInstance_one": "מופע משימה אחרונה",
+    "lastTaskInstance_other": "{{count}} מופעי משימות אחרונות",
+    "lastTaskInstance_two": "שני מופעי משימות אחרונות",
     "queuedDuration": "זמן המתנה בתור",
     "runAfter": "הרץ אחרי",
     "runDuration": "משך זמן ריצה"
   },
   "fileUpload": {
-    "files_one": "{{count}} קבצים",
-    "files_other": "{{count}} קבצים"
+    "files_one": "קובץ אחד",
+    "files_other": "{{count}} קבצים",
+    "files_two": "שני קבצים"
   },
   "flexibleForm": {
     "placeholder": "בחר ערך",
@@ -87,6 +93,7 @@
     "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count}} משימות",
+    "taskCount_two": "שתי משימות",
     "taskGroup": "קבוצת משימות"
   },
   "limitedList": "+ {{count}} נוספים",
