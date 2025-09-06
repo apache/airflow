@@ -25,6 +25,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+import FilterTaskButton from "src/components/FilterTaskButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
@@ -119,6 +120,7 @@ export const Header = ({
               taskInstance={taskInstance}
               withText={containerWidth > 700}
             />
+            <FilterTaskButton taskInstance={taskInstance} withText={containerWidth > 700} />
           </>
         }
         icon={<MdOutlineTask />}

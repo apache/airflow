@@ -23,10 +23,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
+import { useStructureServiceStructureData } from "openapi/queries";
 import type { GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -35,7 +38,7 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
-import { flattenNodes } from "./utils";
+import { buildEdges, filterNodesByDirection, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
@@ -51,9 +54,26 @@ export const Grid = ({ limit, showGantt }: Props) => {
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
-  const { dagId = "", runId = "" } = useParams();
+  const { dagId = "", runId = "", taskId } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
+
+  const [taskFilter] = useLocalStorage<"all" | "both" | "downstream" | "upstream">(
+    `upstreamDownstreamFilter-${dagId}`,
+    "all",
+  );
+  const selectedVersion = useSelectedVersion();
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+
+  const { data: structureData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: dependencies === "immediate",
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    { enabled: selectedVersion !== undefined },
+  );
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -91,10 +111,24 @@ export const Grid = ({ limit, showGantt }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const edges = useMemo(() => buildEdges(structureData.edges ?? []), [structureData.edges]);
+
+  const filteredNodes = useMemo(
+    () =>
+      filterNodesByDirection({
+        edges,
+        filter: taskFilter,
+        flatNodes,
+        taskId,
+      }),
+    [flatNodes, edges, taskId, taskFilter],
+  );
+
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
-    tasks: flatNodes,
+    tasks: filteredNodes,
   });
 
   return (
@@ -108,7 +142,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
       width={showGantt ? undefined : "100%"}
     >
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
-        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
+        <TaskNames nodes={filteredNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
         <Flex position="relative">
@@ -134,7 +168,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
               <Bar
                 key={dr.run_id}
                 max={max}
-                nodes={flatNodes}
+                nodes={filteredNodes}
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
