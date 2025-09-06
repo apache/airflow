@@ -62,7 +62,7 @@ function install_from_sources() {
         set -x
         uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
             --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-download --no-managed-python
+            --no-python-downloads --no-managed-python
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
