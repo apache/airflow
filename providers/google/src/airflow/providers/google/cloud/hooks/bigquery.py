@@ -1702,6 +1702,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         schema_update_options: Iterable | None = None,
         priority: str | None = None,
         time_partitioning: dict | None = None,
+        range_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
         encryption_configuration: dict | None = None,
@@ -1714,6 +1715,10 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         if time_partitioning is None:
             time_partitioning = {}
+        if range_partitioning is None:
+            range_partitioning = {}
+        if time_partitioning and range_partitioning:
+            raise ValueError("Only one of time_partitioning or range_partitioning can be set.")
 
         if not api_resource_configs:
             api_resource_configs = self.hook.api_resource_configs
@@ -1766,6 +1771,7 @@ class BigQueryCursor(BigQueryBaseCursor):
             (maximum_billing_tier, "maximumBillingTier", None, int),
             (maximum_bytes_billed, "maximumBytesBilled", None, float),
             (time_partitioning, "timePartitioning", {}, dict),
+            (range_partitioning, "rangePartitioning", {}, dict),
             (schema_update_options, "schemaUpdateOptions", None, list),
             (destination_dataset_table, "destinationTable", None, dict),
             (cluster_fields, "clustering", None, dict),
