@@ -12,6 +12,12 @@
   "requiredAction_other": "إجراءات مطلوبة",
   "requiredAction_two": "إجراءان مطلوبان",
   "requiredAction_zero": "لا إجراءات مطلوبة",
+  "requiredActionCount_few": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_many": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_one": "إجراء مطلوب ({{count}})",
+  "requiredActionCount_other": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_two": "إجرَاءان مطلوبان",
+  "requiredActionCount_zero": "لا توجد إجراءات مطلوبة",
   "requiredActionState": "حالة الإجراء المطلوب",
   "response": {
     "error": "فشل في الاستجابة",

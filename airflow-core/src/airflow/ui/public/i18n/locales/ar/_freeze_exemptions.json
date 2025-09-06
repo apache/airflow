@@ -1,0 +1,22 @@
+{
+  "admin": {},
+  "assets": {},
+  "browse": {},
+  "common": {},
+  "components": {},
+  "dag": {},
+  "dags": {},
+  "dashboard": {},
+  "hitl": {
+    "requiredActionCount_few": "إجراءات مطلوبة ({{count}})",
+    "requiredActionCount_many": "إجراءات مطلوبة ({{count}})",
+    "requiredActionCount_one": "إجراء مطلوب ({{count}})",
+    "requiredActionCount_other": "إجراءات مطلوبة ({{count}})",
+    "requiredActionCount_two": "إجرَاءان مطلوبان",
+    "requiredActionCount_zero": "لا توجد إجراءات مطلوبة",
+    "state": {
+      "noResponseReceived": "لم يتم استلام أي رد"
+    }
+  },
+  "tasks": {}
+}
