@@ -1534,7 +1534,7 @@ class SelectiveChecks:
                 CI_FILE_GROUP_MATCHES,
             )
         )
-        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed:
+        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed and not self._is_canary_run():
             if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
                 get_console().print(
                     "[warning]The 'allow translation change' label is set and English "

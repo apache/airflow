@@ -2684,6 +2684,18 @@ def test_ui_english_translation_changed_fail_on_change():
         ).ui_english_translation_changed
 
 
+def test_ui_english_translation_changed_allowed_in_canary_run():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    selective_checks = SelectiveChecks(
+        files=(translation_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed
+
+
 def test_ui_english_translation_changed_allowed_with_label():
     translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
     selective_checks = SelectiveChecks(
