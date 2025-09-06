@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-arangodb``
 
 Release: ``2.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `ArangoDB <https://www.arangodb.com/>`__
 

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-sendgrid``
 
 Release: ``4.1.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Sendgrid <https://sendgrid.com/>`__
 

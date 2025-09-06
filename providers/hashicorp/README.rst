@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-hashicorp``
 
 Release: ``4.3.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 

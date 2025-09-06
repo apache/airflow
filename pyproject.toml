@@ -185,7 +185,7 @@ packages = []
     "apache-airflow-providers-common-io>=1.4.2"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.3" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-common-messaging>=2.0.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
@@ -420,7 +420,7 @@ packages = []
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
-    "apache-airflow-providers-common-messaging>=1.0.3", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",

@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-http``
 
-Release: ``5.3.3``
+Release: ``5.3.4``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
@@ -37,7 +36,7 @@ This is a provider package for ``http`` provider. All classes for this provider 
 are in ``airflow.providers.http`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-http/5.3.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-http/5.3.4/>`_.
 
 Installation
 ------------
@@ -51,15 +50,15 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=====================  ====================
+=====================  ==================
 PIP package            Version required
-=====================  ====================
+=====================  ==================
 ``apache-airflow``     ``>=2.10.0``
 ``requests``           ``>=2.32.0,<3``
 ``requests-toolbelt``  ``>=1.0.0``
-``aiohttp``            ``!=3.11.0,>=3.9.2``
+``aiohttp``            ``>=3.12.14``
 ``asgiref``            ``>=2.3.0``
-=====================  ====================
+=====================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-http/5.3.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-http/5.3.4/changelog.html>`_.

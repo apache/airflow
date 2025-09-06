@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-zendesk``
 
 Release: ``4.10.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Zendesk <https://www.zendesk.com/>`__
 
