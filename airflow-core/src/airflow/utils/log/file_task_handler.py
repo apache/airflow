@@ -30,7 +30,7 @@ from enum import Enum
 from itertools import chain, islice
 from pathlib import Path
 from types import GeneratorType
-from typing import IO, TYPE_CHECKING, Any, TypedDict, cast
+from typing import IO, TYPE_CHECKING, TypedDict, cast
 from urllib.parse import urljoin
 
 import pendulum
@@ -68,10 +68,10 @@ HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = list[str]
-"""The legacy format of log messages before 3.0.4"""
+"""The legacy format of log messages before 3.0.2"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
-RawLogStream: TypeAlias = Generator[str | dict[str, Any], None, None]
+RawLogStream: TypeAlias = Generator[str, None, None]
 """Raw log stream, containing unparsed log lines."""
 LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
 """Legacy log response, containing source information and log messages."""
