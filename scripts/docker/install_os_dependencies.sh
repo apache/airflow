@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck shell=bash
-set -euo pipefail
+set -eu
 
 if [[ "$#" != 1 ]]; then
     echo
@@ -177,10 +177,10 @@ function install_debian_dev_dependencies() {
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
-        bash -o pipefail -o errexit -o nounset -o nolog -c "${DEV_APT_COMMAND}"
+        bash -o pipefail -o errexit -o nounset -c "${DEV_APT_COMMAND}"
     fi
     if [[ ${ADDITIONAL_DEV_APT_COMMAND} != "" ]]; then
-        bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_DEV_APT_COMMAND}"
+        bash -o pipefail -o errexit -o nounset -c "${ADDITIONAL_DEV_APT_COMMAND}"
     fi
     apt-get update
     local debian_version
@@ -240,7 +240,7 @@ function install_debian_runtime_dependencies() {
         bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}"
     fi
     if [[ "${ADDITIONAL_RUNTIME_APT_COMMAND}" != "" ]]; then
-        bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}"
+        bash -o pipefail -o errexit -o nounset -c "${ADDITIONAL_RUNTIME_APT_COMMAND}"
     fi
     apt-get update
     # shellcheck disable=SC2086
