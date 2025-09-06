@@ -17,7 +17,7 @@
  under the License.
  -->
 
-This project is managed by the PMC (Project Management Committee) of the
+This project is managed by the PMC (Project Management Committee) of The
 Apache Software Foundation.
 
 Governace of PMCs is described in the
