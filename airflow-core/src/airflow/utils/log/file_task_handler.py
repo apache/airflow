@@ -73,11 +73,10 @@ LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 RawLogStream: TypeAlias = Generator[str, None, None]
 """Raw log stream, containing unparsed log lines."""
-LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
+LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
 """Legacy log response, containing source information and log messages."""
-LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
-LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
-"""Log response, containing source information, stream of log lines, and total log size."""
+StreamingLogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
+"""Streaming log response, containing source information, stream of log lines."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
 LogHandlerOutputStream: TypeAlias = (
@@ -856,7 +855,7 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(
         worker_log_path: Path,
-    ) -> LogResponse:
+    ) -> StreamingLogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
@@ -873,7 +872,7 @@ class FileTaskHandler(logging.Handler):
         self,
         ti: TaskInstance | TaskInstanceHistory,
         worker_log_rel_path: str,
-    ) -> LogResponse:
+    ) -> StreamingLogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
         try:
@@ -911,7 +910,7 @@ class FileTaskHandler(logging.Handler):
                 logger.exception("Could not read served logs")
         return sources, log_streams
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> LegacyLogResponse | LogResponse:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> LogResponse | StreamingLogResponse:
         """
         Implement in subclasses to read from the remote service.
 
