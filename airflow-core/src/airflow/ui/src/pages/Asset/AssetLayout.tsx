@@ -22,12 +22,14 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { AssetGraph } from "./AssetGraph";
 import { CreateAssetEvent } from "./CreateAssetEvent";
@@ -59,12 +61,18 @@ export const AssetLayout = () => {
     },
   ];
 
+  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
+  const [searchParams] = useSearchParams();
   const { data, isLoading: isLoadingEvents } = useAssetServiceGetAssetEvents(
     {
       assetId: asset?.id,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      sourceDagId: searchParams.get(DAG_ID) ?? undefined,
+      sourceTaskId: searchParams.get(TASK_ID) ?? undefined,
+      timestampGte: searchParams.get(START_DATE) ?? undefined,
+      timestampLte: searchParams.get(END_DATE) ?? undefined,
     },
     undefined,
     { enabled: Boolean(asset?.id) },
@@ -127,6 +135,7 @@ export const AssetLayout = () => {
                 isLoading={isLoadingEvents}
                 setOrderBy={setOrderBy}
                 setTableUrlState={setTableURLState}
+                showFilters={true}
                 tableUrlState={tableURLState}
               />
             </Box>
