@@ -22,6 +22,7 @@ import copy
 import json
 import logging
 import os
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     import structlog.typing
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.providers.amazon.aws.hooks.logs import CloudWatchLogEvent
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import (
         LegacyLogResponse,
@@ -76,15 +78,6 @@ def json_serialize(value: Any) -> str | None:
     :return: string representation of `value`
     """
     return watchtower._json_serialize_default(value)
-
-
-class DateTimeEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle datetime serialization."""
-
-    def default(self, obj: object) -> str:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        return super().default(obj)
 
 
 @attrs.define(kw_only=True)
@@ -178,19 +171,17 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         self.close()
         return
 
-    def read(self, relative_path, ti: RuntimeTI) -> LegacyLogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI) -> LegacyLogResponse:
         messages, logs = self.stream(relative_path, ti)
         str_logs: list[str] = []
 
         for group in logs:
             for msg in group:
-                if isinstance(msg, dict):
-                    msg = json.dumps(msg, cls=DateTimeEncoder)
-                str_logs.append(msg)
+                str_logs.append(f"{msg}\n")
 
         return messages, str_logs
 
-    def stream(self, relative_path, ti: RuntimeTI) -> LogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         logs: list[RawLogStream] = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -206,7 +197,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, logs
 
-    def get_cloudwatch_logs(self, stream_name: str, task_instance: RuntimeTI):
+    def get_cloudwatch_logs(
+        self, stream_name: str, task_instance: RuntimeTI
+    ) -> Generator[CloudWatchLogEvent, None, None]:
         """
         Return all logs from the given log stream.
 
@@ -228,15 +221,16 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             end_time=end_time,
         )
 
-    def _parse_cloudwatch_log_event(self, event: dict) -> dict:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
-        message = event["message"]
+    def _parse_cloudwatch_log_event(self, event: CloudWatchLogEvent) -> str:
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc).isoformat()
+        event_msg = event["message"]
         try:
-            message = json.loads(message)
+            message = json.loads(event_msg)
             message["timestamp"] = event_dt
-            return message
         except Exception:
-            return {"timestamp": event_dt, "event": message}
+            message = {"timestamp": event_dt, "event": event_msg}
+
+        return json.dumps(message)
 
 
 class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -326,7 +320,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
         return messages, logs
 
-    def _event_to_str(self, event: dict) -> str:
+    def _event_to_str(self, event: CloudWatchLogEvent) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
         # Format a datetime object to a string in Zulu time without milliseconds.
         formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
