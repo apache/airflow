@@ -46,7 +46,7 @@ from airflow.providers.smtp.version_compat import BaseHook
 if TYPE_CHECKING:
     try:
         from airflow.sdk import Connection
-    except ImportError:
+    except (ImportError, ModuleNotFoundError):
         from airflow.models.connection import Connection  # type: ignore[assignment]
 
 

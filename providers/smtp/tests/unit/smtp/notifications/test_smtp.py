@@ -24,10 +24,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.smtp.notifications.smtp import (
-    SmtpNotifier,
-    send_smtp_notification,
-)
+from airflow.providers.smtp.notifications.smtp import SmtpNotifier, send_smtp_notification
 
 TRY_NUMBER = 0
 
