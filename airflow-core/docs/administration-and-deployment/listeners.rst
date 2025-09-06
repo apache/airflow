@@ -103,6 +103,7 @@ Asset Events
 - ``on_asset_created``
 - ``on_asset_alias_created``
 - ``on_asset_changed``
+- ``on_asset_event_created``
 
 Asset events occur when Asset management operations are run.
 

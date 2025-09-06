@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+import datetime
 import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
+
+import attrs
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -30,7 +33,14 @@ if TYPE_CHECKING:
     from pydantic import AwareDatetime
 
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetAliasEvent,
+        AssetRef,
+        AssetUniqueKey,
+        BaseAssetUniqueKey,
+    )
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
@@ -144,3 +154,16 @@ class OutletEventAccessorsProtocol(Protocol):
     def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
     def __len__(self) -> int: ...
     def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessorProtocol: ...
+
+
+@attrs.define
+class AssetEvent(attrs.AttrsInstance):
+    """Representation of an asset event created from an asset change."""
+
+    asset_key: AssetUniqueKey
+    timestamp: datetime.datetime
+    extra: dict[str, Any]
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+    source_task_id: str | None = None
+    source_map_index: int | None = None
