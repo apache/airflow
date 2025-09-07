@@ -295,6 +295,7 @@ class KubernetesPodOperator(BaseOperator):
         secrets: list[Secret] | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
+        ssl_ca_cert: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
@@ -381,6 +382,7 @@ class KubernetesPodOperator(BaseOperator):
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
+        self.ssl_ca_cert = ssl_ca_cert
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
@@ -543,6 +545,7 @@ class KubernetesPodOperator(BaseOperator):
             in_cluster=self.in_cluster,
             config_file=self.config_file,
             cluster_context=self.cluster_context,
+            ssl_ca_cert=self.ssl_ca_cert,
         )
         return hook
 
@@ -857,6 +860,7 @@ class KubernetesPodOperator(BaseOperator):
                 cluster_context=self.cluster_context,
                 config_dict=self._config_dict,
                 in_cluster=self.in_cluster,
+                ssl_ca_cert=self.ssl_ca_cert,
                 poll_interval=self.poll_interval,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
