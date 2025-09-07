@@ -16,10 +16,13 @@
   },
   "asset_one": "נכס",
   "asset_other": "נכסים",
+  "asset_two": "נכסים",
   "assetEvent_one": "אירוע נכס",
   "assetEvent_other": "אירועי נכסים",
+  "assetEvent_two": "אירועי נכסים",
   "backfill_one": "השלמה למפרע",
   "backfill_other": "השלמות למפרע",
+  "backfill_two": "השלמות למפרע",
   "browse": {
     "auditLog": "יומן מערכת",
     "requiredActions": "פעולות נדרשות",
@@ -28,8 +31,10 @@
   "collapseDetailsPanel": "כווץ לוח פרטים",
   "createdAssetEvent_one": "אירוע נכס שנוצר",
   "createdAssetEvent_other": "אירועי נכס שנוצרו",
+  "createdAssetEvent_two": "אירועי נכס שנוצרו",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dag_two": "Dags",
   "dagDetails": {
     "catchup": "השלמה אוטומטית",
     "dagRunTimeout": "זמן תפוגה להרצת Dag",
@@ -66,7 +71,8 @@
     "triggeringUser": "שם משתמש מפעיל"
   },
   "dagRun_one": "הרצת Dag",
-  "dagRun_other": "הרצת Dag",
+  "dagRun_other": "הרצת Dags",
+  "dagRun_two": "הרצת Dags",
   "dagRunId": "מזהה הרצת Dag",
   "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
@@ -145,6 +151,7 @@
     "open": "פתוח",
     "pools_one": "מאגר משאבים",
     "pools_other": "מאגרי משאבים",
+    "pools_two": "מאגרי משאבים",
     "queued": "בתור",
     "running": "בביצוע",
     "scheduled": "מתוזמן"
@@ -180,6 +187,7 @@
   },
   "sourceAssetEvent_one": "אירוע נכס מקור",
   "sourceAssetEvent_other": "אירועי נכס מקור",
+  "sourceAssetEvent_two": "אירועי נכס מקור",
   "startDate": "תאריך התחלה",
   "state": "מצב",
   "states": {
@@ -206,6 +214,7 @@
     "filterColumns": "סנן עמודות",
     "filterReset_one": "אפס מסנן",
     "filterReset_other": "אפס מסננים",
+    "filterReset_two": "אפס מסננים",
     "from": "מ-",
     "maxActiveRuns": "מספר הרצות פעילות מרבי",
     "noTagsFound": "לא נמצאו תגיות",
@@ -224,6 +233,7 @@
   },
   "task_one": "משימה",
   "task_other": "משימות",
+  "task_two": "משימות",
   "taskGroup": "קבוצת משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
@@ -249,8 +259,9 @@
     },
     "unixname": "שם משתמש Unix"
   },
-  "taskInstance_one": "משימה בודדת",
-  "taskInstance_other": "משימות",
+  "taskInstance_one": "מופע משימה",
+  "taskInstance_other": "מופעי משימות",
+  "taskInstance_two": "מופעי משימות",
   "timeRange": {
     "last12Hours": "12 השעות האחרונות",
     "last24Hours": "24 השעות האחרונות",
