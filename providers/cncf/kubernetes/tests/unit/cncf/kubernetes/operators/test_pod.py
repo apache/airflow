@@ -2799,8 +2799,8 @@ def test_read_pod_events(mock_log, mock_pod_manager):
         mock_event_normal.reason,
         mock_event_normal.message,
     )
-    # Assert that event with type `Warning` is logged as error.
-    mock_log.error.assert_called_once_with(
+    # Assert that event with type `Warning` is logged as warning.
+    mock_log.warning.assert_called_once_with(
         "Pod Event: %s - %s",
         mock_event_error.reason,
         mock_event_error.message,
