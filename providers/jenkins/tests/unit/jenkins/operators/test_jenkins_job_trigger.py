@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import Mock, patch
+from urllib.error import HTTPError
 
 import jenkins
 import pytest
+from jenkins import JenkinsException
 
 from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
@@ -82,7 +85,8 @@ class TestJenkinsOperator:
             jenkins_mock.get_build_info.assert_called_once_with(name="a_job_on_jenkins", number="1")
 
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
-    def test_execute_job_polling_loop(self, parameters, mocker):
+    @mock.patch.object(JenkinsJobTriggerOperator, "log")
+    def test_execute_job_polling_loop(self, mock_log, parameters, mocker):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.side_effect = [
@@ -92,6 +96,10 @@ class TestJenkinsOperator:
         jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
         jenkins_mock.get_queue_item.side_effect = [
             {},
+            HTTPError(
+                url="http://aaa.fake-url.com", code=500, msg="Internal Server Error", hdrs=None, fp=None
+            ),
+            JenkinsException("Jenkins is unavailable"),
             {"executable": {"number": "1"}},
         ]
 
@@ -125,6 +133,10 @@ class TestJenkinsOperator:
 
             operator.execute(None)
             assert jenkins_mock.get_build_info.call_count == 2
+            assert jenkins_mock.get_queue_item.call_count == 4
+
+            assert mock_log.warning.call_count == 2
+            assert mock_log.warning.call_args == mock.call("polling failed, retrying", exc_info=True)
 
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
     def test_execute_job_failure(self, parameters, mocker):
