@@ -59,9 +59,11 @@ type RunResponse = GridRunsResponse | TaskInstanceResponse;
 const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
 
 export const DurationChart = ({
+  autoRefreshEnabled,
   entries,
   kind,
 }: {
+  readonly autoRefreshEnabled?: boolean;
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
@@ -143,10 +145,16 @@ export const DurationChart = ({
               label: translate("durationChart.runDuration"),
             },
           ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm:ss")),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm")),
         }}
         datasetIdKey="id"
         options={{
+          animation: {
+            delay: 0,
+            duration: autoRefreshEnabled ? 0 : 1000,
+            easing: "easeOutQuart",
+            loop: false,
+          },
           onClick: (_event, elements) => {
             const [element] = elements;
 

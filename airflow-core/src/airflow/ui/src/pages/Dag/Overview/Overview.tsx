@@ -35,6 +35,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -74,6 +75,12 @@ export const Overview = () => {
     timestampGte: startDate,
     timestampLte: endDate,
   });
+
+  const autoRefreshEnabled =
+    Boolean(useAutoRefresh({ dagId })) &&
+    gridRuns &&
+    gridRuns.length > 0 &&
+    isStatePending(gridRuns[0]?.state);
 
   return (
     <Box m={4} spaceY={4}>
@@ -124,7 +131,11 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={gridRuns?.slice().reverse()} kind="Dag Run" />
+            <DurationChart
+              autoRefreshEnabled={autoRefreshEnabled}
+              entries={gridRuns?.slice().reverse()}
+              kind="Dag Run"
+            />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (
