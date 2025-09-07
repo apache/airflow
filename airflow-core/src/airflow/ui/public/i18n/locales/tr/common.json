@@ -191,8 +191,6 @@
     "up_for_retry": "Yeniden Denenecek",
     "upstream_failed": "Yukarı Akış Başarısız"
   },
-  "switchToDarkMode": "Karanlık Moda Geç",
-  "switchToLightMode": "Aydınlık Moda Geç",
   "table": {
     "completedAt": "Tamamlanma Tarihi",
     "createdAt": "Oluşturulma Tarihi",

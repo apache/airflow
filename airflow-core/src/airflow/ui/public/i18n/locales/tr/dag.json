@@ -64,9 +64,7 @@
   "panel": {
     "buttons": {
       "options": "Seçenekler",
-      "showGantt": "Gantt Grafiğini Göster",
-      "showGraph": "Grafiği Göster",
-      "showGrid": "Izgarayı Göster"
+      "showGantt": "Gantt Grafiğini Göster"
     },
     "dagRuns": {
       "label": "Dag Çalıştırma Sayısı"
