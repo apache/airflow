@@ -65,3 +65,9 @@ class JobCollectionResponse(BaseModel):
 
     jobs: list[Job]
     total_entries: int
+
+
+class MaintenanceRequest(BaseModel):
+    """Request body for maintenance operations."""
+
+    maintenance_comment: Annotated[str, Field(description="Comment describing the maintenance reason.")]
