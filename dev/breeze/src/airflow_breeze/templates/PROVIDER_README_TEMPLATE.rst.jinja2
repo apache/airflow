@@ -107,9 +107,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Optional dependencies
 ----------------------
 
-{%- for extra_name, dependencies in OPTIONAL_DEPENDENCIES.items() %}
-``{{ extra_name }}`` : {{ ", ".join(dependencies) }}
-{%- endfor %}
+{{ OPTIONAL_DEPENDENCIES_TABLE_RST | safe }}
 
 {%- endif %}
 
