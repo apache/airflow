@@ -22,6 +22,7 @@ import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
 import React from "react";
 import { createRoot } from "react-dom/client";
+import * as ReactDOM from "react-dom";
 import { I18nextProvider } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
 import * as ReactJSXRuntime from "react/jsx-runtime";
@@ -37,10 +38,11 @@ import { client } from "./queryClient";
 import { system } from "./theme";
 import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
-// Set React and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
+// Set React, ReactDOM, and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
 // Only one instance of React should be used.
 // Reflect will avoid type checking.
 Reflect.set(globalThis, "React", React);
+Reflect.set(globalThis, "ReactDOM", ReactDOM);
 Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
