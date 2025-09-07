@@ -24,9 +24,53 @@
 
 .. towncrier release notes start
 
+Airflow 3.0.6 (2025-08-29)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+
+- Fix Connection extra field masking errors when connections use masked values (#54780)
+- UI: Fix ``TriggerDagRunLink`` broken page when clicking "Triggered DAG" button (#54760)
+- Fix remote logging connection availability in Task SDK supervisor when connections are created via UI (#54720)
+- Fix ``task_queued_timeout`` not working after first DAG run by properly resetting ``queued_by_job_id`` (#54604)
+- Fix DAG version determination to use bundle path and relative fileloc instead of absolute fileloc (#54483)
+- Remove Kerberos replay cache (``KRB5CCNAME`` env) when running tasks with user impersonation (#54672)
+- Skip additional span-related database queries when tracing is disabled (#54626)
+- Fix ``max_active_tasks`` persisting after removal from DAG code (#54639)
+- UI: Automatically switch to the triggered DAG run in Graph/Grid view when manually triggering a DAG run (#54336)
+- UI: Fix "Maximum update depth exceeded" errors in Task Log Preview by filtering out empty log entries (#54628)
+- Fix custom logging configuration failures preventing triggerer and scheduler startup with simple module paths (#54686)
+- Fix MySQL UUID generation in task_instance migration (#54814)
+- Only redirect on the dag detail page (#54921)
+- Fix local executor task execution (#54922)
+
+Miscellaneous
+"""""""""""""
+
+- Add logging when triggerer reaches maximum trigger capacity for better observability (#54549)
+- Point deprecation warning in Variable methods to specific alternatives (#54871)
+- Point deprecation warning in Connection method to specific alternatives (#54872)
+- Bump ``axios`` UI dependency from ``1.8.0`` to ``1.11.0`` (#54733)
+- Bump ``pluggy`` to ``1.6.0`` (#54728, #54730)
+
+Doc Only Changes
+""""""""""""""""
+
+- Fix broken link for Listener spec (#54535)
+- Remove experimental status from ``get_parsing_context`` function (#54802)
+- Correct Trigger-Form UI documentation for current Airflow 3 features (#54806)
+- Add backfill through UI to docs (#54910)
 
 Airflow 3.0.5 (2025-08-20)
 --------------------------
+
+This release has been yanked.
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
@@ -556,6 +600,10 @@ Airflow 3.0 introduces native DAG versioning. DAG structure changes (e.g., renam
 tracked directly in the metadata database. This allows users to inspect historical DAG structures through the UI and API,
 and lays the foundation for safer backfills, improved observability, and runtime-determined DAG logic.
 
+**Note**: DAG bundles are not initialized in the triggerer. In practice, this means that triggers cannot come from a
+DAG bundle. This is because the triggerer does not deal with changes in trigger code over time, as everything happens
+in the main process. Triggers can come from anywhere else on ``sys.path`` instead.
+
 React UI Rewrite (AIP-38, AIP-84)
 """""""""""""""""""""""""""""""""
 
@@ -979,6 +1027,16 @@ been **moved to the new ``[api]`` section**. The following configuration keys ha
 - ``[webserver] web_server_ssl_cert`` → ``[api] ssl_cert``
 - ``[webserver] web_server_ssl_key`` → ``[api] ssl_key``
 - ``[webserver] access_logfile`` → ``[api] access_logfile``
+
+The following DAG parsing configuration options were **moved to the new ``[dag_processor]`` section**:
+
+- ``[core] dag_file_processor_timeout`` → ``[dag_processor] dag_file_processor_timeout``
+- ``[scheduler] parsing_processes`` → ``[dag_processor] parsing_processes``
+- ``[scheduler] file_parsing_sort_mode`` → ``[dag_processor] file_parsing_sort_mode``
+- ``[scheduler] max_callbacks_per_loop`` → ``[dag_processor] max_callbacks_per_loop``
+- ``[scheduler] min_file_process_interval`` → ``[dag_processor] min_file_process_interval``
+- ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
+- ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
 
 Users should review their ``airflow.cfg`` files or use the ``airflow config lint`` command to identify outdated or
 removed options.

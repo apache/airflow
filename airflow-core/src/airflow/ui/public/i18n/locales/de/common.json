@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "Variablen"
   },
+  "allOperators": "Alle Operatoren",
+  "appearance": {
+    "appearance": "Darstellung",
+    "darkMode": "Dunkelmodus",
+    "lightMode": "Hellmodus",
+    "systemMode": "Systemeinstellung folgen"
+  },
   "asset_one": "Datenset (Asset)",
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
@@ -25,7 +32,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Nachgeholt",
-    "concurrency": "Parallelität",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
     "description": "Beschreibung",
@@ -181,6 +187,7 @@
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
     "none": "Kein Status",
+    "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
     "restarting": "Im Neustart",
@@ -192,8 +199,6 @@
     "up_for_retry": "Wartet auf neuen Versuch",
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
-  "switchToDarkMode": "Zum Dunkelmodus wechseln",
-  "switchToLightMode": "Zum Hellmodus wechseln",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",

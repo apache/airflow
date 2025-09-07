@@ -86,6 +86,7 @@ class DeadlineCallbackState(str, Enum):
     """
 
     QUEUED = "queued"
+    RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
 
@@ -163,9 +164,10 @@ class Deadline(Base):
 
         try:
             # Get deadlines which match the provided conditions and their associated DagRuns.
-            deadline_dagrun_pairs = (
-                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
-            )
+            deadline_dagrun_pairs = session.execute(
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+            ).all()
+
         except AttributeError as e:
             logger.exception("Error resolving deadlines: %s", e)
             raise
@@ -223,9 +225,11 @@ class Deadline(Base):
         if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
             DeadlineCallbackState.SUCCESS,
             DeadlineCallbackState.FAILED,
+            DeadlineCallbackState.RUNNING,
         }:
-            self.trigger = None
-            self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+            self.callback_state = status
+            if status != DeadlineCallbackState.RUNNING:
+                self.trigger = None
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)

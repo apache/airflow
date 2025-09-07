@@ -15,8 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-Creating a notifier
+Creating a Notifier
 ===================
+
 The :class:`~airflow.sdk.definitions.notifier.BaseNotifier` is an abstract class that provides a basic
 structure for sending notifications in Airflow using the various ``on_*__callback``.
 It is intended for providers to extend and customize for their specific needs.
@@ -32,49 +33,29 @@ Here's an example of how you can create a Notifier class:
 .. code-block:: python
 
     from airflow.sdk import BaseNotifier
-    from my_provider import send_message
+    from my_provider import async_send_message, send_message
 
 
     class MyNotifier(BaseNotifier):
         template_fields = ("message",)
 
-        def __init__(self, message):
+        def __init__(self, message: str):
             self.message = message
 
-        def notify(self, context):
-            # Send notification here, below is an example
+        def notify(self, context: Context) -> None:
+            # Send notification here. For example:
             title = f"Task {context['task_instance'].task_id} failed"
             send_message(title, self.message)
 
-Using a notifier
-----------------
-Once you have a notifier implementation, you can use it in your ``DAG`` definition by passing it as an argument to
-the ``on_*_callbacks``. For example, you can use it with ``on_success_callback`` or ``on_failure_callback`` to send
-notifications based on the status of a task or a DAG run.
+        async def async_notify(self, context: Context) -> None:
+            # Only required if your Notifier is going to support asynchronous code. For example:
+            title = f"Task {context['task_instance'].task_id} failed"
+            await async_send_message(title, self.message)
 
-Here's an example of using the above notifier:
 
-.. code-block:: python
+For a list of community-managed notifiers, see :doc:`apache-airflow-providers:core-extensions/notifications`.
 
-    from datetime import datetime
+Using Notifiers
+===============
 
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.bash import BashOperator
-
-    from myprovider.notifier import MyNotifier
-
-    with DAG(
-        dag_id="example_notifier",
-        start_date=datetime(2022, 1, 1),
-        schedule=None,
-        on_success_callback=MyNotifier(message="Success!"),
-        on_failure_callback=MyNotifier(message="Failure!"),
-    ):
-        task = BashOperator(
-            task_id="example_task",
-            bash_command="exit 1",
-            on_success_callback=MyNotifier(message="Task Succeeded!"),
-        )
-
-For a list of community-managed notifiers, see
-:doc:`apache-airflow-providers:core-extensions/notifications`.
+For using Notifiers in event-based Dag callbacks, see :doc:`../administration-and-deployment/logging-monitoring/callbacks`.

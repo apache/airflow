@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "變數"
   },
+  "allOperators": "所有任務操作器",
+  "appearance": {
+    "appearance": "外觀",
+    "darkMode": "深色模式",
+    "lightMode": "淺色模式",
+    "systemMode": "跟隨系統設定"
+  },
   "asset_one": "資源",
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
@@ -25,7 +32,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "自動回填",
-    "concurrency": "並行數",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
     "description": "描述",
@@ -181,6 +187,7 @@
     "failed": "失敗",
     "no_status": "無狀態",
     "none": "無狀態",
+    "planned": "已計劃",
     "queued": "排隊中",
     "removed": "已移除",
     "restarting": "重啟中",
@@ -192,8 +199,6 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
-  "switchToDarkMode": "切換到深色模式",
-  "switchToLightMode": "切換到淺色模式",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",

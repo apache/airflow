@@ -71,9 +71,7 @@ apache-airflow-providers-pinecone package
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 
-Release: 2.3.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 2.3.4
 
 Provider package
 ----------------
@@ -84,7 +82,7 @@ All classes for this package are included in the ``airflow.providers.pinecone`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-pinecone``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
