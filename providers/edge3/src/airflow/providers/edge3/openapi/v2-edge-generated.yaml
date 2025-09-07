@@ -593,6 +593,9 @@ paths:
       summary: Request Worker Maintenance
       description: Put a worker into maintenance mode.
       operationId: request_worker_maintenance
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: worker_name
         in: path
@@ -626,6 +629,9 @@ paths:
       summary: Exit Worker Maintenance
       description: Exit a worker from maintenance mode.
       operationId: exit_worker_maintenance
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: worker_name
         in: path
