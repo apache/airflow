@@ -84,11 +84,31 @@ Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of
 
 You can also pass in a callable instead when Python is more readable than a Jinja template. The callable must accept two named arguments ``context`` and ``jinja_env``:
 
+The ``context`` parameter is a dictionary-like object (``Dict[str, Any]``) that provides access to runtime information about the current task execution. You can access its contents using standard dictionary syntax (``context['key']``) and it contains all the same variables that are available in Jinja templates. The context is read-only from the perspective of template rendering - while you can access and use its values, modifications won't affect the task execution environment.
+
+Key context variables include:
+
+- ``context['task']``: The current task object (``BaseOperator``)
+- ``context['ti']`` or ``context['task_instance']``: The task instance object (``TaskInstance``) 
+- ``context['dag']``: The DAG object containing this task
+- ``context['dag_run']``: The current DAG run object
+- ``context['ds']``: Data interval start date in YYYY-MM-DD format (``str``)
+- ``context['logical_date']``: The logical date for this DAG run (``DateTime``)
+- ``context['run_id']``: The run ID of the current DAG run (``str``)
+
+For a complete list of available context variables, see :ref:`Templates reference <templates:variables>`.
+
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    from typing import Any, Dict
+    import jinja2
+
+    def build_complex_command(context: Dict[str, Any], jinja_env: jinja2.Environment) -> str:
+        # Access runtime information from the context dictionary
+        task_id = context['ti'].task_id
+        execution_date = context['ds']
         with open("file.csv") as f:
-            return do_complex_things(f)
+            return do_complex_things(f, task_id, execution_date)
 
 
     t = BashOperator(
@@ -101,7 +121,7 @@ Since each template field is only rendered once, the callable's return value wil
 
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    def build_complex_command(context: Dict[str, Any], jinja_env: jinja2.Environment) -> str:
         with open("file.csv") as f:
             data = do_complex_things(f)
         return context["task"].render_template(data, context, jinja_env)
