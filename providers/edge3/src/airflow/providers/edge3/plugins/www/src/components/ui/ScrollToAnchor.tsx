@@ -16,7 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+interface ScrollToAnchorProps {
+  inline?: ScrollLogicalPosition;
+  block?: ScrollLogicalPosition;
+}
 
-export * from "./Alert";
-export * from "./createToaster";
-export * from "./ScrollToAnchor";
+export const ScrollToAnchor = ({ block = "start", inline = "nearest" }: ScrollToAnchorProps): null => {
+  const hash = window.location.hash;
+  if (hash) {
+    const element = document.getElementById(hash.slice(1));
+
+    if (element) {
+      element.scrollIntoView({
+        behavior: "auto",
+        block: block,
+        inline: inline,
+      });
+    }
+  }
+
+  return null;
+};
