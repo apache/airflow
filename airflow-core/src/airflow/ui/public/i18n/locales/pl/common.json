@@ -49,6 +49,7 @@
     "fileLocation": "Lokalizacja pliku",
     "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
     "lastExpired": "Ostatnio wygasły",
+    "lastParseDuration": "Czas ostatniego parsowania",
     "lastParsed": "Ostatnia analiza",
     "latestDagVersion": "Najnowsza wersja Daga",
     "latestRun": "Ostatnie wykonanie",
