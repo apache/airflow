@@ -152,18 +152,19 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """
         self.log.info("Polling jenkins queue at the url %s", location)
 
-        match = re.search(r"/queue/item/(\d+)/?", location)
-        if not match:
+        if not (match := re.search(r"/queue/item/(\d+)/?", location)):
             raise ValueError(f"Invalid queue location format: {location}")
 
         queue_id = int(match.group(1))
 
         self.log.info("Polling Jenkins queue item with ID %s", queue_id)
         for attempt in range(self.max_try_before_job_appears):
+            # Initialize it to prevent UnboundLocalError in case of exception raised
+            json_response = None
             if attempt:
                 time.sleep(self.sleep_time)
             try:
-                json_response: dict = jenkins_server.get_queue_item(queue_id)
+                json_response = jenkins_server.get_queue_item(queue_id)
             except (HTTPError, JenkinsException):
                 self.log.warning("polling failed, retrying", exc_info=True)
 
@@ -171,8 +172,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 # The returned dict will have an "executable" key if the queued item is running on an executor,
                 # or has completed running.
                 if (
-                    "executable" in json_response
-                    and json_response["executable"] is not None
+                    json_response.get("executable", None) is not None
                     and "number" in json_response["executable"]
                 ):
                     build_number = json_response["executable"]["number"]
