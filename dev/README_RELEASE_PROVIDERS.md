@@ -913,11 +913,34 @@ This can be done with the Apache RAT tool.
 * Enter the sources folder run the check
 
 ```shell script
+# Get rat if you do not have it
 wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
-java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E .rat-excludes -d .
+# Cleanup old folders (if needed)
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+cat /tmp/files.txt | xargs rm -rf
+# Unpack all providers
+for i in *.tar.gz
+do
+   tar -xvzf $i
+done
+# Generate list of unpacked providers
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+# Check licences
+for d in $(cat /tmp/files.txt)
+do
+  pushd $d
+  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
+  popd >/dev/null
+done
 ```
 
-where `.rat-excludes` is the file in the root of Airflow source code.
+You should see only '0 Unknown licences"
+
+Cleanup:
+
+```shell script
+cat /tmp/files.txt | xargs rm -rf
+```
 
 ### Signature check
 
