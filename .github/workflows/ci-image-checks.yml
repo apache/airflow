@@ -145,6 +145,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Install prek"
         uses: ./.github/actions/install-prek
@@ -189,6 +190,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Install prek"
         uses: ./.github/actions/install-prek
@@ -239,6 +241,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
@@ -301,6 +304,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
@@ -400,6 +404,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Generate airflow python client"
         run: >
           breeze release-management prepare-python-client --distribution-format both
