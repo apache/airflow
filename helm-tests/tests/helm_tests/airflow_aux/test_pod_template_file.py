@@ -1065,15 +1065,27 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "workers_values, kerberos_init_container",
+        "airflow_version, workers_values, kerberos_init_container, expected_config_name",
         [
-            ({"kerberosSidecar": {"enabled": True}}, False),
-            ({"kerberosInitContainer": {"enabled": True}}, True),
+            (None, {"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
+            (None, {"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),
+            ("2.10.5", {"kerberosSidecar": {"enabled": True}}, False, "webserver-config"),
+            ("2.10.5", {"kerberosInitContainer": {"enabled": True}}, True, "webserver-config"),
         ],
     )
-    def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
+    def test_webserver_config_for_kerberos(
+        self, airflow_version, workers_values, kerberos_init_container, expected_config_name
+    ):
+        values = {
+            "airflowVersion": airflow_version,
+            "workers": workers_values,
+            "apiServer": {"apiServerConfigConfigMapName": "config"},
+            "webserver": {"webserverConfigConfigMapName": "config"},
+        }
+        if airflow_version is None:
+            del values["airflowVersion"]
         docs = render_chart(
-            values={"workers": workers_values, "webserver": {"webserverConfigConfigMapName": "config"}},
+            values=values,
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1084,8 +1096,8 @@ class TestPodTemplateFile:
 
         volume_mounts_names = jmespath.search(kerberos_container, docs[0])
         print(volume_mounts_names)
-        assert "webserver-config" in volume_mounts_names
-        assert "webserver-config" in jmespath.search("spec.volumes[*].name", docs[0])
+        assert expected_config_name in volume_mounts_names
+        assert expected_config_name in jmespath.search("spec.volumes[*].name", docs[0])
 
     @pytest.mark.parametrize(
         "workers_values",

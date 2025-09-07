@@ -1088,10 +1088,11 @@ class KubernetesPodOperator(BaseOperator):
         """Will fetch and emit events from pod."""
         with _optionally_suppress(reraise=reraise):
             for event in self.pod_manager.read_pod_events(pod).items:
-                if event.type == PodEventType.NORMAL.value:
-                    self.log.info("Pod Event: %s - %s", event.reason, event.message)
+                if event.type == PodEventType.WARNING.value:
+                    self.log.warning("Pod Event: %s - %s", event.reason, event.message)
                 else:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                    # events.k8s.io/v1 at this stage will always be Normal
+                    self.log.info("Pod Event: %s - %s", event.reason, event.message)
 
     def _read_pod_container_states(self, pod, *, reraise=True) -> None:
         """Log detailed container states of pod for debugging."""

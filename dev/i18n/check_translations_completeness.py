@@ -45,16 +45,24 @@ LOCALES_DIR = (
     Path(__file__).parents[2] / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 )
 
-# Plural suffixes per language (expand as needed)
+MOST_COMMON_PLURAL_SUFFIXES = ["_one", "_other"]
+# Plural suffixes per language (expand as needed). The actual suffixes depend on the language
+# And can be vastly different in some languages (e.g. Arabic has 6 forms, Polish has 4 forms)
+# You can check the rules for your language at https://jsfiddle.net/6bpxsgd4
 PLURAL_SUFFIXES = {
-    "en": ["_one", "_other"],
-    "pl": ["_one", "_few", "_many", "_other"],
-    "de": ["_one", "_other"],
-    "fr": ["_one", "_other"],
-    "nl": ["_one", "_other"],
     "ar": ["_zero", "_one", "_two", "_few", "_many", "_other"],
-    "he": ["_one", "_other"],
+    "ca": ["_one", "_many", "_other"],
+    "de": MOST_COMMON_PLURAL_SUFFIXES,
+    "en": MOST_COMMON_PLURAL_SUFFIXES,
+    "es": ["_one", "_many", "_other"],
+    "fr": ["_one", "_many", "_other"],
+    "he": ["_one", "_two", "_other"],
+    "hi": MOST_COMMON_PLURAL_SUFFIXES,
+    "hu": MOST_COMMON_PLURAL_SUFFIXES,
     "ko": ["_other"],
+    "nl": MOST_COMMON_PLURAL_SUFFIXES,
+    "pl": ["_one", "_few", "_many", "_other"],
+    "tr": MOST_COMMON_PLURAL_SUFFIXES,
     "zh-TW": ["_other"],
 }
 
@@ -105,11 +113,18 @@ def get_plural_base(key: str, suffixes: list[str]) -> str | None:
     return None
 
 
-def expand_plural_keys(keys: set[str], lang: str) -> set[str]:
+def expand_plural_keys(keys: set[str], lang: str, console: Console) -> set[str]:
     """
     For a set of keys, expand all plural bases to include all required suffixes for the language.
     """
-    suffixes = PLURAL_SUFFIXES.get(lang, ["_one", "_other"])
+    suffixes = PLURAL_SUFFIXES.get(lang)
+    if not suffixes:
+        console.print(
+            f"\n[red]Error: No plural suffixes defined for language '{lang}'[/red].\n"
+            f'[bright_blue]Most languages use ["_one", "_other"] array for suffixes, '
+            f"but you can check and play your language at https://jsfiddle.net/6bpxsgd4\n"
+        )
+        sys.exit(1)
     base_to_suffixes: dict[str, set[str]] = {}
     for key in keys:
         base = get_plural_base(key, suffixes)
@@ -149,6 +164,7 @@ def flatten_keys(d: dict, prefix: str = "") -> list[str]:
 
 def compare_keys(
     locale_files: list[LocaleFiles],
+    console,
 ) -> tuple[dict[str, LocaleSummary], dict[str, dict[str, int]]]:
     """
     Compare all non-English locales with English locale only.
@@ -177,7 +193,9 @@ def compare_keys(
         keys_by_locale = {ks.locale: ks.keys for ks in key_sets}
         en_keys = keys_by_locale.get("en", set()) or set()
         # Expand English keys for all required plural forms in each language
-        expanded_en_keys = {lang: expand_plural_keys(en_keys, lang) for lang in keys_by_locale.keys()}
+        expanded_en_keys = {
+            lang: expand_plural_keys(en_keys, lang, console) for lang in keys_by_locale.keys()
+        }
         missing_keys: dict[str, list[str]] = {}
         extra_keys: dict[str, list[str]] = {}
         missing_counts[filename] = {}
@@ -434,7 +452,7 @@ def cli(language: str | None = None, add_missing: bool = False):
     console = Console(force_terminal=True, color_system="auto")
     print_locale_file_table(locale_files, console, language)
     found_difference = print_file_set_differences(locale_files, console, language)
-    summary, missing_counts = compare_keys(locale_files)
+    summary, missing_counts = compare_keys(locale_files, console)
     console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
     if language:
         locales = [lf.locale for lf in locale_files]
@@ -467,9 +485,9 @@ def cli(language: str | None = None, add_missing: bool = False):
         summary,
     )
     if not found_difference and not has_todos:
-        console.print("[green]All translations are complete and consistent![/green]")
-    if found_difference:
-        sys.exit(1)
+        console.print("\n[green]All translations are complete and consistent![/green]\n\n")
+    else:
+        console.print("\n[red]Some translations are neither complete nor consistent![/red]\n\n")
 
 
 def add_missing_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
