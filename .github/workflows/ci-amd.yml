@@ -191,7 +191,8 @@ jobs:
           # octopin needs python 3.11
           python-version: "3.11"
           platform: "linux/amd64"
-          save-cache: false
+          save-cache: true
+          skip-prek-hooks: ""
       - name: "Run pin-versions"
         run: >
           prek -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
