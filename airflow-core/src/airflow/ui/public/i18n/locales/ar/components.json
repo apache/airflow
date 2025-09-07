@@ -113,7 +113,7 @@
     "taskCount_many": "{{count}} مهمة",
     "taskCount_one": "{{count}} مهمة",
     "taskCount_other": "{{count}} مهمة",
-    "taskCount_two": "{{count}} مهمتان",
+    "taskCount_two": "مهمتان",
     "taskCount_zero": "لا يوجد أي مهمة",
     "taskGroup": "مجموعة المهام"
   },
