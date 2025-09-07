@@ -260,26 +260,30 @@ class KubernetesJobOperator(KubernetesPodOperator):
                     self.job_client.delete_namespaced_job(
                         name=self.job.metadata.name,
                         namespace=self.job.metadata.namespace,
-                        propagation_policy="Foreground",  # 確保 Pod 也被刪除
+                        propagation_policy="Foreground",  # Ensure pods are deleted with the job
                     )
                 else:
                     # Only run pod cleanup if we're not deleting the job
-                    # (since job deletion will cascade delete the pods)
                     if self.pods:
                         for pod in self.pods:
                             # Get the latest pod status
                             try:
                                 remote_pod = self.pod_manager.read_pod(pod)
                                 if remote_pod:
+                                    original_pod = pod
                                     pod = remote_pod
                             except Exception as e:
                                 self.log.warning("Failed to refresh pod status: %s", e)
+                                original_pod = pod
+                                remote_pod = pod
 
                             # Execute cleanup logic including processing on_finish_action
                             self.cleanup(
-                                pod=pod,
-                                remote_pod=pod,
-                                xcom_result=xcom_result[self.pods.index(pod)] if self.do_xcom_push else None,
+                                pod=original_pod,
+                                remote_pod=remote_pod,
+                                xcom_result=xcom_result[self.pods.index(original_pod)]
+                                if self.do_xcom_push
+                                else None,
                                 context=context,
                             )
 
