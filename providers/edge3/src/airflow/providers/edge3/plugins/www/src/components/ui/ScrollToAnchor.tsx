@@ -16,24 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 interface ScrollToAnchorProps {
   inline?: ScrollLogicalPosition;
   block?: ScrollLogicalPosition;
 }
 
 export const ScrollToAnchor = ({ block = "start", inline = "nearest" }: ScrollToAnchorProps): null => {
-  const hash = window.location.hash;
-  if (hash) {
-    const element = document.getElementById(hash.slice(1));
+  const [hash, setHash] = useState(() => window.location.hash);
 
-    if (element) {
-      element.scrollIntoView({
-        behavior: "auto",
-        block: block,
-        inline: inline,
-      });
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (hash) {
+      const element = document.getElementById(hash.slice(1));
+      if (element) {
+        element.scrollIntoView({
+          behavior: "auto",
+          block: block,
+          inline: inline,
+        });
+      }
     }
-  }
+  }, [hash, block, inline]);
 
   return null;
 };
