@@ -51,7 +51,7 @@ MOST_COMMON_PLURAL_SUFFIXES = ["_one", "_other"]
 # You can check the rules for your language at https://jsfiddle.net/6bpxsgd4
 PLURAL_SUFFIXES = {
     "ar": ["_zero", "_one", "_two", "_few", "_many", "_other"],
-    "ca": ["_one", "_many", "_other"],
+    "ca": MOST_COMMON_PLURAL_SUFFIXES,
     "de": MOST_COMMON_PLURAL_SUFFIXES,
     "en": MOST_COMMON_PLURAL_SUFFIXES,
     "es": ["_one", "_many", "_other"],
