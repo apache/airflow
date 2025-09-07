@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Portal } from "@chakra-ui/react";
 import { Button, CloseButton, Dialog, IconButton, Textarea, useDisclosure } from "@chakra-ui/react";
 import { useUiServiceRequestWorkerMaintenance } from "openapi/queries";
 import { useState } from "react";
@@ -59,30 +60,37 @@ export const MaintenanceEnterButton = ({ onEnterMaintenance, workerName }: Maint
       </IconButton>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="md">
-        <Dialog.Content>
-          <Dialog.Header>
-            <Dialog.Title>Set maintenance for worker {workerName}</Dialog.Title>
-          </Dialog.Header>
-          <Dialog.Body>
-            <Textarea
-              placeholder="Enter maintenance comment (required)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              required
-              maxLength={1024}
-              size="sm"
-            />
-          </Dialog.Body>
-          <Dialog.Footer>
-            <Dialog.ActionTrigger asChild>
-              <Button variant="outline">Cancel</Button>
-            </Dialog.ActionTrigger>
-            <Button onClick={enterMaintenance}>Confirm Maintenance</Button>
-          </Dialog.Footer>
-          <Dialog.CloseTrigger asChild>
-            <CloseButton size="sm" />
-          </Dialog.CloseTrigger>
-        </Dialog.Content>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Set maintenance for worker {workerName}</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Textarea
+                  placeholder="Enter maintenance comment (required)"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  required
+                  maxLength={1024}
+                  size="sm"
+                />
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">Cancel</Button>
+                </Dialog.ActionTrigger>
+                <Button onClick={enterMaintenance} disabled={!comment.trim()}>
+                  Confirm Maintenance
+                </Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
       </Dialog.Root>
     </>
   );
