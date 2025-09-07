@@ -25,7 +25,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 DOC = """
-### Example: Simple Oracle fetchion
+### Example: Simple Oracle fetch
 
 This DAG demonstrates using `OracleHook` to read from Oracle and push rows
 into XCom for downstream tasks. Adapt this pattern for your transfers.
