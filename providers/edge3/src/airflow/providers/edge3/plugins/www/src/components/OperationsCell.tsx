@@ -121,7 +121,6 @@ export const OperationsCell = ({
     state === "maintenance pending" ||
     state === "maintenance mode" ||
     state === "maintenance request" ||
-    state === "maintenance exit" ||
     state === "offline maintenance"
   ) {
     cellContent = (
