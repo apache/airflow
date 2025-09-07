@@ -25,7 +25,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 DOC = """
-### Example: Simple Oracle ingestion
+### Example: Simple Oracle fetchion
 
 This DAG demonstrates using `OracleHook` to read from Oracle and push rows
 into XCom for downstream tasks. Adapt this pattern for your transfers.
@@ -52,7 +52,7 @@ def print_rows(ti=None):
 
 
 with DAG(
-    dag_id="example_oracle_ingest",
+    dag_id="example_oracle_fetch",
     start_date=datetime(2024, 1, 1),
     schedule="@daily",
     catchup=False,
