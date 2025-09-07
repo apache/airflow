@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-07T13:47:42.354615
+# This constraints file was automatically generated on 2025-09-07T19:45:14.439681
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -180,7 +180,7 @@ diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.4.0
 distro==1.9.0
-dnspython==2.7.0
+dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0

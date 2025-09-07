@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-07T13:51:59.518460
+# This constraints file was automatically generated on 2025-09-07T19:49:21.541270
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -231,7 +231,7 @@ defusedxml==0.7.1
 deprecation==2.1.0
 dill==0.4.0
 distro==1.9.0
-dnspython==2.7.0
+dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
