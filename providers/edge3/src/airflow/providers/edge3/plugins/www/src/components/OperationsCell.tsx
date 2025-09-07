@@ -55,10 +55,18 @@ const MaintenanceForm = ({ onCancel, onSubmit }: MaintenanceFormProps) => {
           onClick={handleSubmit}
           disabled={!comment.trim()}
           aria-label="Confirm Maintenance"
+          title="Confirm Maintenance"
         >
           <FcCheckmark />
         </IconButton>
-        <IconButton size="sm" colorScheme="red" variant="outline" onClick={onCancel} aria-label="Cancel">
+        <IconButton
+          size="sm"
+          colorScheme="red"
+          variant="outline"
+          onClick={onCancel}
+          aria-label="Cancel"
+          title="Cancel"
+        >
           <ImCross />
         </IconButton>
       </HStack>
@@ -102,6 +110,7 @@ export const OperationsCell = ({
             variant="ghost"
             onClick={() => onSetActiveMaintenanceForm(workerName)}
             aria-label="Enter Maintenance"
+            title="Enter Maintenance"
           >
             <HiOutlineWrenchScrewdriver />
           </IconButton>
@@ -126,6 +135,7 @@ export const OperationsCell = ({
             variant="ghost"
             onClick={() => onExitMaintenance(workerName)}
             aria-label="Exit Maintenance"
+            title="Exit Maintenance"
           >
             <IoMdExit />
           </IconButton>
