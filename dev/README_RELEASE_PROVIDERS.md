@@ -913,7 +913,7 @@ This can be done with the Apache RAT tool.
 * Enter the sources folder run the check
 
 ```shell script
-java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
+java -jar ../../apache-rat-0.13/apache-rat-0.16.1.jar -E .rat-excludes -d .
 ```
 
 where `.rat-excludes` is the file in the root of Airflow source code.
