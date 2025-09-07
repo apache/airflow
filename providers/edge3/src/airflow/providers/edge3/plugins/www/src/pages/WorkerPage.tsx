@@ -74,10 +74,10 @@ export const WorkerPage = () => {
                   )}
                 </Table.Cell>
                 <Table.Cell>
-                  {worker.first_online ? <TimeAgo date={worker.first_online} /> : undefined}
+                  {worker.first_online ? <TimeAgo date={worker.first_online} live={false} /> : undefined}
                 </Table.Cell>
                 <Table.Cell>
-                  {worker.last_heartbeat ? <TimeAgo date={worker.last_heartbeat} /> : undefined}
+                  {worker.last_heartbeat ? <TimeAgo date={worker.last_heartbeat} live={false} /> : undefined}
                 </Table.Cell>
                 <Table.Cell>{worker.jobs_active}</Table.Cell>
                 <Table.Cell>

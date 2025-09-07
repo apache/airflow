@@ -87,11 +87,15 @@ export const JobsPage = () => {
                   <StateBadge state={job.state}>{job.state}</StateBadge>
                 </Table.Cell>
                 <Table.Cell>{job.queue}</Table.Cell>
-                <Table.Cell>{job.queued_dttm ? <TimeAgo date={job.queued_dttm} /> : undefined}</Table.Cell>
+                <Table.Cell>
+                  {job.queued_dttm ? <TimeAgo date={job.queued_dttm} live={false} /> : undefined}
+                </Table.Cell>
                 <Table.Cell>
                   <RouterLink to={`/plugin/edge_worker#${job.edge_worker}`}>{job.edge_worker}</RouterLink>
                 </Table.Cell>
-                <Table.Cell>{job.last_update ? <TimeAgo date={job.last_update} /> : undefined}</Table.Cell>
+                <Table.Cell>
+                  {job.last_update ? <TimeAgo date={job.last_update} live={false} /> : undefined}
+                </Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>
