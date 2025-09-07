@@ -89,7 +89,7 @@ The ``context`` parameter is a dictionary-like object (``Dict[str, Any]``) that 
 Key context variables include:
 
 - ``context['task']``: The current task object (``BaseOperator``)
-- ``context['ti']`` or ``context['task_instance']``: The task instance object (``TaskInstance``) 
+- ``context['ti']`` or ``context['task_instance']``: The task instance object (``TaskInstance``)
 - ``context['dag']``: The DAG object containing this task
 - ``context['dag_run']``: The current DAG run object
 - ``context['ds']``: Data interval start date in YYYY-MM-DD format (``str``)
@@ -103,10 +103,11 @@ For a complete list of available context variables, see :ref:`Templates referenc
     from typing import Any, Dict
     import jinja2
 
+
     def build_complex_command(context: Dict[str, Any], jinja_env: jinja2.Environment) -> str:
         # Access runtime information from the context dictionary
-        task_id = context['ti'].task_id
-        execution_date = context['ds']
+        task_id = context["ti"].task_id
+        execution_date = context["ds"]
         with open("file.csv") as f:
             return do_complex_things(f, task_id, execution_date)
 
