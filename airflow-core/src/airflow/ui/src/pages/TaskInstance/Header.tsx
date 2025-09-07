@@ -120,7 +120,7 @@ export const Header = ({
               taskInstance={taskInstance}
               withText={containerWidth > 700}
             />
-            <FilterTaskButton taskInstance={taskInstance} withText={containerWidth > 700} />
+            <FilterTaskButton withText={containerWidth > 700} />
           </>
         }
         icon={<MdOutlineTask />}

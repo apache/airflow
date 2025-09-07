@@ -36,12 +36,15 @@ import annotationPlugin from "chartjs-plugin-annotation";
 import { useMemo, useRef } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { useStructureServiceStructureData } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
@@ -50,6 +53,7 @@ import { system } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
+import { buildEdges, filterNodesByDirection } from "../Grid/utils";
 import { createHandleBarClick, createChartOptions } from "./utils";
 
 ChartJS.register(
@@ -119,9 +123,66 @@ export const Gantt = ({ limit }: Props) => {
     },
   );
 
+  const [searchParams] = useSearchParams();
+  const rawTaskFilter = (searchParams.get("task_filter") ?? undefined) as
+    | "all"
+    | "both"
+    | "downstream"
+    | "upstream"
+    | null;
+  const taskFilter = rawTaskFilter ?? "all";
+
+  const selectedVersion = useSelectedVersion();
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+
+  // derive server flags
+  const includeUpstream = taskFilter === "upstream" || taskFilter === "both";
+  const includeDownstream = taskFilter === "downstream" || taskFilter === "both";
+
+  type StructurePruneParams = {
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  };
+
+  const structureParams: StructurePruneParams =
+    taskFilter !== "all" && selectedTaskId !== undefined && selectedTaskId !== ""
+      ? {
+          includeDownstream,
+          includeUpstream,
+          root: selectedTaskId,
+        }
+      : {};
+
+  const { data: structureData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: dependencies === "immediate",
+      versionNumber: selectedVersion,
+      ...structureParams,
+    } as unknown as Parameters<typeof useStructureServiceStructureData>[0],
+    undefined,
+    { enabled: selectedVersion !== undefined },
+  );
+
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
+
+  // Build edges (same shape used by Grid)
+  const edges = useMemo(() => buildEdges(structureData.edges), [structureData.edges]);
+
+  // Filter flatNodes using the same helper as Grid
+  const visibleNodes = useMemo(
+    () =>
+      filterNodesByDirection({
+        edges,
+        filter: taskFilter,
+        flatNodes,
+        taskId: selectedTaskId,
+      }),
+    [flatNodes, edges, selectedTaskId, taskFilter],
+  );
 
   const data = useMemo(() => {
     if (isLoading || runId === "") {
@@ -131,7 +192,7 @@ export const Gantt = ({ limit }: Props) => {
     const gridSummaries = gridTiSummaries?.task_instances ?? [];
     const taskInstances = taskInstancesData?.task_instances ?? [];
 
-    return flatNodes
+    return visibleNodes
       .map((node) => {
         const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
 
@@ -170,7 +231,7 @@ export const Gantt = ({ limit }: Props) => {
         return undefined;
       })
       .filter((item) => item !== undefined);
-  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
+  }, [visibleNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
 
   const chartData = useMemo(
     () => ({
@@ -190,7 +251,7 @@ export const Gantt = ({ limit }: Props) => {
     [data],
   );
 
-  const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
+  const fixedHeight = visibleNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
   const selectedId = selectedTaskId ?? selectedGroupId;
 
   const handleBarClick = useMemo(
@@ -233,7 +294,7 @@ export const Gantt = ({ limit }: Props) => {
         options={chartOptions}
         ref={ref}
         style={{
-          paddingTop: flatNodes.length === 1 ? 15 : 1.5,
+          paddingTop: visibleNodes.length === 1 ? 15 : 1.5,
         }}
       />
     </Box>

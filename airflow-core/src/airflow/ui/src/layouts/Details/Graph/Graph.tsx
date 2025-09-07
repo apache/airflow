@@ -20,7 +20,7 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -34,8 +34,6 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
-
-import { filterGraph } from "./utils";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -59,9 +57,12 @@ const nodeColor = (
   return "";
 };
 
+type TaskFilter = "all" | "both" | "downstream" | "upstream";
+
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", runId = "", taskId } = useParams();
+  const [searchParams] = useSearchParams();
 
   const selectedVersion = useSelectedVersion();
 
@@ -79,18 +80,42 @@ export const Graph = () => {
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
-  const [filter] = useLocalStorage<"both" | "downstream" | "upstream">(
-    `upstreamDownstreamFilter-${dagId}`,
-    "both",
-  );
+
+  const rawFilter = (searchParams.get("task_filter") ?? undefined) as TaskFilter | null;
+
+  // default to "all" by default (no pruning). You can change to "both" if you want previous UX.
+  const filter: TaskFilter = rawFilter ?? "all";
+
+  // derive server flags
+  const includeUpstream = filter === "upstream" || filter === "both";
+  const includeDownstream = filter === "downstream" || filter === "both";
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+
+  type StructurePruneParams = {
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  };
+
+  // Only include server pruning params when filter !== 'all' and a root is provided
+  const structureParams: StructurePruneParams =
+    filter !== "all" && taskId !== undefined && taskId !== ""
+      ? {
+          includeDownstream,
+          includeUpstream,
+          root: taskId,
+        }
+      : {};
+
+  // server structure — pass pruning params conditionally
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
       externalDependencies: dependencies === "immediate",
       versionNumber: selectedVersion,
-    },
+      ...structureParams,
+    } as unknown as Parameters<typeof useStructureServiceStructureData>[0],
     undefined,
     { enabled: selectedVersion !== undefined },
   );
@@ -156,24 +181,17 @@ export const Graph = () => {
     },
   }));
 
-  const { filteredEdges, filteredNodes } = filterGraph({
-    edges,
-    filter,
-    nodes: nodes ?? [],
-    taskId,
-  });
-
   return (
     <ReactFlow
       colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
-      edges={filteredEdges}
+      edges={edges}
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
       maxZoom={1.5}
       minZoom={0.25}
-      nodes={filteredNodes}
+      nodes={nodes}
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements

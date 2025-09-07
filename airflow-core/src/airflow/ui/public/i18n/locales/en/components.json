@@ -96,6 +96,14 @@
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
+  "taskFilter": {
+    "action_prefix": "Filter",
+    "all": "All",
+    "both": "Both upstream & downstream",
+    "button_all": "Filter DAG by task",
+    "downstream": "Only downstream",
+    "upstream": "Only upstream"
+  },
   "taskTries": "Task Tries",
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",

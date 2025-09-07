@@ -22,7 +22,7 @@ import dayjsDuration from "dayjs/plugin/duration";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -58,25 +58,52 @@ export const Grid = ({ limit, showGantt }: Props) => {
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
 
-  const [taskFilter] = useLocalStorage<"all" | "both" | "downstream" | "upstream">(
-    `upstreamDownstreamFilter-${dagId}`,
-    "all",
-  );
+  const [searchParams] = useSearchParams();
+  const rawTaskFilter = (searchParams.get("task_filter") ?? undefined) as
+    | "all"
+    | "both"
+    | "downstream"
+    | "upstream"
+    | null;
+  // default to "all" so "no param" -> show full DAG
+  const taskFilter = rawTaskFilter ?? "all";
+
+  // backward-compat: you had dependencies localStorage; keep it
   const selectedVersion = useSelectedVersion();
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+
+  // derive server flags
+  const includeUpstream = taskFilter === "upstream" || taskFilter === "both";
+  const includeDownstream = taskFilter === "downstream" || taskFilter === "both";
+
+  type StructurePruneParams = {
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  };
+
+  // Only include server pruning params when filter !== 'all' and a root is provided
+  const structureParams: StructurePruneParams =
+    taskFilter !== "all" && taskId !== undefined && taskId !== ""
+      ? {
+          includeDownstream,
+          includeUpstream,
+          root: taskId,
+        }
+      : {};
 
   const { data: structureData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
       externalDependencies: dependencies === "immediate",
       versionNumber: selectedVersion,
-    },
+      ...structureParams,
+    } as unknown as Parameters<typeof useStructureServiceStructureData>[0],
     undefined,
     { enabled: selectedVersion !== undefined },
   );
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
-  // Eventually we should redo the api endpoint to make this work better
   useEffect(() => {
     if (gridRuns && runId) {
       const run = gridRuns.find((dr: GridRunsResponse) => dr.run_id === runId);
@@ -98,8 +125,8 @@ export const Grid = ({ limit, showGantt }: Props) => {
   }, [gridRuns, setHasActiveRun]);
 
   const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
-  // calculate dag run bar heights relative to max
 
+  // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -111,9 +138,10 @@ export const Grid = ({ limit, showGantt }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const edges = useMemo(() => buildEdges(structureData.edges ?? []), [structureData.edges]);
+  // build edges from structure API
+  const edges = useMemo(() => buildEdges(structureData.edges), [structureData.edges]);
 
+  // Filter visible nodes for grid based on filter and root
   const filteredNodes = useMemo(
     () =>
       filterNodesByDirection({

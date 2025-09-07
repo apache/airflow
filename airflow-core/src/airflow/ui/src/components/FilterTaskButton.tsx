@@ -17,56 +17,100 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { MdFilterList } from "react-icons/md";
-import { useLocalStorage } from "usehooks-ts";
+import { useSearchParams, useParams } from "react-router-dom";
 
-import type { TaskInstanceResponse } from "openapi/requests";
 import { Menu } from "src/components/ui";
+import { Button } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
+const FILTER_PARAM = "task_filter";
+
+const OPTIONS = [
+  { buttonKey: "taskFilter.button_all", itemKey: "taskFilter.all", value: "all" },
+  { buttonKey: "taskFilter.upstream", itemKey: "taskFilter.upstream", value: "upstream" },
+  { buttonKey: "taskFilter.downstream", itemKey: "taskFilter.downstream", value: "downstream" },
+  { buttonKey: "taskFilter.both", itemKey: "taskFilter.both", value: "both" },
+] as const;
+
+type FilterValue = (typeof OPTIONS)[number]["value"];
+
 type Props = {
-  readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const filterOptions = [
-  { buttonLabel: "Filter Dag by task", label: "All", value: "all" },
-  { buttonLabel: "Only upstream", label: "Only upstream", value: "upstream" },
-  { buttonLabel: "Only downstream", label: "Only downstream", value: "downstream" },
-  { buttonLabel: "Both upstream & downstream", label: "Both upstream & downstream", value: "both" },
-];
+const FilterTaskButton = ({ withText = true }: Props) => {
+  const { t: translate } = useTranslation("components");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { taskId } = useParams<{ taskId?: string }>();
 
-const FilterTaskButton = ({ taskInstance, withText = true }: Props) => {
-  const dagId = taskInstance.dag_id;
-  const [selected, setSelected] = useLocalStorage<string>(`upstreamDownstreamFilter-${dagId}`, "all");
+  const rawFilter = searchParams.get(FILTER_PARAM) as FilterValue | null;
+  const currentFilter = rawFilter ?? "all";
 
-  const handleSelect = (value: string) => {
-    setSelected(value);
+  const isActiveForThisTask = currentFilter !== "all";
+
+  const handleSelect = (value: FilterValue) => {
+    const next = new URLSearchParams(searchParams.toString());
+
+    if (value === "all") {
+      next.delete(FILTER_PARAM);
+    } else {
+      if (taskId === undefined) {
+        return; // optional: show tooltip instead
+      }
+      next.set(FILTER_PARAM, value);
+    }
+
+    setSearchParams(next, { replace: true });
   };
 
+  const selectedOption = OPTIONS.find((opt) => opt.value === currentFilter) ?? OPTIONS[0];
+  const buttonLabel = translate(selectedOption.buttonKey);
+
   return (
-    <Box>
+    <Box display="inline-block" position="relative">
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
-          <ActionButton
-            actionName={`Filter: ${filterOptions.find((opt) => opt.value === selected)?.buttonLabel}`}
-            flexDirection="row-reverse"
-            icon={<MdFilterList />}
-            text={filterOptions.find((opt) => opt.value === selected)?.buttonLabel ?? ""}
-            withText={withText}
-          />
+          <Box position="relative">
+            <ActionButton
+              actionName={`${translate("taskFilter.action_prefix", { defaultValue: "Filter" })}: ${buttonLabel}`}
+              flexDirection="row-reverse"
+              icon={<MdFilterList />}
+              text={buttonLabel}
+              withText={withText}
+            />
+            {isActiveForThisTask ? (
+              <Box
+                bg="blue.500"
+                borderRadius="full"
+                height={2.5}
+                position="absolute"
+                right={1} // adjust to align correctly
+                top={1} // adjust to align correctly
+                width={2.5}
+              />
+            ) : undefined}
+          </Box>
         </Menu.Trigger>
 
         <Menu.Content>
-          {filterOptions.map((option) => (
+          {OPTIONS.map((option) => (
             <Menu.Item
               asChild
-              disabled={selected === option.value}
+              disabled={currentFilter === option.value}
               key={option.value}
-              onClick={() => handleSelect(option.value)}
               value={option.value}
             >
-              <div className="px-2 py-1 cursor-pointer">{option.label}</div>
+              <Button
+                justifyContent="start"
+                onClick={() => handleSelect(option.value)}
+                size="sm"
+                variant="ghost"
+                width="100%"
+              >
+                {translate(option.itemKey)}
+              </Button>
             </Menu.Item>
           ))}
         </Menu.Content>
