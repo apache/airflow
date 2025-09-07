@@ -73,7 +73,7 @@ class LocaleSummary(NamedTuple):
 
     Attributes:
         missing_keys: A dictionary mapping locale codes to lists of missing translation keys.
-        extra: A dictionary mapping locale codes to lists of extra translation keys.
+        extra_keys: A dictionary mapping locale codes to lists of extra translation keys.
     """
 
     missing_keys: dict[str, list[str]]
@@ -225,7 +225,7 @@ def print_locale_file_table(
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Locale")
     table.add_column("Files")
-    filtered = (
+    filtered = sorted(
         locale_files if language is None else [lf for lf in locale_files if lf.locale in (language, "en")]
     )
     for lf in filtered:
@@ -244,11 +244,20 @@ def print_file_set_differences(
     all_file_sets = {lf.locale: set(lf.files) for lf in filtered}
     file_sets: list[set[str]] = list(all_file_sets.values())
     found_difference = False
+    en_files = set(all_file_sets["en"])
     if len(file_sets) > 1 and any(file_sets[0] != fs for fs in file_sets[1:]):
         found_difference = True
-        console.print("[bold red]Error: Locales have different sets of translation files![/bold red]")
-        for locale, files_set in all_file_sets.items():
-            console.print(f"[yellow]{locale}[/yellow]: {sorted(list(files_set))}")
+        console.print("[bold red]Error: Locales have different set of translation files![/bold red]")
+        all_locales_sorted = sorted(all_file_sets.keys())
+        for locale in all_locales_sorted:
+            files_missing = sorted(en_files - all_file_sets[locale])
+            if files_missing:
+                console.print(
+                    f"[yellow]{locale:<6}[/yellow] Missing {len(files_missing):>2}: {files_missing} "
+                )
+            files_extra = sorted(all_file_sets[locale] - en_files)
+            if files_extra:
+                console.print(f"[red]{locale:<6}[/red] Extra   {len(files_extra):>2}: {files_extra} ")
     return found_difference
 
 
@@ -318,6 +327,7 @@ def count_todos(obj) -> int:
 def print_translation_progress(console, locale_files, missing_counts, summary):
     tables = defaultdict(lambda: Table(show_lines=True))
     all_files = set()
+    coverage_per_language = {}  # Collect total coverage per language
     for lf in locale_files:
         all_files.update(lf.files)
 
@@ -336,7 +346,7 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
         table.add_column("Translated", style="green")
         table.add_column("Total", style="bold")
         table.add_column("Coverage", style="bold")
-        table.add_column("Completion", style="bold")
+        table.add_column("Completed", style="bold")
         total_missing = 0
         total_extra = 0
         total_todos = 0
@@ -414,6 +424,7 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
         total_actual_translated = total_translated - total_todos
         total_complete_percent = 100 * total_actual_translated / total_translated if total_translated else 100
 
+        coverage_per_language[lang] = total_coverage_percent
         table.add_row(
             "All files",
             str(total_missing),
@@ -429,7 +440,7 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     for _lang, table in tables.items():
         console.print(table)
 
-    return has_todos
+    return has_todos, coverage_per_language
 
 
 @click.command()
@@ -478,16 +489,31 @@ def cli(language: str | None = None, add_missing: bool = False):
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
-    has_todos = print_translation_progress(
+    has_todos, coverage_per_language = print_translation_progress(
         console,
         [lf for lf in locale_files if language is None or lf.locale == language],
         missing_counts,
         summary,
     )
     if not found_difference and not has_todos:
-        console.print("\n[green]All translations are complete and consistent![/green]\n\n")
+        console.print("\n[green]All translations are complete![/green]\n\n")
     else:
-        console.print("\n[red]Some translations are neither complete nor consistent![/red]\n\n")
+        console.print("\n[red]Some translations are not complete![/red]\n\n")
+        # Print summary of total coverage per language
+        if coverage_per_language:
+            summary_table = Table(show_header=True, header_style="bold magenta")
+            summary_table.title = "Total Coverage per Language"
+            summary_table.add_column("Language", style="cyan")
+            summary_table.add_column("Coverage", style="green")
+            for lang, coverage in sorted(coverage_per_language.items()):
+                if coverage >= 95:
+                    coverage_str = f"[bold green]{coverage:.1f}%[/bold green]"
+                elif coverage > 80:
+                    coverage_str = f"[bold yellow]{coverage:.1f}%[/bold yellow]"
+                else:
+                    coverage_str = f"[red]{coverage:.1f}%[/red]"
+                summary_table.add_row(lang, coverage_str)
+            console.print(summary_table)
 
 
 def add_missing_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
