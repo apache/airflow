@@ -1018,8 +1018,17 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue(to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
+    def _is_metrics_enabled(self):
+        return (
+            conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False)
+            or conf.getboolean("metrics", "statsd_on", fallback=False)
+            or conf.getboolean("metrics", "otel_on", fallback=False)
+        )
+
     def _emit_running_dags_metric(self):
         """Emit executor.running_dags gauge."""
+        if not self._is_metrics_enabled():
+            return
         with create_session() as session:
             stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
             running_dags = session.scalar(stmt)
