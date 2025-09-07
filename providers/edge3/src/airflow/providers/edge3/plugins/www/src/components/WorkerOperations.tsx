@@ -19,6 +19,8 @@
 import { Box, Flex, VStack } from "@chakra-ui/react";
 import type { Worker } from "openapi/requests/types.gen";
 
+import { toaster } from "src/components/ui";
+
 import { MaintenanceEnterButton } from "./MaintenanceEnterButton";
 import { MaintenanceExitButton } from "./MaintenanceExitButton";
 
@@ -31,10 +33,15 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
   const workerName = worker.worker_name;
   const state = worker.state;
 
+  const onWorkerChange = (toast: Record<string, string>) => {
+    toaster.create(toast);
+    onOperations();
+  };
+
   if (state === "idle" || state === "running") {
     return (
       <Flex justifyContent="end">
-        <MaintenanceEnterButton onEnterMaintenance={onOperations} workerName={workerName} />
+        <MaintenanceEnterButton onEnterMaintenance={onWorkerChange} workerName={workerName} />
       </Flex>
     );
   } else if (
@@ -49,7 +56,7 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
           {worker.maintenance_comments || "No comment"}
         </Box>
         <Flex justifyContent="end">
-          <MaintenanceExitButton onExitMaintenance={onOperations} workerName={workerName} />
+          <MaintenanceExitButton onExitMaintenance={onWorkerChange} workerName={workerName} />
         </Flex>
       </VStack>
     );

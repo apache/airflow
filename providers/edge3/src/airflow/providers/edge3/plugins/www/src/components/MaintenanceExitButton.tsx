@@ -21,24 +21,29 @@ import { useUiServiceExitWorkerMaintenance } from "openapi/queries";
 import { IoMdExit } from "react-icons/io";
 
 interface MaintenanceExitButtonProps {
-  onExitMaintenance: () => void;
+  onExitMaintenance: (toast: Record<string, string>) => void;
   workerName: string;
 }
 
 export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: MaintenanceExitButtonProps) => {
   const exitMaintenanceMutation = useUiServiceExitWorkerMaintenance({
     onError: (error) => {
-      console.error("Error exiting maintenance:", error);
-      alert(`Error exiting maintenance: ${error}`);
+      onExitMaintenance({
+        description: `Unable to exit ${workerName} from maintenance mode: ${error}`,
+        title: "Exit Maintenance Mode failed",
+        type: "error",
+      });
     },
     onSuccess: () => {
-      console.log("Exit maintenance successful");
-      onExitMaintenance();
+      onExitMaintenance({
+        description: `Worker ${workerName} was requested to exit maintenance mode.`,
+        title: "Maintenance Mode deactivated",
+        type: "success",
+      });
     },
   });
 
   const exitMaintenance = () => {
-    console.log(`Exiting maintenance for worker: ${workerName}`);
     exitMaintenanceMutation.mutate({ workerName });
   };
 

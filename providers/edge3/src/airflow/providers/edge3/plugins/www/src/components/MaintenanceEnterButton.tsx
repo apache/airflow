@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Portal } from "@chakra-ui/react";
-import { Button, CloseButton, Dialog, IconButton, Textarea, useDisclosure } from "@chakra-ui/react";
+import { Button, CloseButton, Dialog, IconButton, Portal, Textarea, useDisclosure } from "@chakra-ui/react";
 import { useUiServiceRequestWorkerMaintenance } from "openapi/queries";
 import { useState } from "react";
 import { HiOutlineWrenchScrewdriver } from "react-icons/hi2";
 
 interface MaintenanceEnterButtonProps {
-  onEnterMaintenance: () => void;
+  onEnterMaintenance: (toast: Record<string, string>) => void;
   workerName: string;
 }
 
@@ -33,17 +32,22 @@ export const MaintenanceEnterButton = ({ onEnterMaintenance, workerName }: Maint
 
   const enterMaintenanceMutation = useUiServiceRequestWorkerMaintenance({
     onError: (error) => {
-      console.error("Error entering maintenance:", error);
-      alert(`Error entering maintenance: ${error}`);
+      onEnterMaintenance({
+        description: `Unable to set worker ${workerName} to maintenance mode: ${error}`,
+        title: "Setting Maintenance Mode failed",
+        type: "error",
+      });
     },
     onSuccess: () => {
-      console.log("Enter maintenance successful");
-      onEnterMaintenance();
+      onEnterMaintenance({
+        description: `Worker ${workerName} was requested to be in maintenance mode.`,
+        title: "Maintenance Mode activated",
+        type: "success",
+      });
     },
   });
 
   const enterMaintenance = () => {
-    console.log(`Entering maintenance for worker: ${workerName}`);
     enterMaintenanceMutation.mutate({ requestBody: { maintenance_comment: comment }, workerName });
   };
 
