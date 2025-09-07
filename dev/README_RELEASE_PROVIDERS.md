@@ -766,19 +766,23 @@ The following files should be present (6 files):
 As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
 Or update it if you already checked it out:
 
 ```shell script
+cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+Set an environment variable: PATH_TO_SVN to the root of folder where you have providers
 
 ``` shell
-export PATH_TO_SVN=<set your path to svn here>
+cd asf-dist/dev/airflow
+export PATH_TO_SVN=${pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -844,7 +848,7 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 
 ```shell
 cd ${PATH_TO_SVN}
-cd airflow/providers
+cd providers
 ```
 
 6) Compare the packages in SVN to the ones you just built
