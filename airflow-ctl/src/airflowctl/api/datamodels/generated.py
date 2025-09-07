@@ -1227,6 +1227,7 @@ class DAGDetailsResponse(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
+    last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
@@ -1287,6 +1288,7 @@ class DAGResponse(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
+    last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None

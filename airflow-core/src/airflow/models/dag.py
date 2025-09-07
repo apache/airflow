@@ -28,6 +28,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Column,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -323,6 +324,8 @@ class DagModel(Base):
     is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
+    # How long it took to parse this file
+    last_parse_duration = Column(Float)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
