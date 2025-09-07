@@ -1,5 +1,6 @@
 {
   "backfill": {
+    "affected_many": "S'activaran {{count}} execucions.",
     "affected_one": "S'activarà 1 execució.",
     "affected_other": "S'activaran {{count}} execucions.",
     "affectedNone": "No hi ha execuccions que compleixin els criteris seleccionats.",
@@ -46,23 +47,28 @@
     "invalidJson": "Format JSON no vàlid: {{errorMessage}}"
   },
   "dagWarnings": {
+    "error_many": "{{count}} Errors",
     "error_one": "1 Error",
     "error_other": "{{count}} Errors",
     "errorAndWarning": "1 Error i {{warningText}}",
+    "warning_many": "{{count}} Advertències",
     "warning_one": "1 Advertència",
     "warning_other": "{{count}} Advertències"
   },
   "durationChart": {
     "duration": "Duració (segons)",
+    "lastDagRun_many": "Últimes {{count}} execucions de Dag",
     "lastDagRun_one": "Última execució del Dag",
     "lastDagRun_other": "Últimes {{count}} execucions del Dag",
-    "lastTaskInstance_one": "Última instance de tasca",
+    "lastTaskInstance_many": "Últimes {{count}} instàncies de tasca",
+    "lastTaskInstance_one": "Última instància de tasca",
     "lastTaskInstance_other": "Últimes {{count}} instàncies de tasca",
     "queuedDuration": "Durada en cua",
     "runAfter": "Executar després",
     "runDuration": "Durada d'execució"
   },
   "fileUpload": {
+    "files_many": "{{count}} fitxers",
     "files_one": "{{count}} fitxer",
     "files_other": "{{count}} fitxers"
   },
@@ -85,6 +91,7 @@
     "downloadImageError": "Error en descarregar la imatge del gràfic.",
     "downloadImageErrorTitle": "Error en la descàrrega de la imatge",
     "otherDagRuns": "+Altres execucions de Dag",
+    "taskCount_many": "{{count}} Tasques",
     "taskCount_one": "{{count}} Tasca",
     "taskCount_other": "{{count}} Tasques",
     "taskGroup": "Grup de tasques"

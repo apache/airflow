@@ -8,10 +8,19 @@
     "Variables": "Variables"
   },
   "allOperators": "Tots els operadors",
+  "appearance": {
+    "appearance": "Aparença",
+    "darkMode": "Mode fosc",
+    "lightMode": "Mode clar",
+    "systemMode": "Seguir la configuració del sistema"
+  },
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetEvent_many": "Esdeveniments d'Asset",
   "assetEvent_one": "Esdeveniment d'Asset",
   "assetEvent_other": "Esdeveniments d'Asset",
+  "backfill_many": "Reompliments",
   "backfill_one": "Reompliment",
   "backfill_other": "Reompliments",
   "browse": {
@@ -20,8 +29,10 @@
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Col·lapsar el panell de detalls",
+  "createdAssetEvent_many": "Esdeveniments d'Asset creats",
   "createdAssetEvent_one": "Esdeveniment d'Asset creat",
   "createdAssetEvent_other": "Esdeveniments d'Asset creats",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -59,6 +70,7 @@
     "triggeredBy": "Executat per",
     "triggeringUser": "Nom de l'usuari que executa"
   },
+  "dagRun_many": "Execucions de Dag",
   "dagRun_one": "Execució de Dag",
   "dagRun_other": "Execucions de Dag",
   "dagRunId": "ID d'Execució del Dag",
@@ -137,6 +149,7 @@
   "pools": {
     "deferred": "Diferit",
     "open": "Obert",
+    "pools_many": "pools",
     "pools_one": "pool",
     "pools_other": "pools",
     "queued": "En cua",
@@ -172,6 +185,7 @@
     "hotkey": "s",
     "show": "Mostrar origen"
   },
+  "sourceAssetEvent_many": "Esdeveniments d'Asset d'origen",
   "sourceAssetEvent_one": "Esdeveniment d'Asset d'origen",
   "sourceAssetEvent_other": "Esdeveniments d'Asset d'origen",
   "startDate": "Data d'inici",
@@ -193,13 +207,12 @@
     "up_for_retry": "A reintentar",
     "upstream_failed": "Fallit aigües amunt"
   },
-  "switchToDarkMode": "Canviar a mode fosc",
-  "switchToLightMode": "Canviar a mode clar",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",
     "filterByTag": "Filtrar Dags per etiqueta",
     "filterColumns": "Filtrar columnes de la taula",
+    "filterReset_many": "Restablir filtres",
     "filterReset_one": "Restablir filtre",
     "filterReset_other": "Restablir filtres",
     "from": "De",
@@ -218,6 +231,7 @@
     "operator": "Operador",
     "triggerRule": "Regla d'execució"
   },
+  "task_many": "Tasques",
   "task_one": "Tasca",
   "task_other": "Tasques",
   "taskGroup": "Grup de tasques",
@@ -245,6 +259,7 @@
     },
     "unixname": "Nom Unix"
   },
+  "taskInstance_many": "Instàncies de tasca",
   "taskInstance_one": "Instància de tasca",
   "taskInstance_other": "Instàncies de tasca",
   "timeRange": {

@@ -6,8 +6,12 @@
       "received": "Revisades"
     }
   },
+  "requiredAction_many": "Accions requerides",
   "requiredAction_one": "Acció requerida",
   "requiredAction_other": "Accions requerides",
+  "requiredActionCount_many": "Accions requerides ({{count}})",
+  "requiredActionCount_one": "Accions requerides ({{count}})",
+  "requiredActionCount_other": "Accions requerides ({{count}})",
   "requiredActionState": "Estat de l'acció requerida",
   "response": {
     "error": "Resposta fallida",
@@ -23,6 +27,7 @@
     "approvalRequired": "Aprovació requerida",
     "choiceReceived": "Elecció rebuda",
     "choiceRequired": "Elecció requerida",
+    "noResponseReceived": "No s'ha rebut cap resposta",
     "rejectionReceived": "Rebuig rebut",
     "responseReceived": "Resposta rebuda",
     "responseRequired": "Resposta requerida"
