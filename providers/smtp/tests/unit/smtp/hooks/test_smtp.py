@@ -30,6 +30,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.smtp.hooks.smtp import SmtpHook, build_xoauth2_string
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
