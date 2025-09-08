@@ -151,6 +151,7 @@ class TestTaskInstance:
     def teardown_method(self):
         self.clean_db()
 
+    @pytest.mark.need_serialized_dag(False)
     def test_set_task_dates(self, dag_maker):
         """
         Test that tasks properly take start/end dates from DAGs
@@ -159,7 +160,6 @@ class TestTaskInstance:
             pass
 
         op1 = EmptyOperator(task_id="op_1")
-
         assert op1.start_date is None
         assert op1.end_date is None
 
@@ -190,6 +190,7 @@ class TestTaskInstance:
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
 
+    @pytest.mark.need_serialized_dag(False)
     def test_set_dag(self, dag_maker):
         """
         Test assigning Operators to Dags, including deferred assignment
@@ -2417,23 +2418,25 @@ class TestTaskInstance:
 
     def test_handle_failure_fail_fast(self, dag_maker, session):
         start_date = timezone.datetime(2016, 6, 1)
-        clear_db_runs()
 
         class CustomOp(BaseOperator):
             def execute(self, context): ...
+
+        reg_states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
 
         with dag_maker(
             dag_id="test_handle_failure_fail_fast",
             start_date=start_date,
             schedule=None,
             fail_fast=True,
-        ) as dag:
-            task1 = CustomOp(task_id="task1", trigger_rule="all_success")
-
-        dag_maker.create_dagrun(run_type=DagRunType.MANUAL, start_date=start_date)
+        ):
+            CustomOp(task_id="task1", trigger_rule="all_success")
+            for i, _ in enumerate(reg_states):
+                CustomOp(task_id=f"reg_Task{i}")
+            CustomOp(task_id="fail_Task")
 
         logical_date = timezone.utcnow()
-        dr = dag.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
@@ -2445,31 +2448,23 @@ class TestTaskInstance:
         )
         dr.set_state(DagRunState.SUCCESS)
 
-        ti1 = dr.get_task_instance(task1.task_id, session=session)
-        ti1.task = task1
-        ti1.state = State.SUCCESS
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        tis["task1"].state = State.SUCCESS
+        for i, state in enumerate(reg_states):
+            tis[f"reg_Task{i}"].state = state
+        tis["fail_Task"].state = State.FAILED
+        session.flush()
 
-        states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
-        tasks = []
-        for i, state in enumerate(states):
-            op = CustomOp(task_id=f"reg_Task{i}", dag=dag)
-            ti = TI(task=op, run_id=dr.run_id, dag_version_id=ti1.dag_version_id)
-            ti.state = state
-            session.add(ti)
-            tasks.append(ti)
-
-        fail_task = CustomOp(task_id="fail_Task", dag=dag)
-        ti_ff = TI(task=fail_task, run_id=dr.run_id, dag_version_id=ti1.dag_version_id)
-        ti_ff.state = State.FAILED
-        session.add(ti_ff)
-        session.commit()
-        ti_ff.handle_failure("test retry handling")
-
-        assert ti1.state == State.SUCCESS
-        assert ti_ff.state == State.FAILED
-        exp_states = [State.FAILED, State.FAILED, State.SKIPPED, State.SKIPPED, State.SKIPPED]
-        for i in range(len(states)):
-            assert tasks[i].state == exp_states[i]
+        tis["fail_Task"].handle_failure("test retry handling")
+        assert {task_id: ti.state for task_id, ti in tis.items()} == {
+            "task1": State.SUCCESS,
+            "fail_Task": State.FAILED,
+            "reg_Task0": State.FAILED,
+            "reg_Task1": State.FAILED,
+            "reg_Task2": State.SKIPPED,
+            "reg_Task3": State.SKIPPED,
+            "reg_Task4": State.SKIPPED,
+        }
 
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():

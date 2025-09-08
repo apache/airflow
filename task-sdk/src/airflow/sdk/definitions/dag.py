@@ -29,13 +29,7 @@ from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
 from urllib.parse import urlsplit
 
 import attrs
@@ -829,15 +823,9 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from typing import TypeGuard
-
-        from airflow.models.mappedoperator import MappedOperator as DbMappedOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         def is_task(obj) -> TypeGuard[Operator]:
-            if isinstance(obj, (DbMappedOperator, SerializedBaseOperator)):
-                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
             return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
@@ -1143,11 +1131,11 @@ class DAG:
 
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
-        from airflow.sdk import timezone
+        from airflow.sdk import DagRunState, TaskInstanceState, timezone
         from airflow.sdk._shared.configuration import ensure_secrets_loaded
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils.state import DagRunState, State, TaskInstanceState
+        from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         if TYPE_CHECKING:
@@ -1348,17 +1336,18 @@ def _run_task(*, ti, task, run_triggerer=False):
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
             ti.set_state(State.QUEUED)
+            task_sdk_ti = TaskInstanceSDK(
+                id=ti.id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                dag_version_id=ti.dag_version_id,
+            )
 
             taskrun_result = run_task_in_process(
-                ti=TaskInstanceSDK(
-                    id=ti.id,
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                    try_number=ti.try_number,
-                    map_index=ti.map_index,
-                    dag_version_id=ti.dag_version_id,
-                ),
+                ti=task_sdk_ti,
                 task=task,
             )
 
@@ -1375,7 +1364,7 @@ def _run_task(*, ti, task, run_triggerer=False):
 
                 log.info("[DAG TEST] running trigger in line")
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
-                event = _run_inline_trigger(trigger)
+                event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
@@ -1396,13 +1385,10 @@ def _run_task(*, ti, task, run_triggerer=False):
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
 
 
-def _run_inline_trigger(trigger):
-    import asyncio
+def _run_inline_trigger(trigger, task_sdk_ti):
+    from airflow.sdk.execution_time.supervisor import InProcessTestSupervisor
 
-    async def _run_inline_trigger_main():
-        return await anext(trigger.run(), None)
-
-    return asyncio.run(_run_inline_trigger_main())
+    return InProcessTestSupervisor.run_trigger_in_process(trigger=trigger, ti=task_sdk_ti)
 
 
 # Since we define all the attributes of the class with attrs, we can compute this statically at parse time

@@ -2191,6 +2191,14 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
       - name: order_by
         in: query
         required: false
@@ -2980,6 +2988,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -9513,6 +9533,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9707,6 +9732,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -9775,6 +9801,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9877,6 +9908,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version

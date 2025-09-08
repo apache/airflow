@@ -1943,7 +1943,7 @@ def test_expected_output_push(
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage postgres sftp snowflake trino",
+                "openlineage oracle postgres sftp snowflake trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
@@ -1954,7 +1954,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage postgres sftp snowflake trino",
+                "openlineage oracle postgres sftp snowflake trino",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -1964,7 +1964,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
-                            "databricks,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,"
+                            "databricks,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,oracle,"
                             "postgres,sftp,snowflake,trino] Providers[google]",
                         }
                     ]
@@ -2659,3 +2659,50 @@ def test_is_log_mocked_in_the_tests_not_fail_with_label(
         default_branch="main",
     )
     assert selective_checks.is_log_mocked_in_the_tests
+
+
+def test_ui_english_translation_changed_false():
+    selective_checks = SelectiveChecks(
+        files=("README.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed is False
+
+
+def test_ui_english_translation_changed_fail_on_change():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=(translation_file,),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).ui_english_translation_changed
+
+
+def test_ui_english_translation_changed_allowed_in_canary_run():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    selective_checks = SelectiveChecks(
+        files=(translation_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed
+
+
+def test_ui_english_translation_changed_allowed_with_label():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    selective_checks = SelectiveChecks(
+        files=(translation_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("allow translation change",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed is True

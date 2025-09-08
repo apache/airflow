@@ -24,9 +24,10 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.sdk import DAG, BaseOperator
+from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+from airflow.sdk import DAG, BaseOperator, TaskGroup
 from airflow.sdk.definitions.mappedoperator import MappedOperator
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
@@ -69,7 +70,7 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: BaseOperator | MappedOperator | SerializedBaseOperator,
+    task: BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator,
     parent_graph: graphviz.Digraph,
     states_by_task_id: dict[Any, Any] | None,
 ) -> None:
@@ -95,7 +96,9 @@ def _draw_task(
 
 
 def _draw_task_group(
-    task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
+    task_group: TaskGroup | SerializedTaskGroup,
+    parent_graph: graphviz.Digraph,
+    states_by_task_id: dict[str, str] | None,
 ) -> None:
     """Draw the given task_group and its children on the given parent_graph."""
     # Draw joins
@@ -136,10 +139,10 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator)):
+    if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator, SerializedMappedOperator)):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
-        if not isinstance(node, TaskGroup):
+        if not isinstance(node, (SerializedTaskGroup, TaskGroup)):
             raise AirflowException(f"The node {node} should be TaskGroup and is not")
         # Draw TaskGroup
         if node.is_root:

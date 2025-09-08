@@ -1530,6 +1530,35 @@ class InProcessTestSupervisor(ActivitySubprocess):
         """Override to use in-process comms."""
         self.comms.messages.append(msg)
 
+    @classmethod
+    def run_trigger_in_process(cls, *, trigger, ti):
+        """
+        Run a trigger in-process for testing, similar to how we run tasks.
+
+        This creates a minimal supervisor instance specifically for trigger execution
+        and ensures the trigger has access to SUPERVISOR_COMMS for connection access.
+        """
+        # Create a minimal supervisor instance for trigger execution
+        supervisor = cls(
+            id=ti.id,
+            pid=os.getpid(),  # Use current process
+            process=psutil.Process(),  # Current process - note the underscore prefix
+            process_log=structlog.get_logger(logger_name="task").bind(),
+            client=cls._api_client(),
+        )
+
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+
+        # Run the trigger with supervisor comms available
+        with set_supervisor_comms(supervisor.comms):
+            # Run the trigger's async generator and get the first event
+            import asyncio
+
+            async def _run_trigger():
+                return await anext(trigger.run(), None)
+
+            return asyncio.run(_run_trigger())
+
     @property
     def final_state(self):
         """Override to use in-process comms."""

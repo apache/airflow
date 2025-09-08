@@ -494,6 +494,7 @@ export type DAGDetailsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -568,6 +569,7 @@ export type DAGResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -1768,6 +1770,7 @@ export type DAGWithLatestDagRunsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -2230,6 +2233,7 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
@@ -2372,6 +2376,10 @@ export type GetDagsData = {
      * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2475,6 +2483,10 @@ export type GetDagsUiData = {
      * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
     hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;

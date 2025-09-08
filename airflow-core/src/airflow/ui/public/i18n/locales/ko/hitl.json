@@ -1,4 +1,11 @@
 {
+  "filters": {
+    "response": {
+      "all": "전체",
+      "pending": "대기 중",
+      "received": "검토됨"
+    }
+  },
   "requiredAction_one": "필수 작업",
   "requiredAction_other": "필수 작업들",
   "requiredActionState": "필수 작업 상태",

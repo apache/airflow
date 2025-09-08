@@ -207,7 +207,7 @@ class TestConnections:
         ):
             Connection.from_json(json.dumps(json_data), conn_id="test_conn")
 
-    def test_extra_dejson_property(self, patched_secrets_masker):
+    def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""
         connection = Connection(
             conn_id="test_conn",
