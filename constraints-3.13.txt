@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-08T02:44:59.714868
+# This constraints file was automatically generated on 2025-09-08T07:49:39.665810
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -221,7 +221,7 @@ croniter==6.0.0
 cryptography==45.0.7
 curlify==3.0.0
 databricks-sql-connector==4.1.2
-databricks-sqlalchemy==2.0.7
+databricks-sqlalchemy==2.0.8
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.4.3
