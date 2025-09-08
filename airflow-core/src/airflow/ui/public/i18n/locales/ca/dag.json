@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "Url de la col·lecció",
     "noCode": "No s'ha trobat codi",
+    "parseDuration": "Duració de l'anàlisi:",
     "parsedAt": "Analitzat a:"
   },
   "extraLinks": "Enllaços addicionals",
@@ -72,18 +73,14 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_many": "Execucions fallides",
       "failedRun_one": "Execució fallida",
       "failedRun_other": "Execucions fallides",
-      "failedTask_many": "Tasques fallides",
       "failedTask_one": "Tasca fallida",
       "failedTask_other": "Tasques fallides",
-      "failedTaskInstance_many": "Instàncies de tasca fallides",
       "failedTaskInstance_one": "Instància de tasca fallida",
       "failedTaskInstance_other": "Instàncies de tasca fallides"
     },
     "charts": {
-      "assetEvent_many": "Esdeveniments d'Asset creats",
       "assetEvent_one": "Esdeveniment d'Asset creat",
       "assetEvent_other": "Esdeveniments d'Asset creats"
     },
@@ -138,7 +135,6 @@
     "code": "Codi",
     "details": "Detalls",
     "logs": "Registres",
-    "mappedTaskInstances_many": "Instàncies de tasca [{{count}}]",
     "mappedTaskInstances_one": "Instància de tasca [{{count}}]",
     "mappedTaskInstances_other": "Instàncies de tasca [{{count}}]",
     "overview": "Visió general",

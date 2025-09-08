@@ -19,14 +19,11 @@
       "host": "Host",
       "port": "Port"
     },
-    "connection_many": "Connexions",
     "connection_one": "Connexió",
     "connection_other": "Connexions",
     "delete": {
-      "deleteConnection_many": "Eliminar {{count}} connexions",
       "deleteConnection_one": "Eliminar 1 connexió",
       "deleteConnection_other": "Eliminar {{count}} connexions",
-      "firstConfirmMessage_many": "Estàs a punt d'eliminar les següents connexions:",
       "firstConfirmMessage_one": "Estàs a punt d'eliminar la següent connexió:",
       "firstConfirmMessage_other": "Estàs a punt d'eliminar les següents connexions:",
       "title": "Eliminar connexió"
@@ -82,7 +79,6 @@
     "columns": {
       "source": "Font"
     },
-    "importError_many": "Errors d'importació d'extensió",
     "importError_one": "Error d'importació d'extensió",
     "importError_other": "Errors d'importació d'extensió",
     "searchPlaceholder": "Cercar per fitxer"
@@ -104,7 +100,6 @@
       "slots": "Slots"
     },
     "noPoolsFound": "No s'han trobat pools",
-    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Cercar pools",
@@ -126,10 +121,8 @@
       "isEncrypted": "Està xifrat"
     },
     "delete": {
-      "deleteVariable_many": "Eliminar {{count}} Variables",
       "deleteVariable_one": "Eliminar 1 Variable",
       "deleteVariable_other": "Eliminar {{count}} Variables",
-      "firstConfirmMessage_many": "Estàs a punt d'eliminar les següents variables:",
       "firstConfirmMessage_one": "Estàs a punt d'eliminar la següent variable:",
       "firstConfirmMessage_other": "Estàs a punt d'eliminar les següents variables:",
       "title": "Eliminar Variable",
@@ -168,7 +161,6 @@
     },
     "noRowsMessage": "No s'han trobat variables",
     "searchPlaceholder": "Cercar claus",
-    "variable_many": "Variables",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }
