@@ -40,7 +40,7 @@ try:
     from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
 except ImportError:
     # Compat for Airflow < 3.1
-    from airflow.exceptions import AirflowConfigException  # type: ignore[attr-defined]
+    from airflow.exceptions import AirflowConfigException  # type: ignore[attr-defined, no-redef]
 
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
