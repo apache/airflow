@@ -30,6 +30,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.smtp.hooks.smtp import SmtpHook, build_xoauth2_string
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
     from airflow.sdk import Connection
@@ -486,6 +487,7 @@ class TestSmtpHook:
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Async support was added to BaseNotifier in 3.1.0")
 class TestSmtpHookAsync:
     """Tests for async functionality in SmtpHook."""
 

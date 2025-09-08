@@ -25,6 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from airflow.providers.smtp.notifications.smtp import SmtpNotifier, send_smtp_notification
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 TRY_NUMBER = 0
 
@@ -217,6 +218,8 @@ class TestSmtpNotifier:
         mock_smtphook_hook.assert_called_once_with(smtp_conn_id=SMTP_CONN_ID, auth_type=SMTP_AUTH_TYPE)
 
 
+@pytest.mark.asyncio
+@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Async support was added to BaseNotifier in 3.1.0")
 class TestSmtpNotifierAsync:
     @pytest.fixture
     def mock_smtp_client(self):
@@ -245,7 +248,6 @@ class TestSmtpNotifierAsync:
             **DEFAULT_EMAIL_PARAMS,
         )
 
-    @pytest.mark.asyncio
     async def test_async_notifier_with_notifier_class(
         self, mock_smtp_hook, mock_smtp_client, create_dag_without_db
     ):
@@ -261,7 +263,6 @@ class TestSmtpNotifierAsync:
             **DEFAULT_EMAIL_PARAMS,
         )
 
-    @pytest.mark.asyncio
     async def test_async_notifier_templated(self, mock_smtp_hook, mock_smtp_client, create_dag_without_db):
         notifier = SmtpNotifier(
             from_email=TEMPLATED_SENDER.template,
@@ -282,7 +283,6 @@ class TestSmtpNotifierAsync:
             **DEFAULT_EMAIL_PARAMS,
         )
 
-    @pytest.mark.asyncio
     async def test_async_notifier_with_defaults(
         self, mock_smtp_hook, mock_smtp_client, create_dag_without_db, mock_task_instance
     ):
@@ -302,7 +302,6 @@ class TestSmtpNotifierAsync:
             **DEFAULT_EMAIL_PARAMS,
         )
 
-    @pytest.mark.asyncio
     async def test_async_notifier_with_nondefault_connection_extra(
         self, mock_smtp_hook, mock_smtp_client, create_dag_without_db, mock_task_instance
     ):
