@@ -104,8 +104,8 @@
     "taskIdPlaceholder": "按任务 ID 筛选"
   },
   "logicalDate": "逻辑日期",
-  "logout": "登出",
-  "logoutConfirmation": "确定要登出吗？",
+  "logout": "退出登录",
+  "logoutConfirmation": "确定要退出登录吗？",
   "mapIndex": "映射索引",
   "modal": {
     "cancel": "取消",
