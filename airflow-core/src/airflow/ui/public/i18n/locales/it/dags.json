@@ -6,14 +6,22 @@
       "warning": "Questo rimuoverà tutti i metadati relativi al DAG, compresi i Run e le Task."
     }
   },
+  "favoriteDag": "DAG Preferito",
   "filters": {
     "allRunTypes": "Tutti i Tipi di Run",
     "allStates": "Tutti gli Stati",
+    "favorite": {
+      "all": "Tutti",
+      "favorite": "Preferito",
+      "unfavorite": "Rimuovi dai preferiti"
+    },
     "paused": {
       "active": "Attivo",
       "all": "Tutti",
       "paused": "In Pausa"
-    }
+    },
+    "runIdPatternFilter": "Cerca DAG Runs",
+    "triggeringUserNameFilter": "Cerca per Utente che ha Attivato"
   },
   "ownerLink": "Link dell'Owner per {{owner}}",
   "runAndTaskActions": {
@@ -55,6 +63,7 @@
       "onlyFailed": "Pulisci solo le task fallite",
       "past": "Passato",
       "queueNew": "Inserisci nuove task",
+      "runOnLatestVersion": "Esegui con l'ultima versione del bundle",
       "upstream": "Upstream"
     }
   },
@@ -83,5 +92,6 @@
       "desc": "Ordina per Next DAG Run (Ultimo-Prima)"
     },
     "placeholder": "Ordina per"
-  }
+  },
+  "unfavoriteDag": "Rimuovi DAG dai Preferiti"
 }

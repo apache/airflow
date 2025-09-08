@@ -10,6 +10,9 @@
       "user": "Utente",
       "when": "Quando"
     },
+    "filters": {
+      "eventType": "Tipo di Evento"
+    },
     "title": "Registro di Controllo (Logs)"
   },
   "xcom": {

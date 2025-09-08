@@ -7,6 +7,7 @@
     "Providers": "Provider",
     "Variables": "Variabili"
   },
+  "allOperators": "Tutti gli Operatori",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Evento Asset",
@@ -15,6 +16,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Registro di Controllo (Logs)",
+    "requiredActions": "Azioni Richieste",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collassa i Dettagli",
@@ -24,7 +26,6 @@
   "dag_other": "DAGs",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concorrenza",
     "dagRunTimeout": "Timeout del Run del DAG",
     "defaultArgs": "Argomenti di Default",
     "description": "Descrizione",
@@ -55,10 +56,12 @@
     "runAfter": "Esegui dopo",
     "runType": "Tipo di Run",
     "sourceAssetEvent": "Evento Asset di Origine",
-    "triggeredBy": "Triggered da"
+    "triggeredBy": "Triggered da",
+    "triggeringUser": "Nome Utente che ha Attivato"
   },
   "dagRun_one": "Run del DAG",
   "dagRun_other": "Run del DAG",
+  "dagRunId": "ID del Run del DAG",
   "dagWarnings": "Avvisi/Errori del DAG",
   "defaultToGraphView": "Default to vista grafica",
   "defaultToGridView": "Default to vista griglia",
@@ -77,11 +80,28 @@
     "notFound": "Pagina non trovata",
     "title": "Errore"
   },
+  "expand": {
+    "collapse": "Collassa",
+    "expand": "Espandi",
+    "hotkey": "e",
+    "tooltip": "Premi {{hotkey}} per attivare/disattivare espansione"
+  },
   "expression": {
     "all": "Tutti",
     "and": "E",
     "any": "Qualunque",
     "or": "O"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtra per DAG",
+    "keyPlaceholder": "Filtra per chiave XCom",
+    "logicalDateFromPlaceholder": "Data Logica Da",
+    "logicalDateToPlaceholder": "Data Logica A",
+    "mapIndexPlaceholder": "Filtra per Map Index",
+    "runAfterFromPlaceholder": "Esegui Dopo Da",
+    "runAfterToPlaceholder": "Esegui Dopo A",
+    "runIdPlaceholder": "Filtra per ID Run",
+    "taskIdPlaceholder": "Filtra per ID Task"
   },
   "logicalDate": "Data Logica",
   "logout": "Esci",
@@ -102,6 +122,7 @@
     "dags": "DAG",
     "docs": "Documentazione",
     "home": "Home",
+    "legacyFabViews": "Legacy View",
     "plugins": "Plugins",
     "security": "Sicurezza"
   },
@@ -146,6 +167,11 @@
   },
   "selectLanguage": "Seleziona la Lingua",
   "showDetailsPanel": "Mostra il Pannello dei Dettagli",
+  "source": {
+    "hide": "Nascondi Sorgente",
+    "hotkey": "s",
+    "show": "Mostra Sorgente"
+  },
   "sourceAssetEvent_one": "Evento Asset di Origine",
   "sourceAssetEvent_other": "Eventi Asset di Origine",
   "startDate": "Data di Inizio",
@@ -155,6 +181,7 @@
     "failed": "Fallito",
     "no_status": "Nessun Stato",
     "none": "Nessun Stato",
+    "planned": "Pianificato",
     "queued": "In Coda",
     "removed": "Rimosso",
     "restarting": "Riavviato",
@@ -193,6 +220,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Gruppo di Task",
   "taskId": "ID del Task",
   "taskInstance": {
     "dagVersion": "Versione del DAG",
@@ -224,6 +252,11 @@
     "last24Hours": "Ultimi 24 Ore",
     "lastHour": "Ultima Ora",
     "pastWeek": "Settimana Scorsa"
+  },
+  "timestamp": {
+    "hide": "Nascondi Timestamp",
+    "hotkey": "t",
+    "show": "Mostra Timestamp"
   },
   "timezone": "Fuso Orario",
   "timezoneModal": {
@@ -269,10 +302,12 @@
       }
     }
   },
+  "total": "Totale {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Numero di Tentativo",
   "user": "Utente",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Premi {{hotkey}} per abilitare il wrap",
     "unwrap": "Disabilita il wrap",
     "wrap": "Abilita il wrap"

@@ -36,6 +36,7 @@
       "extraFields": "Campi Extra",
       "extraFieldsJson": "Campi Extra JSON",
       "helperText": "Il tipo di connessione è mancante? Assicurati di aver installato il pacchetto corrispondente di Airflow Providers.",
+      "helperTextForRedactedFields": "I campi redatti ('***') rimarranno invariati se non modificati.",
       "selectConnectionType": "Seleziona Tipo di Connessione",
       "standardFields": "Campi Standard"
     },

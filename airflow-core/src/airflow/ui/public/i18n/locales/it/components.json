@@ -3,12 +3,15 @@
     "affected_one": "1 run verrà attivato.",
     "affected_other": "{{count}} runs verranno attivati.",
     "affectedNone": "Nessun run corrispondente ai criteri selezionati.",
+    "allRuns": "Tutti i Run",
     "backwards": "Run all'indietro",
     "dateRange": "Intervallo di Date",
     "dateRangeFrom": "Da",
     "dateRangeTo": "A",
     "errorStartDateBeforeEndDate": "La Data di Inizio deve essere precedente alla Data di Fine",
     "maxRuns": "Numero massimo di Runs attive",
+    "missingAndErroredRuns": "Run Mancanti ed Errati",
+    "missingRuns": "Run Mancanti",
     "reprocessBehavior": "Comportamento di Reprocesso",
     "run": "Correre Backfill",
     "selectDescription": "Esegui questo DAG per un intervallo di date",
@@ -44,6 +47,7 @@
   },
   "dagWarnings": {
     "error_one": "1 Errore",
+    "error_other": "{{count}} Errori",
     "errorAndWarning": "1 Errore e {{warningText}}",
     "warning_one": "1 Avviso",
     "warning_other": "{{count}} Avvisi"
@@ -53,12 +57,13 @@
     "lastDagRun_one": "Ultimo Run del DAG",
     "lastDagRun_other": "Ultimo {{count}} Run del DAG",
     "lastTaskInstance_one": "Ultima Istanza di Task",
-    "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "lastTaskInstance_other": "Ultime {{count}} Istanze di Task",
     "queuedDuration": "Durata in coda",
     "runAfter": "Esegui dopo",
     "runDuration": "Durata del Run"
   },
   "fileUpload": {
+    "files_one": "1 file",
     "files_other": "{{count}} file"
   },
   "flexibleForm": {
