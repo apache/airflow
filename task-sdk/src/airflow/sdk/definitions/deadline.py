@@ -55,6 +55,9 @@ class DeadlineAlert:
     ):
         self.reference = reference
         self.interval = interval
+
+        if not isinstance(callback, AsyncCallback):
+            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
         self.callback = callback
 
     def __eq__(self, other: object) -> bool:

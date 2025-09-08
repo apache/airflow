@@ -158,6 +158,14 @@ class TestDeadlineAlert:
         alert_set = {alert1, alert2}
         assert len(alert_set) == 1
 
+    def test_deadline_alert_unsupported_callback(self):
+        with pytest.raises(ValueError, match="Callbacks of type SyncCallback are not currently supported"):
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(hours=1),
+                callback=SyncCallback(TEST_CALLBACK_PATH),
+            )
+
 
 class TestCallback:
     @pytest.mark.parametrize(
