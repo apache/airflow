@@ -29,6 +29,6 @@ def clean_executor_loader_module():
     """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
     executor_loader._alias_to_executors: dict[str, ExecutorName] = {}
     executor_loader._module_to_executors: dict[str, ExecutorName] = {}
-    executor_loader._team_id_to_executors: dict[str | None, ExecutorName] = {}
+    executor_loader._team_name_to_executors: dict[str | None, ExecutorName] = {}
     executor_loader._classname_to_executors: dict[str, ExecutorName] = {}
     executor_loader._executor_names: list[ExecutorName] = []
