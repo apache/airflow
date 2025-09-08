@@ -64,10 +64,10 @@ class DeadlineCallbackTrigger(BaseTrigger):
             else:
                 message = "An error occurred during execution of this deadline callback"
 
+            log.exception("%s: %s; kwargs: %s\n%s", message, self.callback_path, self.callback_kwargs, e)
             yield TriggerEvent(
                 {
                     PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED,
                     PAYLOAD_BODY_KEY: f"{message}: {traceback.format_exception(e)}",
                 }
             )
-            log.exception("%s: %s; kwargs: %s\n%s", message, self.callback_path, self.callback_kwargs, e)

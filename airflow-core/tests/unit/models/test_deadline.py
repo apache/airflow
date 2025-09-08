@@ -185,9 +185,9 @@ class TestDeadline:
 
         assert trigger.kwargs["callback_path"] == TEST_CALLBACK_PATH
 
-        kwargs = trigger.kwargs["callback_kwargs"]
-        context = kwargs.pop("context")
-        assert kwargs == kwargs
+        trigger_kwargs = trigger.kwargs["callback_kwargs"]
+        context = trigger_kwargs.pop("context")
+        assert trigger_kwargs == (kwargs or {})
 
         assert context["deadline"]["id"] == str(deadline_orm.id)
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
