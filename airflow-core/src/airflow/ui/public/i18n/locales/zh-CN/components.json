@@ -13,17 +13,17 @@
     "missingAndErroredRuns": "遗漏和错误的执行",
     "missingRuns": "遗漏的执行",
     "reprocessBehavior": "重新处理行为",
-    "run": "执行数据回填",
+    "run": "执行回填",
     "selectDescription": "为指定的日期范围补上 Dag 执行",
-    "selectLabel": "数据回填",
-    "title": "执行数据回填",
+    "selectLabel": "回填",
+    "title": "执行回填",
     "toaster": {
       "success": {
-        "description": "已成功触发数据回填作业。",
+        "description": "已成功触发回填作业。",
         "title": "已触发 Dag 执行"
       }
     },
-    "tooltip": "数据回填功能需要 Dag 具有调度",
+    "tooltip": "回填功能需要 Dag 具有调度",
     "unpause": "触发时取消暂停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必须提供数据区间的开始与结束日期。",
@@ -31,10 +31,10 @@
     }
   },
   "banner": {
-    "backfillInProgress": "数据回填正在进行中",
-    "cancel": "取消数据回填",
-    "pause": "暂停数据回填",
-    "unpause": "取消暂停数据回填"
+    "backfillInProgress": "回填正在进行中",
+    "cancel": "取消回填",
+    "pause": "暂停回填",
+    "unpause": "取消暂停回填"
   },
   "clipboard": {
     "copy": "复制"
