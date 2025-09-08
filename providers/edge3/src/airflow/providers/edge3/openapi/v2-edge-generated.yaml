@@ -586,6 +586,73 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /edge_worker/ui/worker/{worker_name}/maintenance:
+    post:
+      tags:
+      - UI
+      summary: Request Worker Maintenance
+      description: Put a worker into maintenance mode.
+      operationId: request_worker_maintenance
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Request Worker Maintenance
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - UI
+      summary: Exit Worker Maintenance
+      description: Exit a worker from maintenance mode.
+      operationId: exit_worker_maintenance
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Exit Worker Maintenance
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BundleInfo:
@@ -794,6 +861,17 @@ components:
       - total_entries
       title: JobCollectionResponse
       description: Job Collection serializer.
+    MaintenanceRequest:
+      properties:
+        maintenance_comment:
+          type: string
+          title: Maintenance Comment
+          description: Comment describing the maintenance reason.
+      type: object
+      required:
+      - maintenance_comment
+      title: MaintenanceRequest
+      description: Request body for maintenance operations.
     PushLogsBody:
       properties:
         log_chunk_time:

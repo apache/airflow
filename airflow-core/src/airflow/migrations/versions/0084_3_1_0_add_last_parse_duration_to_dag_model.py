@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,31 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#   "rich>=13.6.0",
-#   "ruff==0.12.12",
-# ]
-# ///
+
+"""
+add last_parse_duration to dag model.
+
+Revision ID: eaf332f43c7c
+Revises: a3c7f2b18d4e
+Create Date: 2025-08-20 15:53:26.138686
+
+"""
+
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import sqlalchemy as sa
+from alembic import op
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_prek_utils import (
-    initialize_breeze_prek,
-    run_command_via_breeze_shell,
-    validate_cmd_result,
-)
+# revision identifiers, used by Alembic.
+revision = "eaf332f43c7c"
+down_revision = "a3c7f2b18d4e"
+branch_labels = None
+depends_on = None
+airflow_version = "3.1.0"
 
-initialize_breeze_prek(__name__, __file__)
 
-cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_check_imports_in_providers.py"],
-    backend="postgres",
-    skip_environment_initialization=False,
-)
+def upgrade():
+    """Apply add last_parse_duration to dag model."""
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("last_parse_duration", sa.Float(), nullable=True))
 
-validate_cmd_result(cmd_result)
+
+def downgrade():
+    """Unapply add last_parse_duration to dag model."""
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_column("last_parse_duration")

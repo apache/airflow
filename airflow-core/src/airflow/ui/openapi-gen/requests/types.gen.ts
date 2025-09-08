@@ -494,6 +494,7 @@ export type DAGDetailsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -568,6 +569,7 @@ export type DAGResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -1768,6 +1770,7 @@ export type DAGWithLatestDagRunsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
