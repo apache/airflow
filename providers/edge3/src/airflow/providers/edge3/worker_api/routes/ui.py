@@ -17,18 +17,21 @@
 
 from __future__ import annotations
 
-from fastapi import Depends
+from datetime import datetime
+
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.security import requires_access_view
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_view
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, exit_maintenance, request_maintenance
 from airflow.providers.edge3.worker_api.datamodels_ui import (
     Job,
     JobCollectionResponse,
+    MaintenanceRequest,
     Worker,
     WorkerCollectionResponse,
 )
@@ -100,3 +103,54 @@ def jobs(
         jobs=result,
         total_entries=len(result),
     )
+
+
+@ui_router.post(
+    "/worker/{worker_name}/maintenance",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def request_worker_maintenance(
+    worker_name: str,
+    maintenance_request: MaintenanceRequest,
+    session: SessionDep,
+    user: GetUserDep,
+) -> None:
+    """Put a worker into maintenance mode."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status_code=404, detail=f"Worker {worker_name} not found")
+
+    # Format the comment with timestamp and username (username will be added by plugin layer)
+    formatted_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {user.get_name()} put node into maintenance mode\nComment: {maintenance_request.maintenance_comment}"
+
+    try:
+        request_maintenance(worker_name, formatted_comment, session=session)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@ui_router.delete(
+    "/worker/{worker_name}/maintenance",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def exit_worker_maintenance(
+    worker_name: str,
+    session: SessionDep,
+) -> None:
+    """Exit a worker from maintenance mode."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status_code=404, detail=f"Worker {worker_name} not found")
+
+    try:
+        exit_maintenance(worker_name, session=session)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -8,6 +8,12 @@
     "Variables": "متغيرات"
   },
   "allOperators": "جميع المُشغِّلات",
+  "appearance": {
+    "appearance": "المظهر",
+    "darkMode": "الوضع الداكن",
+    "lightMode": "الوضع الفاتح",
+    "systemMode": "اتّباع إعداد النظام"
+  },
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",

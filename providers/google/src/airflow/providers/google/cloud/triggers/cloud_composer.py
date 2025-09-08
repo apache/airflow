@@ -52,11 +52,6 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.pooling_period_seconds = pooling_period_seconds
 
-        self.gcp_hook = CloudComposerAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger",
@@ -70,7 +65,14 @@ class CloudComposerExecutionTrigger(BaseTrigger):
             },
         )
 
+    def _get_async_hook(self) -> CloudComposerAsyncHook:
+        return CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
     async def run(self):
+        self.gcp_hook = self._get_async_hook()
         while True:
             operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
             if operation.done:
@@ -108,11 +110,6 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
 
-        self.gcp_hook = CloudComposerAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerAirflowCLICommandTrigger",
@@ -127,7 +124,14 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
             },
         )
 
+    def _get_async_hook(self) -> CloudComposerAsyncHook:
+        return CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
     async def run(self):
+        self.gcp_hook = self._get_async_hook()
         try:
             result = await self.gcp_hook.wait_command_execution_result(
                 project_id=self.project_id,
@@ -199,11 +203,6 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         self.poll_interval = poll_interval
         self.composer_airflow_version = composer_airflow_version
 
-        self.gcp_hook = CloudComposerAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerDAGRunTrigger",
@@ -264,6 +263,12 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 return False
         return True
 
+    def _get_async_hook(self) -> CloudComposerAsyncHook:
+        return CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
     def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
         for dag_run in dag_runs:
             if dag_run["run_id"] == self.composer_dag_run_id and dag_run["state"] in self.allowed_states:
@@ -271,6 +276,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         return False
 
     async def run(self):
+        self.gcp_hook: CloudComposerAsyncHook = self._get_async_hook()
         try:
             while True:
                 if datetime.now(self.end_date.tzinfo).timestamp() > self.end_date.timestamp():

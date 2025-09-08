@@ -106,6 +106,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
+from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -1025,6 +1026,16 @@ def _handle_current_task_success(
 ) -> tuple[SucceedTask, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance success metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_successes", tags=stats_tags)
+
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -1382,6 +1393,14 @@ def finalize(
     log: Logger,
     error: BaseException | None = None,
 ):
+    # Record task duration metrics for all terminal states
+    if ti.start_date and ti.end_date:
+        duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
+        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
+        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
