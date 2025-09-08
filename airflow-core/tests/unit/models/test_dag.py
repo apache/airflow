@@ -655,7 +655,14 @@ class TestDag:
         EmptyOperator(
             task_id=task_id,
             dag=dag2,
-            outlets=[Asset(uri=uri1, name="test_asset_1", event_extra_template={"should": "be used"}, group="test-group")],
+            outlets=[
+                Asset(
+                    uri=uri1,
+                    name="test_asset_1",
+                    event_extra_template={"should": "be used"},
+                    group="test-group",
+                )
+            ],
         )
 
         session = settings.Session()
@@ -2178,10 +2185,20 @@ class TestDagModel:
                     Asset("s3://dag3/output_3.txt", event_extra_template={"hi": "bye"}, group="test-group"),
                     AssetAll(
                         AssetAll(
-                            Asset("s3://dag3/output_4.txt", event_extra_template={"hi": "bye"}, group="test-group"),
-                            Asset("s3://dag3/output_5.txt", event_extra_template={"hi": "bye"}, group="test-group"),
+                            Asset(
+                                "s3://dag3/output_4.txt",
+                                event_extra_template={"hi": "bye"},
+                                group="test-group",
+                            ),
+                            Asset(
+                                "s3://dag3/output_5.txt",
+                                event_extra_template={"hi": "bye"},
+                                group="test-group",
+                            ),
                         ),
-                        Asset("s3://dag3/output_6.txt", event_extra_template={"hi": "bye"}, group="test-group"),
+                        Asset(
+                            "s3://dag3/output_6.txt", event_extra_template={"hi": "bye"}, group="test-group"
+                        ),
                     ),
                 ),
                 AssetAlias(name="test_name", group="test-group"),

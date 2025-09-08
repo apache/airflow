@@ -265,7 +265,7 @@ class AssetModel(Base):
         default=str,
         nullable=False,
     )
-    extra= Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
@@ -326,8 +326,10 @@ class AssetModel(Base):
         from airflow.sdk.definitions.asset import Asset
 
         return Asset(
-            name=self.name, uri=self.uri, group=self.group,event_extra_template=None,
-
+            name=self.name,
+            uri=self.uri,
+            group=self.group,
+            event_extra_template=None,
         )
 
 
