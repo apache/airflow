@@ -79,7 +79,7 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     BaseAsset,
 )
-from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
@@ -3108,18 +3108,19 @@ class SerializedDAG(DAG, BaseSerialization):
 
         if self.deadline:
             for deadline in cast("list", self.deadline):
-                session.add(
-                    Deadline(
-                        deadline_time=deadline.reference.evaluate_with(
-                            session=session,
-                            interval=deadline.interval,
-                            dag_id=self.dag_id,
-                            run_id=run_id,
-                        ),
-                        callback=deadline.callback,
-                        dagrun_id=orm_dagrun.id,
+                if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
+                    session.add(
+                        Deadline(
+                            deadline_time=deadline.reference.evaluate_with(
+                                session=session,
+                                interval=deadline.interval,
+                                dag_id=self.dag_id,
+                                run_id=run_id,
+                            ),
+                            callback=deadline.callback,
+                            dagrun_id=orm_dagrun.id,
+                        )
                     )
-                )
 
         return orm_dagrun
 
