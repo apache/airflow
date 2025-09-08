@@ -39,7 +39,12 @@ from airflow.providers.openlineage.conf import (
     spark_inject_transport_info,
     transport,
 )
-from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
+
+try:
+    from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
+except ImportError:
+    # Compat for Airflow < 3.1
+    from airflow.exceptions import AirflowConfigException  # type: ignore[no-redef, attr-defined]
 
 from tests_common.test_utils.config import env_vars, task_sdk_conf_vars as conf_vars
 
