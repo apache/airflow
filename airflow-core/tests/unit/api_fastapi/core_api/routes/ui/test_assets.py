@@ -93,14 +93,10 @@ class TestNextRunAssets:
 
         assets = {
             a.uri: a
-            for a in session.query(AssetModel).filter(
-                AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"])
-            )
+            for a in session.query(AssetModel).filter(AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"]))
         }
         # Queue and add an event only for A
-        session.add(
-            AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets_equal")
-        )
+        session.add(AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets_equal"))
         session.add(
             AssetEvent(asset_id=assets["s3://bucket/A"].id, timestamp=dr.logical_date or pendulum.now())
         )
@@ -152,9 +148,7 @@ class TestNextRunAssets:
 
         assets = {
             a.uri: a
-            for a in session.query(AssetModel).filter(
-                AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"])
-            )
+            for a in session.query(AssetModel).filter(AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"]))
         }
         session.add(AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets"))
         session.add(
