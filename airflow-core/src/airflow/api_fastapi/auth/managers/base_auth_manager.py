@@ -46,7 +46,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
+        IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
+        IsAuthorizedPoolRequest,
+        IsAuthorizedVariableRequest,
     )
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -312,6 +315,31 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user
         """
 
+    def batch_is_authorized_connection(
+        self,
+        requests: Sequence[IsAuthorizedConnectionRequest],
+        *,
+        user: T,
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_connection``.
+
+        By default, calls individually the ``is_authorized_connection`` API on each item in the list of requests.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_connection``
+        :param user: the user to performing the action
+        """
+        return all(
+            self.is_authorized_connection(
+                method=request["method"],
+                details=request.get("details"),
+                user=user,
+            )
+            for request in requests
+        )
+
     def batch_is_authorized_dag(
         self,
         requests: Sequence[IsAuthorizedDagRequest],
@@ -332,6 +360,56 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             self.is_authorized_dag(
                 method=request["method"],
                 access_entity=request.get("access_entity"),
+                details=request.get("details"),
+                user=user,
+            )
+            for request in requests
+        )
+
+    def batch_is_authorized_pool(
+        self,
+        requests: Sequence[IsAuthorizedPoolRequest],
+        *,
+        user: T,
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_pool``.
+
+        By default, calls individually the ``is_authorized_pool`` API on each item in the list of requests.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_pool``
+        :param user: the user to performing the action
+        """
+        return all(
+            self.is_authorized_pool(
+                method=request["method"],
+                details=request.get("details"),
+                user=user,
+            )
+            for request in requests
+        )
+
+    def batch_is_authorized_variable(
+        self,
+        requests: Sequence[IsAuthorizedVariableRequest],
+        *,
+        user: T,
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_variable``.
+
+        By default, calls individually the ``is_authorized_variable`` API on each item in the list of requests.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_variable``
+        :param user: the user to performing the action
+        """
+        return all(
+            self.is_authorized_variable(
+                method=request["method"],
                 details=request.get("details"),
                 user=user,
             )

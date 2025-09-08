@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-ydb``
 
 Release: ``2.2.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `YDB <https://ydb.tech/>`__
 

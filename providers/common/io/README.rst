@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-common-io``
 
 Release: ``1.6.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 Common IO Provider
 

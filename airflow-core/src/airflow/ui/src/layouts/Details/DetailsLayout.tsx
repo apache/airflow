@@ -115,7 +115,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel
             defaultSize={dagView === "graph" ? 70 : 20}
             id="main-panel"
-            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 30 : 6}
+            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
             order={1}
           >
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">

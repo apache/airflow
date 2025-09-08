@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-sqlite``
 
 Release: ``4.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `SQLite <https://www.sqlite.org/>`__
 

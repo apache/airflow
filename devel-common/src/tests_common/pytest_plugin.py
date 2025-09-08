@@ -25,6 +25,7 @@ import platform
 import re
 import subprocess
 import sys
+import uuid
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
@@ -2670,6 +2671,23 @@ def testing_dag_bundle():
             if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                 testing = DagBundleModel(name="testing")
                 session.add(testing)
+
+
+@pytest.fixture
+def testing_team():
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.team import Team
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            team = session.query(Team).filter_by(name="testing").one_or_none()
+            if not team:
+                team = Team(id=uuid.uuid4(), name="testing")
+                session.add(team)
+                session.flush()
+            yield team
 
 
 @pytest.fixture
