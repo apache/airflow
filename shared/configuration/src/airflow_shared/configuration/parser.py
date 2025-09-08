@@ -48,9 +48,6 @@ from urllib.parse import urlsplit
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
-# TODO: Fix import to be from shared secrets backend when we do that
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
-
 from .exceptions import AirflowConfigException
 
 log = logging.getLogger(__name__)
@@ -68,6 +65,12 @@ ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
+
+# Have to duplicate to avoid imports from core
+DEFAULT_SECRETS_SEARCH_PATH = [
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
+]
 
 
 class ConfigModifications:
