@@ -17,15 +17,10 @@
  * under the License.
  */
 import { Box, Table } from "@chakra-ui/react";
-import {
-  useUiServiceWorker,
-  useUiServiceRequestWorkerMaintenance,
-  useUiServiceExitWorkerMaintenance,
-} from "openapi/queries";
-import { useState } from "react";
+import { useUiServiceWorker } from "openapi/queries";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { OperationsCell } from "src/components/OperationsCell";
+import { WorkerOperations } from "src/components/WorkerOperations";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { autoRefreshInterval } from "src/utils";
 
@@ -34,43 +29,6 @@ export const WorkerPage = () => {
     enabled: true,
     refetchInterval: autoRefreshInterval,
   });
-  const [activeMaintenanceForm, setActiveMaintenanceForm] = useState<string | null>(null);
-
-  const requestMaintenanceMutation = useUiServiceRequestWorkerMaintenance({
-    onError: (error) => {
-      console.error("Error requesting maintenance:", error);
-      alert(`Error requesting maintenance: ${error}`);
-    },
-    onSuccess: () => {
-      console.log("Maintenance request successful");
-      setActiveMaintenanceForm(null);
-      refetch();
-    },
-  });
-
-  const exitMaintenanceMutation = useUiServiceExitWorkerMaintenance({
-    onError: (error) => {
-      console.error("Error exiting maintenance:", error);
-      alert(`Error exiting maintenance: ${error}`);
-    },
-    onSuccess: () => {
-      console.log("Exit maintenance successful");
-      refetch();
-    },
-  });
-
-  const requestMaintenance = (workerName: string, comment: string) => {
-    console.log(`Requesting maintenance for worker: ${workerName}, comment: ${comment}`);
-    requestMaintenanceMutation.mutate({
-      requestBody: { maintenance_comment: comment },
-      workerName,
-    });
-  };
-
-  const exitMaintenance = (workerName: string) => {
-    console.log(`Exiting maintenance for worker: ${workerName}`);
-    exitMaintenanceMutation.mutate({ workerName });
-  };
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
@@ -129,13 +87,7 @@ export const WorkerPage = () => {
                   )}
                 </Table.Cell>
                 <Table.Cell>
-                  <OperationsCell
-                    worker={worker}
-                    activeMaintenanceForm={activeMaintenanceForm}
-                    onSetActiveMaintenanceForm={setActiveMaintenanceForm}
-                    onRequestMaintenance={requestMaintenance}
-                    onExitMaintenance={exitMaintenance}
-                  />
+                  <WorkerOperations worker={worker} onOperations={refetch} />
                 </Table.Cell>
               </Table.Row>
             ))}
