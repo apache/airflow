@@ -395,10 +395,12 @@ class ReferenceModels:
             # Get all durations and calculate average
             durations = session.execute(query).scalars().all()
 
-            if not durations:
+            if len(durations) < limit:
                 logger.warning(
-                    "No completed DAG runs found for dag_id: %s, using 24 hour default",
+                    "Only %d completed DAG runs found for dag_id: %s (need %d), using 24 hour default",
+                    len(durations),
                     dag_id,
+                    limit,
                 )
                 avg_seconds = 48 * 3600  # 48 hours as reasonable default
             else:
