@@ -706,6 +706,7 @@ class AsyncDagBag(DagBag):
             dag_folder=path,
             include_examples=include_examples,
             safe_mode=safe_mode,
+            read_dags_from_db=False,
             load_op_links=load_op_links,
             collect_dags=False,
             known_pools=known_pools,
@@ -757,6 +758,7 @@ class AsyncDagBag(DagBag):
 
     async def _load_modules_from_file(self, filepath, safe_mode):
         """Async-friendly version of _load_modules_from_file without signals."""
+
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         if not might_contain_dag(filepath, safe_mode):
@@ -818,6 +820,7 @@ class AsyncDagBag(DagBag):
 
     async def _load_modules_from_zip(self, filepath, safe_mode):
         """Async-friendly version of _load_modules_from_zip."""
+
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         mods = []
