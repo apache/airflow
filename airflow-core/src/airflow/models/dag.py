@@ -699,7 +699,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_bulk_team_name(dag_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_dag_id_to_team_name_mapping(dag_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
         stmt = (
             select(DagModel.dag_id, Team.name)
             .join(DagBundleModel.teams)

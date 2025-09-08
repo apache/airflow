@@ -364,12 +364,12 @@ class TestGetImportErrors:
         ],
     )
     @pytest.mark.usefixtures("permitted_dag_model")
-    @mock.patch.object(DagModel, "get_bulk_team_name")
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_user_can_not_read_all_dags_in_file(
         self,
         mock_get_auth_manager,
-        mock_get_bulk_team_name,
+        mock_get_dag_id_to_team_name_mapping,
         test_client,
         team,
         batch_is_authorized_dag_return_value,
@@ -377,7 +377,7 @@ class TestGetImportErrors:
         permitted_dag_model,
         import_errors,
     ):
-        mock_get_bulk_team_name.return_value = {permitted_dag_model.dag_id: team}
+        mock_get_dag_id_to_team_name_mapping.return_value = {permitted_dag_model.dag_id: team}
         set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
             mock_get_auth_manager, {permitted_dag_model.dag_id}

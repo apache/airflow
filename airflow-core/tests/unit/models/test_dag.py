@@ -2299,7 +2299,7 @@ class TestDagModel:
         assert DagModel.get_dagmodel(dag_id) is not None
         assert DagModel.get_team_name(dag_id, session=session) is None
 
-    def test_get_bulk_team_name(self, testing_team):
+    def test_get_dag_id_to_team_name_mapping(self, testing_team):
         session = settings.Session()
         bundle1 = DagBundleModel(name="bundle1")
         bundle1.teams.append(testing_team)
@@ -2325,7 +2325,9 @@ class TestDagModel:
         session.add(orm_dag1)
         session.add(orm_dag2)
         session.flush()
-        assert DagModel.get_bulk_team_name([dag_id1, dag_id2], session=session) == {dag_id1: "testing"}
+        assert DagModel.get_dag_id_to_team_name_mapping([dag_id1, dag_id2], session=session) == {
+            dag_id1: "testing"
+        }
 
 
 class TestQueries:

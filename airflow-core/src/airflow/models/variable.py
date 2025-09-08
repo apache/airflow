@@ -465,7 +465,7 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_bulk_team_name(variable_keys: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_key_to_team_name_mapping(variable_keys: list[str], session=NEW_SESSION) -> dict[str, str | None]:
         stmt = (
             select(Variable.key, Team.name)
             .join(Team, Variable.team_id == Team.id)

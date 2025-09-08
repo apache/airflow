@@ -601,7 +601,9 @@ class Connection(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_bulk_team_name(connection_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_conn_id_to_team_name_mapping(
+        connection_ids: list[str], session=NEW_SESSION
+    ) -> dict[str, str | None]:
         stmt = (
             select(Connection.conn_id, Team.name)
             .join(Team, Connection.team_id == Team.id)

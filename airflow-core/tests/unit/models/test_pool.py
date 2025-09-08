@@ -333,11 +333,11 @@ class TestPool:
 
         assert Pool.get_team_name("test", session=session) == "testing"
 
-    def test_get_bulk_team_name(self, testing_team: Team, session: Session):
+    def test_get_name_to_team_name_mapping(self, testing_team: Team, session: Session):
         pool1 = Pool(pool="pool1", include_deferred=False, team_id=testing_team.id)
         pool2 = Pool(pool="pool2", include_deferred=False)
         session.add(pool1)
         session.add(pool2)
         session.flush()
 
-        assert Pool.get_bulk_team_name(["pool1", "pool2"], session=session) == {"pool1": "testing"}
+        assert Pool.get_name_to_team_name_mapping(["pool1", "pool2"], session=session) == {"pool1": "testing"}

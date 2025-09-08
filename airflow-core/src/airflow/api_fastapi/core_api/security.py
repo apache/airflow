@@ -255,13 +255,15 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         request: BulkBody[PoolBody],
         user: GetUserDep,
     ) -> None:
+        # Build the list of pool names provided as part of the request
         existing_pool_names = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("PoolBody", entity).pool
             for action in request.actions
             for entity in action.entities
             if action.action != BulkAction.CREATE
         ]
-        teams = Pool.get_bulk_team_name(existing_pool_names)
+        # For each pool, find its associated team (if it exists)
+        pool_name_to_team = Pool.get_name_to_team_name_mapping(existing_pool_names)
 
         requests: list[IsAuthorizedPoolRequest] = []
         for action in request.actions:
@@ -269,16 +271,20 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
                 pool_name = (
                     cast("str", pool) if action.action == BulkAction.DELETE else cast("PoolBody", pool).pool
                 )
+                # For each pool, build a `IsAuthorizedPoolRequest`
+                # The list of `IsAuthorizedPoolRequest` will then be sent using `batch_is_authorized_pool`
+                # Each `IsAuthorizedPoolRequest` is similar to calling `is_authorized_pool`
                 req: IsAuthorizedPoolRequest = {
                     "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
                     "details": PoolDetails(
                         name=pool_name,
-                        team_name=teams.get(pool_name),
+                        team_name=pool_name_to_team.get(pool_name),
                     ),
                 }
                 requests.append(req)
 
         _requires_access(
+            # By calling `batch_is_authorized_pool`, we check the user has access to all pools provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_pool(
                 requests=requests,
                 user=user,
@@ -312,6 +318,7 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
         request: BulkBody[ConnectionBody],
         user: GetUserDep,
     ) -> None:
+        # Build the list of ``conn_id`` provided as part of the request
         existing_connection_ids = [
             cast("str", entity)
             if action.action == BulkAction.DELETE
@@ -320,7 +327,8 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
             for entity in action.entities
             if action.action != BulkAction.CREATE
         ]
-        teams = Connection.get_bulk_team_name(existing_connection_ids)
+        # For each connection, find its associated team (if it exists)
+        conn_id_to_team = Connection.get_conn_id_to_team_name_mapping(existing_connection_ids)
 
         requests: list[IsAuthorizedConnectionRequest] = []
         for action in request.actions:
@@ -330,16 +338,20 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
                     if action.action == BulkAction.DELETE
                     else cast("ConnectionBody", connection).connection_id
                 )
+                # For each pool, build a `IsAuthorizedConnectionRequest`
+                # The list of `IsAuthorizedConnectionRequest` will then be sent using `batch_is_authorized_connection`
+                # Each `IsAuthorizedConnectionRequest` is similar to calling `is_authorized_connection`
                 req: IsAuthorizedConnectionRequest = {
                     "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
                     "details": ConnectionDetails(
                         conn_id=connection_id,
-                        team_name=teams.get(connection_id),
+                        team_name=conn_id_to_team.get(connection_id),
                     ),
                 }
                 requests.append(req)
 
         _requires_access(
+            # By calling `batch_is_authorized_connection`, we check the user has access to all connections provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_connection(
                 requests=requests,
                 user=user,
@@ -389,13 +401,15 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         request: BulkBody[VariableBody],
         user: GetUserDep,
     ) -> None:
+        # Build the list of variable keys provided as part of the request
         existing_variable_keys = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("VariableBody", entity).key
             for action in request.actions
             for entity in action.entities
             if action.action != BulkAction.CREATE
         ]
-        teams = Variable.get_bulk_team_name(existing_variable_keys)
+        # For each variable, find its associated team (if it exists)
+        var_key_to_team = Variable.get_key_to_team_name_mapping(existing_variable_keys)
 
         requests: list[IsAuthorizedVariableRequest] = []
         for action in request.actions:
@@ -405,16 +419,20 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
                     if action.action == BulkAction.DELETE
                     else cast("VariableBody", variable).key
                 )
+                # For each variable, build a `IsAuthorizedVariableRequest`
+                # The list of `IsAuthorizedVariableRequest` will then be sent using `batch_is_authorized_variable`
+                # Each `IsAuthorizedVariableRequest` is similar to calling `is_authorized_variable`
                 req: IsAuthorizedVariableRequest = {
                     "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
                     "details": VariableDetails(
                         key=variable_key,
-                        team_name=teams.get(variable_key),
+                        team_name=var_key_to_team.get(variable_key),
                     ),
                 }
                 requests.append(req)
 
         _requires_access(
+            # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
                 requests=requests,
                 user=user,

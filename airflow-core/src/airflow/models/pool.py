@@ -362,7 +362,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_bulk_team_name(pool_names: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_name_to_team_name_mapping(pool_names: list[str], session=NEW_SESSION) -> dict[str, str | None]:
         stmt = (
             select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id).where(Pool.pool.in_(pool_names))
         )

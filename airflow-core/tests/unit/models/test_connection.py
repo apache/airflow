@@ -375,7 +375,7 @@ class TestConnection:
         clear_db_connections()
 
     @pytest.mark.db_test
-    def test_get_bulk_team_name(self, testing_team: Team, session: Session):
+    def test_get_conn_id_to_team_name_mapping(self, testing_team: Team, session: Session):
         clear_db_connections()
 
         connection1 = Connection(conn_id="test_conn1", conn_type="test_type", team_id=testing_team.id)
@@ -384,7 +384,7 @@ class TestConnection:
         session.add(connection2)
         session.flush()
 
-        assert Connection.get_bulk_team_name(["test_conn1", "test_conn2"], session=session) == {
+        assert Connection.get_conn_id_to_team_name_mapping(["test_conn1", "test_conn2"], session=session) == {
             "test_conn1": "testing"
         }
         clear_db_connections()
