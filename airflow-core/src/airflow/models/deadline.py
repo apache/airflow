@@ -388,7 +388,7 @@ class ReferenceModels:
 
             # Apply limit (defaults to 10)
             query = query.limit(limit)
-            logger.info(
+            logger.debug(
                 "Limiting average runtime calculation to latest %d runs for dag_id: %s", limit, dag_id
             )
 
@@ -397,10 +397,10 @@ class ReferenceModels:
 
             if not durations:
                 logger.warning(
-                    "In the AverageRuntimeDeadline, no completed DAG runs found for dag_id: %s, defaulting to 0 seconds",
+                    "No completed DAG runs found for dag_id: %s, using 24 hour default",
                     dag_id,
                 )
-                avg_seconds = 0
+                avg_seconds = 48 * 3600  # 48 hours as reasonable default
             else:
                 avg_seconds = sum(durations) / len(durations)
                 logger.info(
