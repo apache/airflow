@@ -630,7 +630,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
                     timeout_after=trigger.task_instance.trigger_timeout,
-                    dag=dag,
+                    dag=dag.data,
                 )
             return workloads.RunTrigger(
                 classpath=trigger.classpath,
