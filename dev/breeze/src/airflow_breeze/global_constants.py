@@ -70,6 +70,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "elasticsearch",
     "tinkerpop",
     "kafka",
     "mongo",
