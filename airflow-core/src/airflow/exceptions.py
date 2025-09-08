@@ -79,7 +79,7 @@ except (ImportError, ModuleNotFoundError):
     class AirflowTaskTimeout(BaseException):  # type: ignore[no-redef]
         """Raise when the task execution times-out."""
 
-    class TaskDeferred(BaseException):
+    class TaskDeferred(BaseException):  # type: ignore[no-redef]
         """
         Signal an operator moving to deferred state.
 
