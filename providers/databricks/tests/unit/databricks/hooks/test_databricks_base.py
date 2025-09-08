@@ -768,3 +768,75 @@ class TestBaseDatabricksHook:
         exception.response = mock_response
         hook = BaseDatabricksHook()
         assert hook._get_error_code(exception) == "INVALID_REQUEST"
+
+    @mock.patch("request.get")
+    @time_machine.travel("2025-07-12 12:00:00")
+    def test_check_azure_metadata_service_normal(mock_get):
+        travel_time = int(datetime.datetime(2025, 7, 12, 12, 0, 0).timestamp())
+        hook = BaseDatabricksHook()
+        mock_response = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+        mock_get.return_value.json.return_value = mock_response
+        hook._metadata_cache = None
+        hook._metadata_expiry = 0
+
+        hook._check_azure_metadata_service()
+
+        assert hook._metadata_cache == mock_response
+        assert hook._metadata_expiry == travel_time + hook._metadata_ttl
+
+
+@mock.patch("requests.get")
+@time_machine.travel("2025-07-12 12:00:00")
+def test_check_azure_metadata_service_cached(mock_get):
+    travel_time = int(datetime.datetime(2025, 7, 12, 12, 0, 0).timestamp())
+    hook = BaseDatabricksHook()
+    mock_response = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+    hook._metadata_cache = mock_response
+    hook._metadata_expiry = travel_time + 1000
+
+    hook._check_azure_metadata_service()
+    mock_get.assert_not_called()
+
+
+@mock.patch("requests.get")
+def test_check_azure_metadata_service_http_error(mock_get):
+    hook = BaseDatabricksHook()
+    hook._metadata_cache = None
+    hook._metadata_expiry = 0
+    mock_get.side_effect = requests_exceptions.RequestException("Fail")
+
+    with pytest.raises(AirflowException, match="Can't reach Azure Metadata Service"):
+        hook._check_azure_metadata_service()
+
+
+@mock.patch("requests.get")
+def test_check_azure_metadata_service_retry_error(mock_get):
+    hook = BaseDatabricksHook()
+    hook._metadata_cache = None
+    hook._metadata_expiry = 0
+
+    def mock_retry_gen():
+        raise RetryError(mock.Mock())
+
+    hook._get_retry_object = mock.Mock(return_value=mock_retry_gen())
+
+    with pytest.raises(AirflowException, match="Failed to reach Azure Metadata Service after"):
+        hook._check_azure_metadata_service()
+
+
+@mock.patch("requests.get")
+def test_check_azure_metadata_service_429_recovery(mock_get):
+    hook = BaseDatabricksHook()
+
+    resp_429 = mock.Mock()
+    resp_429.status_code = 429
+    resp_429.raise_for_status.side_effect = requests_exceptions.HTTPError("Too Many Requests")
+
+    resp_ok = mock.Mock()
+    resp_ok.json.return_value = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+
+    mock_get.side_effect = [resp_429, resp_ok]
+    hook._check_azure_metadata_service()
+
+    assert hook._metadata_cache["compute"]["azEnvironment"] == "AzurePublicCloud"
+    assert mock_get.call_count == 2
