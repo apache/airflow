@@ -639,16 +639,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 ti=None,
             )
 
+
+        known_trigger_ids = (
+            self.running_triggers.union(x[0] for x in self.events)
+            .union(self.cancelling_triggers)
+            .union(trigger[0] for trigger in self.failed_triggers)
+            .union(trigger.id for trigger in self.creating_triggers)
+        )
+        # Work out the two difference sets
+        new_trigger_ids = requested_trigger_ids - known_trigger_ids
+        cancel_trigger_ids = self.running_triggers - requested_trigger_ids
+
         with create_session() as session:
-            known_trigger_ids = (
-                self.running_triggers.union(x[0] for x in self.events)
-                .union(self.cancelling_triggers)
-                .union(trigger[0] for trigger in self.failed_triggers)
-                .union(trigger.id for trigger in self.creating_triggers)
-            )
-            # Work out the two difference sets
-            new_trigger_ids = requested_trigger_ids - known_trigger_ids
-            cancel_trigger_ids = self.running_triggers - requested_trigger_ids
             # Bulk-fetch new trigger records
             new_triggers = Trigger.bulk_fetch(new_trigger_ids, session=session)
             trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations(
