@@ -21,11 +21,10 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.bigquery import DatasetReference, SchemaField, Table, TableReference
 from psycopg2.extras import Json
 
 from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
-from google.cloud.bigquery import Table, TableReference, DatasetReference, SchemaField
-from unit.google.cloud.sensors.test_gcs import mock_time
 
 TASK_ID = "test-bq-create-table-operator"
 TEST_DATASET = "test-dataset"

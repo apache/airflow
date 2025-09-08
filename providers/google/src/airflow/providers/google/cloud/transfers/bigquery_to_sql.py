@@ -33,6 +33,114 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class BigQueryToSqlOpenLineageMixin:
+    """
+    Mixin to provide shared OpenLineage facet extraction for BigQueryToSql operators.
+    """
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table_for_given_fields,
+            get_identity_column_lineage_facet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        # Ensure bigquery_hook is initialized
+        if not getattr(self, "bigquery_hook", None):
+            self.bigquery_hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
+
+        # Determine source_project_dataset_table
+        source_project_dataset_table = getattr(self, "source_project_dataset_table", None)
+        if not source_project_dataset_table:
+            # Try to construct from project_id, dataset_id, table_id
+            project_id = getattr(self.bigquery_hook, "project_id", None)
+            dataset_id = getattr(self, "dataset_id", None)
+            table_id = getattr(self, "table_id", None)
+            if project_id and dataset_id and table_id:
+                source_project_dataset_table = f"{project_id}.{dataset_id}.{table_id}"
+            else:
+                return OperatorLineage()
+
+        try:
+            table_obj = self.bigquery_hook.get_client().get_table(source_project_dataset_table)
+        except Exception:
+            self.log.debug(
+                "OpenLineage: could not fetch BigQuery table %s",
+                source_project_dataset_table,
+                exc_info=True,
+            )
+            return OperatorLineage()
+
+        selected_fields = getattr(self, "selected_fields", None)
+        if selected_fields:
+            if isinstance(selected_fields, str):
+                bigquery_field_names = list(selected_fields)
+            else:
+                bigquery_field_names = selected_fields
+        else:
+            bigquery_field_names = [f.name for f in getattr(table_obj, "schema", [])]
+
+        input_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=source_project_dataset_table,
+            facets=get_facets_from_bq_table_for_given_fields(table_obj, bigquery_field_names),
+        )
+
+        # Get SQL hook and output table info
+        sql_hook = self.get_sql_hook()
+        db_info = sql_hook.get_openlineage_database_info(sql_hook.get_conn())
+        namespace = f"{db_info.scheme}://{db_info.authority}"
+
+        # Output table name logic
+        target_table_name = getattr(self, "target_table_name", None)
+        database = getattr(self, "database", None)
+        output_name = None
+
+        # Try to get schema if available
+        get_schema = getattr(sql_hook, "get_openlineage_default_schema", None)
+        schema_name = get_schema() if callable(get_schema) else None
+
+        # Special handling for MySQL: ignore schema_name in output_name
+        if db_info.scheme == "mysql":
+            if target_table_name and database:
+                output_name = f"{database}.{target_table_name}"
+            elif target_table_name:
+                output_name = target_table_name
+            else:
+                output_name = ""
+        else:
+            # Compose output_name based on available attributes for other DBs
+            if target_table_name and "." in target_table_name and schema_name:
+                # If schema is available and target_table_name is schema.table
+                _, table_name = target_table_name.split(".", 1)
+                if database:
+                    output_name = f"{database}.{schema_name}.{table_name}"
+                else:
+                    output_name = f"{schema_name}.{table_name}"
+            elif target_table_name and schema_name and database:
+                output_name = f"{database}.{schema_name}.{target_table_name}"
+            elif target_table_name and database:
+                output_name = f"{database}.{target_table_name}"
+            elif target_table_name:
+                output_name = target_table_name
+            else:
+                output_name = ""
+
+        column_lineage_facet = get_identity_column_lineage_facet(
+            bigquery_field_names, input_datasets=[input_dataset]
+        )
+        output_facets = column_lineage_facet or {}
+        output_dataset = Dataset(namespace=namespace, name=output_name, facets=output_facets)
+
+        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
+
+
 class BigQueryToSqlBaseOperator(BaseOperator):
     """
     Fetch data from a BigQuery table (alternatively fetch selected columns) and insert it into an SQL table.
