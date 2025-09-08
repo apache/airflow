@@ -83,6 +83,9 @@ dependencies = [
 "psycopg" = [
     "psycopg[binary]>=3.2.9",
 ]
+"psycopg-c" = [
+    "psycopg[c]>=3.2.9",
+]
 
 [dependency-groups]
 dev = [
