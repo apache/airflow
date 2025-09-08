@@ -1,9 +1,9 @@
 {
   "allRuns": "所有执行",
   "blockingDeps": {
-    "dependency": "依赖 (Dependencies)",
+    "dependency": "依赖 ",
     "reason": "原因",
-    "title": "依赖 (Dependencies) 阻碍任务调度"
+    "title": "依赖阻碍任务调度"
   },
   "calendar": {
     "daily": "每日",
@@ -20,7 +20,7 @@
     },
     "noData": "无数据",
     "noRuns": "未执行",
-    "totalRuns": "总执行",
+    "totalRuns": "总执行次数",
     "week": "第 {{weekNumber}} 周",
     "weekdays": {
       "friday": "周五",
@@ -47,7 +47,7 @@
   "header": {
     "buttons": {
       "advanced": "高级功能",
-      "dagDocs": "DAG 文档"
+      "dagDocs": "Dag 文档"
     }
   },
   "logs": {
@@ -61,9 +61,9 @@
       "tooltip": "按下 {{hotkey}} 进入全屏"
     },
     "info": "INFO",
-    "noTryNumber": "没有尝试次数",
+    "noTryNumber": "没有重试次数",
     "settings": "日志设置",
-    "viewInExternal": "在 {{name}} 中查看日志(尝试 {{attempt}})",
+    "viewInExternal": "在 {{name}} 中查看日志(重试 {{attempt}})",
     "warning": "WARNING"
   },
   "navigation": {
@@ -96,16 +96,16 @@
       "showGridShortcut": "显示网格（按 g）"
     },
     "dagRuns": {
-      "label": "DAG 执行次数"
+      "label": "Dag 执行次数"
     },
     "dependencies": {
-      "label": "依赖 (Dependencies)",
+      "label": "依赖项",
       "options": {
-        "allDagDependencies": "所有 DAG 相依性",
+        "allDagDependencies": "所有 Dag 依赖项",
         "externalConditions": "外部条件",
         "onlyTasks": "仅限任务"
       },
-      "placeholder": "依赖 (Dependencies)"
+      "placeholder": "依赖项"
     },
     "graphDirection": {
       "label": "图表方向"
@@ -115,11 +115,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "DAG 解析请求失败。可能还有待处理的解析请求。",
-        "title": "DAG 重新解析失败"
+        "description": "Dag 解析请求失败。可能还有待处理的解析请求。",
+        "title": "Dag 重新解析失败"
       },
       "success": {
-        "description": "DAG 即将重新解析。",
+        "description": "Dag 即将重新解析。",
         "title": "已成功提交重新解析请求"
       }
     }

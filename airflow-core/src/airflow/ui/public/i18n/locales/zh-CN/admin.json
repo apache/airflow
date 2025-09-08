@@ -85,16 +85,16 @@
   },
   "pools": {
     "add": "新增资源池",
-    "deferredSlotsIncluded": "包含延后任务",
+    "deferredSlotsIncluded": "包含延迟任务",
     "delete": {
       "title": "删除资源池",
       "warning": "这将删除所有与此资源池相关的系统数据，可能会影响使用此资源池的任务。"
     },
     "edit": "编辑资源池",
     "form": {
-      "checkbox": "计算可用资源池配额时，将包含延后的任务",
+      "checkbox": "计算可用资源池配额时，将包含延迟的任务",
       "description": "描述",
-      "includeDeferred": "包含延后任务",
+      "includeDeferred": "包含延迟任务",
       "nameMaxLength": "名称最多只能包含 256 个字符",
       "nameRequired": "名称是必填的",
       "slots": "配额"

@@ -2,28 +2,28 @@
   "assetSchedule": "{{count}} / {{total}} 个资源事件已更新",
   "dagActions": {
     "delete": {
-      "button": "删除 DAG",
-      "warning": "这将会删除所有与此 DAG 相关的系统数据，包括 DAG 执行与任务。"
+      "button": "删除 Dag",
+      "warning": "这将会删除所有与此 Dag 相关的系统数据，包括 Dag 执行与任务。"
     }
   },
-  "favoriteDag": "将 DAG 加入收藏",
+  "favoriteDag": "将 Dag 加入收藏",
   "filters": {
     "allRunTypes": "全部执行类型",
     "allStates": "全部状态",
     "favorite": {
       "all": "全部",
-      "favorite": "已加为收藏",
-      "unfavorite": "未加为收藏"
+      "favorite": "已加入收藏",
+      "unfavorite": "未加入收藏"
     },
     "paused": {
       "active": "启用中",
       "all": "全部",
       "paused": "暂停"
     },
-    "runIdPatternFilter": "搜索 DAG 执行",
+    "runIdPatternFilter": "搜索 Dag 执行",
     "triggeringUserNameFilter": "搜索触发用户名称"
   },
-  "ownerLink": "拥有者 {{owner}} 的链接",
+  "ownerLink": "拥有者 {{owner}} 的地址",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任务。",
@@ -70,7 +70,7 @@
   "search": {
     "advanced": "高级搜索",
     "clear": "清除搜索",
-    "dags": "搜索 DAGs",
+    "dags": "搜索 Dags",
     "hotkey": "+K",
     "tasks": "搜索任务"
   },
@@ -93,5 +93,5 @@
     },
     "placeholder": "排序方式"
   },
-  "unfavoriteDag": "将 DAG 移出收藏"
+  "unfavoriteDag": "将 Dag 移出收藏"
 }

@@ -14,16 +14,16 @@
     "missingRuns": "遗漏的执行",
     "reprocessBehavior": "重新处理行为",
     "run": "执行回填",
-    "selectDescription": "为指定的日期范围补上 DAG 执行",
+    "selectDescription": "为指定的日期范围补上 Dag 执行",
     "selectLabel": "回填",
     "title": "执行回填",
     "toaster": {
       "success": {
         "description": "已成功触发回填作业。",
-        "title": "已触发 DAG 执行"
+        "title": "已触发 Dag 执行"
       }
     },
-    "tooltip": "回填功能需要 DAG 具有调度",
+    "tooltip": "回填功能需要 Dag 具有调度",
     "unpause": "触发时取消暂停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必须提供数据区间的开始与结束日期。",
@@ -53,8 +53,8 @@
   },
   "durationChart": {
     "duration": "持续时间 (秒)",
-    "lastDagRun_one": "最近 1 次 DAG 执行",
-    "lastDagRun_other": "最近 {{count}} 次 DAG 执行",
+    "lastDagRun_one": "最近 1 次 Dag 执行",
+    "lastDagRun_other": "最近 {{count}} 次 Dag 执行",
     "lastTaskInstance_one": "最近 1 次任务实例",
     "lastTaskInstance_other": "最近 {{count}} 次任务实例",
     "queuedDuration": "排队等候时间",
@@ -82,7 +82,7 @@
     "downloadImage": "下载图表图片",
     "downloadImageError": "下载图表图片失败。",
     "downloadImageErrorTitle": "下载失败",
-    "otherDagRuns": "+ 其他 DAG 执行",
+    "otherDagRuns": "+ 其他 Dag 执行",
     "taskCount_one": "1 个任务",
     "taskCount_other": "{{count}} 个任务",
     "taskGroup": "任务分组"
@@ -92,7 +92,7 @@
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
   },
-  "reparseDag": "重新解析 DAG",
+  "reparseDag": "重新解析 Dag",
   "sortedAscending": "递增排序",
   "sortedDescending": "递减排序",
   "sortedUnsorted": "未排序",
@@ -101,16 +101,16 @@
   "toggleTableView": "显示表格视图",
   "triggerDag": {
     "button": "触发",
-    "loading": "正在加载 DAG 信息...",
-    "loadingFailed": "加载 DAG 信息失败，请重试。",
+    "loading": "正在加载 Dag 信息...",
+    "loadingFailed": "加载 Dag 信息失败，请重试。",
     "runIdHelp": "选填 - 若未提供将会自动生成",
-    "selectDescription": "触发此 DAG 单次执行",
+    "selectDescription": "触发此 Dag 单次执行",
     "selectLabel": "单次执行",
-    "title": "触发 DAG",
+    "title": "触发 Dag",
     "toaster": {
       "success": {
-        "description": "已成功触发 DAG 执行。",
-        "title": "已触发 DAG 执行"
+        "description": "已成功触发 Dag 执行。",
+        "title": "已触发 Dag 执行"
       }
     },
     "unpause": "触发时取消暂停 {{dagDisplayName}}"
@@ -128,7 +128,7 @@
     "versionId": "版本 ID"
   },
   "versionSelect": {
-    "dagVersion": "DAG 版本",
+    "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
   }
 }
