@@ -39,6 +39,7 @@
     "fileLocation": "Ablagepfad",
     "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
     "lastExpired": "Letztmaliger Ablauf",
+    "lastParseDuration": "Letzte Dag Einlesedauer",
     "lastParsed": "Letztmalig Eingelesen",
     "latestDagVersion": "Letzte Dag Version",
     "latestRun": "Letzter Lauf",
