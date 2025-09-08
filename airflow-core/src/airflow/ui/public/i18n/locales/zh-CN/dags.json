@@ -62,7 +62,7 @@
       "future": "未来",
       "onlyFailed": "只清除失败任务",
       "past": "过去",
-      "queueNew": "排队新任务",
+      "queueNew": "加入新任务到队列",
       "runOnLatestVersion": "执行最新套件包版本",
       "upstream": "上游"
     }

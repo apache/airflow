@@ -3,7 +3,7 @@
     "favoriteDags_one": "第 {{ count }} 个收藏的 DAG",
     "favoriteDags_other": "前 {{ count }} 个收藏的 DAG",
     "noDagRuns": "此 DAG 尚未被触发过。",
-    "noFavoriteDags": "尚无收藏的 DAG 。请点击 DAG 列表旁的星号图示，将 DAG 加入收藏。"
+    "noFavoriteDags": "尚无收藏的 DAG。请点击 DAG 列表旁的星号图示，将 DAG 加入收藏。"
   },
   "group": "分组",
   "health": {
@@ -13,7 +13,7 @@
     "lastHeartbeat": "最后心跳",
     "metaDatabase": "系统数据库",
     "scheduler": "调度器",
-    "status": "状态",
+    "status": "状态",   
     "triggerer": "触发器",
     "unhealthy": "健康状态异常"
   },
