@@ -55,6 +55,10 @@ with DAG(
         # always sanitize input to prevent command injection. This example escapes
         # common bash special characters that could be used maliciously.
         env={
-            "message": '{{ dag_run.conf.get("message", "") | replace("\\", "\\\\") | replace("\"", "\\\"") | replace("`", "\\`") | replace("$", "\\$") }}'
+            "message": '{{ dag_run.conf.get("message", "") '
+            '| replace("\\\\", "\\\\\\\\") '
+            '| replace(\'"\', "\\\\\\"") '
+            '| replace("`", "\\\\`") '
+            '| replace("$", "\\\\$") }}'
         },
     )
