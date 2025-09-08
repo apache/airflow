@@ -288,7 +288,8 @@ function check_upgrade_sqlalchemy() {
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest
+    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
+        --no-python-downloads --no-managed-python
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
@@ -355,7 +356,8 @@ function check_force_lowest_dependencies() {
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
+            --no-python-downloads --no-managed-python
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
@@ -364,7 +366,8 @@ function check_force_lowest_dependencies() {
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras
+        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
+            --no-python-downloads --no-managed-python
     fi
 }
 

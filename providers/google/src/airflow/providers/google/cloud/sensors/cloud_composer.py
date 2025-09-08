@@ -61,6 +61,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         Or [datetime(2024,3,22,0,0,0)] in this case sensor will check for states from specific time in the
         past till current time execution.
         Default value datetime.timedelta(days=1).
+    :param composer_dag_run_id: The Run ID of executable task. The 'execution_range' param is ignored, if both specified.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -91,6 +92,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         composer_dag_id: str,
         allowed_states: Iterable[str] | None = None,
         execution_range: timedelta | list[datetime] | None = None,
+        composer_dag_run_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -104,10 +106,16 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         self.composer_dag_id = composer_dag_id
         self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
         self.execution_range = execution_range
+        self.composer_dag_run_id = composer_dag_run_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+
+        if self.composer_dag_run_id and self.execution_range:
+            self.log.warning(
+                "The composer_dag_run_id parameter and execution_range parameter do not work together. This run will ignore execution_range parameter and count only specified composer_dag_run_id parameter."
+            )
 
     def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
         if isinstance(self.execution_range, timedelta):
@@ -132,6 +140,16 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
             self.log.info("Dag runs are empty. Sensor waits for dag runs...")
             return False
 
+        if self.composer_dag_run_id:
+            self.log.info(
+                "Sensor waits for allowed states %s for specified RunID: %s",
+                self.allowed_states,
+                self.composer_dag_run_id,
+            )
+            composer_dag_run_id_status = self._check_composer_dag_run_id_states(
+                dag_runs=dag_runs,
+            )
+            return composer_dag_run_id_status
         self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
         allowed_states_status = self._check_dag_runs_states(
             dag_runs=dag_runs,
@@ -193,6 +211,12 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         image_version = environment_config["config"]["software_config"]["image_version"]
         return int(image_version.split("airflow-")[1].split(".")[0])
 
+    def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
+        for dag_run in dag_runs:
+            if dag_run["run_id"] == self.composer_dag_run_id and dag_run["state"] in self.allowed_states:
+                return True
+        return False
+
     def execute(self, context: Context) -> None:
         self._composer_airflow_version = self._get_composer_airflow_version()
         if self.deferrable:
@@ -204,6 +228,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
                     region=self.region,
                     environment_id=self.environment_id,
                     composer_dag_id=self.composer_dag_id,
+                    composer_dag_run_id=self.composer_dag_run_id,
                     start_date=start_date,
                     end_date=end_date,
                     allowed_states=self.allowed_states,

@@ -164,9 +164,10 @@ class Deadline(Base):
 
         try:
             # Get deadlines which match the provided conditions and their associated DagRuns.
-            deadline_dagrun_pairs = (
-                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
-            )
+            deadline_dagrun_pairs = session.execute(
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+            ).all()
+
         except AttributeError as e:
             logger.exception("Error resolving deadlines: %s", e)
             raise

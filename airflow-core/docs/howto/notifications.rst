@@ -58,4 +58,4 @@ For a list of community-managed notifiers, see :doc:`apache-airflow-providers:co
 Using Notifiers
 ===============
 
-For using Notifiers in event-based DAG callbacks, see :doc:`../administration-and-deployment/logging-monitoring/callbacks`.
+For using Notifiers in event-based Dag callbacks, see :doc:`../administration-and-deployment/logging-monitoring/callbacks`.
