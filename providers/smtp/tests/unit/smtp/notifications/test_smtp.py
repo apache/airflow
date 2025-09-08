@@ -59,6 +59,13 @@ TEST_RECEIVER = f"test_{RECEIVER_EMAIL_SUFFIX}"
 TEST_SUBJECT = "subject"
 TEST_BODY = "body"
 
+NOTIFIER_DEFAULT_PARAMS = {
+    "from_email": TEST_SENDER,
+    "to": TEST_RECEIVER,
+    "subject": TEST_SUBJECT,
+    "html_content": TEST_BODY,
+}
+
 
 # Templated versions
 @dataclass(frozen=True)
@@ -86,30 +93,17 @@ TEMPLATED_TI_SENDER = TemplatedString(f"{TI_TEMPLATE_STRING}_{SENDER_EMAIL_SUFFI
 class TestSmtpNotifier:
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier(_self, mock_smtphook_hook, create_dag_without_db):
-        notifier = send_smtp_notification(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
-        )
+        notifier = send_smtp_notification(**NOTIFIER_DEFAULT_PARAMS)
         notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
+            **NOTIFIER_DEFAULT_PARAMS,
             smtp_conn_id=SMTP_CONN_ID,
             **DEFAULT_EMAIL_PARAMS,
         )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_notifier_class(self, mock_smtphook_hook, create_dag_without_db):
-        notifier = SmtpNotifier(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
-        )
+        notifier = SmtpNotifier(**NOTIFIER_DEFAULT_PARAMS)
         notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email=TEST_SENDER,
@@ -129,7 +123,9 @@ class TestSmtpNotifier:
             html_content=TEMPLATED_BODY.template,
         )
         context = {"dag": create_dag_without_db(TEST_DAG_ID)}
+
         notifier(context)
+
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email=TEMPLATED_SENDER.rendered,
             to=TEMPLATED_RECEIVER.rendered,
@@ -214,20 +210,11 @@ class TestSmtpNotifier:
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_oauth2_passes_auth_type(self, mock_smtphook_hook, create_dag_without_db):
-        notifier = SmtpNotifier(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            auth_type=SMTP_AUTH_TYPE,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
-        )
+        notifier = SmtpNotifier(**NOTIFIER_DEFAULT_PARAMS, auth_type=SMTP_AUTH_TYPE)
 
         notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
 
-        mock_smtphook_hook.assert_called_once_with(
-            smtp_conn_id=SMTP_CONN_ID,
-            auth_type=SMTP_AUTH_TYPE,
-        )
+        mock_smtphook_hook.assert_called_once_with(smtp_conn_id=SMTP_CONN_ID, auth_type=SMTP_AUTH_TYPE)
 
 
 class TestSmtpNotifierAsync:
@@ -248,19 +235,13 @@ class TestSmtpNotifierAsync:
     @pytest.mark.asyncio
     async def test_async_notifier(self, mock_smtp_hook, mock_smtp_client, create_dag_without_db):
         notifier = SmtpNotifier(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
+            **NOTIFIER_DEFAULT_PARAMS, context={"dag": create_dag_without_db(TEST_DAG_ID)}
         )
         await notifier.async_notify({"dag": create_dag_without_db(TEST_DAG_ID)})
 
         mock_smtp_client.asend_email_smtp.assert_called_once_with(
             smtp_conn_id=SMTP_CONN_ID,
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
+            **NOTIFIER_DEFAULT_PARAMS,
             **DEFAULT_EMAIL_PARAMS,
         )
 
@@ -269,21 +250,14 @@ class TestSmtpNotifierAsync:
         self, mock_smtp_hook, mock_smtp_client, create_dag_without_db
     ):
         notifier = SmtpNotifier(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
-            context={"dag": create_dag_without_db(TEST_DAG_ID)},
+            **NOTIFIER_DEFAULT_PARAMS, context={"dag": create_dag_without_db(TEST_DAG_ID)}
         )
 
         await notifier
 
         mock_smtp_client.asend_email_smtp.assert_called_once_with(
             smtp_conn_id=SMTP_CONN_ID,
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
+            **NOTIFIER_DEFAULT_PARAMS,
             **DEFAULT_EMAIL_PARAMS,
         )
 
@@ -317,20 +291,14 @@ class TestSmtpNotifierAsync:
         mock_smtp_client.from_email = None
 
         notifier = SmtpNotifier(
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=TEST_BODY,
+            **NOTIFIER_DEFAULT_PARAMS, context={"dag": create_dag_without_db(TEST_DAG_ID)}
         )
 
         await notifier
 
         mock_smtp_client.asend_email_smtp.assert_called_once_with(
             smtp_conn_id=SMTP_CONN_ID,
-            from_email=TEST_SENDER,
-            to=TEST_RECEIVER,
-            subject=TEST_SUBJECT,
-            html_content=mock.ANY,
+            **NOTIFIER_DEFAULT_PARAMS,
             **DEFAULT_EMAIL_PARAMS,
         )
 
@@ -352,7 +320,7 @@ class TestSmtpNotifierAsync:
             mock_smtp_client.subject_template = f_subject.name
             mock_smtp_client.html_content_template = f_content.name
 
-            notifier = SmtpNotifier(to=TEST_RECEIVER)
+            notifier = SmtpNotifier(to=TEST_RECEIVER, context={"dag": create_dag_without_db(TEST_DAG_ID)})
 
             await notifier
 

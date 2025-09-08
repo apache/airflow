@@ -29,8 +29,12 @@ import aiosmtplib
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.smtp.hooks.smtp import SmtpHook, build_xoauth2_string
+
+try:
+    from airflow.sdk import Connection
+except (ImportError, ModuleNotFoundError):
+    from airflow.models.connection import Connection  # type: ignore[assignment]
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 

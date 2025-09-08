@@ -112,7 +112,7 @@ class SmtpNotifier(BaseNotifier):
 
     def _build_email_content(self, smtp: SmtpHook, context: Context, use_templates: bool = True):
         # TODO:  use_templates is temporary until templating on the Triggerer is sorted out.
-
+        #   Once that is done, we can remove that flag.
         fields_to_re_render = []
         if self.from_email is None:
             if smtp.from_email is not None:
@@ -166,7 +166,7 @@ class SmtpNotifier(BaseNotifier):
         """Send a email via smtp server (async)."""
         async with self.hook as smtp:
             # TODO:  use_templates is temporary until templating on the Triggerer is sorted out.
-            #   Once that iks done, we can remove that flag.
+            #   Once that is done, we can remove that flag.
             self._build_email_content(smtp, context, use_templates=False)
             await smtp.asend_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
