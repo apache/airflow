@@ -44,7 +44,6 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -937,11 +936,10 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
-        dag_bag = DagBag(collect_dags=False)
+        async def create_runtime_ti(data: dict) -> RuntimeTaskInstance:
+            from airflow.serialization.serialized_objects import SerializedDAG
 
-        async def create_runtime_ti(dag_fileloc: str) -> RuntimeTaskInstance:
-            await dag_bag.process_file(dag_fileloc)
-            task = dag_bag.dags[workload.ti.dag_id].get_task(workload.ti.task_id)
+            task = SerializedDAG.from_dict(data).get_task(workload.ti.task_id)
 
             # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
             runtime_ti = RuntimeTaskInstance.model_construct(
@@ -949,21 +947,17 @@ class TriggerRunner:
                 task=task,
             )
 
-            self.log.info("runtime_ti: %s", runtime_ti)
-            self.log.info("start_trigger_args: %s", task.start_trigger_args)
-
-            if task.start_trigger_args:
+            if task.start_from_trigger and task.start_trigger_args:
                 # Find intersection between start_trigger_args and template_fields
                 templated_start_trigger_args = set(
                     task.start_trigger_args.trigger_kwargs.keys()
                 ).intersection(set(task.template_fields or []))
 
-                self.log.info("templated_start_trigger_args: %s", templated_start_trigger_args)
+                self.log.debug("templated_start_trigger_args: %s", templated_start_trigger_args)
 
                 # We only need to render templated fields if templated fields are part of the start_trigger_args
                 if templated_start_trigger_args:
                     context = runtime_ti.get_template_context()
-                    self.log.info("context: %s", context)
                     task.render_template_fields(context=context)
 
                     for start_trigger_arg in templated_start_trigger_args:
