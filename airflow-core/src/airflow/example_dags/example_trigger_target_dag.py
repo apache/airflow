@@ -24,6 +24,7 @@ Example usage of the TriggerDagRunOperator. This example holds 2 DAGs:
 from __future__ import annotations
 
 import pendulum
+from shlex import quote
 
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG, task
@@ -48,17 +49,27 @@ with DAG(
 ) as dag:
     run_this = run_this_func()
 
+    @task(task_id="safe_message")
+    def safe_message(dag_run=None):
+        """
+        Safely quote user-provided message to prevent command injection.
+
+        Uses shlex.quote() to produce a POSIX shell-safe literal that can be
+        directly embedded in bash commands without risk of code execution.
+        """
+        # Extract message with robust null-checking
+        msg = ""
+        if dag_run and getattr(dag_run, "conf", None):
+            msg = dag_run.conf.get("message", "") or ""
+        # Return shell-safe quoted string
+        return quote(msg)
+
     bash_task = BashOperator(
         task_id="bash_task",
-        bash_command='echo "Here is the message: $message"',
-        # SECURITY NOTE: When using user-provided conf values in bash commands,
-        # always sanitize input to prevent command injection. This example escapes
-        # common bash special characters that could be used maliciously.
-        env={
-            "message": '{{ dag_run.conf.get("message", "") '
-            '| replace("\\\\", "\\\\\\\\") '
-            '| replace(\'"\', "\\\\\\"") '
-            '| replace("`", "\\\\`") '
-            '| replace("$", "\\\\$") }}'
-        },
+        # Use printf for predictable cross-platform behavior
+        # The quoted message is safely injected as a shell argument
+        bash_command=("printf 'Here is the message: %s\\n' {{ ti.xcom_pull(task_ids='safe_message') }}"),
     )
+
+    # Set up task dependencies
+    safe_message() >> bash_task
