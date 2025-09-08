@@ -77,9 +77,6 @@ dependencies = [
     "typing-extensions>=4.14.1",
     "importlib-metadata>=7.0.0",
     # End of shared configuration dependencies
-    # Start of shared secrets-masker dependencies
-    "apache-airflow-shared-configuration",
-    # End of shared secrets-masker dependencies
 ]
 
 [project.urls]
