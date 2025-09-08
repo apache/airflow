@@ -1,5 +1,5 @@
 {
-  "consumingDags": "消费 DAGs",
+  "consumingDags": "消费者 DAGs",
   "createEvent": {
     "button": "创建事件",
     "manual": {
