@@ -120,7 +120,8 @@
     "runAfterFromPlaceholder": "Uruchom po (od)",
     "runAfterToPlaceholder": "Uruchom po (do)",
     "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
-    "taskIdPlaceholder": "Filtruj według identyfikatora zadania"
+    "taskIdPlaceholder": "Filtruj według identyfikatora zadania",
+    "triggeringUserPlaceholder": "Filtruj według uruchamiającego użytkownika"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
