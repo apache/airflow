@@ -1289,11 +1289,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     for outlet in task.outlets or ():
         if isinstance(outlet, Asset):
-            # outlet.render_event_extra_template(context, jinja_env=task.dag.get_template_env())
-            # if outlet.event_extra_template:
-            #     outlet_events[outlet].extra.update(outlet.event_extra_template)
-            rendered = outlet.render_event_extra_template(context, jinja_env=task.dag.get_template_env())
-            outlet_events[outlet].extra.update(rendered or {})
+        # Render template at runtime
+            rendered_extra = outlet.render_event_extra_template(
+                context=context, 
+                jinja_env=task.dag.get_template_env()
+            )
+            outlet_events[outlet].extra.update(rendered_extra or {})
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)

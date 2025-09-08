@@ -709,7 +709,7 @@ class AssetModelOperation(NamedTuple):
         for key, model in orm_assets.items():
             asset = self.assets[key]
             model.group = asset.group
-            model.event_extra_template = asset.event_extra_template
+            model.extra = asset.event_extra_template
         orm_assets.update(
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(

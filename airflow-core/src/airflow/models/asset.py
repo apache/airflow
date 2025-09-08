@@ -224,7 +224,7 @@ class AssetModel(Base):
     A table to store assets.
 
     :param uri: a string that uniquely identifies the asset
-    :param event_extra_template: JSON field for arbitrary extra info
+    :param extra: JSON field for arbitrary extra info
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -265,7 +265,7 @@ class AssetModel(Base):
         default=str,
         nullable=False,
     )
-    event_extra_template = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra= Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
@@ -285,11 +285,12 @@ class AssetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Asset) -> AssetModel:
+        rendered_extra = obj.event_extra_template or {}
         return cls(
             name=obj.name,
             uri=obj.uri,
             group=obj.group,
-            event_extra_template=obj.event_extra_template,
+            extra=rendered_extra,
         )
 
     def __init__(self, name: str = "", uri: str = "", **kwargs):
@@ -319,13 +320,14 @@ class AssetModel(Base):
         return hash((self.name, self.uri))
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, event_extra_template={self.event_extra_template!r})"
+        return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
         from airflow.sdk.definitions.asset import Asset
 
         return Asset(
-            name=self.name, uri=self.uri, group=self.group, event_extra_template=self.event_extra_template
+            name=self.name, uri=self.uri, group=self.group,event_extra_template=None,
+
         )
 
 

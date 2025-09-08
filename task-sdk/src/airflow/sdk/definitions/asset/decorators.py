@@ -217,7 +217,7 @@ class asset(_DAGFactory):
     name: str | None = None
     uri: str | ObjectStoragePath | None = None
     group: str = Asset.asset_type
-    extra: dict[str, Any] = attrs.field(factory=dict)
+    event_extra_template: dict[str, Any] = attrs.field(factory=dict)
     watchers: list[BaseTrigger] = attrs.field(factory=list)
 
     @attrs.define(kw_only=True)
@@ -241,7 +241,7 @@ class asset(_DAGFactory):
             name=name,
             uri=name if self.uri is None else str(self.uri),
             group=self.group,
-            extra=self.extra,
+            event_extra_template=self.event_extra_template,
             function=f,
             source=self,
         )
