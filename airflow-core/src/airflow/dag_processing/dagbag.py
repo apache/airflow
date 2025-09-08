@@ -41,7 +41,7 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,  # type: ignore[no-redef]
+    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
     AirflowTaskTimeout,
