@@ -497,9 +497,9 @@
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
-
+        
     <g transform="translate(9, 41)" clip-path="url(#breeze-start-airflow-clip-terminal)">
-
+    
     <g class="breeze-start-airflow-matrix">
     <text class="breeze-start-airflow-r1" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-start-airflow-line-0)">
 </text><text class="breeze-start-airflow-r2" x="12.2" y="44.4" textLength="73.2" clip-path="url(#breeze-start-airflow-line-1)">Usage:</text><text class="breeze-start-airflow-r3" x="97.6" y="44.4" textLength="244" clip-path="url(#breeze-start-airflow-line-1)">breeze&#160;start-airflow</text><text class="breeze-start-airflow-r1" x="353.8" y="44.4" textLength="12.2" clip-path="url(#breeze-start-airflow-line-1)">[</text><text class="breeze-start-airflow-r4" x="366" y="44.4" textLength="85.4" clip-path="url(#breeze-start-airflow-line-1)">OPTIONS</text><text class="breeze-start-airflow-r1" x="451.4" y="44.4" textLength="36.6" clip-path="url(#breeze-start-airflow-line-1)">]&#160;[</text><text class="breeze-start-airflow-r4" x="488" y="44.4" textLength="122" clip-path="url(#breeze-start-airflow-line-1)">EXTRA_ARGS</text><text class="breeze-start-airflow-r1" x="610" y="44.4" textLength="48.8" clip-path="url(#breeze-start-airflow-line-1)">]...</text><text class="breeze-start-airflow-r1" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-start-airflow-line-1)">

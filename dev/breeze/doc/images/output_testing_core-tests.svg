@@ -386,9 +386,9 @@
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
-
+        
     <g transform="translate(9, 41)" clip-path="url(#breeze-testing-core-tests-clip-terminal)">
-
+    
     <g class="breeze-testing-core-tests-matrix">
     <text class="breeze-testing-core-tests-r1" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-testing-core-tests-line-0)">
 </text><text class="breeze-testing-core-tests-r2" x="12.2" y="44.4" textLength="73.2" clip-path="url(#breeze-testing-core-tests-line-1)">Usage:</text><text class="breeze-testing-core-tests-r3" x="97.6" y="44.4" textLength="305" clip-path="url(#breeze-testing-core-tests-line-1)">breeze&#160;testing&#160;core-tests</text><text class="breeze-testing-core-tests-r1" x="414.8" y="44.4" textLength="12.2" clip-path="url(#breeze-testing-core-tests-line-1)">[</text><text class="breeze-testing-core-tests-r4" x="427" y="44.4" textLength="85.4" clip-path="url(#breeze-testing-core-tests-line-1)">OPTIONS</text><text class="breeze-testing-core-tests-r1" x="512.4" y="44.4" textLength="36.6" clip-path="url(#breeze-testing-core-tests-line-1)">]&#160;[</text><text class="breeze-testing-core-tests-r4" x="549" y="44.4" textLength="207.4" clip-path="url(#breeze-testing-core-tests-line-1)">EXTRA_PYTEST_ARGS</text><text class="breeze-testing-core-tests-r1" x="756.4" y="44.4" textLength="48.8" clip-path="url(#breeze-testing-core-tests-line-1)">]...</text><text class="breeze-testing-core-tests-r1" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-testing-core-tests-line-1)">
