@@ -8,6 +8,8 @@
   },
   "requiredAction_one": "待回應的任務實例",
   "requiredAction_other": "待回應的任務實例",
+  "requiredActionCount_one": "待回應的任務實例數 ({{count}})",
+  "requiredActionCount_other": "待回應的任務實例數 ({{count}})",
   "requiredActionState": "待回應的任務實例狀態",
   "response": {
     "error": "回應失敗",
