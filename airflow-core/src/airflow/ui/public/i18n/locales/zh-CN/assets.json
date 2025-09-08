@@ -8,7 +8,7 @@
       "label": "手动"
     },
     "materialize": {
-      "description": "触发此资源上游的 DAG",
+      "description": "触发此资源上游的 Dag",
       "descriptionWithDag": "触发此资源上游的 DAG: {{dagName}}",
       "label": "物化",
       "unpauseDag": "触发时取消暂停 {{dagName}}"
