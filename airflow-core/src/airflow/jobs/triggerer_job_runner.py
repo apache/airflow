@@ -44,7 +44,7 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import AsyncDagBag
+from airflow.models.dagbag import DagBag
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -937,7 +937,7 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
-        dag_bag = AsyncDagBag(collect_dags=False)
+        dag_bag = DagBag(collect_dags=False)
 
         async def create_runtime_ti(dag_fileloc: str) -> RuntimeTaskInstance:
             await dag_bag.process_file(dag_fileloc)
