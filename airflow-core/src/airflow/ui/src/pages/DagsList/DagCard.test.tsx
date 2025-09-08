@@ -42,6 +42,7 @@ const mockDag = {
   is_paused: false,
   is_stale: false,
   last_expired: null,
+  last_parse_duration: 0.23,
   last_parsed_time: "2024-08-22T13:50:10.372238+00:00",
   latest_dag_runs: [],
   max_active_runs: 16,

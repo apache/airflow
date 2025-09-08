@@ -7,6 +7,13 @@
     "Providers": "Sağlayıcılar",
     "Variables": "Değişkenler"
   },
+  "allOperators": "Bütün Operatörler",
+  "appearance": {
+    "appearance": "Görünüm",
+    "darkMode": "Karanlık Mod",
+    "lightMode": "Aydınlık Mod",
+    "systemMode": "Sistem Ayarını Uygula"
+  },
   "asset_one": "Varlık",
   "asset_other": "Varlıklar",
   "assetEvent_one": "Varlık Etkinliği",
@@ -180,6 +187,7 @@
     "failed": "Başarısız",
     "no_status": "Durum Yok",
     "none": "Durum Yok",
+    "planned": "Planlanmış",
     "queued": "Kuyrukta",
     "removed": "Kaldırılmış",
     "restarting": "Yeniden Başlatılıyor",
@@ -191,8 +199,6 @@
     "up_for_retry": "Yeniden Denenecek",
     "upstream_failed": "Yukarı Akış Başarısız"
   },
-  "switchToDarkMode": "Karanlık Moda Geç",
-  "switchToLightMode": "Aydınlık Moda Geç",
   "table": {
     "completedAt": "Tamamlanma Tarihi",
     "createdAt": "Oluşturulma Tarihi",
