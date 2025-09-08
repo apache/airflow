@@ -43,7 +43,6 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models.dag import DagModel
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -611,9 +610,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         @provide_session
         def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger:
             if trigger.task_instance:
-                dag_fileloc = DagModel.get_current(
-                    dag_id=trigger.task_instance.dag_id, session=session
-                ).fileloc
+                from airflow.models.serialized_dag import SerializedDagModel
+
+                dag = SerializedDagModel.get_latest_serialized_dags(dag_ids=[trigger.task_instance.dag_id], session=session)[-1]
 
                 log_path = render_log_fname(ti=trigger.task_instance)
 
@@ -631,7 +630,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
                     timeout_after=trigger.task_instance.trigger_timeout,
-                    dag_fileloc=dag_fileloc,
+                    dag=dag,
                 )
             return workloads.RunTrigger(
                 classpath=trigger.classpath,
@@ -936,10 +935,10 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
-        async def create_runtime_ti(data: dict) -> RuntimeTaskInstance:
+        async def create_runtime_ti(dag: dict) -> RuntimeTaskInstance:
             from airflow.serialization.serialized_objects import SerializedDAG
 
-            task = SerializedDAG.from_dict(data).get_task(workload.ti.task_id)
+            task = SerializedDAG.from_dict(dag).get_task(workload.ti.task_id)
 
             # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
             runtime_ti = RuntimeTaskInstance.model_construct(
@@ -1000,7 +999,7 @@ class TriggerRunner:
 
                 if workload.ti:
                     trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
-                    runtime_ti = await create_runtime_ti(workload.dag_fileloc)
+                    runtime_ti = await create_runtime_ti(workload.dag)
                     trigger_instance = trigger_class(**deserialised_kwargs)
                     trigger_instance.task_instance = runtime_ti
                 else:
