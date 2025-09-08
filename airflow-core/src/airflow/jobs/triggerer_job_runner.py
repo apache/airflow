@@ -639,7 +639,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 ti=None,
             )
 
-
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
@@ -687,7 +686,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
                 to_create.append(workload)
 
-        self.creating_triggers.extend(to_create)
+            self.creating_triggers.extend(to_create)
 
         if cancel_trigger_ids:
             # Enqueue orphaned triggers for cancellation
