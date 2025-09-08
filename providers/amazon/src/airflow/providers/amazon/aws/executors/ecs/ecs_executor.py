@@ -116,7 +116,11 @@ class AwsEcsExecutor(BaseExecutor):
         # Can be removed when minimum supported provider version is equal to the version of core airflow
         # which introduces multi-team configuration.
         if not hasattr(self, "conf"):
-            from airflow.sdk.configuration import conf
+            try:
+                from airflow.sdk.configuration import conf
+            except ImportError:
+                # Compat for Airflow < 3.1
+                from airflow.configuration import conf
 
             self.conf = conf
 
