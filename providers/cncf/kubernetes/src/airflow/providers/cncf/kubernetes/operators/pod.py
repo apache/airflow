@@ -1102,7 +1102,7 @@ class KubernetesPodOperator(BaseOperator):
             pod_reason = getattr(remote_pod.status, "reason", None)
             self.log.info("Pod phase: %s, reason: %s", pod_phase, pod_reason)
 
-            container_statuses = getattr(remote_pod.status, "container_statuses", [])
+            container_statuses = getattr(remote_pod.status, "container_statuses", None) or []
             for status in container_statuses:
                 name = status.name
                 state = status.state

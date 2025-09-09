@@ -797,6 +797,10 @@ QueryDagRunRunTypesFilter = Annotated[
     ),
 ]
 
+QueryDagRunTriggeringUserSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user"))
+]
+
 # DagTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))

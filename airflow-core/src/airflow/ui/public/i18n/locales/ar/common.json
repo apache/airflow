@@ -59,6 +59,7 @@
     "fileLocation": "موقع الملف",
     "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
     "lastExpired": "انتهت صلاحيته آخر مرة في",
+    "lastParseDuration": "مدة التحليل الأخير",
     "lastParsed": "تم تحليله آخر مرة في",
     "latestDagVersion": "آخر إصدار لDag",
     "latestRun": "آخر تشغيل",
