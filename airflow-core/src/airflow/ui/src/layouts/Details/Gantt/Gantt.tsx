@@ -46,7 +46,7 @@ import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
-import { system } from "src/theme";
+import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
@@ -176,15 +176,21 @@ export const Gantt = ({ limit }: Props) => {
       .filter((item) => item !== undefined);
   }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
 
+  // Get all unique states and their colors
+  const states = [...new Set(data.map((item) => item.state ?? "none"))];
+  const stateColorTokens = useToken("colors", states.map((state) => `${state}.solid`));
+  const stateColorMap = Object.fromEntries(
+    states.map((state, index) => [
+      state,
+      getComputedCSSVariableValue(stateColorTokens[index] || "oklch(0.5 0 0)"),
+    ]),
+  );
+
   const chartData = useMemo(
     () => ({
       datasets: [
         {
-          backgroundColor: data.map(
-            (dataItem) =>
-              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state ?? "none"}.600`)
-                ?.value as string,
-          ),
+          backgroundColor: data.map((dataItem) => stateColorMap[dataItem.state ?? "none"]),
           data,
           maxBarThickness: CHART_ROW_HEIGHT,
           minBarLength: MIN_BAR_WIDTH,
@@ -192,7 +198,7 @@ export const Gantt = ({ limit }: Props) => {
       ],
       labels: [],
     }),
-    [data],
+    [data, stateColorMap],
   );
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
