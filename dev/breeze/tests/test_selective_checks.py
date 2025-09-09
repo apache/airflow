@@ -1038,7 +1038,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['kerberos', 'redis']",
                     "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'tinkerpop', 'kafka', "
-                    "'localstack', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
+                    "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
