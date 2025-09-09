@@ -740,6 +740,8 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
+        """Test _fetch_callbacks returns callbacks ordered by priority_weight desc."""
+
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
         callback1 = DagCallbackRequest(
@@ -767,7 +769,12 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
-                manager.run()
+                callbacks = manager._fetch_callbacks(session=session)
+
+                # Should return callbacks ordered by priority_weight desc (highest first)
+                assert callbacks[0].run_id == "123"
+                assert callbacks[1].run_id == "456"
+
                 assert session.query(DbCallbackRequest).count() == 0
 
     @conf_vars(
