@@ -36,7 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolBody,
     PoolPatchBody,
 )
-from airflow.api_fastapi.core_api.services.public.common import BulkService, PatchUtil
+from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.pool import Pool
 
 
@@ -47,19 +47,14 @@ def update_orm_from_pydantic(
     session: SessionDep,
 ) -> Pool:
     """
-    Patch an existing Pool instance with provided update fields.
+    Update an existing pool.
 
-    Args:
-        pool_name (str): The name of the existing Pool to be updated.
-        patch_body (PoolBody): Pydantic model containing the fields to update.
-        update_mask (list[str] | None): Specific fields to update. If None, all provided fields will be considered.
-        session (SessionDep): The database session dependency.
-
-    Returns:
-        Pool: The updated Pool instance.
-
-    Raises:
-        HTTPException: If attempting to update disallowed fields on `default_pool`.
+    :param pool_name: The name of the existing Pool to be updated.
+    :param patch_body: Pydantic model containing the fields to update.
+    :param update_mask: Specific fields to update. If None, all provided fields will be considered.
+    :param session: The database session dependency.
+    :return: The updated Pool instance.
+    :raises HTTPException: If attempting to update disallowed fields on ``default_pool``.
     """
     # Special restriction: default pool only allows limited fields to be patched
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
@@ -102,7 +97,7 @@ def update_orm_from_pydantic(
             raise RequestValidationError(errors=e.errors())
 
     # Delegate patch application to the common utility
-    return PatchUtil.apply_patch_with_update_mask(
+    return BulkService.apply_patch_with_update_mask(
         model=pool,
         patch_body=patch_body,
         update_mask=update_mask,
