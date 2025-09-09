@@ -2281,6 +2281,54 @@ class TestDagModel:
         assert DagModel.get_dagmodel(dag_id) is not None
         assert DagModel.get_team_name(dag_id, session=session) == "testing"
 
+    def test_get_team_name_no_team(self, testing_team):
+        session = settings.Session()
+        dag_bundle = DagBundleModel(name="testing")
+        session.add(dag_bundle)
+        session.flush()
+
+        dag_id = "test_get_team_name_no_team"
+        dag = DAG(dag_id, schedule=None)
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="testing",
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+        assert DagModel.get_dagmodel(dag_id) is not None
+        assert DagModel.get_team_name(dag_id, session=session) is None
+
+    def test_get_dag_id_to_team_name_mapping(self, testing_team):
+        session = settings.Session()
+        bundle1 = DagBundleModel(name="bundle1")
+        bundle1.teams.append(testing_team)
+        bundle2 = DagBundleModel(name="bundle2")
+        session.add(bundle1)
+        session.add(bundle2)
+        session.flush()
+
+        dag_id1 = "test_dag1"
+        dag1 = DAG(dag_id1, schedule=None)
+        orm_dag1 = DagModel(
+            dag_id=dag1.dag_id,
+            bundle_name="bundle1",
+            is_stale=False,
+        )
+        dag_id2 = "test_dag2"
+        dag2 = DAG(dag_id2, schedule=None)
+        orm_dag2 = DagModel(
+            dag_id=dag2.dag_id,
+            bundle_name="bundle2",
+            is_stale=False,
+        )
+        session.add(orm_dag1)
+        session.add(orm_dag2)
+        session.flush()
+        assert DagModel.get_dag_id_to_team_name_mapping([dag_id1, dag_id2], session=session) == {
+            dag_id1: "testing"
+        }
+
 
 class TestQueries:
     def setup_method(self) -> None:

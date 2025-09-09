@@ -19,13 +19,16 @@
       "host": "Host",
       "port": "Puerto"
     },
+    "connection_many": "Conexiones",
     "connection_one": "Conexión",
     "connection_other": "Conexiones",
     "delete": {
+      "deleteConnection_many": "Eliminar {{count}} conexiones",
       "deleteConnection_one": "Eliminar 1 conexión",
       "deleteConnection_other": "Eliminar {{count}} conexiones",
+      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes conexiones:",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente conexión:",
-      "firstConfirmMessage_other": "Estas a punto de eliminar las siguientes conexiones:",
+      "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes conexiones:",
       "title": "Eliminar Conexión"
     },
     "edit": "Editar Conexión",
@@ -36,6 +39,7 @@
       "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra (tipo JSON)",
       "helperText": "¿Falta el Tipo de conexión? Asegúrate de haber instalado el paquete de proveedores de Airflow correspondiente.",
+      "helperTextForRedactedFields": "Los campos redactados ('***') permanecerán sin cambios si no se modifican.",
       "selectConnectionType": "Seleccionar Tipo de Conexión",
       "standardFields": "Campos Estándar"
     },
@@ -78,6 +82,7 @@
     "columns": {
       "source": "Origen"
     },
+    "importError_many": "Errores de Importación de Plugins",
     "importError_one": "Error de Importación de Plugin",
     "importError_other": "Errores de Importación de Plugins",
     "searchPlaceholder": "Buscar por archivo"
@@ -99,6 +104,7 @@
       "slots": "Slots"
     },
     "noPoolsFound": "No se encontraron pools",
+    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Buscar Pools",
@@ -120,8 +126,10 @@
       "isEncrypted": "Está encriptada"
     },
     "delete": {
+      "deleteVariable_many": "Eliminar {{count}} Variables",
       "deleteVariable_one": "Eliminar 1 Variable",
       "deleteVariable_other": "Eliminar {{count}} Variables",
+      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes variables:",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente variable:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes variables:",
       "title": "Eliminar Variable",
@@ -160,6 +168,7 @@
     },
     "noRowsMessage": "No se encontraron variables",
     "searchPlaceholder": "Buscar Claves",
+    "variable_many": "Variables",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }
