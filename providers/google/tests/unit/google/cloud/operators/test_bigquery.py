@@ -1595,7 +1595,8 @@ class TestBigQueryInsertJobOperator:
             job_id=job_id,
             dag_id="adhoc_airflow",
             task_id="insert_query_job",
-            date=ANY,
+            logical_date=ANY,
+            run_after=ANY,
             configuration=configuration,
             force_rerun=True,
         )

@@ -106,7 +106,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.force_rerun = force_rerun
 
-    def _workflow_id(self, context: Context):
+    def _workflow_id(self, context: Context) -> str:
         if self.workflow_id and not self.force_rerun:
             # If users provide workflow id then assuring the idempotency
             # is on their side
@@ -119,13 +119,13 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
 
         # We are limited by allowed length of workflow_id so
         # we use hash of whole information
-        date = context.get("logical_date", None)
-        if AIRFLOW_V_3_0_PLUS and date is None:
+        logical_date_or_run_after = context.get("logical_date", None)
+        if AIRFLOW_V_3_0_PLUS and logical_date_or_run_after is None:
             if dag_run := context.get("dag_run"):
-                date = pendulum.instance(dag_run.run_after)
-        exec_date = date if date is not None else datetime.datetime.now(tz=datetime.timezone.utc)
-        exec_date_iso = exec_date.isoformat()
-        base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date_iso}_{hash_base}"
+                logical_date_or_run_after = pendulum.instance(dag_run.run_after)
+        if logical_date_or_run_after is None:
+            logical_date_or_run_after = datetime.datetime.now(tz=datetime.timezone.utc)
+        base = f"airflow_{self.dag_id}_{self.task_id}_{logical_date_or_run_after.isoformat()}_{hash_base}"
         workflow_id = md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)
 

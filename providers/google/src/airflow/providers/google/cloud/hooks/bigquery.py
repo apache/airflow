@@ -26,6 +26,7 @@ import logging
 import re
 import time
 import uuid
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -1281,7 +1282,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_api_repr.result(timeout=timeout, retry=retry)
         return job_api_repr
 
-    def generate_job_id(self, job_id, dag_id, task_id, date, configuration, force_rerun=False) -> str:
+    def generate_job_id(
+        self, job_id, dag_id, task_id, logical_date, configuration, run_after=None, force_rerun=False
+    ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -1292,16 +1295,28 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if job_id:
             return f"{job_id}_{uniqueness_suffix}"
 
-        exec_date = date.isoformat()
-        job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
+        if logical_date is not None:
+            warnings.warn(
+                "The 'logical_date' parameter is deprecated. Please use 'run_after' instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=1,
+            )
+            job_id_timestamp = logical_date
+        elif run_after is not None:
+            job_id_timestamp = run_after
+        else:
+            job_id_timestamp = pendulum.now("UTC")
+
+        job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
-    def get_exec_date(self, context: Context) -> pendulum.DateTime:
-        date = context.get("logical_date", None)
-        if AIRFLOW_V_3_0_PLUS and date is None:
-            if dag_run := context.get("dag_run"):
-                date = pendulum.instance(dag_run.run_after)
-        return date if date is not None else pendulum.now("UTC")
+    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime:
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = context.get("dag_run")
+            run_after = pendulum.instance(dag_run.run_after)
+        else:
+            run_after = context.get("logical_date", None)
+        return run_after if run_after is not None else pendulum.now("UTC")
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
