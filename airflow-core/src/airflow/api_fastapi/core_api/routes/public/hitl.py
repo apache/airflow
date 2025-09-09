@@ -71,7 +71,7 @@ def _get_task_instance_with_hitl_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int | None,
+    map_index: int,
 ) -> TI:
     query = (
         select(TI)
