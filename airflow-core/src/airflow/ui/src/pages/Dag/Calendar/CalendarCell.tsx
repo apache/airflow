@@ -48,7 +48,7 @@ export const CalendarCell = ({ backgroundColor, index, marginRight, cellData }: 
         marginRight={computedMarginRight}
         width="14px"
       />
-      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : ""} />
+      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : "No cellData"} />
     </Box>
   );
 };

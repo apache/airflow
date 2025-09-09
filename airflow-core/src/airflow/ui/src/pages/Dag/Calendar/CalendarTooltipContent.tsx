@@ -19,7 +19,7 @@
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 
 import type { CalendarCellData } from "./types";
-import { createTooltipContent } from "./calendarUtils";
+import { createRichTooltipContent } from "./calendarUtils";
 
 const SQUARE_SIZE = "12px";
 const SQUARE_BORDER_RADIUS = "2px";
@@ -29,7 +29,10 @@ type Props = {
 };
 
 export const CalendarTooltipContent = ({ cellData }: Props) => {
-  const { date, total, states, hasRuns } = createTooltipContent(cellData);
+  const { date, total, states, hasRuns } = createRichTooltipContent(cellData);
+
+  // Debug logging
+  console.log('CalendarTooltipContent:', { cellData, date, total, states, hasRuns });
 
   if (!hasRuns) {
     return <Text fontSize="sm">{date}: No runs</Text>;
