@@ -101,7 +101,7 @@ const EditableMarkdownButton = ({
             />
             <Flex justifyContent="end" mt={3} width="100%">
               <Button
-                colorPalette="blue"
+                colorPalette="button"
                 loading={isPending}
                 onClick={() => {
                   onConfirm();

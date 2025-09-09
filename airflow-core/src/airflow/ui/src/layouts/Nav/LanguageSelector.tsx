@@ -47,6 +47,16 @@ const LanguageSelector: React.FC = () => {
     <VStack align="stretch" gap={6}>
       <Field.Root>
         <Select<{ label: string; value: string }>
+          chakraStyles={{
+            control: (provided) => ({
+              ...provided,
+              colorPalette: "input",
+            }),
+            clearIndicator: (provided) => ({
+              ...provided,
+              color: "fg.muted",
+            }),
+          }}
           onChange={handleLanguageChange}
           options={options}
           placeholder={translate("selectLanguage")}

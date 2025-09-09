@@ -73,7 +73,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="red"
+                colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
                   mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });

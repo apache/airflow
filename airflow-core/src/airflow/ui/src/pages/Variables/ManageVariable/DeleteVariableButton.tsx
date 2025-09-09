@@ -72,7 +72,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="red"
+                colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
                   mutate({

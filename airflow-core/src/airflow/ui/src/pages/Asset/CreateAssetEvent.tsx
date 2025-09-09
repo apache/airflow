@@ -39,7 +39,7 @@ export const CreateAssetEvent = ({ asset, withText = true }: Props) => {
     <Box>
       <ActionButton
         actionName={translate("createEvent.button")}
-        colorPalette="blue"
+        colorPalette="button"
         disabled={asset === undefined}
         icon={<FiPlay />}
         onClick={onOpen}

@@ -50,7 +50,7 @@ const ActionButton = ({
       <div>
         <ButtonComponent
           aria-label={actionName}
-          colorPalette={withText ? colorPalette : "blue"}
+          colorPalette={withText ? colorPalette : "button"}
           disabled={disabled}
           onClick={onClick}
           size={withText ? "md" : "sm"}

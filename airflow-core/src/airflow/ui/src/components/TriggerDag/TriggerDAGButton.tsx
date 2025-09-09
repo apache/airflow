@@ -39,7 +39,7 @@ const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, wi
     <Box>
       <ActionButton
         actionName={translate("triggerDag.title")}
-        colorPalette="blue"
+        colorPalette="button"
         icon={<FiPlay />}
         onClick={onOpen}
         text={translate("triggerDag.button")}
