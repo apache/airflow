@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-08T13:55:20.389899
+# This constraints file was automatically generated on 2025-09-09T02:41:02.295698
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ aiosignal==1.4.0
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.0
+alibabacloud-adb20211201==3.2.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -313,7 +313,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.33.0
+google-genai==1.34.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.21
@@ -417,7 +417,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.2
 oauthlib==3.3.1
-openai==1.106.1
+openai==1.107.0
 openlineage-integration-common==1.37.0
 openlineage-python==1.37.0
 openlineage_sql==1.37.0
@@ -437,7 +437,7 @@ oracledb==3.3.0
 orjson==3.11.3
 oss2==2.19.1
 packaging==25.0
-pagerduty==4.1.0
+pagerduty==4.1.1
 pandas-gbq==0.29.2
 pandas-stubs==2.3.2.250827
 pandas==2.2.3
@@ -505,7 +505,7 @@ python-slugify==8.0.4
 python-telegram-bot==22.3
 pytz==2025.2
 pywinrm==0.5.0
-pyzmq==27.0.2
+pyzmq==27.1.0
 qdrant-client==1.15.1
 reactivex==4.0.4
 redis==5.2.1
@@ -609,7 +609,7 @@ websocket-client==1.8.0
 websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.3
-xmltodict==0.15.0
+xmltodict==0.15.1
 yarl==1.20.1
 zeep==4.3.1
 zenpy==2.0.56

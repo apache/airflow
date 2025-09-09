@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-08T13:51:30.624113
+# This constraints file was automatically generated on 2025-09-09T02:37:24.022673
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.0
+alibabacloud-adb20211201==3.2.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -370,7 +370,7 @@ multidict==6.6.4
 mypy-boto3-appflow==1.40.17
 mypy-boto3-rds==1.40.24
 mypy-boto3-redshift-data==1.40.0
-mypy-boto3-s3==1.40.0
+mypy-boto3-s3==1.40.26
 mypy==1.17.1
 mypy_extensions==1.1.0
 mysql-connector-python==9.4.0
@@ -386,7 +386,7 @@ nh3==0.3.0
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
-openai==1.106.1
+openai==1.107.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 openlineage-integration-common==1.37.0
@@ -408,7 +408,7 @@ oracledb==3.3.0
 orjson==3.11.3
 oss2==2.19.1
 packaging==25.0
-pagerduty==4.1.0
+pagerduty==4.1.1
 pandas-gbq==0.29.2
 pandas-stubs==2.3.2.250827
 pandas==2.2.3
@@ -501,7 +501,7 @@ python-slugify==8.0.4
 python-telegram-bot==22.3
 pytz==2025.2
 pywinrm==0.5.0
-pyzmq==27.0.2
+pyzmq==27.1.0
 qdrant-client==1.15.1
 reactivex==4.0.4
 readme_renderer==44.0
@@ -610,7 +610,7 @@ towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-trove-classifiers==2025.8.26.11
+trove-classifiers==2025.9.8.13
 twine==6.2.0
 typer==0.17.4
 types-Deprecated==1.2.15.20250304
@@ -661,7 +661,7 @@ websockets==15.0.1
 wheel==0.45.1
 wirerope==1.0.0
 wrapt==1.17.3
-xmltodict==0.15.0
+xmltodict==0.15.1
 yamllint==1.37.1
 yarl==1.20.1
 zeep==4.3.1
