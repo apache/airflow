@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from importlib.util import find_spec
-from io import StringIO as StringBuffer
 
 import pytest
 
@@ -339,7 +337,7 @@ class TestDockerDecorator:
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
 
     @pytest.mark.db_test
-    def test_failing_task(self, dag_maker, session):
+    def test_failing_task(self, dag_maker, session, caplog):
         """Test regression #39319
 
         Check the log content of the DockerOperator when the task fails.
@@ -349,12 +347,6 @@ class TestDockerDecorator:
         def f():
             raise ValueError("This task is expected to fail")
 
-        docker_operator_logger_name = "airflow.task.operators"
-
-        docker_operator_logger = logging.getLogger(docker_operator_logger_name)
-        log_capture_string = StringBuffer()
-        ch = logging.StreamHandler(log_capture_string)
-        docker_operator_logger.addHandler(ch)
         with dag_maker(session=session):
             f()
 
@@ -366,10 +358,8 @@ class TestDockerDecorator:
         ti = dr.get_task_instances(session=session)[0]
         assert ti.state == TaskInstanceState.FAILED
 
-        log_content = str(log_capture_string.getvalue())
-        assert 'with open(sys.argv[4], "w") as file:' not in log_content
-        last_line_of_docker_operator_log = log_content.splitlines()[-1]
-        assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
+        assert 'with open(sys.argv[4], "w") as file:' not in caplog.text
+        assert "ValueError: This task is expected to fail" in caplog.messages
 
     @pytest.mark.db_test
     def test_invalid_serializer(self, dag_maker):

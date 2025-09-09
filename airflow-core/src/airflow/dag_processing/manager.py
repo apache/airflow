@@ -876,7 +876,7 @@ class DagFileProcessorManager(LoggingMixin):
         log_file = init_log_file(log_filename)
         logger_filehandle = log_file.open("ab")
         underlying_logger = structlog.BytesLogger(logger_filehandle)
-        processors = logging_processors(enable_pretty_log=False)[0]
+        processors = logging_processors(json_output=True)
         return structlog.wrap_logger(
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle

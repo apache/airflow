@@ -17,9 +17,6 @@
 
 from __future__ import annotations
 
-import logging
-from logging.config import dictConfig
-
 import pytest
 
 
@@ -31,10 +28,6 @@ def reset_to_default_logging():
     """
     yield
 
-    from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
     from airflow.listeners.listener import get_listener_manager
 
-    airflow_logger = logging.getLogger("airflow")
-    airflow_logger.handlers = []
-    dictConfig(DEFAULT_LOGGING_CONFIG)
     get_listener_manager().clear()
