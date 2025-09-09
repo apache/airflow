@@ -196,7 +196,8 @@ class MakeTIContextDictCallable(Protocol):
 @pytest.fixture
 def make_ti_context() -> MakeTIContextCallable:
     """Factory for creating TIRunContext objects."""
-    from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
+    from airflow.sdk import DagRunState
+    from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
 
     def _make_context(
         dag_id: str = "test_dag",

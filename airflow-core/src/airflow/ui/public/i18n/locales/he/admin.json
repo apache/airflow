@@ -21,11 +21,14 @@
     },
     "connection_one": "חיבור",
     "connection_other": "חיבורים",
+    "connection_two": "חיבורים",
     "delete": {
-      "deleteConnection_one": "מחק חיבור אחד",
+      "deleteConnection_one": "מחק חיבור",
       "deleteConnection_other": "מחק {{count}} חיבורים",
+      "deleteConnection_two": "מחק שני חיבורים",
       "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את החיבורים הבאים:",
       "title": "מחק חיבור"
     },
     "edit": "ערוך חיבור",
@@ -81,6 +84,7 @@
     },
     "importError_one": "שגיאה בייבוא תוסף",
     "importError_other": "שגיאות בייבוא תוסף",
+    "importError_two": "שגיאות בייבוא תוסף",
     "searchPlaceholder": "חפש לפי קובץ"
   },
   "pools": {
@@ -102,6 +106,7 @@
     "noPoolsFound": "לא נמצאו מאגרי משאבים",
     "pool_one": "מאגר משאבים",
     "pool_other": "מאגרי משאבים",
+    "pool_two": "מאגרי משאבים",
     "searchPlaceholder": "חפש מאגרי משאבים",
     "sort": {
       "asc": "שם (A-Z)",
@@ -123,8 +128,10 @@
     "delete": {
       "deleteVariable_one": "מחר משתנה אחד",
       "deleteVariable_other": "מחק {{count}} משתנים",
+      "deleteVariable_two": "מחק שני משתנים",
       "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
       "title": "מחק מאגר משאבים",
       "tooltip": "מחר משתנים נבחרים"
     },
@@ -162,6 +169,7 @@
     "noRowsMessage": "לא נמצאו משתנים",
     "searchPlaceholder": "חפש מאגרי משאבים",
     "variable_one": "משתנה",
-    "variable_other": "משתנים"
+    "variable_other": "משתנים",
+    "variable_two": "משתנים"
   }
 }
