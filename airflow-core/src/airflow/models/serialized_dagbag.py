@@ -38,7 +38,9 @@ class SerializedDagBag:
         self._serialized_dags: dict[str, SerializedDagModel] = {}
 
     @provide_session
-    def get_dag_model(self, dag_id: str, dag_version_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
+    def get_dag_model(
+        self, dag_id: str, dag_version_id: str, session: Session = NEW_SESSION
+    ) -> SerializedDagModel | None:
         """
         Return the serialized DagModel with the given dag_id and dag_version_id.
 
@@ -59,7 +61,9 @@ class SerializedDagBag:
         return None
 
     @provide_session
-    def get_dag(self, dag_id: str, dag_version_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
+    def get_dag(
+        self, dag_id: str, dag_version_id: str, session: Session = NEW_SESSION
+    ) -> SerializedDAG | None:
         """
         Return the serialized DAG with the given dag_id and dag_version_id.
 

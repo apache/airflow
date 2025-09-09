@@ -480,9 +480,7 @@ class SerializedDagModel(Base):
         :return: The serialized DAG model if found, else None.
         """
         return session.scalar(
-            select(cls)
-            .where(cls.dag_id == dag_id)
-            .where(cls.dag_version_id == dag_version_id)
+            select(cls).where(cls.dag_id == dag_id).where(cls.dag_version_id == dag_version_id)
         )
 
     @classmethod
