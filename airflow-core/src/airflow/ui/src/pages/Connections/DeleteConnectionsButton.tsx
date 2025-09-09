@@ -45,7 +45,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
     <>
       <Button
         aria-label={translate("deleteActions.button")}
-        colorPalette="danger"
+        colorPalette="red"
         onClick={onOpen}
         size="sm"
         variant="outline"
@@ -79,7 +79,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="danger"
+                colorPalette="red"
                 loading={isPending}
                 onClick={() => {
                   mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });
