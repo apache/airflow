@@ -410,11 +410,9 @@ labelPRBasedOnFilePath:
 
   translation:zh-CN:
     - airflow-core/src/airflow/ui/public/i18n/locales/zh-CN/*
-    
+
   translation:zh-TW:
     - airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/*
-
-
 
   area:CLI:
     - airflow-core/src/airflow/cli/**/*.py
