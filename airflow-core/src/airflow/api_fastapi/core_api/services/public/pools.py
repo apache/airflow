@@ -31,9 +31,48 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolBody,
+    PoolPatchBody,
 )
 from airflow.api_fastapi.core_api.services.public.common import BulkService, PatchUtil
 from airflow.models.pool import Pool
+
+
+def update_orm_from_pydantic(
+    old_pool: Pool,
+    patch_body: PoolBody | PoolPatchBody,
+    update_mask: list[str] | None,
+) -> Pool:
+    """
+    Patch an existing Pool instance with provided update fields.
+
+    Args:
+        old_pool (Pool): The existing Pool ORM model instance to be updated.
+        patch_body (PoolBody): Pydantic model containing the fields to update.
+        update_mask (list[str] | None): Specific fields to update. If None, all provided fields will be considered.
+
+    Returns:
+        Pool: The updated Pool instance.
+
+    Raises:
+        HTTPException: If attempting to update disallowed fields on `default_pool`.
+    """
+    # Special restriction: default pool only allows limited fields to be patched
+    if old_pool.pool == Pool.DEFAULT_POOL_NAME:
+        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+            pass
+        else:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Only slots and include_deferred can be modified on Default Pool",
+            )
+
+    # Delegate patch application to the common utility
+    return PatchUtil.apply_patch_with_update_mask(
+        model=old_pool,
+        patch_body=patch_body,
+        update_mask=update_mask,
+        non_update_fields=None,
+    )
 
 
 class BulkPoolService(BulkService[PoolBody]):
@@ -110,17 +149,9 @@ class BulkPoolService(BulkService[PoolBody]):
                 old_pool = self.session.scalar(select(Pool).filter(Pool.pool == pool.pool).limit(1))
                 if not old_pool:
                     continue  # Should not happen because we filtered above
-                print("calling common patch update")
-                pool = PatchUtil.apply_patch_with_update_mask(
-                    model=old_pool,
-                    patch_body=pool,
-                    update_mask=action.update_mask,
-                )
+                pool = update_orm_from_pydantic(old_pool, pool, action.update_mask)
 
-                        results.success.append(str(pool.pool))
-
-                    except ValidationError as e:
-                        results.errors.append({"error": f"{e.errors()}"})
+                results.success.append(str(pool.pool))
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

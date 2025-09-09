@@ -36,6 +36,43 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService, Pat
 from airflow.models.variable import Variable
 
 
+def update_orm_from_pydantic(
+    old_variable: Variable,
+    patch_body: VariableBody,
+    update_mask: list[str] | None,
+) -> Variable:
+    """
+    Patch an existing Variable with provided update fields.
+
+    Args:
+        old_variable (Variable): The existing Variable instance to update.
+        patch_body (VariableBody): The patch request body containing fields to update.
+        update_mask (list[str] | None): List of fields to update. If None, all provided fields will be updated.
+
+    Returns:
+        Variable: The updated Variable object.
+
+    Raises:
+        HTTPException: If attempting to update restricted fields (e.g., `key`).
+    """
+    # Key field is immutable → cannot be patched
+    non_update_fields = {"key"}
+
+    if patch_body.key != old_variable.key:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid body, key from request body doesn't match uri parameter",
+        )
+
+    # Apply patch via utility
+    return PatchUtil.apply_patch_with_update_mask(
+        model=old_variable,
+        patch_body=patch_body,
+        update_mask=update_mask,
+        non_update_fields=non_update_fields,
+    )
+
+
 class BulkVariableService(BulkService[VariableBody]):
     """Service for handling bulk operations on variables."""
 
@@ -81,8 +118,6 @@ class BulkVariableService(BulkService[VariableBody]):
         """Bulk Update variables."""
         to_update_keys = {variable.key for variable in action.entities}
         matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
-        non_update_fields = {"key"}
-
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
                 raise HTTPException(
@@ -100,10 +135,7 @@ class BulkVariableService(BulkService[VariableBody]):
                 old_variable = self.session.scalar(select(Variable).filter_by(key=variable.key).limit(1))
                 if not old_variable:
                     continue  # shouldn't happen because we filtered above
-
-                variable = PatchUtil.apply_patch_with_update_mask(
-                    old_variable, variable, action.update_mask, non_update_fields
-                )
+                variable = update_orm_from_pydantic(old_variable, variable, action.update_mask)
 
                 results.success.append(variable.key)
 

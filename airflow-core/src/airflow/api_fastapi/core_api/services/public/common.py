@@ -121,8 +121,8 @@ class PatchUtil:
             invalid = set(update_mask) - allowed_fields
             if invalid:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Invalid field(s) in update_mask: {invalid}",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid fields in update_mask: {invalid}",
                 )
             fields_set = fields_set.intersection(update_mask)
 
