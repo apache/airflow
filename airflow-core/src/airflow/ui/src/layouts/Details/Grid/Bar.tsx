@@ -77,7 +77,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
           state={run.state}
           zIndex={1}
         >
-          {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
+          {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" color="white" />}
         </GridButton>
       </Flex>
       <TaskInstancesColumn
