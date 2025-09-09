@@ -22,7 +22,7 @@ import logging
 import uuid
 import warnings
 from datetime import date, datetime, timedelta, timezone
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 from unittest import mock
 
 import jinja2
@@ -36,13 +36,18 @@ from airflow.sdk.bases.operator import (
     ExecutorSafeguard,
     chain,
     chain_linear,
-    cross_downstream,
+    cross_downstream, AirflowException,
 )
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.edges import Label
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.definitions.template import literal
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
+from airflow.triggers.base import StartTriggerArgs
+
+if TYPE_CHECKING:
+    from typing import Any
+
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -103,13 +108,22 @@ class MockOperator(BaseOperator):
 
     template_fields = ("arg1", "arg2")
 
-    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+    def __init__(self, arg1: Any = "", arg2: Any = "", **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
+        if self.start_from_trigger:
+            self.start_trigger_args = StartTriggerArgs(
+                trigger_cls="trigger_cls",
+                next_method="next_method",
+                trigger_kwargs={"arg1": arg1, "arg2": arg2},
+            )
 
 
 class TestBaseOperator:
+    def setup_method(self, method):
+        MockOperator.start_from_trigger = False
+
     # Since we have a custom metaclass, lets double check the behaviour of
     # passing args in the wrong way (args etc)
     def test_kwargs_only(self):
@@ -758,6 +772,15 @@ class TestBaseOperator:
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         assert mock_jinja_env.call_count == 1
+
+    def test_validate_start_from_trigger_kwargs(self):
+        MockOperator.start_from_trigger = True
+
+        with pytest.raises(AirflowException,
+            match="MockOperator with task_id 'one' has a callable in trigger kwargs named "
+                  "'arg2', which is not allowed when start_from_trigger is enabled."
+        ):
+            MockOperator(task_id="one", arg1="{{ foo }}", arg2=lambda context, jinja_env: "bar")
 
     def test_deepcopy(self):
         # Test bug when copying an operator attached to a Dag
