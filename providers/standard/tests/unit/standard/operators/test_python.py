@@ -41,7 +41,6 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
@@ -215,9 +214,6 @@ class BasePythonTest:
 
 class TestPythonOperator(BasePythonTest):
     opcls = PythonOperator
-
-    def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @pytest.fixture(autouse=True)
     def setup_tests(self):
@@ -1745,9 +1741,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
     opcls = ExternalPythonOperator
 
-    def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
-
     @staticmethod
     def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python"] = sys.executable
@@ -2345,7 +2338,7 @@ class TestShortCircuitWithTeardown:
         assert actual_skipped == {op3}
 
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
-    def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
+    def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db, caplog):
         """
         When logging is debug we convert to a list to log the tasks skipped
         before passing them to the skip method.
@@ -2357,7 +2350,6 @@ class TestShortCircuitWithTeardown:
                 task_id="op1",
                 python_callable=lambda: False,
             )
-            op1.log.setLevel(level)
             op2 = PythonOperator(task_id="op2", python_callable=print)
             op3 = PythonOperator(task_id="op3", python_callable=print)
             t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
@@ -2372,7 +2364,12 @@ class TestShortCircuitWithTeardown:
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
         ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+
+        with caplog.at_level(level):
+            if hasattr(ti.task.log, "setLevel"):
+                # Compat with Pre Airflow 3.1
+                ti.task.log.setLevel(level)
+            ti._run_raw_task()
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_kwargs = op1.skip.call_args.kwargs
         actual_skipped = actual_kwargs["tasks"]

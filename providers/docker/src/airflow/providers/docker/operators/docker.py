@@ -42,16 +42,11 @@ from airflow.providers.docker.hooks.docker import DockerHook
 from airflow.providers.docker.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from logging import Logger
-
     from docker import APIClient
     from docker.types import DeviceRequest
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import Logger
 
 
 def stringify(line: str | bytes):
