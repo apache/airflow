@@ -35,6 +35,7 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
@@ -98,7 +99,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
     :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
     :param ssl_ca_cert: Path to a CA certificate to be used by the Kubernetes client
-        to verify the server's SSL certificate.
+        to verify the server's SSL certificate. If not provided, will fall back to
+        kubernetes_executor.ssl_ca_cert setting.
     """
 
     conn_name_attr = "kubernetes_conn_id"
@@ -238,7 +240,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         disable_tcp_keepalive = self._coalesce_param(
             self.disable_tcp_keepalive, _get_bool(self._get_field("disable_tcp_keepalive"))
         )
-        ssl_ca_cert = self._coalesce_param(self.ssl_ca_cert, self._get_field("ssl_ca_cert"))
+        ssl_ca_cert = self._coalesce_param(
+            conf.get("kubernetes_executor", "ssl_ca_cert", fallback=None), self.ssl_ca_cert
+        )
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()
@@ -770,7 +774,9 @@ class AsyncKubernetesHook(KubernetesHook):
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = await self._get_field("kube_config_path")
         kubeconfig = await self._get_field("kube_config")
-        ssl_ca_cert = self._coalesce_param(self.ssl_ca_cert, await self._get_field("ssl_ca_cert"))
+        ssl_ca_cert = self._coalesce_param(
+            conf.get("kubernetes_executor", "ssl_ca_cert", fallback=None), self.ssl_ca_cert
+        )
 
         # Configure SSL CA certificate if provided
         if ssl_ca_cert:
