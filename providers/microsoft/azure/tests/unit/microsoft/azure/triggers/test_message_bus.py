@@ -86,19 +86,14 @@ class TestAzureServiceBusQueueTrigger:
     @pytest.mark.asyncio
     async def test_run_with_message(self):
         """Test the main run method with a mock message."""
-        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook") as mock_hook_class:
+        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
             trigger = AzureServiceBusQueueTrigger(
                 queues=["test_queue"],
                 poll_interval=0.01,  # Very short for testing
             )
 
-            # Mock the hook instance and read_message method
-            mock_hook_instance = Mock()
-            mock_hook_class.return_value = mock_hook_instance
-
-            mock_message = Mock()
-            mock_message.body = "test message"
-            mock_hook_instance.read_message.return_value = mock_message
+            mock_message = Mock(body="test message")
+            trigger.message_hook.read_message = Mock(return_value=mock_message)
 
             # Get one event from the generator
             events = []
@@ -150,7 +145,7 @@ class TestAzureServiceBusSubscriptionTrigger:
     @pytest.mark.asyncio
     async def test_run_subscription_with_message(self):
         """Test the main run method with a mock message."""
-        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook") as mock_hook_class:
+        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
             trigger = AzureServiceBusSubscriptionTrigger(
                 topics=["test_topic"],
                 subscription_name="test-sub",
@@ -158,13 +153,8 @@ class TestAzureServiceBusSubscriptionTrigger:
                 azure_service_bus_conn_id="test_conn",
             )
 
-            # Mock the hook instance and read_subscription_message method
-            mock_hook_instance = Mock()
-            mock_hook_class.return_value = mock_hook_instance
-
-            mock_message = Mock()
-            mock_message.body = "subscription test message"
-            mock_hook_instance.read_subscription_message.return_value = mock_message
+            mock_message = Mock(body="subscription test message")
+            trigger.message_hook.read_subscription_message = Mock(return_value=mock_message)
 
             # Get one event from the generator
             events = []
@@ -186,25 +176,15 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_multiple_messages_processing(self):
         """Test processing multiple messages in sequence."""
-        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook") as mock_hook_class:
+        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
             trigger = AzureServiceBusQueueTrigger(
                 queues=["test_queue"],
                 poll_interval=0.01,  # Very short for testing
             )
 
-            # Mock the hook instance and read_message method
-            mock_hook_instance = Mock()
-            mock_hook_class.return_value = mock_hook_instance
-
-            # Mock multiple messages
             messages = ["msg1", "msg2", "msg3"]
-            mock_messages = []
-            for msg in messages:
-                mock_message = Mock()
-                mock_message.body = msg
-                mock_messages.append(mock_message)
-
-            mock_hook_instance.read_message.side_effect = mock_messages + [None]  # None to stop
+            mock_messages = [Mock(body=msg) for msg in messages]
+            trigger.message_hook.read_message = Mock(side_effect=mock_messages + [None])
 
             # Collect events
             events = []
