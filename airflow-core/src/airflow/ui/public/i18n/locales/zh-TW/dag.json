@@ -7,7 +7,6 @@
   },
   "calendar": {
     "daily": "每日",
-    "error": "載入日曆資料時發生錯誤",
     "hourly": "每小時",
     "legend": {
       "less": "較少",
@@ -36,6 +35,7 @@
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
+    "parseDuration": "解析時長：",
     "parsedAt": "解析時間："
   },
   "extraLinks": "額外連結",
@@ -85,6 +85,8 @@
       "assetEvent_other": "已建立資源事件"
     },
     "failedLogs": {
+      "hideLogs": "隱藏日誌",
+      "showLogs": "顯示日誌",
       "title": "最近失敗任務的日誌",
       "viewFullLogs": "檢視完整日誌"
     }
@@ -93,8 +95,8 @@
     "buttons": {
       "options": "選項",
       "showGantt": "顯示甘特圖",
-      "showGraph": "顯示圖表",
-      "showGrid": "顯示網格"
+      "showGraphShortcut": "顯示圖表 (按 g)",
+      "showGridShortcut": "顯示網格 (按 g)"
     },
     "dagRuns": {
       "label": "Dag 執行次數"

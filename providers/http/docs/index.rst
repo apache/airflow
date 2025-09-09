@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-http/|version|/providers/http/tests/system/http>
+    Example Dags <https://github.com/apache/airflow/tree/providers-http/|version|/providers/http/tests/system/http>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-http/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,9 +77,7 @@ apache-airflow-providers-http package
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 5.3.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 5.3.4
 
 Provider package
 ----------------
@@ -90,7 +88,7 @@ All classes for this package are included in the ``airflow.providers.http`` pyth
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-http``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -99,12 +97,12 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-=====================  ====================
+=====================  ==================
 PIP package            Version required
-=====================  ====================
+=====================  ==================
 ``apache-airflow``     ``>=2.10.0``
 ``requests``           ``>=2.32.0,<3``
 ``requests-toolbelt``  ``>=1.0.0``
-``aiohttp``            ``!=3.11.0,>=3.9.2``
+``aiohttp``            ``>=3.12.14``
 ``asgiref``            ``>=2.3.0``
-=====================  ====================
+=====================  ==================

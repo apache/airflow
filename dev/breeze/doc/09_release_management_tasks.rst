@@ -54,6 +54,10 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
      breeze release-management prepare-airflow-distributions --distribution-format=wheel
 
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
+
+
 .. image:: ./images/output_release-management_prepare-airflow-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-distributions.svg
   :width: 100%
@@ -77,6 +81,13 @@ tarball for.
 .. code-block:: bash
 
      breeze release-management prepare-airflow-tarball --version 2.8.0rc1
+
+You can also specify distribution name which distribution of Airflow you are preparing the tarball for.
+By default it is "airflow".
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-tarball --version 2.8.0rc1 --distribution-name airflowctl
 
 .. image:: ./images/output_release-management_prepare-airflow-tarball.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-tarball.svg
@@ -382,6 +393,12 @@ The below example builds providers in the wheel format.
 
 .. code-block:: bash
 
+     breeze release-management prepare-provider-distributions --distribution-format wheel
+
+The below example builds providers in both wheel and tar.gz (sdist) formats.
+
+.. code-block:: bash
+
      breeze release-management prepare-provider-distributions
 
 If you run this command without distributions, you will prepare all distributions, you can however specify
@@ -397,6 +414,10 @@ You can see all providers available by running this command:
 .. code-block:: bash
 
      breeze release-management prepare-provider-distributions --help
+
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
+
 
 .. image:: ./images/output_release-management_prepare-provider-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-distributions.svg
@@ -759,6 +780,9 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
      breeze release-management prepare-task-sdk-distributions --distribution-format=wheel
 
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
+
 .. image:: ./images/output_release-management_prepare-task-sdk-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-task-sdk-distributions.svg
   :width: 100%
@@ -782,6 +806,9 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 .. code-block:: bash
 
      breeze release-management prepare-airflow-ctl-distributions --distribution-format=wheel
+
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
 
 .. image:: ./images/output_release-management_prepare-airflow-ctl-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg

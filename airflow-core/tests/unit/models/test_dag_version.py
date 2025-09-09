@@ -20,9 +20,9 @@ import pytest
 from sqlalchemy import func, select
 
 from airflow.models.dag_version import DagVersion
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags
 
 pytestmark = pytest.mark.db_test
@@ -48,16 +48,13 @@ class TestDagVersion:
         """This also tested the get_latest_version method"""
         with dag_maker("test1") as dag:
             EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
+        sync_dag_to_db(dag)
         dag_maker.create_dagrun()
         # Add extra task to change the dag
         with dag_maker("test1") as dag2:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        dag2.sync_to_db()
-        SerializedDagModel.write_dag(dag2, bundle_name="dag_maker")
-
+        sync_dag_to_db(dag2)
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version_number == 2
         assert session.scalar(select(func.count()).where(DagVersion.dag_id == dag.dag_id)) == 2

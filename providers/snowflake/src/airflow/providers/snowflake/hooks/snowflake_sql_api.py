@@ -102,7 +102,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             "retry": retry_if_exception(self._should_retry_on_error),
             "wait": wait_exponential(multiplier=1, min=1, max=60),
             "stop": stop_after_attempt(5),
-            "before_sleep": before_sleep_log(self.log, log_level=20),  # INFO level
+            "before_sleep": before_sleep_log(self.log, log_level=20),  # type: ignore[arg-type]
             "reraise": True,
         }
         if api_retry_args:

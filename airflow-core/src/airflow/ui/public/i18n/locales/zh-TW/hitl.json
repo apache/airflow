@@ -1,6 +1,15 @@
 {
+  "filters": {
+    "response": {
+      "all": "全部",
+      "pending": "待回應",
+      "received": "已回應"
+    }
+  },
   "requiredAction_one": "待回應的任務實例",
   "requiredAction_other": "待回應的任務實例",
+  "requiredActionCount_one": "待回應的任務實例數 ({{count}})",
+  "requiredActionCount_other": "待回應的任務實例數 ({{count}})",
   "requiredActionState": "待回應的任務實例狀態",
   "response": {
     "error": "回應失敗",
@@ -16,6 +25,7 @@
     "approvalRequired": "需要核准",
     "choiceReceived": "已選擇",
     "choiceRequired": "需要選擇",
+    "noResponseReceived": "未收到回應",
     "rejectionReceived": "已拒絕",
     "responseReceived": "已回應",
     "responseRequired": "需要回應"

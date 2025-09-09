@@ -7,6 +7,13 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "allOperators": "جميع المُشغِّلات",
+  "appearance": {
+    "appearance": "المظهر",
+    "darkMode": "الوضع الداكن",
+    "lightMode": "الوضع الفاتح",
+    "systemMode": "اتّباع إعداد النظام"
+  },
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",
@@ -52,6 +59,7 @@
     "fileLocation": "موقع الملف",
     "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
     "lastExpired": "انتهت صلاحيته آخر مرة في",
+    "lastParseDuration": "مدة التحليل الأخير",
     "lastParsed": "تم تحليله آخر مرة في",
     "latestDagVersion": "آخر إصدار لDag",
     "latestRun": "آخر تشغيل",
@@ -124,7 +132,8 @@
     "runAfterFromPlaceholder": "من تشغيل بعد",
     "runAfterToPlaceholder": "إلى تشغيل بعد",
     "runIdPlaceholder": "تصفية حسب معرف التشغيل",
-    "taskIdPlaceholder": "تصفية حسب معرف المهمة"
+    "taskIdPlaceholder": "تصفية حسب معرف المهمة",
+    "triggeringUserPlaceholder": "تصفية حسب المستخدم صاحب الاطلاق"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
@@ -212,6 +221,7 @@
     "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
+    "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",
     "restarting": "إعادة التشغيل",
@@ -223,8 +233,6 @@
     "up_for_retry": "جاهز للمحاولة مرة أخرى",
     "upstream_failed": "فشِل في المهام السابقة"
   },
-  "switchToDarkMode": "تبديل إلى الوضع الداكن",
-  "switchToLightMode": "تبديل إلى الوضع الفاتح",
   "table": {
     "completedAt": "اكتمل في",
     "createdAt": "تم الإنشاء في",

@@ -28,7 +28,7 @@ import pytest
 import time_machine
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
-from sqlalchemy import Column, Date, Float, Integer, String
+from sqlalchemy import Column, Date, Float, Integer, String, delete, func, select
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
@@ -138,7 +138,7 @@ def _create_dag_bundle(bundle_name, session):
 
 
 def _delete_dag_bundle(bundle_name, session):
-    session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).delete()
+    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
     session.commit()
 
 
@@ -848,12 +848,6 @@ def test_access_control_with_invalid_permission(app, security_manager):
                     access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
-
-            with pytest.raises(AirflowException) as ctx:
-                security_manager._sync_dag_view_permissions(
-                    "access_control_test",
-                    access_control={rolename: {permissions.RESOURCE_DAG_RUN: {action}}},
-                )
             if hasattr(permissions, "resource_name"):
                 assert "invalid permission" in str(ctx.value)
             else:
@@ -941,9 +935,10 @@ def test_no_additional_dag_permission_views_created(db, security_manager):
     ab_perm_role = assoc_permission_role
 
     security_manager.sync_roles()
-    num_pv_before = db.session().query(ab_perm_role).count()
+    num_pv_before = db.session().scalars(select(func.count()).select_from(ab_perm_role)).one()
+
     security_manager.sync_roles()
-    num_pv_after = db.session().query(ab_perm_role).count()
+    num_pv_after = db.session().scalars(select(func.count()).select_from(ab_perm_role)).one()
     assert num_pv_before == num_pv_after
 
 
@@ -1119,8 +1114,8 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             # Clean up DAG models and bundle
-            session.query(DagModel).delete()
-            session.query(DagBundleModel).filter(DagBundleModel.name == bundle_name).delete()
+            session.execute(delete(DagModel))
+            session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
             session.commit()
 
 
