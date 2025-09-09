@@ -464,6 +464,29 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def get_serialized_dag_by_version(
+        cls,
+        *,
+        dag_id: str,
+        dag_version_id: str,
+        session: Session = NEW_SESSION,
+    ) -> SerializedDagModel | None:
+        """
+        Get the serialized DAG for the given DAG ID and DAG version.
+
+        :param dag_id: The DAG ID.
+        :param dag_version_id: The DAG version ID.
+        :param session: The database session.
+        :return: The serialized DAG model if found, else None.
+        """
+        return session.scalar(
+            select(cls)
+            .where(cls.dag_id == dag_id)
+            .where(cls.dag_version_id == dag_version_id)
+        )
+
+    @classmethod
+    @provide_session
     def get_latest_serialized_dags(
         cls, *, dag_ids: list[str], session: Session = NEW_SESSION
     ) -> list[SerializedDagModel]:

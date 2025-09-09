@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
@@ -605,17 +606,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         adds them to the deques so the subprocess can actually mutate the running
         trigger set.
         """
+        from airflow.models.serialized_dagbag import SerializedDagBag
+
         render_log_fname = log_filename_template_renderer()
+        dag_bag = SerializedDagBag()
 
         @provide_session
         def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger:
             if trigger.task_instance:
-                from airflow.models.serialized_dag import SerializedDagModel
-
-                dag = SerializedDagModel.get_latest_serialized_dags(dag_ids=[trigger.task_instance.dag_id], session=session)[-1]
-
                 log_path = render_log_fname(ti=trigger.task_instance)
-
+                serialized_dag = dag_bag.get_dag_model(
+                    dag_id=trigger.task_instance.dag_id,
+                    dag_version_id=trigger.task_instance.dag_version_id,
+                    session=session,
+                )
                 ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
 
                 # When producing logs from TIs, include the job id producing the logs to disambiguate it.
@@ -630,7 +634,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
                     timeout_after=trigger.task_instance.trigger_timeout,
-                    dag=dag.data,
+                    dag=serialized_dag.data,
                 )
             return workloads.RunTrigger(
                 classpath=trigger.classpath,
