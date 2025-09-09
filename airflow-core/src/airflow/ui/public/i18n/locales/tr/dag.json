@@ -35,7 +35,8 @@
   "code": {
     "bundleUrl": "Paket URL'i",
     "noCode": "Kod Bulunamadı",
-    "parsedAt": "Ayrıştırılma zamanı:"
+    "parsedAt": "Ayrıştırıldı:",
+    "parseDuration": "Ayrıştırılma zamanı:"
   },
   "extraLinks": "Ek Bağlantılar",
   "grid": {

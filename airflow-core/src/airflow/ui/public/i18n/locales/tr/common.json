@@ -40,6 +40,7 @@
     "hasTaskConcurrencyLimits": "Görev Eş Zamanlılık Limitleri Var",
     "lastExpired": "Son Süresi Dolan",
     "lastParsed": "Son Ayrıştırılan",
+    "lastParseDuration": "Son Atrıştırma Süresi",
     "latestDagVersion": "En Son Dag Versiyonu",
     "latestRun": "En Son Çalışma",
     "maxActiveRuns": "Maksimum Aktif Çalışma",
@@ -107,7 +108,8 @@
     "runAfterFromPlaceholder": "Şu tarihten sonra çalıştır (başlangıç)",
     "runAfterToPlaceholder": "Şu tarihten sonra çalıştır (bitiş)",
     "runIdPlaceholder": "Çalıştırma kimliğine göre filtrele",
-    "taskIdPlaceholder": "Görev kimliğine göre filtrele"
+    "taskIdPlaceholder": "Görev kimliğine göre filtrele",
+    "triggeringUserPlaceholder": "Tetikleyen kullanıcıya göre filtrele"
   },
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
