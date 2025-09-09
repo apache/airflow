@@ -1710,10 +1710,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.incr("asset.triggered_dagruns")
 
             except Exception as e:
-                if is_constraint_violation(e):
+                if (
+                    is_constraint_violation(e)
+                    and hasattr(e, "orig")
+                    and hasattr(e.orig, "args")
+                    and any(
+                        "dag_run_dag_id_run_id_key" in str(arg)
+                        or "dag_run_dag_id_logical_date_key" in str(arg)
+                        for arg in e.orig.args
+                    )
+                ):
                     session.rollback()
+                    self.log.debug(
+                        "DagRun constraint violation for dag_id=%s, run_id=%s. "
+                        "Leaving queue entry for next iteration.",
+                        dag.dag_id,
+                        deterministic_run_id,
+                    )
                     continue
-                raise e
+                # Log unexpected errors before re-raising
+                self.log.warning("Unexpected error creating DAG run for dag_id=%s: %s", dag.dag_id, str(e))
+                raise
 
     def _should_update_dag_next_dagruns(
         self,
