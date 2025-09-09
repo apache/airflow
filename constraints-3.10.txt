@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-09T07:50:04.668750
+# This constraints file was automatically generated on 2025-09-09T13:57:21.657378
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -301,7 +301,7 @@ eventlet==0.40.3
 exceptiongroup==1.3.0
 executing==2.2.1
 facebook_business==23.0.1
-fastapi-cli==0.0.10
+fastapi-cli==0.0.11
 fastapi==0.116.1
 fastavro==1.12.0
 fasteners==0.20
@@ -451,11 +451,11 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.6
-microsoft-kiota-authentication-azure==1.9.6
-microsoft-kiota-http==1.9.6
-microsoft-kiota-serialization-json==1.9.6
-microsoft-kiota-serialization-text==1.9.6
+microsoft-kiota-abstractions==1.9.7
+microsoft-kiota-authentication-azure==1.9.7
+microsoft-kiota-http==1.9.7
+microsoft-kiota-serialization-json==1.9.7
+microsoft-kiota-serialization-text==1.9.7
 milvus-lite==2.5.1
 mistune==3.1.4
 more-itertools==10.8.0
@@ -522,7 +522,7 @@ pinotdb==5.7.0
 platformdirs==4.4.0
 pluggy==1.6.0
 ply==3.11
-polars==1.33.0
+polars==1.33.1
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
@@ -544,7 +544,7 @@ pyarrow==18.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycountry==24.6.1
-pycparser==2.22
+pycparser==2.23
 pycryptodome==3.23.0
 pydantic==2.11.7
 pydantic_core==2.33.2
@@ -608,7 +608,7 @@ scramp==1.4.6
 scrapbook==0.5.0
 segment-analytics-python==2.3.4
 sendgrid==6.12.4
-sentry-sdk==2.37.0
+sentry-sdk==2.37.1
 setproctitle==1.3.7
 shapely==2.1.1
 shellingham==1.5.4

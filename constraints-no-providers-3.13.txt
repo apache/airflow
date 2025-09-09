@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-09T07:47:56.546843
+# This constraints file was automatically generated on 2025-09-09T13:53:05.694440
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -39,7 +39,7 @@ cryptography==45.0.7
 dill==0.3.1.1
 dnspython==2.8.0
 email-validator==2.3.0
-fastapi-cli==0.0.10
+fastapi-cli==0.0.11
 fastapi==0.116.1
 fsspec==2025.9.0
 googleapis-common-protos==1.70.0
@@ -78,7 +78,7 @@ pendulum==3.1.0
 pluggy==1.6.0
 protobuf==5.29.5
 psutil==7.0.0
-pycparser==2.22
+pycparser==2.23
 pydantic==2.11.7
 pydantic_core==2.33.2
 python-daemon==3.1.2
