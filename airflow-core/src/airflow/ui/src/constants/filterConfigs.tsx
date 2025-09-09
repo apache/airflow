@@ -40,7 +40,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,
-      label: translate("common:dagName"),
+      label: translate("common:dagId"),
       placeholder: translate("common:filters.dagDisplayNamePlaceholder"),
       type: FilterTypes.TEXT,
     },

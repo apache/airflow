@@ -52,7 +52,6 @@
     "tags": "標籤"
   },
   "dagId": "Dag ID",
-  "dagName": "Dag 名稱",
   "dagRun": {
     "conf": "設定",
     "dagVersions": "Dag 版本",
