@@ -81,8 +81,6 @@ apache-airflow-providers-redis package
 
 Release: 4.3.0
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
@@ -92,7 +90,7 @@ All classes for this package are included in the ``airflow.providers.redis`` pyt
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-redis``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

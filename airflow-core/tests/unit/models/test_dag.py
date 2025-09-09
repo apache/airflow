@@ -21,7 +21,6 @@ import datetime
 import logging
 import os
 import pickle
-import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -58,7 +57,6 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.team import Team
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -141,18 +139,6 @@ TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 def test_dags_bundle(configure_testing_dag_bundle):
     with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
         yield
-
-
-@pytest.fixture
-def testing_team():
-    from airflow.utils.session import create_session
-
-    with create_session() as session:
-        team = session.query(Team).filter_by(name="testing").one_or_none()
-        if not team:
-            team = Team(id=uuid.uuid4(), name="testing")
-            session.add(team)
-        yield team
 
 
 def _create_dagrun(

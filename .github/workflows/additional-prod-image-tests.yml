@@ -118,6 +118,7 @@ jobs:
           image-type: "prod"
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Test examples of PROD image building"
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -155,6 +156,7 @@ jobs:
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests
@@ -185,6 +187,7 @@ jobs:
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Run Task SDK integration tests"
         run: breeze testing task-sdk-integration-tests

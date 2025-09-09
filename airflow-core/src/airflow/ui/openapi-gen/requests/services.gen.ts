@@ -996,6 +996,7 @@ export class DagRunService {
      * @param data.updatedAtLt
      * @param data.runType
      * @param data.state
+     * @param data.dagVersion
      * @param data.orderBy
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1034,6 +1035,7 @@ export class DagRunService {
                 updated_at_lt: data.updatedAtLt,
                 run_type: data.runType,
                 state: data.state,
+                dag_version: data.dagVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
                 triggering_user_name_pattern: data.triggeringUserNamePattern
@@ -1389,6 +1391,7 @@ export class DagService {
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
+     * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
@@ -1422,6 +1425,7 @@ export class DagService {
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
@@ -1691,6 +1695,7 @@ export class DagService {
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
+     * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
@@ -1718,6 +1723,7 @@ export class DagService {
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
@@ -3882,6 +3888,8 @@ export class GridService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.runType
+     * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -3899,7 +3907,9 @@ export class GridService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                run_type: data.runType,
+                triggering_user: data.triggeringUser
             },
             errors: {
                 400: 'Bad Request',
@@ -3921,6 +3931,8 @@ export class GridService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.runType
+     * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -3938,7 +3950,9 @@ export class GridService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                run_type: data.runType,
+                triggering_user: data.triggeringUser
             },
             errors: {
                 400: 'Bad Request',
