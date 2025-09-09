@@ -794,7 +794,7 @@ export const UseStructureServiceStructureDataKeyFn = ({ dagId, externalDependenc
 export type GridServiceGetDagStructureDefaultResponse = Awaited<ReturnType<typeof GridService.getDagStructure>>;
 export type GridServiceGetDagStructureQueryResult<TData = GridServiceGetDagStructureDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetDagStructureKey = "GridServiceGetDagStructure";
-export const UseGridServiceGetDagStructureKeyFn = ({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
+export const UseGridServiceGetDagStructureKeyFn = ({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -803,11 +803,13 @@ export const UseGridServiceGetDagStructureKeyFn = ({ dagId, limit, offset, order
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetDagStructureKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }])];
+  runType?: string[];
+  triggeringUser?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetDagStructureKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }])];
 export type GridServiceGetGridRunsDefaultResponse = Awaited<ReturnType<typeof GridService.getGridRuns>>;
 export type GridServiceGetGridRunsQueryResult<TData = GridServiceGetGridRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetGridRunsKey = "GridServiceGetGridRuns";
-export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
+export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -816,7 +818,9 @@ export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, 
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }])];
+  runType?: string[];
+  triggeringUser?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }])];
 export type GridServiceGetGridTiSummariesDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummaries>>;
 export type GridServiceGetGridTiSummariesQueryResult<TData = GridServiceGetGridTiSummariesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetGridTiSummariesKey = "GridServiceGetGridTiSummaries";

@@ -400,7 +400,7 @@ class SlackHook(BaseHook):
                 "password": "Slack API Token",
             },
             "placeholders": {
-                "password": "xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
+                "password": "REPLACE ME WITH A SLACK ACCESS TOKEN",
                 "timeout": "30",
                 "base_url": "https://www.slack.com/api/",
                 "proxy": "http://localhost:9000",

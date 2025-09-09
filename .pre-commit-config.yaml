@@ -232,8 +232,8 @@ repos:
         pass_filenames: false
         # libcst doesn't have source wheels for all PY except PY3.12, excluding it
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
-  - repo: https://github.com/asottile/blacken-docs
-    rev: 78a9dcbecf4f755f65d1f3dec556bc249d723600  # frozen: 1.19.1
+  - repo: https://github.com/adamchainz/blacken-docs
+    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
