@@ -33,9 +33,9 @@ from airflow.providers.smtp.hooks.smtp import SmtpHook, build_xoauth2_string
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
-try:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import Connection
-except (ImportError, ModuleNotFoundError):
+else:
     from airflow.models.connection import Connection  # type: ignore[assignment]
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
