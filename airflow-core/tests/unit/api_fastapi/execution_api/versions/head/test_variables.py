@@ -65,17 +65,24 @@ def access_denied(client):
 
 
 class TestGetVariable:
-    def test_variable_get_from_db(self, client, session):
-        Variable.set(key="var1", value="value", session=session)
+    @pytest.mark.parametrize(
+        "key, value",
+        [
+            ("var1", "value"),
+            ("var2/with_slash", "slash_value"),
+        ],
+    )
+    def test_variable_get_from_db(self, client, session, key, value):
+        Variable.set(key=key, value=value, session=session)
         session.commit()
 
-        response = client.get("/execution/variables/var1")
+        response = client.get(f"/execution/variables/{key}")
 
         assert response.status_code == 200
-        assert response.json() == {"key": "var1", "value": "value"}
+        assert response.json() == {"key": key, "value": value}
 
         # Remove connection
-        Variable.delete(key="var1", session=session)
+        Variable.delete(key=key, session=session)
         session.commit()
 
     @mock.patch.dict(
@@ -88,13 +95,20 @@ class TestGetVariable:
         assert response.status_code == 200
         assert response.json() == {"key": "key1", "value": "VALUE"}
 
-    def test_variable_get_not_found(self, client):
-        response = client.get("/execution/variables/non_existent_var")
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "non_existent_var",
+            "non/existent/slash/var",
+        ],
+    )
+    def test_variable_get_not_found(self, client, key):
+        response = client.get(f"/execution/variables/{key}")
 
         assert response.status_code == 404
         assert response.json() == {
             "detail": {
-                "message": "Variable with key 'non_existent_var' not found",
+                "message": f"Variable with key '{key}' not found",
                 "reason": "not_found",
             }
         }
@@ -114,57 +128,21 @@ class TestGetVariable:
 
         assert any(msg.startswith("Checking read access for task instance") for msg in caplog.messages)
 
-    def test_variable_get_with_slash_in_key(self, client, session):
-        """Test getting variables with slashes in key names."""
-        Variable.set(key="test/with_slash", value="slash_value", session=session)
-        session.commit()
-
-        response = client.get("/execution/variables/test/with_slash")
-
-        assert response.status_code == 200
-        assert response.json() == {"key": "test/with_slash", "value": "slash_value"}
-
-        # Clean up
-        Variable.delete(key="test/with_slash", session=session)
-        session.commit()
-
-    def test_variable_get_with_multiple_slashes_in_key(self, client, session):
-        """Test getting variables with multiple slashes in key names."""
-        Variable.set(key="path/to/nested/variable", value="nested_value", session=session)
-        session.commit()
-
-        response = client.get("/execution/variables/path/to/nested/variable")
-
-        assert response.status_code == 200
-        assert response.json() == {"key": "path/to/nested/variable", "value": "nested_value"}
-
-        # Clean up
-        Variable.delete(key="path/to/nested/variable", session=session)
-        session.commit()
-
-    def test_variable_get_slash_not_found(self, client):
-        """Test getting non-existent variables with slashes in key names."""
-        response = client.get("/execution/variables/non/existent/slash/var")
-
-        assert response.status_code == 404
-        assert response.json() == {
-            "detail": {
-                "message": "Variable with key 'non/existent/slash/var' not found",
-                "reason": "not_found",
-            }
-        }
-
 
 class TestPutVariable:
     @pytest.mark.parametrize(
-        "payload",
+        "key, payload",
         [
-            pytest.param({"value": "{}", "description": "description"}, id="valid-payload"),
-            pytest.param({"value": "{}"}, id="missing-description"),
+            pytest.param("var_create", {"value": "{}", "description": "description"}, id="valid-payload"),
+            pytest.param("var_create", {"value": "{}"}, id="missing-description"),
+            pytest.param(
+                "var_create/with_slash",
+                {"value": "slash_value", "description": "Variable with slash"},
+                id="slash-key",
+            ),
         ],
     )
-    def test_should_create_variable(self, client, payload, session):
-        key = "var_create"
+    def test_should_create_variable(self, client, key, payload, session):
         response = client.put(
             f"/execution/variables/{key}",
             json=payload,
@@ -172,7 +150,7 @@ class TestPutVariable:
         assert response.status_code == 201, response.json()
         assert response.json()["message"] == "Variable successfully set"
 
-        var_from_db = session.query(Variable).where(Variable.key == "var_create").first()
+        var_from_db = session.query(Variable).where(Variable.key == key).first()
         assert var_from_db is not None
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
@@ -219,8 +197,14 @@ class TestPutVariable:
         assert response.json()["detail"][0]["type"] == "extra_forbidden"
         assert response.json()["detail"][0]["msg"] == "Extra inputs are not permitted"
 
-    def test_overwriting_existing_variable(self, client, session):
-        key = "var_create"
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "var_create",
+            "var_create/with_slash",
+        ],
+    )
+    def test_overwriting_existing_variable(self, client, session, key):
         Variable.set(key=key, value="value", session=session)
         session.commit()
 
@@ -256,52 +240,28 @@ class TestPutVariable:
         }
         assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
 
-    def test_variable_put_with_slash_in_key(self, client, session):
-        """Test setting variables with slashes in key names."""
-        key = "test/with_slash"
-        payload = {"value": "slash_value", "description": "Variable with slash"}
-
-        response = client.put(f"/execution/variables/{key}", json=payload)
-
-        assert response.status_code == 201
-        assert response.json()["message"] == "Variable successfully set"
-
-        var_from_db = session.query(Variable).where(Variable.key == key).first()
-        assert var_from_db is not None
-        assert var_from_db.key == key
-        assert var_from_db.val == payload["value"]
-        assert var_from_db.description == payload["description"]
-
-    def test_variable_put_with_multiple_slashes_in_key(self, client, session):
-        """Test setting variables with multiple slashes in key names."""
-        key = "path/to/nested/variable"
-        payload = {"value": "nested_value"}
-
-        response = client.put(f"/execution/variables/{key}", json=payload)
-
-        assert response.status_code == 201
-        assert response.json()["message"] == "Variable successfully set"
-
-        var_from_db = session.query(Variable).where(Variable.key == key).first()
-        assert var_from_db is not None
-        assert var_from_db.key == key
-        assert var_from_db.val == payload["value"]
-
 
 class TestDeleteVariable:
-    def test_should_delete_variable(self, client, session):
-        for i in range(1, 3):
-            Variable.set(key=f"key{i}", value=i)
+    @pytest.mark.parametrize(
+        "keys_to_create, key_to_delete",
+        [
+            (["key1", "key2"], "key1"),
+            (["key3/with_slash", "key4"], "key3/with_slash"),
+        ],
+    )
+    def test_should_delete_variable(self, client, session, keys_to_create, key_to_delete):
+        for i, key in enumerate(keys_to_create, 1):
+            Variable.set(key=key, value=str(i))
 
         vars = session.query(Variable).all()
-        assert len(vars) == 2
+        assert len(vars) == len(keys_to_create)
 
-        response = client.delete("/execution/variables/key1")
+        response = client.delete(f"/execution/variables/{key_to_delete}")
 
         assert response.status_code == 204
 
         vars = session.query(Variable).all()
-        assert len(vars) == 1
+        assert len(vars) == len(keys_to_create) - 1
 
     def test_should_not_delete_variable(self, client, session):
         Variable.set(key="key", value="value")
@@ -315,36 +275,3 @@ class TestDeleteVariable:
 
         vars = session.query(Variable).all()
         assert len(vars) == 1
-
-    def test_variable_delete_with_slash_in_key(self, client, session):
-        """Test deleting variables with slashes in key names."""
-        Variable.set(key="test/with_slash", value="slash_value", session=session)
-        Variable.set(key="regular_key", value="regular_value", session=session)
-        session.commit()
-
-        vars = session.query(Variable).all()
-        assert len(vars) == 2
-
-        response = client.delete("/execution/variables/test/with_slash")
-
-        assert response.status_code == 204
-
-        # Verify only one variable remains and it's the regular one
-        vars = session.query(Variable).all()
-        assert len(vars) == 1
-        assert vars[0].key == "regular_key"
-
-    def test_variable_delete_with_multiple_slashes_in_key(self, client, session):
-        """Test deleting variables with multiple slashes in key names."""
-        Variable.set(key="path/to/nested/variable", value="nested_value", session=session)
-        session.commit()
-
-        vars = session.query(Variable).all()
-        assert len(vars) == 1
-
-        response = client.delete("/execution/variables/path/to/nested/variable")
-
-        assert response.status_code == 204
-
-        vars = session.query(Variable).all()
-        assert len(vars) == 0
