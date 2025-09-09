@@ -24,8 +24,13 @@
 
 .. towncrier release notes start
 
+<<<<<<< HEAD
 Airflow 3.1.0 (2025-09-25)
 --------------------------
+=======
+Airflow 3.1.0b1 (2025-09-08)
+----------------------------
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
@@ -50,17 +55,27 @@ Task SDK Decoupling for Independent Upgrades
 """""""""""""""""""""""""""""""""""""""""""""
 
 Airflow 3.1 advances the decoupling of the Task SDK from Airflow Core through
+<<<<<<< HEAD
 improved DAG serialization with versioned contracts. While complete code separation is planned for Airflow 3.2.0,
 the serialization foundation enables independent upgrades when components are deployed separately.
 
 **For DAG Authors**: Import constructs from ``airflow.sdk`` namespace:
 
+=======
+improved DAG serialization with versioned contracts. While complete code separation is planned for Airflow 3.0.2,
+the serialization foundation enables independent upgrades when components are deployed separately.
+
+**For DAG Authors**: Import constructs from ``airflow.sdk`` namespace:
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - ``from airflow.sdk import DAG, task, asset``
 - Access to latest authoring features with forward compatibility
 - Reduced dependency on server-side Airflow versions
 
 **For Platform Teams**: Foundation for independent upgrades:
+<<<<<<< HEAD
 
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Schema compliance ensures compatibility across versions
 - Deployment flexibility when components are separated
 - Reduced coordination overhead between development and operations teams
@@ -80,11 +95,15 @@ Configure deadline monitoring by specifying:
 - **Callback**: Response action using Airflow Notifiers or custom functions
 
 Example use cases:
+<<<<<<< HEAD
 
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Alert if a daily ETL hasn't completed 1 hour after its scheduled time
 - Notify stakeholders 30 minutes before a critical deadline
 - Escalate when resource-constrained DAGs remain queued too long
 
+<<<<<<< HEAD
 **Current Limitations**: Deadline Alerts currently support only asynchronous callbacks (``AsyncCallback``).
 Support for synchronous callbacks (``SyncCallback``) is planned for a future release.
 
@@ -93,11 +112,17 @@ For configuration details and examples, see :doc:`/howto/deadline-alerts`.
 .. warning::
 
   Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
+=======
+For configuration details and examples, see :doc:`/howto/deadline-alerts`.
+
+**Warning**: Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 UI Internationalization
 """""""""""""""""""""""
 
 Airflow 3.1 delivers comprehensive internationalization (``i18n``) support, making the web interface
+<<<<<<< HEAD
 accessible to users worldwide. The React-based UI now supports 17 languages with robust translation infrastructure.
 
 **Supported Languages**:
@@ -117,6 +142,23 @@ accessible to users worldwide. The React-based UI now supports 17 languages with
 - Portuguese
 - Simplified Chinese
 - Spanish
+=======
+accessible to users worldwide. The React-based UI now supports 14 languages with robust translation infrastructure.
+
+**Supported Languages**:
+- Arabic
+- Catalan
+- German
+- English
+- Spanish
+- French
+- Hebrew
+- Hindi
+- Hungarian
+- Korean
+- Dutch
+- Polish
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Traditional Chinese
 - Turkish
 
@@ -130,14 +172,20 @@ external views. This extensibility framework allows organizations to embed custo
 monitoring tools, and domain-specific interfaces directly within the Airflow UI.
 
 **New Plugin Capabilities**:
+<<<<<<< HEAD
 
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - **React Apps**: Full-featured React applications integrated into Airflow navigation
 - **External Views**: Embed external web applications via iframe with seamless authentication
 - **Dashboard Integration**: Custom widgets and panels for operational dashboards
 - **Menu Integration**: Add custom navigation items and organize tools logically
 
 **Developer Experience**:
+<<<<<<< HEAD
 
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Hot reloading during development with ``airflow-react-plugin`` dev tools
 - TypeScript support and modern React patterns
 - Standardized plugin loading and validation
@@ -151,6 +199,7 @@ For more details and examples, see :doc:`/howto/custom-view-plugin`.
 Enhanced UI Views and Filtering
 """"""""""""""""""""""""""""""""
 
+<<<<<<< HEAD
 Airflow 3.1 brings significant UI improvements including rebuilt Calendar and Gantt chart views for the modern React UI,
 comprehensive filtering capabilities, and a refreshed visual design system.
 
@@ -171,6 +220,11 @@ user experience with the rest of the modern Airflow interface.
 Users can now pin and favorite DAGs for better dashboard organization, making it easier to find and prioritize
 frequently used workflows. This feature is particularly valuable for teams managing large numbers of DAGs,
 providing quick access to critical workflows without searching through extensive DAG lists.
+=======
+Airflow 3.1 brings Calendar and Gantt chart views to the modern React UI, along with comprehensive filtering
+capabilities. The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI,
+along with enhanced filtering capabilities across all views.
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 Inference Execution (Synchronous DAGs)
 """"""""""""""""""""""""""""""""""""""
@@ -213,6 +267,7 @@ Python 3.13 support added & 3.9 support removed
 Support for Python 3.9 has been removed, as it has reached end-of-life.
 Airflow 3.1.0 requires Python 3.10, 3.11, 3.12 or 3.13.
 
+<<<<<<< HEAD
 Configuration Changes and Cleanup
 """"""""""""""""""""""""""""""""""
 
@@ -335,12 +390,18 @@ The deserializer interface in ``airflow.serialization.serializers`` has changed 
 The class loading is now handled in ``serde.py``, and the deserializer receives the loaded class directly rather than a ``classname`` string.
 This update avoids the use of ``import_string`` in the deserializer, making deserialization more secure.
 
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 New Features
 ^^^^^^^^^^^^
 
 - Add Calendar and Gantt chart views to modern React UI with enhanced filtering (#54252, #51667)
 - Add Python 3.13 support for Airflow runtime and dependencies (#46891)
+<<<<<<< HEAD
 - Add ``SQLAlchemy 2.0`` support with various compatibility fixes for ``Python 3.13`` (#52233, #52518, #54940)
+=======
+- Add ``SQLAlchemy 2.0`` support with various compatibility fixes (#52233, #52518, #54940)
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Add support for the ``psycopg3`` postgres driver (#52976)
 - Add ability to track & display user who triggers DAG runs (#51738, #53510, #54164, #55112)
 - Add toggle for log grouping in task log viewer for better organization (#51146)
@@ -364,19 +425,30 @@ New Features
 - Add HITL UI integration with role-based access and form handling (#53035)
 - Add HITL API endpoints with filtering and query support (#53376, #53923)
 - Add HITL utility functions for generating URLs to required actions page (#54827)
+<<<<<<< HEAD
 - Improve HITL user experience with bug fixes, UI enhancements, and data model consistency (#55463, #55539, #55575, #55546, #55543, #55536, #55535)
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Add ordering and filtering support for HITL details endpoints (#55217)
 - Add "No Response Received" required action state (#55149)
 - Add operator filter for HITL task instances (#54773)
 - Implement deadline alert system for proactive DAG monitoring (AIP-86) (#53951, #53903, #53201, #55086)
 - Add configurable reference points and notification callbacks (#50677, #50093)
 - Add deadline calculation and tracking in DAG execution lifecycle (#51638, #50925)
+<<<<<<< HEAD
 - Add comprehensive UI translation support for 16 languages (#51266, #51038, #51219, #50929, #50981, #51793 and more)
+=======
+- Add comprehensive UI translation support for 14 languages (#51266, #51038, #51219, #50929, #50981, #51793)
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Add right-to-left (RTL) layout support for Arabic and Hebrew (#51376)
 - Add language selection interface and browser preference detection (#51369)
 - Add translation completeness validation and automated checks (#51166, #51131)
 - Add calendar data API endpoints for DAG execution visualization (#52748)
+<<<<<<< HEAD
 - Add endpoint to watch DAG runs until completion (#51920, #53346)
+=======
+- Add endpoint to watch DAG runs until completion (#51920)
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Add DAG run ID pattern search functionality (#52437)
 - Add multi-sorting capabilities for improved data navigation (#53408)
 - Add bulk connection deletion API and UI (#51201)
@@ -389,8 +461,11 @@ New Features
 - Add utility functions for generic filter counting (#54817)
 - Add keyboard navigation for Grid view interface (#51784)
 - Add improved error handling for plugin import failures (#49643)
+<<<<<<< HEAD
 - Add plugin validation in ``/plugins`` API with warnings for invalid plugins (#55673)
 - Improve accessibility for screen readers and assistive technologies with proper language detection (#55839)
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 - Add enhanced variable management with upsert operations (#48547)
 - Add favorites/pinning support for DAG dashboard organization (#51264)
 - Add system theme support with automatic OS preference detection (#52649)
@@ -431,11 +506,15 @@ New Features
 - Add deadline relationship to DAG runs and deadline model (#50925, #50093)
 - Add DAG run deletion UI (#50368)
 - Add task instance deletion UI and endpoint (#50235, #50165)
+<<<<<<< HEAD
 - Switch all airflow logging to structlog (#52651, #55434, #55431, #55638)
 - Add Filter Bar to Audit Log (#55487)
 - Add Filters UI for Asset View (#54640)
 - Update color palette and leverage Chakra semantic tokens (#53981, #55739)
 - Improve calendar view UI with enhanced tooltips and visual fixes (#55476)
+=======
+- Switch all airflow logging to structlog (#52651, #55434, #55431)
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 Bug Fixes
 ^^^^^^^^^
@@ -478,6 +557,7 @@ Bug Fixes
 - Fix language display consistency and flag representation (#51560, #51177)
 - Fix RTL layout rendering for Arabic and Hebrew interfaces (#51853)
 - Fix graph export cropping when view is partial (#55012)
+<<<<<<< HEAD
 - Fix log viewer "Toggle Source" to hide only source fields, not all structured log fields (#55474)
 - Output on stdout/stderr from within tasks is now filterable in the Sources list in the UI log view (#55508)
 - Redact JWT tokens in task logs (#55499)
@@ -512,6 +592,8 @@ Bug Fixes
 - Fix Gantt chart misalignment with Grid view layout (#55995)
 - Fix Grid view task names being extremely collapsed and unreadable when displaying many DAG runs (#55997)
 - Fix ``LocalExecutor`` race condition where tasks could start before database state was committed (#56010)
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -534,6 +616,7 @@ Miscellaneous
 - Add comprehensive HITL operator documentation and examples (#54618)
 - Add guards for registering middlewares from plugins (#55399)
 - Optimize Gantt group expansion with de-bouncing and deferred rendering (#55334)
+<<<<<<< HEAD
 - Differentiate between triggers and watchers currently running for better visibility (#55376)
 - Removed unused config: ``dag_stale_not_seen_duration`` (#55601, #55684)
 - Update UI's query client strategy for improved performance (#55528)
@@ -544,6 +627,8 @@ Miscellaneous
 - The constraint file do not contain developer dependencies anymore (#53631)
 - Add hyperlinks to ``dag_id`` column in DAG Runs and Task Instances pages for better navigation (#55648)
 - Add responsive web design (RWD) support to Grid view (#55745)
+=======
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -551,11 +636,16 @@ Doc Only Changes
 - Add comprehensive Human-in-the-Loop operator tutorial and examples (#54618)
 - Add deadline alerts configuration and usage documentation (#53727)
 - Make term Dag consistent in docs task-sdk (#55100)
+<<<<<<< HEAD
 - Add migration guide for upgrading from legacy SLA functionality to deadline alerts (#55743)
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
 - Remove ``--preview`` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
 - Add documentation for context parameter (#55377)
+=======
+- Add DAG bundles triggerer limitation documentation (#55232)
+- Add deadline alerts usage guides and best practices (#53727)
+>>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 
 Airflow 3.0.6 (2025-08-29)
 --------------------------
