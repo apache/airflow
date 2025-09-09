@@ -1296,11 +1296,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             return f"{job_id}_{uniqueness_suffix}"
 
         if logical_date is not None:
-            warnings.warn(
-                "The 'logical_date' parameter is deprecated. Please use 'run_after' instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=1,
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                warnings.warn(
+                    "The 'logical_date' parameter is deprecated. Please use 'run_after' instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
             job_id_timestamp = logical_date
         elif run_after is not None:
             job_id_timestamp = run_after
