@@ -81,7 +81,6 @@ FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
-LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
@@ -1443,80 +1442,6 @@ class SelectiveChecks:
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
-
-    @classmethod
-    def _find_caplog_in_def(cls, added_lines):
-        """
-        Find caplog in def
-
-        :param added_lines: lines added in the file
-        :return: True if caplog is found in def else False
-        """
-        line_counter = 0
-        while line_counter < len(added_lines):
-            if all(keyword in added_lines[line_counter] for keyword in ["def", "caplog", "(", ")"]):
-                return True
-            if "def" in added_lines[line_counter] and ")" not in added_lines[line_counter]:
-                while line_counter < len(added_lines) and ")" not in added_lines[line_counter]:
-                    if "caplog" in added_lines[line_counter]:
-                        return True
-                    line_counter += 1
-            line_counter += 1
-        return None
-
-    def _caplog_exists_in_added_lines(self) -> bool:
-        """
-        Check if caplog is used in added lines
-
-        :return: True if caplog is used in added lines else False
-        """
-        lines = run_command(
-            ["git", "diff", f"{self._commit_ref}^"],
-            capture_output=True,
-            text=True,
-            cwd=AIRFLOW_ROOT_PATH,
-            check=False,
-        )
-
-        if "caplog" not in lines.stdout or lines.stdout == "":
-            return False
-
-        added_caplog_lines = [
-            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
-        ]
-        return self._find_caplog_in_def(added_lines=added_caplog_lines)
-
-    @cached_property
-    def is_log_mocked_in_the_tests(self) -> bool:
-        """
-        Check if log is used without mock in the tests
-        """
-        if self._is_canary_run() or self._github_event not in (
-            GithubEvents.PULL_REQUEST,
-            GithubEvents.PULL_REQUEST_TARGET,
-        ):
-            return False
-        # Check if changed files are unit tests
-        if (
-            self._matching_files(FileGroupForCi.UNIT_TEST_FILES, CI_FILE_GROUP_MATCHES)
-            and LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL not in self._pr_labels
-        ):
-            if self._caplog_exists_in_added_lines():
-                get_console().print(
-                    f"[error]Caplog is used in the test. "
-                    f"Please be sure you are mocking the log. "
-                    "For example, use `patch.object` to mock `log`."
-                    "Using `caplog` directly in your test files can cause side effects "
-                    "and not recommended. If you think, `caplog` is the only way to test "
-                    "the functionality or there is and exceptional case, "
-                    "please ask maintainer to include as an exception using "
-                    f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label. "
-                    "It is up to maintainer decision to allow this exception.",
-                )
-                sys.exit(1)
-            else:
-                return True
-        return True
 
     @cached_property
     def force_pip(self):

@@ -217,10 +217,11 @@ def _configure_logs_over_json_channel(log_fd: int):
     # A channel that the task can send JSON-formatted logs over.
     #
     # JSON logs sent this way will be handled nicely
-    from airflow.sdk.log import configure_logging
+    from airflow.sdk.log import configure_logging, reset_logging
 
     log_io = os.fdopen(log_fd, "wb", buffering=0)
-    configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+    reset_logging()
+    configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
 
 
 def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
@@ -1766,16 +1767,16 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
     log_file = init_log_file(log_path)
 
-    pretty_logs = False
-    if pretty_logs:
-        log_file_descriptor = log_file.open("a", buffering=1)
-        underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
-    else:
+    json_logs = True
+    if json_logs:
         log_file_descriptor = log_file.open("ab")
-        underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
+        underlying_logger: WrappedLogger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
+    else:
+        log_file_descriptor = log_file.open("a", buffering=1)
+        underlying_logger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
 
     with _remote_logging_conn(client):
-        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+        processors = logging_processors(json_output=json_logs)
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
     return logger, log_file_descriptor
