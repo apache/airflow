@@ -19,8 +19,6 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -142,23 +140,7 @@ def patch_variable(
     update_mask: list[str] | None = Query(None),
 ) -> VariableResponse:
     """Update a variable by key."""
-    if patch_body.key != variable_key:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
-        )
-    variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
-    if not variable:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
-        )
-
-    try:
-        VariableBody(**patch_body.model_dump())
-    except ValidationError as e:
-        raise RequestValidationError(errors=e.errors())
-
-    update_orm_from_pydantic(variable, patch_body, update_mask)
-
+    variable = update_orm_from_pydantic(variable_key, patch_body, update_mask, session)
     return variable
 
 

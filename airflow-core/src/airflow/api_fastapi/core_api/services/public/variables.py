@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -37,17 +39,16 @@ from airflow.models.variable import Variable
 
 
 def update_orm_from_pydantic(
-    old_variable: Variable,
-    patch_body: VariableBody,
-    update_mask: list[str] | None,
+    variable_key: str, patch_body: VariableBody, update_mask: list[str] | None, session: SessionDep
 ) -> Variable:
     """
     Patch an existing Variable with provided update fields.
 
     Args:
-        old_variable (Variable): The existing Variable instance to update.
+        variable_key (Variable_key):The name of the existing Variable_key to update.
         patch_body (VariableBody): The patch request body containing fields to update.
         update_mask (list[str] | None): List of fields to update. If None, all provided fields will be updated.
+        session (SessionDep): The database session dependency.
 
     Returns:
         Variable: The updated Variable object.
@@ -56,6 +57,21 @@ def update_orm_from_pydantic(
         HTTPException: If attempting to update restricted fields (e.g., `key`).
     """
     # Key field is immutable → cannot be patched
+
+    if patch_body.key != variable_key:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
+        )
+    old_variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
+    if not old_variable:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
+        )
+
+    try:
+        VariableBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
     non_update_fields = {"key"}
 
     if patch_body.key != old_variable.key:
@@ -132,10 +148,7 @@ class BulkVariableService(BulkService[VariableBody]):
             for variable in action.entities:
                 if variable.key not in update_keys:
                     continue
-                old_variable = self.session.scalar(select(Variable).filter_by(key=variable.key).limit(1))
-                if not old_variable:
-                    continue  # shouldn't happen because we filtered above
-                variable = update_orm_from_pydantic(old_variable, variable, action.update_mask)
+                variable = update_orm_from_pydantic(variable.key, variable, action.update_mask, self.session)
 
                 results.success.append(variable.key)
 

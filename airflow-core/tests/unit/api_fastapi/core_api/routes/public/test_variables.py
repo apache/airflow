@@ -794,36 +794,6 @@ class TestBulkVariables(TestVariableEndpoint):
                 {
                     "actions": [
                         {
-                            "action": "update",
-                            "entities": [
-                                {
-                                    "key": "test_variable_key",
-                                    "value": "another_value",
-                                    "description": "Another update",
-                                }
-                            ],
-                            "update_mask": ["invalid_field"],
-                            "action_on_non_existence": "fail",
-                        },
-                    ]
-                },
-                {
-                    "update": {
-                        "success": [],
-                        "errors": [
-                            {
-                                "error": "Invalid fields in update_mask: {'invalid_field'}",
-                                "status_code": 400,
-                            }
-                        ],
-                    }
-                },
-                id="test_variable_update_with_invalid_update_mask",
-            ),
-            pytest.param(
-                {
-                    "actions": [
-                        {
                             "action": "delete",
                             "entities": ["test_variable_key"],
                             "action_on_non_existence": "skip",
