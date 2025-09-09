@@ -25,13 +25,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:
-    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -112,67 +110,3 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
             project_id=project_id,
             table_id=table_id,
         )
-
-    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table_for_given_fields,
-            get_identity_column_lineage_facet,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
-        if not self.bigquery_hook:
-            self.bigquery_hook = BigQueryHook(
-                gcp_conn_id=self.gcp_conn_id,
-                location=self.location,
-                impersonation_chain=self.impersonation_chain,
-            )
-
-        try:
-            table_obj = self.bigquery_hook.get_client().get_table(self.source_project_dataset_table)
-        except Exception:
-            self.log.debug(
-                "OpenLineage: could not fetch BigQuery table %s",
-                self.source_project_dataset_table,
-                exc_info=True,
-            )
-            return OperatorLineage()
-
-        if self.selected_fields:
-            if isinstance(self.selected_fields, str):
-                bigquery_field_names = list(self.selected_fields)
-            else:
-                bigquery_field_names = self.selected_fields
-        else:
-            bigquery_field_names = [f.name for f in getattr(table_obj, "schema", [])]
-
-        input_dataset = Dataset(
-            namespace=BIGQUERY_NAMESPACE,
-            name=self.source_project_dataset_table,
-            facets=get_facets_from_bq_table_for_given_fields(table_obj, bigquery_field_names),
-        )
-
-        db_info = self.mssql_hook.get_openlineage_database_info(self.mssql_hook.get_conn())
-        default_schema = self.mssql_hook.get_openlineage_default_schema()
-        namespace = f"{db_info.scheme}://{db_info.authority}"
-
-        if self.target_table_name and "." in self.target_table_name:
-            schema_name, table_name = self.target_table_name.split(".", 1)
-        else:
-            schema_name = default_schema or ""
-            table_name = self.target_table_name or ""
-
-        if self.database:
-            output_name = f"{self.database}.{schema_name}.{table_name}"
-        else:
-            output_name = f"{schema_name}.{table_name}"
-
-        column_lineage_facet = get_identity_column_lineage_facet(
-            bigquery_field_names, input_datasets=[input_dataset]
-        )
-
-        output_facets = column_lineage_facet or {}
-        output_dataset = Dataset(namespace=namespace, name=output_name, facets=output_facets)
-
-        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])

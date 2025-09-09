@@ -21,11 +21,10 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.bigquery import DatasetReference, SchemaField, Table, TableReference
 from psycopg2.extras import Json
 
 from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
-from google.cloud.bigquery import Table, TableReference, DatasetReference, SchemaField
-from unit.google.cloud.sensors.test_gcs import mock_time
 
 TASK_ID = "test-bq-create-table-operator"
 TEST_DATASET = "test-dataset"
@@ -160,7 +159,7 @@ class TestBigQueryToPostgresOperator:
         mock_register_adapter.assert_any_call(dict, Json)
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_get_openlineage_facets_on_complete_no_selected_fields(self, mock_bq_hook, mock_postgres_hook):
         mock_bq_client = MagicMock()
         mock_bq_client.get_table.return_value = _make_bq_table(["id", "name", "value"])
@@ -205,7 +204,7 @@ class TestBigQueryToPostgresOperator:
         assert set(col_lineage.fields.keys()) == {"id", "name", "value"}
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_get_openlineage_facets_on_complete_selected_fields(self, mock_bq_hook, mock_postgres_hook):
         mock_bq_client = MagicMock()
         mock_bq_client.get_table.return_value = _make_bq_table(["id", "name", "value"])
