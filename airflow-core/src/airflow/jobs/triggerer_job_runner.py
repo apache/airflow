@@ -605,16 +605,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         adds them to the deques so the subprocess can actually mutate the running
         trigger set.
         """
-        from airflow.models.serialized_dagbag import SerializedDagBag
+        from airflow.models.serialized_dag import SerializedDagModel
 
         render_log_fname = log_filename_template_renderer()
-        dag_bag = SerializedDagBag()
 
         @provide_session
         def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger:
             if trigger.task_instance:
                 log_path = render_log_fname(ti=trigger.task_instance)
-                serialized_dag = dag_bag.get_dag_model(
+                serialized_dag = SerializedDagModel.get_serialized_dag_by_version(
                     dag_id=trigger.task_instance.dag_id,
                     dag_version_id=trigger.task_instance.dag_version_id,
                     session=session,
