@@ -24,6 +24,332 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.0b1 (2025-09-08)
+----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Human in the Loop (HITL)
+""""""""""""""""""""""""
+
+Airflow 3.1 introduces :doc:`Human-in-the-Loop (HITL) </tutorial/hitl>` functionality that enables
+workflows to pause and wait for human decision-making. This powerful feature is particularly valuable for
+AI/ML workflows, content moderation, and approval processes where human judgment is essential.
+
+HITL tasks pause execution in a ``deferred`` state while waiting for human input via the Airflow UI. Users
+with appropriate roles can see pending tasks, review context (including ``XCom`` data and ``DAG`` parameters), and
+complete actions through intuitive web forms. The feature also supports API-driven interactions for custom
+UIs and notification integration.
+
+For detailed usage instructions, see :doc:`/tutorial/hitl`.
+
+**Note**: HITL operators require ``apache-airflow-providers-standard`` package and Airflow 3.1+.
+
+Task SDK Decoupling for Independent Upgrades
+"""""""""""""""""""""""""""""""""""""""""""""
+
+Airflow 3.1 advances the decoupling of the Task SDK from Airflow Core through
+improved DAG serialization with versioned contracts. While complete code separation is planned for Airflow 3.0.2,
+the serialization foundation enables independent upgrades when components are deployed separately.
+
+**For DAG Authors**: Import constructs from ``airflow.sdk`` namespace:
+- ``from airflow.sdk import DAG, task, asset``
+- Access to latest authoring features with forward compatibility
+- Reduced dependency on server-side Airflow versions
+
+**For Platform Teams**: Foundation for independent upgrades:
+- Schema compliance ensures compatibility across versions
+- Deployment flexibility when components are separated
+- Reduced coordination overhead between development and operations teams
+
+For technical details on the serialization contract, see :doc:`/administration-and-deployment/dag-serialization`.
+
+Deadline Alerts
+"""""""""""""""
+
+Deadline Alerts provide proactive monitoring for DAG execution by automatically triggering notifications
+when time thresholds are exceeded. This helps ensure SLA compliance and timely completion of critical workflows.
+
+Configure deadline monitoring by specifying:
+
+- **Reference point**: Choose from DAG run queued time, logical date, or fixed datetime
+- **Interval**: Time threshold relative to the reference point (positive or negative)
+- **Callback**: Response action using Airflow Notifiers or custom functions
+
+Example use cases:
+- Alert if a daily ETL hasn't completed 1 hour after its scheduled time
+- Notify stakeholders 30 minutes before a critical deadline
+- Escalate when resource-constrained DAGs remain queued too long
+
+For configuration details and examples, see :doc:`/howto/deadline-alerts`.
+
+**Warning**: Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
+
+UI Internationalization
+"""""""""""""""""""""""
+
+Airflow 3.1 delivers comprehensive internationalization (``i18n``) support, making the web interface
+accessible to users worldwide. The React-based UI now supports 14 languages with robust translation infrastructure.
+
+**Supported Languages**:
+- Arabic
+- Catalan
+- German
+- English
+- Spanish
+- French
+- Hebrew
+- Hindi
+- Hungarian
+- Korean
+- Dutch
+- Polish
+- Traditional Chinese
+- Turkish
+
+The translation system includes automated completeness checking and clear contribution guidelines for community translators.
+
+React Plugin System (AIP-68)
+"""""""""""""""""""""""""""""
+
+Airflow 3.1 introduces a modern plugin architecture enabling rich integrations through React components and
+external views. This extensibility framework allows organizations to embed custom dashboards,
+monitoring tools, and domain-specific interfaces directly within the Airflow UI.
+
+**New Plugin Capabilities**:
+- **React Apps**: Full-featured React applications integrated into Airflow navigation
+- **External Views**: Embed external web applications via iframe with seamless authentication
+- **Dashboard Integration**: Custom widgets and panels for operational dashboards
+- **Menu Integration**: Add custom navigation items and organize tools logically
+
+**Developer Experience**:
+- Hot reloading during development with ``airflow-react-plugin`` dev tools
+- TypeScript support and modern React patterns
+- Standardized plugin loading and validation
+- Comprehensive documentation and boilerplate generation
+
+This plugin system replaces legacy Flask-based approaches with modern web standards, improving performance,
+maintainability, and user experience.
+
+For more details and examples, see :doc:`/howto/custom-view-plugin`.
+
+Enhanced UI Views and Filtering
+""""""""""""""""""""""""""""""""
+
+Airflow 3.1 brings Calendar and Gantt chart views to the modern React UI, along with comprehensive filtering
+capabilities. The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI,
+along with enhanced filtering capabilities across all views.
+
+Inference Execution (Synchronous DAGs)
+""""""""""""""""""""""""""""""""""""""
+
+Airflow 3.1 introduces a new streaming API endpoint that allows applications to watch DAG runs until completion,
+enabling more responsive integration patterns for real-time and inference workflows.
+
+**New Streaming Endpoint**:
+The ``/dags/{dag_id}/dagRuns/{dag_run_id}/wait`` endpoint repeatedly emits JSON updates at specified intervals until the DAG run reaches a finished state.
+
+.. code-block:: bash
+
+    # Watch a DAG run with 2-second polling interval, including XCom results
+    curl -X GET "http://localhost:8080/api/v2/dags/ml_pipeline/dagRuns/manual_2024_01_15/wait?result=inference_task" \
+         -H "Accept: application/x-ndjson"
+
+This enables use cases like:
+
+- **ML Inference Monitoring**: Trigger inference DAGs and wait for completion before returning results
+- **Real-time Processing**: Monitor event-driven workflows with immediate response requirements
+- **API Integration**: Build responsive services that react to DAG completion without polling
+- **Synchronous Workflows**: Create quasi-synchronous behavior for workflows that need immediate feedback
+
+New Trigger Rule: ``ALL_DONE_MIN_ONE_SUCCESS``
+""""""""""""""""""""""""""""""""""""""""""""""
+
+``ALL_DONE_MIN_ONE_SUCCESS``: This rule triggers when all upstream tasks are done (success, failed, or skipped) and
+at least one has succeeded, filling a gap between existing trigger rules for complex workflow patterns.
+
+Enhanced DAG Processing Visibility
+"""""""""""""""""""""""""""""""""""
+
+DAG parsing duration is now exposed in the UI, providing better visibility into DAG processing
+performance and helping identify parsing bottlenecks. This information is displayed alongside
+other DAG metadata to assist with performance optimization.
+
+Python 3.13 support added & 3.9 support removed
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+Support for Python 3.9 has been removed, as it has reached end-of-life.
+Airflow 3.1.0 requires Python 3.10, 3.11, 3.12 or 3.13.
+
+New Features
+^^^^^^^^^^^^
+
+- Add Calendar and Gantt chart views to modern React UI with enhanced filtering (#54252, #51667)
+- Add Python 3.13 support for Airflow runtime and dependencies (#46891)
+- Add ``SQLAlchemy 2.0`` support with various compatibility fixes (#52233, #52518, #54940)
+- Add support for the ``psycopg3`` postgres driver (#52976)
+- Add ability to track & display user who triggers DAG runs (#51738, #53510, #54164, #55112)
+- Add toggle for log grouping in task log viewer for better organization (#51146)
+- Add tag filtering improvements with Any/All selection options (#51162)
+- Add comprehensive filtering for DAG runs, task instances, and audit logs (#53652, #54210, #55082)
+- Add ``XCom`` browsing with filtering and improved navigation (#54049)
+- Add bulk task instance actions and deletion endpoints (#50443, #50165, #50235)
+- Add DAG run deletion functionality through UI (#50368)
+- Add test connection button for connection validation (#51055)
+- Add hyperlink support for URLs in XCom values (#54288)
+- Add pool column to task instances list and improve pool integration (#51185, #51031)
+- Add drag-and-drop log grouping and improved log visualization (#51146)
+- Add color support for XCom JSON display (#51323)
+- Add configuration column to DAG runs page (#51270)
+- Add enhanced note visibility and management in task headers (#51764, #54163)
+- Introduce React plugin system (AIP-68) for modern UI extensions (#52255)
+- Add support for external view plugins via iframe integration (#51003, #51889)
+- Add dashboard integration capabilities for custom React apps (#54131, #54144)
+- Add comprehensive plugin development tools and documentation (#53643)
+- Implement complete HITL operator suite (``HITLOperator``, ``ApprovalOperator``, ``HITLEntryOperator``) for human decision workflows (#52868)
+- Add HITL UI integration with role-based access and form handling (#53035)
+- Add HITL API endpoints with filtering and query support (#53376, #53923)
+- Add HITL utility functions for generating URLs to required actions page (#54827)
+- Add ordering and filtering support for HITL details endpoints (#55217)
+- Add "No Response Received" required action state (#55149)
+- Add operator filter for HITL task instances (#54773)
+- Implement deadline alert system for proactive DAG monitoring (AIP-86) (#53951, #53903, #53201, #55086)
+- Add configurable reference points and notification callbacks (#50677, #50093)
+- Add deadline calculation and tracking in DAG execution lifecycle (#51638, #50925)
+- Add comprehensive UI translation support for 14 languages (#51266, #51038, #51219, #50929, #50981, #51793)
+- Add right-to-left (RTL) layout support for Arabic and Hebrew (#51376)
+- Add language selection interface and browser preference detection (#51369)
+- Add translation completeness validation and automated checks (#51166, #51131)
+- Add calendar data API endpoints for DAG execution visualization (#52748)
+- Add endpoint to watch DAG runs until completion (#51920)
+- Add DAG run ID pattern search functionality (#52437)
+- Add multi-sorting capabilities for improved data navigation (#53408)
+- Add bulk connection deletion API and UI (#51201)
+- Add task group detail pages across DAG runs (#50412, #50309)
+- Add asset event tracking with last event timestamps (#50060, #50279)
+- Add ``has_import_errors`` filter to Core API GET ``/dags`` endpoint (#54563)
+- Add dag_version filter to get_dag_runs endpoint (#54882)
+- Add pattern search for event log endpoint (#55114)
+- Add dry_run support with consistent audit log handling (#55116)
+- Add utility functions for generic filter counting (#54817)
+- Add keyboard navigation for Grid view interface (#51784)
+- Add improved error handling for plugin import failures (#49643)
+- Add enhanced variable management with upsert operations (#48547)
+- Add favorites/pinning support for DAG dashboard organization (#51264)
+- Add system theme support with automatic OS preference detection (#52649)
+- Add hotkey shortcut to toggle between Grid and Graph views (#54667)
+- Add queued DAGs filter button to DAGs page (#55052)
+- Add DAG parsing duration visibility in UI (#54752)
+- Add owner links support in DAG Header UI for better navigation (#50627)
+- Add ``dag_display_name`` aliases for improved API consistency (#50332, #50065, #50014, #49933, #49641)
+- Add enhanced search capabilities with SearchParamsKeys constants (#55218)
+- Add ALL_DONE_MIN_ONE_SUCCESS trigger rule for flexible task dependencies (#53959)
+- Add fail_when_dag_is_paused parameter to TriggerDagRunOperator for better control (#48214)
+- Add ``XCom`` validation to prevent empty keys in ``XCom.set()`` and ``XCom.get()`` operations (#46929)
+- Add collapsible plugin menu when multiple plugins are present (#55265)
+- Add external view plugin categories (admin, browse, docs, user) (#52737)
+- Add iframe plugins integration to DAG pages (#52795)
+- Add plugin error display in UI with comprehensive error handling (#49643, #49436)
+- Add collapsible failed task logs to prevent React error overflow (#54377)
+- Add dynamic legend system for calendar view (#55155)
+- Add React UI for Edge functionality (#53563)
+- Add pending actions display to DAG UI (#55041)
+- Add description field for filter parameters (#54903)
+- Add Catalan language support to Airflow UI (#55013)
+- Add Hungarian language support to Airflow UI (#54716)
+- Add map_index validation in categorize_task_instances (#54791)
+- Add Grid view UX improvements (#54846)
+- Add HITL UX improvements for better user experience (#54990)
+- Add async support for Notifiers (AIP-86) (#53831)
+- Add filtering capabilities for tasks view (#54484)
+- Add asset-based filtering support to DAG API endpoint (#54263)
+- Add iframe plugins to navigation (#51706)
+- Add RTL (right-to-left) layout support for Arabic and Hebrew (#51376)
+- Add test connection button to UI (#51055)
+- Add task instance bulk actions endpoint (#50443)
+- Add connection bulk deletion functionality (#51201)
+- Add pool column to task instances list (#51185)
+- Add ``iframe_views`` to backend plugin support (#51003)
+- Add keyboard shortcuts to clear and mark state for task instances and DAG runs (#50885)
+- Add deadline relationship to DAG runs and deadline model (#50925, #50093)
+- Add DAG run deletion UI (#50368)
+- Add task instance deletion UI and endpoint (#50235, #50165)
+- Switch all airflow logging to structlog (#52651, #55434, #55431)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix DAG list filtering to include ``QUEUED`` runs with null ``start_date`` (#52668)
+- Fix XCom deletion failure for mapped task instances through bulk deletion API (#51850)
+- Fix XCom deletion failure for mapped task instances (#54954)
+- Fix task timeout handling within task SDK (#54089)
+- Fix task instance tries API duplicate entries (#50597)
+- Fix connection validation and type checking during construction (#54759)
+- Fix mapped task instance index display in Task Instances tab (#55363)
+- Fix Gantt chart state mismatch with Grid view (#55300)
+- Fix Gantt chart status color display issues (#55296)
+- Fix XCom mapping for dynamically-mapped task groups (#51556)
+- Fix missing ``ti_successes`` and related metrics in Airflow 3.0 Task SDK (#55322)
+- Fix bulk operation permissions for connection, pool and variable (#55278)
+- Fix ``clearTaskInstances`` API: Restore ``include_past``/``future`` support on UI (#54416)
+- Fix migration when XCom has NaN values (#53812)
+- Fix HITL related UI schema generated by prek hooks (#55204)
+- Fix consistent no-log handling for tasks with try_number=0 in API and UI (#55035)
+- Fix timezone conversion in datetime trigger parameters (#54593)
+- Fix audit log payload for DAG pause/unpause actions (#55091)
+- Fix pushing None as an XCom value (#55080)
+- Fix scheduler processing of cleared running tasks stuck in RESTARTING state (#55084)
+- Fix XCom deletion failure for mapped task instances (#54954)
+- Fix outgoing graph edges should exit opposite of incoming edges (#54789)
+- Fix external links in Navigation buttons (#52220)
+- Fix Error when viewing DAG details of a no longer configured bundle (#52086)
+- Fix compatibility with new numpy and pandas versions (#52071)
+- Fix connection recovery from URI when host has protocol (#51953)
+- Fix last DAG run not showing on DAG listing (#51115)
+- Fix task instance tries API returning duplicate entries (#50597)
+- Fix Graph view vanishing and loading issues (#53886, #54756)
+- Fix rendered template display formatting for better readability (#53657)
+- Fix Grid view expand/collapse button functionality (#54257)
+- Fix tooltip visibility and positioning issues (#53913)
+- Fix grid keyboard navigation focus management (#54271)
+- Fix plugin registration for invalid objects and middleware registration (#55264, #55399)
+- Fix external links for plugins with undefined URL routes (#55221)
+- Fix language display consistency and flag representation (#51560, #51177)
+- Fix RTL layout rendering for Arabic and Hebrew interfaces (#51853)
+- Fix graph export cropping when view is partial (#55012)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Move secrets masker to shared distribution for better modularity (#54449)
+- Move email notifications from scheduler to DAG processor for better architecture (#55238)
+- Add graph UI load optimization with latest run info endpoint (#53429)
+- Optimize UI bundle size by moving translations to dynamic loading (#51735)
+- Relocate Task SDK components for improved separation (#55174, #54795)
+- Refactor trigger rule utilities and weight rule consolidation (#54797, #53393)
+- Remove deprecated Airflow 2.x modules and legacy imports (#50482)
+- Clean up unused code and improve module organization (#52176, #52173, #53031)
+- Add SQLAlchemy 2.0 CI support for future compatibility (#52233)
+- Improve test fixtures and SDK communication testing (#54795, #50603)
+- Add translation completeness linting and validation tools (#51166)
+- Upgrade to latest versions of important dependencies (#55350)
+- Move webserver configuration options to API section (#50693, #50656)
+- Improve DAG bundle handling and versioning support (#47592)
+- Add database management CLI tools for external database operations (#50657)
+- Add comprehensive HITL operator documentation and examples (#54618)
+- Add guards for registering middlewares from plugins (#55399)
+- Optimize Gantt group expansion with de-bouncing and deferred rendering (#55334)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+
+- Add comprehensive Human-in-the-Loop operator tutorial and examples (#54618)
+- Add deadline alerts configuration and usage documentation (#53727)
+- Make term Dag consistent in docs task-sdk (#55100)
+- Add DAG bundles triggerer limitation documentation (#55232)
+- Add deadline alerts usage guides and best practices (#53727)
+
 Airflow 3.0.6 (2025-08-29)
 --------------------------
 
