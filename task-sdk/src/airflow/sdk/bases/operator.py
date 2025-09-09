@@ -1416,7 +1416,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         XComArg.apply_upstream_relationship(self, newvalue)
 
     def _validate_start_from_trigger_kwargs(self):
-        if self.start_from_trigger:
+        if self.start_from_trigger and self.start_trigger_args and self.start_trigger_args.trigger_kwargs:
             for name, val in self.start_trigger_args.trigger_kwargs.items():
                 if callable(val):
                     raise AirflowException(
