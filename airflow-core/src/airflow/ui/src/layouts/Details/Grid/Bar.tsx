@@ -65,7 +65,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
       >
         <GridButton
           alignItems="center"
-          color="white"
+          color="fg"
           dagId={dagId}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}

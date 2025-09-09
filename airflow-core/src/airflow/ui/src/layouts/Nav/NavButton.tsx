@@ -30,7 +30,7 @@ const styles = {
   },
   alignItems: "center",
   borderRadius: "none",
-  colorPalette: "navbar",
+  colorPalette: "brand",
   flexDir: "column",
   height: 20,
   variant: "ghost",
