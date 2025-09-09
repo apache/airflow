@@ -1313,11 +1313,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime:
         if AIRFLOW_V_3_0_PLUS:
-            dag_run = context.get("dag_run")
-            run_after = pendulum.instance(dag_run.run_after)
+            if dag_run := context.get("dag_run"):
+                run_after = pendulum.instance(dag_run.run_after)
+            else:
+                run_after = pendulum.now("UTC")
         else:
-            run_after = context.get("logical_date", None)
-        return run_after if run_after is not None else pendulum.now("UTC")
+            if logical_date := context.get("logical_date"):
+                run_after = logical_date
+            else:
+                run_after = pendulum.now("UTC")
+        return run_after
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None

@@ -89,7 +89,7 @@ class TestWorkflowsCreateWorkflowOperator:
 
         assert result == mock_object.to_dict.return_value
 
-    def test_execute_wihout_workflow_id(self):
+    def test_execute_without_workflow_id(self):
         import pendulum
 
         from airflow.models.dagrun import DagRun
@@ -115,6 +115,8 @@ class TestWorkflowsCreateWorkflowOperator:
         hash_base = json.dumps(WORKFLOW, sort_keys=True)
         date = pendulum.datetime(2025, 1, 1)
         ctx = Context(logical_date=date)
+        if AIRFLOW_V_3_0_PLUS:
+            ctx["dag_run"] = DagRun(run_after=date)
         expected = md5(f"airflow_{op.dag_id}_test_task_{date.isoformat()}_{hash_base}".encode()).hexdigest()
         assert op._workflow_id(ctx) == re.sub(r"[:\-+.]", "_", expected)
 
