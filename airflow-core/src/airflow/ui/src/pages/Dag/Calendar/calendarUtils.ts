@@ -322,4 +322,3 @@ export const createTooltipContent = (cellData: CalendarCellData): string => {
 
   return `${date}: ${counts.total} runs (${parts.join(", ")})`;
 };
-

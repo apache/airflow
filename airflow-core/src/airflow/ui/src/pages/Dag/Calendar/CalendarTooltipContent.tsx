@@ -34,7 +34,11 @@ export const CalendarTooltipContent = ({ cellData }: Props) => {
   const { date, hasRuns, states, total } = createRichTooltipContent(cellData);
 
   if (!hasRuns) {
-    return <Text fontSize="sm">{date}: {translate("calendar.noRuns")}</Text>;
+    return (
+      <Text fontSize="sm">
+        {date}: {translate("calendar.noRuns")}
+      </Text>
+    );
   }
 
   return (
