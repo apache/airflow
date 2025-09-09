@@ -117,7 +117,6 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
-    get_log_url_from_ti,
     parse,
     run,
     startup,
@@ -943,37 +942,9 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[
-                    {
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {},
-                    }
-                ],
+                outlet_events=[],
             ),
             id="asset",
-        ),
-        pytest.param(
-            [
-                Asset(
-                    name="s3://bucket/my-task",
-                    uri="s3://bucket/my-task",
-                    extra={"task_id": "{{ task.task_id }}"},
-                )
-            ],
-            SucceedTask(
-                state="success",
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[
-                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
-                ],
-                outlet_events=[
-                    {
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {"task_id": "asset-outlet-task"},
-                    }
-                ],
-            ),
-            id="asset_with_template_extra",
         ),
         pytest.param(
             [Dataset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -983,37 +954,9 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[
-                    {
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {},
-                    }
-                ],
+                outlet_events=[],
             ),
             id="dataset",
-        ),
-        pytest.param(
-            [
-                Dataset(
-                    name="s3://bucket/my-task",
-                    uri="s3://bucket/my-task",
-                    extra={"task_id": "{{ task.task_id }}"},
-                )
-            ],
-            SucceedTask(
-                state="success",
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[
-                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
-                ],
-                outlet_events=[
-                    {
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {"task_id": "asset-outlet-task"},
-                    }
-                ],
-            ),
-            id="dataset_with_template_extra",
         ),
         pytest.param(
             [Model(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -1023,37 +966,9 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[
                     AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
-                outlet_events=[
-                    {
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {},
-                    }
-                ],
+                outlet_events=[],
             ),
             id="model",
-        ),
-        pytest.param(
-            [
-                Model(
-                    name="s3://bucket/my-task",
-                    uri="s3://bucket/my-task",
-                    extra={"task_id": "{{ task.task_id }}"},
-                )
-            ],
-            SucceedTask(
-                state="success",
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[
-                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
-                ],
-                outlet_events=[
-                    {
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {"task_id": "asset-outlet-task"},
-                    }
-                ],
-            ),
-            id="model_with_template_extra",
         ),
         pytest.param(
             [Asset.ref(name="s3://bucket/my-task")],
@@ -2608,7 +2523,6 @@ class TestTaskRunnerCallsListeners:
 
         runtime_ti, context, log = startup()
         assert runtime_ti is not None
-        assert runtime_ti.log_url == get_log_url_from_ti(runtime_ti)
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 

@@ -31,6 +31,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
 import { HourlyCalendarView } from "./HourlyCalendarView";
+import { createCalendarScale } from "./calendarUtils";
 
 const spin = keyframes`
   from { transform: rotate(0deg); }
@@ -74,6 +75,11 @@ export const Calendar = () => {
     },
     undefined,
     { enabled: Boolean(dagId) },
+  );
+
+  const scale = useMemo(
+    () => createCalendarScale(data?.dag_runs ?? [], viewMode, granularity),
+    [data?.dag_runs, viewMode, granularity],
   );
 
   if (!data && !isLoading) {
@@ -242,25 +248,21 @@ export const Calendar = () => {
         ) : undefined}
         {granularity === "daily" ? (
           <>
-            <DailyCalendarView
-              colorMode={viewMode}
-              data={data?.dag_runs ?? []}
-              selectedYear={selectedDate.year()}
-            />
-            <CalendarLegend colorMode={viewMode} />
+            <DailyCalendarView data={data?.dag_runs ?? []} scale={scale} selectedYear={selectedDate.year()} />
+            <CalendarLegend scale={scale} viewMode={viewMode} />
           </>
         ) : (
           <HStack align="start" gap={2}>
             <Box>
               <HourlyCalendarView
-                colorMode={viewMode}
                 data={data?.dag_runs ?? []}
+                scale={scale}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>
-              <CalendarLegend colorMode={viewMode} vertical />
+              <CalendarLegend scale={scale} vertical viewMode={viewMode} />
             </Box>
           </HStack>
         )}

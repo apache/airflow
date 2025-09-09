@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+4.11.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Added support for Windows paths in SambaHook (#54459)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix windows path joining in sambahook (#54573)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 4.10.3
 ......
 

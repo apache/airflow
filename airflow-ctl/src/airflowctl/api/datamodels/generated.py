@@ -530,7 +530,8 @@ class HITLDetailResponse(BaseModel):
     Response of updating a Human-in-the-loop detail.
     """
 
-    user_id: Annotated[str, Field(title="User Id")]
+    responded_user_id: Annotated[str, Field(title="Responded User Id")]
+    responded_user_name: Annotated[str, Field(title="Responded User Name")]
     response_at: Annotated[datetime, Field(title="Response At")]
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
@@ -1226,6 +1227,7 @@ class DAGDetailsResponse(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
+    last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
@@ -1286,6 +1288,7 @@ class DAGResponse(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
+    last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
@@ -1826,7 +1829,8 @@ class HITLDetail(BaseModel):
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
-    user_id: Annotated[str | None, Field(title="User Id")] = None
+    responded_user_id: Annotated[str | None, Field(title="Responded User Id")] = None
+    responded_user_name: Annotated[str | None, Field(title="Responded User Name")] = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None

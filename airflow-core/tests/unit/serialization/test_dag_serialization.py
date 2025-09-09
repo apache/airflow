@@ -2914,7 +2914,7 @@ def test_taskflow_expand_kwargs_serde(strict):
 def test_mapped_task_group_serde():
     from airflow.models.expandinput import SchedulerDictOfListsExpandInput
     from airflow.sdk.definitions.decorators.task_group import task_group
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
 
@@ -2955,7 +2955,7 @@ def test_mapped_task_group_serde():
 
     serde_dag = SerializedDAG.deserialize_dag(ser_dag[Encoding.VAR])
     serde_tg = serde_dag.task_group.children["tg"]
-    assert isinstance(serde_tg, MappedTaskGroup)
+    assert isinstance(serde_tg, SerializedTaskGroup)
     assert serde_tg._expand_input == SchedulerDictOfListsExpandInput({"a": [".", ".."]})
 
 
@@ -3002,6 +3002,27 @@ def test_mapped_task_with_operator_extra_links_property():
     }
     assert mapped_task.global_operator_extra_link_dict == {"airflow": AirflowLink(), "github": GithubLink()}
     assert mapped_task.extra_links == sorted({"airflow", "github"})
+
+
+def empty_function(*args, **kwargs):
+    """Empty function for testing."""
+
+
+def test_python_callable_in_partial_kwargs():
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    operator = PythonOperator.partial(
+        task_id="task",
+        python_callable=empty_function,
+    ).expand(op_kwargs=[{"x": 1}])
+
+    serialized = SerializedBaseOperator.serialize_mapped_operator(operator)
+    assert "python_callable" not in serialized["partial_kwargs"]
+    assert serialized["partial_kwargs"]["python_callable_name"] == qualname(empty_function)
+
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    assert "python_callable" not in deserialized.partial_kwargs
+    assert deserialized.partial_kwargs["python_callable_name"] == qualname(empty_function)
 
 
 def test_handle_v1_serdag():

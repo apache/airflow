@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
-from airflow._shared.secrets_masker import should_hide_value_for_key
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
@@ -139,6 +138,8 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
+    from airflow._shared.secrets_masker import _secrets_masker
+
     sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
     sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
@@ -147,7 +148,7 @@ def _build_metrics(func_name, namespace):
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
         key = full_command[-2] if len(full_command) > 3 else None
-        if key and should_hide_value_for_key(key):
+        if key and _secrets_masker().should_hide_value_for_key(key):
             # Mask the sensitive value since key contain sensitive keyword
             full_command[-1] = "*" * 8
     elif sub_command in sub_commands_to_check_for_sensitive_fields:
@@ -168,7 +169,7 @@ def _build_metrics(func_name, namespace):
         json_index = full_command.index("--conn-json") + 1
         conn_json = json.loads(full_command[json_index])
         for k in conn_json:
-            if k and should_hide_value_for_key(k):
+            if k and _secrets_masker().should_hide_value_for_key(k):
                 conn_json[k] = "*" * 8
         full_command[json_index] = json.dumps(conn_json)
 
