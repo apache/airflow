@@ -634,7 +634,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
                     timeout_after=trigger.task_instance.trigger_timeout,
-                    dag=serialized_dag.data,
+                    dag=serialized_dag.data if serialized_dag else None,
                 )
             return workloads.RunTrigger(
                 classpath=trigger.classpath,
@@ -951,7 +951,7 @@ class TriggerRunner:
                 task=task,
             )
 
-            if task.start_from_trigger and task.start_trigger_args:
+            if task.start_from_trigger and task.start_trigger_args and task.start_trigger_args.trigger_kwargs:
                 # Find intersection between start_trigger_args and template_fields
                 templated_start_trigger_args = set(
                     task.start_trigger_args.trigger_kwargs.keys()
