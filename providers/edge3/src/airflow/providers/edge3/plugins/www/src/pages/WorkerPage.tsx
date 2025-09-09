@@ -20,18 +20,18 @@ import { Box, Table } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { WorkerOperations } from "src/components/WorkerOperations";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
-  const { data, error } = useUiServiceWorker(undefined, {
+  const { data, error, refetch } = useUiServiceWorker(undefined, {
     enabled: true,
     refetchInterval: autoRefreshInterval,
   });
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
-  // Add actions for maintenance / delete of orphan worker
   // Add sorting
   // Add filtering
   // Add links to see jobs on worker
@@ -86,7 +86,9 @@ export const WorkerPage = () => {
                     "N/A"
                   )}
                 </Table.Cell>
-                <Table.Cell>{worker.maintenance_comments}</Table.Cell>
+                <Table.Cell>
+                  <WorkerOperations worker={worker} onOperations={refetch} />
+                </Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

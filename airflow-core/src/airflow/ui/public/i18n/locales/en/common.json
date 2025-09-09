@@ -39,6 +39,7 @@
     "fileLocation": "File Location",
     "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
     "lastExpired": "Last Expired",
+    "lastParseDuration": "Last Parse Duration",
     "lastParsed": "Last Parsed",
     "latestDagVersion": "Latest Dag Version",
     "latestRun": "Latest Run",
@@ -107,7 +108,8 @@
     "runAfterFromPlaceholder": "Run After From",
     "runAfterToPlaceholder": "Run After To",
     "runIdPlaceholder": "Filter by Run ID",
-    "taskIdPlaceholder": "Filter by Task ID"
+    "taskIdPlaceholder": "Filter by Task ID",
+    "triggeringUserPlaceholder": "Filter by triggering user"
   },
   "logicalDate": "Logical Date",
   "logout": "Logout",
