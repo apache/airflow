@@ -43,7 +43,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_variable,
     requires_access_variable_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService,update_orm_from_pydantic
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
@@ -146,26 +146,18 @@ def patch_variable(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
         )
-    non_update_fields = {"key"}
     variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
     if not variable:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
 
-    fields_to_update = patch_body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            VariableBody(**patch_body.model_dump())
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
+    try:
+        VariableBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
 
-    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
-
-    for key, val in data.items():
-        setattr(variable, key, val)
+    update_orm_from_pydantic(variable, patch_body, update_mask)
 
     return variable
 
