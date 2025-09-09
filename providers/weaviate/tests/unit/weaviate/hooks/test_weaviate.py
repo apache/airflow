@@ -181,7 +181,7 @@ class TestWeaviateHook:
         mock_auth_api_key.assert_called_once_with(api_key=self.api_key)
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -198,7 +198,7 @@ class TestWeaviateHook:
         mock_auth_api_key.assert_called_once_with(api_key=self.api_key)
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -216,7 +216,7 @@ class TestWeaviateHook:
         )
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -236,7 +236,7 @@ class TestWeaviateHook:
         )
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -252,7 +252,7 @@ class TestWeaviateHook:
         mock_auth_client_password.assert_called_once_with(username="login", password="password", scope=None)
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
