@@ -366,9 +366,11 @@ class ReferenceModels:
 
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
 
+    @dataclass
     class AverageRuntimeDeadline(BaseDeadlineReference):
         """A deadline that calculates the average runtime from past DAG runs."""
 
+        limit: int = 10
         required_kwargs = {"dag_id"}
 
         @provide_session
@@ -376,7 +378,6 @@ class ReferenceModels:
             from airflow.models import DagRun
 
             dag_id = kwargs["dag_id"]
-            limit = kwargs.get("limit", 10)  # Default to 10 runs if not specified
 
             # Query for completed DAG runs with both start and end dates
             # Order by logical_date descending to get most recent runs first
@@ -386,23 +387,20 @@ class ReferenceModels:
                 .order_by(DagRun.logical_date.desc())
             )
 
-            # Apply limit (defaults to 10)
-            query = query.limit(limit)
-            logger.debug(
-                "Limiting average runtime calculation to latest %d runs for dag_id: %s", limit, dag_id
-            )
+            # Apply limit
+            query = query.limit(self.limit)
 
             # Get all durations and calculate average
             durations = session.execute(query).scalars().all()
 
-            if len(durations) < limit:
+            if len(durations) < self.limit:
                 logger.warning(
                     "Only %d completed DAG runs found for dag_id: %s (need %d), using 24 hour default",
                     len(durations),
                     dag_id,
-                    limit,
+                    self.limit,
                 )
-                avg_seconds = 48 * 3600  # 48 hours as reasonable default
+                avg_seconds = 24 * 3600  # 24 hours as default
             else:
                 avg_seconds = sum(durations) / len(durations)
                 logger.info(
@@ -411,8 +409,20 @@ class ReferenceModels:
                     len(durations),
                     avg_seconds,
                 )
+                with open("/temporary.txt", "a") as f:
+                    f.write(f"Calculated average: {avg_seconds} seconds\n")
 
             return timezone.utcnow() + timedelta(seconds=avg_seconds)
+
+        def serialize_reference(self) -> dict:
+            return {
+                ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
+                "limit": self.limit,
+            }
+
+        @classmethod
+        def deserialize_reference(cls, reference_data: dict):
+            return cls(limit=reference_data.get("limit", 10))
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
