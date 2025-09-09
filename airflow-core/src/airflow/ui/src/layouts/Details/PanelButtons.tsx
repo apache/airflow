@@ -228,7 +228,7 @@ export const PanelButtons = ({
               <Popover.Positioner>
                 <Popover.Content>
                   <Popover.Arrow />
-                  <Popover.Body p={2}>
+                  <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
                     {dagView === "graph" ? (
                       <>
                         <DagVersionSelect />
@@ -322,6 +322,64 @@ export const PanelButtons = ({
                             </Select.Content>
                           </Select.Positioner>
                         </Select.Root>
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={dagRunTypeOptions}
+                          data-testid="run-type-filter"
+                          onValueChange={handleRunTypeChange}
+                          size="sm"
+                          value={[runTypeFilter ?? "all"]}
+                        >
+                          <Select.Label>{translate("common:dagRun.runType")}</Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText>
+                                {(runTypeFilter ?? "all") === "all" ? (
+                                  translate("dags:filters.allRunTypes")
+                                ) : (
+                                  <Flex gap={1}>
+                                    <RunTypeIcon runType={runTypeFilter!} />
+                                    {translate(
+                                      dagRunTypeOptions.items.find((item) => item.value === runTypeFilter)
+                                        ?.label ?? "",
+                                    )}
+                                  </Flex>
+                                )}
+                              </Select.ValueText>
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {dagRunTypeOptions.items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.value === "all" ? (
+                                    translate(option.label)
+                                  ) : (
+                                    <Flex gap={1}>
+                                      <RunTypeIcon runType={option.value as DagRunType} />
+                                      {translate(option.label)}
+                                    </Flex>
+                                  )}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                        <VStack alignItems="flex-start">
+                          <Text fontSize="xs" mb={1}>
+                            {translate("common:dagRun.triggeringUser")}
+                          </Text>
+                          <SearchBar
+                            defaultValue={triggeringUserFilter ?? ""}
+                            hideAdvanced
+                            hotkeyDisabled
+                            onChange={handleTriggeringUserChange}
+                            placeHolder={translate("common:filters.triggeringUserPlaceholder")}
+                          />
+                        </VStack>
                         {shouldShowToggleButtons ? (
                           <VStack alignItems="flex-start" px={1}>
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
