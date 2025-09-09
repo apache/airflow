@@ -432,9 +432,12 @@ def configure_logging(
     if json_output:
         logger_factory = LoggerFactory(NamedBytesLogger, io=output)
     else:
-        if output is not None and not isinstance(output, TextIO):
-            wrapper = io.TextIOWrapper(output, line_buffering=True)
-            output = wrapper
+        # There is no universal way of telling if a file-like-object is binary (and needs bytes) or text that
+        # works for files, sockets and io.StringIO/BytesIO.
+
+        # If given a binary object, wrap it in a text mode wrapper
+        if output is not None and not hasattr(output, "encoding"):
+            output = io.TextIOWrapper(output, line_buffering=True)
         logger_factory = LoggerFactory(NamedWriteLogger, io=output)
 
     structlog.configure(
