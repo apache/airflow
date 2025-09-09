@@ -25,6 +25,7 @@ import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from functools import cache, cached_property, partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import pygtrie
@@ -503,6 +504,62 @@ def configure_logging(
     }
 
     logging.config.dictConfig(config)
+
+
+def init_log_folder(directory: str | os.PathLike[str], new_folder_permissions: int):
+    """
+    Prepare the log folder and ensure its mode is as configured.
+
+    To handle log writing when tasks are impersonated, the log files need to
+    be writable by the user that runs the Airflow command and the user
+    that is impersonated. This is mainly to handle corner cases with the
+    SubDagOperator. When the SubDagOperator is run, all of the operators
+    run under the impersonated user and create appropriate log files
+    as the impersonated user. However, if the user manually runs tasks
+    of the SubDagOperator through the UI, then the log files are created
+    by the user that runs the Airflow command. For example, the Airflow
+    run command may be run by the `airflow_sudoable` user, but the Airflow
+    tasks may be run by the `airflow` user. If the log files are not
+    writable by both users, then it's possible that re-running a task
+    via the UI (or vice versa) results in a permission error as the task
+    tries to write to a log file created by the other user.
+
+    We leave it up to the user to manage their permissions by exposing configuration for both
+    new folders and new log files. Default is to make new log folders and files group-writeable
+    to handle most common impersonation use cases. The requirement in this case will be to make
+    sure that the same group is set as default group for both - impersonated user and main airflow
+    user.
+    """
+    directory = Path(directory)
+    for parent in reversed(Path(directory).parents):
+        parent.mkdir(mode=new_folder_permissions, exist_ok=True)
+    directory.mkdir(mode=new_folder_permissions, exist_ok=True)
+
+
+def init_log_file(
+    base_log_folder: str | os.PathLike[str],
+    local_relative_path: str | os.PathLike[str],
+    *,
+    new_folder_permissions: int = 0o775,
+    new_file_permissions: int = 0o664,
+) -> Path:
+    """
+    Ensure log file and parent directories are created with the correct permissions.
+
+    Any directories that are missing are created with the right permission bits.
+
+    See above ``init_log_folder`` method for more detailed explanation.
+    """
+    full_path = Path(base_log_folder, local_relative_path)
+    init_log_folder(full_path.parent, new_folder_permissions)
+
+    try:
+        full_path.touch(new_file_permissions)
+    except OSError as e:
+        log = structlog.get_logger(__name__)
+        log.warning("OSError while changing ownership of the log file. %s", e)
+
+    return full_path
 
 
 if __name__ == "__main__":

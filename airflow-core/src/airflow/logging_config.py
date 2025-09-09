@@ -85,7 +85,7 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
 
 
 def configure_logging():
-    from airflow._shared.logging.structlog import configure_logging
+    from airflow._shared.logging import configure_logging, init_log_folder
 
     logging_config, logging_class_path = load_logging_config()
     try:
@@ -99,6 +99,18 @@ def configure_logging():
         raise e
 
     validate_logging_config()
+
+    new_folder_permissions = int(
+        conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"),
+        8,
+    )
+
+    base_log_folder = conf.get("logging", "base_log_folder")
+
+    return init_log_folder(
+        base_log_folder,
+        new_folder_permissions=new_folder_permissions,
+    )
 
     return logging_class_path
 
