@@ -231,6 +231,7 @@ class TestDagEndpoint:
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
         dag_maker.sync_dagbag_to_db()
+        dag_maker.dag_model.last_parse_duration = 0.24
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
         session.commit()
@@ -489,6 +490,24 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "filter_value, expected_ids",
+        [
+            (True, [DAG1_ID]),
+            (False, [DAG2_ID]),
+        ],
+    )
+    def test_get_dags_filter_has_import_errors(self, session, test_client, filter_value, expected_ids):
+        dag = session.get(DagModel, DAG1_ID)
+        dag.has_import_errors = True
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_import_errors": filter_value})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -749,10 +768,10 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links, last_parse_duration",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}, None),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}, 0.24),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -767,6 +786,7 @@ class TestDagDetails(TestDagEndpoint):
         dag_display_name,
         start_date,
         owner_links,
+        last_parse_duration,
     ):
         mock_hasattr.return_value = False
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
@@ -816,6 +836,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -871,6 +892,7 @@ class TestDagDetails(TestDagEndpoint):
         res_json = response.json()
         last_parsed = res_json["last_parsed"]
         last_parsed_time = res_json["last_parsed_time"]
+        last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         expected = {
             "bundle_name": "dag_maker",
@@ -909,6 +931,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -967,6 +990,7 @@ class TestGetDag(TestDagEndpoint):
         # Match expected and actual responses below.
         res_json = response.json()
         last_parsed_time = res_json["last_parsed_time"]
+        last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         tags = res_json.get("tags", [])
 
@@ -998,6 +1022,7 @@ class TestGetDag(TestDagEndpoint):
             "last_expired": None,
             "max_active_tasks": 16,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "bundle_name": "dag_maker",

@@ -343,6 +343,7 @@ def update_dag_parsing_results_in_db(
     bundle_version: str | None,
     dags: Collection[LazyDeserializedDAG],
     import_errors: dict[tuple[str, str], str],
+    parse_duration: float | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -378,7 +379,9 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                SerializedDAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
+                SerializedDAG.bulk_write_to_db(
+                    bundle_name, bundle_version, dags, parse_duration, session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
@@ -458,6 +461,7 @@ class DagModelOperation(NamedTuple):
     def update_dags(
         self,
         orm_dags: dict[str, DagModel],
+        parse_duration: float | None,
         *,
         session: Session,
     ) -> None:
@@ -473,6 +477,7 @@ class DagModelOperation(NamedTuple):
             dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
+            dm.last_parse_duration = parse_duration
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:

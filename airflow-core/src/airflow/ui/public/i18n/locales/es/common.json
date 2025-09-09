@@ -7,19 +7,32 @@
     "Providers": "Proveedores",
     "Variables": "Variables"
   },
+  "allOperators": "Todos los operadores",
+  "appearance": {
+    "appearance": "Apariencia",
+    "darkMode": "Modo Oscuro",
+    "lightMode": "Modo Claro",
+    "systemMode": "Seguir Configuración del Sistema"
+  },
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetEvent_many": "Eventos de Asset",
   "assetEvent_one": "Evento de Asset",
   "assetEvent_other": "Eventos de Asset",
+  "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Auditar Log",
+    "requiredActions": "Acciones Requeridas",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Colapsar Detalles del Panel",
+  "createdAssetEvent_many": "Eventos de Asset Creados",
   "createdAssetEvent_one": "Evento de Asset Creado",
   "createdAssetEvent_other": "Eventos de Asset Creados",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -54,10 +67,13 @@
     "runAfter": "Ejecutar Después",
     "runType": "Tipo de Ejecución",
     "sourceAssetEvent": "Evento de Asset Fuente",
-    "triggeredBy": "Activado por"
+    "triggeredBy": "Activado por",
+    "triggeringUser": "Nombre del Usuario que Activa"
   },
+  "dagRun_many": "Ejecuciones del Dag",
   "dagRun_one": "Ejecución del Dag",
   "dagRun_other": "Ejecuciones del Dag",
+  "dagRunId": "ID de la Ejecución del Dag",
   "dagWarnings": "Advertencias/Errores del Dag",
   "defaultToGraphView": "Por defecto a vista gráfica",
   "defaultToGridView": "Por defecto a vista en cuadrícula",
@@ -76,11 +92,28 @@
     "notFound": "Página no encontrada",
     "title": "Error"
   },
+  "expand": {
+    "collapse": "Colapsar",
+    "expand": "Expandir",
+    "hotkey": "e",
+    "tooltip": "Presiona {{hotkey}} para alternar expandir"
+  },
   "expression": {
     "all": "Todos",
     "and": "Y",
     "any": "Cualquiera",
     "or": "O"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtrar por Dag",
+    "keyPlaceholder": "Filtrar por Clave de XCom",
+    "logicalDateFromPlaceholder": "Fecha Lógica Desde",
+    "logicalDateToPlaceholder": "Fecha Lógica Hasta",
+    "mapIndexPlaceholder": "Filtrar por Índice de Mapa",
+    "runAfterFromPlaceholder": "Ejecutar Después Desde",
+    "runAfterToPlaceholder": "Ejecutar Después Hasta",
+    "runIdPlaceholder": "Filtrar por ID de Ejecución",
+    "taskIdPlaceholder": "Filtrar por ID de Tarea"
   },
   "logicalDate": "Fecha Lógica",
   "logout": "Cerrar Sesión",
@@ -101,6 +134,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Inicio",
+    "legacyFabViews": "Vistas obsoletas",
     "plugins": "Plugins",
     "security": "Seguridad"
   },
@@ -115,6 +149,7 @@
   "pools": {
     "deferred": "Diferido",
     "open": "Abierto",
+    "pools_many": "pools",
     "pools_one": "pool",
     "pools_other": "pools",
     "queued": "En Cola",
@@ -145,6 +180,12 @@
   },
   "selectLanguage": "Seleccionar Idioma",
   "showDetailsPanel": "Mostrar Panel de Detalles",
+  "source": {
+    "hide": "Ocultar Fuente",
+    "hotkey": "s",
+    "show": "Mostrar Fuente"
+  },
+  "sourceAssetEvent_many": "Eventos de Asset Fuente",
   "sourceAssetEvent_one": "Evento de Asset Fuente",
   "sourceAssetEvent_other": "Eventos de Asset Fuente",
   "startDate": "Fecha Inicial",
@@ -154,6 +195,7 @@
     "failed": "Fallido",
     "no_status": "Sin Estado",
     "none": "Sin Estado",
+    "planned": "Planificado",
     "queued": "En Cola",
     "removed": "Removido",
     "restarting": "Reiniciando",
@@ -170,6 +212,7 @@
     "createdAt": "Creado en",
     "filterByTag": "Filtrar Dags por etiqueta",
     "filterColumns": "Filtrar columnas de la tabla",
+    "filterReset_many": "Restablecer filtros",
     "filterReset_one": "Restablecer filtro",
     "filterReset_other": "Restablecer filtros",
     "from": "Desde",
@@ -188,8 +231,10 @@
     "operator": "Operador",
     "triggerRule": "Regla de Activación"
   },
+  "task_many": "Tareas",
   "task_one": "Tarea",
   "task_other": "Tareas",
+  "taskGroup": "Grupo de Tareas",
   "taskId": "ID de la Tarea",
   "taskInstance": {
     "dagVersion": "Versión del Dag",
@@ -214,6 +259,7 @@
     },
     "unixname": "Nombre de Unix"
   },
+  "taskInstance_many": "Instancias de Tarea",
   "taskInstance_one": "Instancia de Tarea",
   "taskInstance_other": "Instancias de Tarea",
   "timeRange": {
@@ -221,6 +267,11 @@
     "last24Hours": "Últimas 24 Horas",
     "lastHour": "Última Hora",
     "pastWeek": "Semana Pasada"
+  },
+  "timestamp": {
+    "hide": "Ocultar marcas de tiempo",
+    "hotkey": "t",
+    "show": "Mostrar marcas de tiempo"
   },
   "timezone": "Zona Horaria",
   "timezoneModal": {
@@ -266,10 +317,12 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Activado",
   "tryNumber": "Intento Número",
   "user": "Usuario",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Presiona {{hotkey}} para alternar el 'envolver'",
     "unwrap": "Desenvolver",
     "wrap": "Envolver"

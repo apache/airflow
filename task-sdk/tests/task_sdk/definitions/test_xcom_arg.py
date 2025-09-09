@@ -25,7 +25,7 @@ import structlog
 from pytest_unordered import unordered
 
 from airflow.exceptions import AirflowSkipException
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
