@@ -104,6 +104,7 @@ class TestKubernetesPodTrigger:
             "cluster_context": CLUSTER_CONTEXT,
             "config_dict": CONFIG_DICT,
             "in_cluster": IN_CLUSTER,
+            "ssl_ca_cert": None,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "startup_check_interval": 5,

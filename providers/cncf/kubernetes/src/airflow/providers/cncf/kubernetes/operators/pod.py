@@ -382,7 +382,13 @@ class KubernetesPodOperator(BaseOperator):
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
-        self.ssl_ca_cert = ssl_ca_cert
+        # Only set ssl_ca_cert as instance attribute if not already defined as property.
+        # This prevents "can't set attribute" error when GKE operators inherit from both
+        # GKEOperatorMixin (ssl_ca_cert as @property) and KubernetesPodOperator (ssl_ca_cert as attribute).
+        if not hasattr(type(self), "ssl_ca_cert") or not isinstance(
+            getattr(type(self), "ssl_ca_cert"), property
+        ):
+            self.ssl_ca_cert = ssl_ca_cert
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value

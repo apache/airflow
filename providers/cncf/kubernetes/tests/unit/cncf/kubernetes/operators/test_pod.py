@@ -294,6 +294,7 @@ class TestKubernetesPodOperator:
             conn_id="kubernetes_default",
             config_file=file_path,
             in_cluster=None,
+            ssl_ca_cert=None,
         )
 
     @pytest.mark.parametrize(
