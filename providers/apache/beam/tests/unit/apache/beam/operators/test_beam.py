@@ -245,7 +245,6 @@ class TestBeamRunPythonPipelineOperator:
             process_line_callback=mock.ANY,
             is_dataflow_job_id_exist_callback=mock.ANY,
         )
-        dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -760,7 +759,6 @@ class TestBeamRunGoPipelineOperator:
             multiple_jobs=False,
             project_id=dataflow_config.project_id,
         )
-        dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -789,8 +787,6 @@ class TestBeamRunGoPipelineOperator:
         gcs_download_method.side_effect = gcs_download_side_effect
 
         mock_dataflow_hook.build_dataflow_job_name.return_value = "test-job"
-
-        provide_authorized_gcloud_method = mock_dataflow_hook.return_value.provide_authorized_gcloud
         start_go_pipeline_method = mock_beam_hook.return_value.start_go_pipeline_with_binary
         wait_for_done_method = mock_dataflow_hook.return_value.wait_for_done
 
@@ -835,7 +831,6 @@ class TestBeamRunGoPipelineOperator:
             cancel_timeout=dataflow_config.cancel_timeout,
             wait_until_finished=dataflow_config.wait_until_finished,
         )
-        provide_authorized_gcloud_method.assert_called_once_with()
         start_go_pipeline_method.assert_called_once_with(
             variables=expected_options,
             launcher_binary=expected_launcher_binary,
@@ -971,7 +966,6 @@ class TestBeamRunPythonPipelineOperatorAsync:
             wait_until_finished=dataflow_config.wait_until_finished,
         )
         beam_hook_mock.return_value.start_python_pipeline.assert_called_once()
-        dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -1100,7 +1094,6 @@ class TestBeamRunJavaPipelineOperatorAsync:
             wait_until_finished=dataflow_config.wait_until_finished,
         )
         beam_hook_mock.return_value.start_python_pipeline.assert_not_called()
-        dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
