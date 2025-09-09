@@ -84,7 +84,7 @@ class AssetResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
-    event_extra_template: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class ConnectionResponse(BaseModel):

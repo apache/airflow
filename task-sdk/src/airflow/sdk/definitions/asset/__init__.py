@@ -492,8 +492,9 @@ class Asset(os.PathLike, BaseAsset):
         jinja_env: jinja2.Environment | None = None,
     ) -> dict[str, Any]:
         """
-        Render the `event_extra_template` into a plain dict that will be merged
-        into AssetEvent.extra at runtime. Safe to call even if template is None.
+        Render the `event_extra_template` into a plain dict that will be merged.
+
+        In AssetEvent.event_extra_template at runtime. Safe to call even if template is None.
         """
         template = self.event_extra_template or {}
         if not template:

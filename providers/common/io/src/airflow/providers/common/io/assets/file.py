@@ -45,7 +45,7 @@ def create_asset(*, path: str | PosixPath, extra=None) -> Asset:
             path = path[1:]
         path = "/" + path
 
-    return Asset(uri=f"file://{path}", extra=extra)
+    return Asset(uri=f"file://{path}", event_extra_template=extra)
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:

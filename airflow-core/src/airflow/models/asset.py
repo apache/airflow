@@ -325,11 +325,12 @@ class AssetModel(Base):
     def to_public(self) -> Asset:
         from airflow.sdk.definitions.asset import Asset
 
+        # ToDOReview Brunda
         return Asset(
             name=self.name,
             uri=self.uri,
             group=self.group,
-            event_extra_template=None,
+            event_extra_template=self.extra,
         )
 
 

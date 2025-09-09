@@ -35,8 +35,14 @@ from system.openlineage.operator import OpenLineageTestOperator
 
 if AIRFLOW_VERSION.major == 3:
     schedule = [
-        (Asset(uri="s3://bucket/file.txt", extra={"a": 1}) | Asset(uri="s3://bucket2/file.txt"))
-        & (Asset(uri="s3://bucket3/file.txt") | Asset(uri="s3://bucket4/file.txt", extra={"b": 2}))
+        (
+            Asset(uri="s3://bucket/file.txt", event_extra_template={"a": 1})
+            | Asset(uri="s3://bucket2/file.txt")
+        )
+        & (
+            Asset(uri="s3://bucket3/file.txt")
+            | Asset(uri="s3://bucket4/file.txt", event_extra_template={"b": 2})
+        )
     ]
 else:
     # Logical Asset condition wrapped in list breaks DAG processing in Airflow 2 - check is skipped

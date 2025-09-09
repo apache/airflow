@@ -984,4 +984,6 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
         return None
 
-    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=asset.extra), lineage_context)
+    return airflow_to_ol_converter(
+        Asset(uri=normalized_uri, event_extra_template=asset.event_extra_template), lineage_context
+    )

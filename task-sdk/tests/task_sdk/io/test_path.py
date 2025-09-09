@@ -260,7 +260,7 @@ class TestLocalPath:
     def test_asset(self):
         p = "s3"
         f = "bucket/object"
-        i = Asset(uri=f"{p}://{f}", name="test-asset", extra={"foo": "bar"})
+        i = Asset(uri=f"{p}://{f}", name="test-asset", event_extra_template={"foo": "bar"})
         o = ObjectStoragePath(i)
         assert o.protocol == p
         assert o.path == f

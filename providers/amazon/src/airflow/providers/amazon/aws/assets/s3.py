@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 def create_asset(*, bucket: str, key: str, extra=None) -> Asset:
-    return Asset(uri=f"s3://{bucket}/{key}", extra=extra)
+    return Asset(uri=f"s3://{bucket}/{key}", event_extra_template=extra)
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:
