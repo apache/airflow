@@ -252,6 +252,20 @@ export const $JobCollectionResponse = {
     description: 'Job Collection serializer.'
 } as const;
 
+export const $MaintenanceRequest = {
+    properties: {
+        maintenance_comment: {
+            type: 'string',
+            title: 'Maintenance Comment',
+            description: 'Comment describing the maintenance reason.'
+        }
+    },
+    type: 'object',
+    required: ['maintenance_comment'],
+    title: 'MaintenanceRequest',
+    description: 'Request body for maintenance operations.'
+} as const;
+
 export const $PushLogsBody = {
     properties: {
         log_chunk_time: {

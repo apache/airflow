@@ -1,0 +1,10 @@
+{
+  "mapped": "Gemapped",
+  "notMapped": "Niet gemapped",
+  "retries": "Pogingen",
+  "searchTasks": "Zoek taken",
+  "selectMapped": "Selecteer gemapped",
+  "selectOperator": "Selecteer operators",
+  "selectRetryValues": "Selecteer retry waarden",
+  "selectTriggerRules": "Selecteer trigger regels"
+}

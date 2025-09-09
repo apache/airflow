@@ -49,6 +49,7 @@
     "fileLocation": "Lokalizacja pliku",
     "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
     "lastExpired": "Ostatnio wygasły",
+    "lastParseDuration": "Czas ostatniego parsowania",
     "lastParsed": "Ostatnia analiza",
     "latestDagVersion": "Najnowsza wersja Daga",
     "latestRun": "Ostatnie wykonanie",
@@ -119,7 +120,8 @@
     "runAfterFromPlaceholder": "Uruchom po (od)",
     "runAfterToPlaceholder": "Uruchom po (do)",
     "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
-    "taskIdPlaceholder": "Filtruj według identyfikatora zadania"
+    "taskIdPlaceholder": "Filtruj według identyfikatora zadania",
+    "triggeringUserPlaceholder": "Filtruj według uruchamiającego użytkownika"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
