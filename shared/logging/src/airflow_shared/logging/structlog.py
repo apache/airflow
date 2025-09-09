@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import codecs
+import io
 import logging
 import os
 import re
@@ -318,8 +319,9 @@ def structlog_processors(
     else:
         exc_formatter = structlog.dev.plain_traceback
 
-    my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
-    my_styles["debug"] = structlog.dev.CYAN
+    my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles(colors=colors)
+    if colors:
+        my_styles["debug"] = structlog.dev.CYAN
 
     if log_format:
         console = PercentFormatRender(
@@ -430,6 +432,9 @@ def configure_logging(
     if json_output:
         logger_factory = LoggerFactory(NamedBytesLogger, io=output)
     else:
+        if output is not None and not isinstance(output, TextIO):
+            wrapper = io.TextIOWrapper(output, line_buffering=True)
+            output = wrapper
         logger_factory = LoggerFactory(NamedWriteLogger, io=output)
 
     structlog.configure(
