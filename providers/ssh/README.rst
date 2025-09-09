@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-ssh``
 
 Release: ``4.1.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 

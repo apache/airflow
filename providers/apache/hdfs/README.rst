@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-hdfs``
 
 Release: ``4.10.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.

@@ -3004,6 +3004,27 @@ def test_mapped_task_with_operator_extra_links_property():
     assert mapped_task.extra_links == sorted({"airflow", "github"})
 
 
+def empty_function(*args, **kwargs):
+    """Empty function for testing."""
+
+
+def test_python_callable_in_partial_kwargs():
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    operator = PythonOperator.partial(
+        task_id="task",
+        python_callable=empty_function,
+    ).expand(op_kwargs=[{"x": 1}])
+
+    serialized = SerializedBaseOperator.serialize_mapped_operator(operator)
+    assert "python_callable" not in serialized["partial_kwargs"]
+    assert serialized["partial_kwargs"]["python_callable_name"] == qualname(empty_function)
+
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    assert "python_callable" not in deserialized.partial_kwargs
+    assert deserialized.partial_kwargs["python_callable_name"] == qualname(empty_function)
+
+
 def test_handle_v1_serdag():
     v1 = {
         "__version": 1,

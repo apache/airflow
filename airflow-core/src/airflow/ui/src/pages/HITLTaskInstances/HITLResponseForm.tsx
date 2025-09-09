@@ -50,7 +50,7 @@ const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITL
 };
 
 export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("hitl");
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore("hitl");
@@ -96,7 +96,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     <Box mt={4}>
       {hitlDetail.response_received ? (
         <Text color="fg.muted" fontSize="sm">
-          {translate("hitl:response.received")}
+          {translate("response.received")}
           <Time datetime={hitlDetail.response_at} format="YYYY-MM-DD, HH:mm:ss" />
         </Text>
       ) : undefined}
@@ -144,7 +144,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
               loading={isSubmitting}
               onClick={() => handleSubmit()}
             >
-              <FiSend /> {translate("hitl:response.respond")}
+              <FiSend /> {translate("response.respond")}
             </Button>
           )}
         </HStack>

@@ -58,11 +58,17 @@ else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk._shared.secrets_masker import _secrets_masker
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS, SecretsMasker
 elif AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.secrets_masker import _secrets_masker  # type: ignore[no-redef]
+    from airflow.sdk.execution_time.secrets_masker import (  # type: ignore[no-redef]
+        DEFAULT_SENSITIVE_FIELDS,
+        SecretsMasker,
+    )
 else:
-    from airflow.utils.log.secrets_masker import _secrets_masker  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.log.secrets_masker import (  # type: ignore[attr-defined,no-redef]
+        DEFAULT_SENSITIVE_FIELDS,
+        SecretsMasker,
+    )
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG
@@ -252,7 +258,10 @@ def test_is_name_redactable():
 
 @pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
-    redactor = OpenLineageRedactor.from_masker(_secrets_masker())
+    sm = SecretsMasker()
+    if AIRFLOW_V_3_1_PLUS:
+        sm.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+    redactor = OpenLineageRedactor.from_masker(sm)
 
     class NotMixin:
         def __init__(self):

@@ -129,7 +129,6 @@ def ti_run(
             TI.run_id,
             TI.task_id,
             TI.map_index,
-            TI.next_method,
             TI.try_number,
             TI.max_tries,
             TI.next_method,

@@ -8,6 +8,12 @@
     "Variables": "變數"
   },
   "allOperators": "所有任務操作器",
+  "appearance": {
+    "appearance": "外觀",
+    "darkMode": "深色模式",
+    "lightMode": "淺色模式",
+    "systemMode": "跟隨系統設定"
+  },
   "asset_one": "資源",
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
@@ -193,8 +199,6 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
-  "switchToDarkMode": "切換到深色模式",
-  "switchToLightMode": "切換到淺色模式",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-pinot``
 
 Release: ``4.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Pinot <https://pinot.apache.org/>`__
 
