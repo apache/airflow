@@ -21,16 +21,16 @@
 Ownership
 =========
 
-When multiple users are authoring the DAGs of a single Airflow instance, it can be tedious to know who is responsible of what.
+When multiple users are authoring the Dags of a single Airflow instance, it can be tedious to know who is responsible of what.
 One way to overcome this is to attach owners, allowing users to know who is in charge of a particular DAG or Task.
 
 This ownership is split in two parts:
 
 1. at the Task level, through the ``owner`` argument of the :class:`~airflow.models.baseoperator.BaseOperator`;
-2. at the DAG level, to customize the UI through the ``owner_links`` definition.
+2. at the DAG level (since Airflow 2.4), to customize the UI through the ``owner_links`` definition.
 
-In Airflow 2, the list of owners was displayed in the DAG list view, not taking into account the ``owner_links`` value.
-Starting with Airflow 3.1, the owners are displayed in the header of the DAG view.
-Hence, a clickable link (that may be a instant messaging handle or a mailto link) is displayed for any owner matching an item defined in the ``owner_links`` dictionary is converted to a clickable link.
+The value of the ``owner`` argument may be displayed in different places of the UI (Dags list view, detailed view of a task, etc.).
+Starting with Airflow 2.4 (except for Airflow 3.0.x), the ``owner_links`` definition allows to customize the rendering of the owners.
+Hence, a clickable link (that may be a instant messaging handle or a mailto link) is displayed for any owner matching an item defined in the ``owner_links`` dictionary.
 
 If you don't need the Task level granularity, and want to define a set of owners at the DAG level, you may leverage the :ref:`default_args argument<concepts-default-arguments>` to apply the same set of owners to every tasks in the DAG.
