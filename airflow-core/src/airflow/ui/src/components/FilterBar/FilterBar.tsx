@@ -146,7 +146,7 @@ export const FilterBar = ({
               variant="outline"
             >
               <MdAdd />
-              {translate("common:filters.filter")}
+              {translate("common:filter")}
             </Button>
           </Menu.Trigger>
           <Menu.Content>

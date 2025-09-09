@@ -41,58 +41,49 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <DagIcon />,
       label: translate("common:dagId"),
-      placeholder: translate("common:filters.dagDisplayNamePlaceholder"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.KEY_PATTERN]: {
       icon: <MdSearch />,
       label: translate("admin:columns.key"),
-      placeholder: translate("common:filters.keyPlaceholder"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.LOGICAL_DATE_GTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateFromPlaceholder"),
-      placeholder: translate("common:filters.logicalDateFromPlaceholder"),
+      label: translate("common:filters.logicalDateFromLabel", "Logical date from"), // TODO: delete the fallback after the translation freeze
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.LOGICAL_DATE_LTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateToPlaceholder"),
-      placeholder: translate("common:filters.logicalDateToPlaceholder"),
+      label: translate("common:filters.logicalDateToLabel", "Logical date to"), // TODO: delete the fallback after the translation freeze
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.MAP_INDEX]: {
       icon: <LuBrackets />,
       label: translate("common:mapIndex"),
       min: -1,
-      placeholder: translate("common:filters.mapIndexPlaceholder"),
       type: FilterTypes.NUMBER,
     },
     [SearchParamsKeys.RUN_AFTER_GTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterFromPlaceholder"),
-      placeholder: translate("common:filters.runAfterFromPlaceholder"),
+      label: translate("common:filters.runAfterFromLabel", "Run after from"), // TODO: delete the fallback after the translation freeze
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.RUN_AFTER_LTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterToPlaceholder"),
-      placeholder: translate("common:filters.runAfterToPlaceholder"),
+      label: translate("common:filters.runAfterToLabel", "Run after to"), // TODO: delete the fallback after the translation freeze
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.RUN_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiBarChart />,
       label: translate("common:runId"),
-      placeholder: translate("common:filters.runIdPlaceholder"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TASK_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
-      placeholder: translate("common:filters.taskIdPlaceholder"),
       type: FilterTypes.TEXT,
     },
   };
