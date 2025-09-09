@@ -248,7 +248,7 @@ export const Calendar = () => {
         ) : undefined}
         {granularity === "daily" ? (
           <>
-            <DailyCalendarView data={data?.dag_runs ?? []} scale={scale} selectedYear={selectedDate.year()} />
+            <DailyCalendarView data={data?.dag_runs ?? []} selectedYear={selectedDate.year()} viewMode={viewMode} />
             <CalendarLegend scale={scale} viewMode={viewMode} />
           </>
         ) : (
@@ -256,9 +256,9 @@ export const Calendar = () => {
             <Box>
               <HourlyCalendarView
                 data={data?.dag_runs ?? []}
-                scale={scale}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
+                viewMode={viewMode}
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>

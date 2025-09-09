@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 

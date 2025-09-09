@@ -35,23 +35,23 @@ import type {
 dayjs.extend(isSameOrBefore);
 
 // Calendar color constants
-const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
-const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
+const EMPTY_COLOR = "calendar.empty";
+const PLANNED_COLOR = { _dark: "zinc.600", _light: "zinc.200" };
 
 const TOTAL_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
-  { _dark: "green.300", _light: "green.200" },
-  { _dark: "green.500", _light: "green.400" },
-  { _dark: "green.700", _light: "green.600" },
-  { _dark: "green.900", _light: "green.800" },
+  "calendar.totalRuns.level1",
+  "calendar.totalRuns.level2", 
+  "calendar.totalRuns.level3",
+  "calendar.totalRuns.level4",
 ];
 
 const FAILURE_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
-  { _dark: "red.300", _light: "red.200" },
-  { _dark: "red.500", _light: "red.400" },
-  { _dark: "red.700", _light: "red.600" },
-  { _dark: "red.900", _light: "red.800" },
+  "calendar.failedRuns.level1",
+  "calendar.failedRuns.level2",
+  "calendar.failedRuns.level3", 
+  "calendar.failedRuns.level4",
 ];
 
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
@@ -309,16 +309,29 @@ export const createCalendarScale = (
   };
 };
 
-export const createTooltipContent = (cellData: CalendarCellData): string => {
+export const createTooltipContent = (cellData: CalendarCellData) => {
   const { counts, date } = cellData;
 
   if (counts.total === 0) {
-    return `${date}: No runs`;
+    return {
+      date,
+      total: 0,
+      states: [],
+      hasRuns: false,
+    };
   }
 
-  const parts = Object.entries(counts)
+  const states = Object.entries(counts)
     .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => `${count} ${state}`);
+    .map(([state, count]) => ({
+      state,
+      count,
+    }));
 
-  return `${date}: ${counts.total} runs (${parts.join(", ")})`;
+  return {
+    date,
+    total: counts.total,
+    states,
+    hasRuns: true,
+  };
 };

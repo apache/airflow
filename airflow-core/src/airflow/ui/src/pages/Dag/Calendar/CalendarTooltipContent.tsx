@@ -17,10 +17,9 @@
  * under the License.
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 
-import { createRichTooltipContent } from "./richTooltipUtils";
 import type { CalendarCellData } from "./types";
+import { createTooltipContent } from "./calendarUtils";
 
 const SQUARE_SIZE = "12px";
 const SQUARE_BORDER_RADIUS = "2px";
@@ -29,28 +28,31 @@ type Props = {
   readonly cellData: CalendarCellData;
 };
 
+const STATE_COLOR_MAP: Record<string, string> = {
+  success: "taskState.success.solid",
+  failed: "taskState.failed.solid",
+  running: "taskState.running.solid",
+  queued: "taskState.queued.solid",
+  planned: "taskState.scheduled.solid",
+} as const;
+
 export const CalendarTooltipContent = ({ cellData }: Props) => {
-  const { t: translate } = useTranslation("dag");
-  const { date, hasRuns, states, total } = createRichTooltipContent(cellData);
+  const { date, total, states, hasRuns } = createTooltipContent(cellData);
 
   if (!hasRuns) {
-    return (
-      <Text fontSize="sm">
-        {date}: {translate("calendar.noRuns")}
-      </Text>
-    );
+    return <Text fontSize="sm">{date}: No runs</Text>;
   }
 
   return (
     <VStack align="start" gap={2}>
       <Text fontSize="sm" fontWeight="medium">
-        {date}: {total} {translate("calendar.runs")}
+        {date}: {total} runs
       </Text>
       <VStack align="start" gap={1.5}>
-        {states.map(({ color, count, state }) => (
+        {states.map(({ state, count }) => (
           <HStack gap={3} key={state}>
             <Box
-              bg={color}
+              bg={STATE_COLOR_MAP[state] ?? "taskState.none.solid"}
               border="1px solid"
               borderColor="border.emphasized"
               borderRadius={SQUARE_BORDER_RADIUS}

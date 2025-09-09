@@ -43,19 +43,36 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { createTooltipContent, generateHourlyCalendarData } from "./calendarUtils";
-import type { CalendarScale } from "./types";
+import { generateHourlyCalendarData } from "./calendarUtils";
+import { useCalendarColor } from "./colorUtils";
 
 dayjs.extend(isSameOrBefore);
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
-  readonly scale: CalendarScale;
   readonly selectedMonth: number;
   readonly selectedYear: number;
+  readonly viewMode: "total" | "failed";
 };
 
-export const HourlyCalendarView = ({ data, scale, selectedMonth, selectedYear }: Props) => {
+const HourlyCalendarCellWithColor = ({ hourData, viewMode, index }: { 
+  hourData: any; 
+  viewMode: "total" | "failed"; 
+  index: number;
+}) => {
+  const backgroundColor = useCalendarColor(hourData.counts, viewMode);
+  
+  return (
+    <CalendarCell
+      backgroundColor={backgroundColor}
+      content=""
+      cellData={hourData}
+      index={index}
+    />
+  );
+};
+
+export const HourlyCalendarView = ({ data, selectedMonth, selectedYear, viewMode }: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
 
@@ -158,17 +175,12 @@ export const HourlyCalendarView = ({ data, scale, selectedMonth, selectedYear }:
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
-                  const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
-                  const emptyCellData = {
-                    counts: emptyCounts,
-                    date: `${day.day}T${hour.toString().padStart(2, "0")}:00:00`,
-                    runs: [],
-                  };
+                  const noRunsTooltip = `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
 
                   return (
                     <CalendarCell
-                      backgroundColor={scale.getColor(emptyCounts)}
-                      cellData={emptyCellData}
+                      backgroundColor="transparent"
+                      content={noRunsTooltip}
                       index={index}
                       key={`${day.day}-${hour}`}
                     />
@@ -176,9 +188,9 @@ export const HourlyCalendarView = ({ data, scale, selectedMonth, selectedYear }:
                 }
 
                 return (
-                  <CalendarCell
-                    backgroundColor={scale.getColor(hourData.counts)}
-                    cellData={hourData}
+                  <HourlyCalendarCellWithColor
+                    hourData={hourData}
+                    viewMode={viewMode}
                     index={index}
                     key={`${day.day}-${hour}`}
                   />

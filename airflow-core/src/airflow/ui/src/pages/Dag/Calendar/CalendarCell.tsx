@@ -20,17 +20,18 @@ import { Box } from "@chakra-ui/react";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import { CalendarTooltipContent } from "./CalendarTooltipContent";
-import type { CalendarCellData } from "./types";
 import { useDelayedTooltip } from "./useDelayedTooltip";
+import type { CalendarCellData } from "./types";
 
 type Props = {
   readonly backgroundColor: Record<string, string> | string;
-  readonly cellData?: CalendarCellData; // For rich tooltip content
+  readonly content: string;
   readonly index?: number;
   readonly marginRight?: string;
+  readonly cellData?: CalendarCellData; // For rich tooltip content
 };
 
-export const CalendarCell = ({ backgroundColor, cellData, index, marginRight }: Props) => {
+export const CalendarCell = ({ backgroundColor, content, index, marginRight, cellData }: Props) => {
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
 
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
@@ -48,7 +49,7 @@ export const CalendarCell = ({ backgroundColor, cellData, index, marginRight }: 
         marginRight={computedMarginRight}
         width="14px"
       />
-      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : ""} />
+      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : content} />
     </Box>
   );
 };

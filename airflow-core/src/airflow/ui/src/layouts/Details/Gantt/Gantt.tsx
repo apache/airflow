@@ -86,8 +86,8 @@ export const Gantt = ({ limit }: Props) => {
   const ref = useRef();
 
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
-    "gray.200",
-    "gray.800",
+    "bg.muted",
+    "bg.emphasized",
     "brand.200",
     "brand.800",
   ]);

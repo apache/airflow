@@ -42,16 +42,28 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { createTooltipContent, generateDailyCalendarData } from "./calendarUtils";
-import type { CalendarScale } from "./types";
+import { generateDailyCalendarData } from "./calendarUtils";
+import { useCalendarColor } from "./colorUtils";
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
-  readonly scale: CalendarScale;
   readonly selectedYear: number;
+  readonly viewMode: "total" | "failed";
 };
 
-export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
+const CalendarCellWithColor = ({ day, viewMode }: { day: any; viewMode: "total" | "failed" }) => {
+  const backgroundColor = useCalendarColor(day.counts, viewMode);
+  
+  return (
+    <CalendarCell
+      backgroundColor={backgroundColor}
+      content=""
+      cellData={day}
+    />
+  );
+};
+
+export const DailyCalendarView = ({ data, selectedYear, viewMode }: Props) => {
   const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear);
 
@@ -107,19 +119,15 @@ export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {
-                  const emptyCellData = {
-                    counts: { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 },
-                    date: day.date,
-                    runs: [],
-                  };
-
-                  return (
-                    <CalendarCell backgroundColor="transparent" cellData={emptyCellData} key={day.date} />
-                  );
+                  return <CalendarCell backgroundColor="transparent" content="" key={day.date} />;
                 }
 
                 return (
-                  <CalendarCell backgroundColor={scale.getColor(day.counts)} cellData={day} key={day.date} />
+                  <CalendarCellWithColor
+                    day={day}
+                    viewMode={viewMode}
+                    key={day.date}
+                  />
                 );
               })}
             </Box>
