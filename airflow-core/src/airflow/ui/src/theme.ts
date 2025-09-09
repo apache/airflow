@@ -406,25 +406,7 @@ export const getComputedCSSVariableValue = (variable: string): string =>
     .getPropertyValue(variable.slice(4, variable.length - 1))
     .trim();
 
-/**
- * Returns ReactFlow style props that use Chakra UI CSS variables
- *
- * @param colorMode - Current color mode (light/dark)
- * @returns Style object to pass to ReactFlow's style prop
- *
- * @example
- * ```tsx
- * import { getReactFlowThemeStyle } from "src/theme";
- *
- * const { colorMode } = useColorMode();
- *
- * <ReactFlow
- *   style={getReactFlowThemeStyle(colorMode)}
- *   nodes={nodes}
- *   edges={edges}
- * />
- * ```
- */
+// Returns ReactFlow style props using Chakra UI CSS variables
 export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperties =>
   ({
     // Background
