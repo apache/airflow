@@ -144,7 +144,7 @@ class BigQueryToSqlBaseOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
         """
-        Generic OpenLineage facet builder for BigQuery -> SQL transfers.
+        Build a generic OpenLineage facet for BigQuery -> SQL transfers.
 
         This consolidates nearly identical implementations from child
         operators. Children still provide a concrete SQL hook via
