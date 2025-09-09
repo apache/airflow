@@ -523,6 +523,10 @@ class BaseOperatorMeta(abc.ABCMeta):
             # Store the args passed to init -- we need them to support task.map serialization!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
+            # Validate trigger kwargs
+            if hasattr(self, "_validate_start_from_trigger_kwargs"):
+                self._validate_start_from_trigger_kwargs()
+
             # Set upstream task defined by XComArgs passed to template fields of the operator.
             # BUT: only do this _ONCE_, not once for each class in the hierarchy
             if not instantiated_from_mapped and func == self.__init__.__wrapped__:  # type: ignore[misc]
@@ -1410,6 +1414,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if field not in self.template_fields:
             return
         XComArg.apply_upstream_relationship(self, newvalue)
+
+    def _validate_start_from_trigger_kwargs(self):
+        if self.start_from_trigger:
+            for name, val in self.start_trigger_args.trigger_kwargs.items():
+                if callable(val):
+                    raise AirflowException(
+                        f"{self.__class__.__name__} with task_id '{self.task_id}' has a callable in trigger kwargs named "
+                        f"'{name}', which is not allowed when start_from_trigger is enabled."
+                    )
 
     def on_kill(self) -> None:
         """
