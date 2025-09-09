@@ -31,7 +31,13 @@ export const NavTabs = ({ tabs }: Props) => {
   const containerWidth = useContainerWidth(containerRef);
 
   return (
-    <Flex alignItems="center" borderBottomWidth={1} borderBottomColor="border.emphasized" mb={2} ref={containerRef}>
+    <Flex
+      alignItems="center"
+      borderBottomColor="border.emphasized"
+      borderBottomWidth={1}
+      mb={2}
+      ref={containerRef}
+    >
       {tabs.map(({ icon, label, value }) => (
         <NavLink
           end
@@ -43,6 +49,7 @@ export const NavTabs = ({ tabs }: Props) => {
         >
           {({ isActive }) => (
             <Center
+              _hover={{ color: "fg" }}
               borderBottomColor="border.info"
               borderBottomWidth={isActive ? 3 : 0}
               color={isActive ? "fg" : "fg.muted"}
@@ -52,7 +59,6 @@ export const NavTabs = ({ tabs }: Props) => {
               pb={isActive ? 0 : "3px"}
               px={4}
               transition="all 0.2s ease"
-              _hover={{ color: "fg" }}
             >
               {containerWidth > 600 || !Boolean(icon) ? label : icon}
             </Center>

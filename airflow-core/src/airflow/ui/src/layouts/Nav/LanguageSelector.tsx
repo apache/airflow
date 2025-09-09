@@ -48,13 +48,13 @@ const LanguageSelector: React.FC = () => {
       <Field.Root>
         <Select<{ label: string; value: string }>
           chakraStyles={{
-            control: (provided) => ({
-              ...provided,
-              colorPalette: "input",
-            }),
             clearIndicator: (provided) => ({
               ...provided,
               color: "fg.muted",
+            }),
+            control: (provided) => ({
+              ...provided,
+              colorPalette: "input",
             }),
           }}
           onChange={handleLanguageChange}

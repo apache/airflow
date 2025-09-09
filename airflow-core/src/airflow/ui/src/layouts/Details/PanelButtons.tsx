@@ -183,38 +183,38 @@ export const PanelButtons = ({
 
   return (
     <Box position="absolute" top={1} width="100%" zIndex={1}>
-      <Flex flexWrap="wrap" justifyContent="space-between">
+      <Flex justifyContent="space-between">
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
-            aria-label={translate("dag:panel.buttons.showGridShortcut")}
-            colorPalette="blue"
+            aria-label={translate("dag:panel.buttons.showGrid")}
+            colorPalette="button"
             onClick={() => {
               setDagView("grid");
               if (dagView === "grid") {
                 handleFocus("grid");
               }
             }}
-            title={translate("dag:panel.buttons.showGridShortcut")}
+            title={translate("dag:panel.buttons.showGrid")}
             variant={dagView === "grid" ? "solid" : "outline"}
           >
             <FiGrid />
           </IconButton>
           <IconButton
-            aria-label={translate("dag:panel.buttons.showGraphShortcut")}
-            colorPalette="blue"
+            aria-label={translate("dag:panel.buttons.showGraph")}
+            colorPalette="button"
             onClick={() => {
               setDagView("graph");
               if (dagView === "graph") {
                 handleFocus("graph");
               }
             }}
-            title={translate("dag:panel.buttons.showGraphShortcut")}
+            title={translate("dag:panel.buttons.showGraph")}
             variant={dagView === "graph" ? "solid" : "outline"}
           >
             <MdOutlineAccountTree />
           </IconButton>
         </ButtonGroup>
-        <Flex gap={1}>
+        <Flex gap={1} mr={3}>
           <ToggleGroups />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
@@ -228,11 +228,12 @@ export const PanelButtons = ({
               <Popover.Positioner>
                 <Popover.Content>
                   <Popover.Arrow />
-                  <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
+                  <Popover.Body p={2}>
                     {dagView === "graph" ? (
                       <>
                         <DagVersionSelect />
                         <DagRunSelect limit={limit} />
+
                         <Select.Root
                           // @ts-expect-error The expected option type is incorrect
                           collection={getOptions(translate)}
@@ -262,6 +263,7 @@ export const PanelButtons = ({
                             </Select.Content>
                           </Select.Positioner>
                         </Select.Root>
+
                         <Select.Root
                           // @ts-expect-error The expected option type is incorrect
                           collection={directionOptions(translate)}
@@ -336,6 +338,7 @@ export const PanelButtons = ({
           </Popover.Root>
         </Flex>
       </Flex>
+
       {dagView === "grid" && (
         <Flex color="fg.muted" justifyContent="flex-end" mt={1}>
           <Tooltip
@@ -353,4 +356,3 @@ export const PanelButtons = ({
     </Box>
   );
 };
-
