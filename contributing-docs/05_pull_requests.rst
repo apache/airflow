@@ -275,6 +275,32 @@ The reason for doing it is that we are working on a cleaning up our code to have
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
 
+Don't raise AirflowException directly
+..............................................
+
+Our community has decided to stop adding new ``raise AirflowException`` and to adopt the following practices when an exception is necessary. For details check the relevant `mailing list thread <hhttps://lists.apache.org/thread/t8bnhyqy77kq4fk7fj3fmjd5wo9kv6w0>`_.
+
+1. In most cases, we should prioritize using Python’s standard exceptions (e.g., ``ValueError``, ``TypeError``, ``OSError``)
+   instead of wrapping everything in ``AirflowException``.
+2. Within ``airflow-core``, we should define and utilize more specific exception classes under ``airflow-core/src/airflow/exceptions.py``.
+3. For provider-specific implementations, exceptions should be defined within ``providers/<provider>/src/airflow/providers/<provider>/exceptions.py``.
+
+The use of points 2 and 3 should only be considered when point 1 is inappropriate, which should be a rare occurrence.
+
+In other words instead of doing:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise AirflowException(f"Required key {key} is missing")
+
+you should do:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise ValueError(f"Required key {key} is missing")
+
 -----------
 
 If you want to learn what are the options for your development environment, follow to the
