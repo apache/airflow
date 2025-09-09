@@ -84,8 +84,20 @@ def update_orm_from_pydantic(
                 "Only slots and included_deferred can be modified on Default Pool",
             )
     else:
+        fields_to_update = patch_body.model_fields_set
         try:
-            BasePool.model_validate(patch_body.model_dump(exclude_unset=True, by_alias=True))
+            # Dump with both input + output aliases handled
+            body_dict = patch_body.model_dump(
+                include=fields_to_update,
+                by_alias=True,  # ensures we get the API-facing alias keys
+            )
+
+            # Normalize keys for BasePool (expects "pool")
+            if "name" in body_dict and "pool" not in body_dict:
+                body_dict["pool"] = body_dict.pop("name")
+
+            BasePool.model_validate(body_dict)
+
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
@@ -152,7 +164,6 @@ class BulkPoolService(BulkService[PoolBody]):
         """Bulk Update pools."""
         to_update_pool_names = {pool.pool for pool in action.entities}
         _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_update_pool_names)
-
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
                 raise HTTPException(
@@ -163,14 +174,13 @@ class BulkPoolService(BulkService[PoolBody]):
                 update_pool_names = matched_pool_names
             else:
                 update_pool_names = to_update_pool_names
-
             for pool in action.entities:
                 if pool.pool not in update_pool_names:
                     continue
 
                 pool = update_orm_from_pydantic(pool.pool, pool, action.update_mask, self.session)
 
-                results.success.append(str(pool.pool))
+                results.success.append(str(pool.pool))  # use request field, always consistent
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
