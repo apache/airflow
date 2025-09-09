@@ -248,6 +248,7 @@ def _get_dagbag_dag_details(dag: DAG, session: Session) -> dict:
         "is_paused": dag_model.is_paused if dag_model else None,
         "is_stale": dag_model.is_stale if dag_model else None,
         "last_parsed_time": None,
+        "last_parse_duration": None,
         "last_expired": None,
         "relative_fileloc": dag.relative_fileloc,
         "fileloc": dag.fileloc,

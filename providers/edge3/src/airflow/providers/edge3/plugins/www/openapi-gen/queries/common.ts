@@ -28,6 +28,8 @@ export const UseUiServiceJobsKeyFn = (queryKey?: Array<unknown>) => [useUiServic
 export type JobsServiceFetchMutationResult = Awaited<ReturnType<typeof JobsService.fetch>>;
 export type LogsServicePushLogsMutationResult = Awaited<ReturnType<typeof LogsService.pushLogs>>;
 export type WorkerServiceRegisterMutationResult = Awaited<ReturnType<typeof WorkerService.register>>;
+export type UiServiceRequestWorkerMaintenanceMutationResult = Awaited<ReturnType<typeof UiService.requestWorkerMaintenance>>;
 export type JobsServiceStateMutationResult = Awaited<ReturnType<typeof JobsService.state>>;
 export type WorkerServiceSetStateMutationResult = Awaited<ReturnType<typeof WorkerService.setState>>;
 export type WorkerServiceUpdateQueuesMutationResult = Awaited<ReturnType<typeof WorkerService.updateQueues>>;
+export type UiServiceExitWorkerMaintenanceMutationResult = Awaited<ReturnType<typeof UiService.exitWorkerMaintenance>>;

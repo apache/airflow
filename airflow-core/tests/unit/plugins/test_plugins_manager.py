@@ -184,18 +184,42 @@ class TestPluginsManager:
             assert len(plugins_manager.external_views) == 1
             assert len(plugins_manager.react_apps) == 0
 
+    def test_should_warning_about_external_views_or_react_app_wrong_object(self, caplog):
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
+        class TestPluginA(AirflowPlugin):
+            name = "test_plugin_a"
+
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]
+
+        with (
+            mock_plugin_manager(plugins=[TestPluginA()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager.initialize_ui_plugins()
+
+            # Verify that the conflicting external view and react app are not loaded
+            plugin_a = next(plugin for plugin in plugins_manager.plugins if plugin.name == "test_plugin_a")
+            assert plugin_a.external_views == [{"url_route": "/test_route"}]
+            assert plugin_a.react_apps == [{"url_route": "/test_route_react_app"}]
+            assert len(plugins_manager.external_views) == 1
+            assert len(plugins_manager.react_apps) == 1
+
         assert caplog.record_tuples == [
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
-                "Plugin 'test_plugin_b' has an external view with an URL route '/test_route' "
-                "that conflicts with another plugin 'test_plugin_a'. The view will not be loaded.",
+                "Plugin 'test_plugin_a' has an external view that is not a dictionary. "
+                "The view will not be loaded.",
             ),
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
-                "Plugin 'test_plugin_b' has a React App with an URL route '/test_route' "
-                "that conflicts with another plugin 'test_plugin_a'. The React App will not be loaded.",
+                "Plugin 'test_plugin_a' has a React App that is not a dictionary. "
+                "The React App will not be loaded.",
             ),
         ]
 

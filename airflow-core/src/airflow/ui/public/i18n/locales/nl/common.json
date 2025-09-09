@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "Variabelen"
   },
+  "allOperators": "Alle Operators",
+  "appearance": {
+    "appearance": "Uiterlijk",
+    "darkMode": "Donkere modus",
+    "lightMode": "Lichte modus",
+    "systemMode": "Volg systeeminstellingen"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -180,6 +187,7 @@
     "failed": "Mislukt",
     "no_status": "Geen status",
     "none": "Geen status",
+    "planned": "Gepland",
     "queued": "Wachtend",
     "removed": "Verwijderd",
     "restarting": "Herstartend",
