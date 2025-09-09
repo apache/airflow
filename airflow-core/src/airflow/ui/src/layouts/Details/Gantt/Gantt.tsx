@@ -33,7 +33,7 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -77,6 +77,7 @@ const MIN_BAR_WIDTH = 10;
 export const Gantt = ({ limit }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
+  const deferredOpenGroupIds = useDeferredValue(openGroupIds);
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
   const { colorMode } = useColorMode();
@@ -119,7 +120,10 @@ export const Gantt = ({ limit }: Props) => {
     },
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = useMemo(
+    () => flattenNodes(dagStructure, deferredOpenGroupIds),
+    [dagStructure, deferredOpenGroupIds],
+  );
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
