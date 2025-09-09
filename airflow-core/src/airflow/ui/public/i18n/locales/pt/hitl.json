@@ -1,0 +1,31 @@
+{
+  "filters": {
+    "response": {
+      "all": "Todas",
+      "pending": "Pendente",
+      "received": "Revisadas"
+    }
+  },
+  "requiredAction_one": "Ação Necessária",
+  "requiredAction_other": "Ações Necessárias",
+  "requiredActionState": "Estado da Ação Necessária",
+  "response": {
+    "error": "Falha na resposta",
+    "optionsDescription": "Escolha suas opções para esta instância de tarefa",
+    "optionsLabel": "Opções",
+    "received": "Resposta recebida em ",
+    "respond": "Responder",
+    "success": "Resposta de {{taskId}} bem-sucedida",
+    "title": "Instância de Tarefa Humana - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Aprovação Recebida",
+    "approvalRequired": "Aprovação Necessária",
+    "choiceReceived": "Escolha Recebida",
+    "choiceRequired": "Escolha Necessária",
+    "rejectionReceived": "Rejeição Recebida",
+    "responseReceived": "Resposta Recebida",
+    "responseRequired": "Resposta Necessária"
+  },
+  "subject": "Assunto"
+}

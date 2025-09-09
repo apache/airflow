@@ -10,6 +10,9 @@
       "user": "Usuário",
       "when": "Quando"
     },
+    "filters": {
+      "eventType": "Tipo de Evento"
+    },
     "title": "Log de Auditoria"
   },
   "xcom": {

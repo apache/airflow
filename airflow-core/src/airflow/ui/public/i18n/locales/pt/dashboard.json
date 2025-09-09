@@ -1,4 +1,10 @@
 {
+  "favorite": {
+    "favoriteDags_one": "Primeiro {{count}} DAG favorito",
+    "favoriteDags_other": "Primeiros {{count}} DAGs favoritos",
+    "noDagRuns": "Ainda não há DagRun para este dag.",
+    "noFavoriteDags": "Nenhum favorito ainda. Clique no ícone de estrela ao lado de um DAG na lista para adicioná-lo aos seus favoritos."
+  },
   "group": "Grupo",
   "health": {
     "dagProcessor": "Processador de DAG",
@@ -30,6 +36,7 @@
     "activeDags": "DAGs Ativos",
     "failedDags": "DAGs Falhados",
     "queuedDags": "DAGs em Fila",
+    "requiredActions": "Ações Necessárias",
     "runningDags": "DAGs em Execução",
     "stats": "Estatísticas"
   },

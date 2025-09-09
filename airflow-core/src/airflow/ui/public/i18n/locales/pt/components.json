@@ -3,12 +3,15 @@
     "affected_one": "1 execução será acionada.",
     "affected_other": "{{count}} execuções serão acionadas.",
     "affectedNone": "Nenhuma execução correspondente aos critérios selecionados.",
+    "allRuns": "Todas as Execuções",
     "backwards": "Executar para trás",
     "dateRange": "Intervalo de Data",
     "dateRangeFrom": "De",
     "dateRangeTo": "Para",
     "errorStartDateBeforeEndDate": "A Data Inicial deve ser antes da Data Final",
     "maxRuns": "Máximo de Execuções Ativas",
+    "missingAndErroredRuns": "Execuções Faltando e com Erro",
+    "missingRuns": "Execuções Faltando",
     "reprocessBehavior": "Comportamento de Reprocessamento",
     "run": "Executar Backfill",
     "selectDescription": "Executar este DAG para um intervalo de datas",
@@ -44,6 +47,7 @@
   },
   "dagWarnings": {
     "error_one": "1 Erro",
+    "error_other": "{{count}} Erros",
     "errorAndWarning": "1 Erro e {{warningText}}",
     "warning_one": "1 Aviso",
     "warning_other": "{{count}} Avisos"
@@ -59,6 +63,7 @@
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
+    "files_one": "1 arquivo",
     "files_other": "{{count}} arquivos"
   },
   "flexibleForm": {

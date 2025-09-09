@@ -6,14 +6,22 @@
       "warning": "Isso removerá todas as metadados relacionados ao DAG, incluindo Execuções e Tarefas."
     }
   },
+  "favoriteDag": "DAG Favorito",
   "filters": {
     "allRunTypes": "Todos os Tipos de Execução",
     "allStates": "Todos os Estados",
+    "favorite": {
+      "all": "Todos",
+      "favorite": "Favorito",
+      "unfavorite": "Remover dos Favoritos"
+    },
     "paused": {
       "active": "Ativo",
       "all": "Todos",
       "paused": "Pausado"
-    }
+    },
+    "runIdPatternFilter": "Pesquisar Execuções de DAG",
+    "triggeringUserNameFilter": "Pesquisar por Usuário que Disparou"
   },
   "ownerLink": "Link do Proprietário para {{owner}}",
   "runAndTaskActions": {
@@ -55,6 +63,7 @@
       "onlyFailed": "Limpar somente tarefas falhadas",
       "past": "Passado",
       "queueNew": "Enfileirar novas tarefas",
+      "runOnLatestVersion": "Executar com a versão mais recente do pacote",
       "upstream": "Upstream"
     }
   },
@@ -83,5 +92,6 @@
       "desc": "Ordenar por Próxima Execução do DAG (Mais Recente-Mais Antiga)"
     },
     "placeholder": "Ordenar por"
-  }
+  },
+  "unfavoriteDag": "Remover DAG dos Favoritos"
 }

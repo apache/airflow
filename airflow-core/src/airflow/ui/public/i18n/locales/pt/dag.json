@@ -5,9 +5,37 @@
     "reason": "Motivo",
     "title": "Dependências Bloqueando Tarefa de Ser Agendada"
   },
+  "calendar": {
+    "daily": "Diário",
+    "hourly": "Por Hora",
+    "legend": {
+      "less": "Menos",
+      "more": "Mais"
+    },
+    "navigation": {
+      "nextMonth": "Próximo mês",
+      "nextYear": "Próximo ano",
+      "previousMonth": "Mês anterior",
+      "previousYear": "Ano anterior"
+    },
+    "noData": "Nenhum dado disponível",
+    "noRuns": "Nenhuma execução",
+    "totalRuns": "Total de Execuções",
+    "week": "Semana {{weekNumber}}",
+    "weekdays": {
+      "friday": "Sex",
+      "monday": "Seg",
+      "saturday": "Sáb",
+      "sunday": "Dom",
+      "thursday": "Qui",
+      "tuesday": "Ter",
+      "wednesday": "Qua"
+    }
+  },
   "code": {
     "bundleUrl": "URL do Bundle",
     "noCode": "Nenhum Código Encontrado",
+    "parseDuration": "Duração do Processamento:",
     "parsedAt": "Processado em:"
   },
   "extraLinks": "Links Extra",
@@ -19,12 +47,29 @@
   },
   "header": {
     "buttons": {
+      "advanced": "Avançado",
       "dagDocs": "Documentação do DAG"
     }
   },
   "logs": {
+    "allLevels": "Todos os Níveis de Log",
+    "allSources": "Todas as Fontes",
+    "critical": "CRÍTICO",
+    "debug": "DEBUG",
+    "error": "ERRO",
+    "fullscreen": {
+      "button": "Tela cheia",
+      "tooltip": "Pressione {{hotkey}} para tela cheia"
+    },
+    "info": "INFO",
     "noTryNumber": "Nenhum número de tentativa",
-    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})"
+    "settings": "Configurações",
+    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
+    "warning": "AVISO"
+  },
+  "navigation": {
+    "navigation": "Navegação: Shift+{{arrow}}",
+    "toggleGroup": "Alternar grupo: Espaço"
   },
   "overview": {
     "buttons": {
@@ -47,8 +92,9 @@
   "panel": {
     "buttons": {
       "options": "Opções",
-      "showGraph": "Mostrar Gráfico",
-      "showGrid": "Mostrar Grade"
+      "showGantt": "Mostrar Gantt",
+      "showGraphShortcut": "Mostrar Gráfico (Pressione g)",
+      "showGridShortcut": "Mostrar Grade (Pressione g)"
     },
     "dagRuns": {
       "label": "Número de Execuções do DAG"
@@ -82,6 +128,7 @@
   "tabs": {
     "assetEvents": "Asset Events",
     "auditLog": "Log de Auditoria",
+    "calendar": "Calendário",
     "backfills": "Backfills",
     "code": "Código",
     "details": "Detalhes",
@@ -90,6 +137,7 @@
     "mappedTaskInstances_other": "Instâncias de Tarefa [{{count}}]",
     "overview": "Visão Geral",
     "renderedTemplates": "Modelos Renderizados",
+    "requiredActions": "Ações Necessárias",
     "runs": "Execuções",
     "taskInstances": "Instâncias de Tarefa",
     "tasks": "Tarefas",
@@ -98,13 +146,5 @@
   "taskGroups": {
     "collapseAll": "Recolher todos os grupos de tarefas",
     "expandAll": "Expandir todos os grupos de tarefas"
-  },
-  "taskLogs": {
-    "allLogLevels": "Todos os Níveis de Log",
-    "allSources": "Todas as Fontes",
-    "fullscreen": {
-      "button": "Tela Cheia",
-      "tooltip": "Pressione {{hotkey}} para tela cheia"
-    }
   }
 }

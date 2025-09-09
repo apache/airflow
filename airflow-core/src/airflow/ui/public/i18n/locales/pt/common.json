@@ -7,6 +7,7 @@
     "Providers": "Providers",
     "Variables": "Variáveis"
   },
+  "allOperators": "Todos os Operadores",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Evento de Asset",
@@ -15,6 +16,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Log de Auditoria",
+    "requiredActions": "Ações Necessárias",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Recolher Painel de Detalhes",
@@ -24,7 +26,6 @@
   "dag_other": "DAGs",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concorrência",
     "dagRunTimeout": "Tempo Limite da Execução do DAG",
     "defaultArgs": "Argumentos Padrão",
     "description": "Descrição",
@@ -45,6 +46,7 @@
     "tags": "Etiquetas"
   },
   "dagId": "ID do DAG",
+  "dagRunId": "ID da Execução do DAG",
   "dagRun": {
     "conf": "Conf",
     "dagVersions": "Versão(s) do DAG",
@@ -55,7 +57,8 @@
     "runAfter": "Executar Depois",
     "runType": "Tipo de Execução",
     "sourceAssetEvent": "Evento de Asset de Origem",
-    "triggeredBy": "Acionado por"
+    "triggeredBy": "Acionado por",
+    "triggeringUser": "Nome do Usuário que Disparou"
   },
   "dagRun_one": "Execução do DAG",
   "dagRun_other": "Execuções do DAG",
@@ -95,6 +98,17 @@
       "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode ser desfeita."
     }
   },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtrar por DAG",
+    "keyPlaceholder": "Filtrar por chave XCom",
+    "logicalDateFromPlaceholder": "Data Lógica De",
+    "logicalDateToPlaceholder": "Data Lógica Para",
+    "mapIndexPlaceholder": "Filtrar por Índice do Mapa",
+    "runAfterFromPlaceholder": "Executar Depois De",
+    "runAfterToPlaceholder": "Executar Depois Para",
+    "runIdPlaceholder": "Filtrar por ID da Execução",
+    "taskIdPlaceholder": "Filtrar por ID da Tarefa"
+  },
   "nav": {
     "admin": "Administração",
     "assets": "Assets",
@@ -102,6 +116,7 @@
     "dags": "DAGs",
     "docs": "Documentação",
     "home": "Início",
+    "legacyFabViews": "Visualizações Legacy FAB",
     "plugins": "Plugins",
     "security": "Segurança"
   },
@@ -155,6 +170,7 @@
     "failed": "Falha",
     "no_status": "Sem Status",
     "none": "Sem Status",
+    "planned": "Planejado",
     "queued": "Enfileirado",
     "removed": "Removido",
     "restarting": "Reiniciando",
@@ -193,6 +209,7 @@
   },
   "task_one": "Tarefa",
   "task_other": "Tarefas",
+  "taskGroup": "Grupo de Tarefas",
   "taskId": "ID da Tarefa",
   "taskInstance": {
     "dagVersion": "Versão do DAG",
@@ -269,10 +286,28 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Acionado",
   "tryNumber": "Número de Tentativas",
   "user": "Usuário",
+  "expand": {
+    "collapse": "Recolher",
+    "expand": "Expandir",
+    "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
+    "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção"
+  },
+  "source": {
+    "hide": "Ocultar",
+    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
+    "show": "Mostrar"
+  },
+  "timestamp": {
+    "hide": "Ocultar",
+    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
+    "show": "Mostrar"
+  },
   "wrap": {
+    "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
     "unwrap": "Expandir",
     "wrap": "Recolher"
