@@ -16,4 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from .structlog import configure_logging as configure_logging
+__all__ = [
+    "configure_logging",
+    "init_log_file",
+    "init_log_folder",
+]
+
+from .structlog import configure_logging, init_log_file, init_log_folder
