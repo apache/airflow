@@ -17,9 +17,10 @@
  * under the License.
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
+import { createRichTooltipContent } from "./richTooltipUtils";
 import type { CalendarCellData } from "./types";
-import { createRichTooltipContent } from "./calendarUtils";
 
 const SQUARE_SIZE = "12px";
 const SQUARE_BORDER_RADIUS = "2px";
@@ -29,22 +30,20 @@ type Props = {
 };
 
 export const CalendarTooltipContent = ({ cellData }: Props) => {
-  const { date, total, states, hasRuns } = createRichTooltipContent(cellData);
-
-  // Debug logging
-  console.log('CalendarTooltipContent:', { cellData, date, total, states, hasRuns });
+  const { t: translate } = useTranslation("dag");
+  const { date, hasRuns, states, total } = createRichTooltipContent(cellData);
 
   if (!hasRuns) {
-    return <Text fontSize="sm">{date}: No runs</Text>;
+    return <Text fontSize="sm">{date}: {translate("calendar.noRuns")}</Text>;
   }
 
   return (
     <VStack align="start" gap={2}>
       <Text fontSize="sm" fontWeight="medium">
-        {date}: {total} runs
+        {date}: {total} {translate("calendar.runs")}
       </Text>
       <VStack align="start" gap={1.5}>
-        {states.map(({ state, count, color }) => (
+        {states.map(({ color, count, state }) => (
           <HStack gap={3} key={state}>
             <Box
               bg={color}

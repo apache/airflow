@@ -178,11 +178,14 @@ export const Gantt = ({ limit }: Props) => {
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
-  const stateColorTokens = useToken("colors", states.map((state) => `${state}.solid`));
+  const stateColorTokens = useToken(
+    "colors",
+    states.map((state) => `${state}.solid`),
+  );
   const stateColorMap = Object.fromEntries(
     states.map((state, index) => [
       state,
-      getComputedCSSVariableValue(stateColorTokens[index] || "oklch(0.5 0 0)"),
+      getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
     ]),
   );
 

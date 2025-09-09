@@ -112,15 +112,14 @@ export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
                     date: day.date,
                     runs: [],
                   };
-                  return <CalendarCell backgroundColor="transparent" cellData={emptyCellData} key={day.date} />;
+
+                  return (
+                    <CalendarCell backgroundColor="transparent" cellData={emptyCellData} key={day.date} />
+                  );
                 }
 
                 return (
-                  <CalendarCell
-                    backgroundColor={scale.getColor(day.counts)}
-                    cellData={day}
-                    key={day.date}
-                  />
+                  <CalendarCell backgroundColor={scale.getColor(day.counts)} cellData={day} key={day.date} />
                 );
               })}
             </Box>

@@ -227,7 +227,12 @@ export const Variables = () => {
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
           <Tooltip content={translate("variables.exportTooltip")}>
-            <Button colorPalette="info" onClick={() => downloadJson(selectedVariables, "variables")} size="sm" variant="outline">
+            <Button
+              colorPalette="info"
+              onClick={() => downloadJson(selectedVariables, "variables")}
+              size="sm"
+              variant="outline"
+            >
               <FiShare />
               {translate("variables.export")}
             </Button>

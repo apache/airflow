@@ -433,16 +433,12 @@ export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperti
     "--xy-background-pattern-color":
       colorMode === "dark" ? "var(--chakra-colors-gray-200)" : "var(--chakra-colors-gray-800)",
 
-
     // Controls
-    "--xy-controls-button-background-color": colorMode === "dark"
-      ? "var(--chakra-colors-gray-800)"
-      : "var(--chakra-colors-white)",
-    "--xy-controls-button-background-color-hover": colorMode === "dark"
-      ? "var(--chakra-colors-gray-700)"
-      : "var(--chakra-colors-gray-100)",
+    "--xy-controls-button-background-color":
+      colorMode === "dark" ? "var(--chakra-colors-gray-800)" : "var(--chakra-colors-white)",
+    "--xy-controls-button-background-color-hover":
+      colorMode === "dark" ? "var(--chakra-colors-gray-700)" : "var(--chakra-colors-gray-100)",
 
     // MiniMap
     "--xy-minimap-background-color": "var(--chakra-colors-bg)",
-
   }) as CSSProperties;

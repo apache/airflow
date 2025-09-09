@@ -323,31 +323,3 @@ export const createTooltipContent = (cellData: CalendarCellData): string => {
   return `${date}: ${counts.total} runs (${parts.join(", ")})`;
 };
 
-export const createRichTooltipContent = (cellData: CalendarCellData) => {
-  const { counts, date } = cellData;
-  const hasRuns = counts.total > 0;
-
-  if (!hasRuns) {
-    return {
-      date: dayjs(date).format("MMM DD, YYYY"),
-      total: 0,
-      states: [],
-      hasRuns: false,
-    };
-  }
-
-  const states = Object.entries(counts)
-    .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => ({
-      state,
-      count,
-      color: `var(--chakra-colors-${state}-solid)`,
-    }));
-
-  return {
-    date: dayjs(date).format("MMM DD, YYYY"),
-    total: counts.total,
-    states,
-    hasRuns: true,
-  };
-};
