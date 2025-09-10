@@ -178,8 +178,8 @@ class Templater:
         if isinstance(value, ObjectStoragePath):
             return self._render_object_storage_path(value, context, jinja_env)
 
-        if resolve := getattr(value, "resolve", None):
-            return resolve(context)
+        if isinstance(value, ResolveMixin):
+            return value.resolve(context)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
