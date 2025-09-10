@@ -34,7 +34,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -43,6 +43,7 @@ from airflow.api_fastapi.common.parameters import (
     OffsetFilter,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryDagRunVersionFilter,
     QueryLimit,
     QueryOffset,
     Range,
@@ -79,7 +80,8 @@ from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DAG, DagModel, DagRun
+from airflow.models import DagModel, DagRun
+from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -168,10 +170,7 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = dag_bag.get_dag(dag_id)
-
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_dag_for_run(dag_bag, dag_run, session=session)
 
     fields_to_update = patch_body.model_fields_set
 
@@ -274,9 +273,11 @@ def clear_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = dag_bag.get_dag(dag_id)
+    dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
     if body.dry_run:
+        if not dag:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
         task_instances = dag.clear(
             run_id=dag_run_id,
             task_ids=None,
@@ -290,6 +291,8 @@ def clear_dag_run(
             task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     dag.clear(
         run_id=dag_run_id,
         task_ids=None,
@@ -317,6 +320,7 @@ def get_dag_runs(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
+    dag_version: QueryDagRunVersionFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -343,6 +347,10 @@ def get_dag_runs(
     session: SessionDep,
     dag_bag: DagBagDep,
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    triggering_user_name_pattern: Annotated[
+        _SearchParam,
+        Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
+    ],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -352,11 +360,12 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag: DAG = dag_bag.get_dag(dag_id)
-        if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
-
+        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
+
+    # Add join with DagVersion if dag_version filter is active
+    if dag_version.value:
+        query = query.join(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
@@ -368,8 +377,10 @@ def get_dag_runs(
             update_at_range,
             state,
             run_type,
+            dag_version,
             readable_dag_runs_filter,
             run_id_pattern,
+            triggering_user_name_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -417,7 +428,7 @@ def trigger_dag_run(
         )
 
     try:
-        dag: DAG = dag_bag.get_dag(dag_id)
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
@@ -491,6 +502,7 @@ def wait_dag_run_until_finished(
         run_id=dag_run_id,
         interval=interval,
         result_task_ids=result_task_ids,
+        session=session,
     )
     return StreamingResponse(waiter.wait())
 
@@ -509,19 +521,39 @@ def get_list_dag_runs_batch(
     """Get a list of DAG Runs."""
     dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
-        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        Range(
+            lower_bound_gte=body.logical_date_gte,
+            lower_bound_gt=body.logical_date_gt,
+            upper_bound_lte=body.logical_date_lte,
+            upper_bound_lt=body.logical_date_lt,
+        ),
         attribute=DagRun.logical_date,
     )
     run_after = RangeFilter(
-        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        Range(
+            lower_bound_gte=body.run_after_gte,
+            lower_bound_gt=body.run_after_gt,
+            upper_bound_lte=body.run_after_lte,
+            upper_bound_lt=body.run_after_lt,
+        ),
         attribute=DagRun.run_after,
     )
     start_date = RangeFilter(
-        Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
+        Range(
+            lower_bound_gte=body.start_date_gte,
+            lower_bound_gt=body.start_date_gt,
+            upper_bound_lte=body.start_date_lte,
+            upper_bound_lt=body.start_date_lt,
+        ),
         attribute=DagRun.start_date,
     )
     end_date = RangeFilter(
-        Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
+        Range(
+            lower_bound_gte=body.end_date_gte,
+            lower_bound_gt=body.end_date_gt,
+            upper_bound_lte=body.end_date_lte,
+            upper_bound_lt=body.end_date_lt,
+        ),
         attribute=DagRun.end_date,
     )
     state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
@@ -544,7 +576,7 @@ def get_list_dag_runs_batch(
         ],
         DagRun,
         {"dag_run_id": "run_id"},
-    ).set_value(body.order_by)
+    ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(

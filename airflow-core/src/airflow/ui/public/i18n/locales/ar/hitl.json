@@ -1,0 +1,42 @@
+{
+  "filters": {
+    "response": {
+      "all": "الكل",
+      "pending": "قيد الانتظار",
+      "received": "تمت المراجعة"
+    }
+  },
+  "requiredAction_few": "إجراءات مطلوبة",
+  "requiredAction_many": "لإجراءات مطلوبة",
+  "requiredAction_one": "إجراء مطلوب",
+  "requiredAction_other": "إجراءات مطلوبة",
+  "requiredAction_two": "إجراءان مطلوبان",
+  "requiredAction_zero": "لا إجراءات مطلوبة",
+  "requiredActionCount_few": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_many": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_one": "إجراء مطلوب ({{count}})",
+  "requiredActionCount_other": "إجراءات مطلوبة ({{count}})",
+  "requiredActionCount_two": "إجرَاءان مطلوبان",
+  "requiredActionCount_zero": "لا توجد إجراءات مطلوبة",
+  "requiredActionState": "حالة الإجراء المطلوب",
+  "response": {
+    "error": "فشل في الاستجابة",
+    "optionsDescription": "اختر الخيارات لهذا مثيل المهمة",
+    "optionsLabel": "الخيارات",
+    "received": "تم استلام الاستجابة في ",
+    "respond": "الرد",
+    "success": "تمت الاستجابة بنجاح ل{{taskId}}",
+    "title": "مثيل مهمة يدوي - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "تم استلام الموافقة",
+    "approvalRequired": "تتطلب موافقة",
+    "choiceReceived": "تم استلام الاختيار",
+    "choiceRequired": "يتطلب اختيارًا",
+    "noResponseReceived": "لم يتم استلام أي رد",
+    "rejectionReceived": "تم استلام الرفض",
+    "responseReceived": "تم استلام الاستجابة",
+    "responseRequired": "تتطلب استجابة"
+  },
+  "subject": "الموضوع"
+}

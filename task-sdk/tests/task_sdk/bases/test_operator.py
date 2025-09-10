@@ -273,6 +273,22 @@ class TestBaseOperator:
                 weight_rule=NotRegisteredPriorityWeightStrategy(),
             )
 
+    def test_db_safe_priority(self):
+        """Test the db_safe_priority function."""
+        from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, db_safe_priority
+
+        assert db_safe_priority(1) == 1
+        assert db_safe_priority(-1) == -1
+        assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
+        assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
+
+    def test_db_safe_constants(self):
+        """Test the database safe constants."""
+        from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM
+
+        assert DB_SAFE_MINIMUM == -2147483648
+        assert DB_SAFE_MAXIMUM == 2147483647
+
     def test_warnings_are_properly_propagated(self):
         with pytest.warns(DeprecationWarning, match="deprecated") as warnings:
             DeprecatedOperator(task_id="test")
@@ -744,7 +760,7 @@ class TestBaseOperator:
         assert mock_jinja_env.call_count == 1
 
     def test_deepcopy(self):
-        # Test bug when copying an operator attached to a DAG
+        # Test bug when copying an operator attached to a Dag
         with DAG("dag0", schedule=None, start_date=DEFAULT_DATE) as dag:
 
             @dag.task
@@ -933,10 +949,11 @@ class TestExecutorSafeguard:
                 "event": "ExtendedHelloWorldOperator.execute cannot be called outside of the Task Runner!",
                 "level": "warning",
                 "timestamp": mock.ANY,
+                "logger": "tests.task_sdk.bases.test_operator",
             },
         ]
 
-    def test_decorated_operators(self, captured_logs):
+    def test_decorated_operators(self, caplog):
         with DAG("d1") as dag:
 
             @dag.task(task_id="task_id", dag=dag)
@@ -947,15 +964,13 @@ class TestExecutorSafeguard:
             op = say_hello()
 
         op.operator.execute(context={})
-        assert captured_logs == [
-            {
-                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
-                "level": "warning",
-                "timestamp": mock.ANY,
-            },
-        ]
+        assert {
+            "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+            "log_level": "warning",
+        } in caplog
 
-    def test_python_op(self, captured_logs):
+    @pytest.mark.log_level(logging.WARNING)
+    def test_python_op(self, caplog):
         from airflow.providers.standard.operators.python import PythonOperator
 
         with DAG("d1"):
@@ -969,13 +984,10 @@ class TestExecutorSafeguard:
                 python_callable=say_hello,
             )
         op.execute(context={}, PythonOperator__sentinel=ExecutorSafeguard.sentinel_value)
-        assert captured_logs == [
-            {
-                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
-                "level": "warning",
-                "timestamp": mock.ANY,
-            },
-        ]
+        assert {
+            "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+            "log_level": "warning",
+        } in caplog
 
 
 def test_partial_default_args():

@@ -31,7 +31,6 @@ RESOURCE_DAG_CODE = "DAG Code"
 RESOURCE_DAG_DEPENDENCIES = "DAG Dependencies"
 RESOURCE_DAG_PREFIX = "DAG:"
 RESOURCE_DAG_RUN = "DAG Runs"
-RESOURCE_DAG_RUN_PREFIX = "DAG Run:"
 RESOURCE_DAG_VERSION = "DAG Versions"
 RESOURCE_DAG_WARNING = "DAG Warnings"
 RESOURCE_CLUSTER_ACTIVITY = "Cluster Activity"
@@ -39,6 +38,7 @@ RESOURCE_ASSET = "Assets"
 RESOURCE_ASSET_ALIAS = "Asset Aliases"
 RESOURCE_DOCS = "Documentation"
 RESOURCE_DOCS_MENU = "Docs"
+RESOURCE_HITL_DETAIL = "HITL Detail"
 RESOURCE_IMPORT_ERROR = "ImportError"
 RESOURCE_JOB = "Jobs"
 RESOURCE_MY_PASSWORD = "My Password"
@@ -87,17 +87,17 @@ RESOURCE_DETAILS_MAP = {
     ),
     RESOURCE_DAG_RUN: ResourceDetails(
         actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
-        prefix=RESOURCE_DAG_RUN_PREFIX,
+        prefix="DAG Run:",
     ),
 }
 PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
 PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
 
 
-def resource_name(root_dag_id: str, resource: str) -> str:
+def resource_name(dag_id: str, resource: str) -> str:
     """Return the resource name for a DAG id."""
-    if root_dag_id in RESOURCE_DETAILS_MAP.keys():
-        return root_dag_id
-    if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
-        return root_dag_id
-    return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{root_dag_id}"
+    if dag_id in RESOURCE_DETAILS_MAP.keys():
+        return dag_id
+    if dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
+        return dag_id
+    return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{dag_id}"

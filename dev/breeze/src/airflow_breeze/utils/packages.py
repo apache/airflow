@@ -292,6 +292,11 @@ def get_provider_requirements(provider_id: str) -> list[str]:
     return package_metadata["dependencies"] if package_metadata else []
 
 
+def get_provider_optional_dependencies(provider_id: str) -> dict[str, list[str]]:
+    package_metadata = get_provider_distributions_metadata().get(provider_id)
+    return package_metadata.get("optional-dependencies", {}) if package_metadata else {}
+
+
 @lru_cache
 def get_available_distributions(
     include_non_provider_doc_packages: bool = False,
@@ -626,6 +631,30 @@ def convert_cross_package_dependencies_to_table(
     return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
 
 
+def convert_optional_dependencies_to_table(
+    optional_dependencies: dict[str, list[str]],
+    markdown: bool = True,
+) -> str:
+    """
+    Converts optional dependencies to a Markdown/RST table
+    :param optional_dependencies: dict of optional dependencies
+    :param markdown: if True, Markdown format is used else rst
+    :return: formatted table
+    """
+    import html
+
+    from tabulate import tabulate
+
+    headers = ["Extra", "Dependencies"]
+    table_data = []
+    for extra_name, dependencies in optional_dependencies.items():
+        decoded_deps = [html.unescape(dep) for dep in dependencies]
+        formatted_deps = ", ".join(f"`{dep}`" if markdown else f"``{dep}``" for dep in decoded_deps)
+        extra_col = f"`{extra_name}`" if markdown else f"``{extra_name}``"
+        table_data.append((extra_col, formatted_deps))
+    return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
+
+
 def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     if provider_id in get_removed_provider_ids():
         return []
@@ -679,6 +708,10 @@ def get_provider_jinja_context(
         ),
         "REQUIRES_PYTHON": requires_python_version,
         "EXTRA_PROJECT_METADATA": provider_details.extra_project_metadata,
+        "OPTIONAL_DEPENDENCIES": get_provider_optional_dependencies(provider_id),
+        "OPTIONAL_DEPENDENCIES_TABLE_RST": convert_optional_dependencies_to_table(
+            get_provider_optional_dependencies(provider_id), markdown=False
+        ),
     }
     return context
 
@@ -1092,11 +1125,14 @@ def apply_version_suffix_to_non_provider_pyproject_tomls(
     from packaging.version import Version
 
     original_version_search = re.search('__version__ = "([^"]+)"', init_file_path.read_text())
+    # Search beta version
+    beta_version_search = re.search('__version__ = "([^"]+)b[0-9]+"', init_file_path.read_text())
     if not original_version_search:
         raise RuntimeError(f"Could not find __version__ in {init_file_path}")
     original_distribution_version = original_version_search.group(1)
     packaging_version = Version(original_distribution_version)
-    if packaging_version.base_version != str(packaging_version):
+    # Forgiving check for beta versions
+    if not beta_version_search and packaging_version.base_version != str(packaging_version):
         raise RuntimeError(
             f"The package version in {init_file_path} should be `simple version` "
             f"(no suffixes) and it is `{original_distribution_version}`."

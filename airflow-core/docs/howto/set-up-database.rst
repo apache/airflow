@@ -330,7 +330,7 @@ MsSQL Database
     the Airflow's PMC members and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
 
     As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
-    This does not affect the existing providers (operators and hooks), dags can still access and process data from MsSQL.
+    This does not affect the existing providers (operators and hooks), Dags can still access and process data from MsSQL.
     However, further usage may throw errors making Airflow's core functionality unusable.
 
 
@@ -339,7 +339,7 @@ Migrating off MsSQL Server
 
 As with Airflow 2.9.0 the support of MSSQL has ended, a migration script can help with
 Airflow version 2.7.x or 2.8.x to migrate off SQL-Server. The migration script is available in
-`airflow-mssql-migration repo on Github <https://github.com/apache/airflow-mssql-migration>`_.
+`airflow-mssql-migration repo on GitHub <https://github.com/apache/airflow-mssql-migration>`_.
 
 Note that the migration script is provided without support and warranty.
 

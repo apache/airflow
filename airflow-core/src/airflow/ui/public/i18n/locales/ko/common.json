@@ -7,6 +7,7 @@
     "Providers": "제공자들",
     "Variables": "변수들"
   },
+  "allOperators": "모든 오퍼레이터",
   "asset_one": "에셋",
   "asset_other": "에셋들",
   "assetEvent_one": "에셋 이벤트",
@@ -15,6 +16,7 @@
   "backfill_other": "백필들",
   "browse": {
     "auditLog": "감사 로그",
+    "requiredActions": "필수 작업",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "세부 정보 패널 접기",
@@ -24,7 +26,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "캐치업",
-    "concurrency": "동시 샐행 수",
     "dagRunTimeout": "Dag 실행 제한 시간",
     "defaultArgs": "기본 인자",
     "description": "설명",
@@ -60,6 +61,7 @@
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
+  "dagRunId": "Dag 실행 ID",
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
@@ -89,6 +91,17 @@
     "and": "그리고",
     "any": "모든",
     "or": "또는"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Dag로 필터링",
+    "keyPlaceholder": "XCom 키로 필터링",
+    "logicalDateFromPlaceholder": "논리적 날짜 (시작)",
+    "logicalDateToPlaceholder": "논리적 날짜 (종료)",
+    "mapIndexPlaceholder": "맵 인덱스로 필터링",
+    "runAfterFromPlaceholder": "실행 이후 (시작)",
+    "runAfterToPlaceholder": "실행 이후 (종료)",
+    "runIdPlaceholder": "실행 ID로 필터링",
+    "taskIdPlaceholder": "작업 ID로 필터링"
   },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
@@ -168,6 +181,7 @@
     "failed": "실패",
     "no_status": "상태 없음",
     "none": "상태 없음",
+    "planned": "계획됨",
     "queued": "대기 중",
     "removed": "제거됨",
     "restarting": "다시 시작 중",
@@ -179,8 +193,6 @@
     "up_for_retry": "재시도 대기 중",
     "upstream_failed": "업스트림 실패"
   },
-  "switchToDarkMode": "다크 모드로 전환",
-  "switchToLightMode": "라이트 모드로 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",
@@ -201,11 +213,12 @@
   "task": {
     "documentation": "작업 문서",
     "lastInstance": "마지막 인스턴스",
-    "operator": "연산자",
+    "operator": "오퍼레이터",
     "triggerRule": "트리거 규칙"
   },
   "task_one": "작업",
   "task_other": "작업들",
+  "taskGroup": "작업 그룹",
   "taskId": "작업 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",

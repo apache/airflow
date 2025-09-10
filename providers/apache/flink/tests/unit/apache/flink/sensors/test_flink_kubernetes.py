@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+import logging
+from unittest.mock import ANY, patch
 
 import pytest
 from kubernetes.client import V1ObjectMeta, V1Pod, V1PodList
@@ -1069,7 +1070,6 @@ class TestFlinkKubernetesSensor:
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_ERROR_CLUSTER,
     )
-    @patch("logging.Logger.error")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         return_value=TEST_POD_LOGS,
@@ -1079,7 +1079,7 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_failure(
-        self, mock_namespaced_pod_list, mock_pod_logs, error_log_call, mock_namespaced_crd, mock_kube_conn
+        self, mock_namespaced_pod_list, mock_pod_logs, mock_namespaced_crd, mock_kube_conn, caplog
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
@@ -1093,13 +1093,85 @@ class TestFlinkKubernetesSensor:
             namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
         )
         mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
-        error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
+        assert TEST_POD_LOG_RESULT in caplog.messages
         mock_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
             version="v1beta1",
             namespace="default",
             plural="flinkdeployments",
             name="flink-stream-example",
+        )
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_READY_CLUSTER,
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
+        return_value=TEST_POD_LOGS,
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
+    def test_driver_logging_completed(
+        self, mock_namespaced_pod_list, mock_pod_logs, mock_namespaced_crd, mock_kube_conn, caplog
+    ):
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example",
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
+        )
+        sensor.poke(None)
+
+        mock_namespaced_pod_list.assert_called_once_with(
+            namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
+        )
+        mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
+        assert TEST_POD_LOG_RESULT in caplog.messages
+
+        mock_namespaced_crd.assert_called_once_with(
+            group="flink.apache.org",
+            version="v1beta1",
+            namespace="default",
+            plural="flinkdeployments",
+            name="flink-stream-example",
+        )
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_READY_CLUSTER,
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
+        return_value=TEST_POD_LOGS,
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
+        return_value=TASK_MANAGER_POD_LIST,
+    )
+    def test_logging_taskmanager_from_taskmanager_namespace_when_namespace_is_set(
+        self, mock_namespaced_pod_list, mock_pod_logs, mock_namespaced_crd, mock_kube_conn
+    ):
+        namespace = "different-namespace123456"
+        namespae_name = "test123"
+
+        sensor = FlinkKubernetesSensor(
+            application_name="flink-stream-example",
+            namespace=namespace,
+            taskmanager_pods_namespace=namespae_name,
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
+        )
+
+        sensor.poke(context=None)
+
+        mock_namespaced_pod_list.assert_called_once_with(
+            namespace=namespae_name,
+            watch=False,
+            label_selector="component=taskmanager,app=flink-stream-example",
         )
 
     @patch(
@@ -1115,39 +1187,31 @@ class TestFlinkKubernetesSensor:
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_namespaced_pod_list",
         return_value=TASK_MANAGER_POD_LIST,
     )
-    def test_driver_logging_completed(
-        self, mock_namespaced_pod_list, mock_pod_logs, info_log_call, mock_namespaced_crd, mock_kube_conn
+    def test_logging_taskmanager_from_non_default_namespace(
+        self, mock_namespaced_pod_list, mock_pod_logs, mock_namespaced_crd, mock_kube_conn, caplog
     ):
+        namespae_name = "test123"
+
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
+            namespace=namespae_name,
             attach_log=True,
             dag=self.dag,
             task_id="test_task_id",
         )
-        sensor.poke(None)
+
+        sensor.poke(context=None)
 
         mock_namespaced_pod_list.assert_called_once_with(
-            namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
-        )
-        mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
-        log_info_call = info_log_call.mock_calls[4]
-        log_value = log_info_call[1][0]
-
-        assert log_value == TEST_POD_LOG_RESULT
-
-        mock_namespaced_crd.assert_called_once_with(
-            group="flink.apache.org",
-            version="v1beta1",
-            namespace="default",
-            plural="flinkdeployments",
-            name="flink-stream-example",
+            namespace=namespae_name,
+            watch=False,
+            label_selector="component=taskmanager,app=flink-stream-example",
         )
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_READY_CLUSTER,
     )
-    @patch("logging.Logger.warning")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         side_effect=ApiException("Test api exception"),
@@ -1157,7 +1221,7 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_error(
-        self, mock_namespaced_pod_list, mock_pod_logs, warn_log_call, mock_namespaced_crd, mock_kube_conn
+        self, mock_namespaced_pod_list, mock_pod_logs, mock_namespaced_crd, mock_kube_conn, caplog
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
@@ -1166,13 +1230,12 @@ class TestFlinkKubernetesSensor:
             task_id="test_task_id",
         )
         sensor.poke(None)
-        warn_log_call.assert_called_once()
+        assert (ANY, logging.WARNING, ANY) in caplog.record_tuples, "Expected something logged at warning"
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_ERROR_CLUSTER,
     )
-    @patch("logging.Logger.warning")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         side_effect=ApiException("Test api exception"),
@@ -1182,7 +1245,7 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_error_missing_state(
-        self, mock_namespaced_pod_list, mock_pod_logs, warn_log_call, mock_namespaced_crd, mock_kube_conn
+        self, mock_namespaced_pod_list, mock_pod_logs, mock_namespaced_crd, mock_kube_conn, caplog
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
@@ -1192,4 +1255,4 @@ class TestFlinkKubernetesSensor:
         )
         with pytest.raises(AirflowException):
             sensor.poke(None)
-        warn_log_call.assert_called_once()
+        assert (ANY, logging.WARNING, ANY) in caplog.record_tuples, "Expected something logged at warning"

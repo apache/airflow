@@ -23,7 +23,7 @@ This page documents the full public API exposed in Airflow 3.0+ via the Task SDK
 If something is not on this page it is best to assume that it is not part of the public API and use of it is entirely at your own risk
 -- we won't go out of our way break usage of them, but we make no promises either.
 
-Defining DAGs
+Defining Dags
 -------------
 .. autoapiclass:: airflow.sdk.DAG
 
@@ -88,6 +88,16 @@ Tasks & Operators
 
 .. autoapiclass:: airflow.sdk.Param
 
+.. autoclass:: airflow.sdk.TriggerRule
+
+State Enums
+-----------
+.. autoclass:: airflow.sdk.TaskInstanceState
+
+.. autoclass:: airflow.sdk.DagRunState
+
+.. autoclass:: airflow.sdk.WeightRule
+
 Setting Dependencies
 ~~~~~~~~~~~~~~~~~~~~
 .. autoapifunction:: airflow.sdk.chain
@@ -125,11 +135,12 @@ I/O Helpers
 Execution Time Components
 -------------------------
 .. rubric:: Context
-.. autoapiclass:: airflow.sdk.Context
-.. autoapimodule:: airflow.sdk.execution_time.context
-   :members:
-   :undoc-members:
 
+.. autoapiclass:: airflow.sdk.Context
+
+.. rubric:: Logging
+
+.. autofunction:: airflow.sdk.log.mask_secret
 
 Everything else
 ---------------

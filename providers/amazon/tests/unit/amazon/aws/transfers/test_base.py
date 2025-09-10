@@ -21,12 +21,16 @@ import pytest
 
 from airflow import DAG
 from airflow.models import DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
@@ -38,7 +42,7 @@ class TestAwsToAwsBaseOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         operator = AwsToAwsBaseOperator(
             task_id="dynamodb_to_s3_test_render",
             dag=self.dag,
@@ -49,8 +53,7 @@ class TestAwsToAwsBaseOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(operator, run_id="something", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(

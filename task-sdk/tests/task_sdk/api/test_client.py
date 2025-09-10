@@ -88,6 +88,16 @@ class TestClient:
         assert resp.status_code == 200
         assert resp.json() == json_response
 
+    @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
+    def test_add_capath(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
+
     def test_error_parsing(self):
         responses = [
             httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
@@ -1019,7 +1029,7 @@ class TestDagRunOperations:
                     json={
                         "detail": {
                             "reason": "already_exists",
-                            "message": "A DAG Run already exists for DAG test_trigger_conflict with run id test_run_id",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict with run id test_run_id",
                         }
                     },
                 )
@@ -1040,7 +1050,7 @@ class TestDagRunOperations:
                     json={
                         "detail": {
                             "reason": "already_exists",
-                            "message": "A DAG Run already exists for DAG test_trigger_conflict with run id test_run_id",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict with run id test_run_id",
                         }
                     },
                 )
@@ -1202,13 +1212,13 @@ class TestDagRunOperations:
         assert result.dag_run.state == "success"
 
     def test_get_previous_not_found(self):
-        """Test get_previous when no previous DAG run exists returns None."""
+        """Test get_previous when no previous Dag run exists returns None."""
         logical_date = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_dag/previous":
                 assert request.url.params["logical_date"] == logical_date.isoformat()
-                # Return None (null) when no previous DAG run found
+                # Return None (null) when no previous Dag run found
                 return httpx.Response(status_code=200, content="null")
             return httpx.Response(status_code=422)
 
@@ -1246,7 +1256,7 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-details/{ti_id}"):
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
                 return httpx.Response(
                     status_code=201,
                     json={
@@ -1279,19 +1289,21 @@ class TestHITLOperations:
         assert result.defaults == ["Approval"]
         assert result.params is None
         assert result.multiple is False
+        assert result.respondents is None
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-details/{ti_id}"):
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
                 return httpx.Response(
                     status_code=200,
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "user_id": "admin",
+                        "responded_user_id": "admin",
+                        "responded_user_name": "admin",
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1308,7 +1320,8 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.user_id == "admin"
+        assert result.responded_user_id == "admin"
+        assert result.responded_user_name == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
     def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
@@ -1316,13 +1329,14 @@ class TestHITLOperations:
         ti_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path in (f"/hitl-details/{ti_id}"):
+            if request.url.path in (f"/hitlDetails/{ti_id}"):
                 return httpx.Response(
                     status_code=200,
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "user_id": "admin",
+                        "responded_user_id": "admin",
+                        "responded_user_name": "admin",
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1335,5 +1349,6 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.user_id == "admin"
+        assert result.responded_user_id == "admin"
+        assert result.responded_user_name == "admin"
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

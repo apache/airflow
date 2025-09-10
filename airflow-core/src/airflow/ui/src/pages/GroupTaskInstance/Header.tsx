@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
@@ -36,8 +37,11 @@ export const Header = ({
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
-    entries.push({ label: translate("total", { state }), value: count });
+  Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
+    entries.push({
+      label: translate("total", { state: translate(`states.${taskState.toLowerCase()}`) }),
+      value: count,
+    });
   });
   const stats = [
     ...entries,
@@ -56,6 +60,7 @@ export const Header = ({
   return (
     <Box>
       <HeaderCard
+        actions={<ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled withText={true} />}
         icon={<MdOutlineTask />}
         isRefreshing={isRefreshing}
         state={taskInstance.state}

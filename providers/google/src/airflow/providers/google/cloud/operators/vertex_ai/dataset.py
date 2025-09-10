@@ -410,7 +410,7 @@ class ImportDataOperator(GoogleCloudBaseOperator, DatasetImportDataResultsCheckH
         )
         initial_dataset_size = self._get_number_of_ds_items(
             dataset=hook.get_dataset(
-                dataset_id=self.dataset_id,
+                dataset=self.dataset_id,
                 project_id=self.project_id,
                 region=self.region,
                 retry=self.retry,
@@ -432,7 +432,7 @@ class ImportDataOperator(GoogleCloudBaseOperator, DatasetImportDataResultsCheckH
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
         result_dataset_size = self._get_number_of_ds_items(
             dataset=hook.get_dataset(
-                dataset_id=self.dataset_id,
+                dataset=self.dataset_id,
                 project_id=self.project_id,
                 region=self.region,
                 retry=self.retry,

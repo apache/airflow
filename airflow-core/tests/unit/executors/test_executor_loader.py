@@ -44,6 +44,14 @@ class TestExecutorLoader:
             with pytest.raises(AirflowConfigException, match=r".*not found in config$"):
                 executor_loader.ExecutorLoader.get_default_executor()
 
+    def test_empty_executor_configured(self):
+        with conf_vars({("core", "executor"): ""}):
+            with pytest.raises(
+                AirflowConfigException,
+                match="The 'executor' key in the 'core' section of the configuration is mandatory and cannot be empty",
+            ):
+                executor_loader.ExecutorLoader.get_default_executor()
+
     @pytest.mark.parametrize(
         "executor_name",
         [
@@ -73,170 +81,184 @@ class TestExecutorLoader:
             assert executor.name.connector_source == ConnectorSource.CUSTOM_PATH
 
     @pytest.mark.parametrize(
-        ("executor_config", "team_executor_config", "expected_executors_list"),
+        ("executor_config", "expected_executors_list"),
         [
             pytest.param(
                 "CeleryExecutor",
-                [],
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                 ],
                 id="one_executor",
             ),
             pytest.param(
-                "CeleryExecutor",
+                "team_a=CeleryExecutor",
                 [
-                    ("team_a", ["CeleryExecutor"]),
-                    ("team_b", ["LocalExecutor"]),
+                    ExecutorName(
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
+                    ),
                 ],
+                id="one_executor_one_team",
+            ),
+            pytest.param(
+                "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
-                        "team_a",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
-                        "team_b",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name="team_b",
                     ),
                 ],
                 id="one_executor_per_team",
             ),
             pytest.param(
                 "CeleryExecutor, LocalExecutor, unit.executors.test_executor_loader.FakeExecutor",
-                [],
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name=None,
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor",
             ),
             pytest.param(
-                "CeleryExecutor, LocalExecutor, unit.executors.test_executor_loader.FakeExecutor",
-                [
-                    ("team_a", ["CeleryExecutor", "unit.executors.test_executor_loader.FakeExecutor"]),
-                    ("team_b", ["unit.executors.test_executor_loader.FakeExecutor"]),
-                ],
+                "=CeleryExecutor,LocalExecutor,unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=unit.executors.test_executor_loader.FakeExecutor",
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
-                        "team_a",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
-                        "team_a",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
-                        "team_b",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name="team_b",
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor_per_team",
             ),
             pytest.param(
                 ("CeleryExecutor, LocalExecutor, fake_exec:unit.executors.test_executor_loader.FakeExecutor"),
-                [],
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name=None,
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor_with_aliases",
             ),
             pytest.param(
-                ("CeleryExecutor, LocalExecutor, fake_exec:unit.executors.test_executor_loader.FakeExecutor"),
-                [
-                    (
-                        "team_a",
-                        ["CeleryExecutor", "fake_exec:unit.executors.test_executor_loader.FakeExecutor"],
-                    ),
-                    ("team_b", ["fake_exec:unit.executors.test_executor_loader.FakeExecutor"]),
-                ],
+                (
+                    "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor"
+                ),
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
-                        "team_a",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
-                        "team_a",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
-                        "team_b",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name="team_b",
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor_with_aliases_per_team",
             ),
         ],
     )
-    def test_get_hybrid_executors_from_config(
-        self, executor_config, team_executor_config, expected_executors_list
-    ):
-        with conf_vars({("core", "executor"): executor_config}):
-            with mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader._get_team_executor_configs",
-                return_value=team_executor_config,
-            ):
+    def test_get_hybrid_executors_from_configs(self, executor_config, expected_executors_list):
+        # Mock the blocking method for tests that involve actual team configurations
+        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+            with conf_vars({("core", "executor"): executor_config}):
                 executors = executor_loader.ExecutorLoader._get_executor_names()
                 assert executors == expected_executors_list
+
+    def test_get_multi_team_executors_from_config_blocked_by_default(self):
+        """By default the use of multiple team based executors is blocked for now."""
+        with conf_vars({("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor"}):
+            with pytest.raises(
+                AirflowConfigException,
+                match=r".*Configuring multiple team based executors is not yet supported!.*",
+            ):
+                executor_loader.ExecutorLoader._get_executor_names()
 
     def test_init_executors(self):
         from airflow.providers.celery.executors.celery_executor import CeleryExecutor

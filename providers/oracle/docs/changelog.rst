@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``feature: Add OpenLineage support for OracleToGCSOperator (#54953)``
+
+Misc
+~~~~
+
+* ``Update OracleHook code to meet mypy and ruff guidelines (#54529)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+4.1.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in oracle provider where possible (#53280)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.2
 .....
 

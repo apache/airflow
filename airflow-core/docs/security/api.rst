@@ -43,7 +43,7 @@ Request
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X POST ${ENDPOINT_URL}/auth/token \
       -H "Content-Type: application/json" \
       -d '{
@@ -63,7 +63,7 @@ Use the JWT token to call Airflow public API
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://localhost:8080/"
+    ENDPOINT_URL="http://localhost:8080"
     curl -X GET ${ENDPOINT_URL}/api/v2/dags \
       -H "Authorization: Bearer <JWT-TOKEN>"
 

@@ -24,8 +24,10 @@ import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
+import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const defaultHour = "24";
@@ -57,7 +59,7 @@ export const Overview = () => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      orderBy: "-run_after",
+      orderBy: ["-run_after"],
       taskDisplayNamePattern: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     },
@@ -70,6 +72,7 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
+      <NeedsReviewButton taskId={taskId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -93,7 +96,7 @@ export const Overview = () => {
           })}
           route={{
             pathname: "task_instances",
-            search: "state=failed",
+            search: `${SearchParamsKeys.STATE}=failed`,
           }}
           startDate={startDate}
         />

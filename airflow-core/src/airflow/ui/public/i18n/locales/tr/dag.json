@@ -1,0 +1,152 @@
+{
+  "allRuns": "Tüm Çalıştırmalar",
+  "blockingDeps": {
+    "dependency": "Bağımlılık",
+    "reason": "Sebep",
+    "title": "Görevin Zamanlanmasını Engelleyen Bağımlılıklar"
+  },
+  "calendar": {
+    "daily": "Günlük",
+    "hourly": "Saatlik",
+    "legend": {
+      "less": "Az",
+      "more": "Çok"
+    },
+    "navigation": {
+      "nextMonth": "Gelecek ay",
+      "nextYear": "Gelecek yıl",
+      "previousMonth": "Önceki ay",
+      "previousYear": "Önceki yıl"
+    },
+    "noData": "Veri yok",
+    "noRuns": "Çalıştırma yok",
+    "totalRuns": "Bütün Çalıştırmalar",
+    "week": "Hafta {{weekNumber}}",
+    "weekdays": {
+      "friday": "Cuma",
+      "monday": "Pazartesi",
+      "saturday": "Cumartesi",
+      "sunday": "Pazar",
+      "thursday": "Perşembe",
+      "tuesday": "Salı",
+      "wednesday": "Çarşamba"
+    }
+  },
+  "code": {
+    "bundleUrl": "Paket URL'i",
+    "noCode": "Kod Bulunamadı",
+    "parseDuration": "Ayrıştırılma süresi:",
+    "parsedAt": "Ayrıştırıldı:"
+  },
+  "extraLinks": "Ek Bağlantılar",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "En son haline sıfırla",
+      "toggleGroup": "Grubu aç/kapat"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Gelişmiş",
+      "dagDocs": "Dag Belgeleri"
+    }
+  },
+  "logs": {
+    "allLevels": "Tüm Günlük Seviyeleri",
+    "allSources": "Tüm Kaynaklar",
+    "critical": "KRİTİK",
+    "debug": "HATA AYIKLAMA",
+    "error": "HATA",
+    "fullscreen": {
+      "button": "Tam ekran",
+      "tooltip": "Tam ekran için {{hotkey}} tuşuna basın"
+    },
+    "info": "BİLGİ",
+    "noTryNumber": "Tekrar Deneme numarası yok",
+    "settings": "Günlük Ayarları",
+    "viewInExternal": "Günlükleri {{name}} içinde görüntüle (deneme {{attempt}})",
+    "warning": "UYARI"
+  },
+  "navigation": {
+    "navigation": "Gezin: {{arrow}}",
+    "toggleGroup": "Grubu aç/kapat: Space"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Başarısız Çalıştırma",
+      "failedRun_other": "Başarısız Çalıştırmalar",
+      "failedTask_one": "Başarısız Görev",
+      "failedTask_other": "Başarısız Görevler",
+      "failedTaskInstance_one": "Başarısız Görev Örneği",
+      "failedTaskInstance_other": "Başarısız Görev Örnekleri"
+    },
+    "charts": {
+      "assetEvent_one": "Oluşturulan Varlık Etkinliği",
+      "assetEvent_other": "Oluşturulan Varlık Etkinlikleri"
+    },
+    "failedLogs": {
+      "hideLogs": "Günlükleri Gizle",
+      "showLogs": "Günlükleri Göster",
+      "title": "Son Başarısız Görev Günlükleri",
+      "viewFullLogs": "Tam günlükleri görüntüle"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Seçenekler",
+      "showGantt": "Gantt Grafiğini Göster",
+      "showGraphShortcut": "Grafiği Göster (g tuşuna basın)",
+      "showGridShortcut": "Izgara görünümünü Göster (g tuşuna basın)"
+    },
+    "dagRuns": {
+      "label": "Dag Çalıştırma Sayısı"
+    },
+    "dependencies": {
+      "label": "Bağımlılıklar",
+      "options": {
+        "allDagDependencies": "Tüm Dag Bağımlılıkları",
+        "externalConditions": "Dış koşullar",
+        "onlyTasks": "Sadece görevler"
+      },
+      "placeholder": "Bağımlılıklar"
+    },
+    "graphDirection": {
+      "label": "Grafik Yönü"
+    }
+  },
+  "paramsFailed": "Parametreler yüklenemedi",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag ayrıştırma isteği başarısız oldu. Henüz işlenmemiş bekleyen ayrıştırma istekleri olabilir.",
+        "title": "Dag Yeniden Ayrıştırılamadı"
+      },
+      "success": {
+        "description": "Dag yakında yeniden ayrıştırılacak.",
+        "title": "Yeniden ayrıştırma isteği başarıyla gönderildi"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Varlık Etkinlikleri",
+    "auditLog": "Denetim Günlüğü",
+    "backfills": "Geriye Dönük Çalıştırma İşlemleri",
+    "calendar": "Takvim",
+    "code": "Kod",
+    "details": "Detaylar",
+    "logs": "Günlükler",
+    "mappedTaskInstances_one": "Haritalanmış Görev Örneği [{{count}}]",
+    "mappedTaskInstances_other": "Haritalanmış Görev Örnekleri [{{count}}]",
+    "overview": "Genel Bakış",
+    "renderedTemplates": "İşlenmiş Şablonlar",
+    "requiredActions": "Gerekli Eylemler",
+    "runs": "Çalıştırmalar",
+    "taskInstances": "Görev Örnekleri",
+    "tasks": "Görevler",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Tüm görev gruplarını daralt",
+    "expandAll": "Tüm görev gruplarını genişlet"
+  }
+}

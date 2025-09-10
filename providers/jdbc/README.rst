@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-jdbc``
 
-Release: ``5.2.1``
+Release: ``5.2.3``
 
 
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
@@ -36,12 +36,12 @@ This is a provider package for ``jdbc`` provider. All classes for this provider 
 are in ``airflow.providers.jdbc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.2.3/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-jdbc``
 
@@ -78,4 +78,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.2.3/changelog.html>`_.

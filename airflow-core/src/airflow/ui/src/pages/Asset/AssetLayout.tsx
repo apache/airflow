@@ -41,7 +41,7 @@ export const AssetLayout = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-timestamp";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },

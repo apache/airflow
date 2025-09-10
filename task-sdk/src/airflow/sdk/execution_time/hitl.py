@@ -27,10 +27,10 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
+    from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 
 
-def add_hitl_detail(
+def upsert_hitl_detail(
     ti_id: UUID,
     options: list[str],
     subject: str,
@@ -38,6 +38,7 @@ def add_hitl_detail(
     defaults: list[str] | None = None,
     multiple: bool = False,
     params: dict[str, Any] | None = None,
+    respondents: list[str] | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -50,11 +51,12 @@ def add_hitl_detail(
             defaults=defaults,
             params=params,
             multiple=multiple,
+            respondents=respondents,
         )
     )
 
 
-def update_htil_detail_response(
+def update_hitl_detail_response(
     ti_id: UUID,
     chosen_options: list[str],
     params_input: dict[str, Any],

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.6.0``
+Release: ``7.7.2``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,12 +36,12 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.2/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-databricks``
 
@@ -77,15 +77,17 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-databricks[common.sql]
+    pip install apache-airflow-providers-databricks[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_                ``fab``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_                      ``fab``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.2/changelog.html>`_.

@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "Alle",
+      "pending": "Ausstehend",
+      "received": "Überprüft"
+    }
+  },
+  "requiredAction_one": "Erforderliche Interaktion",
+  "requiredAction_other": "Erforderliche Interaktionen",
+  "requiredActionCount_one": "{{count}} offene Interaktion",
+  "requiredActionCount_other": "{{count}} offene Interaktionen",
+  "requiredActionState": "Status der Interaktion",
+  "response": {
+    "error": "Senden der Antwort fehlgeschlagen",
+    "optionsDescription": "Wählen Sie Ihre Optionen für diesen Task",
+    "optionsLabel": "Optionen",
+    "received": "Antwort empfangen um ",
+    "respond": "Antworten",
+    "success": "{{taskId}} Interaktion erfolgreich",
+    "title": "Erforderliche Interaktion - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Genehmigung erhalten",
+    "approvalRequired": "Genehmigung erforderlich",
+    "choiceReceived": "Auswahl getroffen",
+    "choiceRequired": "Auswahl erforderlich",
+    "noResponseReceived": "Keine Antwort erhalten",
+    "rejectionReceived": "Ablehnung erhalten",
+    "responseReceived": "Antwort erhalten",
+    "responseRequired": "Antwort erforderlich"
+  },
+  "subject": "Betreff"
+}

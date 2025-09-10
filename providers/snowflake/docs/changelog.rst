@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+6.5.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(snowflake): enhance error message formatting for SQL errors (#54063)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+6.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SnowflakeCheckOperator and SnowflakeValueCheckOperator to use parameters arg correctly (#53837)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.5.1
 .....
 
@@ -39,11 +75,14 @@ Misc
 * ``Remove upper-binding for "python-requires" (#52980)``
 * ``Cleanup type ignores in snowflake provider where possible (#53258)``
 * ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make snowpark optional for snowflake provider and disable it for Python 3.13 (#53489)``
+* ``Deprecate decorators from Core (#53629)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Make dag_version_id in TI non-nullable (#50825)``
    * ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
 
 6.5.0
 .....

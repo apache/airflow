@@ -24,9 +24,20 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.parameters import (
+    FilterParam,
+    QueryLimit,
+    QueryOffset,
+    QueryXComDagDisplayNamePatternSearch,
+    QueryXComKeyPatternSearch,
+    QueryXComRunIdPatternSearch,
+    QueryXComTaskIdPatternSearch,
+    RangeFilter,
+    datetime_range_filter_factory,
+    filter_param_factory,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
@@ -39,7 +50,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
-from airflow.models import DAG, DagRun as DR
+from airflow.models import DagRun as DR
+from airflow.models.dag import DagModel
 from airflow.models.xcom import XComModel
 
 xcom_router = AirflowRouter(
@@ -74,14 +86,13 @@ def get_xcom_entry(
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
-        session=session,
         limit=1,
     )
 
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database.
-    result = xcom_query.limit(1).first()
+    result = session.scalars(xcom_query).first()
 
     if result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
@@ -127,6 +138,16 @@ def get_xcom_entries(
     offset: QueryOffset,
     readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
+    xcom_key_pattern: QueryXComKeyPatternSearch,
+    dag_display_name_pattern: QueryXComDagDisplayNamePatternSearch,
+    run_id_pattern: QueryXComRunIdPatternSearch,
+    task_id_pattern: QueryXComTaskIdPatternSearch,
+    map_index_filter: Annotated[
+        FilterParam[int | None],
+        Depends(filter_param_factory(XComModel.map_index, int | None, filter_name="map_index_filter")),
+    ],
+    logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
+    run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollectionResponse:
@@ -138,8 +159,10 @@ def get_xcom_entries(
     query = select(XComModel)
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
-    query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id)).options(
-        joinedload(XComModel.dag_run).joinedload(DR.dag_model)
+    query = (
+        query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
+        .join(DagModel, DR.dag_id == DagModel.dag_id)
+        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if task_id != "~":
@@ -153,7 +176,16 @@ def get_xcom_entries(
 
     query, total_entries = paginated_select(
         statement=query,
-        filters=[readable_xcom_filter],
+        filters=[
+            readable_xcom_filter,
+            xcom_key_pattern,
+            dag_display_name_pattern,
+            run_id_pattern,
+            task_id_pattern,
+            map_index_filter,
+            logical_date_range,
+            run_after_range,
+        ],
         offset=offset,
         limit=limit,
         session=session,
@@ -188,25 +220,26 @@ def create_xcom_entry(
     dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Create an XCom entry."""
+    from airflow.models.dagrun import DagRun
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate DAG ID
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     # Validate Task ID
     try:
         dag.get_task(task_id)
     except TaskNotFound:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
+            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in dag: `{dag_id}`"
         )
 
     # Validate DAG Run ID
-    dag_run = dag.get_dagrun(dag_run_id, session)
     if not dag_run:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
-        )
+        if not dag_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
+            )
 
     # Check existing XCom
     already_existing_query = XComModel.get_many(
@@ -215,9 +248,8 @@ def create_xcom_entry(
         dag_ids=dag_id,
         run_id=dag_run_id,
         map_indexes=request_body.map_index,
-        session=session,
     )
-    result = already_existing_query.with_entities(XComModel.value).first()
+    result = session.execute(already_existing_query.with_only_columns(XComModel.value)).first()
     if result:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

@@ -88,6 +88,9 @@ In the case of conflicts, the order of precedence from lowest to highest is:
    environment variables. These are checked with Airflow's config
    precedence.
 
+.. note::
+   ``executor_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the Lambda Executor it is passed to each Lambda invocation as part of the payload. This allows you to pass additional context to the Lambda function for any particular task execution. The Lambda function can then access this configuration via the ``executor_config`` key in the payload within the Lambda handler code.
+
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -119,7 +122,7 @@ provider package.
 The most secure method is to use IAM roles. When creating a Lambda Function
 Definition, you are able to select an execution role. This role needs
 permissions to publish messages to the SQS queues and to write to CloudWatchLogs
-or S3 if using AWS remote logging and/or using S3 to synchronize dags
+or S3 if using AWS remote logging and/or using S3 to synchronize Dags
 (e.g. ``CloudWatchLogsFullAccess`` or ``CloudWatchLogsFullAccessV2``).
 The AWS credentials used on the Scheduler need permissions to
 describe and invoke Lambda functions as well as to describe and read/delete
@@ -167,12 +170,12 @@ From S3 Bucket
 ^^^^^^^^^^^^^^
 
 Dags can be loaded from S3 when using the provided example app.py, which
-contains logic to synchronize the DAGs from S3 to the local filesystem of
+contains logic to synchronize the Dags from S3 to the local filesystem of
 the Lambda function (see the app.py code |appHandlerLink|).
 
 To load Dags from an S3 bucket add ``--build-arg s3_uri=YOUR_S3_URI`` in
 the docker build command. Replace ``YOUR_S3_URI`` with the URI of your S3
-bucket/path containing your dags. Make sure you have the appropriate
+bucket/path containing your Dags. Make sure you have the appropriate
 permissions to read from the bucket.
 
 .. code-block:: bash

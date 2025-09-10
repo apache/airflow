@@ -30,6 +30,7 @@ services:
       test: curl --fail http://localhost:8080/v1/info/ | grep '"starting":false'
       interval: 5s
       timeout: 30s
+      start_period: 30s
       retries: 50
     restart: "on-failure"
 

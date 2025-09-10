@@ -24,7 +24,13 @@ classifiers = [
 ]
 
 dependencies = [
-    "pendulum",
+    "pendulum>=3.1.0",
+    "methodtools>=0.4.7",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow-devel-common",
 ]
 
 [build-system]

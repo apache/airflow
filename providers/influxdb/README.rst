@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-influxdb``
 
-Release: ``2.9.2``
+Release: ``2.9.3``
 
 
 `InfluxDB <https://www.influxdata.com/>`__
@@ -36,12 +36,12 @@ This is a provider package for ``influxdb`` provider. All classes for this provi
 are in ``airflow.providers.influxdb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.3/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-influxdb``
 
@@ -59,4 +59,4 @@ PIP package          Version required
 ===================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.9.3/changelog.html>`_.

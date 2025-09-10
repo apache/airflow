@@ -36,7 +36,6 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -48,19 +47,20 @@ from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 pytestmark = pytest.mark.db_test
 
@@ -91,8 +91,18 @@ def temp_override_attr(obj, attr, val):
 
 @pytest.fixture(autouse=True)
 def clear_db():
+    # Clear all database objects before and after each test
+    _clear_all_db_objects()
+    yield
+    _clear_all_db_objects()
+
+
+def _clear_all_db_objects():
+    """Comprehensive cleanup of all database objects that might interfere with tests."""
     db.clear_db_dags()
     db.clear_db_runs()
+    if AIRFLOW_V_3_0_PLUS:
+        db.clear_db_dag_bundles()
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -103,8 +113,7 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag.add_task(task)
     now = timezone.utcnow()
     if AIRFLOW_V_3_0_PLUS:
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag)
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
@@ -126,6 +135,12 @@ def create_context(task, persist_to_db=False, map_index=None):
         from airflow.models.dag_version import DagVersion
 
         dag_version = DagVersion.get_latest_version(dag.dag_id)
+        if dag_version is None:
+            with create_session() as session:
+                dag_version = DagVersion(dag_id=dag.dag_id, version_number=1)
+                session.add(dag_version)
+                session.commit()
+                session.refresh(dag_version)
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
     else:
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
@@ -1366,6 +1381,8 @@ class TestKubernetesPodOperator:
             ),
         )
 
+        _clear_all_db_objects()
+
         k = KubernetesPodOperator(
             task_id="task",
             affinity=k8s_api_affinity,
@@ -1390,6 +1407,8 @@ class TestKubernetesPodOperator:
         sanitized_pod = self.sanitize_for_serialization(pod)
         assert isinstance(pod.spec.tolerations[0], k8s.V1Toleration)
         assert sanitized_pod["spec"]["tolerations"] == tolerations
+
+        _clear_all_db_objects()
 
         k = KubernetesPodOperator(
             task_id="task",
@@ -1444,11 +1463,23 @@ class TestKubernetesPodOperator:
 
         pod, _ = self.run_pod(k)
         if AIRFLOW_V_3_0_PLUS:
-            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
-            pod_namespace = XCom.get_many(
-                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
-            ).first()
-
+            if AIRFLOW_V_3_1_PLUS:
+                with create_session() as session:
+                    pod_name = session.execute(
+                        XCom.get_many(
+                            run_id=self.dag_run.run_id, task_ids="task", key="pod_name"
+                        ).with_only_columns(XCom.value)
+                    ).first()
+                    pod_namespace = session.execute(
+                        XCom.get_many(
+                            run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+                        ).with_only_columns(XCom.value)
+                    ).first()
+            else:
+                pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+                pod_namespace = XCom.get_many(
+                    run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+                ).first()
             pod_name = XCom.deserialize_value(pod_name)
             pod_namespace = XCom.deserialize_value(pod_namespace)
         else:
@@ -1705,7 +1736,13 @@ class TestKubernetesPodOperator:
         pod, _ = self.run_pod(k)
 
         # check that the base container is not included in the logs
-        mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
+        mock_fetch_log.assert_called_once_with(
+            pod=pod,
+            containers=["some_init_container"],
+            follow_logs=True,
+            container_name_log_prefix_enabled=True,
+            log_formatter=None,
+        )
         # check that KPO waits for the base container to complete before proceeding to extract XCom
         mock_await_container_completion.assert_called_once_with(
             pod=pod, container_name="base", polling_time=1
@@ -1971,7 +2008,16 @@ class TestKubernetesPodOperator:
 
         if get_logs:
             fetch_requested_container_logs.assert_has_calls(
-                [mock.call(pod=pod, containers=k.container_logs, follow_logs=True)] * 3
+                [
+                    mock.call(
+                        pod=pod,
+                        containers=k.container_logs,
+                        follow_logs=True,
+                        container_name_log_prefix_enabled=True,
+                        log_formatter=None,
+                    )
+                ]
+                * 3
             )
         else:
             mock_await_container_completion.assert_has_calls(
@@ -2753,8 +2799,8 @@ def test_read_pod_events(mock_log, mock_pod_manager):
         mock_event_normal.reason,
         mock_event_normal.message,
     )
-    # Assert that event with type `Warning` is logged as error.
-    mock_log.error.assert_called_once_with(
+    # Assert that event with type `Warning` is logged as warning.
+    mock_log.warning.assert_called_once_with(
         "Pod Event: %s - %s",
         mock_event_error.reason,
         mock_event_error.message,

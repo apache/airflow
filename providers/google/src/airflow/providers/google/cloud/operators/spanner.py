@@ -280,8 +280,8 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
             self.instance_id,
             self.database_id,
         )
-        self.log.info(queries)
-        hook.execute_dml(
+        self.log.info("Executing queries: %s", queries)
+        result_rows_count_per_query = hook.execute_dml(
             project_id=self.project_id,
             instance_id=self.instance_id,
             database_id=self.database_id,
@@ -293,6 +293,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
             database_id=self.database_id,
             project_id=self.project_id or hook.project_id,
         )
+        return result_rows_count_per_query
 
     @staticmethod
     def sanitize_queries(queries: list[str]) -> None:

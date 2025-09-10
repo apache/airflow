@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add ssl_verify_cert support to DruidDbApiHook.get_conn (#52926)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace 'BaseHook' to Task SDK for 'apache/druid' (#52690)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.1
 .....
 

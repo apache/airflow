@@ -70,21 +70,18 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG
-    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk import DAG, BaseOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
         SecretsMasker,
-        should_hide_value_for_key,
     )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
     try:
-        from airflow.sdk import DAG
-        from airflow.sdk.bases.operator import BaseOperator
+        from airflow.sdk import DAG, BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
     except ImportError:
         from airflow.models import DAG, BaseOperator, MappedOperator
@@ -99,19 +96,27 @@ else:
             from airflow.datasets import Dataset as Asset
 
     try:
-        from airflow.sdk.execution_time.secrets_masker import (
+        from airflow.sdk._shared.secrets_masker import (
             Redactable,
             Redacted,
             SecretsMasker,
             should_hide_value_for_key,
         )
     except ImportError:
-        from airflow.utils.log.secrets_masker import (
-            Redactable,
-            Redacted,
-            SecretsMasker,
-            should_hide_value_for_key,
-        )
+        try:
+            from airflow.sdk.execution_time.secrets_masker import (
+                Redactable,
+                Redacted,
+                SecretsMasker,
+                should_hide_value_for_key,
+            )
+        except ImportError:
+            from airflow.utils.log.secrets_masker import (
+                Redactable,
+                Redacted,
+                SecretsMasker,
+                should_hide_value_for_key,
+            )
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -310,7 +315,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
 def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
-        return operator._task_module + "." + operator._task_type
+        return operator._task_module + "." + operator.task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
@@ -734,6 +739,12 @@ def get_airflow_state_run_facet(
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
+            tasksDuration={
+                ti.task_id: ti.duration
+                if ti.duration is not None
+                else (ti.end_date - ti.start_date).total_seconds()
+                for ti in tis
+            },
         )
     }
 
@@ -830,9 +841,20 @@ class OpenLineageRedactor(SecretsMasker):
         instance = cls()
         instance.patterns = other.patterns
         instance.replacer = other.replacer
+        for attr in ["sensitive_variables_fields", "min_length_to_mask", "secret_mask_adapter"]:
+            if hasattr(other, attr):
+                setattr(instance, attr, getattr(other, attr))
         return instance
 
-    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+    def _should_hide_value_for_key(self, name):
+        """Compatibility helper for should_hide_value_for_key across Airflow versions."""
+        try:
+            return self.should_hide_value_for_key(name)
+        except AttributeError:
+            # fallback to module level function
+            return should_hide_value_for_key(name)
+
+    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int, **kwargs) -> Redacted:  # type: ignore[override]
         if AIRFLOW_V_3_0_PLUS:
             # Keep compatibility for Airflow 2.x, remove when Airflow 3.0 is the minimum version
             class AirflowContextDeprecationWarning(UserWarning):
@@ -852,7 +874,7 @@ class OpenLineageRedactor(SecretsMasker):
                     # Those are deprecated values in _DEPRECATION_REPLACEMENTS
                     # in airflow.utils.context.Context
                     return "<<non-redactable: Proxy>>"
-                if name and should_hide_value_for_key(name):
+                if name and self._should_hide_value_for_key(name):
                     return self._redact_all(item, depth, max_depth)
                 if attrs.has(type(item)):
                     # TODO: FIXME when mypy gets compatible with new attrs
@@ -888,7 +910,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth, **kwargs)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item

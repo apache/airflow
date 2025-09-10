@@ -52,12 +52,12 @@ def generate_dag_with_latest_run_query(max_run_filters: list[BaseParam], order_b
             has_max_run_filter = True
             break
 
-    if has_max_run_filter or order_by.value in (
-        "last_run_state",
-        "last_run_start_date",
-        "-last_run_state",
-        "-last_run_start_date",
-    ):
+    requested_order_by_set = set(order_by.value) if order_by.value is not None else set()
+    dag_run_order_by_set = set(
+        ["last_run_state", "last_run_start_date", "-last_run_state", "-last_run_start_date"],
+    )
+
+    if has_max_run_filter or (requested_order_by_set & dag_run_order_by_set):
         query = query.join(
             max_run_id_query,
             DagModel.dag_id == max_run_id_query.c.dag_id,

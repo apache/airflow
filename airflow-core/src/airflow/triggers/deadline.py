@@ -18,13 +18,17 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string
+from airflow.utils.module_loading import import_string, qualname
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+
+PAYLOAD_STATUS_KEY = "state"
+PAYLOAD_BODY_KEY = "body"
 
 
 class DeadlineCallbackTrigger(BaseTrigger):
@@ -37,11 +41,33 @@ class DeadlineCallbackTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            f"{type(self).__module__}.{type(self).__qualname__}",
-            {"callback_path": self.callback_path, "callback_kwargs": self.callback_kwargs},
+            qualname(self),
+            {attr: getattr(self, attr) for attr in ("callback_path", "callback_kwargs")},
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        callback = import_string(self.callback_path)
-        result = await callback(**self.callback_kwargs)
-        yield TriggerEvent({"status": "success", "result": result})
+        from airflow.models.deadline import DeadlineCallbackState  # to avoid cyclic imports
+
+        try:
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.RUNNING})
+            callback = import_string(self.callback_path)
+
+            # TODO: get full context and run template rendering. Right now, a simple context in included in `callback_kwargs`
+            result = await callback(**self.callback_kwargs)
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
+
+        except Exception as e:
+            if isinstance(e, ImportError):
+                message = "Failed to import this deadline callback on the triggerer"
+            elif isinstance(e, TypeError) and "await" in str(e):
+                message = "Failed to run this deadline callback because it is not awaitable"
+            else:
+                message = "An error occurred during execution of this deadline callback"
+
+            log.exception("%s: %s; kwargs: %s\n%s", message, self.callback_path, self.callback_kwargs, e)
+            yield TriggerEvent(
+                {
+                    PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED,
+                    PAYLOAD_BODY_KEY: f"{message}: {traceback.format_exception(e)}",
+                }
+            )

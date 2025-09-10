@@ -19,10 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
+from airflow.models.team import Team
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -55,6 +57,7 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
     include_deferred = Column(Boolean, nullable=False)
+    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
     DEFAULT_POOL_NAME = "default_pool"
 
@@ -350,3 +353,17 @@ class Pool(Base):
         if self.slots == -1:
             return float("inf")
         return self.slots - self.occupied_slots(session)
+
+    @staticmethod
+    @provide_session
+    def get_team_name(pool_name: str, session=NEW_SESSION) -> str | None:
+        stmt = select(Team.name).join(Pool, Team.id == Pool.team_id).where(Pool.pool == pool_name)
+        return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_name_to_team_name_mapping(pool_names: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+        stmt = (
+            select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id).where(Pool.pool.in_(pool_names))
+        )
+        return {pool: team_name for pool, team_name in session.execute(stmt)}

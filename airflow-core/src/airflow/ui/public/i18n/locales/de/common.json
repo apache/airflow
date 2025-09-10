@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "Variablen"
   },
+  "allOperators": "Alle Operatoren",
+  "appearance": {
+    "appearance": "Darstellung",
+    "darkMode": "Dunkelmodus",
+    "lightMode": "Hellmodus",
+    "systemMode": "Systemeinstellung folgen"
+  },
   "asset_one": "Datenset (Asset)",
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
@@ -15,6 +22,7 @@
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
   "collapseDetailsPanel": "Detailansicht ausblenden",
@@ -24,7 +32,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Nachgeholt",
-    "concurrency": "Parallelität",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
     "description": "Beschreibung",
@@ -32,6 +39,7 @@
     "fileLocation": "Ablagepfad",
     "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
     "lastExpired": "Letztmaliger Ablauf",
+    "lastParseDuration": "Letzte Dag Einlesedauer",
     "lastParsed": "Letztmalig Eingelesen",
     "latestDagVersion": "Letzte Dag Version",
     "latestRun": "Letzter Lauf",
@@ -55,11 +63,12 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
-    "triggeredBy": "Angestoßen von",
+    "triggeredBy": "Ausgelöst durch",
     "triggeringUser": "Benutzer der ausgelöst hat"
   },
   "dagRun_one": "Dag Lauf",
   "dagRun_other": "Dag Läufe",
+  "dagRunId": "Dag Lauf ID",
   "dagWarnings": "Dag Warnungen und Fehler",
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
@@ -89,6 +98,18 @@
     "and": "UND",
     "any": "Jeder",
     "or": "ODER"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Nach Dag filtern",
+    "keyPlaceholder": "Nach Task Kommunikation (XCom) Schlüssel filtern",
+    "logicalDateFromPlaceholder": "Logisches Datum Von",
+    "logicalDateToPlaceholder": "Logisches Datum Bis",
+    "mapIndexPlaceholder": "Nach Planungs-Index filtern",
+    "runAfterFromPlaceholder": "Gelaufen-nach von filtern",
+    "runAfterToPlaceholder": "Gelaufen-nach bis filtern",
+    "runIdPlaceholder": "Nach Lauf ID filtern",
+    "taskIdPlaceholder": "Nach Task ID filtern",
+    "triggeringUserPlaceholder": "Nach auslösendem Benutzer filtern"
   },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
@@ -132,7 +153,7 @@
   },
   "runId": "Lauf Id",
   "runTypes": {
-    "asset_triggered": "Durch Datenset (Asset) angestoßen",
+    "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
     "scheduled": "Geplant"
@@ -168,6 +189,7 @@
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
     "none": "Kein Status",
+    "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
     "restarting": "Im Neustart",
@@ -179,8 +201,6 @@
     "up_for_retry": "Wartet auf neuen Versuch",
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
-  "switchToDarkMode": "Zum Dunkelmodus wechseln",
-  "switchToLightMode": "Zum Hellmodus wechseln",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -206,6 +226,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Task Gruppe",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
@@ -288,7 +309,7 @@
     }
   },
   "total": "Gesamt {{state}}",
-  "triggered": "Angestoßen",
+  "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
   "wrap": {

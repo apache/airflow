@@ -20,7 +20,8 @@
       "all": "الكل",
       "paused": "متوقف"
     },
-    "runIdPatternFilter": "بحث تشغيلات الDag"
+    "runIdPatternFilter": "بحث تشغيلات الDag",
+    "triggeringUserNameFilter": "البحث حسب المستخدم صاحب الاطلاق"
   },
   "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {
@@ -62,6 +63,7 @@
       "onlyFailed": "مسح المهام الفاشلة فقط",
       "past": "الماضي",
       "queueNew": "إضافة مهام جديدة للانتظار",
+      "runOnLatestVersion": "تشغيل بآخر إصدار الحزمة",
       "upstream": "المهام السابقة"
     }
   },

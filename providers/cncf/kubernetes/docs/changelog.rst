@@ -28,6 +28,97 @@ Changelog
 ---------
 
 
+10.8.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Add customizable log prefix and formatter to KubernetesPodOperator (#53598)``
+* ``Enhanced Pod Failure Logging in KubernetesExecutor  (#54115)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Handle Kubernetes API responses with non-JSON bodies (#55107)``
+* ``Fix KubernetesExecutor retry on 409 conflict (#54777)``
+* ``KubernetesPodOperator logs pod and container state after error occurred (#54828)``
+* ``Throttle HTTPError during consume pod logs (#54761)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``Refactor Kubernetes Executor Types to NamedTuples (#54858)``
+* ``Move some items in 'airflow.utils.context' to appropriate places (#53600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove Legacy Query Object Usage from airflow-models (#52325)``
+   * ``Fix k8s pod yaml test to expect redacted sensitive data (#54883)``
+   * ``Move secrets_masker over to airflow_shared distribution (#54449)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Bump pytest-asyncio to 1.1.0 (#54123)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+10.7.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for taking the config file as a dict for KubernetesHook (#53126)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kill kube watcher instance if it doesnt terminate gracefully in 60 seconds (#52662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.6.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass cluster context to AsyncKubernetesHook (#53504)``
+* ``Handle multiple pods to prevent KubernetesJobOperator falls with parallelism option (#49899)``
+* ``(fix): Handle pod evictions correctly during retry in KubernetesPodOperator (#53059)``
+
+Misc
+~~~~
+
+* ``Deprecate decorators from Core (#53629)``
+* ``Use asyncio.run instead of loop.run_until_complete. (#53475)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove 'airflow.utils.xcom' module and add backcompat shim (#53187)``
+* ``Cleanup mypy ignores cncf provider where possible (#53264)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Make cncf provider compatible with mypy 1.16.1 (#53121)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in cncf (#52798)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Making some brittle tests related to log assertion more robust (#53743)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
 10.6.1
 ......
 

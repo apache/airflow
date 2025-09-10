@@ -23,22 +23,23 @@ from airflow.sdk import timezone
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (
-    add_hitl_detail,
     get_hitl_detail_content_detail,
-    update_htil_detail_response,
+    update_hitl_detail_response,
+    upsert_hitl_detail,
 )
 
 TI_ID = uuid7()
 
 
-def test_add_hitl_detail(mock_supervisor_comms) -> None:
-    add_hitl_detail(
+def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
+    upsert_hitl_detail(
         ti_id=TI_ID,
         options=["Approve", "Reject"],
         subject="Subject",
         body="Optional body",
         defaults=["Approve", "Reject"],
         params={"input_1": 1},
+        respondents=["test"],
         multiple=False,
     )
     mock_supervisor_comms.send.assert_called_with(
@@ -49,21 +50,23 @@ def test_add_hitl_detail(mock_supervisor_comms) -> None:
             body="Optional body",
             defaults=["Approve", "Reject"],
             params={"input_1": 1},
+            respondents=["test"],
             multiple=False,
         )
     )
 
 
-def test_update_htil_detail_response(mock_supervisor_comms) -> None:
+def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
     timestamp = timezone.utcnow()
     mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=True,
         chosen_options=["Approve"],
         response_at=timestamp,
-        user_id="admin",
+        responded_user_id="admin",
+        responded_user_name="admin",
         params_input={"input_1": 1},
     )
-    resp = update_htil_detail_response(
+    resp = update_hitl_detail_response(
         ti_id=TI_ID,
         chosen_options=["Approve"],
         params_input={"input_1": 1},
@@ -72,7 +75,8 @@ def test_update_htil_detail_response(mock_supervisor_comms) -> None:
         response_received=True,
         chosen_options=["Approve"],
         response_at=timestamp,
-        user_id="admin",
+        responded_user_id="admin",
+        responded_user_name="admin",
         params_input={"input_1": 1},
     )
 
@@ -82,7 +86,8 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
         response_received=False,
         chosen_options=None,
         response_at=None,
-        user_id=None,
+        responded_user_id=None,
+        responded_user_name=None,
         params_input={},
     )
     resp = get_hitl_detail_content_detail(TI_ID)
@@ -90,6 +95,7 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
         response_received=False,
         chosen_options=None,
         response_at=None,
-        user_id=None,
+        responded_user_id=None,
+        responded_user_name=None,
         params_input={},
     )

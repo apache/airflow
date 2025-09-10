@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import tenacity
@@ -32,10 +33,56 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
+    from kiota_abstractions.request_adapter import RequestAdapter
     from msgraph_core import APIVersion
 
 
-class PowerBITrigger(BaseTrigger):
+class BasePowerBITrigger(BaseTrigger):
+    """
+    Base class for all PowerBI related triggers.
+
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
+    """
+
+    def __init__(
+        self,
+        conn_id: str,
+        timeout: float = 60 * 60 * 24 * 7,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+    ):
+        super().__init__()
+        self.conn_id = conn_id
+        self.timeout = timeout
+        self.proxies = proxies
+        self.api_version = api_version
+
+    def get_conn(self) -> RequestAdapter:
+        """
+        Initiate a new RequestAdapter connection.
+
+        .. warning::
+           This method is deprecated.
+        """
+        return self.hook.get_conn()
+
+    @cached_property
+    def hook(self) -> PowerBIHook:
+        return PowerBIHook(
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            proxies=self.proxies,
+            api_version=self.api_version,
+        )
+
+
+class PowerBITrigger(BasePowerBITrigger):
     """
     Triggers when Power BI dataset refresh is completed.
 
@@ -69,11 +116,9 @@ class PowerBITrigger(BaseTrigger):
         wait_for_termination: bool = True,
         request_body: dict[str, Any] | None = None,
     ):
-        super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.dataset_id = dataset_id
         self.dataset_refresh_id = dataset_refresh_id
-        self.timeout = timeout
         self.group_id = group_id
         self.check_interval = check_interval
         self.wait_for_termination = wait_for_termination
@@ -82,7 +127,7 @@ class PowerBITrigger(BaseTrigger):
     def serialize(self):
         """Serialize the trigger instance."""
         return (
-            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBITrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
@@ -96,18 +141,6 @@ class PowerBITrigger(BaseTrigger):
                 "request_body": self.request_body,
             },
         )
-
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
@@ -236,7 +269,7 @@ class PowerBITrigger(BaseTrigger):
             )
 
 
-class PowerBIWorkspaceListTrigger(BaseTrigger):
+class PowerBIWorkspaceListTrigger(BasePowerBITrigger):
     """
     Triggers a call to the API to request the available workspace IDs.
 
@@ -257,15 +290,13 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
     ):
-        super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
-        self.timeout = timeout
+        super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.workspace_ids = workspace_ids
 
     def serialize(self):
         """Serialize the trigger instance."""
         return (
-            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBIWorkspaceListTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
@@ -274,18 +305,6 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
                 "workspace_ids": self.workspace_ids,
             },
         )
-
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the list of workspace IDs."""
@@ -313,7 +332,7 @@ class PowerBIWorkspaceListTrigger(BaseTrigger):
         return
 
 
-class PowerBIDatasetListTrigger(BaseTrigger):
+class PowerBIDatasetListTrigger(BasePowerBITrigger):
     """
     Triggers a call to the API to request the available dataset IDs.
 
@@ -336,16 +355,14 @@ class PowerBIDatasetListTrigger(BaseTrigger):
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
     ):
-        super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
-        self.timeout = timeout
+        super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.group_id = group_id
         self.dataset_ids = dataset_ids
 
     def serialize(self):
         """Serialize the trigger instance."""
         return (
-            "airflow.providers.microsoft.azure.triggers.powerbi.PowerBIDatasetListTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
@@ -355,18 +372,6 @@ class PowerBIDatasetListTrigger(BaseTrigger):
                 "dataset_ids": self.dataset_ids,
             },
         )
-
-    @property
-    def conn_id(self) -> str:
-        return self.hook.conn_id
-
-    @property
-    def proxies(self) -> dict | None:
-        return self.hook.proxies
-
-    @property
-    def api_version(self) -> APIVersion | str:
-        return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the list of dataset IDs."""
