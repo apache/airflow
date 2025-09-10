@@ -16,10 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { MdCalendarToday, MdNumbers, MdTextFields } from "react-icons/md";
 
-export { capitalize } from "./capitalize";
-export { getDuration, renderDuration } from "./datetimeUtils";
-export { getMetaKey } from "./getMetaKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
+import type { FilterConfig } from "./types";
+
+export const defaultFilterIcons = {
+  date: <MdCalendarToday />,
+  number: <MdNumbers />,
+  text: <MdTextFields />,
+} as const;
+
+export const getDefaultFilterIcon = (type: FilterConfig["type"]) => defaultFilterIcons[type];
