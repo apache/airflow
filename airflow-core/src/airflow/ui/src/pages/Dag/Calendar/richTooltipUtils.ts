@@ -16,25 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type ButtonProps } from "@chakra-ui/react";
+import dayjs from "dayjs";
 
-type QuickFilterButtonProps = {
-  readonly isActive: boolean;
-} & ButtonProps;
+import type { CalendarCellData } from "./types";
 
-export const QuickFilterButton = ({ children, isActive, ...rest }: QuickFilterButtonProps) => (
-  <Button
-    _hover={{ bg: "colorPalette.emphasized" }}
-    bg={isActive ? "colorPalette.muted" : undefined}
-    borderColor="border.emphasized"
-    borderRadius={20}
-    borderWidth={1}
-    color="colorPalette.fg"
-    fontWeight="normal"
-    size="sm"
-    variant={isActive ? "solid" : "outline"}
-    {...rest}
-  >
-    {children}
-  </Button>
-);
+export const createRichTooltipContent = (cellData: CalendarCellData) => {
+  const { counts, date } = cellData;
+  const hasRuns = counts.total > 0;
+
+  if (!hasRuns) {
+    return {
+      date: dayjs(date).format("MMM DD, YYYY"),
+      hasRuns: false,
+      states: [],
+      total: 0,
+    };
+  }
+
+  const states = Object.entries(counts)
+    .filter(([key, value]) => key !== "total" && value > 0)
+    .map(([state, count]) => ({
+      color: `var(--chakra-colors-${state}-solid)`,
+      count,
+      state,
+    }));
+
+  return {
+    date: dayjs(date).format("MMM DD, YYYY"),
+    hasRuns: true,
+    states,
+    total: counts.total,
+  };
+};

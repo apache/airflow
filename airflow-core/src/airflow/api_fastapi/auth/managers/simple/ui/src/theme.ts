@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
+/* THIS FILE IS A COPY OF THE AIRFLOW UI THEME FILE LOCATED IN
+   airflow-core/src/airflow/ui/src/theme.ts
+*/
 /* eslint-disable perfectionist/sort-objects */
-
 /* eslint-disable max-lines */
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
-import type { CSSProperties } from "react";
 
 const generateSemanticTokens = (color: string, darkContrast: string = "white") => ({
   solid: { value: `{colors.${color}.600}` },
@@ -405,22 +405,3 @@ export const getComputedCSSVariableValue = (variable: string): string =>
   getComputedStyle(document.documentElement)
     .getPropertyValue(variable.slice(4, variable.length - 1))
     .trim();
-
-// Returns ReactFlow style props using Chakra UI CSS variables
-export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperties =>
-  ({
-    // Background
-    "--xy-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-brand-950)" : "var(--chakra-colors-brand-50)",
-    "--xy-background-pattern-color":
-      colorMode === "dark" ? "var(--chakra-colors-gray-200)" : "var(--chakra-colors-gray-800)",
-
-    // Controls
-    "--xy-controls-button-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-gray-800)" : "var(--chakra-colors-white)",
-    "--xy-controls-button-background-color-hover":
-      colorMode === "dark" ? "var(--chakra-colors-gray-700)" : "var(--chakra-colors-gray-100)",
-
-    // MiniMap
-    "--xy-minimap-background-color": "var(--chakra-colors-bg)",
-  }) as CSSProperties;
