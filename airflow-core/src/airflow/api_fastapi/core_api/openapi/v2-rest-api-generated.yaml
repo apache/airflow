@@ -8199,22 +8199,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: responded_user_id
+      - name: responded_by_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Responded User Id
-      - name: responded_user_name
+          title: Responded By User Id
+      - name: responded_by_user_name
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Responded User Name
+          title: Responded By User Name
       - name: subject_search
         in: query
         required: false

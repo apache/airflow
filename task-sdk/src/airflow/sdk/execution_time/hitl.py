@@ -44,10 +44,6 @@ def upsert_hitl_detail(
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    exec_assigned_users = (
-        [HITLUser(id=user["id"], name=user["name"]) for user in assigned_users] if assigned_users else []
-    )
-
     SUPERVISOR_COMMS.send(
         msg=CreateHITLDetailPayload(
             ti_id=ti_id,
@@ -57,7 +53,11 @@ def upsert_hitl_detail(
             defaults=defaults,
             params=params,
             multiple=multiple,
-            assigned_users=exec_assigned_users,
+            assigned_users=(
+                [HITLUser(id=user["id"], name=user["name"]) for user in assigned_users]
+                if assigned_users
+                else []
+            ),
         )
     )
 
