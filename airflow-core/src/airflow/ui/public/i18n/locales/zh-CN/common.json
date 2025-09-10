@@ -93,12 +93,6 @@
     "or": "或"
   },
   "filter": "筛选",
-  "filters": {
-    "logicalDateFrom": "从逻辑日期",
-    "logicalDateTo": "到逻辑日期",
-    "runAfterFrom": "从运行之后",
-    "runAfterTo": "到运行之前"
-  },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
