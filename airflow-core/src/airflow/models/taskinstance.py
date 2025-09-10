@@ -71,7 +71,8 @@ from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
-    AirflowInactiveAssetInInletOrOutletException, TaskDeferralError,
+    AirflowInactiveAssetInInletOrOutletException,
+    TaskDeferralError,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import BaseOperator
@@ -1444,7 +1445,7 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task and isinstance(self.task, BaseOperator)
 
-        if not (self.task and self.task.start_from_trigger and self.task.start_trigger_args):
+        if not (self.task and self.task.start_from_trigger):
             raise TaskDeferralError(
                 "Task doesn't have start_from_trigger and start_trigger_args defined and thus cannot be deferred!")
 
