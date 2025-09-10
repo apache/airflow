@@ -370,6 +370,7 @@ class ReferenceModels:
     class AverageRuntimeDeadline(BaseDeadlineReference):
         """A deadline that calculates the average runtime from past DAG runs."""
 
+        DEFAULT_LIMIT = 10
         limit: int
         required_kwargs = {"dag_id"}
 
@@ -422,7 +423,7 @@ class ReferenceModels:
 
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
-            return cls(limit=reference_data.get("limit", 10))
+            return cls(limit=reference_data.get("limit", cls.DEFAULT_LIMIT))
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference

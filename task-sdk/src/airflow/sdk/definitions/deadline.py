@@ -301,7 +301,9 @@ class DeadlineReference:
     DAGRUN_QUEUED_AT: DeadlineReferenceType = ReferenceModels.DagRunQueuedAtDeadline()
 
     @classmethod
-    def AVERAGE_RUNTIME(cls, limit: int = 10) -> DeadlineReferenceType:
+    def AVERAGE_RUNTIME(cls, limit: int = None) -> DeadlineReferenceType:
+        if limit is None:
+            limit = cls.ReferenceModels.AverageRuntimeDeadline.DEFAULT_LIMIT
         return cls.ReferenceModels.AverageRuntimeDeadline(limit)
 
     @classmethod
