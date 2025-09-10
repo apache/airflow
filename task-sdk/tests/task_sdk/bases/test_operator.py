@@ -31,12 +31,13 @@ import structlog
 
 from airflow.sdk import task as task_decorator
 from airflow.sdk.bases.operator import (
+    AirflowException,
     BaseOperator,
     BaseOperatorMeta,
     ExecutorSafeguard,
     chain,
     chain_linear,
-    cross_downstream, AirflowException,
+    cross_downstream,
 )
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.edges import Label
@@ -776,9 +777,10 @@ class TestBaseOperator:
     def test_validate_start_from_trigger_kwargs(self):
         MockOperator.start_from_trigger = True
 
-        with pytest.raises(AirflowException,
+        with pytest.raises(
+            AirflowException,
             match="MockOperator with task_id 'one' has a callable in trigger kwargs named "
-                  "'arg2', which is not allowed when start_from_trigger is enabled."
+                  "'arg2', which is not allowed when start_from_trigger is enabled.",
         ):
             MockOperator(task_id="one", arg1="{{ foo }}", arg2=lambda context, jinja_env: "bar")
 
