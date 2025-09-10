@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-microsoft-psrp``
 
 Release: ``3.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 This package provides remote execution capabilities via the
 `PowerShell Remoting Protocol (PSRP)

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-yandex``
 
 Release: ``4.2.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 This package is for Yandex, including:
 

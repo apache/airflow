@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-datadog``
 
 Release: ``3.9.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Datadog <https://www.datadoghq.com/>`__
 

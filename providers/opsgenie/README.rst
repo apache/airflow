@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-opsgenie``
 
 Release: ``5.9.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 

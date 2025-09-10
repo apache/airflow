@@ -127,6 +127,16 @@ export type JobCollectionResponse = {
 };
 
 /**
+ * Request body for maintenance operations.
+ */
+export type MaintenanceRequest = {
+    /**
+     * Comment describing the maintenance reason.
+     */
+    maintenance_comment: string;
+};
+
+/**
  * Incremental new log content from worker.
  */
 export type PushLogsBody = {
@@ -460,6 +470,19 @@ export type WorkerResponse = WorkerCollectionResponse;
 
 export type JobsResponse = JobCollectionResponse;
 
+export type RequestWorkerMaintenanceData = {
+    requestBody: MaintenanceRequest;
+    workerName: string;
+};
+
+export type RequestWorkerMaintenanceResponse = null;
+
+export type ExitWorkerMaintenanceData = {
+    workerName: string;
+};
+
+export type ExitWorkerMaintenanceResponse = null;
+
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
         post: {
@@ -649,6 +672,34 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: JobCollectionResponse;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/maintenance': {
+        post: {
+            req: RequestWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: ExitWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

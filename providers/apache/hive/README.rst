@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-hive``
 
 Release: ``9.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Hive <https://hive.apache.org/>`__
 

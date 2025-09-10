@@ -106,6 +106,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
+from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -716,7 +717,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             from airflow.sdk.log import configure_logging
 
             log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+            configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
         else:
             print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
@@ -1025,6 +1026,16 @@ def _handle_current_task_success(
 ) -> tuple[SucceedTask, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance success metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_successes", tags=stats_tags)
+
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -1287,11 +1298,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
-    for outlet in task.outlets or ():
-        if isinstance(outlet, Asset):
-            outlet.render_extra_field(context, jinja_env=task.dag.get_template_env())
-            outlet_events[outlet].extra.update(outlet.extra)
-
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
     if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
@@ -1387,6 +1393,14 @@ def finalize(
     log: Logger,
     error: BaseException | None = None,
 ):
+    # Record task duration metrics for all terminal states
+    if ti.start_date and ti.end_date:
+        duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
+        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
+        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-vertica``
 
 Release: ``4.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Vertica <https://www.vertica.com/>`__
 

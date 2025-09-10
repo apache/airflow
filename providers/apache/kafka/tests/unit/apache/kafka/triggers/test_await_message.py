@@ -99,13 +99,20 @@ class TestTrigger:
             poll_interval=5,
         )
 
+    @pytest.mark.parametrize(
+        "apply_function",
+        [
+            "unit.apache.kafka.triggers.test_await_message.apply_function_true",
+            None,
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_trigger_run_good(self, mocker):
+    async def test_trigger_run_good(self, mocker, apply_function):
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(
             kafka_config_id="kafka_d",
-            apply_function="unit.apache.kafka.triggers.test_await_message.apply_function_true",
+            apply_function=apply_function,
             topics=["noop"],
             poll_timeout=0.0001,
             poll_interval=5,

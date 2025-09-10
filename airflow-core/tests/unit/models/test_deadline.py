@@ -23,6 +23,7 @@ import pytest
 import time_machine
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun, Trigger
 from airflow.models.deadline import Deadline, DeadlineCallbackState, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -160,16 +161,37 @@ class TestDeadline:
         )
 
     @pytest.mark.db_test
-    def test_handle_miss_async_callback(self, dagrun, deadline_orm, session):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param(TEST_CALLBACK_KWARGS, id="non-empty kwargs"),
+            pytest.param(None, id="null kwargs"),
+        ],
+    )
+    def test_handle_miss_async_callback(self, dagrun, session, kwargs):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs),
+            dagrun_id=dagrun.id,
+        )
+        session.add(deadline_orm)
+        session.flush()
         deadline_orm.handle_miss(session=session)
         session.flush()
 
         assert deadline_orm.trigger_id is not None
-
         trigger = session.query(Trigger).filter(Trigger.id == deadline_orm.trigger_id).one()
         assert trigger is not None
+
         assert trigger.kwargs["callback_path"] == TEST_CALLBACK_PATH
-        assert trigger.kwargs["callback_kwargs"] == TEST_CALLBACK_KWARGS
+
+        trigger_kwargs = trigger.kwargs["callback_kwargs"]
+        context = trigger_kwargs.pop("context")
+        assert trigger_kwargs == (kwargs or {})
+
+        assert context["deadline"]["id"] == str(deadline_orm.id)
+        assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
+        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
 
     @pytest.mark.db_test
     def test_handle_miss_sync_callback(self, dagrun, session):
@@ -231,20 +253,6 @@ class TestDeadline:
             assert deadline_orm.callback_state == status
         else:
             assert deadline_orm.callback_state == DeadlineCallbackState.QUEUED
-
-    def test_handle_miss_creates_trigger(self, dagrun, deadline_orm, session):
-        """Test that handle_miss creates a trigger with correct parameters."""
-        deadline_orm.handle_miss(session)
-        session.flush()
-
-        # Check trigger was created
-        trigger = session.query(Trigger).first()
-        assert trigger is not None
-        assert deadline_orm.trigger_id == trigger.id
-
-        # Check trigger has correct kwargs
-        assert trigger.kwargs["callback_path"] == TEST_CALLBACK_PATH
-        assert trigger.kwargs["callback_kwargs"] == TEST_CALLBACK_KWARGS
 
     def test_handle_miss_sets_callback_state(self, dagrun, deadline_orm, session):
         """Test that handle_miss sets the callback state to QUEUED."""

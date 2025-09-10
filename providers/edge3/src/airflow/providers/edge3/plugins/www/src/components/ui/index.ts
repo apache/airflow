@@ -18,3 +18,4 @@
  */
 
 export * from "./Alert";
+export * from "./createToaster";

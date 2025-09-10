@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-openai``
 
 Release: ``1.6.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `OpenAI <https://platform.openai.com/docs/introduction>`__
 
