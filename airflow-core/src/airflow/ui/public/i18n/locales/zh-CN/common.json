@@ -92,17 +92,7 @@
     "any": "任何",
     "or": "或"
   },
-  "filters": {
-    "dagDisplayNamePlaceholder": "按 Dag 名称筛选",
-    "keyPlaceholder": "按 XCom 键筛选",
-    "logicalDateFromPlaceholder": "逻辑日期起始",
-    "logicalDateToPlaceholder": "逻辑日期结束",
-    "mapIndexPlaceholder": "按映射索引筛选",
-    "runAfterFromPlaceholder": "执行时间起始",
-    "runAfterToPlaceholder": "执行时间结束",
-    "runIdPlaceholder": "按执行 ID 筛选",
-    "taskIdPlaceholder": "按任务 ID 筛选"
-  },
+  "filter": "筛选",
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
