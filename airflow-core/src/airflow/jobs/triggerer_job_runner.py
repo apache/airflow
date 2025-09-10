@@ -936,30 +936,10 @@ class TriggerRunner:
             task = SerializedDAG.from_dict(dag).get_task(workload.ti.task_id)
 
             # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
-            runtime_ti = RuntimeTaskInstance.model_construct(
+            return RuntimeTaskInstance.model_construct(
                 **workload.ti.model_dump(exclude_unset=True),
                 task=task,
             )
-
-            if task.start_from_trigger and task.start_trigger_args and task.start_trigger_args.trigger_kwargs:
-                # Find intersection between start_trigger_args and template_fields
-                templated_start_trigger_args = set(
-                    task.start_trigger_args.trigger_kwargs.keys()
-                ).intersection(set(task.template_fields or []))
-
-                self.log.debug("templated_start_trigger_args: %s", templated_start_trigger_args)
-
-                # We only need to render templated fields if templated fields are part of the start_trigger_args
-                if templated_start_trigger_args:
-                    context = runtime_ti.get_template_context()
-                    task.render_template_fields(context=context)
-
-                    for start_trigger_arg in templated_start_trigger_args:
-                        rendered_start_trigger_arg = getattr(task, start_trigger_arg)
-                        self.log.info("rendered %s: %s", start_trigger_arg, rendered_start_trigger_arg)
-                        deserialised_kwargs[start_trigger_arg] = rendered_start_trigger_arg
-
-            return runtime_ti
 
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
@@ -1152,6 +1132,10 @@ class TriggerRunner:
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
         try:
+            if trigger.task_instance:
+                context = trigger.task_instance.get_template_context()
+                trigger.render_template_fields(context=context)
+
             async for event in trigger.run():
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event

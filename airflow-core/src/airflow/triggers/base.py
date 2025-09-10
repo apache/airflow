@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import abc
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Collection, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from pydantic import (
@@ -32,10 +32,17 @@ from pydantic import (
     model_serializer,
 )
 
+from airflow.models import BaseOperator
+from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
+
+if TYPE_CHECKING:
+    import jinja2
+
+    from airflow.sdk import Context
 
 
 @dataclass
@@ -49,7 +56,7 @@ class StartTriggerArgs:
     timeout: timedelta | None = None
 
 
-class BaseTrigger(abc.ABC, LoggingMixin):
+class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     """
     Base class for all triggers.
 
@@ -64,6 +71,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     """
 
     def __init__(self, **kwargs):
+        super().__init__()
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None
@@ -72,6 +80,63 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
         raise NotImplementedError
+
+    @property
+    def task(self) -> BaseOperator | None:
+        if self.task_instance:
+            return self.task_instance.task
+        return None
+
+    @property
+    def template_fields(self) -> Collection[str]:
+        if self.task:
+            return self.task.template_fields
+        return ()
+
+    @property
+    def template_ext(self) -> Sequence[str]:
+        if self.task:
+            return self.task.template_ext
+        return ()
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        """
+        Template all attributes listed in *self.template_fields*.
+
+        This mutates the attributes in-place and is irreversible.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja's environment to use for rendering.
+        """
+        if self.task and self.task.start_from_trigger and self.task.start_trigger_args and self.task.start_trigger_args.trigger_kwargs:
+            # Find intersection between start_trigger_args.trigger_kwargs and template_fields
+            attribute_names = set(
+                self.task.start_trigger_args.trigger_kwargs.keys()
+            ).intersection(set(self.template_fields))
+
+            # We only need to render templated fields if templated fields are part of the start_trigger_args
+            if attribute_names:
+                for attr_name in attribute_names:
+                    value = getattr(self, attr_name)
+
+                    if value:
+                        try:
+                            rendered_content = self.render_template(value, context, jinja_env)
+                        except Exception:
+                            # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                            self.log.exception(
+                                "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                                self.task.task_id,
+                                attr_name,
+                                value,
+                            )
+                            raise
+                        else:
+                            setattr(self, attr_name, rendered_content)
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
