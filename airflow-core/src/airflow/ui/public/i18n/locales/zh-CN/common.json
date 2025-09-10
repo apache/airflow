@@ -94,10 +94,10 @@
   },
   "filter": "筛选",
   "filters": {
-    "logicalDateFrom": "逻辑日期从",
-    "logicalDateTo": "逻辑日期到",
-    "runAfterFrom": "运行之后从",
-    "runAfterTo": "运行之后到"
+    "logicalDateFrom": "从逻辑日期",
+    "logicalDateTo": "到逻辑日期",
+    "runAfterFrom": "从运行之后",
+    "runAfterTo": "到运行之后"
   },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
