@@ -75,7 +75,6 @@
     "tooltip": "Supprimer les connexions sélectionnées"
   },
   "formActions": {
-    "reset": "Réinitialiser",
     "save": "Sauvegarder"
   },
   "plugins": {

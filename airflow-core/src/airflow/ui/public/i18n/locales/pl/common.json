@@ -111,6 +111,7 @@
     "any": "Dowolne",
     "or": "LUB"
   },
+  "filter": "Filtr",
   "filters": {
     "dagDisplayNamePlaceholder": "Filtruj według Daga",
     "keyPlaceholder": "Filtruj według klucza XCom",
@@ -165,6 +166,7 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
+  "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
     "asset_triggered": "Uruchomiony przez zasób",

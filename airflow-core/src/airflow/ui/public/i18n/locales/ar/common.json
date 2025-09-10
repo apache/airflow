@@ -123,6 +123,7 @@
     "any": "أي",
     "or": "أو"
   },
+  "filter": "فلتر",
   "filters": {
     "dagDisplayNamePlaceholder": "تصفية حسب الDag",
     "keyPlaceholder": "تصفية حسب مفتاح XCom",
@@ -179,6 +180,7 @@
     "running": "قيد التشغيل",
     "scheduled": "مجدول"
   },
+  "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
   "runTypes": {
     "asset_triggered": "مُشغل بواسطة الأصل",

@@ -104,6 +104,7 @@
     "any": "Cualquiera",
     "or": "O"
   },
+  "filter": "Filtro",
   "filters": {
     "dagDisplayNamePlaceholder": "Filtrar por Dag",
     "keyPlaceholder": "Filtrar por Clave de XCom",
@@ -156,6 +157,7 @@
     "running": "En Ejecución",
     "scheduled": "Programado"
   },
+  "reset": "Restablecer",
   "runId": "ID de la corrida",
   "runTypes": {
     "asset_triggered": "Asset Activado",

@@ -99,6 +99,7 @@
     "any": "Qualsevol",
     "or": "O"
   },
+  "filter": "Filtre",
   "filters": {
     "dagDisplayNamePlaceholder": "Filtrar per Dag",
     "keyPlaceholder": "Filtrar per clau XCom",
@@ -150,6 +151,7 @@
     "running": "Executant-se",
     "scheduled": "Programat"
   },
+  "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
     "asset_triggered": "Executat per Asset",

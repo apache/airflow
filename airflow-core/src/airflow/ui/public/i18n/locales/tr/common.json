@@ -99,6 +99,7 @@
     "any": "Herhangi",
     "or": "VEYA"
   },
+  "filter": "Filtre",
   "filters": {
     "dagDisplayNamePlaceholder": "Dag adına göre filtrele",
     "keyPlaceholder": "XCom anahtarına göre filtrele",
@@ -151,6 +152,7 @@
     "running": "Çalışıyor",
     "scheduled": "Planlanmış"
   },
+  "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
     "asset_triggered": "Varlık Tetiklemeli",

@@ -98,6 +98,7 @@
     "any": "Elk",
     "or": "Of"
   },
+  "filter": "Filter",
   "filters": {
     "dagDisplayNamePlaceholder": "Filter op Dag",
     "keyPlaceholder": "Filter op XCom sleutel",
@@ -149,6 +150,7 @@
     "running": "Lopend",
     "scheduled": "Gepland"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",

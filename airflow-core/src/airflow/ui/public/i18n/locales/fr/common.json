@@ -105,7 +105,18 @@
     "any": "N'importe lequel",
     "or": "Ou"
   },
-  "filter": "Filtrer",
+  "filter": "Filtre",
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtrer par Dag",
+    "keyPlaceholder": "Filtrer par clé XCom",
+    "logicalDateFromPlaceholder": "Date logique de début",
+    "logicalDateToPlaceholder": "Date logique de fin",
+    "mapIndexPlaceholder": "Filtrer par Map Index",
+    "runAfterFromPlaceholder": "Exécuté après - de",
+    "runAfterToPlaceholder": "Exécuté après - à",
+    "runIdPlaceholder": "Filtrer par ID d'exécution",
+    "taskIdPlaceholder": "Filtrer par ID de tâche"
+  },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
   "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
@@ -147,6 +158,7 @@
     "running": "En cours",
     "scheduled": "Planifié"
   },
+  "reset": "Réinitialiser",
   "runId": "ID d'exécution",
   "runTypes": {
     "asset_triggered": "Déclenché par Asset",

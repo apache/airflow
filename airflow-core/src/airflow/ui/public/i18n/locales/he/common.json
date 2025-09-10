@@ -105,6 +105,7 @@
     "any": "כלשהו",
     "or": "או"
   },
+  "filter": "מסנן",
   "filters": {
     "dagDisplayNamePlaceholder": "סנן לפי Dag",
     "keyPlaceholder": "סנן לפי מפתח XCom",
@@ -158,6 +159,7 @@
     "running": "בביצוע",
     "scheduled": "מתוזמן"
   },
+  "reset": "אתחל",
   "runId": "מזהה ריצה",
   "runTypes": {
     "asset_triggered": "הופעל על-ידי נכס",

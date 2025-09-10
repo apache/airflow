@@ -92,6 +92,7 @@
     "any": "Bármely",
     "or": "VAGY"
   },
+  "filter": "Szűrő",
   "filters": {
     "dagDisplayNamePlaceholder": "Szűrés Dag szerint",
     "keyPlaceholder": "Szűrés XCom kulcs szerint",
@@ -143,6 +144,7 @@
     "running": "Fut",
     "scheduled": "Ütemezett"
   },
+  "reset": "Alaphelyzetbe állítás",
   "runId": "Futás azonosító",
   "runTypes": {
     "asset_triggered": "Adatkészlet által indított",

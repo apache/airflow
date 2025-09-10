@@ -140,6 +140,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",

@@ -92,6 +92,7 @@
     "any": "कोई भी",
     "or": "या"
   },
+  "filter": "फ़िल्टर",
   "filters": {
     "dagDisplayNamePlaceholder": "डैग द्वारा फ़िल्टर करें",
     "keyPlaceholder": "XCom कुंजी द्वारा फ़िल्टर करें",
@@ -143,6 +144,7 @@
     "running": "चल रहा",
     "scheduled": "निर्धारित"
   },
+  "reset": "रीसेट करें",
   "runId": "रन ID",
   "runTypes": {
     "asset_triggered": "एसेट द्वारा ट्रिगर",

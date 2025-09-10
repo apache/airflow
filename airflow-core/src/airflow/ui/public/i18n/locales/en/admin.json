@@ -72,7 +72,6 @@
     "tooltip": "Delete selected connections"
   },
   "formActions": {
-    "reset": "Reset",
     "save": "Save"
   },
   "plugins": {
