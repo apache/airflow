@@ -28,7 +28,7 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from airflow.sdk.api.datamodels._generated import HITLDetailResponse, HITLUser
+    from airflow.sdk.api.datamodels._generated import HITLDetailResponse
     from airflow.sdk.types import HITLUser as SDKTypeHITLUser
 
 
