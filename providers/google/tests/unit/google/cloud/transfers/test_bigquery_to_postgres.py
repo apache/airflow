@@ -52,15 +52,10 @@ def _make_bq_table(schema_names: list[str]):
 
 
 class TestBigQueryToPostgresOperator:
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.list_rows")
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
-    )
-    def test_execute_good_request_to_bq(self, mock_get_creds, mock_list_rows, mock_postgres_hook):
-        mock_get_creds.return_value = (None, TEST_PROJECT)
-        mock_list_rows.return_value = []
-
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.bigquery_get_data")
+    @mock.patch.object(BigQueryToPostgresOperator, "bigquery_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(BigQueryToPostgresOperator, "postgres_hook", new_callable=mock.PropertyMock)
+    def test_execute_good_request_to_bq(self, mock_pg_hook, mock_bq_hook, mock_bigquery_get_data):
         operator = BigQueryToPostgresOperator(
             task_id=TASK_ID,
             dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
@@ -68,28 +63,31 @@ class TestBigQueryToPostgresOperator:
             replace=False,
         )
 
-        operator.postgres_hook = mock_postgres_hook
+        mock_bigquery_get_data.return_value = [[("row1", "val1")], [("row2", "val2")]]
+        mock_pg = mock.MagicMock()
+        mock_pg_hook.return_value = mock_pg
+        mock_bq = mock.MagicMock()
+        mock_bq.project_id = TEST_PROJECT
+        mock_bq_hook.return_value = mock_bq
+
         operator.execute(context=mock.MagicMock())
 
-        mock_list_rows.assert_called_once_with(
-            dataset_id=TEST_DATASET,
-            table_id=TEST_TABLE_ID,
-            max_results=1000,
-            selected_fields=None,
-            start_index=0,
+        mock_bigquery_get_data.assert_called_once_with(
+            operator.log,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+            mock_bq,
+            operator.batch_size,
+            operator.selected_fields,
         )
+        assert mock_pg.insert_rows.call_count == 2
 
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.list_rows")
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
-    )
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.bigquery_get_data")
+    @mock.patch.object(BigQueryToPostgresOperator, "bigquery_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(BigQueryToPostgresOperator, "postgres_hook", new_callable=mock.PropertyMock)
     def test_execute_good_request_to_bq_with_replace(
-        self, mock_get_creds, mock_list_rows, mock_postgres_hook
+        self, mock_pg_hook, mock_bq_hook, mock_bigquery_get_data,
     ):
-        mock_get_creds.return_value = (None, TEST_PROJECT)
-        mock_list_rows.return_value = []
-
         operator = BigQueryToPostgresOperator(
             task_id=TASK_ID,
             dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
@@ -99,15 +97,30 @@ class TestBigQueryToPostgresOperator:
             replace_index=["col_1"],
         )
 
-        operator.postgres_hook = mock_postgres_hook
+        mock_bigquery_get_data.return_value = [[("only_row", "val")]]
+        mock_pg = mock.MagicMock()
+        mock_pg_hook.return_value = mock_pg
+        mock_bq = mock.MagicMock()
+        mock_bq.project_id = TEST_PROJECT
+        mock_bq_hook.return_value = mock_bq
+
         operator.execute(context=mock.MagicMock())
 
-        mock_list_rows.assert_called_once_with(
-            dataset_id=TEST_DATASET,
-            table_id=TEST_TABLE_ID,
-            max_results=1000,
-            selected_fields=["col_1", "col_2"],
-            start_index=0,
+        mock_bigquery_get_data.assert_called_once_with(
+            operator.log,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+            mock_bq,
+            operator.batch_size,
+            ["col_1", "col_2"],
+        )
+        mock_pg.insert_rows.assert_called_once_with(
+            table=TEST_DESTINATION_TABLE,
+            rows=[("only_row", "val")],
+            target_fields=["col_1", "col_2"],
+            replace=True,
+            commit_every=operator.batch_size,
+            replace_index=["col_1"],
         )
 
     @pytest.mark.parametrize(
