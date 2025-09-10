@@ -169,7 +169,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         oss_log_folder: str,
         max_bytes: int = 0,
         backup_count: int = 0,
-        delay: bool = False, 
+        delay: bool = False,
         **kwargs,
     ) -> None:
         self.log.info("Using oss_task_handler for remote logging...")
