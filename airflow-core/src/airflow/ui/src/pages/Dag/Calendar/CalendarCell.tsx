@@ -35,20 +35,26 @@ export const CalendarCell = ({ backgroundColor, cellData, index, marginRight }: 
 
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
 
+  const hasData = Boolean(cellData);
+
   return (
-    <Box onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} position="relative">
+    <Box
+      onMouseEnter={hasData ? handleMouseEnter : undefined}
+      onMouseLeave={hasData ? handleMouseLeave : undefined}
+      position="relative"
+    >
       <Box
-        _hover={{ transform: "scale(1.1)" }}
+        _hover={hasData ? { transform: "scale(1.1)" } : {}}
         bg={backgroundColor}
-        border="1px solid"
-        borderColor="border.emphasized"
+        border={hasData ? "1px solid" : "none"}
+        borderColor={hasData ? "border.emphasized" : undefined}
         borderRadius="2px"
-        cursor="pointer"
+        cursor={hasData ? "pointer" : "default"}
         height="14px"
         marginRight={computedMarginRight}
         width="14px"
       />
-      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : ""} />
+      {cellData ? <CalendarTooltip content={<CalendarTooltipContent cellData={cellData} />} /> : null}
     </Box>
   );
 };
