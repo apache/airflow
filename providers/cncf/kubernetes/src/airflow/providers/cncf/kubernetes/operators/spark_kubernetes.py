@@ -227,9 +227,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.client)
 
-    @staticmethod
-    def _try_numbers_match(context, pod) -> bool:
-        return pod.metadata.labels["try_number"] == context["ti"].try_number
+    def _try_numbers_match(self, context, pod) -> bool:
+        task_instance = context["task_instance"]
+        task_context_labels = self._get_ti_pod_labels(context)
+        pod_try_number = pod.metadata.labels.get(task_context_labels.get("try_number", ""), "")
+        return str(task_instance.try_number) == str(pod_try_number)
 
     @property
     def template_body(self):
@@ -252,7 +254,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels
             )
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels.get("try_number", "unknown"))
         return pod
 
     def process_pod_deletion(self, pod, *, reraise=True):

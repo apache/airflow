@@ -815,6 +815,8 @@ class TestSparkKubernetesOperator:
                 pod=mock_create_pod.return_value,
                 containers="spark-kubernetes-driver",
                 follow_logs=True,
+                container_name_log_prefix_enabled=True,
+                log_formatter=None,
             )
             return None
 
@@ -861,8 +863,10 @@ class TestSparkKubernetesOperator:
         op.find_spark_job(context)
         mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
 
+    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook")
     def test_adds_task_context_labels_to_driver_and_executor(
         self,
+        mock_kubernetes_hook,
         mock_is_in_cluster,
         mock_parent_execute,
         mock_create_namespaced_crd,
