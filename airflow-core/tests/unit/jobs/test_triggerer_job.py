@@ -312,7 +312,7 @@ class TestTriggerRunner:
         mock_get_trigger_by_classpath.return_value = fn
 
         trigger_runner.to_create.append(
-            workloads.RunTrigger.model_construct(id=1, classpath="abc", encrypted_kwargs="fake"),
+            workloads.RunTrigger.model_construct(id=1, ti=None, classpath="abc", encrypted_kwargs="fake"),
         )
         await trigger_runner.create_triggers()
 
