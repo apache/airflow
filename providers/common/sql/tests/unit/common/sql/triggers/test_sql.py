@@ -19,51 +19,49 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from asgiref.sync import sync_to_async
 
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
+from airflow.providers.common.sql.version_compat import BaseHook
 from airflow.triggers.base import TriggerEvent
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestSQLExecuteQueryTrigger:
-    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
-    def test_run(self, mock_get_connection):
-        data = [(1, "Alice"), (2, "Bob")]
+    @classmethod
+    def get_connection(cls, conn_id: str, records: list | None = None):
         mock_connection = mock.MagicMock(spec=Connection)
         mock_hook = mock.MagicMock(spec=DbApiHook)
-        mock_hook.get_records.side_effect = lambda sql: data
-        mock_get_connection.return_value = mock_connection
+        if records:
+            mock_hook.get_records.side_effect = lambda sql: records
         mock_connection.get_hook.side_effect = lambda hook_params: mock_hook
+        return mock_connection
 
-        trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
-        actual = run_trigger(trigger)
+    def test_run(self):
+        data = [(1, "Alice"), (2, "Bob")]
 
-        assert len(actual) == 1
-        assert isinstance(actual[0], TriggerEvent)
-        assert actual[0].payload["status"] == "success"
-        assert actual[0].payload["results"] == data
+        with (
+            mock.patch.object(BaseHook, "get_connection", side_effect=lambda conn_id: self.get_connection(conn_id, data)),
+            mock.patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(lambda conn_id: self.get_connection(conn_id, data))),
+        ):
+            trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
+            actual = run_trigger(trigger)
+
+            assert len(actual) == 1
+            assert isinstance(actual[0], TriggerEvent)
+            assert actual[0].payload["status"] == "success"
+            assert actual[0].payload["results"] == data
 
     @pytest.mark.asyncio
-    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
-    async def test_get_hook(self, mock_get_connection):
-        mock_connection = mock.MagicMock(spec=Connection)
-        mock_hook = mock.MagicMock(spec=DbApiHook)
-        mock_get_connection.return_value = mock_connection
-        mock_connection.get_hook.side_effect = lambda hook_params: mock_hook
+    async def test_get_hook(self):
+        with (
+            mock.patch.object(BaseHook, "get_connection", side_effect=self.get_connection),
+            mock.patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(self.get_connection)),
+        ):
+            trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
+            actual = await trigger.get_hook()
 
-        trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
-        actual = await trigger.get_hook()
-
-        assert actual == mock_hook
+            assert isinstance(actual, DbApiHook)
