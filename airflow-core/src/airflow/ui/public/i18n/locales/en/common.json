@@ -99,18 +99,7 @@
     "any": "Any",
     "or": "OR"
   },
-  "filters": {
-    "dagDisplayNamePlaceholder": "Filter by Dag",
-    "keyPlaceholder": "Filter by XCom key",
-    "logicalDateFromPlaceholder": "Logical Date From",
-    "logicalDateToPlaceholder": "Logical Date To",
-    "mapIndexPlaceholder": "Filter by Map Index",
-    "runAfterFromPlaceholder": "Run After From",
-    "runAfterToPlaceholder": "Run After To",
-    "runIdPlaceholder": "Filter by Run ID",
-    "taskIdPlaceholder": "Filter by Task ID",
-    "triggeringUserPlaceholder": "Filter by triggering user"
-  },
+  "filter": "Filter",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",

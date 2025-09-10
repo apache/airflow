@@ -99,18 +99,7 @@
     "any": "任何",
     "or": "或"
   },
-  "filters": {
-    "dagDisplayNamePlaceholder": "依 Dag 名稱篩選",
-    "keyPlaceholder": "依 XCom 鍵篩選",
-    "logicalDateFromPlaceholder": "邏輯日期起始",
-    "logicalDateToPlaceholder": "邏輯日期結束",
-    "mapIndexPlaceholder": "依映射索引篩選",
-    "runAfterFromPlaceholder": "執行時間起始",
-    "runAfterToPlaceholder": "執行時間結束",
-    "runIdPlaceholder": "依執行 ID 篩選",
-    "taskIdPlaceholder": "依任務 ID 篩選",
-    "triggeringUserPlaceholder": "依觸發使用者篩選"
-  },
+  "filter": "篩選",
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
