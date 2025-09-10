@@ -2011,7 +2011,7 @@ REQUEST_TEST_CASES = [
                 "multiple": False,
                 "options": ["Approve", "Reject"],
                 "params": {},
-                "respondents": None,
+                "assigned_users": None,
                 "subject": "This is subject",
                 "ti_id": TI_ID,
             },
