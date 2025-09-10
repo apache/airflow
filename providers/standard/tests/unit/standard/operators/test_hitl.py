@@ -182,10 +182,9 @@ class TestHITLOperator:
         assert hitl_detail_model.defaults == ["1"]
         assert hitl_detail_model.multiple is False
         assert hitl_detail_model.params == {"input_1": 1}
-        assert hitl_detail_model.respondents == ["test"]
+        assert hitl_detail_model.assignees == ["test"]
         assert hitl_detail_model.response_at is None
-        assert hitl_detail_model.responded_user_id is None
-        assert hitl_detail_model.responded_user_name is None
+        assert hitl_detail_model.responded_by is None
         assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
 

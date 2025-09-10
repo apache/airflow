@@ -63,7 +63,7 @@ def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
         response_received=True,
         chosen_options=["Approve"],
         response_at=timestamp,
-        responded_by_user=HITLUser(id="admin", name="admin"),
+        responded_by_user=APIHITLUser(id="admin", name="admin"),
         params_input={"input_1": 1},
     )
     resp = update_hitl_detail_response(
@@ -75,7 +75,7 @@ def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
         response_received=True,
         chosen_options=["Approve"],
         response_at=timestamp,
-        responded_by_user=HITLUser(id="admin", name="admin"),
+        responded_by_user=APIHITLUser(id="admin", name="admin"),
         params_input={"input_1": 1},
     )
 
