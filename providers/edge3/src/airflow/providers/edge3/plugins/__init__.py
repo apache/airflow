@@ -1,5 +1,4 @@
-# TODO: This license is not consistent with the license used in the project.
-#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
+# Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
