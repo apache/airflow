@@ -128,8 +128,8 @@
   "tabs": {
     "assetEvents": "Asset Events",
     "auditLog": "Log de Auditoria",
-    "calendar": "Calendário",
     "backfills": "Backfills",
+    "calendar": "Calendário",
     "code": "Código",
     "details": "Detalhes",
     "logs": "Logs",

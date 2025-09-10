@@ -46,7 +46,6 @@
     "tags": "Etiquetas"
   },
   "dagId": "ID do DAG",
-  "dagRunId": "ID da Execução do DAG",
   "dagRun": {
     "conf": "Conf",
     "dagVersions": "Versão(s) do DAG",
@@ -62,6 +61,7 @@
   },
   "dagRun_one": "Execução do DAG",
   "dagRun_other": "Execuções do DAG",
+  "dagRunId": "ID da Execução do DAG",
   "dagWarnings": "Avisos/Erros do DAG",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
@@ -80,11 +80,28 @@
     "notFound": "Página Não Encontrada",
     "title": "Erro"
   },
+  "expand": {
+    "collapse": "Recolher",
+    "expand": "Expandir",
+    "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
+    "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção"
+  },
   "expression": {
     "all": "Todos",
     "and": "E",
     "any": "Qualquer",
     "or": "OU"
+  },
+  "filters": {
+    "dagDisplayNamePlaceholder": "Filtrar por DAG",
+    "keyPlaceholder": "Filtrar por chave XCom",
+    "logicalDateFromPlaceholder": "Data Lógica De",
+    "logicalDateToPlaceholder": "Data Lógica Para",
+    "mapIndexPlaceholder": "Filtrar por Índice do Mapa",
+    "runAfterFromPlaceholder": "Executar Depois De",
+    "runAfterToPlaceholder": "Executar Depois Para",
+    "runIdPlaceholder": "Filtrar por ID da Execução",
+    "taskIdPlaceholder": "Filtrar por ID da Tarefa"
   },
   "logicalDate": "Data Lógica",
   "logout": "Sair",
@@ -97,17 +114,6 @@
       "button": "Excluir",
       "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode ser desfeita."
     }
-  },
-  "filters": {
-    "dagDisplayNamePlaceholder": "Filtrar por DAG",
-    "keyPlaceholder": "Filtrar por chave XCom",
-    "logicalDateFromPlaceholder": "Data Lógica De",
-    "logicalDateToPlaceholder": "Data Lógica Para",
-    "mapIndexPlaceholder": "Filtrar por Índice do Mapa",
-    "runAfterFromPlaceholder": "Executar Depois De",
-    "runAfterToPlaceholder": "Executar Depois Para",
-    "runIdPlaceholder": "Filtrar por ID da Execução",
-    "taskIdPlaceholder": "Filtrar por ID da Tarefa"
   },
   "nav": {
     "admin": "Administração",
@@ -161,6 +167,11 @@
   },
   "selectLanguage": "Selecionar Idioma",
   "showDetailsPanel": "Mostrar Painel de Detalhes",
+  "source": {
+    "hide": "Ocultar",
+    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
+    "show": "Mostrar"
+  },
   "sourceAssetEvent_one": "Evento de Asset de Origem",
   "sourceAssetEvent_other": "Eventos de Asset de Origem",
   "startDate": "Data Inicial",
@@ -242,6 +253,11 @@
     "lastHour": "Última Hora",
     "pastWeek": "Semana Passada"
   },
+  "timestamp": {
+    "hide": "Ocultar",
+    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
+    "show": "Mostrar"
+  },
   "timezone": "Fuso Horário",
   "timezoneModal": {
     "current-timezone": "Hora atual em",
@@ -290,22 +306,6 @@
   "triggered": "Acionado",
   "tryNumber": "Número de Tentativas",
   "user": "Usuário",
-  "expand": {
-    "collapse": "Recolher",
-    "expand": "Expandir",
-    "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
-    "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção"
-  },
-  "source": {
-    "hide": "Ocultar",
-    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
-    "show": "Mostrar"
-  },
-  "timestamp": {
-    "hide": "Ocultar",
-    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
-    "show": "Mostrar"
-  },
   "wrap": {
     "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
