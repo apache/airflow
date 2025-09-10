@@ -575,8 +575,8 @@ class TestGetHITLDetailsEndpoint:
             ({"body_search": "this is"}, 8),
             ({"response_received": False}, 5),
             ({"response_received": True}, 3),
-            ({"responded_user_id": ["test"]}, 3),
-            ({"responded_user_name": ["test"]}, 3),
+            ({"responded_by_user_id": ["test"]}, 3),
+            ({"responded_by_user_name": ["test"]}, 3),
         ],
         ids=[
             "dag_id_pattern_hitl_dag",
