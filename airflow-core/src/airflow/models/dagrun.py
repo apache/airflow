@@ -2018,7 +2018,7 @@ class DagRun(Base, LoggingMixin):
                     ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1
-                    ti.defer_task(exception=None, session=session)
+                    ti.defer_task(session=session)
                 else:
                     schedulable_ti_ids.append(ti.id)
             else:
