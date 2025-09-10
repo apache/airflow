@@ -45,7 +45,7 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
     "defaults": ["Approve"],
     "multiple": False,
     "params": {"input_1": 1},
-    "respondents": None,
+    "assigned_users": None,
 }
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
     "response_at": None,
