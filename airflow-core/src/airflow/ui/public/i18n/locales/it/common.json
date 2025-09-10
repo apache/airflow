@@ -8,22 +8,32 @@
     "Variables": "Variabili"
   },
   "allOperators": "Tutti gli Operatori",
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "asset_zero": "Nessun asset",
+  "assetEvent_many": "Eventi Asset",
   "assetEvent_one": "Evento Asset",
   "assetEvent_other": "Eventi Asset",
+  "assetEvent_zero": "Nessun evento asset",
+  "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "backfill_zero": "Nessun backfill",
   "browse": {
     "auditLog": "Registro di Controllo (Logs)",
     "requiredActions": "Azioni Richieste",
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Collassa i Dettagli",
+  "createdAssetEvent_many": "Eventi Asset Creati",
   "createdAssetEvent_one": "Evento Asset Creato",
   "createdAssetEvent_other": "Eventi Asset Creati",
+  "createdAssetEvent_zero": "Nessun evento asset creato",
+  "dag_many": "DAGs",
   "dag_one": "DAG",
   "dag_other": "DAGs",
+  "dag_zero": "Nessun DAG",
   "dagDetails": {
     "catchup": "Catchup",
     "dagRunTimeout": "Timeout del Run del DAG",
@@ -59,8 +69,10 @@
     "triggeredBy": "Triggered da",
     "triggeringUser": "Nome Utente che ha Attivato"
   },
+  "dagRun_many": "Run del DAG",
   "dagRun_one": "Run del DAG",
   "dagRun_other": "Run del DAG",
+  "dagRun_zero": "Nessun run del DAG",
   "dagRunId": "ID del Run del DAG",
   "dagWarnings": "Avvisi/Errori del DAG",
   "defaultToGraphView": "Default to vista grafica",
@@ -137,8 +149,10 @@
   "pools": {
     "deferred": "In Attesa",
     "open": "Aperto",
+    "pools_many": "Pools",
     "pools_one": "Pool",
     "pools_other": "Pools",
+    "pools_zero": "Nessun pool",
     "queued": "In Coda",
     "running": "In Esecuzione",
     "scheduled": "Programmato"
@@ -172,8 +186,10 @@
     "hotkey": "s",
     "show": "Mostra Sorgente"
   },
+  "sourceAssetEvent_many": "Eventi Asset di Origine",
   "sourceAssetEvent_one": "Evento Asset di Origine",
   "sourceAssetEvent_other": "Eventi Asset di Origine",
+  "sourceAssetEvent_zero": "Nessun evento asset di origine",
   "startDate": "Data di Inizio",
   "state": "Stato",
   "states": {
@@ -200,8 +216,10 @@
     "createdAt": "Creato il",
     "filterByTag": "Filtra DAG per tag",
     "filterColumns": "Filtra le colonne della tabella",
+    "filterReset_many": "Resetta filtri",
     "filterReset_one": "Resetta filtro",
     "filterReset_other": "Resetta filtri",
+    "filterReset_zero": "Nessun filtro da resettare",
     "from": "Da",
     "maxActiveRuns": "Numero massimo di Runs attive",
     "noTagsFound": "Nessun tag trovato",
@@ -218,8 +236,10 @@
     "operator": "Operatore",
     "triggerRule": "Regola di Trigger"
   },
+  "task_many": "Tasks",
   "task_one": "Task",
   "task_other": "Tasks",
+  "task_zero": "Nessun task",
   "taskGroup": "Gruppo di Task",
   "taskId": "ID del Task",
   "taskInstance": {
@@ -245,8 +265,10 @@
     },
     "unixname": "Nome Unix"
   },
+  "taskInstance_many": "Istanze di Task",
   "taskInstance_one": "Istanza di Task",
   "taskInstance_other": "Istanze di Task",
+  "taskInstance_zero": "Nessuna istanza di task",
   "timeRange": {
     "last12Hours": "Ultimi 12 Ore",
     "last24Hours": "Ultimi 24 Ore",

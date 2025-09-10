@@ -51,6 +51,7 @@ PLURAL_SUFFIXES = {
     "pl": ["_one", "_few", "_many", "_other"],
     "de": ["_one", "_other"],
     "fr": ["_one", "_other"],
+    "it": ["_zero", "_one", "_many", "_other"],
     "nl": ["_one", "_other"],
     "ar": ["_zero", "_one", "_two", "_few", "_many", "_other"],
     "he": ["_one", "_other"],

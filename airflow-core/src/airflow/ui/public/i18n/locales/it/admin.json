@@ -19,13 +19,19 @@
       "host": "Host",
       "port": "Port"
     },
+    "connection_many": "Connessioni",
     "connection_one": "Connessione",
     "connection_other": "Connessioni",
+    "connection_zero": "Nessuna connessione",
     "delete": {
+      "deleteConnection_many": "Elimina {{count}} connessioni",
       "deleteConnection_one": "Elimina 1 connessione",
       "deleteConnection_other": "Elimina {{count}} connessioni",
+      "deleteConnection_zero": "Nessuna connessione da eliminare",
+      "firstConfirmMessage_many": "Stai per eliminare le seguenti connessioni:",
       "firstConfirmMessage_one": "Stai per eliminare la seguente connessione:",
       "firstConfirmMessage_other": "Stai per eliminare le seguenti connessioni:",
+      "firstConfirmMessage_zero": "Nessuna connessione da eliminare:",
       "title": "Elimina Connessione"
     },
     "edit": "Modifica Connessione",
@@ -79,8 +85,10 @@
     "columns": {
       "source": "Fonte"
     },
+    "importError_many": "Errori di Importazione Plugin",
     "importError_one": "Errore di Importazione Plugin",
-    "importError_other": "Errore di Importazione Plugin",
+    "importError_other": "Errori di Importazione Plugin",
+    "importError_zero": "Nessun errore di importazione plugin",
     "searchPlaceholder": "Cerca per file"
   },
   "pools": {
@@ -100,8 +108,10 @@
       "slots": "Slot"
     },
     "noPoolsFound": "Nessun pool trovato",
+    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
+    "pool_zero": "Nessun pool",
     "searchPlaceholder": "Cerca Pools",
     "sort": {
       "asc": "Nome (A-Z)",
@@ -121,10 +131,14 @@
       "isEncrypted": "È Crittografata"
     },
     "delete": {
+      "deleteVariable_many": "Elimina {{count}} Variabili",
       "deleteVariable_one": "Elimina 1 Variabile",
       "deleteVariable_other": "Elimina {{count}} Variabili",
+      "deleteVariable_zero": "Nessuna variabile da eliminare",
+      "firstConfirmMessage_many": "Stai per eliminare le seguenti variabili:",
       "firstConfirmMessage_one": "Stai per eliminare la seguente variabile:",
       "firstConfirmMessage_other": "Stai per eliminare le seguenti variabili:",
+      "firstConfirmMessage_zero": "Nessuna variabile da eliminare:",
       "title": "Elimina Variabile",
       "tooltip": "Elimina le variabili selezionate"
     },
@@ -161,7 +175,9 @@
     },
     "noRowsMessage": "Nessuna variabile trovata",
     "searchPlaceholder": "Cerca Chiavi",
+    "variable_many": "Variabili",
     "variable_one": "Variabile",
-    "variable_other": "Variabili"
+    "variable_other": "Variabili",
+    "variable_zero": "Nessuna variabile"
   }
 }

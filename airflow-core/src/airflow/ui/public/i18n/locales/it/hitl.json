@@ -6,11 +6,15 @@
       "received": "Ricevute"
     }
   },
-  "requiredAction_one": "Azione Richiesta",
-  "requiredAction_other": "Azioni Richieste",
-  "requiredActionCount_one": "Azione Richiesta ({{count}})",
-  "requiredActionCount_other": "Azioni Richieste ({{count}})",
-  "requiredActionState": "Stato dell'Azione Richiesta",
+  "requiredAction_many": "Azioni richieste",
+  "requiredAction_one": "Azione richiesta",
+  "requiredAction_other": "Azioni richieste",
+  "requiredAction_zero": "Nessuna azione richiesta",
+  "requiredActionCount_many": "Azioni richieste ({{count}})",
+  "requiredActionCount_one": "Azione richiesta ({{count}})",
+  "requiredActionCount_other": "Azioni richieste ({{count}})",
+  "requiredActionCount_zero": "Nessuna azione richiesta",
+  "requiredActionState": "Stato dell'Azione richiesta",
   "response": {
     "error": "Errore nella Risposta",
     "optionsDescription": "Scegli le tue opzioni per questa istanza di task",

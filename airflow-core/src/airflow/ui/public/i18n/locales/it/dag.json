@@ -72,21 +72,29 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_one": "Run Fallito",
-      "failedRun_other": "Run Falliti",
-      "failedTask_one": "Task Fallito",
-      "failedTask_other": "Task Falliti",
-      "failedTaskInstance_one": "Istanza di Task Fallita",
-      "failedTaskInstance_other": "Istanze di Task Fallite"
+      "failedRun_many": "Run falliti",
+      "failedRun_one": "Run fallito",
+      "failedRun_other": "Run falliti",
+      "failedRun_zero": "Nessun Run fallito",
+      "failedTask_many": "Task falliti",
+      "failedTask_one": "Task fallito",
+      "failedTask_other": "Task falliti",
+      "failedTask_zero": "Nessun Task fallito",
+      "failedTaskInstance_many": "Istanze di Task fallite",
+      "failedTaskInstance_one": "Istanza di Task fallita",
+      "failedTaskInstance_other": "Istanze di Task fallite",
+      "failedTaskInstance_zero": "Nessuna istanza di Task fallita"
     },
     "charts": {
+      "assetEvent_many": "Eventi di Asset Creati",
       "assetEvent_one": "Evento di Asset Creato",
-      "assetEvent_other": "Eventi di Asset Creati"
+      "assetEvent_other": "Eventi di Asset Creati",
+      "assetEvent_zero": "Nessun evento di asset creato"
     },
     "failedLogs": {
       "hideLogs": "Nascondi Logs",
       "showLogs": "Mostra Logs",
-      "title": "Logs delle Task Fallite Recenti",
+      "title": "Logs delle Task fallite recenti",
       "viewFullLogs": "Visualizza i logs completi"
     }
   },
@@ -118,7 +126,7 @@
     "toaster": {
       "error": {
         "description": "La richiesta di parsing del DAG è fallita. Potrebbero esserci richieste di parsing in sospeso da processare.",
-        "title": "Parsing del DAG Fallito"
+        "title": "Parsing del DAG fallito"
       },
       "success": {
         "description": "Il DAG dovrebbe essere riparsat presto.",
@@ -134,8 +142,10 @@
     "code": "Codice",
     "details": "Dettagli",
     "logs": "Logs",
+    "mappedTaskInstances_many": "Istanze di Task [{{count}}]",
     "mappedTaskInstances_one": "Istanza di Task [{{count}}]",
     "mappedTaskInstances_other": "Istanze di Task [{{count}}]",
+    "mappedTaskInstances_zero": "Nessuna istanza di task mappata",
     "overview": "Panoramica",
     "renderedTemplates": "Template Renderizzato",
     "requiredActions": "Azioni Richieste",

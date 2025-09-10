@@ -1,7 +1,9 @@
 {
   "backfill": {
+    "affected_many": "{{count}} runs verranno attivati.",
     "affected_one": "1 run verrà attivato.",
     "affected_other": "{{count}} runs verranno attivati.",
+    "affected_zero": "Nessun run verrà attivato.",
     "affectedNone": "Nessun run corrispondente ai criteri selezionati.",
     "allRuns": "Tutti i Run",
     "backwards": "Run all'indietro",
@@ -46,25 +48,35 @@
     "invalidJson": "Formato JSON non valido: {{errorMessage}}"
   },
   "dagWarnings": {
+    "error_many": "{{count}} Errori",
     "error_one": "1 Errore",
     "error_other": "{{count}} Errori",
+    "error_zero": "Nessun errore",
     "errorAndWarning": "1 Errore e {{warningText}}",
+    "warning_many": "{{count}} Avvisi",
     "warning_one": "1 Avviso",
-    "warning_other": "{{count}} Avvisi"
+    "warning_other": "{{count}} Avvisi",
+    "warning_zero": "Nessun avviso"
   },
   "durationChart": {
     "duration": "Durata (secondi)",
+    "lastDagRun_many": "Ultimi {{count}} Run del DAG",
     "lastDagRun_one": "Ultimo Run del DAG",
-    "lastDagRun_other": "Ultimo {{count}} Run del DAG",
+    "lastDagRun_other": "Ultimi {{count}} Run del DAG",
+    "lastDagRun_zero": "Nessun run del DAG",
+    "lastTaskInstance_many": "Ultime {{count}} Istanze di Task",
     "lastTaskInstance_one": "Ultima Istanza di Task",
     "lastTaskInstance_other": "Ultime {{count}} Istanze di Task",
+    "lastTaskInstance_zero": "Nessuna istanza di task",
     "queuedDuration": "Durata in coda",
     "runAfter": "Esegui dopo",
     "runDuration": "Durata del Run"
   },
   "fileUpload": {
+    "files_many": "{{count}} file",
     "files_one": "1 file",
-    "files_other": "{{count}} file"
+    "files_other": "{{count}} file",
+    "files_zero": "Nessun file"
   },
   "flexibleForm": {
     "placeholder": "Seleziona Valore",
@@ -85,8 +97,10 @@
     "downloadImageError": "Impossibile scaricare l'immagine del grafico.",
     "downloadImageErrorTitle": "Scaricamento Fallito",
     "otherDagRuns": "+Altri Run del DAG",
+    "taskCount_many": "{{count}} Tasks",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
+    "taskCount_zero": "Nessun task",
     "taskGroup": "Task Group"
   },
   "limitedList": "+{{count}} altro",
