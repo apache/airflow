@@ -370,7 +370,7 @@ class ReferenceModels:
     class AverageRuntimeDeadline(BaseDeadlineReference):
         """A deadline that calculates the average runtime from past DAG runs."""
 
-        limit: int = 10
+        limit: int
         required_kwargs = {"dag_id"}
 
         @provide_session
@@ -400,7 +400,7 @@ class ReferenceModels:
                     dag_id,
                     self.limit,
                 )
-                avg_seconds = 24 * 3600  # 24 hours as default
+                avg_seconds = 48 * 3600  # 48 hours as default
             else:
                 avg_seconds = sum(durations) / len(durations)
                 logger.info(
