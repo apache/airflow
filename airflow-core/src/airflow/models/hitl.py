@@ -120,6 +120,6 @@ class HITLDetail(Base):
         )
 
     DEFAULT_USER = HITLUser(
-        id="Fallback to default",
-        name="Fallback to default",
+        id="Fallback to defaults",
+        name="Fallback to defaults",
     )
