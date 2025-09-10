@@ -50,15 +50,17 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+
   - package-ecosystem: npm
     directories:
       - /providers/edge3/src/airflow/providers/edge3/plugins/www
     schedule:
       interval: daily
     groups:
-      fab-ui-package-updates:
+      edge-ui-package-updates:
         patterns:
           - "*"
+
   - package-ecosystem: npm
     directories:
       - /providers/fab/src/airflow/providers/fab/www

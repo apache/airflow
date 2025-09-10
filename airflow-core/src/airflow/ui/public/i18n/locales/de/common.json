@@ -108,7 +108,8 @@
     "runAfterFromPlaceholder": "Gelaufen-nach von filtern",
     "runAfterToPlaceholder": "Gelaufen-nach bis filtern",
     "runIdPlaceholder": "Nach Lauf ID filtern",
-    "taskIdPlaceholder": "Nach Task ID filtern"
+    "taskIdPlaceholder": "Nach Task ID filtern",
+    "triggeringUserPlaceholder": "Nach auslösendem Benutzer filtern"
   },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
