@@ -444,7 +444,7 @@ can be used for CI images:
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
 | `AIRFLOW_PIP_VERSION`             | `25.2`                      | `pip` version used.                                                                                               |
 | `AIRFLOW_UV_VERSION`              | `0.8.15`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.1.6`                     | `prek` version used.                                                                                              |
+| `AIRFLOW_PREK_VERSION`            | `0.2.0a4`                   | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 
