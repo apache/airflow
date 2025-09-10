@@ -191,7 +191,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.sensors.msgraph"],
             },
         ],
-        "filesystems": ["airflow.providers.microsoft.azure.fs.adls"],
+        "filesystems": [
+            "airflow.providers.microsoft.azure.fs.adls",
+            "airflow.providers.microsoft.azure.fs.msgraphfs",
+        ],
         "hooks": [
             {
                 "integration-name": "Microsoft Azure Container Instances",

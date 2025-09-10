@@ -37,6 +37,7 @@
     Connection types <connections/index>
     Operators <operators/index>
     Transfers <transfer/index>
+    Filesystems <filesystems/index>
     Secrets backends <secrets-backends/azure-key-vault>
     Logging for Tasks <logging/index>
     Sensors <sensors/index>
