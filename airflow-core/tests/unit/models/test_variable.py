@@ -323,6 +323,15 @@ class TestVariable:
 
         assert Variable.get_team_name("key", session=session) == "testing"
 
+    def test_get_key_to_team_name_mapping(self, testing_team: Team, session: Session):
+        var1 = Variable(key="key1", val="value1", team_id=testing_team.id)
+        var2 = Variable(key="key2", val="value2")
+        session.add(var1)
+        session.add(var2)
+        session.flush()
+
+        assert Variable.get_key_to_team_name_mapping(["key1", "key2"], session=session) == {"key1": "testing"}
+
 
 @pytest.mark.parametrize(
     "variable_value, deserialize_json, expected_masked_values",

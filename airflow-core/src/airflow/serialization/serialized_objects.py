@@ -2385,7 +2385,11 @@ class SerializedDAG(DAG, BaseSerialization):
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
-            serialized_dag["deadline"] = dag.deadline.serialize_deadline_alert() if dag.deadline else None
+            serialized_dag["deadline"] = (
+                [deadline.serialize_deadline_alert() for deadline in dag.deadline]
+                if isinstance(dag.deadline, list)
+                else None
+            )
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -2501,7 +2505,14 @@ class SerializedDAG(DAG, BaseSerialization):
             dag.has_on_failure_callback = True
 
         if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
-            dag.deadline = DeadlineAlert.deserialize_deadline_alert(encoded_dag["deadline"])
+            dag.deadline = (
+                [
+                    DeadlineAlert.deserialize_deadline_alert(deadline_data)
+                    for deadline_data in encoded_dag["deadline"]
+                ]
+                if encoded_dag["deadline"]
+                else None
+            )
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
@@ -3096,19 +3107,21 @@ class SerializedDAG(DAG, BaseSerialization):
             session=session,
         )
 
-        if self.deadline and isinstance(self.deadline.reference, DeadlineReference.TYPES.DAGRUN):
-            session.add(
-                Deadline(
-                    deadline_time=self.deadline.reference.evaluate_with(
-                        session=session,
-                        interval=self.deadline.interval,
-                        dag_id=self.dag_id,
-                        run_id=run_id,
-                    ),
-                    callback=self.deadline.callback,
-                    dagrun_id=orm_dagrun.id,
-                )
-            )
+        if self.deadline:
+            for deadline in cast("list", self.deadline):
+                if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
+                    session.add(
+                        Deadline(
+                            deadline_time=deadline.reference.evaluate_with(
+                                session=session,
+                                interval=deadline.interval,
+                                dag_id=self.dag_id,
+                                run_id=run_id,
+                            ),
+                            callback=deadline.callback,
+                            dagrun_id=orm_dagrun.id,
+                        )
+                    )
 
         return orm_dagrun
 

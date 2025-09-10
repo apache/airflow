@@ -132,7 +132,8 @@
     "runAfterFromPlaceholder": "من تشغيل بعد",
     "runAfterToPlaceholder": "إلى تشغيل بعد",
     "runIdPlaceholder": "تصفية حسب معرف التشغيل",
-    "taskIdPlaceholder": "تصفية حسب معرف المهمة"
+    "taskIdPlaceholder": "تصفية حسب معرف المهمة",
+    "triggeringUserPlaceholder": "تصفية حسب المستخدم صاحب الاطلاق"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",

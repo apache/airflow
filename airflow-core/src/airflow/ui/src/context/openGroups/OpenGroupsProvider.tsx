@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useCallback, useMemo, useEffect, type PropsWithChildren } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -59,20 +60,41 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
     }
   }, [structure.nodes, allGroupIds, setAllGroupIds]);
 
+  const debouncedSetOpenGroupIds = useDebouncedCallback(
+    (newGroupIds: Array<string>) => {
+      setOpenGroupIds(newGroupIds);
+    },
+    100, // 100ms debounce for batch operations
+  );
+
   const toggleGroupId = useCallback(
     (groupId: string) => {
       if (openGroupIds.includes(groupId)) {
-        setOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
+        debouncedSetOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
       } else {
-        setOpenGroupIds([...openGroupIds, groupId]);
+        debouncedSetOpenGroupIds([...openGroupIds, groupId]);
       }
     },
-    [openGroupIds, setOpenGroupIds],
+    [openGroupIds, debouncedSetOpenGroupIds],
+  );
+
+  const setOpenGroupIdsImmediate = useCallback(
+    (newGroupIds: Array<string>) => {
+      debouncedSetOpenGroupIds.cancel();
+      setOpenGroupIds(newGroupIds);
+    },
+    [debouncedSetOpenGroupIds, setOpenGroupIds],
   );
 
   const value = useMemo<OpenGroupsContextType>(
-    () => ({ allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId }),
-    [allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId],
+    () => ({
+      allGroupIds,
+      openGroupIds,
+      setAllGroupIds,
+      setOpenGroupIds: setOpenGroupIdsImmediate,
+      toggleGroupId,
+    }),
+    [allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIdsImmediate, toggleGroupId],
   );
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;

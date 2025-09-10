@@ -717,7 +717,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             from airflow.sdk.log import configure_logging
 
             log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+            configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
         else:
             print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
