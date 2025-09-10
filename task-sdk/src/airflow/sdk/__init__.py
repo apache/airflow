@@ -35,6 +35,7 @@ __all__ = [
     "DAG",
     "DagRunState",
     "EdgeModifier",
+    "HITLUser",
     "Label",
     "Metadata",
     "ObjectStoragePath",
@@ -84,6 +85,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.io.path import ObjectStoragePath
+    from airflow.sdk.types import HITLUser
 
 __lazy_imports: dict[str, str] = {
     "Asset": ".definitions.asset",
@@ -101,6 +103,7 @@ __lazy_imports: dict[str, str] = {
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
     "EdgeModifier": ".definitions.edges",
+    "HITLUser": ".types",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "ObjectStoragePath": ".io.path",
