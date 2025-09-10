@@ -103,8 +103,8 @@
   "filters": {
     "logicalDateFrom": "從邏輯日期",
     "logicalDateTo": "到邏輯日期",
-    "runAfterFrom": "從最早可執行時間之後",
-    "runAfterTo": "到最早可執行時間之前"
+    "runAfterFrom": "從最早可執行時間",
+    "runAfterTo": "到最早可執行時間"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",
