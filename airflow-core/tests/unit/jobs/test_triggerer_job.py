@@ -245,7 +245,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
-                dag=dag_model.created_dag_version.serialized_dag.data,
+                dag=dag_model.dag_versions[0].serialized_dag.data,
             )
         )
         # OK, now remove it from the DB
