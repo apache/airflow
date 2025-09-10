@@ -423,7 +423,7 @@ jobs:
           source .venv/bin/activate
           airflow standalone 2>&1 | tee airflow_startup.log &
           AIRFLOW_PID=$!
- 
+
           # Wait for ready message till timeout (10 minutes)
           for i in {1..600}; do
             if ! kill -0 $AIRFLOW_PID 2>/dev/null; then
@@ -432,16 +432,19 @@ jobs:
               echo "FAILED: Airflow standalone exited with code $EXIT_CODE"
               exit $EXIT_CODE
             fi
- 
+
             if grep -q "Airflow is ready" airflow_startup.log; then
               echo "SUCCESS: Airflow standalone is ready!"
               kill $AIRFLOW_PID
               exit 0
             fi
- 
+
             sleep 1
           done
- 
+
           echo "FAILED: Airflow standalone did not become ready in time"
+          echo "=== AIRFLOW STARTUP LOGS ==="
+          cat airflow_startup.log
+          echo "=== END AIRFLOW STARTUP LOGS ==="
           kill $AIRFLOW_PID 2>/dev/null || true
           exit 1
