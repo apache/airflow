@@ -32,7 +32,7 @@ from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 class TestSQLExecuteQueryTrigger:
     @classmethod
-    def get_connection(cls, conn_id: str, records: list | None = None):
+    def get_connection(cls, conn_id: str = None, records: list | None = None):
         mock_connection = mock.MagicMock(spec=Connection)
         mock_hook = mock.MagicMock(spec=DbApiHook)
         if records:
@@ -45,7 +45,7 @@ class TestSQLExecuteQueryTrigger:
 
         with (
             mock.patch.object(BaseHook, "get_connection", side_effect=lambda conn_id: self.get_connection(conn_id, data)),
-            mock.patch.object(BaseHook, "aget_connection", side_effect=lambda: AsyncMock(side_effect=lambda conn_id: self.get_connection(conn_id, data))),
+            mock.patch.object(BaseHook, "aget_connection", new_callable=lambda: AsyncMock(side_effect=lambda *args, **kwargs: self.get_connection(kwargs.get("conn_id") or args[0], data))),
         ):
             trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
             actual = run_trigger(trigger)
@@ -58,8 +58,8 @@ class TestSQLExecuteQueryTrigger:
     @pytest.mark.asyncio
     async def test_get_hook(self):
         with (
-            mock.patch.object(BaseHook, "get_connection", side_effect=self.get_connection),
-            mock.patch.object(BaseHook, "aget_connection", side_effect=lambda: AsyncMock(side_effect=self.get_connection)),
+            mock.patch.object(BaseHook, "get_connection", side_effect=lambda conn_id: self.get_connection(conn_id)),
+            mock.patch.object(BaseHook, "aget_connection", new_callable=lambda: AsyncMock(side_effect=lambda *args, **kwargs: self.get_connection(kwargs.get("conn_id") or args[0]))),
         ):
             trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
             actual = await trigger.get_hook()
