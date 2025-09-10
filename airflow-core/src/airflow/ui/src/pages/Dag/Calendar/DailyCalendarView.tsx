@@ -107,15 +107,7 @@ export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {
-                  const emptyCellData = {
-                    counts: { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 },
-                    date: day.date,
-                    runs: [],
-                  };
-
-                  return (
-                    <CalendarCell backgroundColor="transparent" cellData={emptyCellData} key={day.date} />
-                  );
+                  return <CalendarCell backgroundColor="transparent" key={day.date} />;
                 }
 
                 return (
