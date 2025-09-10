@@ -6,8 +6,6 @@
     "allRuns": "Összes futás",
     "backwards": "Futtatás visszafelé",
     "dateRange": "Dátumtartomány",
-    "dateRangeFrom": "Kezdő dátum",
-    "dateRangeTo": "Befejező dátum",
     "errorStartDateBeforeEndDate": "A kezdő dátumnak a befejező dátum előtt kell lennie.",
     "maxRuns": "Maximális aktív futások",
     "missingAndErroredRuns": "Hiányzó és hibás futások",

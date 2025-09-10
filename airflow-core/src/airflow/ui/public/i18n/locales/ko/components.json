@@ -6,8 +6,6 @@
     "allRuns": "모든 실행",
     "backwards": "거꾸로 실행",
     "dateRange": "날짜 범위",
-    "dateRangeFrom": "시작",
-    "dateRangeTo": "종료",
     "errorStartDateBeforeEndDate": "시작일은 종료일보다 빨라야 합니다.",
     "maxRuns": "최대 활성 실행 수",
     "missingAndErroredRuns": "누락되었거나 오류가 발생한 실행",

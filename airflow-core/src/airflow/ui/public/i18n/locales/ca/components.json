@@ -6,8 +6,6 @@
     "allRuns": "Totes les execucions",
     "backwards": "Executar enrere",
     "dateRange": "Interval de dates",
-    "dateRangeFrom": "Des de",
-    "dateRangeTo": "Fins",
     "errorStartDateBeforeEndDate": "La data d'inici ha de ser anterior a la data de finalització",
     "maxRuns": "Màxim d'execucions actives",
     "missingAndErroredRuns": "Execucions absents i amb errors",

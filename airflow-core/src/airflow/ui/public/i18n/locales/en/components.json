@@ -6,8 +6,6 @@
     "allRuns": "All Runs",
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
-    "dateRangeFrom": "From",
-    "dateRangeTo": "To",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",

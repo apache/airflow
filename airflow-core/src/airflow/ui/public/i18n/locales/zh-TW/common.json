@@ -100,6 +100,12 @@
     "or": "或"
   },
   "filter": "篩選",
+  "filters": {
+    "logicalDateFrom": "邏輯日期從",
+    "logicalDateTo": "邏輯日期到",
+    "runAfterFrom": "運行之後從",
+    "runAfterTo": "運行之後到"
+  },
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",

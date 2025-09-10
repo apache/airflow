@@ -107,15 +107,10 @@
   },
   "filter": "Filtre",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtrer par Dag",
-    "keyPlaceholder": "Filtrer par clé XCom",
-    "logicalDateFromPlaceholder": "Date logique de début",
-    "logicalDateToPlaceholder": "Date logique de fin",
-    "mapIndexPlaceholder": "Filtrer par Map Index",
-    "runAfterFromPlaceholder": "Exécuté après - de",
-    "runAfterToPlaceholder": "Exécuté après - à",
-    "runIdPlaceholder": "Filtrer par ID d'exécution",
-    "taskIdPlaceholder": "Filtrer par ID de tâche"
+    "logicalDateFrom": "Date logique de début",
+    "logicalDateTo": "Date logique de fin",
+    "runAfterFrom": "Exécuté après - de",
+    "runAfterTo": "Exécuté après - à"
   },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",

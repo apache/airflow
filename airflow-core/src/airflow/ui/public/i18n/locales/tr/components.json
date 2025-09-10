@@ -6,8 +6,6 @@
     "allRuns": "Bütün Dag Çalıştırmaları",
     "backwards": "Geriye Dönük Çalıştır",
     "dateRange": "Tarih Aralığı",
-    "dateRangeFrom": "Başlangıç",
-    "dateRangeTo": "Bitiş",
     "errorStartDateBeforeEndDate": "Başlangıç Tarihi, Bitiş Tarihinden önce olmalıdır",
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
