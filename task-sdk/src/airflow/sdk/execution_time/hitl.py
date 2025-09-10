@@ -17,10 +17,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import UUID
 
-from airflow.sdk.api.datamodels._generated import HITLUser
+from airflow.sdk.api.datamodels._generated import HITLUser as APIHITLUser
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     GetHITLDetailResponse,
@@ -29,7 +29,11 @@ from airflow.sdk.execution_time.comms import (
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import HITLDetailResponse
-    from airflow.sdk.types import HITLUser as SDKTypeHITLUser
+
+
+class HITLUser(TypedDict):
+    id: str
+    name: str
 
 
 def upsert_hitl_detail(
@@ -40,7 +44,7 @@ def upsert_hitl_detail(
     defaults: list[str] | None = None,
     multiple: bool = False,
     params: dict[str, Any] | None = None,
-    assigned_users: list[SDKTypeHITLUser] | None = None,
+    assigned_users: list[HITLUser] | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -54,7 +58,7 @@ def upsert_hitl_detail(
             params=params,
             multiple=multiple,
             assigned_users=(
-                [HITLUser(id=user["id"], name=user["name"]) for user in assigned_users]
+                [APIHITLUser(id=user["id"], name=user["name"]) for user in assigned_users]
                 if assigned_users
                 else []
             ),

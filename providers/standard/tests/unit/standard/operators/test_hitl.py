@@ -43,7 +43,7 @@ from airflow.providers.standard.operators.hitl import (
 )
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.types import HITLUser
+from airflow.sdk.execution_time.hitl import HITLUser
 
 from tests_common.test_utils.config import conf_vars
 

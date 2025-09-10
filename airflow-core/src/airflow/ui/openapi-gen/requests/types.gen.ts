@@ -3106,8 +3106,8 @@ export type GetHitlDetailsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
-    respondedUserId?: Array<(string)>;
-    respondedUserName?: Array<(string)>;
+    respondedByUserId?: Array<(string)>;
+    respondedByUserName?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**

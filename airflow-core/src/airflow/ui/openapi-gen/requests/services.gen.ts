@@ -3623,8 +3623,8 @@ export class HumanInTheLoopService {
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
-     * @param data.respondedUserId
-     * @param data.respondedUserName
+     * @param data.respondedByUserId
+     * @param data.respondedByUserName
      * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns HITLDetailCollection Successful Response
@@ -3645,8 +3645,8 @@ export class HumanInTheLoopService {
                 task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,
-                responded_user_id: data.respondedUserId,
-                responded_user_name: data.respondedUserName,
+                responded_by_user_id: data.respondedByUserId,
+                responded_by_user_name: data.respondedByUserName,
                 subject_search: data.subjectSearch,
                 body_search: data.bodySearch
             },

@@ -20,14 +20,14 @@ from __future__ import annotations
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
-from airflow.sdk.api.datamodels._generated import HITLDetailResponse, HITLUser
+from airflow.sdk.api.datamodels._generated import HITLDetailResponse, HITLUser as APIHITLUser
 from airflow.sdk.execution_time.comms import CreateHITLDetailPayload
 from airflow.sdk.execution_time.hitl import (
+    HITLUser,
     get_hitl_detail_content_detail,
     update_hitl_detail_response,
     upsert_hitl_detail,
 )
-from airflow.sdk.types import HITLUser as SDKTypeHITLUser
 
 TI_ID = uuid7()
 
@@ -40,7 +40,7 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
         body="Optional body",
         defaults=["Approve", "Reject"],
         params={"input_1": 1},
-        assigned_users=[SDKTypeHITLUser(id="test", name="test")],
+        assigned_users=[HITLUser(id="test", name="test")],
         multiple=False,
     )
     mock_supervisor_comms.send.assert_called_with(
@@ -51,7 +51,7 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
             body="Optional body",
             defaults=["Approve", "Reject"],
             params={"input_1": 1},
-            assigned_users=[HITLUser(id="test", name="test")],
+            assigned_users=[APIHITLUser(id="test", name="test")],
             multiple=False,
         )
     )

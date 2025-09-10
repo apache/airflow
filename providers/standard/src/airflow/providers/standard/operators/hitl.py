@@ -41,7 +41,8 @@ from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.types import HITLUser, RuntimeTaskInstanceProtocol
+    from airflow.sdk.execution_time.hitl import HITLUser
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class HITLOperator(BaseOperator):
