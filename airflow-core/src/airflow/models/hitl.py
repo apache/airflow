@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TypedDict
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
@@ -88,6 +88,22 @@ class HITLDetail(Base):
     def response_received(cls):
         return cls.response_at.is_not(None)
 
+    @hybrid_property
+    def responded_by_user_id(self):
+        return (self.responded_by or {}).get("id")
+
+    @responded_by_user_id.expression  # type: ignore[no-redef]
+    def responded_by_user_id(cls):
+        return func.json_extract(cls.responded_by, "$.id")
+
+    @hybrid_property
+    def responded_by_user_name(self):
+        return (self.responded_by or {}).get("name")
+
+    @responded_by_user_name.expression  # type: ignore[no-redef]
+    def responded_by_user_name(cls):
+        return func.json_extract(cls.responded_by, "$.name")
+
     @property
     def assigned_users(self) -> list[HITLUser]:
         if not self.assignees:
@@ -103,7 +119,7 @@ class HITLDetail(Base):
             name=self.responded_by["name"],
         )
 
-    DEFAULT_USER_NAME = HITLUser(
+    DEFAULT_USER = HITLUser(
         id="Fallback to default",
         name="Fallback to default",
     )

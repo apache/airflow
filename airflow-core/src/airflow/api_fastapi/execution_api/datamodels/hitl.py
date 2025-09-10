@@ -68,8 +68,8 @@ class HITLDetailResponse(BaseModel):
     def from_hitl_detail_orm(cls, hitl_detail: HITLDetail) -> HITLDetailResponse:
         hitl_user = (
             HITLUser(
-                id=hitl_detail.responded_by_user["id"],
-                name=hitl_detail.responded_by_user["name"],
+                id=hitl_detail.responded_by_user_id,
+                name=hitl_detail.responded_by_user_name,
             )
             if hitl_detail.responded_by_user
             else None

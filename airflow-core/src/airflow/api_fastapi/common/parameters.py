@@ -1023,12 +1023,11 @@ QueryHITLDetailResponseReceivedFilter = Annotated[
     ),
 ]
 
-# TODO: update
 QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_by_user,
+            HITLDetail.responded_by_user_name,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
@@ -1040,7 +1039,7 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_by_user,
+            HITLDetail.responded_by_user_name,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
