@@ -99,6 +99,7 @@
     "any": "Jeder",
     "or": "ODER"
   },
+  "filter": "Filter",
   "filters": {
     "dagDisplayNamePlaceholder": "Nach Dag filtern",
     "keyPlaceholder": "Nach Task Kommunikation (XCom) Schlüssel filtern",
