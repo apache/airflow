@@ -1302,8 +1302,7 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "responded_user_id": "admin",
-                        "responded_user_name": "admin",
+                        "responded_by_user": {"id": "admin", "name": "admin"},
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
@@ -1334,8 +1333,7 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "responded_user_id": "admin",
-                        "responded_user_name": "admin",
+                        "responded_by_user": {"id": "admin", "name": "admin"},
                         "response_received": True,
                         "response_at": "2025-07-03T00:00:00Z",
                     },
