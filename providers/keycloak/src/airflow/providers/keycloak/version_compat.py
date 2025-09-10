@@ -14,19 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+#
+# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
+# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
+# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
+# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
+#
 from __future__ import annotations
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
 
-from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
+
+    from airflow import __version__
+
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
-    """Middleware that automatically generates and includes auth header for simple auth manager."""
-
-    async def dispatch(self, request: Request, call_next):
-        token = SimpleAuthManagerLogin.create_token_all_admins()
-        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
-        return await call_next(request)
+AIRFLOW_V_3_1_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 1)
