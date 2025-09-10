@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
-from asgiref.sync import sync_to_async
 
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -45,7 +45,7 @@ class TestSQLExecuteQueryTrigger:
 
         with (
             mock.patch.object(BaseHook, "get_connection", side_effect=lambda conn_id: self.get_connection(conn_id, data)),
-            mock.patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(lambda conn_id: self.get_connection(conn_id, data))),
+            mock.patch.object(BaseHook, "aget_connection", side_effect=lambda: AsyncMock(side_effect=lambda conn_id: self.get_connection(conn_id, data))),
         ):
             trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
             actual = run_trigger(trigger)
@@ -59,7 +59,7 @@ class TestSQLExecuteQueryTrigger:
     async def test_get_hook(self):
         with (
             mock.patch.object(BaseHook, "get_connection", side_effect=self.get_connection),
-            mock.patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(self.get_connection)),
+            mock.patch.object(BaseHook, "aget_connection", side_effect=lambda: AsyncMock(side_effect=self.get_connection)),
         ):
             trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
             actual = await trigger.get_hook()
