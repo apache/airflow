@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -145,8 +145,3 @@ class OutletEventAccessorsProtocol(Protocol):
     def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
     def __len__(self) -> int: ...
     def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessorProtocol: ...
-
-
-class HITLUser(TypedDict):
-    id: str
-    name: str

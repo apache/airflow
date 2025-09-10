@@ -31,7 +31,7 @@ from unittest import mock
 from uuid6 import uuid7
 
 from airflow._shared.timezones.timezone import utc, utcnow
-from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
+from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse, HITLUser
 from airflow.providers.standard.triggers.hitl import (
     HITLTrigger,
     HITLTriggerEventFailurePayload,
@@ -148,8 +148,7 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
-            responded_user_id="1",
-            responded_user_name="test",
+            responded_by_user=HITLUser(id="1", name="test"),
             response_at=action_datetime,
             chosen_options=["2"],
             params_input={},
@@ -187,8 +186,7 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
-            responded_user_id="test",
-            responded_user_name="test",
+            responded_by_user=HITLUser(id="test", name="test"),
             response_at=utcnow(),
             chosen_options=["3"],
             params_input={"input": 50},
