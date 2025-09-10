@@ -10,6 +10,10 @@
   "requiredAction_one": "Ação Necessária",
   "requiredAction_other": "Ações Necessárias",
   "requiredAction_zero": "Nenhuma ação necessária",
+  "requiredActionCount_many": "Ações Necessárias ({{count}})",
+  "requiredActionCount_one": "Ação Necessária ({{count}})",
+  "requiredActionCount_other": "Ações Necessárias ({{count}})",
+  "requiredActionCount_zero": "Nenhuma ação necessária",
   "requiredActionState": "Estado da Ação Necessária",
   "response": {
     "error": "Falha na resposta",
@@ -25,6 +29,7 @@
     "approvalRequired": "Aprovação Necessária",
     "choiceReceived": "Escolha Recebida",
     "choiceRequired": "Escolha Necessária",
+    "noResponseReceived": "Nenhuma Resposta Recebida",
     "rejectionReceived": "Rejeição Recebida",
     "responseReceived": "Resposta Recebida",
     "responseRequired": "Resposta Necessária"

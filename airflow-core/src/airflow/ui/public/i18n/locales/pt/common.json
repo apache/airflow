@@ -8,6 +8,12 @@
     "Variables": "Variáveis"
   },
   "allOperators": "Todos os Operadores",
+  "appearance": {
+    "appearance": "Aparência",
+    "darkMode": "Modo Escuro",
+    "lightMode": "Modo Claro",
+    "systemMode": "Seguir Configuração do Sistema"
+  },
   "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
@@ -44,6 +50,7 @@
     "hasTaskConcurrencyLimits": "Tem Limite de Concorrência de Tarefas",
     "lastExpired": "Último Expirado",
     "lastParsed": "Último Parseado",
+    "lastParseDuration": "Duração do Último Parse",
     "latestDagVersion": "Última Versão do DAG",
     "latestRun": "Última Execução",
     "maxActiveRuns": "Máximo de Execuções Ativas",
@@ -113,7 +120,8 @@
     "runAfterFromPlaceholder": "Executar Depois De",
     "runAfterToPlaceholder": "Executar Depois Para",
     "runIdPlaceholder": "Filtrar por ID da Execução",
-    "taskIdPlaceholder": "Filtrar por ID da Tarefa"
+    "taskIdPlaceholder": "Filtrar por ID da Tarefa",
+    "triggeringUserPlaceholder": "Filtrar por Usuário que Disparou"
   },
   "logicalDate": "Data Lógica",
   "logout": "Sair",
@@ -209,8 +217,6 @@
     "up_for_retry": "Pronto para tentar novamente",
     "upstream_failed": "Falha no upstream"
   },
-  "switchToDarkMode": "Mudar para Modo Escuro",
-  "switchToLightMode": "Mudar para Modo Claro",
   "table": {
     "completedAt": "Concluído em",
     "createdAt": "Criado em",

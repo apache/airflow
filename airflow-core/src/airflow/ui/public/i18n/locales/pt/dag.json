@@ -93,6 +93,8 @@
       "assetEvent_zero": "Nenhum evento de asset criado"
     },
     "failedLogs": {
+      "hideLogs": "Ocultar Logs",
+      "showLogs": "Mostrar Logs",
       "title": "Logs Recentes de Tarefas Falhadas",
       "viewFullLogs": "Ver logs completos"
     }
