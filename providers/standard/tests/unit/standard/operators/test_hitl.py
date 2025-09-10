@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.types import HITLUser
-
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -45,6 +43,7 @@ from airflow.providers.standard.operators.hitl import (
 )
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.types import HITLUser
 
 from tests_common.test_utils.config import conf_vars
 
