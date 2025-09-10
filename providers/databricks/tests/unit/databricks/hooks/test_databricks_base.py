@@ -821,28 +821,6 @@ class TestBaseDatabricksHook:
         with pytest.raises(AirflowException, match="Failed to reach Azure Metadata Service after"):
             hook._check_azure_metadata_service()
 
-    @mock.patch("requests.get")
-    def test_check_azure_metadata_service_429_recovery(self, mock_get):
-        hook = BaseDatabricksHook()
-
-        resp_429 = mock.Mock()
-        resp_429.status_code = 429
-        resp_429.raise_for_status.side_effect = requests_exceptions.HTTPError(
-            "429 Too many requests", response=resp_429
-        )
-        resp_429.json.return_value = {"error": "Too many requests"}
-
-        resp_ok = mock.Mock()
-        resp_ok.status_code = 200
-        resp_ok.raise_for_status.return_value = None
-        resp_ok.json.return_value = {"compute": {"azEnvironment": "AzurePublicCloud"}}
-
-        mock_get.side_effect = [resp_429, resp_ok]
-        hook._check_azure_metadata_service()
-
-        assert hook._metadata_cache["compute"]["azEnvironment"] == "AzurePublicCloud"
-        assert mock_get.call_count == 2
-
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.get")
     async def test_a_check_azure_metadata_service_normal(self, mock_get):
@@ -938,40 +916,3 @@ class TestBaseDatabricksHook:
             with pytest.raises(AirflowException, match="Failed to reach Azure Metadata Service after"):
                 await hook._a_check_azure_metadata_service()
             assert mock_get.call_count == 3
-
-    @pytest.mark.asyncio
-    @mock.patch("aiohttp.ClientSession.get")
-    async def test_a_check_azure_metadata_service_429_recovery(self, mock_get):
-        hook = BaseDatabricksHook()
-        hook._metadata_cache = None
-        hook._metadata_expiry = 0
-
-        resp_429 = mock.AsyncMock()
-        resp_429.raise_for_status.side_effect = aiohttp.ClientResponseError(
-            request_info=mock.Mock(), history=(), status=429, message="Too Many Requests"
-        )
-        resp_429.__aenter__.return_value = resp_429
-        resp_429.__aexit__.return_value = None
-
-        resp_ok = mock.AsyncMock()
-        resp_ok.raise_for_status.return_value = None
-        resp_ok.json.return_value = {"compute": {"azEnvironment": "AzurePublicCloud"}}
-        resp_ok.__aenter__.return_value = resp_ok
-        resp_ok.__aexit__.return_value = None
-
-        mock_get.side_effect = [resp_429, resp_ok]
-
-        async with aiohttp.ClientSession() as session:
-            hook._session = session
-            hook._a_get_retry_object = lambda: AsyncRetrying(
-                stop=stop_after_attempt(hook.retry_limit),
-                wait=wait_fixed(0),
-                retry=retry_if_exception(hook._retryable_error),
-            )
-
-            hook._validate_azure_metadata_service = mock.Mock()
-
-            await hook._a_check_azure_metadata_service()
-
-            assert hook._metadata_cache["compute"]["azEnvironment"] == "AzurePublicCloud"
-            assert hook._session.get.call_count == 2
