@@ -8,6 +8,8 @@
   },
   "requiredAction_one": "필수 작업",
   "requiredAction_other": "필수 작업들",
+  "requiredActionCount_one": "필수 작업 ({{count}})",
+  "requiredActionCount_other": "필수 작업들 ({{count}})",
   "requiredActionState": "필수 작업 상태",
   "response": {
     "error": "응답 실패",
@@ -23,6 +25,7 @@
     "approvalRequired": "승인 필요",
     "choiceReceived": "선택 수신됨",
     "choiceRequired": "선택 필요",
+    "noResponseReceived": "응답 없음",
     "rejectionReceived": "거절 수신됨",
     "responseReceived": "응답 수신됨",
     "responseRequired": "응답 필요"

@@ -35,7 +35,8 @@
   "code": {
     "bundleUrl": "번들 URL",
     "noCode": "코드를 찾을 수 없습니다.",
-    "parsedAt": "구문 분석 시간:"
+    "parseDuration": "파싱 기간:",
+    "parsedAt": "파싱 시간:"
   },
   "extraLinks": "추가 링크",
   "grid": {
@@ -84,6 +85,8 @@
       "assetEvent_other": "생성된 에셋 이벤트"
     },
     "failedLogs": {
+      "hideLogs": "로그 숨기기",
+      "showLogs": "로그 보기",
       "title": "최근 실패한 작업 로그",
       "viewFullLogs": "전체 로그 보기"
     }
