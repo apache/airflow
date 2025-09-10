@@ -79,7 +79,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
-        raise NotImplementedError
+        pass
 
     @property
     def task(self) -> BaseOperator | None:
