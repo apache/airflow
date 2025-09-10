@@ -190,9 +190,9 @@ export const Gantt = ({ limit }: Props) => {
           minBarLength: MIN_BAR_WIDTH,
         },
       ],
-      labels: [],
+      labels: flatNodes.map((node) => node.id),
     }),
-    [data],
+    [data, flatNodes],
   );
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
