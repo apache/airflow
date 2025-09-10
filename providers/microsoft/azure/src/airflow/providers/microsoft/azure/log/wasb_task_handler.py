@@ -194,7 +194,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         **kwargs,
     ) -> None:
         # support log file size handling of FileTaskHandler
-        super().__init__(base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay)
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.handler: logging.FileHandler | None = None
         self.log_relative_path = ""
         self.closed = False
