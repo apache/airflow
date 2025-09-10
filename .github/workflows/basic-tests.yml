@@ -415,6 +415,8 @@ jobs:
           mkdir -p $AIRFLOW_HOME
       - name: "Install Airflow from current repo (simulating user installation)"
         run: |
+          uv venv
+          source .venv/bin/activate
           uv pip install -e ./airflow-core
       - name: "Test airflow standalone command"
         run: |
