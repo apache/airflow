@@ -89,28 +89,34 @@ class HITLDetail(Base):
         return cls.response_at.is_not(None)
 
     @hybrid_property
-    def responded_by_user_id(self):
-        return (self.responded_by or {}).get("id")
+    def responded_by_user_id(self) -> str | None:
+        return self.responded_by["id"] if self.responded_by else None
 
     @responded_by_user_id.expression  # type: ignore[no-redef]
     def responded_by_user_id(cls):
         return func.json_extract(cls.responded_by, "$.id")
 
     @hybrid_property
-    def responded_by_user_name(self):
-        return (self.responded_by or {}).get("name")
+    def responded_by_user_name(self) -> str | None:
+        return self.responded_by["name"] if self.responded_by else None
 
     @responded_by_user_name.expression  # type: ignore[no-redef]
     def responded_by_user_name(cls):
         return func.json_extract(cls.responded_by, "$.name")
 
-    @property
+    @hybrid_property
     def assigned_users(self) -> list[HITLUser]:
         if not self.assignees:
             return []
-        return [HITLUser(id=row["id"], name=row["name"]) for row in self.assignees]
+        return [
+            HITLUser(
+                id=assignee["id"],
+                name=assignee["name"],
+            )
+            for assignee in self.assignees
+        ]
 
-    @property
+    @hybrid_property
     def responded_by_user(self) -> HITLUser | None:
         if self.responded_by is None:
             return None
