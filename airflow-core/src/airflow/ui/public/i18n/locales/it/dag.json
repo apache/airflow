@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "URL del Bundle",
     "noCode": "Nessun Codice Trovato",
+    "parseDuration": "Durata del parsing",
     "parsedAt": "Parsato il:"
   },
   "extraLinks": "Extra Links",

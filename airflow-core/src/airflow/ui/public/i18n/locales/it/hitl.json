@@ -29,6 +29,7 @@
     "approvalRequired": "Approvazione richiesta",
     "choiceReceived": "Scelta ricevuta",
     "choiceRequired": "Scelta richiesta",
+    "noResponseReceived": "Nessuna risposta ricevuta",
     "rejectionReceived": "Rifiuto ricevuto",
     "responseReceived": "Risposta ricevuta",
     "responseRequired": "Risposta richiesta"

@@ -8,6 +8,12 @@
     "Variables": "Variabili"
   },
   "allOperators": "Tutti gli Operatori",
+  "appearance": {
+    "appearance": "Aspetto",
+    "darkMode": "Modalità scura",
+    "lightMode": "Modalità chiara",
+    "systemMode": "Segui impostazioni di sistema"
+  },
   "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
@@ -44,6 +50,7 @@
     "hasTaskConcurrencyLimits": "Ha Limiti di Concorrenza dei Task",
     "lastExpired": "Ultimo Scaduto",
     "lastParsed": "Ultimo Parsed",
+    "lastParseDuration": "Durata dell'ultimo parsing",
     "latestDagVersion": "Ultima Versione del DAG",
     "latestRun": "Ultimo Run del DAG",
     "maxActiveRuns": "Numero massimo di Runs attive",
@@ -113,7 +120,8 @@
     "runAfterFromPlaceholder": "Esegui Dopo Da",
     "runAfterToPlaceholder": "Esegui Dopo A",
     "runIdPlaceholder": "Filtra per ID Run",
-    "taskIdPlaceholder": "Filtra per ID Task"
+    "taskIdPlaceholder": "Filtra per ID Task",
+    "triggeringUserPlaceholder": "Filtra per utente scatenante"
   },
   "logicalDate": "Data Logica",
   "logout": "Esci",
@@ -209,8 +217,6 @@
     "up_for_retry": "Da Riavviare",
     "upstream_failed": "Upstream Fallito"
   },
-  "switchToDarkMode": "Passa alla modalità Scura",
-  "switchToLightMode": "Passa alla modalità Chiara",
   "table": {
     "completedAt": "Completato il",
     "createdAt": "Creato il",
