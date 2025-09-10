@@ -213,13 +213,12 @@ export const Events = () => {
         {dagId === undefined && runId === undefined && taskId === undefined ? (
           <Heading size="md">{translate("auditLog.title")}</Heading>
         ) : undefined}
-        <ButtonGroup attached mt="1" size="sm" variant="surface">
+        <ButtonGroup attached mt="1" size="sm" variant="outline">
           <IconButton
             aria-label={translate("auditLog.actions.expandAllExtra")}
             onClick={onOpen}
             size="sm"
             title={translate("auditLog.actions.expandAllExtra")}
-            variant="surface"
           >
             <MdExpand />
           </IconButton>
@@ -228,7 +227,6 @@ export const Events = () => {
             onClick={onClose}
             size="sm"
             title={translate("auditLog.actions.collapseAllExtra")}
-            variant="surface"
           >
             <MdCompress />
           </IconButton>
