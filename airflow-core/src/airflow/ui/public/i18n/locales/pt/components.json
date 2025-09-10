@@ -1,7 +1,9 @@
 {
   "backfill": {
+    "affected_many": "{{count}} execuções serão acionadas.",
     "affected_one": "1 execução será acionada.",
     "affected_other": "{{count}} execuções serão acionadas.",
+    "affected_zero": "Nenhuma execução será acionada.",
     "affectedNone": "Nenhuma execução correspondente aos critérios selecionados.",
     "allRuns": "Todas as Execuções",
     "backwards": "Executar para trás",
@@ -46,25 +48,35 @@
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
   "dagWarnings": {
+    "error_many": "{{count}} Erros",
     "error_one": "1 Erro",
     "error_other": "{{count}} Erros",
+    "error_zero": "Nenhum erro",
     "errorAndWarning": "1 Erro e {{warningText}}",
+    "warning_many": "{{count}} Avisos",
     "warning_one": "1 Aviso",
-    "warning_other": "{{count}} Avisos"
+    "warning_other": "{{count}} Avisos",
+    "warning_zero": "Nenhum aviso"
   },
   "durationChart": {
     "duration": "Duração (segundos)",
+    "lastDagRun_many": "Últimas {{count}} Execuções do DAG",
     "lastDagRun_one": "Última Execução do DAG",
     "lastDagRun_other": "Últimas {{count}} Execuções do DAG",
+    "lastDagRun_zero": "Nenhuma execução do DAG",
+    "lastTaskInstance_many": "Últimas {{count}} Instâncias de Tarefa",
     "lastTaskInstance_one": "Última Instância de Tarefa",
     "lastTaskInstance_other": "Últimas {{count}} Instâncias de Tarefa",
+    "lastTaskInstance_zero": "Nenhuma instância de tarefa",
     "queuedDuration": "Duração da Fila",
     "runAfter": "Executar Depois",
     "runDuration": "Duração da Execução"
   },
   "fileUpload": {
+    "files_many": "{{count}} arquivos",
     "files_one": "1 arquivo",
-    "files_other": "{{count}} arquivos"
+    "files_other": "{{count}} arquivos",
+    "files_zero": "Nenhum arquivo"
   },
   "flexibleForm": {
     "placeholder": "Selecionar Valor",
@@ -85,8 +97,10 @@
     "downloadImageError": "Falha ao baixar a imagem do gráfico.",
     "downloadImageErrorTitle": "Download Falhou",
     "otherDagRuns": "+Outras Execuções do DAG",
+    "taskCount_many": "{{count}} Tarefas",
     "taskCount_one": "{{count}} Tarefa",
     "taskCount_other": "{{count}} Tarefas",
+    "taskCount_zero": "Nenhuma tarefa",
     "taskGroup": "Grupo de Tarefas"
   },
   "limitedList": "+{{count}} mais",

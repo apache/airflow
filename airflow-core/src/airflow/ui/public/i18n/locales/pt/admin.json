@@ -19,13 +19,19 @@
       "host": "Host",
       "port": "Porta"
     },
+    "connection_many": "Conexões",
     "connection_one": "Conexão",
     "connection_other": "Conexões",
+    "connection_zero": "Nenhuma conexão",
     "delete": {
+      "deleteConnection_many": "Excluir {{count}} conexões",
       "deleteConnection_one": "Excluir 1 conexão",
       "deleteConnection_other": "Excluir {{count}} conexões",
+      "deleteConnection_zero": "Nenhuma conexão para excluir",
+      "firstConfirmMessage_many": "Você está prestes a excluir as seguintes conexões:",
       "firstConfirmMessage_one": "Você está prestes a excluir a seguinte conexão:",
       "firstConfirmMessage_other": "Você está prestes a excluir as seguintes conexões:",
+      "firstConfirmMessage_zero": "Nenhuma conexão para excluir",
       "title": "Excluir Conexão"
     },
     "edit": "Editar Conexão",
@@ -79,8 +85,10 @@
     "columns": {
       "source": "Origem"
     },
+    "importError_many": "Erros de Importação de Plugins",
     "importError_one": "Erro de Importação de Plugin",
     "importError_other": "Erros de Importação de Plugins",
+    "importError_zero": "Nenhum erro de importação de plugin",
     "searchPlaceholder": "Pesquisar por arquivo"
   },
   "pools": {
@@ -100,8 +108,10 @@
       "slots": "Slots"
     },
     "noPoolsFound": "Nenhum pool encontrado",
+    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
+    "pool_zero": "Nenhum pool",
     "searchPlaceholder": "Pesquisar Pools",
     "sort": {
       "asc": "Nome (A-Z)",
@@ -121,10 +131,14 @@
       "isEncrypted": "Está Encriptado"
     },
     "delete": {
+      "deleteVariable_many": "Excluir {{count}} Variáveis",
       "deleteVariable_one": "Excluir 1 Variável",
       "deleteVariable_other": "Excluir {{count}} Variáveis",
+      "deleteVariable_zero": "Nenhuma variável para excluir",
+      "firstConfirmMessage_many": "Você está prestes a excluir as seguintes variáveis:",
       "firstConfirmMessage_one": "Você está prestes a excluir a seguinte variável:",
       "firstConfirmMessage_other": "Você está prestes a excluir as seguintes variáveis:",
+      "firstConfirmMessage_zero": "Nenhuma variável para excluir",
       "title": "Excluir Variável",
       "tooltip": "Excluir variáveis selecionadas"
     },
@@ -161,7 +175,9 @@
     },
     "noRowsMessage": "Nenhuma variável encontrada",
     "searchPlaceholder": "Pesquisar Chaves",
+    "variable_many": "Variáveis",
     "variable_one": "Variável",
-    "variable_other": "Variáveis"
+    "variable_other": "Variáveis",
+    "variable_zero": "Nenhuma variável"
   }
 }

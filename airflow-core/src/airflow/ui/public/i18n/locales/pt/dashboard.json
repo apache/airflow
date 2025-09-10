@@ -1,7 +1,9 @@
 {
   "favorite": {
+    "favoriteDags_many": "Primeiros {{count}} DAGs favoritos",
     "favoriteDags_one": "Primeiro {{count}} DAG favorito",
     "favoriteDags_other": "Primeiros {{count}} DAGs favoritos",
+    "favoriteDags_zero": "Nenhum DAG favorito",
     "noDagRuns": "Ainda não há DagRun para este dag.",
     "noFavoriteDags": "Nenhum favorito ainda. Clique no ícone de estrela ao lado de um DAG na lista para adicioná-lo aos seus favoritos."
   },
@@ -19,8 +21,10 @@
   },
   "history": "Histórico",
   "importErrors": {
+    "dagImportError_many": "Erros de Importação de DAG",
     "dagImportError_one": "Erro de Importação de DAG",
     "dagImportError_other": "Erros de Importação de DAG",
+    "dagImportError_zero": "Nenhum erro de importação de DAG",
     "searchByFile": "Pesquisar por arquivo",
     "timestamp": "Timestamp"
   },
