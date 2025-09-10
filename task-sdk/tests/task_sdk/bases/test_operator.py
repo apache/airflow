@@ -780,7 +780,7 @@ class TestBaseOperator:
         with pytest.raises(
             AirflowException,
             match="MockOperator with task_id 'one' has a callable in trigger kwargs named "
-                  "'arg2', which is not allowed when start_from_trigger is enabled.",
+            "'arg2', which is not allowed when start_from_trigger is enabled.",
         ):
             MockOperator(task_id="one", arg1="{{ foo }}", arg2=lambda context, jinja_env: "bar")
 
