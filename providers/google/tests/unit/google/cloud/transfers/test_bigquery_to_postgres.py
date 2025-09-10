@@ -86,7 +86,10 @@ class TestBigQueryToPostgresOperator:
     @mock.patch.object(BigQueryToPostgresOperator, "bigquery_hook", new_callable=mock.PropertyMock)
     @mock.patch.object(BigQueryToPostgresOperator, "postgres_hook", new_callable=mock.PropertyMock)
     def test_execute_good_request_to_bq_with_replace(
-        self, mock_pg_hook, mock_bq_hook, mock_bigquery_get_data,
+        self,
+        mock_pg_hook,
+        mock_bq_hook,
+        mock_bigquery_get_data,
     ):
         operator = BigQueryToPostgresOperator(
             task_id=TASK_ID,
