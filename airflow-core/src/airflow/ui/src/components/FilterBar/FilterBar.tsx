@@ -40,7 +40,7 @@ export const FilterBar = ({
   maxVisibleFilters = 10,
   onFiltersChange,
 }: FilterBarProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
     Object.entries(initialValues)
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -164,7 +164,7 @@ export const FilterBar = ({
       {filters.length > 0 && (
         <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
           <MdClear />
-          {translate("common:filters.reset")}
+          {translate("admin:formActions.reset")}
         </Button>
       )}
     </HStack>
