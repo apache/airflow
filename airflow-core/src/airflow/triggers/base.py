@@ -87,13 +87,13 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
             return self.task_instance.task
         return None
 
-    @property
+    @property  # type: ignore[override]
     def template_fields(self) -> Collection[str]:
         if self.task:
             return self.task.template_fields
         return ()
 
-    @property
+    @property  # type: ignore[override]
     def template_ext(self) -> Sequence[str]:
         if self.task:
             return self.task.template_ext
