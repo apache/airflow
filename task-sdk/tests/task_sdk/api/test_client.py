@@ -1289,7 +1289,7 @@ class TestHITLOperations:
         assert result.defaults == ["Approval"]
         assert result.params is None
         assert result.multiple is False
-        assert result.respondents is None
+        assert result.assigned_users is None
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
@@ -1320,8 +1320,7 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.responded_user_id == "admin"
-        assert result.responded_user_name == "admin"
+        assert result.responded_by_user == {"id": "admin", "name": "admin"}
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
     def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
@@ -1349,6 +1348,5 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.responded_user_id == "admin"
-        assert result.responded_user_name == "admin"
+        assert result.responded_by_user == {"id": "admin", "name": "admin"}
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

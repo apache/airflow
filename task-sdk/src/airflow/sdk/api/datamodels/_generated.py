@@ -154,32 +154,13 @@ class DagRunType(str, Enum):
     ASSET_TRIGGERED = "asset_triggered"
 
 
-class HITLDetailRequest(BaseModel):
+class HITLUser(BaseModel):
     """
-    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
-    """
-
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
-    options: Annotated[list[str], Field(min_length=1, title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
-
-
-class HITLDetailResponse(BaseModel):
-    """
-    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    Schema for a Human-in-the-loop users.
     """
 
-    response_received: Annotated[bool, Field(title="Response Received")]
-    responded_user_name: Annotated[str | None, Field(title="Responded User Name")] = None
-    responded_user_id: Annotated[str | None, Field(title="Responded User Id")] = None
-    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
-    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    id: Annotated[str, Field(title="Id")]
+    name: Annotated[str, Field(title="Name")]
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -559,6 +540,33 @@ class DagRun(BaseModel):
     state: DagRunState
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
+
+
+class HITLDetailRequest(BaseModel):
+    """
+    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    response_received: Annotated[bool, Field(title="Response Received")]
+    responded_by_user: HITLUser | None = None
+    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class HTTPValidationError(BaseModel):

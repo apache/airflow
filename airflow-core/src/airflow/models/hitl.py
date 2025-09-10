@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TypedDict
+
 import sqlalchemy_jsonfield
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text
 from sqlalchemy.dialects import postgresql
@@ -25,6 +27,13 @@ from sqlalchemy.orm import relationship
 from airflow.models.base import Base
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
+
+
+class HITLUser(TypedDict):
+    """Typed dict for saving a Human-in-the-loop user information."""
+
+    id: str
+    name: str
 
 
 class HITLDetail(Base):
@@ -44,12 +53,11 @@ class HITLDetail(Base):
     defaults = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     multiple = Column(Boolean, unique=False, default=False)
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
-    respondents = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     # Response Content Detail
     response_at = Column(UtcDateTime, nullable=True)
-    responded_user_id = Column(String(128), nullable=True)
-    responded_user_name = Column(String(128), nullable=True)
+    responded_by = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     chosen_options = Column(
         sqlalchemy_jsonfield.JSONField(json=json),
         nullable=True,
@@ -80,4 +88,22 @@ class HITLDetail(Base):
     def response_received(cls):
         return cls.response_at.is_not(None)
 
-    DEFAULT_USER_NAME = "Fallback to defaults"
+    @property
+    def assigned_users(self) -> list[HITLUser]:
+        if not self.assignees:
+            return []
+        return [HITLUser(id=row["id"], name=row["name"]) for row in self.assignees]
+
+    @property
+    def responded_by_user(self) -> HITLUser | None:
+        if self.responded_by is None:
+            return None
+        return HITLUser(
+            id=self.responded_by["id"],
+            name=self.responded_by["name"],
+        )
+
+    DEFAULT_USER_NAME = HITLUser(
+        id="Fallback to default",
+        name="Fallback to default",
+    )

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.sdk.types import HITLUser
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -66,7 +68,7 @@ def hitl_task_and_ti_for_generating_link(dag_maker: DagMaker) -> tuple[HITLOpera
             options=["1", "2", "3", "4", "5"],
             body="This is body",
             defaults=["1"],
-            respondents="test",
+            assigned_users=HITLUser(id="test", name="test"),
             multiple=True,
             params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
         )
@@ -165,7 +167,7 @@ class TestHITLOperator:
                 options=["1", "2", "3", "4", "5"],
                 body="This is body",
                 defaults=["1"],
-                respondents="test",
+                assigned_users=HITLUser(id="test", name="test"),
                 multiple=False,
                 params=ParamsDict({"input_1": 1}),
                 notifiers=[notifier],

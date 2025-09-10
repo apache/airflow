@@ -53,7 +53,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.dagrun import DagRun
-from airflow.models.hitl import HITLDetail as HITLDetailModel
+from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
 
 hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
@@ -144,19 +144,19 @@ def update_hitl_detail(
 
     user_id = user.get_id()
     user_name = user.get_name()
-    if hitl_detail_model.respondents:
-        if isinstance(user_id, int):
-            # FabAuthManager (ab_user) store user id as integer, but common interface is string type
-            user_id = str(user_id)
-        if user_id not in hitl_detail_model.respondents:
+    if isinstance(user_id, int):
+        # FabAuthManager (ab_user) store user id as integer, but common interface is string type
+        user_id = str(user_id)
+    hitl_user = HITLUser(id=user_id, name=user_name)
+    if hitl_detail_model.assigned_users:
+        if hitl_user not in hitl_detail_model.assigned_users:
             log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 f"User={user_name} (id={user_id}) is not a respondent for the task.",
             )
 
-    hitl_detail_model.responded_user_id = user_id
-    hitl_detail_model.responded_user_name = user_name
+    hitl_detail_model.responded_by = hitl_user
     hitl_detail_model.response_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
