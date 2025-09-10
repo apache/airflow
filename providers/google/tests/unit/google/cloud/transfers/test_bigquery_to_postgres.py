@@ -21,7 +21,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from google.cloud.bigquery import DatasetReference, SchemaField, Table, TableReference
 from psycopg2.extras import Json
 
 from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
@@ -53,16 +52,14 @@ def _make_bq_table(schema_names: list[str]):
 
 
 class TestBigQueryToPostgresOperator:
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.list_rows")
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
     )
-    def test_execute_good_request_to_bq(self, mock_get_creds, mock_get_client):
+    def test_execute_good_request_to_bq(self, mock_get_creds, mock_list_rows, mock_postgres_hook):
         mock_get_creds.return_value = (None, TEST_PROJECT)
-
-        mock_client = MagicMock()
-        mock_client.list_rows = mock.MagicMock(return_value=[])
-        mock_get_client.return_value = mock_client
+        mock_list_rows.return_value = []
 
         operator = BigQueryToPostgresOperator(
             task_id=TASK_ID,
@@ -71,27 +68,27 @@ class TestBigQueryToPostgresOperator:
             replace=False,
         )
 
-        operator.postgres_hook
+        operator.postgres_hook = mock_postgres_hook
         operator.execute(context=mock.MagicMock())
-        mock_client.list_rows.assert_called_once_with(
-            table=Table(TableReference(DatasetReference(TEST_PROJECT, TEST_DATASET), TEST_TABLE_ID)),
+
+        mock_list_rows.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
             max_results=1000,
             selected_fields=None,
             start_index=0,
-            page_token=mock.ANY,
-            retry=mock.ANY,
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.list_rows")
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
     )
-    def test_execute_good_request_to_bq_with_replace(self, mock_get_creds, mock_get_client):
+    def test_execute_good_request_to_bq_with_replace(
+        self, mock_get_creds, mock_list_rows, mock_postgres_hook
+    ):
         mock_get_creds.return_value = (None, TEST_PROJECT)
-
-        mock_client = MagicMock()
-        mock_client.list_rows = mock.MagicMock(return_value=[])
-        mock_get_client.return_value = mock_client
+        mock_list_rows.return_value = []
 
         operator = BigQueryToPostgresOperator(
             task_id=TASK_ID,
@@ -102,21 +99,15 @@ class TestBigQueryToPostgresOperator:
             replace_index=["col_1"],
         )
 
-        operator.postgres_hook
+        operator.postgres_hook = mock_postgres_hook
         operator.execute(context=mock.MagicMock())
 
-        expected_fields = [
-            SchemaField("col_1", "", "NULLABLE"),
-            SchemaField("col_2", "", "NULLABLE"),
-        ]
-
-        mock_client.list_rows.assert_called_once_with(
-            table=Table(TableReference(DatasetReference(TEST_PROJECT, TEST_DATASET), TEST_TABLE_ID)),
+        mock_list_rows.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
             max_results=1000,
-            selected_fields=expected_fields,
+            selected_fields=["col_1", "col_2"],
             start_index=0,
-            page_token=mock.ANY,
-            retry=mock.ANY,
         )
 
     @pytest.mark.parametrize(

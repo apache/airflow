@@ -195,6 +195,9 @@ class BigQueryToSqlBaseOperator(BaseOperator):
 
         sql_hook = self.get_sql_hook()
         db_info = sql_hook.get_openlineage_database_info(sql_hook.get_conn())
+        if db_info is None:
+            self.log.debug("OpenLineage: could not get database info from SQL hook %s", type(sql_hook))
+            return OperatorLineage()
         namespace = f"{db_info.scheme}://{db_info.authority}"
 
         schema_name = None
@@ -207,10 +210,10 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         if self.target_table_name and "." in self.target_table_name:
             schema_part, table_part = self.target_table_name.split(".", 1)
         else:
-            schema_part = schema_name
+            schema_part = schema_name or ""
             table_part = self.target_table_name or ""
 
-        if db_info.scheme == "mysql":
+        if db_info and db_info.scheme == "mysql":
             output_name = f"{self.database}.{table_part}" if self.database else f"{table_part}"
         else:
             if self.database:
