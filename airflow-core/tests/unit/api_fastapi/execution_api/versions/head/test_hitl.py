@@ -50,8 +50,7 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
     "response_at": None,
     "chosen_options": None,
-    "responded_user_id": None,
-    "responded_user_name": None,
+    "responded_by_user": None,
     "params_input": {},
     "response_received": False,
 }
