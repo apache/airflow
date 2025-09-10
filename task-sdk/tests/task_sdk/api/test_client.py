@@ -38,6 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunStateResponse,
     HITLDetailResponse,
+    HITLUser,
     VariableResponse,
     XComResponse,
 )
@@ -1319,7 +1320,7 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.responded_by_user == {"id": "admin", "name": "admin"}
+        assert result.responded_by_user == HITLUser(id="admin", name="admin")
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
     def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
@@ -1346,5 +1347,5 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.responded_by_user == {"id": "admin", "name": "admin"}
+        assert result.responded_by_user == HITLUser(id="admin", name="admin")
         assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

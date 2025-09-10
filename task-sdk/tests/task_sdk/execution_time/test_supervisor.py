@@ -2000,7 +2000,7 @@ REQUEST_TEST_CASES = [
             "defaults": ["Approve"],
             "multiple": False,
             "params": {},
-            "respondents": None,
+            "assigned_users": None,
             "type": "HITLDetailRequestResult",
         },
         client_mock=ClientMock(
