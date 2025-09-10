@@ -43,7 +43,13 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
 
   return (
     <>
-      <Button aria-label={translate("deleteActions.button")} onClick={onOpen} size="sm" variant="outline">
+      <Button
+        aria-label={translate("deleteActions.button")}
+        colorPalette="red"
+        onClick={onOpen}
+        size="sm"
+        variant="outline"
+      >
         <FiTrash2 /> {translate("deleteActions.button")}
       </Button>
 
@@ -60,7 +66,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
+            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
               {translate("connections.delete.firstConfirmMessage", { count: connectionIds.length })}
               <br />
               <Code mb={2} mt={2} p={4}>
