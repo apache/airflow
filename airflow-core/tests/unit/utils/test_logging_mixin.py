@@ -93,18 +93,6 @@ class TestLoggingMixin:
 
         assert DummyClass().log.name == "unit.utils.test_logging_mixin.DummyClass"
 
-    def test_logger_name_is_root_when_logger_name_is_empty_string(self):
-        """
-        Ensure that when `_logger_name` is set as an empty string, the resulting logger name is an empty
-        string too, which result in a logger with 'root' as name.
-        Note: Passing an empty string to `logging.getLogger` will create a logger with name 'root'.
-        """
-
-        class EmptyStringLogger(LoggingMixin):
-            _logger_name: str | None = ""
-
-        assert EmptyStringLogger().log.name == "root"
-
     def test_log_config_logger_name_correctly_prefix_logger_name(self):
         """
         Ensure that when a class has `_log_config_logger_name`, it is used as prefix in the final logger

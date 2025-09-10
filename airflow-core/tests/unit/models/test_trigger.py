@@ -271,7 +271,9 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     session.commit()
 
     def get_xcoms(ti):
-        return XComModel.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
+        return session.scalars(
+            XComModel.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id)
+        ).all()
 
     # now for the real test
     # first check initial state

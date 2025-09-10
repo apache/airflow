@@ -200,5 +200,9 @@ def init_plugins(app: FastAPI) -> None:
             log.error("'middleware' key is missing for the fastapi middleware: %s", name)
             continue
 
+        if not callable(middleware):
+            log.error("'middleware' value for %s is should be callable: %s", name, middleware)
+            continue
+
         log.debug("Adding root middleware %s", name)
         app.add_middleware(middleware, *args, **kwargs)

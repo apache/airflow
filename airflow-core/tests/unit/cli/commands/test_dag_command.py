@@ -876,7 +876,9 @@ class TestCliDags:
     def test_dag_test_run_inline_trigger(self, dag_maker):
         now = timezone.utcnow()
         trigger = DateTimeTrigger(moment=now)
-        e = _run_inline_trigger(trigger)
+        task_sdk_ti = MagicMock()
+        task_sdk_ti.id = 1234
+        e = _run_inline_trigger(trigger, task_sdk_ti)
         assert isinstance(e, TriggerEvent)
         assert e.payload == now
 

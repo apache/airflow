@@ -40,7 +40,12 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
-from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagRunContext,
+    EmailNotificationRequest,
+    TaskCallbackRequest,
+)
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.executors import workloads
@@ -84,12 +89,12 @@ from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    import logging
     from types import FrameType
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
 
+    from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.mappedoperator import MappedOperator
@@ -184,7 +189,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        log: logging.Logger | None = None,
+        log: Logger | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
@@ -750,7 +755,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: DBDagBag, session: Session
     ) -> int:
         """
-        Respond to executor events.
+        Process task completion events from the executor and update task instance states.
+
+        This method handles task state transitions reported by executors, ensuring proper
+        state management, callback execution, and notification processing. It maintains
+        scheduler architectural principles by delegating user code execution to appropriate
+        isolated processes.
+
+        The method handles several key scenarios:
+        1. **Normal task completion**: Updates task states for successful/failed tasks
+        2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
+        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors
+        4. **Callback processing**: Sends task callback requests to DAG Processor for execution
+        5. **Email notifications**: Sends email notification requests to DAG Processor
+
+        :param executor: The executor reporting task completion events
+        :param job_id: The scheduler job ID, used to detect task requeuing by other schedulers
+        :param scheduler_dag_bag: Serialized DAG bag for retrieving task definitions
+        :param session: Database session for task instance updates
+
+        :return: Number of events processed from the executor event buffer
+
+        :raises Exception: If DAG retrieval or task processing fails, logs error and continues
 
         This is a classmethod because this is also used in `dag.test()`.
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
@@ -929,6 +955,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(None)
                     continue
 
+                # Send email notification request to DAG processor via DB
+                if task.email and (task.email_on_failure or task.email_on_retry):
+                    cls.logger().info(
+                        "Sending email request for task %s to DAG Processor",
+                        ti,
+                    )
+                    email_request = EmailNotificationRequest(
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                        context_from_server=TIRunContext(
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(email_request)
+
+                # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)

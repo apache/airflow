@@ -61,6 +61,7 @@ class DAGResponse(BaseModel):
     is_paused: bool
     is_stale: bool
     last_parsed_time: datetime | None
+    last_parse_duration: float | None
     last_expired: datetime | None
     bundle_name: str | None
     bundle_version: str | None

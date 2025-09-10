@@ -139,9 +139,9 @@ Dag-level permissions
 ^^^^^^^^^^^^^^^^^^^^^
 
 For Dag-level permissions exclusively, access can be controlled at the level of all Dags or individual Dag objects.
-This includes ``DAGs.can_read``, ``DAGs.can_edit``, ``DAGs.can_delete``, ``DAG Runs.can_read``, ``DAG Runs.can_create``, ``DAG Runs.can_delete``, and ``DAG Runs.menu_access``.
+This includes ``DAGs.can_read``, ``DAGs.can_edit`` and ``DAGs.can_delete``.
 When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific Dag being acted upon.
-For individual Dags, the resource name is ``Dag:`` + the Dag ID, or for the Dag Runs resource the resource name is ``Dag Run:``.
+For individual Dags, the resource name is ``Dag:`` + the Dag ID.
 
 For example, if a user is trying to view Dag information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
 

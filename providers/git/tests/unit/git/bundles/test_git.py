@@ -129,7 +129,7 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url == "https://github.com/apache/zzzairflow"
+        assert bundle.repo_url == f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow"
 
     def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
