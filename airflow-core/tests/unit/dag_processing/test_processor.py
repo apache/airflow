@@ -25,6 +25,7 @@ import uuid
 from collections.abc import Callable
 from socket import socketpair
 from typing import TYPE_CHECKING, BinaryIO
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -43,6 +44,7 @@ from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
     DagRunContext,
+    EmailNotificationRequest,
     TaskCallbackRequest,
 )
 from airflow.dag_processing.processor import (
@@ -50,13 +52,13 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     _execute_dag_callbacks,
+    _execute_email_callbacks,
     _execute_task_callbacks,
     _parse_file,
     _pre_import_airflow_modules,
 )
 from airflow.models import DagBag, DagRun
-from airflow.models.baseoperator import BaseOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import DagRunState
 from airflow.sdk.execution_time import comms
@@ -1083,3 +1085,243 @@ class TestExecuteTaskCallbacks:
         _execute_task_callbacks(dagbag, request, log)
 
         assert call_count == 2
+
+
+class TestExecuteEmailCallbacks:
+    """Test the email callback execution functionality."""
+
+    @patch("airflow.dag_processing.processor._send_task_error_email")
+    def test_execute_email_callbacks_failure(self, mock_send_email):
+        """Test email callback execution for task failure."""
+        dagbag = MagicMock(spec=DagBag)
+        with DAG(dag_id="test_dag") as dag:
+            BaseOperator(task_id="test_task", email="test@example.com")
+        dagbag.dags = {"test_dag": dag}
+
+        # Create TI data
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+        request = EmailNotificationRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=ti_data,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+            msg="Task failed",
+        )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+
+        # Execute email callbacks
+        _execute_email_callbacks(dagbag, request, log)
+
+        # Verify email was sent
+        mock_send_email.assert_called_once_with(
+            "test@example.com",
+            mock.ANY,  # mocked Runtime TI
+            "Task failed",
+            log,
+        )
+
+    @patch("airflow.dag_processing.processor._send_task_error_email")
+    def test_execute_email_callbacks_retry(self, mock_send_email):
+        """Test email callback execution for task retry."""
+        dagbag = MagicMock(spec=DagBag)
+        with DAG(dag_id="test_dag") as dag:
+            BaseOperator(task_id="test_task", email=["test@example.com"])
+        dagbag.dags = {"test_dag": dag}
+
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=2,
+            attempt_number=2,
+            state="up_for_retry",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+
+        request = EmailNotificationRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=ti_data,
+            email_type="retry",
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                ),
+                max_tries=2,
+            ),
+            msg="Task retry",
+        )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+
+        # Execute email callbacks
+        _execute_email_callbacks(dagbag, request, log)
+
+        # Verify email was sent
+        mock_send_email.assert_called_once_with(
+            ["test@example.com"],
+            mock.ANY,  # mocked Runtime TI
+            "Task retry",
+            log,
+        )
+
+    @patch("airflow.dag_processing.processor._send_task_error_email")
+    def test_execute_email_callbacks_no_email_configured(self, mock_send_email):
+        """Test email callback when no email is configured."""
+        dagbag = MagicMock(spec=DagBag)
+        with DAG(dag_id="test_dag") as dag:
+            BaseOperator(task_id="test_task", email=None)
+        dagbag.dags = {"test_dag": dag}
+
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+        request = EmailNotificationRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=ti_data,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+        )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+
+        # Execute email callbacks - should not raise exception
+        _execute_email_callbacks(dagbag, request, log)
+
+        # Verify warning was logged
+        log.warning.assert_called_once()
+        warning_call = log.warning.call_args[0][0]
+        assert "Email callback requested but no email configured" in warning_call
+        mock_send_email.assert_not_called()
+
+    @patch("airflow.dag_processing.processor._send_task_error_email")
+    def test_execute_email_callbacks_email_disabled_for_type(self, mock_send_email):
+        """Test email callback when email is disabled for the specific type."""
+        dagbag = MagicMock(spec=DagBag)
+        with DAG(dag_id="test_dag") as dag:
+            BaseOperator(task_id="test_task", email=["test@example.com"], email_on_failure=False)
+        dagbag.dags = {"test_dag": dag}
+
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+
+        # Create request for failure (but email_on_failure is False)
+        request = EmailNotificationRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=ti_data,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+        )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+
+        # Execute email callbacks
+        _execute_email_callbacks(dagbag, request, log)
+
+        # Verify no email was sent
+        mock_send_email.assert_not_called()
+
+        # Verify info log about email being disabled
+        log.info.assert_called_once()
+        info_call = log.info.call_args[0][0]
+        assert "Email not sent - task configured with email_on_" in info_call

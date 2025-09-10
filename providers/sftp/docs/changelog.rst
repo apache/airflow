@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+5.4.0
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Feature: add optional managed connection (#52700)``
+* ``Add file_pattern to template fields (#54562)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sftp async hoook (#54763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 5.3.4
 .....
 

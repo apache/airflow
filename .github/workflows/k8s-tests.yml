@@ -92,6 +92,7 @@ jobs:
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         id: breeze
       # preparing k8s environment with uv takes < 15 seconds with `uv` - there is no point in caching it.
       - name: "\

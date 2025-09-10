@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-yandex``
 
 Release: ``4.2.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 This package is for Yandex, including:
 
@@ -44,7 +43,7 @@ in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-yandex``
 

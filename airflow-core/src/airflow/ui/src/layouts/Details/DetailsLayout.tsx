@@ -28,6 +28,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
+import type { DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -59,6 +60,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
+    `run_type_filter-${dagId}`,
+    undefined,
+  );
+  const [triggeringUserFilter, setTriggeringUserFilter] = useLocalStorage<string | undefined>(
+    `triggering_user_filter-${dagId}`,
+    undefined,
+  );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
   const [showVersionIndicator, setShowVersionIndicator] = useLocalStorage<boolean>(
@@ -119,7 +128,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel
             defaultSize={dagView === "graph" ? 70 : 20}
             id="main-panel"
-            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 30 : 6}
+            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
             order={1}
           >
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
@@ -127,12 +136,15 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 dagView={dagView}
                 limit={limit}
                 panelGroupRef={panelGroupRef}
+                runTypeFilter={runTypeFilter}
                 setDagView={setDagView}
                 setLimit={setLimit}
+                setRunTypeFilter={setRunTypeFilter}
                 setShowGantt={setShowGantt}
                 setShowVersionIndicator={setShowVersionIndicator}
+                setTriggeringUserFilter={setTriggeringUserFilter}
                 showGantt={showGantt}
-                showVersionIndicator={showVersionIndicator}
+                triggeringUserFilter={triggeringUserFilter}
               />
               {dagView === "graph" ? (
                 <Graph />
@@ -140,7 +152,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 <HStack gap={0}>
                   <Grid
                     limit={limit}
+                    runType={runTypeFilter}
                     showGantt={Boolean(runId) && showGantt}
+                    triggeringUser={triggeringUserFilter}
                     showVersionIndicator={showVersionIndicator}
                   />
                   {showGantt ? <Gantt limit={limit} /> : undefined}

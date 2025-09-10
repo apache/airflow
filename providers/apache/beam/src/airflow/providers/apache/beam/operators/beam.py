@@ -466,13 +466,13 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
 
             if GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE:
-                trigger = DataflowJobStatusTrigger(
-                    expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+                trigger = DataflowJobStateCompleteTrigger(
+                    wait_until_finished=self.dataflow_config.wait_until_finished,
                     **trigger_args,
                 )
             else:
-                trigger = DataflowJobStateCompleteTrigger(
-                    wait_until_finished=self.dataflow_config.wait_until_finished,
+                trigger = DataflowJobStatusTrigger(
+                    expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                     **trigger_args,
                 )
 
@@ -643,13 +643,13 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
 
                     if GOOGLE_PROVIDER_DATAFLOW_JOB_STATE_COMPLETE_TRIGGER_AVAILABLE:
-                        trigger = DataflowJobStatusTrigger(
-                            expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+                        trigger = DataflowJobStateCompleteTrigger(
+                            wait_until_finished=self.dataflow_config.wait_until_finished,
                             **trigger_args,
                         )
                     else:
-                        trigger = DataflowJobStateCompleteTrigger(
-                            wait_until_finished=self.dataflow_config.wait_until_finished,
+                        trigger = DataflowJobStatusTrigger(
+                            expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                             **trigger_args,
                         )
 

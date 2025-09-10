@@ -19,6 +19,12 @@
 Deadline Alerts
 ===============
 
+.. warning::
+  Deadline Alerts are new in Airflow 3.1 and should be considered experimental. The feature may be
+  subject to changes in 3.2 without warning based on user feedback.
+
+|experimental|
+
 Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
 thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
 an interval, and defining a response using either Airflow's Notifiers or a custom callback function.

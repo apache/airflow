@@ -28,7 +28,6 @@ import textwrap
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from logging.config import dictConfig
 from pathlib import Path
 from socket import socket, socketpair
 from unittest import mock
@@ -42,7 +41,6 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.manager import (
     DagFileInfo,
@@ -116,7 +114,6 @@ class TestDagFileProcessorManager:
             yield
 
     def setup_method(self):
-        dictConfig(DEFAULT_LOGGING_CONFIG)
         clear_db_assets()
         clear_db_runs()
         clear_db_serialized_dags()

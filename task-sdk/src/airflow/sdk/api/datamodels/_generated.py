@@ -175,7 +175,8 @@ class HITLDetailResponse(BaseModel):
     """
 
     response_received: Annotated[bool, Field(title="Response Received")]
-    user_id: Annotated[str | None, Field(title="User Id")] = None
+    responded_user_name: Annotated[str | None, Field(title="Responded User Name")] = None
+    responded_user_id: Annotated[str | None, Field(title="Responded User Id")] = None
     response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None

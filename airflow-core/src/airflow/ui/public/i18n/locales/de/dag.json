@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "Bündel Url",
     "noCode": "Kein Programmcode gefunden",
+    "parseDuration": "Einlesedauer:",
     "parsedAt": "Eingelesen um:"
   },
   "extraLinks": "Extra Links",
@@ -84,6 +85,8 @@
       "assetEvent_other": "Erstellte Datenset-Ereignisse"
     },
     "failedLogs": {
+      "hideLogs": "Protokolle ausblenden",
+      "showLogs": "Protokolle anzeigen",
       "title": "Protokolle kürzlich fehlgeschlagener Tasks",
       "viewFullLogs": "Vollständige Protokolle ansehen"
     }

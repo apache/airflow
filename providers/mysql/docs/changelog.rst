@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+6.3.4
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Misc
+~~~~
+
+* ``Bump mysql-connector-python>=9.1.0 to support SQLAlchemy 2.0 (#52233)``
+* ``Add optional SQLA logging/diagnostics (#54315)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 6.3.3
 .....
 

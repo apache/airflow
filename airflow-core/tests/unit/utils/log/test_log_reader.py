@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import copy
 import datetime
-import logging
 import os
 import sys
 import tempfile
+import types
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -79,16 +79,26 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def configure_loggers(self, log_dir, settings_folder):
-        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-        logging_config["handlers"]["task"]["base_log_folder"] = log_dir
-        settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
-        with open(settings_file, "w") as handle:
-            new_logging_file = f"LOGGING_CONFIG = {logging_config}"
-            handle.writelines(new_logging_file)
+        logging_config = {**DEFAULT_LOGGING_CONFIG}
+        logging_config["handlers"] = {**logging_config["handlers"]}
+        logging_config["handlers"]["task"] = {
+            **logging_config["handlers"]["task"],
+            "base_log_folder": log_dir,
+        }
+
+        mod = types.SimpleNamespace()
+        mod.LOGGING_CONFIG = logging_config
+
+        # "Inject" a fake module into sys so it loads it without needing to write valid python code
+        sys.modules["airflow_local_settings_test"] = mod
+
         with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
             settings.configure_logging()
-        yield
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        try:
+            yield
+        finally:
+            del sys.modules["airflow_local_settings_test"]
+            settings.configure_logging()
 
     @pytest.fixture(autouse=True)
     def prepare_log_files(self, log_dir):
