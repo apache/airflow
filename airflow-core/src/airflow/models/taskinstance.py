@@ -1447,7 +1447,8 @@ class TaskInstance(Base, LoggingMixin):
 
         if not (self.task and self.task.start_from_trigger):
             raise TaskDeferralError(
-                "Task doesn't have start_from_trigger and start_trigger_args defined and thus cannot be deferred!")
+                "Task doesn't have start_from_trigger and start_trigger_args defined and thus cannot be deferred!"
+            )
 
         trigger_row = Trigger(
             classpath=self.task.start_trigger_args.trigger_cls,
