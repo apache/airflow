@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.standard.exceptions import HITLRejectException
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -43,11 +45,14 @@ from airflow.providers.standard.operators.hitl import (
 )
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.utils.context import Context
 
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.sdk.definitions.context import Context
 
     from tests_common.pytest_plugin import DagMaker
 
@@ -72,6 +77,37 @@ def hitl_task_and_ti_for_generating_link(dag_maker: DagMaker) -> tuple[HITLOpera
         )
     dr = dag_maker.create_dagrun()
     return task, dag_maker.run_ti(task.task_id, dr)
+
+
+@pytest.fixture
+def get_context_from_model_ti(mock_supervisor_comms):
+    def _get_context(ti: TaskInstance) -> Context:
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+            DagRun as DRDataModel,
+            TaskInstance as TIDataModel,
+            TIRunContext,
+        )
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        # make mypy happy
+        assert ti is not None
+
+        dag_run = ti.dag_run
+        ti_model = TIDataModel.model_validate(ti, from_attributes=True)
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti_model.model_dump(exclude_unset=True),
+            task=ti.task,
+            _ti_context_from_server=TIRunContext(
+                dag_run=DRDataModel.model_validate(dag_run, from_attributes=True),
+                max_tries=ti.max_tries,
+                variables=[],
+                connections=[],
+                xcom_keys_to_clear=[],
+            ),
+        )
+        return runtime_ti.get_template_context()
+
+    return _get_context
 
 
 class TestHITLOperator:
@@ -405,7 +441,9 @@ class TestApprovalOperator:
             "params_input": {},
         }
 
-    def test_execute_complete_with_downstream_tasks(self, dag_maker) -> None:
+    def test_execute_complete_with_downstream_tasks(
+        self, dag_maker: DagMaker, get_context_from_model_ti
+    ) -> None:
         with dag_maker("hitl_test_dag", serialized=True):
             hitl_op = ApprovalOperator(
                 task_id="hitl_test",
@@ -415,13 +453,27 @@ class TestApprovalOperator:
 
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("hitl_test")
-
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             hitl_op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={"chosen_options": ["Reject"], "params_input": {}},
             )
         assert set(exc_info.value.tasks) == {"op1"}
+
+    def test_execute_complete_with_fail_on_reject_set_to_true(
+        self, dag_maker: DagMaker, get_context_from_model_ti
+    ) -> None:
+        with dag_maker("hitl_test_dag", serialized=True):
+            hitl_op = ApprovalOperator(task_id="hitl_test", subject="This is subject", fail_on_reject=True)
+            (hitl_op >> EmptyOperator(task_id="op1"))
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("hitl_test")
+        with pytest.raises(HITLRejectException):
+            hitl_op.execute_complete(
+                context=get_context_from_model_ti(ti),
+                event={"chosen_options": ["Reject"], "params_input": {}},
+            )
 
 
 class TestHITLEntryOperator:
@@ -462,7 +514,7 @@ class TestHITLEntryOperator:
 
 
 class TestHITLBranchOperator:
-    def test_execute_complete(self, dag_maker) -> None:
+    def test_execute_complete(self, dag_maker: DagMaker, get_context_from_model_ti) -> None:
         with dag_maker("hitl_test_dag", serialized=True):
             branch_op = HITLBranchOperator(
                 task_id="make_choice",
@@ -476,7 +528,7 @@ class TestHITLBranchOperator:
         ti = dr.get_task_instance("make_choice")
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             branch_op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={
                     "chosen_options": ["branch_1"],
                     "params_input": {},
@@ -484,7 +536,9 @@ class TestHITLBranchOperator:
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(2, 6))
 
-    def test_execute_complete_with_multiple_branches(self, dag_maker) -> None:
+    def test_execute_complete_with_multiple_branches(
+        self, dag_maker: DagMaker, get_context_from_model_ti
+    ) -> None:
         with dag_maker("hitl_test_dag", serialized=True):
             branch_op = HITLBranchOperator(
                 task_id="make_choice",
@@ -499,7 +553,7 @@ class TestHITLBranchOperator:
         ti = dr.get_task_instance("make_choice")
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             branch_op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={
                     "chosen_options": [f"branch_{i}" for i in range(1, 4)],
                     "params_input": {},
@@ -507,7 +561,7 @@ class TestHITLBranchOperator:
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(4, 6))
 
-    def test_mapping_applies_for_single_choice(self, dag_maker):
+    def test_mapping_applies_for_single_choice(self, dag_maker: DagMaker, get_context_from_model_ti) -> None:
         # ["Approve"]; map -> "publish"
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -523,13 +577,13 @@ class TestHITLBranchOperator:
 
         with pytest.raises(DownstreamTasksSkipped) as exc:
             op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={"chosen_options": ["Approve"], "params_input": {}},
             )
         # checks to see that the "archive" task was skipped
         assert set(exc.value.tasks) == {("archive", -1)}
 
-    def test_mapping_with_multiple_choices(self, dag_maker):
+    def test_mapping_with_multiple_choices(self, dag_maker: DagMaker, get_context_from_model_ti) -> None:
         # multiple=True; mapping applied per option; no dedup implied
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -550,13 +604,13 @@ class TestHITLBranchOperator:
 
         with pytest.raises(DownstreamTasksSkipped) as exc:
             op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={"chosen_options": ["Approve", "KeepAsIs"], "params_input": {}},
             )
         # publish + keep chosen → only "other" skipped
         assert set(exc.value.tasks) == {("other", -1)}
 
-    def test_fallback_to_option_when_not_mapped(self, dag_maker):
+    def test_fallback_to_option_when_not_mapped(self, dag_maker: DagMaker, get_context_from_model_ti) -> None:
         # No mapping: option must match downstream task_id
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -571,12 +625,14 @@ class TestHITLBranchOperator:
 
         with pytest.raises(DownstreamTasksSkipped) as exc:
             op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={"chosen_options": ["branch_2"], "params_input": {}},
             )
         assert set(exc.value.tasks) == {("branch_1", -1)}
 
-    def test_error_if_mapped_branch_not_direct_downstream(self, dag_maker):
+    def test_error_if_mapped_branch_not_direct_downstream(
+        self, dag_maker: DagMaker, get_context_from_model_ti
+    ):
         # Don't add the mapped task downstream → expect a clean error
         with dag_maker("hitl_map_dag", serialized=True):
             op = HITLBranchOperator(
@@ -592,7 +648,7 @@ class TestHITLBranchOperator:
 
         with pytest.raises(AirflowException, match="downstream|not found"):
             op.execute_complete(
-                context={"ti": ti, "task": ti.task},
+                context=get_context_from_model_ti(ti),
                 event={"chosen_options": ["Approve"], "params_input": {}},
             )
 
