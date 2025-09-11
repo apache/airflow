@@ -48,6 +48,7 @@
 !kubernetes-tests
 !task-sdk-tests
 !shared/
+!airflow-e2e-tests
 
 # Add scripts so that we can use them inside the container
 !scripts

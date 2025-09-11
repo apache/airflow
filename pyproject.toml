@@ -750,6 +750,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
 "devel-common/tests/*" = ["S101"]
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
+"airflow-e2e-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -1308,6 +1309,7 @@ apache-airflow-ctl = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
+apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-tests = { workspace = true }
 apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
@@ -1420,6 +1422,7 @@ apache-airflow-providers-zendesk = { workspace = true }
 members = [
     ".",
     "airflow-core",
+    "airflow-e2e-tests",
     "dev/breeze",
     "airflow-ctl",
     "dev",
