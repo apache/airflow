@@ -77,9 +77,7 @@ export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: Mainten
                 <Dialog.ActionTrigger asChild>
                   <Button variant="outline">No</Button>
                 </Dialog.ActionTrigger>
-                <Button onClick={exitMaintenance} colorScheme="red">
-                  Yes
-                </Button>
+                <Button onClick={exitMaintenance}>Yes</Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
                 <CloseButton size="sm" />
