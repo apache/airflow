@@ -3578,6 +3578,11 @@ export const $HITLDetail = {
             type: 'array',
             title: 'Assigned Users'
         },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
         responded_by_user: {
             anyOf: [
                 {
@@ -3626,7 +3631,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject', 'created_at'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;

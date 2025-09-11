@@ -209,6 +209,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "options": ["Approve", "Reject"],
         "params": {"input_1": 1},
         "assigned_users": [],
+        "created_at": mock.ANY,
         "params_input": {},
         "responded_at": None,
         "chosen_options": None,

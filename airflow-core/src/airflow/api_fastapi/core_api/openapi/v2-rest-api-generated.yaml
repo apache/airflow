@@ -10885,6 +10885,10 @@ components:
             $ref: '#/components/schemas/HITLUser'
           type: array
           title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
         responded_by_user:
           anyOf:
           - $ref: '#/components/schemas/HITLUser'
@@ -10915,6 +10919,7 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLDetailCollection:
