@@ -179,7 +179,7 @@ def set_up(env_id, role_arn, ti=None):
             {
                 "VariantName": f"{env_id}-demo",
                 "ModelName": model_name,
-                "InstanceType": "ml.t2.medium",
+                "InstanceType": "ml.t4g.medium",
                 "InitialInstanceCount": 1,
             },
         ],

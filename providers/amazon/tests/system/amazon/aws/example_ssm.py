@@ -161,7 +161,7 @@ with DAG(
     instance_profile_name = f"{env_id}-ssm-instance-profile"
 
     config = {
-        "InstanceType": "t2.micro",
+        "InstanceType": "t4g.micro",
         "IamInstanceProfile": {"Name": instance_profile_name},
         # Optional: Tags for identifying test resources in the AWS console
         "TagSpecifications": [
