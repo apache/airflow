@@ -785,9 +785,7 @@ def _get_task_groups_details(dag: DAG | SerializedDAG) -> dict:
     }
 
 
-def _emits_ol_events(
-    task: BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator,
-) -> bool:
+def _emits_ol_events(task: AnyOperator) -> bool:
     config_selective_enabled = is_selective_lineage_enabled(task)
     config_disabled_for_operators = is_operator_disabled(task)
     # empty operators without callbacks/outlets are skipped for optimization by Airflow

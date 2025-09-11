@@ -2350,9 +2350,10 @@ class SerializedDAG(BaseSerialization):
 
     _decorated_fields: ClassVar[set[str]] = {"default_args", "access_control"}
 
-    access_control: dict[str, dict[str, Collection[str]]] | None
+    access_control: dict[str, dict[str, Collection[str]]] | None = None
     catchup: bool
     dag_id: str
+    dag_display_name: str
     dagrun_timeout: datetime.timedelta | None
     deadline: list[DeadlineAlert] | DeadlineAlert | None
     default_args: dict[str, Any]
@@ -2364,15 +2365,19 @@ class SerializedDAG(BaseSerialization):
     fail_fast: bool
     has_on_failure_callback: bool
     has_on_success_callback: bool
+    is_paused_upon_creation: bool | None
     max_active_runs: int
     max_active_tasks: int
     max_consecutive_failed_dag_runs: int
-    params: ParamsDict  # TODO (GH-52141): These should use scheduler-specific types.
+    owner_links: dict[str, str]
+    params: ParamsDict  # TODO (GH-52141): Should use a scheduler-specific type.
     partial: bool
+    render_template_as_native_obj: bool
     start_date: datetime.datetime | None
     tags: set[str]
-    task_dict: dict[str, SerializedBaseOperator | SerializedMappedOperator]
+    task_dict: dict[str, SerializedOperator]
     task_group: SerializedTaskGroup
+    template_searchpath: tuple[str, ...] | None
     timetable: Timetable
     timezone: FixedTimezone | Timezone
 
@@ -2380,6 +2385,34 @@ class SerializedDAG(BaseSerialization):
     # this will only be set at serialization time
     # it's only use is for determining the relative fileloc based only on the serialize dag
     _processor_dags_folder: str
+
+    def __init__(self, *, dag_id: str) -> None:
+        self.catchup = airflow_conf.getboolean("scheduler", "catchup_by_default")
+        self.dag_id = self.dag_display_name = dag_id
+        self.dagrun_timeout = None
+        self.deadline = None
+        self.default_args = {}
+        self.description = None
+        self.disable_bundle_versioning = airflow_conf.getboolean("dag_processor", "disable_bundle_versioning")
+        self.doc_md = None
+        self.edge_info = {}
+        self.end_date = None
+        self.fail_fast = False
+        self.has_on_failure_callback = False
+        self.has_on_success_callback = False
+        self.is_paused_upon_creation = None
+        self.max_active_runs = airflow_conf.getint("core", "max_active_runs_per_dag")
+        self.max_active_tasks = airflow_conf.getint("core", "max_active_tasks_per_dag")
+        self.max_consecutive_failed_dag_runs = airflow_conf.getint(
+            "core", "max_consecutive_failed_dag_runs_per_dag"
+        )
+        self.owner_links = {}
+        self.params = ParamsDict()
+        self.partial = False
+        self.render_template_as_native_obj = False
+        self.start_date = None
+        self.tags = set()
+        self.template_searchpath = None
 
     @staticmethod
     def __get_constructor_defaults():
@@ -2495,8 +2528,7 @@ class SerializedDAG(BaseSerialization):
         cls, encoded_dag: dict[str, Any], client_defaults: dict[str, Any] | None = None
     ) -> SerializedDAG:
         """Handle the main Dag deserialization logic."""
-        dag = SerializedDAG()
-        dag.dag_id = encoded_dag["dag_id"]
+        dag = SerializedDAG(dag_id=encoded_dag["dag_id"])
         dag.last_loaded = utcnow()
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
@@ -3622,7 +3654,7 @@ class SerializedDAG(BaseSerialization):
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
-        # Note - older serialized Dags may not have edge_info being a dict at all
+        # Note - older serialized dags may not have edge_info being a dict at all
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)

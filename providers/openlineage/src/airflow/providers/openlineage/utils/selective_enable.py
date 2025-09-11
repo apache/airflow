@@ -24,14 +24,11 @@ from airflow.models import Param
 from airflow.models.xcom_arg import XComArg
 
 if TYPE_CHECKING:
-    from typing import TypeAlias
-
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+    from airflow.providers.openlineage.utils.utils import AnyOperator
     from airflow.sdk import DAG, BaseOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 
-    AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
     T = TypeVar("T", bound=DAG | BaseOperator | MappedOperator)
 else:
     try:
