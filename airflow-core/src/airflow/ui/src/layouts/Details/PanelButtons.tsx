@@ -61,11 +61,11 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
-  readonly setShowVersionIndicator: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
+  readonly setVersionDisplayMode: React.Dispatch<React.SetStateAction<string>>;
   readonly showGantt: boolean;
-  readonly showVersionIndicator: boolean;
   readonly triggeringUserFilter: string | undefined;
+  readonly versionDisplayMode: string;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -88,6 +88,15 @@ const displayRunOptions = createListCollection({
   ],
 });
 
+const getVersionDisplayOptions = (translate: (key: string) => string) =>
+  createListCollection({
+    items: [
+      { label: translate("dag:panel.versionDisplay.options.showDagVersion"), value: "dag" },
+      { label: translate("dag:panel.versionDisplay.options.showBundleVersion"), value: "bundle" },
+      { label: translate("dag:panel.versionDisplay.options.hideAll"), value: "none" },
+    ],
+  });
+
 const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
@@ -101,11 +110,11 @@ export const PanelButtons = ({
   setLimit,
   setRunTypeFilter,
   setShowGantt,
-  setShowVersionIndicator,
   setTriggeringUserFilter,
+  setVersionDisplayMode,
   showGantt,
-  showVersionIndicator,
   triggeringUserFilter,
+  versionDisplayMode,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -116,6 +125,7 @@ export const PanelButtons = ({
     "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
@@ -154,6 +164,14 @@ export const PanelButtons = ({
     setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
   };
 
+  const handleVersionDisplayChange = (
+    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
+  ) => {
+    if (event.value[0] !== undefined) {
+      setVersionDisplayMode(event.value[0]);
+    }
+  };
+
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
       const panelGroup = panelGroupRef.current;
@@ -162,7 +180,6 @@ export const PanelButtons = ({
         const newLayout = view === "graph" ? [70, 30] : [30, 70];
 
         panelGroup.setLayout(newLayout);
-        // Used setTimeout to ensure DOM has been updated
         setTimeout(() => {
           void fitView();
         }, 1);
@@ -387,13 +404,34 @@ export const PanelButtons = ({
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
                               {translate("dag:panel.buttons.showGantt")}
                             </Checkbox>
-                            <Checkbox
-                              checked={showVersionIndicator}
-                              onChange={() => setShowVersionIndicator(!showVersionIndicator)}
+                            <Select.Root
+                              // @ts-expect-error option type
+                              collection={getVersionDisplayOptions(translate)}
+                              onValueChange={handleVersionDisplayChange}
                               size="sm"
+                              value={[versionDisplayMode]}
                             >
-                              {translate("dag:panel.buttons.showVersionIndicator")}
-                            </Checkbox>
+                              <Select.Label fontSize="xs">
+                                {translate("dag:panel.versionDisplay.label")}
+                              </Select.Label>
+                              <Select.Control>
+                                <Select.Trigger>
+                                  <Select.ValueText />
+                                </Select.Trigger>
+                                <Select.IndicatorGroup>
+                                  <Select.Indicator />
+                                </Select.IndicatorGroup>
+                              </Select.Control>
+                              <Select.Positioner>
+                                <Select.Content>
+                                  {getVersionDisplayOptions(translate).items.map((option) => (
+                                    <Select.Item item={option} key={option.value}>
+                                      {option.label}
+                                    </Select.Item>
+                                  ))}
+                                </Select.Content>
+                              </Select.Positioner>
+                            </Select.Root>
                           </VStack>
                         ) : undefined}
                       </>

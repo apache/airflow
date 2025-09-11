@@ -43,13 +43,11 @@ type Props = {
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
-  readonly showVersionIndicator?: boolean;
   readonly triggeringUser?: string | undefined;
+  readonly versionDisplayMode?: string;
 };
 
-type GridRunsWithFlags = { isVersionChange: boolean } & GridRunsResponse;
-        
-export const Grid = ({ limit, runType, showGantt, triggeringUser, showVersionIndicator }: Props) => {
+export const Grid = ({ limit, runType, showGantt, triggeringUser, versionDisplayMode = "dag" }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -102,20 +100,19 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser, showVersionInd
     tasks: flatNodes,
   });
 
-  const processedRuns: Array<GridRunsWithFlags> = useMemo(() => {
-    if (!gridRuns) {
-      return [];
-    }
+  const processedRuns = useMemo(
+    () =>
+      gridRuns?.map((dr, index) => {
+        const prevRun = gridRuns[index + 1];
+        const isVersionChange =
+          prevRun &&
+          ((versionDisplayMode === "dag" && prevRun.dag_version_number !== dr.dag_version_number) ||
+            (versionDisplayMode === "bundle" && prevRun.bundle_version !== dr.bundle_version));
 
-    return gridRuns.map((dr, index) => {
-      const prevRun = index < gridRuns.length - 1 ? gridRuns[index + 1] : undefined;
-
-      return {
-        ...dr,
-        isVersionChange: Boolean(prevRun && prevRun.dag_version_number !== dr.dag_version_number),
-      };
-    });
-  }, [gridRuns]);
+        return { ...dr, isVersionChange: Boolean(isVersionChange) };
+      }) ?? [],
+    [gridRuns, versionDisplayMode],
+  );
 
   return (
     <Flex
@@ -158,8 +155,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser, showVersionInd
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
-                showVersionIndicator={Boolean(showVersionIndicator) && dr.isVersionChange}
-                versionNumber={dr.dag_version_number}
+                versionDisplayMode={versionDisplayMode}
               />
             ))}
           </Flex>

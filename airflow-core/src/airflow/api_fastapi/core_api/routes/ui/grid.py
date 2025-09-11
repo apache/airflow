@@ -22,8 +22,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import case, func, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -223,10 +222,6 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    # Base query to get DagRun information with version details
-    # Only load what's absolutely necessary - created_dag_version for fallback
-    base_query = select(DagRun).options(joinedload(DagRun.created_dag_version)).where(DagRun.dag_id == dag_id)
-
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
@@ -237,6 +232,57 @@ def get_grid_runs(
             model=DagRun,
         ).set_value(ordering)
 
+    # Select necessary columns including computed version fields
+    # Replicate DagRun.version_number property logic in SQL
+    latest_version_subquery = (
+        select(func.max(DagVersion.version_number))
+        .select_from(TaskInstance)
+        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+        .where(TaskInstance.dag_id == DagRun.dag_id, TaskInstance.run_id == DagRun.run_id)
+        .scalar_subquery()
+    )
+
+    # When bundle_version exists, use created_dag_version.version_number, otherwise use latest from TIs
+    computed_version_number = case(
+        (
+            DagRun.bundle_version.is_not(None),
+            select(DagVersion.version_number)
+            .select_from(DagVersion)
+            .where(DagVersion.id == DagRun.created_dag_version_id)
+            .scalar_subquery(),
+        ),
+        else_=latest_version_subquery,
+    )
+
+    # Compute has_mixed_versions: count distinct versions > 1
+    # When bundle_version exists, always 1 version (not mixed)
+    # When bundle_version is null, count distinct versions from TIs
+    version_count_subquery = (
+        select(func.count(func.distinct(DagVersion.id)))
+        .select_from(TaskInstance)
+        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+        .where(TaskInstance.dag_id == DagRun.dag_id, TaskInstance.run_id == DagRun.run_id)
+        .scalar_subquery()
+    )
+
+    computed_has_mixed_versions = case(
+        (DagRun.bundle_version.is_not(None), False), else_=version_count_subquery > 1
+    )
+
+    base_query = select(
+        DagRun.dag_id,
+        DagRun.run_id,
+        DagRun.queued_at,
+        DagRun.start_date,
+        DagRun.end_date,
+        DagRun.run_after,
+        DagRun.state,
+        DagRun.run_type,
+        DagRun.bundle_version,
+        computed_version_number.label("dag_version_number"),
+        computed_has_mixed_versions.label("has_mixed_versions"),
+    ).where(DagRun.dag_id == dag_id)
+
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -245,36 +291,22 @@ def get_grid_runs(
         limit=limit,
     )
 
-    dag_runs = list(session.scalars(dag_runs_select_filter))
-
-    if not dag_runs:
-        return []
-
-    response = []
-    for dag_run in dag_runs:
-        # Simple version number extraction - let client handle comparison logic
-        dag_version_number = None
-        if dag_run.dag_versions:
-            # Get the latest version number from dag_versions
-            dag_version_number = max(dv.version_number for dv in dag_run.dag_versions)
-        elif dag_run.created_dag_version:
-            # Fallback to created_dag_version
-            dag_version_number = dag_run.created_dag_version.version_number
-
-        grid_run = GridRunsResponse(
-            dag_id=dag_run.dag_id,
-            run_id=dag_run.run_id,
-            queued_at=dag_run.queued_at,
-            start_date=dag_run.start_date,
-            end_date=dag_run.end_date,
-            run_after=dag_run.run_after,
-            state=dag_run.state,
-            run_type=dag_run.run_type,
-            dag_version_number=dag_version_number,
+    return [
+        GridRunsResponse(
+            dag_id=row.dag_id,
+            run_id=row.run_id,
+            queued_at=row.queued_at,
+            start_date=row.start_date,
+            end_date=row.end_date,
+            run_after=row.run_after,
+            state=row.state,
+            run_type=row.run_type,
+            dag_version_number=row.dag_version_number,
+            bundle_version=row.bundle_version,
+            has_mixed_versions=row.has_mixed_versions,
         )
-        response.append(grid_run)
-
-    return response
+        for row in session.execute(dag_runs_select_filter)
+    ]
 
 
 @grid_router.get(
@@ -324,9 +356,9 @@ def get_grid_ti_summaries(
             select(
                 TaskInstance.task_id,
                 TaskInstance.state,
+                TaskInstance.dag_version_id,
                 TaskInstance.start_date,
                 TaskInstance.end_date,
-                TaskInstance.dag_version_id,
                 DagVersion.version_number,
             )
             .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
@@ -340,34 +372,25 @@ def get_grid_ti_summaries(
         limit=None,
         return_total_entries=False,
     )
-    task_instances_rows = list(session.execute(tis_of_dag_runs))
-    if not task_instances_rows:
+    task_instances = list(session.execute(tis_of_dag_runs))
+    if not task_instances:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
-
     ti_details = collections.defaultdict(list)
-    first_dag_version_id = None
-
-    for i, row in enumerate(task_instances_rows):
-        task_id, state, start_date, end_date, dag_version_id, dag_version_number = row
-        dag_version_id_str = str(dag_version_id) if dag_version_id else None
-
-        if i == 0:
-            first_dag_version_id = dag_version_id
-
-        ti_details[task_id].append(
+    for ti in task_instances:
+        ti_details[ti.task_id].append(
             {
-                "state": state,
-                "start_date": start_date,
-                "end_date": end_date,
-                "dag_version_id": dag_version_id_str,
-                "dag_version_number": dag_version_number,
+                "state": ti.state,
+                "start_date": ti.start_date,
+                "end_date": ti.end_date,
+                "dag_version_id": str(ti.dag_version_id) if ti.dag_version_id else None,
+                "dag_version_number": ti.version_number,
             }
         )
     serdag = _get_serdag(
         dag_id=dag_id,
-        dag_version_id=first_dag_version_id,
+        dag_version_id=task_instances[0].dag_version_id,
         session=session,
     )
     if TYPE_CHECKING:

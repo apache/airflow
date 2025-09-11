@@ -17,20 +17,32 @@
  * under the License.
  */
 import { Box, Text } from "@chakra-ui/react";
+import { FiGitCommit } from "react-icons/fi";
 
-type VersionIndicatorProps = {
-  readonly orientation: "horizontal" | "vertical";
-  readonly styleOverrides?: Record<string, unknown>;
-  readonly versionNumber?: number | null;
-};
+export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => (
+  <Box
+    color="orange.700"
+    left="-7px"
+    position="absolute"
+    title={`Bundle Version: ${bundleVersion}`}
+    top="93px"
+  >
+    <FiGitCommit size="15px" />
+  </Box>
+);
 
-export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }: VersionIndicatorProps) => {
+export const DagVersionIndicator = ({
+  dagVersionNumber,
+  orientation = "vertical",
+}: {
+  readonly dagVersionNumber: number | null;
+  readonly orientation?: "horizontal" | "vertical";
+}) => {
   const isVertical = orientation === "vertical";
-  const ariaLabel = `DAG version ${versionNumber} indicator`;
 
   return (
     <Box
-      aria-label={ariaLabel}
+      aria-label={`Version ${dagVersionNumber} indicator`}
       as="output"
       height={isVertical ? "100px" : "2px"}
       left={isVertical ? "-1px" : "0"}
@@ -38,7 +50,6 @@ export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }:
       top={isVertical ? "0" : "-1px"}
       width={isVertical ? "2px" : "18px"}
       zIndex={3}
-      {...styleOverrides}
     >
       {isVertical ? (
         <>
@@ -51,11 +62,11 @@ export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }:
             left="-5px"
             position="absolute"
             px="1px"
-            title={`DAG version ${versionNumber}`}
+            title={`Version ${dagVersionNumber}`}
             top="-16px"
             whiteSpace="nowrap"
           >
-            {`v${versionNumber ?? ""}`}
+            {`v${dagVersionNumber ?? ""}`}
           </Text>
         </>
       ) : (
@@ -78,11 +89,14 @@ export const VersionIndicator = ({ orientation, styleOverrides, versionNumber }:
               borderRadius="2px"
               color="orange.700"
               fontSize="6px"
+              left="0"
+              position="absolute"
               px="1px"
-              title={`DAG version ${versionNumber}`}
+              title={`Version ${dagVersionNumber}`}
+              top="0"
               whiteSpace="nowrap"
             >
-              {`v${versionNumber ?? ""}`}
+              {`v${dagVersionNumber ?? ""}`}
             </Text>
           </Box>
           <Box bg="orange.400" height="2px" left="14px" position="absolute" top="0" width="4px" />

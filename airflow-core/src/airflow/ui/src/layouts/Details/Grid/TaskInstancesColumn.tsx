@@ -20,7 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
-import { VersionIndicator } from "src/components/ui/VersionIndicator";
+import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
@@ -30,16 +30,16 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
-  readonly showVersionIndicator?: boolean;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
+  readonly versionDisplayMode?: string;
 };
 
 export const TaskInstancesColumn = ({
   nodes,
   onCellClick,
   runId,
-  showVersionIndicator = true,
   taskInstances,
+  versionDisplayMode = "none",
 }: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
@@ -54,18 +54,21 @@ export const TaskInstancesColumn = ({
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
-    // Check if previous task has different version number
     const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
     const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
-
     const hasVersionChange = Boolean(
-      prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+      versionDisplayMode === "dag" &&
+        prevTaskInstance &&
+        prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
     );
 
     return (
       <Box key={node.id} position="relative">
-        {Boolean(showVersionIndicator && hasVersionChange) && (
-          <VersionIndicator orientation="horizontal" versionNumber={taskInstance.dag_version_number} />
+        {Boolean(hasVersionChange) && (
+          <DagVersionIndicator
+            dagVersionNumber={taskInstance.dag_version_number ?? null}
+            orientation="horizontal"
+          />
         )}
         <GridTI
           dagId={dagId}
