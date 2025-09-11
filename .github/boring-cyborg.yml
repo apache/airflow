@@ -334,7 +334,7 @@ labelPRBasedOnFilePath:
 
   #  # This should be copy of the "area:dev-tools" above and should be updated when
   #  # we switch maintenance branch
-  #  backport-to-v3-2-test:
+  #  backport-to-v3-1-test:
   #    - scripts/**/*
   #    - dev/**/*
   #    - .github/**/*
