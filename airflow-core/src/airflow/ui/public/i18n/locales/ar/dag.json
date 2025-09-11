@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "حزمة URL",
     "noCode": "'لا توجد 'كود",
+    "parseDuration": "مدة التحليل:",
     "parsedAt": "تم تحليلها في:"
   },
   "extraLinks": "روابط إضافية",
@@ -100,6 +101,8 @@
       "assetEvent_zero": "لا توجد أي واقعة أصل"
     },
     "failedLogs": {
+      "hideLogs": "إخفاء السجلات",
+      "showLogs": "إظهار السجلات",
       "title": "سجلات المهام الفاشلة الأخيرة",
       "viewFullLogs": "عرض السجلات الكاملة"
     }
@@ -152,7 +155,7 @@
     "mappedTaskInstances_many": "مثيل مهمة [{{count}}]",
     "mappedTaskInstances_one": "مثيل مهمة [{{count}}]",
     "mappedTaskInstances_other": "مثيل مهمة [{{count}}]",
-    "mappedTaskInstances_two": "مثيلان لمهمة [{{count}}]",
+    "mappedTaskInstances_two": "مثيلان لمهمة",
     "mappedTaskInstances_zero": "لا توجد أي مثيل مهمة",
     "overview": "نظرة عامة",
     "renderedTemplates": "القوالب المعروضة",

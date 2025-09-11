@@ -72,7 +72,6 @@
     "tooltip": "Seçilen bağlantıları sil"
   },
   "formActions": {
-    "reset": "Sıfırla",
     "save": "Kaydet"
   },
   "plugins": {

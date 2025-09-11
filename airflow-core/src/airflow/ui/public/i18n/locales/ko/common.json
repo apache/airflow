@@ -8,6 +8,12 @@
     "Variables": "변수들"
   },
   "allOperators": "모든 오퍼레이터",
+  "appearance": {
+    "appearance": "외관",
+    "darkMode": "다크 모드",
+    "lightMode": "라이트 모드",
+    "systemMode": "시스템 설정 따르기"
+  },
   "asset_one": "에셋",
   "asset_other": "에셋들",
   "assetEvent_one": "에셋 이벤트",
@@ -33,6 +39,7 @@
     "fileLocation": "파일 위치",
     "hasTaskConcurrencyLimits": "태스크 동시성 제한 존재 여부",
     "lastExpired": "마지막 만료 시점",
+    "lastParseDuration": "마지막 파싱 기간",
     "lastParsed": "마지막 파싱 시점",
     "latestDagVersion": "최신 Dag 버전",
     "latestRun": "최근 실행",
@@ -92,16 +99,12 @@
     "any": "모든",
     "or": "또는"
   },
+  "filter": "필터",
   "filters": {
-    "dagDisplayNamePlaceholder": "Dag로 필터링",
-    "keyPlaceholder": "XCom 키로 필터링",
-    "logicalDateFromPlaceholder": "논리적 날짜 (시작)",
-    "logicalDateToPlaceholder": "논리적 날짜 (종료)",
-    "mapIndexPlaceholder": "맵 인덱스로 필터링",
-    "runAfterFromPlaceholder": "실행 이후 (시작)",
-    "runAfterToPlaceholder": "실행 이후 (종료)",
-    "runIdPlaceholder": "실행 ID로 필터링",
-    "taskIdPlaceholder": "작업 ID로 필터링"
+    "logicalDateFrom": "논리적 날짜 (시작)",
+    "logicalDateTo": "논리적 날짜 (종료)",
+    "runAfterFrom": "실행 이후 (시작)",
+    "runAfterTo": "실행 이후 (종료)"
   },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
@@ -143,6 +146,7 @@
     "running": "실행 중",
     "scheduled": "예약됨"
   },
+  "reset": "초기화",
   "runId": "실행 ID",
   "runTypes": {
     "asset_triggered": "에셋 트리거",

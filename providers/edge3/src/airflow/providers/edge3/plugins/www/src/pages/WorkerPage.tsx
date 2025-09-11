@@ -18,24 +18,27 @@
  */
 import { Box, Table } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
+import TimeAgo from "react-timeago";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { WorkerOperations } from "src/components/WorkerOperations";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
+import { ScrollToAnchor } from "src/components/ui";
 import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
-  const { data, error } = useUiServiceWorker(undefined, {
+  const { data, error, refetch } = useUiServiceWorker(undefined, {
     enabled: true,
     refetchInterval: autoRefreshInterval,
   });
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
-  // Add actions for maintenance / delete of orphan worker
   // Add sorting
   // Add filtering
-  // Add links to see jobs on worker
-  // Translation
+  // Add links with filter to see jobs on worker
+  // Add time zone support for time display
+  // Translation?
   if (data)
     return (
       <Box p={2}>
@@ -54,7 +57,7 @@ export const WorkerPage = () => {
           </Table.Header>
           <Table.Body>
             {data.workers.map((worker) => (
-              <Table.Row key={worker.worker_name}>
+              <Table.Row key={worker.worker_name} id={worker.worker_name}>
                 <Table.Cell>{worker.worker_name}</Table.Cell>
                 <Table.Cell>
                   <WorkerStateBadge state={worker.state}>{worker.state}</WorkerStateBadge>
@@ -70,8 +73,12 @@ export const WorkerPage = () => {
                     "(default)"
                   )}
                 </Table.Cell>
-                <Table.Cell>{worker.first_online}</Table.Cell>
-                <Table.Cell>{worker.last_heartbeat}</Table.Cell>
+                <Table.Cell>
+                  {worker.first_online ? <TimeAgo date={worker.first_online} live={false} /> : undefined}
+                </Table.Cell>
+                <Table.Cell>
+                  {worker.last_heartbeat ? <TimeAgo date={worker.last_heartbeat} live={false} /> : undefined}
+                </Table.Cell>
                 <Table.Cell>{worker.jobs_active}</Table.Cell>
                 <Table.Cell>
                   {worker.sysinfo ? (
@@ -86,11 +93,14 @@ export const WorkerPage = () => {
                     "N/A"
                   )}
                 </Table.Cell>
-                <Table.Cell>{worker.maintenance_comments}</Table.Cell>
+                <Table.Cell>
+                  <WorkerOperations worker={worker} onOperations={refetch} />
+                </Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>
         </Table.Root>
+        <ScrollToAnchor />
       </Box>
     );
   if (error) {

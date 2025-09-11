@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import uuid6
 from sqlalchemy import Column, ForeignKey, Index, String, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -42,7 +43,7 @@ class Team(Base):
 
     __tablename__ = "team"
 
-    id = Column(UUIDType(binary=False), primary_key=True, nullable=False)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     name = Column(String(50), unique=True, nullable=False)
     dag_bundles = relationship(
         "DagBundleModel", secondary=dag_bundle_team_association_table, back_populates="teams"
