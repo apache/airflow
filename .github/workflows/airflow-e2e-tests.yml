@@ -95,6 +95,7 @@ jobs:
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Test e2e integration tests"
         run: breeze testing airflow-e2e-tests
