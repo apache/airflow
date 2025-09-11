@@ -27,28 +27,27 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from airflow.models import DagRun
 
-try:
-    from airflow.sdk.exceptions import (
-        AirflowException,
-        AirflowNotFoundException,
-    )
-except (ImportError, ModuleNotFoundError):
 
-    class AirflowException(Exception):  # type: ignore[no-redef]
-        """
-        Base class for all Airflow's errors.
+class AirflowException(Exception):  # type: ignore[no-redef]
+    """
+    Base class for all Airflow's errors.
 
-        Each custom exception should be derived from this class.
-        """
+    Each custom exception should be derived from this class.
+    """
 
-        status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
 
-        def serialize(self):
-            cls = self.__class__
-            return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+    def serialize(self):
+        cls = self.__class__
+        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
-    class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
-        """Raise when the requested object/resource is not available in the system."""
+
+class TaskNotFound(AirflowException):
+    """Raise when a Task is not available in the system."""
+
+
+class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
+    """Raise when the requested object/resource is not available in the system."""
 
 
 class AirflowBadRequest(AirflowException):
@@ -316,12 +315,14 @@ _DEPRECATED_EXCEPTIONS = {
     "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
     "AirflowDagCycleException": "airflow.sdk.exceptions.AirflowDagCycleException",
     "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
+    # TODO: Verifying with Wei if we need to verify if Asset is inactive or not on both server & client
+    #   It is used on server side before marking a task state in API-server
     "AirflowInactiveAssetInInletOrOutletException": "airflow.sdk.exceptions.AirflowInactiveAssetInInletOrOutletException",
     "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
     "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
+    # TODO: This will be handled as part of https://github.com/apache/airflow/pull/55111
     "ParamValidationError": "airflow.sdk.exceptions.ParamValidationError",
     "TaskDeferred": "airflow.sdk.exceptions.TaskDeferred",
-    "TaskNotFound": "airflow.sdk.exceptions.TaskNotFound",
 }
 
 

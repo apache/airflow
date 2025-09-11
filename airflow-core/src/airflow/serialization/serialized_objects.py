@@ -58,7 +58,13 @@ from airflow import macros
 from airflow._shared.timezones.timezone import coerce_datetime, from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, DeserializationError, SerializationError, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    DeserializationError,
+    SerializationError,
+    TaskDeferred,
+    TaskNotFound,
+)
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -3505,6 +3511,12 @@ class SerializedDAG(BaseSerialization):
             tis = tis.where(tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids))
 
         return tis
+
+    def get_task(self, task_id: str) -> SerializedOperator:  # type: ignore[override,return -value]
+        # TODO: Fix this after PR:55538
+        if task_id in self.task_dict:
+            return self.task_dict[task_id]
+        raise TaskNotFound(f"Task {task_id} not found")
 
     @overload
     def clear(
