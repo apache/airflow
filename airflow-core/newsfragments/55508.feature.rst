@@ -1,0 +1,1 @@
+Output on stdout/stderr from within tasks is now filterable in the Sources list in the UI log view
