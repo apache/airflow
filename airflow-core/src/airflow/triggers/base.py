@@ -32,7 +32,7 @@ from pydantic import (
     model_serializer,
 )
 
-from airflow import Templater
+from airflow.models import Templater
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -41,8 +41,7 @@ log = structlog.get_logger(logger_name=__name__)
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow import Context
-    from airflow.models import BaseOperator
+    from airflow.models import BaseOperator, Context
 
 
 @dataclass

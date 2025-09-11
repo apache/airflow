@@ -30,6 +30,7 @@ __all__ = [
     "BaseOperatorLink",
     "BaseXCom",
     "Connection",
+    "Context",
     "DagBag",
     "DagWarning",
     "DagModel",
@@ -47,6 +48,7 @@ __all__ = [
     "TaskInstance",
     "TaskInstanceHistory",
     "TaskReschedule",
+    "Templater",
     "Trigger",
     "Variable",
     "XCom",
@@ -98,6 +100,7 @@ __lazy_imports = {
     "BaseOperatorLink": "airflow.sdk",
     "BaseXCom": "airflow.sdk.bases.xcom",
     "Connection": "airflow.models.connection",
+    "Context": "airflow.sdk",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
     "DagRun": "airflow.models.dagrun",
@@ -115,6 +118,7 @@ __lazy_imports = {
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
     "Team": "airflow.models.team",
+    "Templater": "airflow.sdk.definitions._internal.templater",
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
     "XCom": "airflow.sdk.execution_time.xcom",
@@ -142,8 +146,9 @@ if TYPE_CHECKING:
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
-    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Param
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, Param
     from airflow.sdk.bases.xcom import BaseXCom
+    from airflow.sdk.definitions._internal.templater import Templater
     from airflow.sdk.execution_time.xcom import XCom
 
 

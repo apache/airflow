@@ -65,8 +65,6 @@ __all__ = [
     "__version__",
     "DAG",
     "Asset",
-    "Context",
-    "Templater",
     "XComArg",
     # TODO: Remove this module in Airflow 3.2
     "Dataset",
@@ -84,8 +82,6 @@ if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
 __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "DAG": (".sdk", "DAG", False),
     "Asset": (".sdk", "Asset", False),
-    "Context": (".sdk", "Context", False),
-    "Templater": (".sdk.definitions._internal.templater", "Templater", False),
     "XComArg": (".models.xcom_arg", "XComArg", False),
     "version": (".version", "", False),
     # Deprecated lazy imports
@@ -97,8 +93,7 @@ if TYPE_CHECKING:
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
     from airflow.models.xcom_arg import XComArg
-    from airflow.sdk import DAG, Asset, Asset as Dataset, Context
-    from airflow.sdk.definitions._internal.templater import Templater
+    from airflow.sdk import DAG, Asset, Asset as Dataset
 
 
 def __getattr__(name: str):
