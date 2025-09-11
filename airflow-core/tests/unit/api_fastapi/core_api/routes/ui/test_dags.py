@@ -159,7 +159,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 options=["Approve", "Reject"],
                 subject=f"This is subject {i}",
                 defaults=["Approve"],
-                response_at=utcnow(),
+                responded_at=utcnow(),
                 chosen_options=["Approve"],
                 responded_by={"id": "test", "name": "test"},
             )

@@ -3588,7 +3588,7 @@ export const $HITLDetail = {
                 }
             ]
         },
-        response_at: {
+        responded_at: {
             anyOf: [
                 {
                     type: 'string',
@@ -3656,7 +3656,7 @@ export const $HITLDetailResponse = {
         responded_by: {
             '$ref': '#/components/schemas/HITLUser'
         },
-        response_at: {
+        responded_at: {
             type: 'string',
             format: 'date-time',
             title: 'Response At'
@@ -3676,7 +3676,7 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['responded_by', 'response_at', 'chosen_options'],
+    required: ['responded_by', 'responded_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
 } as const;

@@ -112,7 +112,7 @@ class HITLTrigger(BaseTrigger):
                         resp.responded_by_user.name,
                         resp.responded_by_user.id,
                         resp.chosen_options,
-                        resp.response_at,
+                        resp.responded_at,
                     )
                     yield TriggerEvent(
                         HITLTriggerEventSuccessPayload(
@@ -163,7 +163,7 @@ class HITLTrigger(BaseTrigger):
                     resp.responded_by_user.name,
                     resp.responded_by_user.id,
                     resp.chosen_options,
-                    resp.response_at,
+                    resp.responded_at,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(

@@ -81,7 +81,7 @@ class TestHITLTrigger:
             response_received=False,
             responded_user_id=None,
             responded_user_name=None,
-            response_at=None,
+            responded_at=None,
             chosen_options=None,
             params_input={},
         )
@@ -111,7 +111,7 @@ class TestHITLTrigger:
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
             responded_by_user=None,
-            response_at=None,
+            responded_at=None,
             chosen_options=None,
             params_input={},
         )
@@ -154,7 +154,7 @@ class TestHITLTrigger:
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
             responded_by_user=HITLUser(id="1", name="test"),
-            response_at=action_datetime,
+            responded_at=action_datetime,
             chosen_options=["2"],
             params_input={},
         )
@@ -197,7 +197,7 @@ class TestHITLTrigger:
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
             responded_by_user=HITLUser(id="test", name="test"),
-            response_at=utcnow(),
+            responded_at=utcnow(),
             chosen_options=["3"],
             params_input={"input": 50},
         )

@@ -203,7 +203,7 @@ def get_dags(
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
             .where(
-                HITLDetail.response_at.is_(None),
+                HITLDetail.responded_at.is_(None),
                 TaskInstance.state == TaskInstanceState.DEFERRED,
             )
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
