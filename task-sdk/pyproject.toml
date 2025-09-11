@@ -49,7 +49,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
-    "apache-airflow-core<3.2.0,>=3.1.0",
+    "apache-airflow-core<3.3.0,>=3.2.0",
     "attrs>=24.2.0, !=25.2.0",
     "fsspec>=2023.10.0",
     "httpx>=0.27.0",
@@ -77,6 +77,9 @@ dependencies = [
     "typing-extensions>=4.14.1",
     "importlib-metadata>=7.0.0",
     # End of shared configuration dependencies
+    # Start of shared logging dependencies
+    "pygtrie>=2.5.0",
+    # End of shared logging dependencies
 ]
 
 [project.urls]
@@ -98,9 +101,10 @@ build-backend = "hatchling.build"
 path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
-"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
+"../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -242,7 +246,8 @@ tmp_path_retention_policy = "failed"
 
 [tool.airflow]
 shared_distributions = [
-    "apache-airflow-shared-timezones",
+    "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-timezones",
 ]

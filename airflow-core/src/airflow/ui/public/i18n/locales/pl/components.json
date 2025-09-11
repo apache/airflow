@@ -8,8 +8,6 @@
     "allRuns": "Wszystkie wykonania",
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
-    "dateRangeFrom": "Od",
-    "dateRangeTo": "Do",
     "errorStartDateBeforeEndDate": "Data początkowa musi być wcześniejsza niż data końcowa",
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
     "missingAndErroredRuns": "Brakujące i błędne wykonania",

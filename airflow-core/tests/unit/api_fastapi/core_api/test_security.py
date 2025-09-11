@@ -106,7 +106,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_dag_authorized(self, mock_get_auth_manager):
+    def test_requires_access_dag_authorized(self, mock_get_auth_manager):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -119,7 +119,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
+    def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
@@ -169,7 +169,7 @@ class TestFastApiSecurity:
     )
     @patch.object(Connection, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection(self, mock_get_auth_manager, mock_get_team_name, team_name):
+    def test_requires_access_connection(self, mock_get_auth_manager, mock_get_team_name, team_name):
         auth_manager = Mock()
         auth_manager.is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -187,11 +187,16 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("conn_id")
 
+    @patch.object(Connection, "get_conn_id_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection_bulk(self, mock_get_auth_manager):
+    def test_requires_access_connection_bulk(
+        self, mock_get_auth_manager, mock_get_conn_id_to_team_name_mapping
+    ):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
+        mock_get_conn_id_to_team_name_mapping.return_value = {"test1": "team1"}
+
         request = BulkBody[ConnectionBody].model_validate(
             {
                 "actions": [
@@ -216,7 +221,7 @@ class TestFastApiSecurity:
             requests=[
                 {
                     "method": "POST",
-                    "details": ConnectionDetails(conn_id="test1"),
+                    "details": ConnectionDetails(conn_id="test1", team_name="team1"),
                 },
                 {
                     "method": "POST",
@@ -237,7 +242,7 @@ class TestFastApiSecurity:
     )
     @patch.object(Variable, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable(self, mock_get_auth_manager, mock_get_team_name, team_name):
+    def test_requires_access_variable(self, mock_get_auth_manager, mock_get_team_name, team_name):
         auth_manager = Mock()
         auth_manager.is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -255,11 +260,13 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("var_key")
 
+    @patch.object(Variable, "get_key_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable_bulk(self, mock_get_auth_manager):
+    def test_requires_access_variable_bulk(self, mock_get_auth_manager, mock_get_key_to_team_name_mapping):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
+        mock_get_key_to_team_name_mapping.return_value = {"var1": "team1", "dummy": "team2"}
         request = BulkBody[VariableBody].model_validate(
             {
                 "actions": [
@@ -284,7 +291,7 @@ class TestFastApiSecurity:
             requests=[
                 {
                     "method": "POST",
-                    "details": VariableDetails(key="var1"),
+                    "details": VariableDetails(key="var1", team_name="team1"),
                 },
                 {
                     "method": "POST",
@@ -305,7 +312,7 @@ class TestFastApiSecurity:
     )
     @patch.object(Pool, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool(self, mock_get_auth_manager, mock_get_team_name, team_name):
+    def test_requires_access_pool(self, mock_get_auth_manager, mock_get_team_name, team_name):
         auth_manager = Mock()
         auth_manager.is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -323,11 +330,13 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("pool")
 
+    @patch.object(Pool, "get_name_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool_bulk(self, mock_get_auth_manager):
+    def test_requires_access_pool_bulk(self, mock_get_auth_manager, mock_get_name_to_team_name_mapping):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team1"}
         request = BulkBody[PoolBody].model_validate(
             {
                 "actions": [
@@ -352,7 +361,7 @@ class TestFastApiSecurity:
             requests=[
                 {
                     "method": "POST",
-                    "details": PoolDetails(name="pool1"),
+                    "details": PoolDetails(name="pool1", team_name="team1"),
                 },
                 {
                     "method": "POST",

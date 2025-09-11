@@ -54,6 +54,16 @@ REGULAR_IMAGE_PROVIDERS = [
     if not provider_id.startswith("#")
 ]
 
+# Exclude FAB provider for Python 3.13 as it is not yet supported
+py_version = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "")
+
+if py_version == "3.13":
+    if "apache-airflow-providers-fab" in REGULAR_IMAGE_PROVIDERS:
+        REGULAR_IMAGE_PROVIDERS.remove("apache-airflow-providers-fab")
+
+    if "apache-airflow-providers-fab" in SLIM_IMAGE_PROVIDERS:
+        SLIM_IMAGE_PROVIDERS.remove("apache-airflow-providers-fab")
+
 testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", False)
 
 

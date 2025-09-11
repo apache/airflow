@@ -35,7 +35,8 @@
   "code": {
     "bundleUrl": "כתובת החבילה",
     "noCode": "לא נמצא קוד",
-    "parsedAt": "נקרא בשעה:"
+    "parseDuration": "משך זמן הניתוח:",
+    "parsedAt": "נותח בשעה:"
   },
   "extraLinks": "קישורים נוספים",
   "grid": {

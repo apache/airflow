@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import datetime
 import getpass
 import inspect
 import os
@@ -37,6 +36,7 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
+from airflowctl._shared.timezones.timezone import parse as parsedate
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -445,7 +445,7 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
-    def _python_type_from_string(type_name: str) -> type:
+    def _python_type_from_string(type_name: str | type) -> type | Callable:
         """
         Return the corresponding Python *type* for a primitive type name string.
 
@@ -455,7 +455,9 @@ class CommandFactory:
         leading to type errors or unexpected behaviour when invoking the REST
         API.
         """
-        mapping: dict[str, type] = {
+        if "|" in str(type_name):
+            type_name = [t.strip() for t in str(type_name).split("|") if t.strip() != "None"].pop()
+        mapping: dict[str, type | Callable] = {
             "int": int,
             "float": float,
             "bool": bool,
@@ -465,16 +467,19 @@ class CommandFactory:
             "dict": dict,
             "tuple": tuple,
             "set": set,
-            "datetime.datetime": datetime.datetime,
+            "datetime.datetime": parsedate,
+            "dict[str, typing.Any]": dict,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
-        return mapping.get(type_name, str)
+        if isinstance(type_name, type):
+            type_name = type_name.__name__
+        return mapping.get(str(type_name), str)
 
     @staticmethod
     def _create_arg(
         arg_flags: tuple,
-        arg_type: type,
+        arg_type: type | Callable,
         arg_help: str,
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
@@ -507,7 +512,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=field_type.annotation,
+                        arg_type=self._python_type_from_string(field_type.annotation),
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
@@ -522,7 +527,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=annotation,
+                        arg_type=self._python_type_from_string(annotation),
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
@@ -537,12 +542,11 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        python_type = self._python_type_from_string(parameter_type)
                         is_bool = parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=None if is_bool else python_type,
+                                arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if is_bool else None,
@@ -556,7 +560,7 @@ class CommandFactory:
                         )
 
             if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT])
+                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 

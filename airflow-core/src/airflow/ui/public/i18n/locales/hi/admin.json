@@ -72,7 +72,6 @@
     "tooltip": "चयनित कनेक्शन्स हटाएं"
   },
   "formActions": {
-    "reset": "रीसेट करें",
     "save": "सेव करें"
   },
   "plugins": {

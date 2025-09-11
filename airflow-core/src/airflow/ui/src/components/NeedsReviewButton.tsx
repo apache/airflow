@@ -51,7 +51,7 @@ export const NeedsReviewButton = ({
         icon={<LuUserRoundPen />}
         isLoading={isLoading}
         label={translate("requiredAction_other")}
-        link="dags?needs_review=true"
+        link="required_actions?response_received=false"
       />
     </Box>
   ) : undefined;

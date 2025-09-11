@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
@@ -27,7 +27,12 @@ from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_view
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, exit_maintenance, request_maintenance
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    exit_maintenance,
+    request_maintenance,
+    request_shutdown,
+)
 from airflow.providers.edge3.worker_api.datamodels_ui import (
     Job,
     JobCollectionResponse,
@@ -122,7 +127,9 @@ def request_worker_maintenance(
     worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker = session.scalar(worker_query)
     if not worker:
-        raise HTTPException(status_code=404, detail=f"Worker {worker_name} not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+    if not maintenance_request.maintenance_comment:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Maintenance comment is required")
 
     # Format the comment with timestamp and username (username will be added by plugin layer)
     formatted_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {user.get_name()} put node into maintenance mode\nComment: {maintenance_request.maintenance_comment}"
@@ -130,7 +137,7 @@ def request_worker_maintenance(
     try:
         request_maintenance(worker_name, formatted_comment, session=session)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @ui_router.delete(
@@ -148,9 +155,32 @@ def exit_worker_maintenance(
     worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker = session.scalar(worker_query)
     if not worker:
-        raise HTTPException(status_code=404, detail=f"Worker {worker_name} not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
 
     try:
         exit_maintenance(worker_name, session=session)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.post(
+    "/worker/{worker_name}/shutdown",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def request_worker_shutdown(
+    worker_name: str,
+    session: SessionDep,
+) -> None:
+    """Request shutdown of a worker."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        request_shutdown(worker_name, session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))

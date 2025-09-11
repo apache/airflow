@@ -50,7 +50,7 @@ const AddVariableButton = ({ disabled }: Props) => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
+      <Button colorPalette="brand" disabled={disabled} onClick={onOpen}>
         <FiPlusCircle /> {translate("variables.add")}
       </Button>
 
