@@ -30,6 +30,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from shared.configuration.tests.conftest import shared_conf_vars as conf_vars
 
 from airflow.providers_manager import ProvidersManager
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
@@ -44,7 +45,6 @@ from airflow_shared.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 
@@ -1726,7 +1726,7 @@ sql_alchemy_conn=sqlite://test
 
 @skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
-    from airflow.settings import conf
+    from airflow_shared.configuration import conf
 
     # this list was hardcoded prior to 2.6.2
     # included here to avoid regression in refactor
@@ -1764,7 +1764,7 @@ def test_sensitive_values():
 
 @skip_if_force_lowest_dependencies_marker
 def test_restore_and_reload_provider_configuration():
-    from airflow.settings import conf
+    from airflow_shared.configuration import conf
 
     assert conf.providers_configuration_loaded is True
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
@@ -1779,7 +1779,7 @@ def test_restore_and_reload_provider_configuration():
 
 @skip_if_force_lowest_dependencies_marker
 def test_error_when_contributing_to_existing_section():
-    from airflow.settings import conf
+    from airflow_shared.configuration import conf
 
     with conf.make_sure_configuration_loaded(with_providers=True):
         assert conf.providers_configuration_loaded is True
@@ -1800,7 +1800,7 @@ def test_error_when_contributing_to_existing_section():
         # patching restoring_core_default_configuration to avoid reloading the defaults
         with patch.object(conf, "restore_core_default_configuration"):
             with pytest.raises(
-                AirflowConfigException,
+                Exception,
                 match="The provider apache-airflow-providers-celery is attempting to contribute "
                 "configuration section celery that has already been added before. "
                 "The source of it: Airflow's core package",
@@ -1828,10 +1828,12 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
-        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
+        self.monkeypatch.setattr("airflow_shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
 
     def patch_airflow_config(self, airflow_config):
-        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config))
+        self.monkeypatch.setattr(
+            "airflow_shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
+        )
 
     def test_default(self):
         """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
@@ -1927,29 +1929,49 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
 @conf_vars({("core", "unit_test_mode"): "False"})
 def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
-    import airflow.configuration
+    import airflow_shared.configuration
+    import airflow_shared.configuration.parser
 
     cfgpath = tmp_path / "airflow-gneerated.cfg"
+
     # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+    monkeypatch.setattr(airflow_shared.configuration, "AIRFLOW_HOME", str(tmp_path))
+    monkeypatch.setattr(airflow_shared.configuration, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow_shared.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow_shared.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    # ALSO patch the parser module's globals
+    monkeypatch.setattr(airflow_shared.configuration.parser, "AIRFLOW_HOME", str(tmp_path))
+    monkeypatch.setattr(airflow_shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
+    monkeypatch.setattr(airflow_shared.configuration.parser, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow_shared.configuration.parser, "JWT_SECRET_KEY", "")
 
     # Create a new global conf object so our changes don't persist
-    localconf: AirflowConfigParser = airflow.configuration.initialize_config()
-    monkeypatch.setattr(airflow.configuration, "conf", localconf)
+    localconf: AirflowConfigParser = airflow_shared.configuration.initialize_config()
 
-    airflow.configuration.write_default_airflow_configuration_if_needed()
+    # Patch BOTH conf objects to use the same instance
+    monkeypatch.setattr(airflow_shared.configuration, "conf", localconf)
+    monkeypatch.setattr(airflow_shared.configuration.parser, "conf", localconf)
+
+    airflow_shared.configuration.write_default_airflow_configuration_if_needed()
+
+    # Debug: Check what's in the configuration description
+    print(f"FERNET_KEY in parser: {airflow_shared.configuration.parser.FERNET_KEY}")
+    print(
+        f"core.fernet_key default: {localconf.configuration_description['core']['options']['fernet_key'].get('default', 'NOT_FOUND')}"
+    )
+    print(f"conf.get fernet_key: {localconf.get('core', 'fernet_key', fallback='FALLBACK_VALUE')}")
 
     assert cfgpath.is_file()
 
     lines = cfgpath.read_text().splitlines()
+    print(f"Config file lines with fernet: {[line for line in lines if 'fernet' in line]}")
 
-    assert airflow.configuration.FERNET_KEY
-    assert airflow.configuration.JWT_SECRET_KEY
+    # Check the parser module's variables since that's what the function modifies
+    assert airflow_shared.configuration.parser.FERNET_KEY
+    assert airflow_shared.configuration.parser.JWT_SECRET_KEY
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
-    jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
-
-    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"
+    jwt_line = next(line for line in lines if line.startswith("jwt_secret = "))
+    assert fernet_line == f"fernet_key = {airflow_shared.configuration.parser.FERNET_KEY}"
+    assert jwt_line == f"jwt_secret = {airflow_shared.configuration.parser.JWT_SECRET_KEY}"

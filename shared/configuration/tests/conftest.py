@@ -24,8 +24,9 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 
 
 @contextlib.contextmanager
-def conf_vars(overrides):
-    global conf
+def shared_conf_vars(overrides):
+    from airflow_shared.configuration import conf
+
     original = {}
     original_env_vars = {}
     for (section, key), value in overrides.items():
