@@ -75,7 +75,6 @@ from airflow.exceptions import (
     TaskDeferralError,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import BaseOperator
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
@@ -117,6 +116,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
+    from airflow.models import BaseOperator
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
@@ -1443,7 +1443,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # TODO: TaskSDK add start_trigger_args to SDK definitions
         if TYPE_CHECKING:
-            assert self.task and isinstance(self.task, BaseOperator)
+            assert isinstance(self.task, BaseOperator)
 
         if not (self.task and self.task.start_from_trigger):
             raise TaskDeferralError(

@@ -33,7 +33,6 @@ from pydantic import (
 )
 
 from airflow import Templater
-from airflow.models import BaseOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow import Context
+    from airflow.models import BaseOperator
 
 
 @dataclass
