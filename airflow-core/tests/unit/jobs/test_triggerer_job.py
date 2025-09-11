@@ -277,17 +277,20 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     """
     Checks that the triggerer will log watcher and trigger in separate lines.
     """
-    create_trigger_in_db(session, trigger)
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
 
-    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
+    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
     trigger_runner_supervisor.load_triggers()
 
-    for _ in range(10):
+    for _ in range(30):
         trigger_runner_supervisor._service_subprocess(0.1)
 
     stdout = capsys.readouterr().out
     assert f"{trigger_count} triggers currently running" in stdout
     assert f"{watcher_count} watchers currently running" in stdout
+
+    session.delete(trigger_orm)
+    session.commit()
 
     trigger_runner_supervisor.kill(force=False)
 
