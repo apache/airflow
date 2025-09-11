@@ -25,15 +25,23 @@ import { useFilterConfigs } from "src/constants/filterConfigs";
 import type { SearchParamsKeys } from "src/constants/searchParams";
 
 export type FilterableSearchParamsKeys =
+  | SearchParamsKeys.AFTER
+  | SearchParamsKeys.BEFORE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
+  | SearchParamsKeys.DAG_ID
+  | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
+  | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
-  | SearchParamsKeys.TASK_ID_PATTERN;
+  | SearchParamsKeys.TASK_ID
+  | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TRY_NUMBER
+  | SearchParamsKeys.USER;
 
 export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsKeys>) => {
   const { getFilterConfig } = useFilterConfigs();
