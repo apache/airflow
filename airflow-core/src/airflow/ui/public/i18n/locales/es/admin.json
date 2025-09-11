@@ -75,7 +75,6 @@
     "tooltip": "Eliminar conexiones seleccionadas"
   },
   "formActions": {
-    "reset": "Restablecer",
     "save": "Guardar"
   },
   "plugins": {

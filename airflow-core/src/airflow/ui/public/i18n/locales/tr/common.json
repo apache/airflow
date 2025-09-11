@@ -99,17 +99,12 @@
     "any": "Herhangi",
     "or": "VEYA"
   },
+  "filter": "Filtre",
   "filters": {
-    "dagDisplayNamePlaceholder": "Dag adına göre filtrele",
-    "keyPlaceholder": "XCom anahtarına göre filtrele",
-    "logicalDateFromPlaceholder": "Mantıksal tarih başlangıcı",
-    "logicalDateToPlaceholder": "Mantıksal tarih bitişi",
-    "mapIndexPlaceholder": "Harita indeksine göre filtrele",
-    "runAfterFromPlaceholder": "Şu tarihten sonra çalıştır (başlangıç)",
-    "runAfterToPlaceholder": "Şu tarihten sonra çalıştır (bitiş)",
-    "runIdPlaceholder": "Çalıştırma kimliğine göre filtrele",
-    "taskIdPlaceholder": "Görev kimliğine göre filtrele",
-    "triggeringUserPlaceholder": "Tetikleyen kullanıcıya göre filtrele"
+    "logicalDateFrom": "Mantıksal tarih başlangıcı",
+    "logicalDateTo": "Mantıksal tarih bitişi",
+    "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
+    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)"
   },
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
@@ -151,6 +146,7 @@
     "running": "Çalışıyor",
     "scheduled": "Planlanmış"
   },
+  "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
     "asset_triggered": "Varlık Tetiklemeli",

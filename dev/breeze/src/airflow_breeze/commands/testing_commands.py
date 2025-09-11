@@ -1267,6 +1267,48 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
+@group_for_testing.command(
+    name="airflow-e2e-tests",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_skip_docker_compose_deletion
+@option_github_repository
+@option_include_success_outputs
+@option_verbose
+@option_dry_run
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def airflow_e2e_tests(
+    python: str,
+    image_name: str,
+    skip_docker_compose_deletion: bool,
+    github_repository: str,
+    include_success_outputs: bool,
+    extra_pytest_args: tuple,
+):
+    """Run Airflow E2E tests."""
+
+    perform_environment_checks()
+    if image_name is None:
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
+
+    get_console().print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
+
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        include_success_outputs=include_success_outputs,
+        extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        test_type="airflow-e2e-tests",
+    )
+    sys.exit(return_code)
+
+
 class TimeoutHandler:
     def __init__(self, shell_params: ShellParams, terminated_on_timeout_output_list: list[bool]):
         # Initialize the timeout handler with shell parameters and a list to track terminated outputs

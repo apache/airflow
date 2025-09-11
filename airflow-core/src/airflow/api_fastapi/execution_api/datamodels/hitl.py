@@ -26,6 +26,13 @@ from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.hitl import HITLDetail
 
 
+class HITLUser(BaseModel):
+    """Schema for a Human-in-the-loop users."""
+
+    id: str
+    name: str
+
+
 class HITLDetailRequest(BaseModel):
     """Schema for the request part of a Human-in-the-loop detail for a specific task instance."""
 
@@ -36,7 +43,7 @@ class HITLDetailRequest(BaseModel):
     defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
-    respondents: list[str] | None = None
+    assigned_users: list[HITLUser] = Field(default_factory=list)
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -51,8 +58,7 @@ class HITLDetailResponse(BaseModel):
     """Schema for the response part of a Human-in-the-loop detail for a specific task instance."""
 
     response_received: bool
-    responded_user_name: str | None
-    responded_user_id: str | None
+    responded_by_user: HITLUser | None = None
     response_at: datetime | None
     # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
@@ -60,11 +66,19 @@ class HITLDetailResponse(BaseModel):
 
     @classmethod
     def from_hitl_detail_orm(cls, hitl_detail: HITLDetail) -> HITLDetailResponse:
+        hitl_user = (
+            HITLUser(
+                id=hitl_detail.responded_by_user_id,
+                name=hitl_detail.responded_by_user_name,
+            )
+            if hitl_detail.responded_by_user
+            else None
+        )
+
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
             response_at=hitl_detail.response_at,
-            responded_user_id=hitl_detail.responded_user_id,
-            responded_user_name=hitl_detail.responded_user_name,
+            responded_by_user=hitl_user,
             chosen_options=hitl_detail.chosen_options,
             params_input=hitl_detail.params_input or {},
         )
