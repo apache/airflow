@@ -22,7 +22,7 @@ Introduction
 ------------
 Slack Incoming Webhook notifier (:class:`airflow.providers.slack.notifications.slack_webhook.SlackWebhookNotifier`)
 allows users to send messages to a slack channel through `Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
-using the various ``on_*_callbacks`` at both the DAG level and Task level
+using the various ``on_*_callbacks`` at both the Dag level and Task level
 
 
 Example Code:
@@ -31,7 +31,7 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime, timezone
-    from airflow import DAG
+    from airflow import Dag
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.slack.notifications.slack_webhook import send_slack_webhook_notification
 
@@ -43,7 +43,7 @@ Example Code:
         text="The task {{ ti.task_id }} failed",
     )
 
-    with DAG(
+    with Dag(
         dag_id="mydag",
         schedule="@once",
         start_date=datetime(2023, 1, 1, tzinfo=timezone.utc),

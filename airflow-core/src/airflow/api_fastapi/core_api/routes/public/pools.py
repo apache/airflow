@@ -40,7 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_pool
+from airflow.api_fastapi.core_api.security import requires_access_pool, requires_access_pool_bulk
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
@@ -197,7 +197,7 @@ def post_pool(
 
 @pools_router.patch(
     "",
-    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
+    dependencies=[Depends(requires_access_pool_bulk()), Depends(action_logging())],
 )
 def bulk_pools(
     request: BulkBody[PoolBody],

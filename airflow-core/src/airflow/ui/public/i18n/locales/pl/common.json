@@ -7,6 +7,13 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "allOperators": "Wszystkie operatory",
+  "appearance": {
+    "appearance": "Wygląd",
+    "darkMode": "Tryb ciemny",
+    "lightMode": "Tryb jasny",
+    "systemMode": "Użyj ustawień systemu"
+  },
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -42,6 +49,7 @@
     "fileLocation": "Lokalizacja pliku",
     "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
     "lastExpired": "Ostatnio wygasły",
+    "lastParseDuration": "Czas ostatniego parsowania",
     "lastParsed": "Ostatnia analiza",
     "latestDagVersion": "Najnowsza wersja Daga",
     "latestRun": "Ostatnie wykonanie",
@@ -112,7 +120,8 @@
     "runAfterFromPlaceholder": "Uruchom po (od)",
     "runAfterToPlaceholder": "Uruchom po (do)",
     "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
-    "taskIdPlaceholder": "Filtruj według identyfikatora zadania"
+    "taskIdPlaceholder": "Filtruj według identyfikatora zadania",
+    "triggeringUserPlaceholder": "Filtruj według uruchamiającego użytkownika"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
@@ -139,7 +148,7 @@
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
-    "add": "Dodać notatkę",
+    "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
@@ -196,6 +205,7 @@
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
+    "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
@@ -207,8 +217,6 @@
     "up_for_retry": "Do ponownej próby",
     "upstream_failed": "Niepowodzenie poprzednika"
   },
-  "switchToDarkMode": "Przełącz na tryb ciemny",
-  "switchToLightMode": "Przełącz na tryb jasny",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",

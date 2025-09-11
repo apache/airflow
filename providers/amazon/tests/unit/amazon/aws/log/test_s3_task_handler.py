@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import logging
 import os
 from unittest import mock
 
@@ -28,16 +29,20 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -71,9 +76,7 @@ class TestS3RemoteLogIO:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            scheduler_dag = sync_dag_to_db(self.dag)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -81,6 +84,7 @@ class TestS3RemoteLogIO:
                 run_type="manual",
             )
         else:
+            scheduler_dag = self.dag
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 execution_date=date,
@@ -107,7 +111,7 @@ class TestS3RemoteLogIO:
         self.conn.create_bucket(Bucket="bucket")
         yield
 
-        self.dag.clear()
+        scheduler_dag.clear()
 
         self.clear_db()
         if self.s3_task_handler.handler:
@@ -135,27 +139,33 @@ class TestS3RemoteLogIO:
             with pytest.raises(ConnectionError, match="Fake: Failed to connect"):
                 subject.s3_log_exists(self.remote_log_location)
 
-    def test_s3_read_when_log_missing(self):
+    def test_s3_read_when_log_missing(self, caplog):
         url = "s3://bucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             result = self.subject.s3_read(url, return_error=True)
-            msg = (
-                f"Could not read logs from {url} with error: An error occurred (404) when calling the "
-                f"HeadObject operation: Not Found"
-            )
-            assert result == msg
-            mock_error.assert_called_once_with(msg, exc_info=True)
+        msg = (
+            f"Could not read logs from {url} with error: An error occurred (404) when calling the "
+            f"HeadObject operation: Not Found"
+        )
+        assert result == msg
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.exc_info is not None
 
-    def test_read_raises_return_error(self):
+    def test_read_raises_return_error(self, caplog):
         url = "s3://nonexistentbucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             result = self.subject.s3_read(url, return_error=True)
             msg = (
                 f"Could not read logs from {url} with error: An error occurred (NoSuchBucket) when "
                 f"calling the HeadObject operation: The specified bucket does not exist"
             )
-            assert result == msg
-            mock_error.assert_called_once_with(msg, exc_info=True)
+        assert result == msg
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.exc_info is not None
 
     def test_write(self):
         with mock.patch.object(self.subject.log, "error") as mock_error:
@@ -173,11 +183,15 @@ class TestS3RemoteLogIO:
 
         assert body == b"previous \ntext"
 
-    def test_write_raises(self):
+    def test_write_raises(self, caplog):
         url = "s3://nonexistentbucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             self.subject.write("text", url)
-            mock_error.assert_called_once_with("Could not write logs to %s", url, exc_info=True)
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.message == f"Could not write logs to {url}"
+        assert rec.exc_info is not None
 
 
 @pytest.mark.db_test
@@ -204,9 +218,7 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            scheduler_dag = sync_dag_to_db(self.dag)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -214,6 +226,7 @@ class TestS3TaskHandler:
                 run_type="manual",
             )
         else:
+            scheduler_dag = self.dag
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 execution_date=date,
@@ -240,7 +253,7 @@ class TestS3TaskHandler:
         self.conn.create_bucket(Bucket="bucket")
         yield
 
-        self.dag.clear()
+        scheduler_dag.clear()
 
         self.clear_db()
         if self.s3_task_handler.handler:

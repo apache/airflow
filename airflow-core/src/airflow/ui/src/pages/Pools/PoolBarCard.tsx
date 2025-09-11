@@ -55,7 +55,7 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
             </HStack>
           </HStack>
           {pool.description ?? (
-            <Text color="gray.fg" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               {pool.description}
             </Text>
           )}
@@ -63,7 +63,7 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
       </Flex>
 
       <Box margin={4}>
-        <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
+        <Flex bg="bg.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
           <PoolBar pool={pool} totalSlots={pool.slots} />
         </Flex>
       </Box>

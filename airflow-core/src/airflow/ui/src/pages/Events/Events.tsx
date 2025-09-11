@@ -188,15 +188,20 @@ export const Events = () => {
     {
       after: afterDate,
       before: beforeDate,
-      dagId: dagId ?? dagIdFilter ?? undefined,
-      event: eventTypeFilter ?? undefined,
+      // Use exact match for URL params (dag/run/task context)
+      dagId: dagId ?? undefined,
+      // Use pattern search for filter inputs (partial matching)
+      dagIdPattern: dagIdFilter ?? undefined,
+      eventPattern: eventTypeFilter ?? undefined,
       limit: pagination.pageSize,
       mapIndex: mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      owner: userFilter ?? undefined,
-      runId: runId ?? runIdFilter ?? undefined,
-      taskId: taskId ?? taskIdFilter ?? undefined,
+      ownerPattern: userFilter ?? undefined,
+      runId: runId ?? undefined,
+      runIdPattern: runIdFilter ?? undefined,
+      taskId: taskId ?? undefined,
+      taskIdPattern: taskIdFilter ?? undefined,
       tryNumber: tryNumberNumber,
     },
     undefined,
@@ -208,13 +213,12 @@ export const Events = () => {
         {dagId === undefined && runId === undefined && taskId === undefined ? (
           <Heading size="md">{translate("auditLog.title")}</Heading>
         ) : undefined}
-        <ButtonGroup attached mt="1" size="sm" variant="surface">
+        <ButtonGroup attached mt="1" size="sm" variant="outline">
           <IconButton
             aria-label={translate("auditLog.actions.expandAllExtra")}
             onClick={onOpen}
             size="sm"
             title={translate("auditLog.actions.expandAllExtra")}
-            variant="surface"
           >
             <MdExpand />
           </IconButton>
@@ -223,7 +227,6 @@ export const Events = () => {
             onClick={onClose}
             size="sm"
             title={translate("auditLog.actions.collapseAllExtra")}
-            variant="surface"
           >
             <MdCompress />
           </IconButton>
