@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -85,7 +86,11 @@ class SmtpNotifier(BaseNotifier):
         template: str | None = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        if AIRFLOW_V_3_1_PLUS:
+            #  Support for passing context was added in 3.1.0
+            super().__init__(**kwargs)
+        else:
+            super().__init__()
         self.smtp_conn_id = smtp_conn_id
         self.from_email = from_email
         self.to = to
@@ -110,9 +115,7 @@ class SmtpNotifier(BaseNotifier):
         """Smtp Events Hook."""
         return SmtpHook(smtp_conn_id=self.smtp_conn_id, auth_type=self.auth_type)
 
-    def _build_email_content(self, smtp: SmtpHook, context: Context, use_templates: bool = True):
-        # TODO:  use_templates is temporary until templating on the Triggerer is sorted out.
-        #   Once that is done, we can remove that flag.
+    def _build_email_content(self, smtp: SmtpHook, context: Context):
         fields_to_re_render = []
         if self.from_email is None:
             if smtp.from_email is not None:
@@ -140,15 +143,15 @@ class SmtpNotifier(BaseNotifier):
                 ).as_posix()
             self.html_content = self._read_template(smtp_default_templated_html_content_path)
             fields_to_re_render.append("html_content")
-        if fields_to_re_render and use_templates:
-            jinja_env = self.get_template_env(dag=context["dag"])
+        if fields_to_re_render:
+            jinja_env = self.get_template_env(dag=context.get("dag"))
             self._do_render_template_fields(self, fields_to_re_render, context, jinja_env, set())
 
     def notify(self, context: Context):
         """Send a email via smtp server."""
-        with self.hook as smtp:
-            self._build_email_content(smtp, context)
-            smtp.send_email_smtp(
+        with self.hook as smtp_hook:
+            self._build_email_content(smtp_hook, context)
+            smtp_hook.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
                 from_email=self.from_email,
                 to=self.to,
@@ -164,11 +167,9 @@ class SmtpNotifier(BaseNotifier):
 
     async def async_notify(self, context: Context):
         """Send a email via smtp server (async)."""
-        async with self.hook as smtp:
-            # TODO:  use_templates is temporary until templating on the Triggerer is sorted out.
-            #   Once that is done, we can remove that flag.
-            self._build_email_content(smtp, context, use_templates=False)
-            await smtp.asend_email_smtp(
+        async with self.hook as smtp_hook:
+            self._build_email_content(smtp_hook, context)
+            await smtp_hook.asend_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
                 from_email=self.from_email,
                 to=self.to,

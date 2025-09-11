@@ -66,7 +66,7 @@ class SlackWebhookNotifier(BaseNotifier):
         **kwargs,
     ):
         if AIRFLOW_V_3_1_PLUS:
-            #  Support for passing contest was added in 3.1.0
+            #  Support for passing context was added in 3.1.0
             super().__init__(**kwargs)
         else:
             super().__init__()
