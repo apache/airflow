@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, CloseButton, Dialog, IconButton, Portal, useDisclosure } from "@chakra-ui/react";
+import { Button, CloseButton, Dialog, IconButton, Portal, Text, useDisclosure } from "@chakra-ui/react";
 import { useUiServiceExitWorkerMaintenance } from "openapi/queries";
 import { IoMdExit } from "react-icons/io";
 
@@ -71,7 +71,7 @@ export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: Mainten
                 <Dialog.Title>Exit maintenance for worker {workerName}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
-                <p>Are you sure you want to exit maintenance mode for worker {workerName}?</p>
+                <Text>Are you sure you want to exit maintenance mode for worker {workerName}?</Text>
               </Dialog.Body>
               <Dialog.Footer>
                 <Dialog.ActionTrigger asChild>
