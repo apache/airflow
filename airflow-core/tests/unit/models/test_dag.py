@@ -2242,12 +2242,7 @@ class TestDagModel:
             ),
             start_date=datetime.datetime.min,
         )
-        SerializedDAG.bulk_write_to_db(
-            "testing",
-            None,
-            [SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))],
-            session=session,
-        )
+        SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
 
         expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {
