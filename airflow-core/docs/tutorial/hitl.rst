@@ -95,6 +95,7 @@ Approval or Rejection
 ---------------------
 
 A specialized form of option selection, which has only 'Approval' and 'Rejection' as options.
+You can also set the `assigned_users` to restrict the users allowed to respond for a HITL operator.
 
 .. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
