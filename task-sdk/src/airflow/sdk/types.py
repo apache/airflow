@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from pydantic import AwareDatetime
 
+    from airflow.sdk._shared.logging.types import Logger as Logger
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context

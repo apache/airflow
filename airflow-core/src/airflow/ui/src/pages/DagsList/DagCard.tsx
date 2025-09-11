@@ -24,6 +24,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
+import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -56,6 +57,7 @@ export const DagCard = ({ dag }: Props) => {
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack>
+          <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
           <TogglePause
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}

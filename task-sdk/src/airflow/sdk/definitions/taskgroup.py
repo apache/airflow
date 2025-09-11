@@ -40,8 +40,6 @@ from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
-    from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
@@ -50,7 +48,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 def _default_parent_group() -> TaskGroup | None:
@@ -274,10 +271,14 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group._group_id:
+        if (
+            self._group_id
+            and self.parent_group
+            and self.parent_group.prefix_group_id
+            and self.parent_group._group_id
+        ):
             # defer to parent whether it adds a prefix
             return self.parent_group.child_id(self._group_id)
-
         return self._group_id
 
     @property
@@ -585,12 +586,9 @@ class TaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    # TODO (GH-52141): This should only return SDK operators. Have a db representation for db operators.
-    def iter_tasks(self) -> Iterator[AbstractOperator | MappedOperator | SerializedBaseOperator]:
+    def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Return an iterator of the child tasks."""
-        from airflow.models.mappedoperator import MappedOperator
         from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         groups_to_visit = [self]
 
@@ -598,16 +596,18 @@ class TaskGroup(DAGNode):
             visiting = groups_to_visit.pop(0)
 
             for child in visiting.children.values():
-                if isinstance(child, (AbstractOperator, MappedOperator, SerializedBaseOperator)):
+                if isinstance(child, AbstractOperator):
                     yield child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
                 else:
                     raise ValueError(
-                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child).__module__}.{type(child)}"
+                        f"Encountered a DAGNode that is not a TaskGroup or an "
+                        f"AbstractOperator: {type(child).__module__}.{type(child)}"
                     )
 
 
+@attrs.define(kw_only=True, repr=False)
 class MappedTaskGroup(TaskGroup):
     """
     A mapped task group.
@@ -619,22 +619,14 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(
-        self,
-        *,
-        expand_input: SchedulerExpandInput | DictOfListsExpandInput | ListOfDictsExpandInput,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        self._expand_input = expand_input
+    _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
 
     def __iter__(self):
-        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-
         for child in self.children.values():
-            if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:
+            if getattr(child, "trigger_rule", None) == TriggerRule.ALWAYS:
                 raise ValueError(
-                    "Task-generated mapping within a mapped task group is not allowed with trigger rule 'always'"
+                    "Task-generated mapping within a mapped task group is not "
+                    "allowed with trigger rule 'always'"
                 )
             yield from self._iter_child(child)
 

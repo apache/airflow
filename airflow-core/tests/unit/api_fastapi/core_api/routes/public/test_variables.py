@@ -1114,5 +1114,17 @@ class TestBulkVariables(TestVariableEndpoint):
         assert response.status_code == 401
 
     def test_bulk_variables_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/variables", json={})
+        response = unauthorized_test_client.patch(
+            "/variables",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"key": "var1", "value": "value1"},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403

@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "Url de la col·lecció",
     "noCode": "No s'ha trobat codi",
+    "parseDuration": "Duració de l'anàlisi:",
     "parsedAt": "Analitzat a:"
   },
   "extraLinks": "Enllaços addicionals",
@@ -84,6 +85,8 @@
       "assetEvent_other": "Esdeveniments d'Asset creats"
     },
     "failedLogs": {
+      "hideLogs": "Amagar registres",
+      "showLogs": "Mostrar registres",
       "title": "Registres de tasques fallides recents",
       "viewFullLogs": "Veure els registres complets"
     }

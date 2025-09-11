@@ -717,7 +717,11 @@ class TestClearTasks:
             assert dr.created_dag_version_id == new_dag_version.id
             assert dr.bundle_version == new_dag_version.bundle_version
             assert TaskInstanceState.REMOVED in [ti.state for ti in dr.task_instances]
+            for ti in dr.task_instances:
+                assert ti.dag_version_id == new_dag_version.id
         else:
             assert dr.created_dag_version_id == old_dag_version.id
             assert dr.bundle_version == old_dag_version.bundle_version
             assert TaskInstanceState.REMOVED not in [ti.state for ti in dr.task_instances]
+            for ti in dr.task_instances:
+                assert ti.dag_version_id == old_dag_version.id

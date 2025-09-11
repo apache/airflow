@@ -98,6 +98,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
@@ -193,6 +194,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider distributions: wheel"

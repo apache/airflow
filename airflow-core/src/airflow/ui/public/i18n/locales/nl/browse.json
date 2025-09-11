@@ -10,6 +10,9 @@
       "user": "Gebruiker",
       "when": "Wanneer"
     },
+    "filters": {
+      "eventType": "Gebeurtenis type"
+    },
     "title": "Audit Log"
   },
   "xcom": {

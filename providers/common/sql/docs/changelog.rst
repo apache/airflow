@@ -25,6 +25,44 @@
 Changelog
 ---------
 
+1.28.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Add SQLInsertRowsOperator in common.sql provider (#55031)``
+* ``Added paginated_sql_statement_clause parameter to GenericTransfer (#48866)``
+* ``Add rudimentary support for psycopg3 (#52976)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed resolving of dialect name when host of JdbcHook is an JDBC URL (#54446)``
+
+Misc
+~~~~
+
+* ``Remove unneeded isort skip comments (#54979)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 1.27.5
 ......
 

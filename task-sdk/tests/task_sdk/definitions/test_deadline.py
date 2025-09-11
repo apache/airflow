@@ -158,8 +158,27 @@ class TestDeadlineAlert:
         alert_set = {alert1, alert2}
         assert len(alert_set) == 1
 
+    def test_deadline_alert_unsupported_callback(self):
+        with pytest.raises(ValueError, match="Callbacks of type SyncCallback are not currently supported"):
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(hours=1),
+                callback=SyncCallback(TEST_CALLBACK_PATH),
+            )
+
 
 class TestCallback:
+    @pytest.mark.parametrize(
+        "subclass, callable",
+        [
+            pytest.param(AsyncCallback, empty_async_callback_for_deadline_tests, id="async"),
+            pytest.param(SyncCallback, empty_sync_callback_for_deadline_tests, id="sync"),
+        ],
+    )
+    def test_init_error_reserved_kwarg(self, subclass, callable):
+        with pytest.raises(ValueError, match="context is a reserved kwarg for this class"):
+            subclass(callable, {"context": None})
+
     @pytest.mark.parametrize(
         "callback_callable, expected_path",
         [

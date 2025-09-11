@@ -8,6 +8,12 @@
     "Variables": "Variables"
   },
   "allOperators": "Tots els operadors",
+  "appearance": {
+    "appearance": "Aparença",
+    "darkMode": "Mode fosc",
+    "lightMode": "Mode clar",
+    "systemMode": "Seguir la configuració del sistema"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Esdeveniment d'Asset",
@@ -33,6 +39,7 @@
     "fileLocation": "Ubicació del fitxer",
     "hasTaskConcurrencyLimits": "Té límits de concurrència de tasques",
     "lastExpired": "Últim caducat",
+    "lastParseDuration": "Duració de l'últim anàlisi",
     "lastParsed": "Últim anàlitzat",
     "latestDagVersion": "Última versió del Dag",
     "latestRun": "Última execució",
@@ -193,8 +200,6 @@
     "up_for_retry": "A reintentar",
     "upstream_failed": "Fallit aigües amunt"
   },
-  "switchToDarkMode": "Canviar a mode fosc",
-  "switchToLightMode": "Canviar a mode clar",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",

@@ -50,7 +50,7 @@ const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITL
 };
 
 export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("hitl");
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore("hitl");
@@ -64,6 +64,8 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
 
   const shouldRenderOptionButton =
     hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+
+  const isPending = hitlDetail.task_instance.state === "deferred";
 
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
@@ -94,7 +96,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     <Box mt={4}>
       {hitlDetail.response_received ? (
         <Text color="fg.muted" fontSize="sm">
-          {translate("hitl:response.received")}
+          {translate("response.received")}
           <Time datetime={hitlDetail.response_at} format="YYYY-MM-DD, HH:mm:ss" />
         </Text>
       ) : undefined}
@@ -107,7 +109,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         variant="enclosed"
       >
         <FlexibleForm
-          disabled={hitlDetail.response_received}
+          disabled={!isPending || hitlDetail.response_received}
           flexFormDescription={hitlDetail.body ?? undefined}
           flexibleFormDefaultSection={hitlDetail.subject}
           initialParamsDict={{
@@ -127,7 +129,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
-                disabled={errors || isSubmitting || hitlDetail.response_received}
+                disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
                 variant={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "solid" : "subtle"}
@@ -142,7 +144,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
               loading={isSubmitting}
               onClick={() => handleSubmit()}
             >
-              <FiSend /> {translate("hitl:response.respond")}
+              <FiSend /> {translate("response.respond")}
             </Button>
           )}
         </HStack>

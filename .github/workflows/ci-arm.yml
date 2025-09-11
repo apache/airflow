@@ -131,8 +131,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -159,7 +157,14 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-
+      - name: "Install and cache prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{ steps.breeze.outputs.host-python-version }}
+          skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
+          platform: "linux/arm64"
+          save-cache: true
   basic-tests:
     name: "Basic tests"
     needs: [build-info]
@@ -170,8 +175,8 @@ jobs:
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
-      basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-prek-hooks: ${{needs.build-info.outputs.skip-prek-hooks}}
+      basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}

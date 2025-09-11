@@ -5,6 +5,33 @@
     "reason": "Reden",
     "title": "Afhankelijkheden die de Task blokkeren om ingepland te worden"
   },
+  "calendar": {
+    "daily": "Dagelijks",
+    "hourly": "Uurlijks",
+    "legend": {
+      "less": "Minder",
+      "more": "Meer"
+    },
+    "navigation": {
+      "nextMonth": "Volgende maand",
+      "nextYear": "Volgend jaar",
+      "previousMonth": "Vorige maand",
+      "previousYear": "Vorig jaar"
+    },
+    "noData": "Geen gegevens beschikbaar",
+    "noRuns": "Geen runs",
+    "totalRuns": "Totaal aantal runs",
+    "week": "Week {{weekNumber}}",
+    "weekdays": {
+      "friday": "Vr",
+      "monday": "Ma",
+      "saturday": "Za",
+      "sunday": "Zo",
+      "thursday": "Do",
+      "tuesday": "Di",
+      "wednesday": "Wo"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
@@ -57,6 +84,8 @@
       "assetEvent_other": "Aangemaakte Asset Events"
     },
     "failedLogs": {
+      "hideLogs": "Verberg logs",
+      "showLogs": "Toon logs",
       "title": "Recente mislukte Task logs",
       "viewFullLogs": "Bekijk volledige logs"
     }
@@ -64,8 +93,9 @@
   "panel": {
     "buttons": {
       "options": "Opties",
-      "showGraph": "Grafiek tonen",
-      "showGrid": "Raster tonen"
+      "showGantt": "Toon Gantt",
+      "showGraphShortcut": "Toon grafiek (Druk op g)",
+      "showGridShortcut": "Toon raster (Druk op g)"
     },
     "dagRuns": {
       "label": "Aantal Dag Runs"
@@ -100,6 +130,7 @@
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
     "backfills": "Backfills",
+    "calendar": "Kalender",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",

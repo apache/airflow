@@ -48,7 +48,8 @@ class HITLDetail(Base):
 
     # Response Content Detail
     response_at = Column(UtcDateTime, nullable=True)
-    user_id = Column(String(128), nullable=True)
+    responded_user_id = Column(String(128), nullable=True)
+    responded_user_name = Column(String(128), nullable=True)
     chosen_options = Column(
         sqlalchemy_jsonfield.JSONField(json=json),
         nullable=True,
@@ -78,3 +79,5 @@ class HITLDetail(Base):
     @response_received.expression  # type: ignore[no-redef]
     def response_received(cls):
         return cls.response_at.is_not(None)
+
+    DEFAULT_USER_NAME = "Fallback to defaults"
