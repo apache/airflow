@@ -1289,11 +1289,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 with create_session() as session:
                     # Only retrieve expired deadlines that haven't been processed yet.
-                    # missed is set to False until the handler sets it to True
+                    # `callback_state` is null/None by default until the handler set it.
                     for deadline in session.scalars(
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
-                        .where(~Deadline.missed)
+                        .where(Deadline.callback_state.is_(None))
                     ):
                         deadline.handle_miss(session)
 

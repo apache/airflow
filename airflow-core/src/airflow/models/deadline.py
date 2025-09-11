@@ -20,17 +20,23 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from enum import Enum
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, cast
 
+import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, and_, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
+from airflow.models import Trigger
 from airflow.models.base import Base
-from airflow.models.callback import create_callback_from_sdk_def
+from airflow.serialization.serde import deserialize, serialize
+from airflow.settings import json
+from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -38,7 +44,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.sdk.definitions.deadline import Callback as TaskSDKCallback
+    from airflow.sdk.definitions.deadline import Callback
+    from airflow.triggers.base import TriggerEvent
 
 
 logger = logging.getLogger(__name__)
@@ -71,6 +78,18 @@ class classproperty:
         return self.method(cls)
 
 
+class DeadlineCallbackState(str, Enum):
+    """
+    All possible states of deadline callbacks once the deadline is missed.
+
+    `None` state implies that the deadline is pending (`deadline_time` hasn't passed yet).
+    """
+
+    QUEUED = "queued"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class Deadline(Base):
     """A Deadline is a 'need-by' date which triggers a callback if the provided time has passed."""
 
@@ -83,29 +102,29 @@ class Deadline(Base):
 
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline_time = Column(UtcDateTime, nullable=False)
-
-    # Whether the deadline has been marked as missed by the scheduler
-    missed = Column(Boolean, nullable=False)
-
-    # ID of the Callback that will run when this deadline is missed
-    callback_id = Column(UUIDType(binary=False), ForeignKey("callback.id"), nullable=False)
+    # The (serialized) callback to be called when the Deadline has passed.
+    _callback = Column("callback", sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    # The state of the deadline callback
+    callback_state = Column(String(20))
 
     dagrun = relationship("DagRun", back_populates="deadlines")
-    callback = relationship("Callback", uselist=False, cascade="all, delete-orphan", single_parent=True)
 
-    __table_args__ = (Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),)
+    # The Trigger where the callback is running
+    trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger = relationship("Trigger", back_populates="deadline")
+
+    __table_args__ = (Index("deadline_callback_state_time_idx", callback_state, deadline_time, unique=False),)
 
     def __init__(
         self,
         deadline_time: datetime,
-        callback: TaskSDKCallback,
+        callback: Callback,
         dagrun_id: int,
     ):
         super().__init__()
         self.deadline_time = deadline_time
+        self._callback = serialize(callback)
         self.dagrun_id = dagrun_id
-        self.missed = False
-        self.callback = create_callback_from_sdk_def(callback)
 
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
@@ -173,10 +192,43 @@ class Deadline(Base):
 
         return deleted_count
 
+    @cached_property
+    def callback(self) -> Callback:
+        return cast("Callback", deserialize(self._callback))
+
     def handle_miss(self, session: Session):
-        self.missed = True
-        self.callback.queue(session)
+        """Handle a missed deadline by running the callback in the appropriate host and updating the `callback_state`."""
+        from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+
+        if isinstance(self.callback, AsyncCallback):
+            callback_trigger = DeadlineCallbackTrigger(
+                callback_path=self.callback.path,
+                callback_kwargs=self.callback.kwargs,
+            )
+            trigger_orm = Trigger.from_object(callback_trigger)
+            session.add(trigger_orm)
+            session.flush()
+            self.trigger = trigger_orm
+
+        elif isinstance(self.callback, SyncCallback):
+            raise NotImplementedError("SyncCallback is currently not supported")
+
+        else:
+            raise TypeError("Unknown Callback type")
+
+        self.callback_state = DeadlineCallbackState.QUEUED
         session.add(self)
+
+    def handle_callback_event(self, event: TriggerEvent, session: Session):
+        if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
+            DeadlineCallbackState.SUCCESS,
+            DeadlineCallbackState.FAILED,
+        }:
+            self.trigger = None
+            self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+            session.add(self)
+        else:
+            logger.error("Unexpected event received: %s", event.payload)
 
 
 class ReferenceModels:
