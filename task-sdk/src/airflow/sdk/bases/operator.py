@@ -1309,12 +1309,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return dag
 
         if not isinstance(dag, DAG):
-            raise TypeError(f"Expected Dag; received {dag.__class__.__name__}")
+            raise TypeError(f"Expected dag; received {dag.__class__.__name__}")
         if self._dag is not None and self._dag is not dag:
-            raise ValueError(f"The Dag assigned to {self} can not be changed.")
+            raise ValueError(f"The dag assigned to {self} can not be changed.")
 
         if self.__from_mapped:
-            pass  # Don't add to Dag -- the mapped task takes the place.
+            pass  # Don't add to dag -- the mapped task takes the place.
         elif dag.task_dict.get(self.task_id) is not self:
             dag.add_task(self)
         return dag

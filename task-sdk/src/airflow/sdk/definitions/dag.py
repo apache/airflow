@@ -1087,7 +1087,6 @@ class DAG:
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
-        # Note - older serialized Dags may not have edge_info being a dict at all
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
@@ -1192,8 +1191,10 @@ class DAG:
             #   -- dep check, scheduling tis
             # and need real dag to get and run callbacks without having to load the dag model
 
-            scheduler_dag.on_success_callback = self.on_success_callback
-            scheduler_dag.on_failure_callback = self.on_failure_callback
+            # Scheduler DAG shouldn't have these attributes, but assigning them
+            # here is an easy hack to get this test() thing working.
+            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined]
+            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined]
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
