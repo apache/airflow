@@ -24,7 +24,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow.models.base import Base
@@ -32,6 +31,7 @@ from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql import ColumnElement
     from sqlalchemy.sql.compiler import SQLCompiler
 
 
