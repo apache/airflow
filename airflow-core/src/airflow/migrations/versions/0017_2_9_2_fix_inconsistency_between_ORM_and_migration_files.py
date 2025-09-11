@@ -44,35 +44,22 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         # TODO: Rewrite these queries to use alembic when lowest MYSQL version supports IF EXISTS
-        conn.execute(
+        result = conn.execute(
             sa.text("""
-        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-            CONSTRAINT_SCHEMA = DATABASE() AND
-            TABLE_NAME        = 'connection' AND
-            CONSTRAINT_NAME   = 'unique_conn_id' AND
-            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
-            DROP INDEX unique_conn_id','select 1');
+                SELECT CONSTRAINT_NAME
+                FROM information_schema.TABLE_CONSTRAINTS
+                WHERE CONSTRAINT_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'connection'
+                AND CONSTRAINT_TYPE = 'UNIQUE';
+            """)
+        ).fetchall()
 
-        prepare stmt from @var;
-        execute stmt;
-        deallocate prepare stmt;
-        """)
-        )
-        # Dropping the below and recreating cause there's no IF NOT EXISTS in mysql
-        conn.execute(
-            sa.text("""
-                set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                    CONSTRAINT_SCHEMA = DATABASE() AND
-                    TABLE_NAME        = 'connection' AND
-                    CONSTRAINT_NAME   = 'connection_conn_id_uq' AND
-                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
-                    DROP INDEX connection_conn_id_uq','select 1');
+        existing_indexes = {row[0] for row in result}
+        index_names = ["unique_conn_id", "connection_conn_id_uq"]
+        for index_name in index_names:
+            if index_name in existing_indexes:
+                conn.execute(sa.text(f"ALTER TABLE connection DROP INDEX {index_name}"))
 
-                prepare stmt from @var;
-                execute stmt;
-                deallocate prepare stmt;
-                """)
-        )
     elif conn.dialect.name == "sqlite":
         # SQLite does not support DROP CONSTRAINT
         # We have to recreate the table without the constraint
@@ -121,63 +108,29 @@ def upgrade():
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
 
     if conn.dialect.name == "mysql":
-        conn.execute(
+        indexes = conn.execute(
             sa.text("""
-                        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                            CONSTRAINT_SCHEMA = DATABASE() AND
-                            TABLE_NAME        = 'dag_run' AND
-                            CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_uq' AND
-                            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                            DROP INDEX dag_run_dag_id_execution_date_uq','select 1');
+                SELECT CONSTRAINT_NAME
+                FROM information_schema.TABLE_CONSTRAINTS
+                WHERE CONSTRAINT_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'dag_run'
+                AND CONSTRAINT_TYPE = 'UNIQUE';
+            """)
+        ).fetchall()
 
-                        prepare stmt from @var;
-                        execute stmt;
-                        deallocate prepare stmt;
-                        """)
-        )
-        conn.execute(
-            sa.text("""
-                        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                            CONSTRAINT_SCHEMA = DATABASE() AND
-                            TABLE_NAME        = 'dag_run' AND
-                            CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_uq' AND
-                            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                            DROP INDEX dag_run_dag_id_run_id_uq','select 1');
+        existing_indexes = {row[0] for row in indexes}
 
-                        prepare stmt from @var;
-                        execute stmt;
-                        deallocate prepare stmt;
-                        """)
-        )
-        # below we drop and recreate the constraints because there's no IF NOT EXISTS
-        conn.execute(
-            sa.text("""
-                                set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                                    CONSTRAINT_SCHEMA = DATABASE() AND
-                                    TABLE_NAME        = 'dag_run' AND
-                                    CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_key' AND
-                                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                                    DROP INDEX dag_run_dag_id_execution_date_key','select 1');
+        drop_indexes = [
+            "dag_run_dag_id_execution_date_uq",
+            "dag_run_dag_id_run_id_uq",
+            "dag_run_dag_id_execution_date_key",
+            "dag_run_dag_id_run_id_key",
+        ]
 
-                                prepare stmt from @var;
-                                execute stmt;
-                                deallocate prepare stmt;
-                                """)
-        )
-        conn.execute(
-            sa.text("""
-                            set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                                CONSTRAINT_SCHEMA = DATABASE() AND
-                                TABLE_NAME        = 'dag_run' AND
-                                CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_key' AND
-                                CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                                DROP INDEX dag_run_dag_id_run_id_key','select 1');
+        for idx in drop_indexes:
+            if idx in existing_indexes:
+                conn.execute(sa.text(f"ALTER TABLE dag_run DROP INDEX {idx}"))
 
-                            prepare stmt from @var;
-                            execute stmt;
-                            deallocate prepare stmt;
-                            """)
-        )
         with op.batch_alter_table("callback_request", schema=None) as batch_op:
             batch_op.alter_column(
                 "processor_subdir",
