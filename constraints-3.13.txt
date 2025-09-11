@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-10T13:53:41.695481
+# This constraints file was automatically generated on 2025-09-11T13:51:41.720335
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -46,7 +46,7 @@ PyGithub==2.8.1
 PyHive==0.7.0
 PyJWT==2.10.1
 PyMySQL==1.1.2
-PyNaCl==1.5.0
+PyNaCl==1.6.0
 PyYAML-ft==8.0.0
 PyYAML==6.0.2
 Pygments==2.19.2
@@ -298,7 +298,7 @@ google-api-python-client==2.181.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.111.0
+google-cloud-aiplatform==1.112.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -342,7 +342,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.35.0
+google-genai==1.36.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.21
@@ -361,7 +361,7 @@ hf-xet==1.1.9
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
-httplib2==0.30.0
+httplib2==0.31.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
@@ -446,21 +446,21 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.3
 oauthlib==3.3.1
-openai==1.107.0
+openai==1.107.1
 openlineage-integration-common==1.37.0
 openlineage-python==1.37.0
 openlineage_sql==1.37.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
-opentelemetry-api==1.36.0
-opentelemetry-exporter-otlp-proto-common==1.36.0
-opentelemetry-exporter-otlp-proto-grpc==1.36.0
-opentelemetry-exporter-otlp-proto-http==1.36.0
-opentelemetry-exporter-otlp==1.36.0
-opentelemetry-exporter-prometheus==0.57b0
-opentelemetry-proto==1.36.0
-opentelemetry-sdk==1.36.0
-opentelemetry-semantic-conventions==0.57b0
+opentelemetry-api==1.37.0
+opentelemetry-exporter-otlp-proto-common==1.37.0
+opentelemetry-exporter-otlp-proto-grpc==1.37.0
+opentelemetry-exporter-otlp-proto-http==1.37.0
+opentelemetry-exporter-otlp==1.37.0
+opentelemetry-exporter-prometheus==0.58b0
+opentelemetry-proto==1.37.0
+opentelemetry-sdk==1.37.0
+opentelemetry-semantic-conventions==0.58b0
 opsgenie-sdk==2.1.5
 oracledb==3.3.0
 orjson==3.11.3
@@ -510,10 +510,10 @@ pydantic==2.11.7
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydruid==0.6.9
-pyexasol==1.1.0
+pyexasol==1.1.1
 pygtrie==2.5.0
 pykerberos==1.2.4
-pymongo==4.14.1
+pymongo==4.15.0
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.4.1
@@ -624,7 +624,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.16
+uv==0.8.17
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
