@@ -29,6 +29,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.BEFORE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
+  | SearchParamsKeys.END_DATE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_GTE
@@ -38,6 +39,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.START_DATE
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
   | SearchParamsKeys.TRY_NUMBER
