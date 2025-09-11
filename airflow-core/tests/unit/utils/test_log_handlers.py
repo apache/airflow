@@ -79,7 +79,7 @@ from tests_common.test_utils.file_task_handler import (
 )
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
-pytestmark = [pytest.mark.db_test, pytest.mark.xfail()]
+pytestmark = [pytest.mark.db_test]
 
 DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
@@ -172,8 +172,8 @@ class TestFileTaskLogHandler:
         ti.try_number = 0
         ti.state = State.SKIPPED
 
-        logger = ti.log
-        ti.log.disabled = False
+        logger = logging.getLogger(TASK_LOGGER)
+        logger.disabled = False
 
         file_handler = next(
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -295,8 +295,8 @@ class TestFileTaskLogHandler:
                 ti.executor = executor_name
             ti.try_number = 1
             ti.state = TaskInstanceState.RUNNING
-            logger = ti.log
-            ti.log.disabled = False
+            logger = logging.getLogger(TASK_LOGGER)
+            logger.disabled = False
 
             file_handler = next(
                 (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -344,8 +344,8 @@ class TestFileTaskLogHandler:
         ti.try_number = 2
         ti.state = State.RUNNING
 
-        logger = ti.log
-        ti.log.disabled = False
+        logger = logging.getLogger(TASK_LOGGER)
+        logger.disabled = False
 
         file_handler = next(
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -396,8 +396,8 @@ class TestFileTaskLogHandler:
         ti.try_number = 1
         ti.state = State.RUNNING
 
-        logger = ti.log
-        ti.log.disabled = False
+        logger = logging.getLogger(TASK_LOGGER)
+        logger.disabled = False
 
         file_handler = next(
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -413,7 +413,7 @@ class TestFileTaskLogHandler:
         assert log_filename.endswith("1.log"), log_filename
 
         # mock to generate 2000 lines of log, the total size is larger than max_bytes_size
-        for i in range(1, 2000):
+        for i in range(1, 3000):
             logger.info("this is a Test. %s", i)
 
         # this is the rotate log file
