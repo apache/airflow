@@ -126,6 +126,7 @@ class TestHITLTrigger:
                 chosen_options=["1"],
                 params_input={"input": 1},
                 responded_by_user=None,
+                responded_at=mock.ANY,
                 timedout=True,
             )
         )
@@ -168,6 +169,7 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["2"],
                 params_input={},
+                responded_at=mock.ANY,
                 responded_by_user={"id": "1", "name": "test"},
                 timedout=False,
             )
@@ -210,6 +212,7 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["3"],
                 params_input={"input": 50},
+                responded_at=mock.ANY,
                 responded_by_user={"id": "test", "name": "test"},
                 timedout=False,
             )
