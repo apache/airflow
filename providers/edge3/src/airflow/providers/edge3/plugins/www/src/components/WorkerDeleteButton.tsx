@@ -17,37 +17,37 @@
  * under the License.
  */
 import { Button, CloseButton, Dialog, IconButton, Portal, Text, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceRequestWorkerShutdown } from "openapi/queries";
-import { FaPowerOff } from "react-icons/fa";
+import { useUiServiceDeleteWorker } from "openapi/queries";
+import { FaRegTrashCan } from "react-icons/fa6";
 
-interface WorkerShutdownButtonProps {
-  onShutdown: (toast: Record<string, string>) => void;
+interface WorkerDeleteButtonProps {
+  onDelete: (toast: Record<string, string>) => void;
   workerName: string;
 }
 
-export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownButtonProps) => {
+export const WorkerDeleteButton = ({ onDelete, workerName }: WorkerDeleteButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const shutdownMutation = useUiServiceRequestWorkerShutdown({
+  const deleteMutation = useUiServiceDeleteWorker({
     onError: (error) => {
-      onShutdown({
-        description: `Unable to request shutdown for worker ${workerName}: ${error}`,
-        title: "Shutdown Request Failed",
+      onDelete({
+        description: `Unable to delete worker ${workerName}: ${error}`,
+        title: "Delete Worker Failed",
         type: "error",
       });
     },
     onSuccess: () => {
-      onShutdown({
-        description: `Worker ${workerName} was requested to shutdown.`,
-        title: "Shutdown Request Sent",
+      onDelete({
+        description: `Worker ${workerName} has been deleted from the system.`,
+        title: "Worker Deleted",
         type: "success",
       });
       onClose();
     },
   });
 
-  const handleShutdown = () => {
-    shutdownMutation.mutate({ workerName });
+  const handleDelete = () => {
+    deleteMutation.mutate({ workerName });
   };
 
   return (
@@ -56,11 +56,11 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
         size="sm"
         variant="ghost"
         onClick={onOpen}
-        aria-label="Shutdown Worker"
-        title="Shutdown Worker"
+        aria-label="Delete Worker"
+        title="Delete Worker"
         color="red.500"
       >
-        <FaPowerOff />
+        <FaRegTrashCan />
       </IconButton>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="md">
@@ -69,13 +69,13 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
           <Dialog.Positioner>
             <Dialog.Content>
               <Dialog.Header>
-                <Dialog.Title>Shutdown worker {workerName}</Dialog.Title>
+                <Dialog.Title>Delete worker {workerName}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
-                <Text>Are you sure you want to request shutdown for worker {workerName}?</Text>
+                <Text>Are you sure you want to delete worker {workerName}?</Text>
                 <Text fontSize="sm" color="red.500" mt={2}>
-                  This stops the worker on the remote edge. You can't restart it from the UI—start it remotely
-                  instead.
+                  This will permanently remove the worker record from the system. This action cannot be
+                  undone.
                 </Text>
               </Dialog.Body>
               <Dialog.Footer>
@@ -83,12 +83,12 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
                   <Button variant="outline">Cancel</Button>
                 </Dialog.ActionTrigger>
                 <Button
-                  onClick={handleShutdown}
+                  onClick={handleDelete}
                   colorScheme="red"
-                  loading={shutdownMutation.isPending}
-                  loadingText="Shutting down..."
+                  loading={deleteMutation.isPending}
+                  loadingText="Deleting..."
                 >
-                  Shutdown Worker
+                  Delete Worker
                 </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>

@@ -30,6 +30,7 @@ from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
     exit_maintenance,
+    remove_worker,
     request_maintenance,
     request_shutdown,
 )
@@ -182,5 +183,28 @@ def request_worker_shutdown(
 
     try:
         request_shutdown(worker_name, session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.delete(
+    "/worker/{worker_name}",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def delete_worker(
+    worker_name: str,
+    session: SessionDep,
+) -> None:
+    """Delete a worker record from the system."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        remove_worker(worker_name, session=session)
     except Exception as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
