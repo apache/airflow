@@ -26,6 +26,7 @@ import {
   useTaskInstanceServicePatchTaskInstance,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
+  useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -58,18 +59,32 @@ export const usePatchTaskInstance = ({
     });
   };
 
-  const onSuccessFn = async () => {
-    const queryKeys = [
+  const onSuccessFn = async (
+    _: unknown,
+    variables: {
+      dagId: string;
+      dagRunId: string;
+      requestBody: { include_future?: boolean; include_past?: boolean };
+      taskId: string;
+    },
+  ) => {
+    // Check if this patch operation affects multiple DAG runs
+    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
+    const affectsMultipleRuns = includeFuture === true || includePast === true;
+
+    const invalidateKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
       UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
+      affectsMultipleRuns
+        ? [useGridServiceGetGridTiSummariesKey, { dagId }]
+        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all(invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     if (onSuccess) {
       onSuccess();

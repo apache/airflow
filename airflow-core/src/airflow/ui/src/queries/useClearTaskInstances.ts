@@ -26,6 +26,7 @@ import {
   useTaskInstanceServicePostClearTaskInstances,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
+  useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
@@ -78,17 +79,23 @@ export const useClearTaskInstances = ({
       ),
     ];
 
-    const queryKeys = [
+    // Check if this clear operation affects multiple DAG runs
+    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
+    const affectsMultipleRuns = includeFuture === true || includePast === true;
+
+    const invalidateKeys = [
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
+      affectsMultipleRuns
+        ? [useGridServiceGetGridTiSummariesKey, { dagId }]
+        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all(invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     onSuccessConfirm();
   };
