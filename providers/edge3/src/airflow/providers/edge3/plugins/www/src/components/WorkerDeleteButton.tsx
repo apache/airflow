@@ -58,7 +58,7 @@ export const WorkerDeleteButton = ({ onDelete, workerName }: WorkerDeleteButtonP
         onClick={onOpen}
         aria-label="Delete Worker"
         title="Delete Worker"
-        color="red.500"
+        colorPalette="danger"
       >
         <FaRegTrashCan />
       </IconButton>
@@ -84,10 +84,11 @@ export const WorkerDeleteButton = ({ onDelete, workerName }: WorkerDeleteButtonP
                 </Dialog.ActionTrigger>
                 <Button
                   onClick={handleDelete}
-                  colorScheme="red"
+                  colorPalette="danger"
                   loading={deleteMutation.isPending}
                   loadingText="Deleting..."
                 >
+                  <FaRegTrashCan style={{ marginRight: "8px" }} />
                   Delete Worker
                 </Button>
               </Dialog.Footer>
