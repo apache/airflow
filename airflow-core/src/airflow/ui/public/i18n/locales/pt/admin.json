@@ -78,7 +78,6 @@
     "tooltip": "Excluir conexões selecionadas"
   },
   "formActions": {
-    "reset": "Redefinir",
     "save": "Salvar"
   },
   "plugins": {
