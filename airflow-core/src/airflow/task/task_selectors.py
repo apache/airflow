@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from typing_extensions import Unpack
 
 from airflow.task.optimistic_task_selector import OptimisticTaskSelector
-from airflow.task.pessimistic_task_selector import PessimisticTaskSelector
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
@@ -31,13 +30,11 @@ if TYPE_CHECKING:
     from airflow.task.task_selector_strategy import TaskSelectorStrategy
 
 OPTIMISTIC_SELECTOR = "OPTIMISTIC"
-PESSIMISTIC_SELECTOR = "PESSIMISTIC"
 
 TASK_SELECTORS: dict[str, TaskSelectorStrategy] = {}
 TASK_SELECTOR_PARAMS_PROVIDERS: dict[str, Callable[[ParamsProviderType], Any]] = {}
 
 TASK_SELECTORS[OPTIMISTIC_SELECTOR] = OptimisticTaskSelector()
-TASK_SELECTORS[PESSIMISTIC_SELECTOR] = PessimisticTaskSelector()
 
 
 class ParamsProviderType(TypedDict):
@@ -68,17 +65,4 @@ def _get_params_for_optimistic_selector(
     return params
 
 
-def _get_params_for_pessimistic_selector(
-    **kwargs: Unpack[ParamsProviderType],
-) -> Mapping[str, Any]:
-    conf = kwargs["conf"]
-
-    params = {}
-
-    params["max_tis"] = conf.getint("scheduler", "max_tis_per_query")
-
-    return params
-
-
 TASK_SELECTOR_PARAMS_PROVIDERS[OPTIMISTIC_SELECTOR] = _get_params_for_optimistic_selector  # type: ignore[assignment]
-TASK_SELECTOR_PARAMS_PROVIDERS[PESSIMISTIC_SELECTOR] = _get_params_for_pessimistic_selector  # type: ignore[assignment]
