@@ -468,12 +468,13 @@ class CommandFactory:
             "tuple": tuple,
             "set": set,
             "datetime.datetime": parsedate,
+            "dict[str, typing.Any]": dict,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
         if isinstance(type_name, type):
             type_name = type_name.__name__
-        return mapping.get(type_name, str)
+        return mapping.get(str(type_name), str)
 
     @staticmethod
     def _create_arg(
