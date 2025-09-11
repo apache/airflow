@@ -130,9 +130,7 @@ This dictionary supports Jinja templating, allowing runtime values such as execu
 
         extra: static description of the asset itself, does not change across runs.
 
-        event_extra_template: runtime-rendered information specific to an emitted event, evaluated against the task's execution context.event_extra_template: runtime-rendered information specific to an emitted event, evaluated against the task's execution context, not persisted in the database.
-
-        This separation ensures that static metadata about an asset and dynamic metadata about asset events are managed independently.
+        event_extra_template: a template dictionary defined on the Asset. It is rendered at runtime into a concrete dictionary, which is attached to the emitted AssetEvent and stored in the asset_event table (as AssetEvent.extra). The raw template itself is not persisted.
 
 
 Creating a task to emit asset events
