@@ -803,7 +803,7 @@ class TestBaseDatabricksHook:
         hook._metadata_expiry = 0
         mock_get.side_effect = requests_exceptions.RequestException("Fail")
 
-        with pytest.raises(AirflowException, match="Can't reach Azure Metadata Service"):
+        with pytest.raises(ConnectionError, match="Can't reach Azure Metadata Service"):
             hook._check_azure_metadata_service()
 
     @mock.patch("requests.get")
@@ -818,8 +818,9 @@ class TestBaseDatabricksHook:
         http_error = requests_exceptions.HTTPError(response=resp_429)
         mock_get.side_effect = http_error
 
-        with pytest.raises(AirflowException, match="Failed to reach Azure Metadata Service after"):
+        with pytest.raises(RuntimeError, match="Failed to reach Azure Metadata Service after 3 retries."):
             hook._check_azure_metadata_service()
+        assert mock_get.call_count == 3
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.get")
@@ -886,7 +887,7 @@ class TestBaseDatabricksHook:
 
             hook._a_get_retry_object = mock.Mock(return_value=mock_retry_generator())
 
-            with pytest.raises(AirflowException, match="Can't reach Azure Metadata Service"):
+            with pytest.raises(ConnectionError, match="Can't reach Azure Metadata Service"):
                 await hook._a_check_azure_metadata_service()
             assert hook._metadata_cache is None
             assert hook._metadata_expiry == 0
@@ -913,6 +914,6 @@ class TestBaseDatabricksHook:
 
             hook._validate_azure_metadata_service = mock.Mock()
 
-            with pytest.raises(AirflowException, match="Failed to reach Azure Metadata Service after"):
+            with pytest.raises(RuntimeError, match="Failed to reach Azure Metadata Service after 3 retries."):
                 await hook._a_check_azure_metadata_service()
             assert mock_get.call_count == 3
