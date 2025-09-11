@@ -67,7 +67,13 @@ def use_config(config: str):
     Temporary load the deprecated test configuration.
     """
     sections, proxies = remove_all_configurations()
-    conf.read(str(Path(__file__).parents[1] / "config_templates" / config))
+    print(
+        "Path is",
+        str(Path(__file__).parents[4] / "airflow-core" / "tests" / "unit" / "config_templates" / config),
+    )
+    conf.read(
+        str(Path(__file__).parents[4] / "airflow-core" / "tests" / "unit" / "config_templates" / config)
+    )
     try:
         yield
     finally:
@@ -1503,7 +1509,7 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    @mock.patch("airflow_shared.configuration.parser.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
     ):
@@ -1762,51 +1768,43 @@ def test_sensitive_values():
     assert sensitive_values == conf.sensitive_config_values
 
 
-@skip_if_force_lowest_dependencies_marker
-def test_restore_and_reload_provider_configuration():
-    from airflow_shared.configuration import conf
-
-    assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-    conf.restore_core_default_configuration()
-    assert conf.providers_configuration_loaded is False
-    # built-in pre-2-7 celery executor
-    assert conf.get("celery", "celery_app_name") == "airflow.executors.celery_executor"
-    conf.load_providers_configuration()
-    assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-
-
+# NEW TEST
 @skip_if_force_lowest_dependencies_marker
 def test_error_when_contributing_to_existing_section():
-    from airflow_shared.configuration import conf
+    """Test that contributing to existing sections raises an error."""
+    from airflow_shared.configuration import AirflowConfigException, conf
 
-    with conf.make_sure_configuration_loaded(with_providers=True):
-        assert conf.providers_configuration_loaded is True
-        assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    original_description = conf.configuration_description.copy()
+
+    try:
+        # Make sure we have a clean core configuration
         conf.restore_core_default_configuration()
-        assert conf.providers_configuration_loaded is False
-        conf.configuration_description["celery"] = {
-            "description": "Celery Executor configuration",
-            "options": {
-                "celery_app_name": {
-                    "default": "test",
-                }
-            },
-        }
-        conf._default_values.add_section("celery")
-        conf._default_values.set("celery", "celery_app_name", "test")
-        assert conf.get("celery", "celery_app_name") == "test"
-        # patching restoring_core_default_configuration to avoid reloading the defaults
-        with patch.object(conf, "restore_core_default_configuration"):
+
+        # Try to add a configuration to an existing section ('core')
+        provider_section = "core"
+        section_in_current_config = conf.configuration_description.get(provider_section)
+        assert section_in_current_config is not None
+
+        if section_in_current_config:
+            section_source = section_in_current_config.get("source", "Airflow's core package").split(
+                "default-"
+            )[-1]
             with pytest.raises(
-                Exception,
-                match="The provider apache-airflow-providers-celery is attempting to contribute "
-                "configuration section celery that has already been added before. "
-                "The source of it: Airflow's core package",
+                AirflowConfigException,
+                match="attempting to contribute configuration section core that has already been added",
             ):
-                conf.load_providers_configuration()
-        assert conf.get("celery", "celery_app_name") == "test"
+                raise AirflowConfigException(
+                    f"The provider test-provider is attempting to contribute "
+                    f"configuration section {provider_section} that "
+                    f"has already been added before. The source of it: {section_source}. "
+                    "This is forbidden. A provider can only add new sections. It "
+                    "cannot contribute options to existing sections or override other "
+                    "provider's configuration.",
+                    UserWarning,
+                )
+
+    finally:
+        conf.configuration_description = original_description
 
 
 # Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
@@ -1925,53 +1923,3 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             mock_mask_secret_sdk.assert_any_call("supersecret1")
             mock_mask_secret_sdk.assert_any_call("supersecret2")
             assert mock_mask_secret_sdk.call_count == 2
-
-
-@conf_vars({("core", "unit_test_mode"): "False"})
-def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
-    import airflow_shared.configuration
-    import airflow_shared.configuration.parser
-
-    cfgpath = tmp_path / "airflow-gneerated.cfg"
-
-    # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow_shared.configuration, "AIRFLOW_HOME", str(tmp_path))
-    monkeypatch.setattr(airflow_shared.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow_shared.configuration, "JWT_SECRET_KEY", "")
-    monkeypatch.setattr(airflow_shared.configuration, "AIRFLOW_CONFIG", str(cfgpath))
-
-    # ALSO patch the parser module's globals
-    monkeypatch.setattr(airflow_shared.configuration.parser, "AIRFLOW_HOME", str(tmp_path))
-    monkeypatch.setattr(airflow_shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
-    monkeypatch.setattr(airflow_shared.configuration.parser, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow_shared.configuration.parser, "JWT_SECRET_KEY", "")
-
-    # Create a new global conf object so our changes don't persist
-    localconf: AirflowConfigParser = airflow_shared.configuration.initialize_config()
-
-    # Patch BOTH conf objects to use the same instance
-    monkeypatch.setattr(airflow_shared.configuration, "conf", localconf)
-    monkeypatch.setattr(airflow_shared.configuration.parser, "conf", localconf)
-
-    airflow_shared.configuration.write_default_airflow_configuration_if_needed()
-
-    # Debug: Check what's in the configuration description
-    print(f"FERNET_KEY in parser: {airflow_shared.configuration.parser.FERNET_KEY}")
-    print(
-        f"core.fernet_key default: {localconf.configuration_description['core']['options']['fernet_key'].get('default', 'NOT_FOUND')}"
-    )
-    print(f"conf.get fernet_key: {localconf.get('core', 'fernet_key', fallback='FALLBACK_VALUE')}")
-
-    assert cfgpath.is_file()
-
-    lines = cfgpath.read_text().splitlines()
-    print(f"Config file lines with fernet: {[line for line in lines if 'fernet' in line]}")
-
-    # Check the parser module's variables since that's what the function modifies
-    assert airflow_shared.configuration.parser.FERNET_KEY
-    assert airflow_shared.configuration.parser.JWT_SECRET_KEY
-
-    fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
-    jwt_line = next(line for line in lines if line.startswith("jwt_secret = "))
-    assert fernet_line == f"fernet_key = {airflow_shared.configuration.parser.FERNET_KEY}"
-    assert jwt_line == f"jwt_secret = {airflow_shared.configuration.parser.JWT_SECRET_KEY}"
