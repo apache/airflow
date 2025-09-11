@@ -6,8 +6,6 @@
     "allRuns": "Alle Runs",
     "backwards": "Run achterstevoren",
     "dateRange": "Datumbereik",
-    "dateRangeFrom": "Van",
-    "dateRangeTo": "Tot",
     "errorStartDateBeforeEndDate": "Startdatum moet voor de einddatum",
     "maxRuns": "Maximaal aantal actieve Runs",
     "missingAndErroredRuns": "Missende en mislukte Runs",

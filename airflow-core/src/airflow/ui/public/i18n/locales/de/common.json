@@ -99,17 +99,12 @@
     "any": "Jeder",
     "or": "ODER"
   },
+  "filter": "Filter",
   "filters": {
-    "dagDisplayNamePlaceholder": "Nach Dag filtern",
-    "keyPlaceholder": "Nach Task Kommunikation (XCom) Schlüssel filtern",
-    "logicalDateFromPlaceholder": "Logisches Datum Von",
-    "logicalDateToPlaceholder": "Logisches Datum Bis",
-    "mapIndexPlaceholder": "Nach Planungs-Index filtern",
-    "runAfterFromPlaceholder": "Gelaufen-nach von filtern",
-    "runAfterToPlaceholder": "Gelaufen-nach bis filtern",
-    "runIdPlaceholder": "Nach Lauf ID filtern",
-    "taskIdPlaceholder": "Nach Task ID filtern",
-    "triggeringUserPlaceholder": "Nach auslösendem Benutzer filtern"
+    "logicalDateFrom": "Logisches Datum Von",
+    "logicalDateTo": "Logisches Datum Bis",
+    "runAfterFrom": "Gelaufen-nach von filtern",
+    "runAfterTo": "Gelaufen-nach bis filtern"
   },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
@@ -151,6 +146,7 @@
     "running": "Laufende",
     "scheduled": "Geplant"
   },
+  "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",

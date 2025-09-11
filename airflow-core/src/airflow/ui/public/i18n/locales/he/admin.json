@@ -75,7 +75,6 @@
     "tooltip": "מחק חיבורים נבחרים"
   },
   "formActions": {
-    "reset": "אתחל",
     "save": "שמור"
   },
   "plugins": {

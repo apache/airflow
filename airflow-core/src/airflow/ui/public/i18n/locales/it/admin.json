@@ -78,7 +78,6 @@
     "tooltip": "Elimina le connessioni selezionate"
   },
   "formActions": {
-    "reset": "Resetta",
     "save": "Salva"
   },
   "plugins": {

@@ -133,6 +133,7 @@
     "running": "执行中",
     "scheduled": "已调度"
   },
+  "reset": "重置",
   "runId": "执行 ID",
   "runTypes": {
     "asset_triggered": "资源触发",

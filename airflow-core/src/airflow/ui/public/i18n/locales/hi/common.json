@@ -92,16 +92,12 @@
     "any": "कोई भी",
     "or": "या"
   },
+  "filter": "फ़िल्टर",
   "filters": {
-    "dagDisplayNamePlaceholder": "डैग द्वारा फ़िल्टर करें",
-    "keyPlaceholder": "XCom कुंजी द्वारा फ़िल्टर करें",
-    "logicalDateFromPlaceholder": "तार्किक तिथि से",
-    "logicalDateToPlaceholder": "तार्किक तिथि तक",
-    "mapIndexPlaceholder": "मैप इंडेक्स द्वारा फ़िल्टर करें",
-    "runAfterFromPlaceholder": "रन आफ़्टर से",
-    "runAfterToPlaceholder": "रन आफ़्टर तक",
-    "runIdPlaceholder": "रन ID द्वारा फ़िल्टर करें",
-    "taskIdPlaceholder": "टास्क ID द्वारा फ़िल्टर करें"
+    "logicalDateFrom": "तार्किक तिथि से",
+    "logicalDateTo": "तार्किक तिथि तक",
+    "runAfterFrom": "रन आफ़्टर से",
+    "runAfterTo": "रन आफ़्टर तक"
   },
   "logicalDate": "तार्किक तिथि",
   "logout": "लॉग आउट",
@@ -143,6 +139,7 @@
     "running": "चल रहा",
     "scheduled": "निर्धारित"
   },
+  "reset": "रीसेट करें",
   "runId": "रन ID",
   "runTypes": {
     "asset_triggered": "एसेट द्वारा ट्रिगर",

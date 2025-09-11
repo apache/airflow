@@ -72,7 +72,6 @@
     "tooltip": "Kijelölt kapcsolatok törlése"
   },
   "formActions": {
-    "reset": "Alaphelyzetbe állítás",
     "save": "Mentés"
   },
   "plugins": {

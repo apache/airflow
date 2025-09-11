@@ -72,7 +72,6 @@
     "tooltip": "删除所选连接"
   },
   "formActions": {
-    "reset": "重置",
     "save": "保存"
   },
   "plugins": {

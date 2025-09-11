@@ -49,7 +49,7 @@ type VariableFormProps = {
 };
 
 const VariableForm = ({ error, initialVariable, isPending, manageMutate, setError }: VariableFormProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -133,7 +133,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("formActions.reset")}
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />

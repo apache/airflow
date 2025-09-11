@@ -99,16 +99,12 @@
     "any": "Qualsevol",
     "or": "O"
   },
+  "filter": "Filtre",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtrar per Dag",
-    "keyPlaceholder": "Filtrar per clau XCom",
-    "logicalDateFromPlaceholder": "Data Lògica Des de",
-    "logicalDateToPlaceholder": "Data Lògica Fins a",
-    "mapIndexPlaceholder": "Filtrar per Índex del Mapa",
-    "runAfterFromPlaceholder": "Executar Després de",
-    "runAfterToPlaceholder": "Executar Després de",
-    "runIdPlaceholder": "Filtrar per ID d'Execució",
-    "taskIdPlaceholder": "Filtrar per ID de Tasca"
+    "logicalDateFrom": "Data Lògica Des de",
+    "logicalDateTo": "Data Lògica Fins a",
+    "runAfterFrom": "Executar Després de",
+    "runAfterTo": "Executar Després de"
   },
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
@@ -150,6 +146,7 @@
     "running": "Executant-se",
     "scheduled": "Programat"
   },
+  "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
     "asset_triggered": "Executat per Asset",
