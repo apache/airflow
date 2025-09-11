@@ -402,6 +402,7 @@ jobs:
     env:
       UV_VERSION: ${{inputs.uv-version}}
       AIRFLOW_HOME: ~/airflow
+      FORCE_COLOR: 1
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -416,12 +417,11 @@ jobs:
       - name: "Install Airflow from current repo (simulating user installation)"
         run: |
           uv venv
-          source .venv/bin/activate
+          set -x
           uv pip install -e ./airflow-core
       - name: "Test airflow standalone command"
         run: |
-          source .venv/bin/activate
-          airflow standalone 2>&1 | tee airflow_startup.log &
+          uv run --no-sync airflow standalone 2>&1 | tee airflow_startup.log &
           AIRFLOW_PID=$!
 
           # Wait for ready message till timeout (10 minutes)
@@ -443,8 +443,5 @@ jobs:
           done
 
           echo "FAILED: Airflow standalone did not become ready in time"
-          echo "=== AIRFLOW STARTUP LOGS ==="
-          cat airflow_startup.log
-          echo "=== END AIRFLOW STARTUP LOGS ==="
           kill $AIRFLOW_PID 2>/dev/null || true
           exit 1
