@@ -261,10 +261,6 @@ class DownstreamTasksSkipped(AirflowException):
         self.tasks = tasks
 
 
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
-
-
 class XComNotFound(AirflowException):
     """Raise when an XCom reference is being resolved against a non-existent XCom."""
 

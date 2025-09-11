@@ -971,7 +971,7 @@ def run(
         )
         state = TaskInstanceState.FAILED
         error = e
-    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
+    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError, RuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg, state = _handle_current_task_failed(ti)
