@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from airflow._shared.timezones.timezone import utcnow
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
+from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -77,7 +78,7 @@ def sample_hitl_detail(sample_ti: TaskInstance, session: Session) -> HITLDetail:
         defaults=["Approve"],
         multiple=False,
         params={"input_1": 1},
-        respondents=None,
+        assignees=None,
     )
     session.add(hitl_detail_model)
     session.commit()
@@ -95,7 +96,7 @@ def sample_hitl_detail_non_respondent(sample_ti: TaskInstance, session: Session)
         defaults=["Approve"],
         multiple=False,
         params={"input_1": 1},
-        respondents=["non_test"],
+        assignees=[HITLUser(id="non_test", name="non_test")],
     )
     session.add(hitl_detail_model)
     session.commit()
@@ -113,7 +114,7 @@ def sample_hitl_detail_respondent(sample_ti: TaskInstance, session: Session) -> 
         defaults=["Approve"],
         multiple=False,
         params={"input_1": 1},
-        respondents=["test"],
+        assignees=[HITLUser(id="test", name="test")],
     )
     session.add(hitl_detail_model)
     session.commit()
@@ -173,8 +174,7 @@ def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> lis
                 response_at=utcnow(),
                 chosen_options=[str(i)],
                 params_input={"input": i},
-                responded_user_id="test",
-                responded_user_name="test",
+                responded_by={"id": "test", "name": "test"},
             )
             for i, ti in enumerate(sample_tis[5:])
         ]
@@ -208,14 +208,13 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "multiple": False,
         "options": ["Approve", "Reject"],
         "params": {"input_1": 1},
-        "respondents": None,
+        "assigned_users": [],
         "params_input": {},
         "response_at": None,
         "chosen_options": None,
         "response_received": False,
         "subject": "This is subject",
-        "responded_user_id": None,
-        "responded_user_name": None,
+        "responded_by_user": None,
         "task_instance": {
             "dag_display_name": DAG_ID,
             "dag_id": DAG_ID,
@@ -321,8 +320,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
-            "responded_user_id": "test",
-            "responded_user_name": "test",
+            "responded_by": {"id": "test", "name": "test"},
             "response_at": "2025-07-03T00:00:00Z",
         }
 
@@ -332,7 +330,7 @@ class TestUpdateHITLDetailEndpoint:
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail_respondent")
     @pytest.mark.parametrize("map_index", [None, -1])
-    def test_should_respond_200_to_respondent_user(
+    def test_should_respond_200_to_assigned_users(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
@@ -351,8 +349,7 @@ class TestUpdateHITLDetailEndpoint:
         assert response.json() == {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
-            "responded_user_id": "test",
-            "responded_user_name": "test",
+            "responded_by": {"id": "test", "name": "test"},
             "response_at": "2025-07-03T00:00:00Z",
         }
 
@@ -453,8 +450,7 @@ class TestUpdateHITLDetailEndpoint:
         expected_response = {
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
-            "responded_user_id": "test",
-            "responded_user_name": "test",
+            "responded_by": {"id": "test", "name": "test"},
             "response_at": "2025-07-03T00:00:00Z",
         }
         assert response.status_code == 200
@@ -579,8 +575,8 @@ class TestGetHITLDetailsEndpoint:
             ({"body_search": "this is"}, 8),
             ({"response_received": False}, 5),
             ({"response_received": True}, 3),
-            ({"responded_user_id": ["test"]}, 3),
-            ({"responded_user_name": ["test"]}, 3),
+            ({"responded_by_user_id": ["test"]}, 3),
+            ({"responded_by_user_name": ["test"]}, 3),
         ],
         ids=[
             "dag_id_pattern_hitl_dag",
