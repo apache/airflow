@@ -57,6 +57,11 @@ export const useUiServiceRequestWorkerMaintenance = <TData = Common.UiServiceReq
   requestBody: MaintenanceRequest;
   workerName: string;
 }, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.requestWorkerMaintenance({ requestBody, workerName }) as unknown as Promise<TData>, ...options });
+export const useUiServiceRequestWorkerShutdown = <TData = Common.UiServiceRequestWorkerShutdownMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  workerName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  workerName: string;
+}, TContext>({ mutationFn: ({ workerName }) => UiService.requestWorkerShutdown({ workerName }) as unknown as Promise<TData>, ...options });
 export const useJobsServiceState = <TData = Common.JobsServiceStateMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   authorization: string;
   dagId: string;
