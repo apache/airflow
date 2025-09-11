@@ -52,9 +52,10 @@ def upgrade():
                 AND TABLE_NAME = 'connection'
                 AND CONSTRAINT_TYPE = 'UNIQUE';
             """)
-        ).fetchall()
+        )
 
-        existing_indexes = {row[0] for row in result}
+        rows = result.all()
+        existing_indexes = {row[0] for row in rows}
         index_names = ["unique_conn_id", "connection_conn_id_uq"]
         for index_name in index_names:
             if index_name in existing_indexes:
@@ -108,7 +109,7 @@ def upgrade():
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
 
     if conn.dialect.name == "mysql":
-        indexes = conn.execute(
+        result = conn.execute(
             sa.text("""
                 SELECT CONSTRAINT_NAME
                 FROM information_schema.TABLE_CONSTRAINTS
@@ -116,9 +117,10 @@ def upgrade():
                 AND TABLE_NAME = 'dag_run'
                 AND CONSTRAINT_TYPE = 'UNIQUE';
             """)
-        ).fetchall()
+        )
 
-        existing_indexes = {row[0] for row in indexes}
+        rows = result.all()
+        existing_indexes = {row[0] for row in rows}
 
         drop_indexes = [
             "dag_run_dag_id_execution_date_uq",
