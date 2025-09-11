@@ -49,7 +49,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_VERSION="3.0.6"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-
+ARG AIRFLOW_PYTHON_VERSION="3.10.18"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
@@ -1693,14 +1693,14 @@ ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_ENV=""
+ARG AIRFLOW_PYTHON_VERSION
 
 ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
-    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
-
-ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
+    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
