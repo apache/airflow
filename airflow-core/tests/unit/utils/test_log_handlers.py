@@ -156,7 +156,8 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
-    def test_file_task_handler_when_ti_is_skipped(self, dag_maker):
+    @pytest.mark.parametrize("ti_state", [TaskInstanceState.SKIPPED, TaskInstanceState.UPSTREAM_FAILED])
+    def test_file_task_handler_when_ti_is_not_run(self, dag_maker, ti_state):
         def task_callable(ti):
             ti.log.info("test")
 
@@ -170,7 +171,7 @@ class TestFileTaskLogHandler:
         ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         ti.try_number = 0
-        ti.state = State.SKIPPED
+        ti.state = ti_state
 
         logger = logging.getLogger(TASK_LOGGER)
         logger.disabled = False
