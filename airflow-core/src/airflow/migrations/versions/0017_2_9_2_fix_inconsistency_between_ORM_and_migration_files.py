@@ -54,7 +54,7 @@ def upgrade():
             """)
         )
 
-        rows = result.all()
+        rows = result.all() if result is not None else []
         existing_indexes = {row[0] for row in rows}
         index_names = ["unique_conn_id", "connection_conn_id_uq"]
         for index_name in index_names:
@@ -119,7 +119,7 @@ def upgrade():
             """)
         )
 
-        rows = result.all()
+        rows = result.all() if result is not None else []
         existing_indexes = {row[0] for row in rows}
 
         drop_indexes = [
