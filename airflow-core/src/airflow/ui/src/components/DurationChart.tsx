@@ -30,6 +30,7 @@ import {
 import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
+import minMax from "dayjs/plugin/minMax";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +38,8 @@ import { useNavigate } from "react-router-dom";
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { getComputedCSSVariableValue } from "src/theme";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
+
+dayjs.extend(minMax);
 
 ChartJS.register(
   CategoryScale,
@@ -116,6 +119,24 @@ export const DurationChart = ({
     value: (ctx: PartialEventContext) => average(ctx, 0),
   };
 
+  const getLabelFormat = (entries: Array<RunResponse>) => {
+    const timestamps = entries.map(entry => dayjs(entry.run_after));
+    const minTime = dayjs.min(timestamps);
+    const maxTime = dayjs.max(timestamps);
+    
+    // satisfy null typecheck for dayjs.min/max
+    if (minTime === null || maxTime === null) {
+      return "MM-DD";
+    }
+    const diffInDays = maxTime.diff(minTime, 'days');
+
+    if (diffInDays < 1) {
+      return "hh:mm:ss"
+    } else {
+      return "MM-DD"
+    }
+  };
+
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
@@ -163,7 +184,7 @@ export const DurationChart = ({
               label: translate("durationChart.runDuration"),
             },
           ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm")),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(getLabelFormat(entries))),
         }}
         datasetIdKey="id"
         options={{
