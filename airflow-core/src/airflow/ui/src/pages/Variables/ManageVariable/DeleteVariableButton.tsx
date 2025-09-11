@@ -40,6 +40,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
     <>
       <ActionButton
         actionName={translate("variables.delete.title")}
+        colorPalette="danger"
         disabled={disabled}
         icon={<FiTrash />}
         onClick={() => {
@@ -60,7 +61,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
+            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
               {translate("variables.delete.firstConfirmMessage_one")}
               <br />
               <Code mb={2} mt={2} p={4}>
@@ -72,7 +73,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="red"
+                colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
                   mutate({
