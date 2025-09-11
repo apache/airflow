@@ -257,7 +257,7 @@ packages = []
     "apache-airflow-providers-jenkins>=3.7.2"
 ]
 "keycloak" = [
-    "apache-airflow-providers-keycloak"
+    "apache-airflow-providers-keycloak>=0.0.1"
 ]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=10.5.1"
@@ -444,7 +444,7 @@ packages = []
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
-    "apache-airflow-providers-keycloak",
+    "apache-airflow-providers-keycloak>=0.0.1",
     "apache-airflow-providers-microsoft-azure>=10.5.1",
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
