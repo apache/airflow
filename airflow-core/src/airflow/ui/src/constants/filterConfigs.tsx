@@ -59,6 +59,11 @@ export const useFilterConfigs = () => {
       label: translate("common:dagId"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.END_DATE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.to"),
+      type: FilterTypes.DATE,
+    },
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
       type: FilterTypes.TEXT,
@@ -105,6 +110,11 @@ export const useFilterConfigs = () => {
       icon: <FiBarChart />,
       label: translate("common:runId"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.START_DATE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      type: FilterTypes.DATE,
     },
     [SearchParamsKeys.TASK_ID]: {
       hotkeyDisabled: true,
