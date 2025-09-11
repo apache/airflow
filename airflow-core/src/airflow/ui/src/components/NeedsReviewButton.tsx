@@ -40,6 +40,7 @@ export const NeedsReviewButton = ({
       dagId,
       dagRunId: runId,
       responseReceived: false,
+      state: ["deferred"],
       taskId,
     },
     undefined,
