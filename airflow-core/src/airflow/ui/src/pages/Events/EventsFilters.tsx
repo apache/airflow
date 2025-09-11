@@ -47,7 +47,7 @@ type EventsFiltersProps = {
 };
 
 export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersProps) => {
-  const { t: translate } = useTranslation(["browse", "common", "components"]);
+  const { t: translate } = useTranslation(["browse", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -131,7 +131,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
         {/* Timestamp Range Filters */}
         <VStack alignItems="flex-start" gap={1}>
           <Text fontSize="xs" fontWeight="medium">
-            {translate("components:backfill.dateRangeFrom")}
+            {translate("common:table.from")}
           </Text>
           <DateTimeInput
             onChange={handleDateTimeChange(AFTER_PARAM)}
@@ -142,7 +142,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
         </VStack>
         <VStack alignItems="flex-start" gap={1}>
           <Text fontSize="xs" fontWeight="medium">
-            {translate("components:backfill.dateRangeTo")}
+            {translate("common:table.to")}
           </Text>
           <DateTimeInput
             onChange={handleDateTimeChange(BEFORE_PARAM)}

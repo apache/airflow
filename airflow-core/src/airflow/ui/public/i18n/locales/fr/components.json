@@ -7,8 +7,6 @@
     "allRuns": "Toutes les exécutions",
     "backwards": "Exécuter à rebours",
     "dateRange": "Plage de dates",
-    "dateRangeFrom": "De",
-    "dateRangeTo": "À",
     "errorStartDateBeforeEndDate": "La date de début doit être antérieure à la date de fin",
     "maxRuns": "Nombre maximum d'exécutions actives",
     "missingAndErroredRuns": "Exécutions manquantes et en erreur",

@@ -7,8 +7,6 @@
     "allRuns": "Todas las Ejecuciones",
     "backwards": "Ejecutar Hacia Atrás",
     "dateRange": "Rango de Fechas",
-    "dateRangeFrom": "Desde",
-    "dateRangeTo": "Hasta",
     "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
     "maxRuns": "Máximo de Ejecuciones Activas",
     "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",

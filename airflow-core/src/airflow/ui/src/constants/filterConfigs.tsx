@@ -50,12 +50,12 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.LOGICAL_DATE_GTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateFromLabel", "Logical date from"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.logicalDateFrom"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.LOGICAL_DATE_LTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateToLabel", "Logical date to"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.logicalDateTo"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.MAP_INDEX]: {
@@ -66,12 +66,12 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.RUN_AFTER_GTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterFromLabel", "Run after from"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.runAfterFrom"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.RUN_AFTER_LTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterToLabel", "Run after to"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.runAfterTo"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.RUN_ID_PATTERN]: {

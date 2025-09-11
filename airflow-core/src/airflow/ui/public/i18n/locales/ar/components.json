@@ -10,8 +10,6 @@
     "allRuns": "جميع التشغيلات",
     "backwards": "تشغيل رجعي",
     "dateRange": "نطاق التاريخ",
-    "dateRangeFrom": "من",
-    "dateRangeTo": "إلى",
     "errorStartDateBeforeEndDate": "يجب أن يكون تاريخ البدء قبل تاريخ الانتهاء",
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
     "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",

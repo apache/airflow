@@ -8,8 +8,6 @@
     "allRuns": "Tutti i Run",
     "backwards": "Run all'indietro",
     "dateRange": "Intervallo di Date",
-    "dateRangeFrom": "Da",
-    "dateRangeTo": "A",
     "errorStartDateBeforeEndDate": "La Data di Inizio deve essere precedente alla Data di Fine",
     "maxRuns": "Numero massimo di Runs attive",
     "missingAndErroredRuns": "Run Mancanti ed Errati",

@@ -111,17 +111,12 @@
     "any": "Qualunque",
     "or": "O"
   },
+  "filter": "Filtro",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtra per DAG",
-    "keyPlaceholder": "Filtra per chiave XCom",
-    "logicalDateFromPlaceholder": "Data Logica Da",
-    "logicalDateToPlaceholder": "Data Logica A",
-    "mapIndexPlaceholder": "Filtra per Map Index",
-    "runAfterFromPlaceholder": "Esegui Dopo Da",
-    "runAfterToPlaceholder": "Esegui Dopo A",
-    "runIdPlaceholder": "Filtra per ID Run",
-    "taskIdPlaceholder": "Filtra per ID Task",
-    "triggeringUserPlaceholder": "Filtra per utente scatenante"
+    "logicalDateFrom": "Data Logica Da",
+    "logicalDateTo": "Data Logica A",
+    "runAfterFrom": "Esegui Dopo Da",
+    "runAfterTo": "Esegui Dopo A"
   },
   "logicalDate": "Data Logica",
   "logout": "Esci",
@@ -165,6 +160,7 @@
     "running": "In Esecuzione",
     "scheduled": "Programmato"
   },
+  "reset": "Resetta",
   "runId": "ID del Run",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
