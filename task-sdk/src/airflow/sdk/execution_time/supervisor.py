@@ -542,12 +542,12 @@ class WatchedSubprocess:
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
         self.selector.register(
-            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, channel="stdout")
+            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
         )
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_log_forwarder(target_loggers, channel="stderr", log_level=logging.ERROR),
+            self._create_log_forwarder(target_loggers, "task.stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
@@ -562,10 +562,10 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    def _create_log_forwarder(self, loggers, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         return make_buffered_socket_reader(
-            forward_to_log(loggers, chan=channel, level=log_level), on_close=self._on_socket_closed
+            forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
         )
 
     def _on_socket_closed(self, sock: socket):
@@ -1733,7 +1733,7 @@ def process_log_messages_from_subprocess(
 
 
 def forward_to_log(
-    target_loggers: tuple[FilteringBoundLogger, ...], chan: str, level: int
+    target_loggers: tuple[FilteringBoundLogger, ...], logger: str, level: int
 ) -> Generator[None, bytes | bytearray, None]:
     while True:
         line = yield
@@ -1744,7 +1744,7 @@ def forward_to_log(
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
         for log in target_loggers:
-            log.log(level, msg, chan=chan)
+            log.log(level, msg, logger=logger)
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
