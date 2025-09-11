@@ -36,7 +36,7 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
 
 
 def create_asset(*, project_id: str, dataset_id: str, table_id: str, extra: dict | None = None) -> Asset:
-    return Asset(uri=f"bigquery://{project_id}/{dataset_id}/{table_id}", event_extra_template=extra)
+    return Asset(uri=f"bigquery://{project_id}/{dataset_id}/{table_id}", extra=extra)
 
 
 def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:

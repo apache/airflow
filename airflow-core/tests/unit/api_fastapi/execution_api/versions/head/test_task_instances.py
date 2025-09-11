@@ -731,15 +731,15 @@ class TestTIUpdateState:
                 [
                     {
                         "dest_asset_key": {"name": "my-task", "uri": "s3://bucket/my-task"},
-                        "event_extra_template": {"foo": 1},
+                        "extra": {"foo": 1},
                     },
                     {
                         "dest_asset_key": {"name": "my-task-2", "uri": "s3://bucket/my-task-2"},
-                        "event_extra_template": {"foo": 2},
+                        "extra": {"foo": 2},
                     },
                 ],
                 {"foo": 1},
-                id="event_extra_template",
+                id="extra",
             ),
         ],
     )

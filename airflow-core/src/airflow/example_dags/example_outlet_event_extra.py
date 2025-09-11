@@ -54,7 +54,7 @@ with DAG(
 
     @task(outlets=[asset])
     def asset_with_extra_by_context(*, outlet_events=None):
-        outlet_events[asset].event_extra_template = {"hi": "bye"}
+        outlet_events[asset].extra = {"hi": "bye"}
 
     asset_with_extra_by_context()
 

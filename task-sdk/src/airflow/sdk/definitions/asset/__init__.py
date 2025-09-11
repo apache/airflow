@@ -319,6 +319,10 @@ class Asset(os.PathLike, BaseAsset):
         default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
         validator=[_validate_identifier],
     )
+    extra: dict[str, Any] = attrs.field(
+        factory=dict,
+        converter=_set_extra_default,
+    )
     # New: dynamic metadata template (rendered at runtime into AssetEvent.extra)
     event_extra_template: dict[str, Any] | None = attrs.field(factory=dict)
 
@@ -327,7 +331,6 @@ class Asset(os.PathLike, BaseAsset):
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
 
-    # -------- overloads unchanged except 'extra' -> 'event_extra_template' --------
     @overload
     def __init__(
         self,
@@ -335,6 +338,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath,
         *,
         group: str = ...,
+        extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None: ...
@@ -345,6 +349,7 @@ class Asset(os.PathLike, BaseAsset):
         name: str,
         *,
         group: str = ...,
+        extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None: ...
@@ -355,6 +360,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         uri: str | ObjectStoragePath,
         group: str = ...,
+        extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None: ...
@@ -365,6 +371,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath | None = None,
         *,
         group: str | None = None,
+        extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] | None = None,
     ) -> None:
@@ -382,6 +389,8 @@ class Asset(os.PathLike, BaseAsset):
         kwargs: dict[str, Any] = {}
         if group is not None:
             kwargs["group"] = group
+        if extra is not None:
+            kwargs["extra"] = extra
         if event_extra_template is not None:
             kwargs["event_extra_template"] = event_extra_template
         if watchers is not None:
@@ -501,7 +510,6 @@ class Asset(os.PathLike, BaseAsset):
             return {}
 
         if jinja_env is None:
-            # dag.get_template_env() is the canonical way to get env
             jinja_env = context["dag"].get_template_env()
 
         def _render(value):

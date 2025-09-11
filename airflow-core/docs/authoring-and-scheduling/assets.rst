@@ -99,12 +99,12 @@ If needed, you can include an extra dictionary in an asset:
 
     example_asset = Asset(
         "s3://asset/example.csv",
-        event_extra_template={"team": "trainees"},
+        extra={"team": "trainees"},
     )
 
 This can be used to supply custom description to the asset, such as who has ownership to the target file, or what the file is for. The extra information does not affect an asset's identity.
 
-You can also use Jinja templating in the event_extra_template dictionary to enrich the asset with runtime information, such as the execution date of the task that emits events of the asset:
+You can also use Jinja templating in the extra dictionary to enrich the asset with runtime information, such as the execution date of the task that emits events of the asset:
 
 .. code-block::
 
@@ -113,7 +113,7 @@ You can also use Jinja templating in the event_extra_template dictionary to enri
         bash_command="echo 'writing...'",
         outlets=Asset(
             "asset_example",
-            event_extra_template={
+            extra={
                 "static_extra": "value",
                 "dag_id": "{{ dag.dag_id }}",
                 "nested_extra": {
@@ -126,6 +126,35 @@ You can also use Jinja templating in the event_extra_template dictionary to enri
 
 
 .. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
+
+Event extra information on asset events
+---------------------------------------
+
+In addition to static extra information, Airflow also supports attaching dynamic information to individual asset events using the event_extra_template parameter.
+
+This dictionary supports Jinja templating, allowing runtime values such as execution dates, run IDs, or task-specific information to be rendered when the asset event is emitted.
+
+.. code-block::
+
+    templated_asset = Asset(
+        "s3://asset/example.csv",
+        event_extra_template={
+            "dag_id": "{{ dag.dag_id }}",
+            "run_id": "{{ run_id }}",
+            "execution_date": "{{ ds }}",
+        },
+    )
+
+    At runtime, the templates are rendered in the task's execution context, and the resulting dictionary is attached to the emitted AssetEvent. This allows metadata such as row counts, partitions, or execution identifiers to be recorded for each specific event.
+
+    Distinction between extra and event_extra_template
+
+        extra: static description of the asset itself, does not change across runs.
+
+        event_extra_template: runtime-rendered information specific to an emitted event, evaluated against the task's execution context.event_extra_template: runtime-rendered information specific to an emitted event, evaluated against the task's execution context, not persisted in the database.
+
+        This separation ensures that static metadata about an asset and dynamic metadata about asset events are managed independently.
+
 
 Creating a task to emit asset events
 ------------------------------------
@@ -318,9 +347,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
     @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_outlet_events(*, outlet_events):
-        outlet_events[AssetAlias("my-task-outputs")].add(
-            Asset("s3://bucket/my-task"), event_extra_template={"k": "v"}
-        )
+        outlet_events[AssetAlias("my-task-outputs")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
 
 
 **Emit an asset event during task execution through yielding Metadata**
@@ -333,9 +360,9 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
     @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_metadata():
         s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
-        yield Metadata(s3_asset, event_extra_template={"k": "v"}, alias=AssetAlias("my-task-outputs"))
+        yield Metadata(s3_asset, extra={"k": "v"}, alias=AssetAlias("my-task-outputs"))
 
-Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``event_extra_template`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
+Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
 
 .. code-block:: python
 
@@ -350,17 +377,11 @@ Only one asset event is emitted for an added asset, even if it is added to the a
         ]
     )
     def my_task_with_outlet_events(*, outlet_events):
-        outlet_events[AssetAlias("my-task-outputs-1")].add(
-            Asset("s3://bucket/my-task"), event_extra_template={"k": "v"}
-        )
+        outlet_events[AssetAlias("my-task-outputs-1")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
         # This line won't emit an additional asset event as the asset and extra are the same as the previous line.
-        outlet_events[AssetAlias("my-task-outputs-2")].add(
-            Asset("s3://bucket/my-task"), event_extra_template={"k": "v"}
-        )
+        outlet_events[AssetAlias("my-task-outputs-2")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
         # This line will emit an additional asset event as the extra is different.
-        outlet_events[AssetAlias("my-task-outputs-3")].add(
-            Asset("s3://bucket/my-task"), event_extra_template={"k2": "v2"}
-        )
+        outlet_events[AssetAlias("my-task-outputs-3")].add(Asset("s3://bucket/my-task"), extra={"k2": "v2"})
 
 
 Fetching information from previously emitted asset events through resolved asset aliases
@@ -374,9 +395,7 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
 
         @task(outlets=[AssetAlias("example-alias")])
         def produce_asset_events(*, outlet_events):
-            outlet_events[AssetAlias("example-alias")].add(
-                Asset("s3://bucket/my-task"), event_extra_template={"row_count": 1}
-            )
+            outlet_events[AssetAlias("example-alias")].add(Asset("s3://bucket/my-task"), extra={"row_count": 1})
 
 
     with DAG(dag_id="asset-alias-consumer", schedule=None):

@@ -644,7 +644,7 @@ class TestDag:
         task_id = "test_asset_task"
 
         uri1 = "s3://asset/1"
-        a1 = Asset(uri=uri1, name="test_asset_1", event_extra_template={"not": "used"}, group="test-group")
+        a1 = Asset(uri=uri1, name="test_asset_1", extra={"not": "used"}, group="test-group")
         a2 = Asset(uri="s3://asset/2", name="test_asset_2", group="test-group")
         a3 = Asset(uri="s3://asset/3", name="test_asset-3", group="test-group")
 
@@ -659,7 +659,7 @@ class TestDag:
                 Asset(
                     uri=uri1,
                     name="test_asset_1",
-                    event_extra_template={"should": "be used"},
+                    extra={"should": "be used"},
                     group="test-group",
                 )
             ],
@@ -2174,31 +2174,29 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Asset(uri="s3://dag1/output_1.txt", event_extra_template={"hi": "bye"}, group="test-group"),
+                Asset(uri="s3://dag1/output_1.txt", extra={"hi": "bye"}, group="test-group"),
                 AssetAll(
                     Asset(
                         uri="s3://dag2/output_1.txt",
                         name="test_asset_2",
-                        event_extra_template={"hi": "bye"},
+                        extra={"hi": "bye"},
                         group="test-group",
                     ),
-                    Asset("s3://dag3/output_3.txt", event_extra_template={"hi": "bye"}, group="test-group"),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}, group="test-group"),
                     AssetAll(
                         AssetAll(
                             Asset(
                                 "s3://dag3/output_4.txt",
-                                event_extra_template={"hi": "bye"},
+                                extra={"hi": "bye"},
                                 group="test-group",
                             ),
                             Asset(
                                 "s3://dag3/output_5.txt",
-                                event_extra_template={"hi": "bye"},
+                                extra={"hi": "bye"},
                                 group="test-group",
                             ),
                         ),
-                        Asset(
-                            "s3://dag3/output_6.txt", event_extra_template={"hi": "bye"}, group="test-group"
-                        ),
+                        Asset("s3://dag3/output_6.txt", extra={"hi": "bye"}, group="test-group"),
                     ),
                 ),
                 AssetAlias(name="test_name", group="test-group"),

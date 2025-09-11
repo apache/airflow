@@ -285,7 +285,7 @@ class AssetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Asset) -> AssetModel:
-        rendered_extra = obj.event_extra_template or {}
+        rendered_extra = obj.extra or {}
         return cls(
             name=obj.name,
             uri=obj.uri,
@@ -330,7 +330,7 @@ class AssetModel(Base):
             name=self.name,
             uri=self.uri,
             group=self.group,
-            event_extra_template=self.extra,
+            extra=self.extra,
         )
 
 

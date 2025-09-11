@@ -38,7 +38,7 @@ else:
 
 
 def create_asset(*, bucket: str, key: str, extra: dict | None = None) -> Asset:
-    return Asset(uri=f"gs://{bucket}/{key}", event_extra_template=extra)
+    return Asset(uri=f"gs://{bucket}/{key}", extra=extra)
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:

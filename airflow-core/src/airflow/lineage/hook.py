@@ -95,7 +95,7 @@ class HookLineageCollector(LoggingMixin):
         dictionary, and the LineageContext's unique identifier. This ensures that the generated key is
         unique for each combination of asset and context.
         """
-        extra_str = json.dumps(asset.event_extra_template, sort_keys=True)
+        extra_str = json.dumps(asset.extra, sort_keys=True)
         extra_hash = hashlib.md5(extra_str.encode()).hexdigest()
         return f"{asset.uri}_{extra_hash}_{id(context)}"
 
@@ -132,7 +132,7 @@ class HookLineageCollector(LoggingMixin):
             if group:
                 kwargs["group"] = group
             if asset_extra:
-                kwargs["event_extra_template"] = asset_extra
+                kwargs["extra"] = asset_extra
             return Asset(**kwargs)  # type: ignore[call-overload]
 
         if not scheme:

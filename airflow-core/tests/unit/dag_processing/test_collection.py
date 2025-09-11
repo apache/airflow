@@ -212,7 +212,7 @@ class TestAssetModelOperation:
         assert next(iter(orm_assets.values())).group == "new_group"
 
     def test_change_asset_property_sync_extra(self, dag_maker, session):
-        asset = Asset("myasset", event_extra_template={"foo": "old"})
+        asset = Asset("myasset", extra={"foo": "old"})
         with dag_maker(schedule=asset) as dag:
             EmptyOperator(task_id="mytask")
 
@@ -221,8 +221,8 @@ class TestAssetModelOperation:
         assert len(orm_assets) == 1
         assert next(iter(orm_assets.values())).extra == {"foo": "old"}
 
-        # Parser should pick up event_extra_template change.
-        asset.event_extra_template = {"foo": "new"}
+        # Parser should pick up extra change.
+        asset.extra = {"foo": "new"}
         asset_op = AssetModelOperation.collect({dag.dag_id: LazyDeserializedDAG.from_dag(dag)})
         orm_assets = asset_op.sync_assets(session=session)
         assert len(orm_assets) == 1

@@ -60,9 +60,9 @@ from airflow.sdk import DAG, Asset
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
-dag1_asset = Asset("s3://dag1/output_1.txt", event_extra_template={"hi": "bye"})
-dag2_asset = Asset("s3://dag2/output_1.txt", event_extra_template={"hi": "bye"})
-dag3_asset = Asset("s3://dag3/output_3.txt", event_extra_template={"hi": "bye"})
+dag1_asset = Asset("s3://dag1/output_1.txt", extra={"hi": "bye"})
+dag2_asset = Asset("s3://dag2/output_1.txt", extra={"hi": "bye"})
+dag3_asset = Asset("s3://dag3/output_3.txt", extra={"hi": "bye"})
 
 with DAG(
     dag_id="asset_produces_1",
