@@ -50,15 +50,17 @@ Task SDK Decoupling for Independent Upgrades
 """""""""""""""""""""""""""""""""""""""""""""
 
 Airflow 3.1 advances the decoupling of the Task SDK from Airflow Core through
-improved DAG serialization with versioned contracts. While complete code separation is planned for Airflow 3.0.2,
+improved DAG serialization with versioned contracts. While complete code separation is planned for Airflow 3.2.0,
 the serialization foundation enables independent upgrades when components are deployed separately.
 
 **For DAG Authors**: Import constructs from ``airflow.sdk`` namespace:
+
 - ``from airflow.sdk import DAG, task, asset``
 - Access to latest authoring features with forward compatibility
 - Reduced dependency on server-side Airflow versions
 
 **For Platform Teams**: Foundation for independent upgrades:
+
 - Schema compliance ensures compatibility across versions
 - Deployment flexibility when components are separated
 - Reduced coordination overhead between development and operations teams
@@ -78,6 +80,7 @@ Configure deadline monitoring by specifying:
 - **Callback**: Response action using Airflow Notifiers or custom functions
 
 Example use cases:
+
 - Alert if a daily ETL hasn't completed 1 hour after its scheduled time
 - Notify stakeholders 30 minutes before a critical deadline
 - Escalate when resource-constrained DAGs remain queued too long
@@ -90,21 +93,24 @@ UI Internationalization
 """""""""""""""""""""""
 
 Airflow 3.1 delivers comprehensive internationalization (``i18n``) support, making the web interface
-accessible to users worldwide. The React-based UI now supports 14 languages with robust translation infrastructure.
+accessible to users worldwide. The React-based UI now supports 16 languages with robust translation infrastructure.
 
 **Supported Languages**:
+
 - Arabic
 - Catalan
-- German
+- Dutch
 - English
-- Spanish
 - French
+- German
 - Hebrew
 - Hindi
 - Hungarian
+- Italian
 - Korean
-- Dutch
 - Polish
+- Portuguese
+- Spanish
 - Traditional Chinese
 - Turkish
 
@@ -118,12 +124,14 @@ external views. This extensibility framework allows organizations to embed custo
 monitoring tools, and domain-specific interfaces directly within the Airflow UI.
 
 **New Plugin Capabilities**:
+
 - **React Apps**: Full-featured React applications integrated into Airflow navigation
 - **External Views**: Embed external web applications via iframe with seamless authentication
 - **Dashboard Integration**: Custom widgets and panels for operational dashboards
 - **Menu Integration**: Add custom navigation items and organize tools logically
 
 **Developer Experience**:
+
 - Hot reloading during development with ``airflow-react-plugin`` dev tools
 - TypeScript support and modern React patterns
 - Standardized plugin loading and validation
@@ -187,7 +195,7 @@ New Features
 
 - Add Calendar and Gantt chart views to modern React UI with enhanced filtering (#54252, #51667)
 - Add Python 3.13 support for Airflow runtime and dependencies (#46891)
-- Add ``SQLAlchemy 2.0`` support with various compatibility fixes (#52233, #52518, #54940)
+- Add ``SQLAlchemy 2.0`` support with various compatibility fixes for ``Python 3.13`` (#52233, #52518, #54940)
 - Add support for the ``psycopg3`` postgres driver (#52976)
 - Add ability to track & display user who triggers DAG runs (#51738, #53510, #54164, #55112)
 - Add toggle for log grouping in task log viewer for better organization (#51146)
@@ -318,6 +326,10 @@ Bug Fixes
 - Fix language display consistency and flag representation (#51560, #51177)
 - Fix RTL layout rendering for Arabic and Hebrew interfaces (#51853)
 - Fix graph export cropping when view is partial (#55012)
+- Fix log viewer "Toggle Source" to hide only source fields, not all structured log fields (#55474)
+- Output on stdout/stderr from within tasks is now filterable in the Sources list in the UI log view (#55508)
+- Redact JWT tokens in task logs (#55499)
+- Fix grid view to handle long task name (#55332)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -340,6 +352,8 @@ Miscellaneous
 - Add comprehensive HITL operator documentation and examples (#54618)
 - Add guards for registering middlewares from plugins (#55399)
 - Optimize Gantt group expansion with de-bouncing and deferred rendering (#55334)
+- Differentiate between triggers and watchers currently running for better visibility (#55376)
+- Update color palette and leverage Chakra semantic tokens (#53981)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
