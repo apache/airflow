@@ -316,7 +316,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      ruff check dags/ --select AIR3 --preview
+      ruff check dags/ --select AIR3
 
    This command will analyze your Dags located in the ``dags/`` directory and report any issues related to the specified rules.
 
