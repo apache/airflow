@@ -222,6 +222,31 @@ class TestGCSToBigQueryOperator:
         hook.return_value.insert_job.assert_has_calls(calls)
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_two_partitionings_should_fail(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        with pytest.raises(
+            ValueError, match=r"Only one of time_partitioning or range_partitioning can be set."
+        ):
+            GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                schema_fields=SCHEMA_FIELDS,
+                max_id_key=MAX_ID_KEY,
+                write_disposition=WRITE_DISPOSITION,
+                external_table=False,
+                project_id=JOB_PROJECT_ID,
+                time_partitioning={"field": "created", "type": "DAY"},
+                range_partitioning={"field": "grade", "range": {"start": 0, "end": 100, "interval": 20}},
+            )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_max_value_should_throw_ex_when_query_returns_no_rows(self, hook):
         hook.return_value.insert_job.side_effect = [
             MagicMock(job_id=REAL_JOB_ID, error_result=False),

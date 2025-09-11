@@ -99,7 +99,7 @@ export const TaskInstancesFilter = ({
       >
         <Select.Trigger
           {...(hasFilteredState ? { clearable: true } : {})}
-          colorPalette="blue"
+          colorPalette="brand"
           isActive={Boolean(filteredState)}
         >
           <Select.ValueText>

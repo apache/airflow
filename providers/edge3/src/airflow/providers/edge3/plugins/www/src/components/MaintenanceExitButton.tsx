@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
+import { Button, CloseButton, Dialog, IconButton, Portal, Text, useDisclosure } from "@chakra-ui/react";
 import { useUiServiceExitWorkerMaintenance } from "openapi/queries";
 import { IoMdExit } from "react-icons/io";
 
@@ -26,6 +26,8 @@ interface MaintenanceExitButtonProps {
 }
 
 export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: MaintenanceExitButtonProps) => {
+  const { onClose, onOpen, open } = useDisclosure();
+
   const exitMaintenanceMutation = useUiServiceExitWorkerMaintenance({
     onError: (error) => {
       onExitMaintenance({
@@ -40,6 +42,7 @@ export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: Mainten
         title: "Maintenance Mode deactivated",
         type: "success",
       });
+      onClose();
     },
   });
 
@@ -48,14 +51,41 @@ export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: Mainten
   };
 
   return (
-    <IconButton
-      size="sm"
-      variant="ghost"
-      onClick={() => exitMaintenance()}
-      aria-label="Exit Maintenance"
-      title="Exit Maintenance"
-    >
-      <IoMdExit />
-    </IconButton>
+    <>
+      <IconButton
+        size="sm"
+        variant="ghost"
+        onClick={onOpen}
+        aria-label="Exit Maintenance"
+        title="Exit Maintenance"
+      >
+        <IoMdExit />
+      </IconButton>
+
+      <Dialog.Root onOpenChange={onClose} open={open} size="md">
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Exit maintenance for worker {workerName}</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Text>Are you sure you want to exit maintenance mode for worker {workerName}?</Text>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">No</Button>
+                </Dialog.ActionTrigger>
+                <Button onClick={exitMaintenance}>Yes</Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+    </>
   );
 };
