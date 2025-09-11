@@ -232,7 +232,11 @@ class TestHITLOperator:
 
         ret = hitl_op.execute_complete(
             context={},
-            event={"chosen_options": ["1"], "params_input": {"input": 2}},
+            event={
+                "chosen_options": ["1"],
+                "params_input": {"input": 2},
+                "responded_by_user": {"id": "test", "name": "test"},
+            },
         )
 
         assert ret["chosen_options"] == ["1"]
@@ -253,6 +257,7 @@ class TestHITLOperator:
                 event={
                     "chosen_options": ["not exists"],
                     "params_input": {"input": 2},
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
 
@@ -271,6 +276,7 @@ class TestHITLOperator:
                 event={
                     "chosen_options": ["1"],
                     "params_input": {"no such key": 2, "input": 333},
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
 
@@ -397,12 +403,17 @@ class TestApprovalOperator:
 
         ret = hitl_op.execute_complete(
             context={},
-            event={"chosen_options": ["Approve"], "params_input": {}},
+            event={
+                "chosen_options": ["Approve"],
+                "params_input": {},
+                "responded_by_user": {"id": "test", "name": "test"},
+            },
         )
 
         assert ret == {
             "chosen_options": ["Approve"],
             "params_input": {},
+            "responded_by_user": {"id": "test", "name": "test"},
         }
 
     def test_execute_complete_with_downstream_tasks(self, dag_maker) -> None:
@@ -419,7 +430,11 @@ class TestApprovalOperator:
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             hitl_op.execute_complete(
                 context={"ti": ti, "task": ti.task},
-                event={"chosen_options": ["Reject"], "params_input": {}},
+                event={
+                    "chosen_options": ["Reject"],
+                    "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
             )
         assert set(exc_info.value.tasks) == {"op1"}
 
@@ -480,6 +495,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["branch_1"],
                     "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(2, 6))
@@ -503,6 +519,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": [f"branch_{i}" for i in range(1, 4)],
                     "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(4, 6))
@@ -524,7 +541,11 @@ class TestHITLBranchOperator:
         with pytest.raises(DownstreamTasksSkipped) as exc:
             op.execute_complete(
                 context={"ti": ti, "task": ti.task},
-                event={"chosen_options": ["Approve"], "params_input": {}},
+                event={
+                    "chosen_options": ["Approve"],
+                    "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
             )
         # checks to see that the "archive" task was skipped
         assert set(exc.value.tasks) == {("archive", -1)}
@@ -551,7 +572,11 @@ class TestHITLBranchOperator:
         with pytest.raises(DownstreamTasksSkipped) as exc:
             op.execute_complete(
                 context={"ti": ti, "task": ti.task},
-                event={"chosen_options": ["Approve", "KeepAsIs"], "params_input": {}},
+                event={
+                    "chosen_options": ["Approve", "KeepAsIs"],
+                    "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
             )
         # publish + keep chosen → only "other" skipped
         assert set(exc.value.tasks) == {("other", -1)}
@@ -572,7 +597,11 @@ class TestHITLBranchOperator:
         with pytest.raises(DownstreamTasksSkipped) as exc:
             op.execute_complete(
                 context={"ti": ti, "task": ti.task},
-                event={"chosen_options": ["branch_2"], "params_input": {}},
+                event={
+                    "chosen_options": ["branch_2"],
+                    "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
             )
         assert set(exc.value.tasks) == {("branch_1", -1)}
 
@@ -593,7 +622,11 @@ class TestHITLBranchOperator:
         with pytest.raises(AirflowException, match="downstream|not found"):
             op.execute_complete(
                 context={"ti": ti, "task": ti.task},
-                event={"chosen_options": ["Approve"], "params_input": {}},
+                event={
+                    "chosen_options": ["Approve"],
+                    "params_input": {},
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
             )
 
     @pytest.mark.parametrize("bad", [123, ["publish"], {"x": "y"}, b"publish"])
