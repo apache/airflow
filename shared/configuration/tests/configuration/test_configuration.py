@@ -30,7 +30,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from shared.configuration.tests.conftest import shared_conf_vars as conf_vars
 
 from airflow.providers_manager import ProvidersManager
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
@@ -47,6 +46,43 @@ from airflow_shared.configuration import (
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
+
+
+@contextlib.contextmanager
+def conf_vars(overrides):
+    from airflow_shared.configuration import conf
+
+    original = {}
+    original_env_vars = {}
+    for (section, key), value in overrides.items():
+        env = conf._env_var_name(section, key)
+        if env in os.environ:
+            original_env_vars[env] = os.environ.pop(env)
+
+        if conf.has_option(section, key):
+            original[(section, key)] = conf.get(section, key)
+        else:
+            original[(section, key)] = None
+        if value is not None:
+            if not conf.has_section(section):
+                conf.add_section(section)
+            conf.set(section, key, value)
+        else:
+            if conf.has_section(section):
+                conf.remove_option(section, key)
+    try:
+        yield
+    finally:
+        for (section, key), value in original.items():
+            if value is not None:
+                if not conf.has_section(section):
+                    conf.add_section(section)
+                conf.set(section, key, value)
+            else:
+                if conf.has_section(section):
+                    conf.remove_option(section, key)
+        for env, value in original_env_vars.items():
+            os.environ[env] = value
 
 
 def remove_all_configurations():
