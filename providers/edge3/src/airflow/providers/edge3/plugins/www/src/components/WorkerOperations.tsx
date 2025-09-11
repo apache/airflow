@@ -21,6 +21,7 @@ import type { Worker } from "openapi/requests/types.gen";
 
 import { toaster } from "src/components/ui";
 
+import { MaintenanceEditCommentButton } from "./MaintenanceEditCommentButton";
 import { MaintenanceEnterButton } from "./MaintenanceEnterButton";
 import { MaintenanceExitButton } from "./MaintenanceExitButton";
 import { WorkerDeleteButton } from "./WorkerDeleteButton";
@@ -59,11 +60,13 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
           {worker.maintenance_comments || "No comment"}
         </Box>
         <Flex justifyContent="end" gap={2}>
+          <MaintenanceEditCommentButton onEditComment={onWorkerChange} workerName={workerName} />
           <MaintenanceExitButton onExitMaintenance={onWorkerChange} workerName={workerName} />
-          {state === "offline maintenance" && (
+          {state === "offline maintenance" ? (
             <WorkerDeleteButton onDelete={onWorkerChange} workerName={workerName} />
+          ) : (
+            <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
           )}
-          <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
         </Flex>
       </VStack>
     );

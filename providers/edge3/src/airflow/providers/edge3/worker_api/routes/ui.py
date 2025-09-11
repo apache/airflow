@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_vi
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
+    change_maintenance_comment,
     exit_maintenance,
     remove_worker,
     request_maintenance,
@@ -137,6 +138,37 @@ def request_worker_maintenance(
 
     try:
         request_maintenance(worker_name, formatted_comment, session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.patch(
+    "/worker/{worker_name}/maintenance",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def update_worker_maintenance(
+    worker_name: str,
+    maintenance_request: MaintenanceRequest,
+    session: SessionDep,
+    user: GetUserDep,
+) -> None:
+    """Update maintenance comments for a worker."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+    if not maintenance_request.maintenance_comment:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Maintenance comment is required")
+
+    # Format the comment with timestamp and username (username will be added by plugin layer)
+    first_line = worker.maintenance_comment.split("\n", 1)[0] if worker.maintenance_comment else ""
+    formatted_comment = f"{first_line}\n[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {user.get_name()} updated comment:\n{maintenance_request.maintenance_comment}"
+
+    try:
+        change_maintenance_comment(worker_name, formatted_comment, session=session)
     except Exception as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
 

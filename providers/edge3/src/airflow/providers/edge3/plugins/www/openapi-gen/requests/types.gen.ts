@@ -477,6 +477,13 @@ export type RequestWorkerMaintenanceData = {
 
 export type RequestWorkerMaintenanceResponse = null;
 
+export type UpdateWorkerMaintenanceData = {
+    requestBody: MaintenanceRequest;
+    workerName: string;
+};
+
+export type UpdateWorkerMaintenanceResponse = null;
+
 export type ExitWorkerMaintenanceData = {
     workerName: string;
 };
@@ -690,6 +697,19 @@ export type $OpenApiTs = {
     '/edge_worker/ui/worker/{worker_name}/maintenance': {
         post: {
             req: RequestWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        patch: {
+            req: UpdateWorkerMaintenanceData;
             res: {
                 /**
                  * Successful Response
