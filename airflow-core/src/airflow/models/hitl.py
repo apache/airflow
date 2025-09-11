@@ -16,17 +16,60 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text, func
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text, func, literal
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import ColumnElement
+from sqlalchemy.sql.functions import FunctionElement
 
 from airflow.models.base import Base
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql.compiler import SQLCompiler
+
+
+class JSONExtract(FunctionElement):
+    """
+    Cross-dialect JSON key extractor.
+
+    :meta: private
+    """
+
+    type = String()
+    inherit_cache = True
+
+    def __init__(self, column: ColumnElement[Any], key: str, **kwargs: dict[str, Any]) -> None:
+        super().__init__(column, literal(key), **kwargs)
+
+
+@compiles(JSONExtract, "postgresql")
+def compile_postgres(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict[str, Any]) -> str:
+    """
+    Compile JSONExtract for PostgreSQL.
+
+    :meta: private
+    """
+    column, key = element.clauses
+    return compiler.process(func.json_extract_path_text(column, key), **kwargs)
+
+
+@compiles(JSONExtract, "sqlite")
+@compiles(JSONExtract, "mysql")
+def compile_sqlite_mysql(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict[str, Any]) -> str:
+    """
+    Compile JSONExtract for SQLite/MySQL.
+
+    :meta: private
+    """
+    column, key = element.clauses
+    return compiler.process(func.json_extract(column, f"$.{key.value}"), **kwargs)
 
 
 class HITLUser(TypedDict):
@@ -94,7 +137,7 @@ class HITLDetail(Base):
 
     @responded_by_user_id.expression  # type: ignore[no-redef]
     def responded_by_user_id(cls):
-        return func.json_extract(cls.responded_by, "$.id")
+        return JSONExtract(cls.responded_by, "id")
 
     @hybrid_property
     def responded_by_user_name(self) -> str | None:
@@ -102,7 +145,7 @@ class HITLDetail(Base):
 
     @responded_by_user_name.expression  # type: ignore[no-redef]
     def responded_by_user_name(cls):
-        return func.json_extract(cls.responded_by, "$.name")
+        return JSONExtract(cls.responded_by, "name")
 
     @hybrid_property
     def assigned_users(self) -> list[HITLUser]:
