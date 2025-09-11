@@ -341,7 +341,8 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
-    ) -> None: ...
+    ) -> None:
+        """Canonical; both name and uri are provided."""
 
     @overload
     def __init__(
@@ -352,7 +353,8 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
-    ) -> None: ...
+    ) -> None:
+        """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
     @overload
     def __init__(
@@ -363,7 +365,8 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict | None = None,
         event_extra_template: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
-    ) -> None: ...
+    ) -> None:
+        """It's possible to only provide the URI as a keyword argument."""
 
     def __init__(
         self,
@@ -386,6 +389,8 @@ class Asset(os.PathLike, BaseAsset):
             assert name is not None
             assert uri is not None
 
+        # attrs default (and factory) does not kick in if any value is given to
+        # the argument. We need to exclude defaults from the custom ___init___.
         kwargs: dict[str, Any] = {}
         if group is not None:
             kwargs["group"] = group
@@ -503,7 +508,7 @@ class Asset(os.PathLike, BaseAsset):
         """
         Render the `event_extra_template` into a plain dict that will be merged.
 
-        In AssetEvent.event_extra_template at runtime. Safe to call even if template is None.
+        In AssetEvent.extra at runtime. Safe to call even if template is None.
         """
         template = self.event_extra_template or {}
         if not template:
