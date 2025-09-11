@@ -285,12 +285,11 @@ class AssetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Asset) -> AssetModel:
-        rendered_extra = obj.extra or {}
         return cls(
             name=obj.name,
             uri=obj.uri,
             group=obj.group,
-            extra=rendered_extra,
+            extra=obj.extra,
         )
 
     def __init__(self, name: str = "", uri: str = "", **kwargs):
@@ -325,7 +324,6 @@ class AssetModel(Base):
     def to_public(self) -> Asset:
         from airflow.sdk.definitions.asset import Asset
 
-        # ToDOReview Brunda
         return Asset(
             name=self.name,
             uri=self.uri,
