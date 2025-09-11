@@ -49,7 +49,7 @@ const DisplayMarkdownButton = ({
         size="md"
       >
         <Dialog.Content backdrop>
-          <Dialog.Header bg="blue.muted">
+          <Dialog.Header bg="info.muted">
             <Heading size="xl">{header}</Heading>
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>

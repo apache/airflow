@@ -39,7 +39,7 @@ export const ExtraLinks = () => {
       <HStack gap={2} py={2}>
         {Object.entries(data.extra_links).map(([key, value], _) =>
           value === null ? undefined : (
-            <Button asChild colorPalette="blue" key={key} variant="surface">
+            <Button asChild colorPalette="brand" key={key} variant="surface">
               <a href={value} rel="noopener noreferrer" target="_blank">
                 {key}
               </a>
