@@ -179,6 +179,7 @@ class HITLOperator(BaseOperator):
         return HITLTriggerEventSuccessPayload(
             chosen_options=chosen_options,
             params_input=params_input,
+            responded_by_user=event["responded_by_user"],
         )
 
     def process_trigger_event_error(self, event: dict[str, Any]) -> None:

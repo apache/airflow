@@ -122,7 +122,12 @@ class TestHITLTrigger:
         event = await trigger_task
 
         assert event == TriggerEvent(
-            HITLTriggerEventSuccessPayload(chosen_options=["1"], params_input={"input": 1}, timedout=True)
+            HITLTriggerEventSuccessPayload(
+                chosen_options=["1"],
+                params_input={"input": 1},
+                responded_by_user={"id": "Fallback to defaults", "name": "Fallback to defaults"},
+                timedout=True,
+            )
         )
 
         assert mock_log.info.call_args == mock.call(
@@ -160,7 +165,12 @@ class TestHITLTrigger:
         event = await trigger_task
 
         assert event == TriggerEvent(
-            HITLTriggerEventSuccessPayload(chosen_options=["2"], params_input={}, timedout=False)
+            HITLTriggerEventSuccessPayload(
+                chosen_options=["2"],
+                params_input={},
+                responded_by_user={"id": "1", "name": "test"},
+                timedout=False,
+            )
         )
 
         assert mock_log.info.call_args == mock.call(
@@ -200,6 +210,7 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["3"],
                 params_input={"input": 50},
+                responded_by_user={"id": "test", "name": "test"},
                 timedout=False,
             )
         )

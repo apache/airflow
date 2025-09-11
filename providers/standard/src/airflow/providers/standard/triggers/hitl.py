@@ -31,6 +31,7 @@ from uuid import UUID
 from asgiref.sync import sync_to_async
 
 from airflow.sdk.execution_time.hitl import (
+    HITLUser,
     get_hitl_detail_content_detail,
     update_hitl_detail_response,
 )
@@ -43,6 +44,7 @@ class HITLTriggerEventSuccessPayload(TypedDict, total=False):
 
     chosen_options: list[str]
     params_input: dict[str, Any]
+    responded_by_user: HITLUser
     timedout: bool
 
 
@@ -116,6 +118,10 @@ class HITLTrigger(BaseTrigger):
                         HITLTriggerEventSuccessPayload(
                             chosen_options=resp.chosen_options,
                             params_input=resp.params_input or {},
+                            responded_by_user=HITLUser(
+                                id=resp.responded_by_user.id,
+                                name=resp.responded_by_user.name,
+                            ),
                             timedout=False,
                         )
                     )
@@ -142,6 +148,10 @@ class HITLTrigger(BaseTrigger):
                     HITLTriggerEventSuccessPayload(
                         chosen_options=self.defaults,
                         params_input=self.params,
+                        responded_by_user=HITLUser(
+                            id="Fallback to defaults",
+                            name="Fallback to defaults",
+                        ),
                         timedout=True,
                     )
                 )
@@ -162,6 +172,10 @@ class HITLTrigger(BaseTrigger):
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
                         params_input=resp.params_input or {},
+                        responded_by_user=HITLUser(
+                            id=resp.responded_by_user.id,
+                            name=resp.responded_by_user.name,
+                        ),
                         timedout=False,
                     )
                 )
