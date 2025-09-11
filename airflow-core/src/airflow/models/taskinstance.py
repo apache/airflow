@@ -411,6 +411,8 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
+    max_active_tis_per_dag = Column(Integer)
+    max_active_tis_per_dagrun = Column(Integer)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     _rendered_map_index = Column("rendered_map_index", String(250))
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
@@ -444,6 +446,8 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_trigger_id", trigger_id),
         Index("ti_heartbeat", last_heartbeat_at),
+        Index("ti_max_active_tis_per_dag", max_active_tis_per_dag),
+        Index("ti_max_active_tis_per_dagrun", max_active_tis_per_dagrun),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
@@ -464,6 +468,14 @@ class TaskInstance(Base, LoggingMixin):
         "DagModel",
         primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
         foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
+        viewonly=True,
+    )
+    pool_model: Pool = relationship(
+        "Pool",
+        primaryjoin="TaskInstance.pool == Pool.pool",
+        foreign_keys=pool,
         uselist=False,
         innerjoin=True,
         viewonly=True,
@@ -567,6 +579,8 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor": task.executor,
             "executor_config": task.executor_config,
+            "max_active_tis_per_dag": task.max_active_tis_per_dag,
+            "max_active_tis_per_dagrun": task.max_active_tis_per_dagrun,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
             "map_index": map_index,
@@ -752,6 +766,8 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor = task.executor
         self.executor_config = task.executor_config
+        self.max_active_tis_per_dag = task.max_active_tis_per_dag
+        self.max_active_tis_per_dagrun = task.max_active_tis_per_dagrun
         self.operator = task.task_type
         self.custom_operator_name = getattr(task, "operator_name", None)
         # Re-apply cluster policy here so that task default do not overload previous data

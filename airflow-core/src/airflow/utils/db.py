@@ -77,8 +77,6 @@ except (ImportError, ModuleNotFoundError):
     USE_PSYCOPG3 = False
 
 if TYPE_CHECKING:
-    from alembic.runtime.environment import EnvironmentContext
-    from alembic.script import ScriptDirectory
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
@@ -87,6 +85,8 @@ if TYPE_CHECKING:
 
     from airflow.models.connection import Connection
     from airflow.typing_compat import Self
+    from alembic.runtime.environment import EnvironmentContext
+    from alembic.script import ScriptDirectory
 
     # TODO: Import this from sqlalchemy.orm instead when switching to SQLA 2.
     # https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
@@ -680,6 +680,7 @@ class AutocommitEngineForMySQL:
 def _create_db_from_orm(session):
     """Create database tables from ORM models and stamp alembic version."""
     from airflow.models.base import Base
+    from alembic import command
 
     log.info("Creating Airflow database tables from the ORM")
 
