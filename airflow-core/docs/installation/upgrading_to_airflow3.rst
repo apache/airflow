@@ -88,37 +88,32 @@ Step 3: Dag Authors - Check your Airflow Dags for compatibility
 
 To minimize friction for users upgrading from prior versions of Airflow, we have created a dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
 
-The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.6``. The below example demonstrates how to check
-for dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
+The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.13.0``. The below example demonstrates how to check
+for Dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --preview
+    ruff check dags/ --select AIR301
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes --preview
+    ruff check dags/ --select AIR301 --show-fixes
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix --preview
+    ruff check dags/ --select AIR301 --fix
 
 
-Some of the fixes are marked as unsafe. Unsafe fixes usually do not break dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
+Some of the fixes are marked as unsafe. Unsafe fixes usually do not break Dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
 To trigger these fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301 --fix --unsafe-fixes --preview
-
-.. note::
-  Ruff has strict policy about when a rule becomes stable. Till it does you must use --preview flag.
-  The progress of Airflow Ruff rule become stable can be tracked in https://github.com/astral-sh/ruff/issues/17749
-  That said, from Airflow side the rules are perfectly fine to be used.
+    ruff check dags/ --select AIR301 --fix --unsafe-fixes
 
 .. note::
 
