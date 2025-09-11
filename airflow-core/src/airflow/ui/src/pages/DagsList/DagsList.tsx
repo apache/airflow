@@ -308,7 +308,7 @@ export const DagsList = () => {
         </HStack>
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />
-      <Box overflow="auto">
+      <Box overflow="auto" pb={8}>
         <DataTable
           cardDef={cardDef}
           columns={columns}

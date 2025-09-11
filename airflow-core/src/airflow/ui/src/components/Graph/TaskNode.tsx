@@ -116,7 +116,7 @@ export const TaskNode = ({
             )}
             {isGroup ? (
               <Button
-                colorPalette="blue"
+                colorPalette="brand"
                 cursor="pointer"
                 height={8}
                 onClick={onClick}
@@ -135,22 +135,22 @@ export const TaskNode = ({
         {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
           <>
             <Box
-              bg="bg.subtle"
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor="fg"
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}
               width={`${width - 10}px`}
             />
             <Box
-              bg="bg.subtle"
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor="fg"
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}

@@ -164,7 +164,7 @@ class ExecutorLoader:
         executor_config = conf.get_mandatory_value("core", "executor")
         if not executor_config:
             raise AirflowConfigException(
-                "The 'executor' key in the 'coe' section of the configuration is mandatory and cannot be empty"
+                "The 'executor' key in the 'core' section of the configuration is mandatory and cannot be empty"
             )
         configs: list[tuple[str | None, list[str]]] = []
         # The executor_config can look like a few things. One is just a single executor name, such as
@@ -182,6 +182,7 @@ class ExecutorLoader:
                 # Split by comma to get the individual executor names and strip spaces off of them
                 configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
             else:
+                cls.block_use_of_multi_team()
                 team_name, executor_names = team_executor_config.split("=")
                 configs.append((team_name, [name.strip() for name in executor_names.split(",")]))
         return configs

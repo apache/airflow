@@ -127,8 +127,11 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Move docker to /mnt"
+        run: ./scripts/ci/move_docker_to_mnt.sh
         if: inputs.upload-package-artifact == 'true'
       - name: "Cleanup dist and context file"
         shell: bash
@@ -212,8 +215,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Cleanup dist and context file"

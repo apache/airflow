@@ -37,7 +37,7 @@ import requests
 from packaging.version import Version
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
-from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
+from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
 
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
 
@@ -46,6 +46,8 @@ DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "dock
 FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "Dockerfile", False),
     (AIRFLOW_ROOT_PATH / "Dockerfile.ci", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "check_imports_in_providers.py", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "ruff_format.py", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
@@ -66,12 +68,13 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
+    (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
 ]
-
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
 
@@ -219,11 +222,10 @@ UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", "true").lower() == "true"
 UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true"
 UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
 UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
+UPGRADE_RUFF: bool = os.environ.get("UPGRADE_RUFF", "true").lower() == "true"
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
-
-GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
@@ -254,16 +256,7 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 
 if __name__ == "__main__":
-    if not GITHUB_TOKEN:
-        console.print(
-            "[red]GITHUB_TOKEN environment variable is not set. This will lead to failures on rate limits.[/]\n"
-            "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
-            "the URL:\n\n"
-            "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-upgrade-important-versions\n\n"
-            "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
-            "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
-        )
-        sys.exit(1)
+    gh_token = retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
     changed = False
     golang_version = get_latest_golang_version()
     pip_version = get_latest_pypi_version("pip")
@@ -274,6 +267,7 @@ if __name__ == "__main__":
     pyyaml_version = get_latest_pypi_version("PyYAML")
     gitpython_version = get_latest_pypi_version("GitPython")
     rich_version = get_latest_pypi_version("rich")
+    ruff_version = get_latest_pypi_version("ruff")
     node_lts_version = get_latest_lts_node_version()
     for file, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file}")
@@ -287,7 +281,7 @@ if __name__ == "__main__":
                 )
         if UPGRADE_PYTHON:
             for python_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
-                latest_python_version = get_latest_python_version(python_version, GITHUB_TOKEN)
+                latest_python_version = get_latest_python_version(python_version, gh_token)
                 if not latest_python_version:
                     console.print(
                         f"[red]Failed to get latest version for python {python_version}. Skipping.[/]"
@@ -388,6 +382,18 @@ if __name__ == "__main__":
             new_content = re.sub(
                 r"(RICH_VERSION=)(\"[0-9.]+\")",
                 f'RICH_VERSION="{rich_version}"',
+                new_content,
+            )
+        if UPGRADE_RUFF:
+            console.print(f"[bright_blue]Latest ruff version: {ruff_version}")
+            new_content = re.sub(
+                r"(ruff==)([0-9.]+)",
+                f"ruff=={ruff_version}",
+                new_content,
+            )
+            new_content = re.sub(
+                r"(ruff>=)([0-9.]+)",
+                f"ruff>={ruff_version}",
                 new_content,
             )
         if new_content != file_content:

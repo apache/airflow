@@ -77,7 +77,8 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     },
     "handlers": {
         "console": {
-            "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
+            "class": "logging.StreamHandler",
+            # "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
             "formatter": "airflow_coloured",
             "stream": "sys.stdout",
             "filters": ["mask_secrets_core"],

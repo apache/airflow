@@ -49,7 +49,7 @@ export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps
         {latestRuns.length > 0 ? (
           <RecentRuns latestRuns={latestRuns} />
         ) : (
-          <Text color="gray.500" fontSize="sm" overflowWrap="anywhere" textAlign="center">
+          <Text color="fg.muted" fontSize="sm" overflowWrap="anywhere" textAlign="center">
             {translate("favorite.noDagRuns")}
           </Text>
         )}
