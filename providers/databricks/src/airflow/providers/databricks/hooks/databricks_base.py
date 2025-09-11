@@ -36,6 +36,7 @@ from urllib.parse import urlsplit
 import aiohttp
 import requests
 from aiohttp.client_exceptions import ClientConnectorError
+from asgiref.sync import sync_to_async
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -122,6 +123,10 @@ class BaseDatabricksHook(BaseHook):
         self.token_timeout_seconds = 10
         self.caller = caller
 
+        # Cache for lack of an async @cached_property
+        self._async_databricks_conn: Connection | None = None
+        self._async_host: str | None = None
+
         def my_after_func(retry_state):
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
 
@@ -140,6 +145,11 @@ class BaseDatabricksHook(BaseHook):
     @cached_property
     def databricks_conn(self) -> Connection:
         return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
+
+    async def a_databricks_conn(self) -> Connection:
+        if self._async_databricks_conn is None:
+            self._async_databricks_conn = await sync_to_async(self.get_connection)(self.databricks_conn_id)
+        return self._async_databricks_conn  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
@@ -170,6 +180,15 @@ class BaseDatabricksHook(BaseHook):
             host = self._parse_host(self.databricks_conn.host)
 
         return host
+
+    async def a_host(self) -> str:
+        if self._async_host is None:
+            conn = await self.a_databricks_conn()
+            if "host" in conn.extra_dejson:
+                self._async_host = self._parse_host(conn.extra_dejson["host"])
+            else:
+                self._async_host = self._parse_host(conn.host)
+        return self._async_host
 
     async def __aenter__(self):
         self._session = aiohttp.ClientSession()
@@ -624,6 +643,12 @@ class BaseDatabricksHook(BaseHook):
         schema = self.databricks_conn.schema or "https"
         return f"{schema}://{self.host}{port}/{endpoint}"
 
+    async def _a_endpoint_url(self, endpoint):
+        conn = await self.a_databricks_conn()
+        port = f":{conn.port}" if conn.port else ""
+        schema = conn.schema or "https"
+        return f"{schema}://{self.a_host()}{port}/{endpoint}"
+
     def _do_api_call(
         self,
         endpoint_info: tuple[str, str],
@@ -710,7 +735,7 @@ class BaseDatabricksHook(BaseHook):
         method, endpoint = endpoint_info
 
         full_endpoint = f"api/{endpoint}"
-        url = self._endpoint_url(full_endpoint)
+        url = await self._a_endpoint_url(full_endpoint)
 
         aad_headers = await self._a_get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
