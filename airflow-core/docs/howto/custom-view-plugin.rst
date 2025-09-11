@@ -57,6 +57,7 @@ Developing React Applications with the Bootstrap Tool
 .. warning::
   React applications are new in Airflow 3.1 and should be considered experimental. The feature may be
   subject to changes in future versions without warning based on user feedback and errors reported.
+  Dependency and state interactions between the UI and plugins may need to be refactored, which will also change the bootstrapped example project provided.
 
 |experimental|
 
