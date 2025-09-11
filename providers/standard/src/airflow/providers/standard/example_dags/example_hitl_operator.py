@@ -140,6 +140,7 @@ with DAG(
         notifiers=[hitl_request_callback],
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
+        assigned_users=[{"id": "admin", "name": "admin"}],
     )
     # [END howto_hitl_approval_operator]
 
