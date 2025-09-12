@@ -1,7 +1,7 @@
 {
   "consumingDags": "Dag Consumatori",
   "createEvent": {
-    "button": "Crea Evento",
+    "button": "Crea un Evento",
     "manual": {
       "description": "Crea manualmente un Evento Asset",
       "extra": "Extra dell'Evento Asset",
