@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import abc
 import json
-from collections.abc import AsyncIterator, Collection, Sequence
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, Any
@@ -42,8 +42,8 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.context import Context
     from airflow.serialization.serialized_objects import SerializedBaseOperator as Operator
+    from airflow.utils.context import Context
 
 
 @dataclass
