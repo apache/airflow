@@ -89,6 +89,7 @@ class KubernetesPodTrigger(BaseTrigger):
         cluster_context: str | None = None,
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
+        ssl_ca_cert: str | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
         startup_check_interval: int = 5,
@@ -107,6 +108,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.cluster_context = cluster_context
         self.config_dict = config_dict
         self.in_cluster = in_cluster
+        self.ssl_ca_cert = ssl_ca_cert
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
@@ -130,6 +132,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "cluster_context": self.cluster_context,
                 "config_dict": self.config_dict,
                 "in_cluster": self.in_cluster,
+                "ssl_ca_cert": self.ssl_ca_cert,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
                 "startup_check_interval": self.startup_check_interval,
@@ -285,6 +288,7 @@ class KubernetesPodTrigger(BaseTrigger):
             in_cluster=self.in_cluster,
             config_dict=self.config_dict,
             cluster_context=self.cluster_context,
+            ssl_ca_cert=self.ssl_ca_cert,
         )
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
