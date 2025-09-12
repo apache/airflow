@@ -54,7 +54,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         self.num_starving_tasks_total = 0
         self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
-    def get_query(self, **additional_params) -> Query:
+    def _get_query(self, **additional_params) -> Query:
         priority_order = self.priority_order
         max_tis = additional_params.get("max_tis", 32)
         query = (
@@ -77,7 +77,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         executor_slots_available: dict[str, int] = additional_params["executor_slots_available"]
         max_tis: int = additional_params.get("max_tis", 32)
 
-        query = self.get_query(
+        query = self._get_query(
             max_tis=max_tis,
         )
 

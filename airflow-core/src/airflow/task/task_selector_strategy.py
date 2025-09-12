@@ -36,6 +36,7 @@ class TaskSelectorStrategy(Protocol):
     flexible and for it to be changed in a simpler manner.
     """
 
+    @abstractmethod
     def query_tasks_with_locks(
         self,
         session: Session,
@@ -46,14 +47,3 @@ class TaskSelectorStrategy(Protocol):
 
         Expects getting a priority_order to know how to priorotize the TI's correctly.
         """
-        query = self.get_query(**additional_params)
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-
-        return session.scalars(query).all()
-
-    @abstractmethod
-    def get_query(
-        self,
-        **additional_params,
-    ) -> Query:
-        """Return the query to run, which is used to get the ready TI's."""
