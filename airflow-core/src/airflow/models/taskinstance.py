@@ -1433,7 +1433,7 @@ class TaskInstance(Base, LoggingMixin):
 
     # TODO: We have some code duplication here and in the _create_ti_state_update_query_and_update_state
     #       method of the task_instances module in the execution api when a TIDeferredStatePayload is being
-    #       processed.  This is because of a TaskInstance being updated differenly using SQLAlchemy.
+    #       processed.  This is because of a TaskInstance being updated differently using SQLAlchemy.
     #       If we use the approach from the execution api as common code in the DagRun schedule_tis method,
     #       the side effect is the changed done to the task instance aren't picked up by the scheduler and
     #       thus the task instance isn't processed until the scheduler is restarted.
