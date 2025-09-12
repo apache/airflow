@@ -41,6 +41,7 @@ from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -81,7 +82,6 @@ from airflow.providers.cncf.kubernetes.version_compat import (
     BaseOperator,
     TaskDeferred,
 )
-from airflow.exceptions import AirflowException
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key

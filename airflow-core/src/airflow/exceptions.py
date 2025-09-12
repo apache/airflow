@@ -46,7 +46,7 @@ class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
 
-class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
+class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
 
