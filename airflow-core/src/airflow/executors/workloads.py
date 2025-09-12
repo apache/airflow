@@ -27,14 +27,13 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
+    from airflow.models import DagRun
+    from airflow.models.callback import Callback as CallbackModel, CallbackFetchMethod
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-__all__ = [
-    "All",
-    "ExecuteTask",
-]
+__all__ = ["All", "ExecuteTask", "ExecuteCallback"]
 
 log = structlog.get_logger(__name__)
 
@@ -84,6 +83,14 @@ class TaskInstance(BaseModel):
         )
 
 
+class Callback(BaseModel):
+    """Schema for Callback with minimal required fields needed for Executors and Task SDK."""
+
+    id: uuid.UUID
+    fetch_type: CallbackFetchMethod
+    data: dict
+
+
 class ExecuteTask(BaseWorkload):
     """Execute the given Task."""
 
@@ -126,6 +133,52 @@ class ExecuteTask(BaseWorkload):
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
+            token=token,
+            log_path=fname,
+            bundle_info=bundle_info,
+        )
+
+
+# TODO: refactor to reduce code duplication
+class ExecuteCallback(BaseWorkload):
+    """Execute the given Callback."""
+
+    callback: Callback
+
+    dag_rel_path: os.PathLike[str]
+    """The filepath where the DAG can be found (likely prefixed with `DAG_FOLDER/`)"""
+
+    bundle_info: BundleInfo
+
+    log_path: str | None
+    """The rendered relative log filename template the task logs should be written to"""
+
+    type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+
+    @classmethod
+    def make(
+        cls,
+        callback: CallbackModel,
+        dag_run: DagRun,
+        dag_rel_path: Path | None = None,
+        generator: JWTGenerator | None = None,
+        bundle_info: BundleInfo | None = None,
+    ) -> ExecuteCallback:
+        from pathlib import Path
+
+        if not bundle_info:
+            bundle_info = BundleInfo(
+                name=dag_run.dag_model.bundle_name,
+                version=dag_run.bundle_version,
+            )
+        fname = f"executor_callbacks/{callback.id}"  # TODO: better log file template
+        token = ""
+
+        if generator:
+            token = generator.generate({"sub": str(callback.id)})
+        return cls(
+            callback=Callback.model_validate(callback, from_attributes=True),
+            dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc),
             token=token,
             log_path=fname,
             bundle_info=bundle_info,

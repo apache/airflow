@@ -106,6 +106,8 @@ class Trigger(Base):
 
     assets = relationship("AssetModel", secondary=asset_trigger_association_table, back_populates="triggers")
 
+    callback = relationship("Callback", back_populates="trigger", uselist=False)
+
     deadline = relationship("Deadline", back_populates="trigger", uselist=False)
 
     def __init__(
