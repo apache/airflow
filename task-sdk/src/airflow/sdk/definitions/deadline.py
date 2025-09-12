@@ -302,7 +302,7 @@ class DeadlineReference:
 
     @classmethod
     def AVERAGE_RUNTIME(cls, limit: int = 0) -> DeadlineReferenceType:
-        if limit == 0 :
+        if limit == 0:
             limit = cls.ReferenceModels.AverageRuntimeDeadline.DEFAULT_LIMIT
         return cls.ReferenceModels.AverageRuntimeDeadline(limit)
 
