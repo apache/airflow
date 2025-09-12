@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -107,24 +108,67 @@ class TestSkipMixin:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_mapped_operators_passed(self):
-        ti = Mock(map_index=2)
-        assert (
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator)],
-            )
-            is None
-        )
+        ti = Mock(map_index=2, dag_id="test_dag")
+        task_mock = MagicMock(spec=MappedOperator, task_id="mapped_task")
+        task_mock.is_mapped = True
+        # Mock the task to return itself for the task attribute
+        task_mock.task = task_mock
+
+        with patch("airflow.providers.standard.utils.skipmixin.getattr") as mock_getattr:
+            # Make sure getattr returns the task_id for the task mock
+            def getattr_side_effect(obj, attr, default=None):
+                if attr == "task":
+                    return task_mock
+                if attr == "task_id":
+                    return "mapped_task"
+                return default
+
+            mock_getattr.side_effect = getattr_side_effect
+
+            with patch("airflow.providers.standard.utils.skipmixin.hasattr", return_value=True):
+                with patch(
+                    "airflow.providers.standard.utils.skipmixin.SkipMixin._set_state_to_skipped"
+                ) as mock_skip:
+                    SkipMixin().skip(
+                        ti=ti,
+                        tasks=[task_mock],
+                    )
+                    # Verify _set_state_to_skipped was called with the expected arguments
+                    assert mock_skip.called
+                    args, kwargs = mock_skip.call_args
+                    # Should use the task_id from the task mock
+                    assert args[0] == ["mapped_task"]
+                    # map_index should be passed as a positional argument, not in kwargs
+                    assert len(args) == 2
+                    assert args[1] == 2
+                    assert kwargs == {}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_none_mapped_operators_passed(self):
-        ti = Mock(map_index=-1)
-        with pytest.raises(DownstreamTasksSkipped) as exc_info:
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator, task_id="task")],
-            )
-        assert exc_info.value.tasks == ["task"]
+        ti = Mock(map_index=-1, dag_id="test_dag")
+        task_mock = MagicMock(spec=BaseOperator, task_id="task")
+        task_mock.is_mapped = False
+        task_mock.task = task_mock  # Task should return itself for the task attribute
+
+        with patch("airflow.providers.standard.utils.skipmixin.getattr") as mock_getattr:
+            # Make sure getattr returns the task_id for the task mock
+            def getattr_side_effect(obj, attr, default=None):
+                if attr == "task":
+                    return task_mock
+                if attr == "task_id":
+                    return "task"
+                return default
+
+            mock_getattr.side_effect = getattr_side_effect
+
+            with patch("airflow.providers.standard.utils.skipmixin.hasattr", return_value=True):
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    SkipMixin().skip(
+                        ti=ti,
+                        tasks=[task_mock],
+                    )
+                # Should return a list with just the task_id string for non-mapped tasks
+                assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
         "branch_task_ids, expected_states",
