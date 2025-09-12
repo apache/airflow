@@ -25,25 +25,13 @@ from airflow.hooks.base import BaseHook
 
 class VoyageAIHook(BaseHook):
     """
-    Airflow Hook to interact with the Voyage AI API.
+    Interact with the Voyage AI API to generate text embeddings.
 
-    This hook manages authentication using an API key stored in an Airflow connection's password field.
-    It provides a convenient interface to create and reuse an authenticated `voyageai.Client` instance
-    for making API calls to Voyage AI services.
+    This hook manages the connection and authentication with the Voyage AI service,
+    providing a convenient interface to the ``voyageai`` client library. The API
+    key must be stored in the password field of the configured Airflow connection.
 
-    Attributes:
-        conn_name_attr (str): The connection ID attribute name.
-        default_conn_name (str): The default connection ID.
-        conn_type (str): The connection type for Airflow.
-        hook_name (str): The human-readable name of the hook.
-
-    Usage:
-        hook = VoyageAIHook(conn_id='my_voyage_connection')
-        client = hook.get_conn()
-        embeddings = hook.embed(["text1", "text2"], model="voyage-2")
-
-    Raises:
-        ValueError: If the API key is not found in the connection's password field.
+    :param conn_id: The Airflow connection ID to use for connecting to Voyage AI.
     """
 
     conn_name_attr = "voyage_conn_id"
@@ -58,16 +46,13 @@ class VoyageAIHook(BaseHook):
 
     def get_conn(self) -> Client:
         """
-        Return an authenticated `voyageai.Client` instance.
+        Return an authenticated ``voyageai.Client`` instance.
 
-        This method retrieves the API key from the Airflow connection specified by `conn_id`,
-        authenticates with the Voyage AI API, and returns a client instance for making API calls.
+        This method retrieves the API key from the password field of the Airflow
+        connection and uses it to instantiate the client.
 
-        Returns:
-            Client: An authenticated instance of `voyageai.Client`.
-
-        Raises:
-            ValueError: If the API key is not found in the connection's password field.
+        :return: An initialized ``voyageai.Client`` object.
+        :raises ValueError: If the API key is not found in the connection.
         """
         if self.client:
             return self.client
@@ -88,6 +73,7 @@ class VoyageAIHook(BaseHook):
 
         :param texts: A list of strings to embed.
         :param model: The name of the model to use (e.g., 'voyage-2').
+        :return: A list of embedding vectors, where each vector is a list of floats.
         """
         client = self.get_conn()
         self.log.info(f"Generating embeddings for {len(texts)} documents with model '{model}'.")

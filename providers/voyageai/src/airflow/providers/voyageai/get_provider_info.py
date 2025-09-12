@@ -22,7 +22,6 @@ from __future__ import annotations
 
 
 def get_provider_info():
-    """Return provider metadata."""
     return {
         "package-name": "apache-airflow-providers-voyageai",
         "name": "Voyage AI",

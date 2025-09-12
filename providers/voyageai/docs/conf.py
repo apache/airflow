@@ -1,3 +1,5 @@
+# Disable Flake8 because of all the sphinx imports
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,30 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Configuration of Providers docs building."""
 
-package-name: apache-airflow-providers-voyageai
+from __future__ import annotations
 
-name: Voyage AI
+import os
 
-description: |
-  `Apache Airflow provider to interact with the Voyage AI embeddings API. <https://docs.voyageai.com/docs/introduction>`__
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-voyageai"
 
-versions:
-  - 0.1.0
-
-state: not-ready
-source-date-epoch: 1757697534
-
-hooks:
-  - integration-name: Voyage AI
-    python-modules:
-      - airflow.providers.voyageai.hooks.voyage
-
-connection-types:
-  - hook-class-name: airflow.providers.voyageai.hooks.voyage.VoyageAIHook
-    connection-type: voyageai
-
-operators:
-  - integration-name: Voyage AI
-    python-modules:
-      - airflow.providers.voyageai.operators.embedding
+from docs.provider_conf import *  # noqa: F403
