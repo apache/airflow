@@ -39,8 +39,9 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(logger_name=__name__)
 
 if TYPE_CHECKING:
-    import jinja2
     from typing import TypeAlias
+
+    import jinja2
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
