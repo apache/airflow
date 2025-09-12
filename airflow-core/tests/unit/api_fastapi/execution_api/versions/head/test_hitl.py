@@ -93,7 +93,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
                 "params_input": {"input_1": 2},
                 "response_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
                 "chosen_options": ["Reject"],
-                "responded_by": {"id": "Fallback to defaults", "name": "Fallback to defaults"},
+                "responded_by": None,
             },
         },
     ],
@@ -174,10 +174,7 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
         "response_at": "2025-07-03T00:00:00Z",
         "chosen_options": ["Reject"],
         "response_received": True,
-        "responded_by_user": {
-            "id": "Fallback to defaults",
-            "name": "Fallback to defaults",
-        },
+        "responded_by_user": None,
     }
 
 

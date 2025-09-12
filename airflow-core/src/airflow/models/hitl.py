@@ -167,8 +167,3 @@ class HITLDetail(Base):
             id=self.responded_by["id"],
             name=self.responded_by["name"],
         )
-
-    DEFAULT_USER = HITLUser(
-        id="Fallback to defaults",
-        name="Fallback to defaults",
-    )
