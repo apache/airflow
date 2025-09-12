@@ -95,11 +95,11 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
 
     @property
     def task_instance(self) -> TaskInstance | None:
-        return self.task_instance
+        return self._task_instance
 
     @task_instance.setter
     def task_instance(self, value: TaskInstance | None) -> None:
-        self.task_instance = value
+        self._task_instance = value
         if self.task:
             self.template_fields = self.task.template_fields
             self.template_ext = self.task.template_ext
