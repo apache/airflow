@@ -1,13 +1,12 @@
 {
   "backfill": {
+    "affected_many": "{{count}} exécutions seront déclenchées.",
     "affected_one": "1 exécution sera déclenchée.",
     "affected_other": "{{count}} exécutions seront déclenchées.",
     "affectedNone": "Aucune exécution ne correspond aux critères sélectionnés.",
     "allRuns": "Toutes les exécutions",
     "backwards": "Exécuter à rebours",
     "dateRange": "Plage de dates",
-    "dateRangeFrom": "De",
-    "dateRangeTo": "À",
     "errorStartDateBeforeEndDate": "La date de début doit être antérieure à la date de fin",
     "maxRuns": "Nombre maximum d'exécutions actives",
     "missingAndErroredRuns": "Exécutions manquantes et en erreur",
@@ -46,16 +45,20 @@
     "invalidJson": "Format JSON invalide : {{errorMessage}}"
   },
   "dagWarnings": {
+    "error_many": "{{count}} erreurs",
     "error_one": "1 erreur",
     "error_other": "{{count}} erreurs",
     "errorAndWarning": "1 erreur et {{warningText}}",
+    "warning_many": "{{count}} avertissements",
     "warning_one": "1 avertissement",
     "warning_other": "{{count}} avertissements"
   },
   "durationChart": {
     "duration": "Durée (secondes)",
+    "lastDagRun_many": "Dernières {{count}} exécutions du Dag",
     "lastDagRun_one": "Dernière exécution du Dag",
     "lastDagRun_other": "Dernières {{count}} exécutions du Dag",
+    "lastTaskInstance_many": "Dernières {{count}} Task Instances",
     "lastTaskInstance_one": "Dernière Task Instance",
     "lastTaskInstance_other": "Dernières {{count}} Task Instances",
     "queuedDuration": "Durée en file d'attente",
@@ -63,6 +66,7 @@
     "runDuration": "Durée d'exécution"
   },
   "fileUpload": {
+    "files_many": "{{count}} fichiers",
     "files_one": "{{count}} fichier",
     "files_other": "{{count}} fichiers"
   },
@@ -85,6 +89,7 @@
     "downloadImageError": "Échec du téléchargement de l'image du graphe.",
     "downloadImageErrorTitle": "Échec du téléchargement",
     "otherDagRuns": "+Autres exécutions du Dag",
+    "taskCount_many": "{{count}} tâches",
     "taskCount_one": "{{count}} tâche",
     "taskCount_other": "{{count}} tâches",
     "taskGroup": "Groupe de tâches"

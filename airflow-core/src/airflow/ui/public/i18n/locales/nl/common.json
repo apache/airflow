@@ -98,16 +98,12 @@
     "any": "Elk",
     "or": "Of"
   },
+  "filter": "Filter",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filter op Dag",
-    "keyPlaceholder": "Filter op XCom sleutel",
-    "logicalDateFromPlaceholder": "Van logische datum",
-    "logicalDateToPlaceholder": "Tot logische datum",
-    "mapIndexPlaceholder": "Filter op Map Index",
-    "runAfterFromPlaceholder": "Van Run na",
-    "runAfterToPlaceholder": "Tot Run na",
-    "runIdPlaceholder": "Filter op Run ID",
-    "taskIdPlaceholder": "Filter op Task ID"
+    "logicalDateFrom": "Van logische datum",
+    "logicalDateTo": "Tot logische datum",
+    "runAfterFrom": "Van Run na",
+    "runAfterTo": "Tot Run na"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
@@ -149,6 +145,7 @@
     "running": "Lopend",
     "scheduled": "Gepland"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",

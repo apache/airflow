@@ -41,6 +41,7 @@ from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.execution_time.hitl import HITLUser
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
@@ -70,7 +71,7 @@ class HITLOperator(BaseOperator):
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
-        respondents: str | list[str] | None = None,
+        assigned_users: HITLUser | list[HITLUser] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -86,7 +87,7 @@ class HITLOperator(BaseOperator):
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
-        self.respondents = [respondents] if isinstance(respondents, str) else respondents
+        self.assigned_users = [assigned_users] if isinstance(assigned_users, dict) else assigned_users
 
         self.validate_options()
         self.validate_params()
@@ -138,7 +139,7 @@ class HITLOperator(BaseOperator):
             defaults=self.defaults,
             multiple=self.multiple,
             params=self.serialized_params,
-            respondents=self.respondents,
+            assigned_users=self.assigned_users,
         )
 
         if self.execution_timeout:
@@ -178,6 +179,7 @@ class HITLOperator(BaseOperator):
         return HITLTriggerEventSuccessPayload(
             chosen_options=chosen_options,
             params_input=params_input,
+            responded_by_user=event["responded_by_user"],
         )
 
     def process_trigger_event_error(self, event: dict[str, Any]) -> None:

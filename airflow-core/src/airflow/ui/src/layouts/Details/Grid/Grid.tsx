@@ -107,7 +107,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
       pt={20}
       ref={gridRef}
       tabIndex={0}
-      width={showGantt ? undefined : "100%"}
+      width={showGantt ? "1/2" : "full"}
     >
       <Box flexGrow={1} minWidth={7} position="relative" top="100px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
@@ -117,12 +117,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex
-            flexDirection="column-reverse"
-            height="100px"
-            position="relative"
-            width={showGantt ? undefined : "100%"}
-          >
+          <Flex flexDirection="column-reverse" height="100px" position="relative">
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />

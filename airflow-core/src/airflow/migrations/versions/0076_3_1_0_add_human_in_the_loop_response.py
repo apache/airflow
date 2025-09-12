@@ -59,10 +59,9 @@ def upgrade():
         Column("defaults", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("multiple", Boolean, unique=False, default=False),
         Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
-        Column("respondents", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        Column("assignees", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("response_at", UtcDateTime, nullable=True),
-        Column("responded_user_id", String(128), nullable=True),
-        Column("responded_user_name", String(128), nullable=True),
+        Column("responded_by", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("chosen_options", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         ForeignKeyConstraint(

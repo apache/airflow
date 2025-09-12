@@ -8199,22 +8199,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: responded_user_id
+      - name: responded_by_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Responded User Id
-      - name: responded_user_name
+          title: Responded By User Id
+      - name: responded_by_user_name
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Responded User Name
+          title: Responded By User Name
       - name: subject_search
         in: query
         required: false
@@ -10855,23 +10855,15 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        respondents:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        responded_by_user:
           anyOf:
-          - items:
-              type: string
-            type: array
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: Respondents
-        responded_user_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Id
-        responded_user_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Name
         response_at:
           anyOf:
           - type: string
@@ -10918,12 +10910,8 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        responded_user_id:
-          type: string
-          title: Responded User Id
-        responded_user_name:
-          type: string
-          title: Responded User Name
+        responded_by:
+          $ref: '#/components/schemas/HITLUser'
         response_at:
           type: string
           format: date-time
@@ -10940,12 +10928,25 @@ components:
           title: Params Input
       type: object
       required:
-      - responded_user_id
-      - responded_user_name
+      - responded_by
       - response_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:

@@ -160,7 +160,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 defaults=["Approve"],
                 response_at=utcnow(),
                 chosen_options=["Approve"],
-                responded_user_id="test",
+                responded_by={"id": "test", "name": "test"},
             )
             for i in range(3, 5)
         ]
@@ -186,6 +186,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                         "params": {},
                         "params_input": {},
                         "response_received": False,
+                        "assigned_users": [],
                     }
                     for i in range(3)
                 ],

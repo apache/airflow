@@ -59,7 +59,7 @@ const ConnectionForm = ({
   const { conf: extra, setConf } = useParamStore();
   const {
     control,
-    formState: { isValid },
+    formState: { isDirty, isValid },
     handleSubmit,
     reset,
     watch,
@@ -250,8 +250,8 @@ const ConnectionForm = ({
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="blue"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
+            colorPalette="brand"
+            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !isDirty}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

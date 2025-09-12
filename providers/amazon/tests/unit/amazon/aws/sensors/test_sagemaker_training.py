@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerTrainingSens
 
 DESCRIBE_TRAINING_COMPLETED_RESPONSE = {
     "TrainingJobStatus": "Completed",
-    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c4.xlarge", "VolumeSizeInGB": 10},
+    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c6g.xlarge", "VolumeSizeInGB": 10},
     "TrainingStartTime": datetime(2018, 2, 17, 7, 15, 0, 103000),
     "TrainingEndTime": datetime(2018, 2, 17, 7, 19, 34, 953000),
     "ResponseMetadata": {

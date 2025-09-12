@@ -71,7 +71,7 @@ def upsert_hitl_detail(
             defaults=payload.defaults,
             multiple=payload.multiple,
             params=payload.params,
-            respondents=payload.respondents,
+            assignees=[user.model_dump() for user in payload.assigned_users],
         )
         session.add(hitl_detail_model)
     elif hitl_detail_model.response_received:
@@ -116,8 +116,7 @@ def update_hitl_detail(
             f"Human-in-the-loop detail for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_detail_model.responded_user_id = HITLDetail.DEFAULT_USER_NAME
-    hitl_detail_model.responded_user_name = HITLDetail.DEFAULT_USER_NAME
+    hitl_detail_model.responded_by = None
     hitl_detail_model.response_at = datetime.now(timezone.utc)
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input

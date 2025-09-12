@@ -128,7 +128,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           {shouldRenderOptionButton || isApprovalTask ? (
             hitlDetail.options.map((option) => (
               <Button
-                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
+                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "brand" : "gray"}
                 disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
@@ -139,7 +139,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             ))
           ) : hitlDetail.response_received ? undefined : (
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={errors || isSubmitting}
               loading={isSubmitting}
               onClick={() => handleSubmit()}

@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.8.15"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.8.17"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -394,3 +394,54 @@ jobs:
         run: |
           breeze release-management generate-issue-content-core \
             --limit-pr-count 2 --previous-release 3.0.1 --current-release 3.0.2 --verbose
+
+  test-airflow-standalone:
+    timeout-minutes: 30
+    name: "Test Airflow standalone commands"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    env:
+      UV_VERSION: ${{inputs.uv-version}}
+      AIRFLOW_HOME: ~/airflow
+      FORCE_COLOR: 1
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      - name: "Set up Airflow home directory"
+        run: |
+          echo "Setting AIRFLOW_HOME to $AIRFLOW_HOME"
+          mkdir -p $AIRFLOW_HOME
+      - name: "Install Airflow from current repo (simulating user installation)"
+        run: |
+          uv venv
+          set -x
+          uv pip install -e ./airflow-core
+      - name: "Test airflow standalone command"
+        run: |
+          uv run --no-sync airflow standalone 2>&1 | tee airflow_startup.log &
+          AIRFLOW_PID=$!
+
+          # Wait for ready message till timeout (10 minutes)
+          for i in {1..600}; do
+            if ! kill -0 $AIRFLOW_PID 2>/dev/null; then
+              wait $AIRFLOW_PID
+              EXIT_CODE=$?
+              echo "FAILED: Airflow standalone exited with code $EXIT_CODE"
+              exit $EXIT_CODE
+            fi
+
+            if grep -q "Airflow is ready" airflow_startup.log; then
+              echo "SUCCESS: Airflow standalone is ready!"
+              kill $AIRFLOW_PID
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          echo "FAILED: Airflow standalone did not become ready in time"
+          kill $AIRFLOW_PID 2>/dev/null || true
+          exit 1

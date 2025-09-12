@@ -174,6 +174,7 @@ export const HITLTaskInstances = () => {
           onValueChange={handleResponseChange}
           value={[responseReceived ?? "all"]}
         >
+          <Select.Label fontSize="xs">{translate("requiredActionState")}</Select.Label>
           <Select.Trigger isActive={Boolean(responseReceived)}>
             <Select.ValueText />
           </Select.Trigger>

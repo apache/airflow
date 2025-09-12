@@ -170,7 +170,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               >
                 <Box
                   alignItems="center"
-                  bg="fg.subtle"
+                  bg="border.emphasized"
                   cursor="col-resize"
                   display="flex"
                   h="100%"

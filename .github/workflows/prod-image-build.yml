@@ -227,6 +227,10 @@ jobs:
         with:
           name: prod-packages
           path: ./docker-context-files
+      - name: "Remove fab provider for python 3.13"
+        shell: bash
+        run: rm -vf ./docker-context-files/apache_airflow_providers_fab-*.whl
+        if: matrix.python-version == '3.13'
       - name: "Show downloaded packages"
         run: ls -la ./docker-context-files
       - name: "Download constraints"

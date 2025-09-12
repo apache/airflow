@@ -34,10 +34,10 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
-Airflow 3.1.0
+Airflow 3.2.0
 ~~~~~~~~~~~~~
 
-In Airflow 3.1.0 we changed the base images used for building the Airflow images. Previously the images
+In Airflow 3.2.0 we changed the base images used for building the Airflow images. Previously the images
 were based on "official" Python images from DockerHub, however those images sometimes lag behind the
 latest security patches and their maintainers made decisions about using older setuptools and pip versions,
 however we want to be able to use the latest versions of those tools to build the images. Therefore
