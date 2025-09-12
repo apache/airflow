@@ -267,6 +267,30 @@ def _delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
 
+# TODO: Update this
+def _get_process_state(process_name: str, key: str) -> Any:
+    from airflow.sdk.execution_time.comms import GetProcessState
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    msg = SUPERVISOR_COMMS.send(GetProcessState(process_name=process_name, key=key))
+    return msg
+
+
+# TODO: Update this
+def _set_process_state(process_name: str, key: str, value: Any) -> None:
+    from airflow.sdk.execution_time.comms import PutProcessState
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    SUPERVISOR_COMMS.send(PutProcessState(process_name=process_name, key=key, value=value))
+
+
+def _delete_process_state(process_name: str, key: str) -> Any:
+    from airflow.sdk.execution_time.comms import DeleteProcessState
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    SUPERVISOR_COMMS.send(DeleteProcessState(process_name=process_name, key=key))
+
+
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 

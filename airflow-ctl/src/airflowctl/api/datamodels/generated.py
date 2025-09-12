@@ -696,6 +696,16 @@ class PoolResponse(BaseModel):
     deferred_slots: Annotated[int, Field(title="Deferred Slots")]
 
 
+class ProcessStateResponse(BaseModel):
+    """
+    ProcessState serializer for responses.
+    """
+
+    process_name: Annotated[str, Field(title="ProcessName")]
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str, Field(title="Value")]
+
+
 class ProviderResponse(BaseModel):
     """
     Provider serializer for responses.

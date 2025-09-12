@@ -62,7 +62,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TaskStatesResponse,
     VariableResponse,
-    XComSequenceIndexResponse,
+    XComSequenceIndexResponse, ProcessStateResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
+    DeleteProcessState,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -85,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetProcessState,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -95,6 +97,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     InactiveAssetsResult,
     PrevSuccessfulDagRunResult,
+    PutProcessState,
     PutVariable,
     RescheduleTask,
     ResendLoggingFD,
@@ -1103,6 +1106,13 @@ class ActivitySubprocess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
+
+        # TODO: Comeback and implement this
+        elif isinstance(msg, GetProcessState):
+            process_state = self.client.process_state.get(msg.process_name, msg.key)
+            if isinstance(process_state, ProcessStateResponse):
+                resp = process_state
+
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
@@ -1157,6 +1167,13 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+
+        elif isinstance(msg, DeleteProcessState):
+            self.client.xcoms.delete(msg.process_name, msg.key)
+
+        elif isinstance(msg, PutProcessState):
+            self.client.process_state.set(msg.process_name, msg.key, msg.value)
+
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):

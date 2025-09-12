@@ -774,6 +774,25 @@ class DeleteVariable(BaseModel):
     type: Literal["DeleteVariable"] = "DeleteVariable"
 
 
+class GetProcessState(BaseModel):
+    process_name: str
+    key: str
+    type: Literal["DeleteVariable"] = "GetProcessState"
+
+
+class PutProcessState(BaseModel):
+    process_name: str
+    key: str
+    value: str | None
+    type: Literal["PutProcessState"] = "PutProcessState"
+
+
+class DeleteProcessState(BaseModel):
+    process_name: str
+    key: str
+    type: Literal["DeleteProcessState"] = "DeleteProcessState"
+
+
 class ResendLoggingFD(BaseModel):
     type: Literal["ResendLoggingFD"] = "ResendLoggingFD"
 

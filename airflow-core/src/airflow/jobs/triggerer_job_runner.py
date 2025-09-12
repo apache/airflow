@@ -65,6 +65,7 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
     _RequestFrame,
+    GetProcessState,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
@@ -377,6 +378,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
+            ProcessStateResponse,
             TaskStatesResponse,
             VariableResponse,
             XComResponse,
@@ -419,6 +421,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
+
+        elif isinstance(msg, GetProcessState):
+            process_state = self.client.process_state.get(msg.process_name, msg.key)
+            if isinstance(process_state, ProcessStateResponse):
+                resp = process_state
+
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):

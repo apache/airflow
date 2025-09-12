@@ -212,6 +212,19 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
 
 
+class ProcessStateResponse(BaseModel):
+    """
+    ProcessState schema for responses with fields that are needed for Runtime.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    process_name: Annotated[str, Field(title="Process Name")] = None
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str | None, Field(title="Value")] = None
+
+
 class TIDeferredStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a deferred state.
