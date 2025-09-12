@@ -40,6 +40,7 @@
     "hasTaskConcurrencyLimits": "Heeft Task Concurrency limieten",
     "lastExpired": "Laatst verlopen",
     "lastParsed": "Laatst geparsed",
+    "lastParseDuration": "Laatste parse duur",
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",
     "maxActiveRuns": "Maximaal aantal actieve Runs",
