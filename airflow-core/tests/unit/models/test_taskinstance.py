@@ -39,7 +39,8 @@ from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowInactiveAssetInInletOrOutletException,
-    AirflowSkipException, TaskDeferralError,
+    AirflowSkipException,
+    TaskDeferralError,
 )
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.connection import Connection

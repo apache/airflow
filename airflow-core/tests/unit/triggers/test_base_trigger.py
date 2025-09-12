@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.triggers.base import BaseTrigger
-from airflow.triggers.base import StartTriggerArgs
+from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
 class DummyOperator(BaseOperator):
     template_fields = ("name",)
@@ -45,7 +44,7 @@ def test_render_template_fields(create_task_instance):
         start_trigger_args=StartTriggerArgs(
             trigger_cls=f"{DummyTrigger.__module__}.{DummyTrigger.__qualname__}",
             next_method="resume_method",
-            trigger_kwargs={"name": "Hello {{ name }}"}
+            trigger_kwargs={"name": "Hello {{ name }}"},
         )
     )
 

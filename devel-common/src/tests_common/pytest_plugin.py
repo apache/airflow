@@ -198,7 +198,7 @@ if (
     not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
     or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
 ):
-    #subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
     pass
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
