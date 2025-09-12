@@ -87,11 +87,9 @@ def next_run_assets(
         )
     ]
 
-    for ev in events:
-        queued = ev.get("queued")
-        if not queued:
-            ev["lastUpdate"] = None
-        ev.pop("queued", None)
+    for event in events:
+        if not event.pop('queued', None):
+            event["lastUpdate"] = None
 
     data = {"asset_expression": dag_model.asset_expression, "events": events}
     return data
