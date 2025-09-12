@@ -28,7 +28,7 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 @pytest.mark.integration("redis")
-class TestRedisSensor:
+class TestRedisKeySensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
