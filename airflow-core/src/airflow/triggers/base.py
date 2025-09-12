@@ -40,10 +40,14 @@ log = structlog.get_logger(logger_name=__name__)
 
 if TYPE_CHECKING:
     import jinja2
+    from typing import TypeAlias
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator as Operator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 @dataclass
