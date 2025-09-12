@@ -310,13 +310,13 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.11.6"
+      pip install "ruff>=0.13.0"
 
 2. **Running ruff**: Execute ``ruff`` to check your dags for potential issues:
 
    .. code-block:: bash
 
-      ruff check dags/ --select AIR3 --preview
+      ruff check dags/ --select AIR3
 
    This command will analyze your dags located in the ``dags/`` directory and report any issues related to the specified rules.
 
