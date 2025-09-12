@@ -39,7 +39,6 @@ __all__ = [
     "Deadline",
     "Log",
     "MappedOperator",
-    "Operator",
     "Param",
     "Pool",
     "RenderedTaskInstanceFields",
