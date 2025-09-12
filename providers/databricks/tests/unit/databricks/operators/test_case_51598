@@ -1,0 +1,16 @@
+def test_launch_task_waits_for_roots():
+    from airflow.models.dag import DAG
+    from airflow.utils.dates import days_ago
+    from airflow.operators.dummy import DummyOperator
+    from airflow.providers.databricks.task_group.databricks_workflow import DatabricksWorkflowTaskGroup
+
+    with DAG(dag_id="test_dag", start_date=days_ago(1)) as dag:
+        with DatabricksWorkflowTaskGroup(group_id="test_group") as tg:
+            t1 = DummyOperator(task_id="task1")
+            t2 = DummyOperator(task_id="task2")
+
+        t3 = DummyOperator(task_id="task3")
+        tg >> t3  # fixed indentation
+
+        # Optional: Add assertions to validate task dependencies
+        assert t3.upstream_task_ids == {"test_group.task1", "test_group.task2"}
