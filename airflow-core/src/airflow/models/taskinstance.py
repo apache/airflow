@@ -1444,7 +1444,7 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, Operator)
 
-        if not (self.task and self.task.start_from_trigger):
+        if not (self.task and self.task.start_from_trigger and self.task.start_trigger_args):
             raise TaskDeferralError(
                 "Task doesn't have start_from_trigger and start_trigger_args defined and thus cannot be deferred!"
             )
