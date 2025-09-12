@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models.callback import DagProcessorCallback
+import pytest
 
-DbCallbackRequest = DagProcessorCallback
+
+@pytest.mark.db_test
+class TestCallback:
+    pass
+    # TODO
