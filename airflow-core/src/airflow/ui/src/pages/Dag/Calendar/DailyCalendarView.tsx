@@ -42,7 +42,7 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { generateDailyCalendarData } from "./calendarUtils";
+import { createTooltipContent, generateDailyCalendarData } from "./calendarUtils";
 import type { CalendarScale } from "./types";
 
 type Props = {
@@ -107,11 +107,15 @@ export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {
-                  return <CalendarCell backgroundColor="transparent" key={day.date} />;
+                  return <CalendarCell backgroundColor="transparent" content="" key={day.date} />;
                 }
 
                 return (
-                  <CalendarCell backgroundColor={scale.getColor(day.counts)} cellData={day} key={day.date} />
+                  <CalendarCell
+                    backgroundColor={scale.getColor(day.counts)}
+                    content={createTooltipContent(day)}
+                    key={day.date}
+                  />
                 );
               })}
             </Box>
