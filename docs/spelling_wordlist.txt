@@ -1609,6 +1609,8 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
 ServiceResource
 SES
 sessionmaker
