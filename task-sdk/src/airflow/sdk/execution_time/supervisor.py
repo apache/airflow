@@ -59,11 +59,12 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
+    ProcessStateResponse,
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
     VariableResponse,
-    XComSequenceIndexResponse, ProcessStateResponse,
+    XComSequenceIndexResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
