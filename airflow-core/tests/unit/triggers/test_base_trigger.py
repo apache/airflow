@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
+
 class DummyOperator(BaseOperator):
     template_fields = ("name",)
 
