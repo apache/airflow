@@ -93,7 +93,8 @@ export const createChartOptions = ({
   translate,
 }: ChartOptionsParams) => ({
   animation: {
-    duration: 100,
+    duration: 150,
+    easing: "linear" as const,
   },
   indexAxis: "y" as const,
   maintainAspectRatio: false,
@@ -108,7 +109,7 @@ export const createChartOptions = ({
   plugins: {
     annotation: {
       annotations:
-        selectedId === undefined
+        selectedId === undefined || selectedId === ""
           ? []
           : [
               {
