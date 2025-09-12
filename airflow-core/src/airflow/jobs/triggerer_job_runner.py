@@ -932,7 +932,7 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
-        async def create_runtime_ti(dag: dict) -> RuntimeTaskInstance:
+        def create_runtime_ti(dag: dict) -> RuntimeTaskInstance:
             from airflow.serialization.serialized_objects import SerializedDAG
 
             task = SerializedDAG.from_dict(dag).get_task(workload.ti.task_id)
@@ -976,7 +976,7 @@ class TriggerRunner:
 
                 if workload.ti:
                     trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
-                    runtime_ti = await create_runtime_ti(workload.dag)
+                    runtime_ti = create_runtime_ti(workload.dag)
                     trigger_instance = trigger_class(**deserialised_kwargs)
                     trigger_instance.task_instance = runtime_ti
                 else:
