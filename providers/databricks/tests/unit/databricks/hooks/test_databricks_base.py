@@ -747,8 +747,17 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.get_connection")
     async def test_cached_a_databricks_conn(self, mock_get_connection):
-        """Verify get_connection caching + ensure sync databricks_conn isn't referenced."""
+        """Verify get_connection caching."""
         mock_get_connection.return_value = Connection(login="foo", password="bar")
+        hook = BaseDatabricksHook()
+        await hook.a_databricks_conn()
+        await hook.a_databricks_conn()
+        mock_get_connection.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.get_connection")
+    async def test_no_sync_get_connection(self, mock_get_connection):
+        """Ensure sync databricks_conn isn't referenced during async methods."""
         with mock.patch.object(
             BaseDatabricksHook, "databricks_conn", new_callable=mock.PropertyMock
         ) as mock_databricks_conn:
@@ -756,8 +765,8 @@ class TestBaseDatabricksHook:
                 "databricks_conn should not be accessed running async"
             )
 
+        mock_get_connection.return_value = Connection(login="foo", password="bar")
         hook = BaseDatabricksHook()
-        await hook.a_databricks_conn()
-        await hook.a_databricks_conn()
         await hook._a_get_token()
-        mock_get_connection.assert_called_once()
+        await hook._a_get_aad_headers()
+        await hook._a_endpoint_url(endpoint="foobar")
