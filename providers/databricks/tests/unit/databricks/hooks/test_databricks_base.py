@@ -187,7 +187,8 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @time_machine.travel("2025-07-12 12:00:00")
     @mock.patch("aiohttp.ClientSession.post")
-    async def test_a_get_sp_token(self, mock_post):
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
+    async def test_a_get_sp_token(self, mock_conn, mock_post):
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
         mock_response = mock.AsyncMock()
         mock_response.__aenter__.return_value = mock_response
@@ -199,12 +200,10 @@ class TestBaseDatabricksHook:
             "token_type": "Bearer",
         }
         mock_post.return_value = mock_response
-        mock_conn = mock.Mock()
-        mock_conn.login = "client_id"
-        mock_conn.password = "client_secret"
+
+        mock_conn.return_value = Connection(login="client_id", password="client_secret")
 
         hook = BaseDatabricksHook()
-        hook.databricks_conn = mock_conn
         hook.user_agent_header = {"User-Agent": "test-agent"}
         hook.token_timeout_seconds = 10
         async with aiohttp.ClientSession() as session:
@@ -504,10 +503,7 @@ class TestBaseDatabricksHook:
             hook._get_token(raise_error=True)
 
     @pytest.mark.asyncio
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_from_extra_dejson(self, mock_conn):
         extra = {"token": "test_token"}
         mock_conn.return_value = Connection(extra=extra)
@@ -520,10 +516,7 @@ class TestBaseDatabricksHook:
             )
 
     @pytest.mark.asyncio
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_token_from_password_when_login_missing(self, mock_conn):
         mock_conn.return_value = Connection(login=None, password="pw-token")
         hook = BaseDatabricksHook()
@@ -537,10 +530,7 @@ class TestBaseDatabricksHook:
         "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook._a_get_sp_token",
         new_callable=mock.AsyncMock,
     )
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_service_principal_oauth_success(self, mock_conn, mock_get_sp_token):
         mock_conn.return_value = Connection(
             host="example.databricks.com",
@@ -561,10 +551,7 @@ class TestBaseDatabricksHook:
         "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook._a_get_aad_token",
         new_callable=mock.AsyncMock,
     )
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_azure_spn_success(self, mock_conn, mock_get_aad_token):
         extra = {"azure_tenant_id": "tenant_id"}
         mock_conn.return_value = Connection(login="spn_client_id", password="spn_client_secret", extra=extra)
@@ -577,10 +564,7 @@ class TestBaseDatabricksHook:
             mock_log_debug.assert_called_once_with("Using AAD Token for SPN.")
 
     @pytest.mark.asyncio
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_azure_spn_missing_credentials_raises(self, mock_conn):
         mock_conn.return_value = Connection(login="", password="", extra={"azure_tenant_id": "tenant_id"})
         hook = BaseDatabricksHook()
@@ -596,10 +580,7 @@ class TestBaseDatabricksHook:
         "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook._a_get_aad_token",
         new_callable=mock.AsyncMock,
     )
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_managed_identity(self, mock_conn, mock_get_aad_token, mock_check_metadata):
         mock_conn.return_value = Connection(extra={"use_azure_managed_identity": True})
         mock_get_aad_token.return_value = "mi_token"
@@ -616,10 +597,7 @@ class TestBaseDatabricksHook:
         "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook._a_get_aad_token_for_default_az_credential",
         new_callable=mock.AsyncMock,
     )
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_default_azure_credential(self, mock_conn, mock_get_default_cred_token):
         extra = {DEFAULT_AZURE_CREDENTIAL_SETTING_KEY: True}
         mock_conn.return_value = Connection(extra=extra)
@@ -632,10 +610,7 @@ class TestBaseDatabricksHook:
             mock_log_debug.assert_called_once_with("Using AzureDefaultCredential for authentication.")
 
     @pytest.mark.asyncio
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_service_principal_oauth_missing_credentials(self, mock_conn):
         mock_conn.return_value = Connection(
             host="host", login="", password="", extra={"service_principal_oauth": True}
@@ -768,3 +743,20 @@ class TestBaseDatabricksHook:
         exception.response = mock_response
         hook = BaseDatabricksHook()
         assert hook._get_error_code(exception) == "INVALID_REQUEST"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.get_connection")
+    async def test_cached_a_databricks_conn(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(login="foo", password="bar")
+        with mock.patch.object(
+            BaseDatabricksHook, "databricks_conn", new_callable=mock.PropertyMock
+        ) as mock_databricks_conn:
+            mock_databricks_conn.side_effect = AssertionError(
+                "databricks_conn should not be accessed running async"
+            )
+
+        hook = BaseDatabricksHook()
+        await hook.a_databricks_conn()
+        await hook.a_databricks_conn()
+        await hook._a_get_token()
+        mock_get_connection.assert_called_once()
