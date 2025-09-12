@@ -78,7 +78,7 @@ const ConnectionForm = ({
   const [initialExtra, setInitialExtra] = useState("");
 
   useEffect(() => {
-    const parsedInitialExtra = JSON.parse(initialConnection.extra);
+    const parsedInitialExtra = JSON.parse(initialConnection.extra) as Record<string, unknown>;
     const formattedInitialExtra = JSON.stringify(parsedInitialExtra, undefined, 2);
 
     reset((prevValues) => ({
@@ -99,19 +99,16 @@ const ConnectionForm = ({
     }));
     // Mark as dirty when extra fields are updated - compare parsed JSON objects
     try {
-      const initialParsed = JSON.parse(initialExtra);
-      const currentParsed = JSON.parse(extra);
+      const initialParsed = JSON.parse(initialExtra) as Record<string, unknown>;
+      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
       const hasChanged = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+
       setIsExtraFieldsDirty(hasChanged);
     } catch {
       // If parsing fails, fall back to string comparison
       setIsExtraFieldsDirty(extra !== initialExtra);
     }
   }, [extra, reset, setConf, initialExtra]);
-
-  const onSubmit = (data: ConnectionBody) => {
-    mutateConnection(data);
-  };
 
   const validateAndPrettifyJson = (value: string) => {
     try {
@@ -273,11 +270,12 @@ const ConnectionForm = ({
             }
             onClick={() => {
               // Update the form's extra field with the latest conf value before submitting
-              handleSubmit((data) => {
+              void handleSubmit((data) => {
                 const updatedData = {
                   ...data,
                   extra,
                 };
+
                 mutateConnection(updatedData);
               })();
             }}
