@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-09T19:28:07.752254
+# This constraints file was automatically generated on 2025-09-11T23:25:23.673282
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -25,7 +25,6 @@ Flask==2.2.5
 GitPython==3.1.45
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
-Js2Py==0.74
 Mako==1.3.10
 Markdown==3.9
 MarkupSafe==3.0.2
@@ -60,7 +59,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==0.7.16
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.1
+alibabacloud-adb20211201==3.2.2
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -77,7 +76,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.10.0
-apache-beam==2.59.0
+apache-beam==2.67.0
 apispec==6.8.3
 apprise==1.9.4
 argcomplete==3.6.2
@@ -95,10 +94,10 @@ atlassian-python-api==4.0.7
 attrs==25.3.0
 aws-sam-translator==1.100.0
 aws-xray-sdk==2.14.0
-awswrangler==3.11.0
+awswrangler==3.13.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.35.0
+azure-core==1.35.1
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.24.0
@@ -154,7 +153,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
-cloudpickle==2.2.1
+cloudpickle==3.1.1
 cohere==5.17.0
 colorama==0.4.6
 colorful==0.5.7
@@ -228,14 +227,14 @@ google-api-python-client==2.181.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.111.0
+google-cloud-aiplatform==1.112.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.4
 google-cloud-batch==0.17.36
 google-cloud-bigquery-datatransfer==3.19.2
-google-cloud-bigquery-storage==2.33.0
+google-cloud-bigquery-storage==2.33.1
 google-cloud-bigquery==3.37.0
 google-cloud-bigtable==2.32.0
 google-cloud-build==3.32.0
@@ -273,7 +272,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.34.0
+google-genai==1.36.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
@@ -284,7 +283,7 @@ grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.74.0
+grpcio==1.65.5
 gssapi==1.10.0
 gunicorn==23.0.0
 h11==0.16.0
@@ -356,7 +355,7 @@ kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
-libcst==1.8.2
+libcst==1.8.4
 limits==4.2
 linkify-it-py==2.0.3
 litellm==1.77.0
@@ -376,6 +375,7 @@ microsoft-kiota-authentication-azure==1.9.7
 microsoft-kiota-http==1.9.7
 microsoft-kiota-serialization-json==1.9.7
 microsoft-kiota-serialization-text==1.9.7
+milvus-lite==2.5.1
 mistune==3.1.4
 mmh3==5.2.0
 mongomock==4.3.0
@@ -385,14 +385,14 @@ mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.33.0
 msgpack==1.1.1
-msgraph-core==1.3.5
+msgraph-core==1.3.8
 msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.4
 mypy-boto3-appflow==1.40.17
-mypy-boto3-rds==1.40.24
+mypy-boto3-rds==1.40.29
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.26
 mypy==1.9.0
@@ -410,7 +410,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.107.0
+openai==1.107.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -450,9 +450,8 @@ pdpyras==5.4.1
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.1
-pinecone-plugin-assistant==1.8.0
 pinecone-plugin-interface==0.0.7
-pinecone==7.3.0
+pinecone==7.0.1
 pinotdb==5.7.0
 pipdeptree==2.28.0
 platformdirs==4.4.0
@@ -481,7 +480,7 @@ py-spy==0.4.1
 py4j==0.10.9.9
 pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
-pyarrow==16.1.0
+pyarrow==18.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycountry==24.6.1
@@ -495,15 +494,16 @@ pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==1.1.0
 pygraphviz==1.11
-pyiceberg==0.9.1
-pyjsparser==2.7.1
+pyiceberg==0.10.0
 pykerberos==1.2.4
+pymilvus==2.5.15
 pymongo==4.10.1
 pymssql==2.3.7
 pyodbc==5.2.0
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
+pyroaring==1.0.2
 pyspark==4.0.1
 pyspnego==0.12.0
 pytest-asyncio==0.25.0
@@ -626,7 +626,7 @@ tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.40
-teradatasqlalchemy==20.0.0.6
+teradatasqlalchemy==20.0.0.7
 termcolor==3.1.0
 text-unidecode==1.3
 threadpoolctl==3.6.0
@@ -644,7 +644,7 @@ towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-trove-classifiers==2025.9.9.12
+trove-classifiers==2025.9.11.17
 twine==6.2.0
 typer==0.17.4
 types-Deprecated==1.2.15.20250304
@@ -674,6 +674,7 @@ typing_extensions==4.15.0
 tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3
+ujson==5.11.0
 universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==1.26.20
