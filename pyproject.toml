@@ -33,7 +33,8 @@ build-backend = "hatchling.build"
 name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
