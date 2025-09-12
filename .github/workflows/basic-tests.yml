@@ -319,6 +319,7 @@ jobs:
           UPGRADE_GITPYTHON: "false"
           UPGRADE_RICH: "false"
           UPGRADE_RUFF: "false"
+          UPGRADE_MYPY: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for important versions minus uv(failing if needed)"
         run: >
@@ -338,6 +339,7 @@ jobs:
           UPGRADE_GITPYTHON: "true"
           UPGRADE_RICH: "true"
           UPGRADE_RUFF: "true"
+          UPGRADE_MYPY: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
