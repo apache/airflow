@@ -66,7 +66,9 @@ from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
+    clear_db_jobs,
     clear_db_runs,
+    clear_db_triggers,
     clear_db_variables,
     clear_db_xcom,
 )
@@ -86,6 +88,8 @@ def clean_database():
     clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
+    clear_db_triggers()
+    clear_db_jobs()
     yield  # Test runs here
     clear_db_connections()
     clear_db_runs()
@@ -93,6 +97,8 @@ def clean_database():
     clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
+    clear_db_triggers()
+    clear_db_jobs()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -280,7 +286,7 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     """
     Checks that the triggerer will log watcher and trigger in separate lines.
     """
-    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+    create_trigger_in_db(session, trigger)
 
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
     trigger_runner_supervisor.load_triggers()
@@ -291,9 +297,6 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     stdout = capsys.readouterr().out
     assert f"{trigger_count} triggers currently running" in stdout
     assert f"{watcher_count} watchers currently running" in stdout
-
-    session.delete(trigger_orm)
-    session.commit()
 
     trigger_runner_supervisor.kill(force=False)
 
