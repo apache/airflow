@@ -60,7 +60,7 @@
     "duration": "Durata (secondi)",
     "lastDagRun_many": "Ultimi {{count}} Run del Dag",
     "lastDagRun_one": "Ultimo Run del Dag",
-    "lastDagRun_other": "Ultimi {{count}} Run del Dag",
+    "lastDagRun_other": "Ultimi {{count}} Runs del Dag",
     "lastDagRun_zero": "Nessun run del Dag",
     "lastTaskInstance_many": "Ultime {{count}} Istanze di Task",
     "lastTaskInstance_one": "Ultima Istanza di Task",
