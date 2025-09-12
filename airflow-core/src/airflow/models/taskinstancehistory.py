@@ -93,6 +93,8 @@ class TaskInstanceHistory(Base):
     pid = Column(Integer)
     executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
+    max_active_tis_per_dag = Column(Integer)
+    max_active_tis_per_dagrun = Column(Integer)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
