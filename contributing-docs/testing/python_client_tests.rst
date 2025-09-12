@@ -30,7 +30,7 @@ The way the tests work:
 1. The Airflow Python API client package is first built into a wheel file and placed in the dist folder.
 2. The ``breeze testing python-api-client-tests`` command is used to initiate the tests.
 3. This command installs the package from the dist folder.
-4. Example DAGs are then parsed and executed to validate the Python API client.
+4. Example Dags are then parsed and executed to validate the Python API client.
 5. The webserver is started with the credentials admin/admin, and tests are run against the webserver.
 
 If you have python client repository not cloned, you can clone it by running the following command:

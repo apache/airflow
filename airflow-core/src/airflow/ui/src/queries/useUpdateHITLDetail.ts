@@ -24,8 +24,8 @@ import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   useHumanInTheLoopServiceGetHitlDetailsKey,
-  useHumanInTheLoopServiceGetMappedTiHitlDetailKey,
-  useHumanInTheLoopServiceUpdateMappedTiHitlDetail,
+  useHumanInTheLoopServiceGetHitlDetailKey,
+  useHumanInTheLoopServiceUpdateHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
@@ -45,7 +45,7 @@ export const useUpdateHITLDetail = ({
 }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
-  const { t: translate } = useTranslation(["common", "hitl"]);
+  const { t: translate } = useTranslation("hitl");
   const onSuccess = async () => {
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
@@ -53,13 +53,13 @@ export const useUpdateHITLDetail = ({
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
       [useHumanInTheLoopServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
-      [useHumanInTheLoopServiceGetMappedTiHitlDetailKey, { dagId, dagRunId }],
+      [useHumanInTheLoopServiceGetHitlDetailKey, { dagId, dagRunId }],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      title: translate("hitl:response.success", { taskId }),
+      title: translate("response.success", { taskId }),
       type: "success",
     });
   };
@@ -67,12 +67,12 @@ export const useUpdateHITLDetail = ({
   const onError = (_error: Error) => {
     toaster.create({
       description: _error.message,
-      title: translate("hitl:response.error"),
+      title: translate("response.error"),
       type: "error",
     });
   };
 
-  const { isPending, mutate } = useHumanInTheLoopServiceUpdateMappedTiHitlDetail({
+  const { isPending, mutate } = useHumanInTheLoopServiceUpdateHitlDetail({
     onError,
     onSuccess,
   });
@@ -82,7 +82,7 @@ export const useUpdateHITLDetail = ({
       mutate({
         dagId,
         dagRunId,
-        mapIndex: mapIndex ?? -1,
+        mapIndex,
         requestBody: {
           chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
           params_input: updateHITLResponseRequestBody.params_input ?? {},

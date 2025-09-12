@@ -42,10 +42,12 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     QueryTIDagVersionFilter,
     QueryTIExecutorFilter,
+    QueryTIOperatorFilter,
     QueryTIPoolFilter,
     QueryTIQueueFilter,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITryNumberFilter,
     Range,
     RangeFilter,
     SortParam,
@@ -96,7 +98,10 @@ task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_task_instance(
-    dag_id: str, dag_run_id: str, task_id: str, session: SessionDep
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
 ) -> TaskInstanceResponse:
     """Get task instance."""
     query = (
@@ -142,6 +147,8 @@ def get_mapped_task_instances(
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
+    try_number: QueryTITryNumberFilter,
+    operator: QueryTIOperatorFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -161,6 +168,7 @@ def get_mapped_task_instances(
                     "data_interval_start",
                     "data_interval_end",
                     "rendered_map_index",
+                    "operator",
                 ],
                 TI,
                 to_replace={
@@ -210,6 +218,8 @@ def get_mapped_task_instances(
             queue,
             executor,
             version_number,
+            try_number,
+            operator,
         ],
         order_by=order_by,
         offset=offset,
@@ -400,6 +410,8 @@ def get_task_instances(
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
+    try_number: QueryTITryNumberFilter,
+    operator: QueryTIOperatorFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -419,6 +431,7 @@ def get_task_instances(
                     "data_interval_start",
                     "data_interval_end",
                     "rendered_map_index",
+                    "operator",
                 ],
                 TI,
                 to_replace={
@@ -476,6 +489,8 @@ def get_task_instances(
             task_display_name_pattern,
             version_number,
             readable_ti_filter,
+            try_number,
+            operator,
         ],
         order_by=order_by,
         offset=offset,
@@ -510,23 +525,48 @@ def get_task_instances_batch(
     dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
     task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
-        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        Range(
+            lower_bound_gte=body.run_after_gte,
+            lower_bound_gt=body.run_after_gt,
+            upper_bound_lte=body.run_after_lte,
+            upper_bound_lt=body.run_after_lt,
+        ),
         attribute=TI.run_after,
     )
     logical_date = RangeFilter(
-        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        Range(
+            lower_bound_gte=body.logical_date_gte,
+            lower_bound_gt=body.logical_date_gt,
+            upper_bound_lte=body.logical_date_lte,
+            upper_bound_lt=body.logical_date_lt,
+        ),
         attribute=TI.logical_date,
     )
     start_date = RangeFilter(
-        Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
+        Range(
+            lower_bound_gte=body.start_date_gte,
+            lower_bound_gt=body.start_date_gt,
+            upper_bound_lte=body.start_date_lte,
+            upper_bound_lt=body.start_date_lt,
+        ),
         attribute=TI.start_date,
     )
     end_date = RangeFilter(
-        Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
+        Range(
+            lower_bound_gte=body.end_date_gte,
+            lower_bound_gt=body.end_date_gt,
+            upper_bound_lte=body.end_date_lte,
+            upper_bound_lt=body.end_date_lt,
+        ),
         attribute=TI.end_date,
     )
     duration = RangeFilter(
-        Range(lower_bound=body.duration_gte, upper_bound=body.duration_lte),
+        Range(
+            lower_bound_gte=body.duration_gte,
+            lower_bound_gt=body.duration_gt,
+            upper_bound_lte=body.duration_lte,
+            upper_bound_lt=body.duration_lt,
+        ),
         attribute=TI.duration,
     )
     state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
@@ -673,10 +713,10 @@ def post_clear_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         # Get the specific dag version:
         dag = get_dag_for_run(dag_bag, dag_run, session)
-        if past or future:
+        if (past or future) and dag_run.logical_date is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Cannot use include_past or include_future when dag_run_id is provided because logical_date is not applicable.",
+                "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
             )
         body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
         body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
@@ -704,7 +744,6 @@ def post_clear_task_instances(
     common_params = {
         "dry_run": True,
         "task_ids": task_ids,
-        "dag_bag": dag_bag,
         "session": session,
         "run_on_latest_version": body.run_on_latest_version,
         "only_failed": body.only_failed,

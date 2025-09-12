@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "packaging>=25",
+#   "pyyaml>=6.0.2",
+#   "rich>=13.6.0",
+# ]
+# ///
 from __future__ import annotations
 
 import ast

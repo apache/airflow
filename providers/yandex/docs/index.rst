@@ -58,7 +58,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/providers/yandex/tests/system/yandex/example_yandexcloud_dataproc.py>
+    Example Dags <https://github.com/apache/airflow/tree/providers-yandex/|version|/providers/yandex/tests/system/yandex/example_yandexcloud_dataproc.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-yandex/>
     Installing from sources <installing-providers-from-sources>
 
@@ -94,7 +94,7 @@ All classes for this package are included in the ``airflow.providers.yandex`` py
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-yandex``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

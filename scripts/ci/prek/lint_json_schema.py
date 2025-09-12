@@ -15,6 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "jsonschema>=3.2.0,<5.0",
+#   "pyyaml>=6.0.2",
+#   "requests==2.32.3",
+#   "rich>=13.6.0",
+# ]
+# ///
 from __future__ import annotations
 
 import argparse

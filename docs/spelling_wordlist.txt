@@ -34,6 +34,7 @@ airbnb
 Airbyte
 airbyte
 AirflowConfigParser
+airflowctl
 AirflowException
 airflowignore
 ajax
@@ -1966,6 +1967,7 @@ utilise
 Utils
 utils
 uuid
+uv
 V1JobList
 validator
 validators

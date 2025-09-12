@@ -30,9 +30,12 @@ import {
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
+import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -73,8 +76,14 @@ export const Overview = () => {
     timestampLte: endDate,
   });
 
+  const refetchInterval = useAutoRefresh({});
+
   return (
     <Box m={4} spaceY={4}>
+      <NeedsReviewButton
+        dagId={dagId}
+        refreshInterval={gridRuns?.some((dr) => isStatePending(dr.state)) ? refetchInterval : false}
+      />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -96,7 +105,7 @@ export const Overview = () => {
           label={translate("overview.buttons.failedTask", { count: failedTasks?.total_entries ?? 0 })}
           route={{
             pathname: "tasks",
-            search: "state=failed",
+            search: `${SearchParamsKeys.STATE}=failed`,
           }}
           startDate={startDate}
         />
@@ -111,7 +120,7 @@ export const Overview = () => {
           label={translate("overview.buttons.failedRun", { count: failedRuns?.total_entries ?? 0 })}
           route={{
             pathname: "runs",
-            search: "state=failed",
+            search: `${SearchParamsKeys.STATE}=failed`,
           }}
           startDate={startDate}
         />

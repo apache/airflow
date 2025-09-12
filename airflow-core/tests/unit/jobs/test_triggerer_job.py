@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import itertools
 import os
 import selectors
 import time
@@ -43,7 +44,6 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
@@ -53,8 +53,10 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook
+from airflow.sdk import BaseHook, BaseOperator
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -64,7 +66,9 @@ from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
+    clear_db_jobs,
     clear_db_runs,
+    clear_db_triggers,
     clear_db_variables,
     clear_db_xcom,
 )
@@ -84,6 +88,8 @@ def clean_database():
     clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
+    clear_db_triggers()
+    clear_db_jobs()
     yield  # Test runs here
     clear_db_connections()
     clear_db_runs()
@@ -91,6 +97,8 @@ def clean_database():
     clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
+    clear_db_triggers()
+    clear_db_jobs()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -117,7 +125,8 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
-    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
@@ -263,6 +272,33 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     finally:
         # We always have to stop the runner
         trigger_runner_supervisor.kill(force=False)
+
+
+@pytest.mark.parametrize(
+    "trigger, watcher_count, trigger_count",
+    [
+        (TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1),
+        (FileDeleteTrigger("/tmp/foo.txt", poke_interval=1), 1, 0),
+    ],
+)
+@patch("time.monotonic", side_effect=itertools.count(start=1, step=60))
+def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, session, capsys):
+    """
+    Checks that the triggerer will log watcher and trigger in separate lines.
+    """
+    create_trigger_in_db(session, trigger)
+
+    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
+    trigger_runner_supervisor.load_triggers()
+
+    for _ in range(30):
+        trigger_runner_supervisor._service_subprocess(0.1)
+
+    stdout = capsys.readouterr().out
+    assert f"{trigger_count} triggers currently running" in stdout
+    assert f"{watcher_count} watchers currently running" in stdout
+
+    trigger_runner_supervisor.kill(force=False)
 
 
 class TestTriggerRunner:
@@ -426,7 +462,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder, 
     dag = DAG(dag_id="test-dag")
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
-    SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
@@ -656,6 +692,8 @@ class CustomTrigger(BaseTrigger):
 
         from airflow.sdk import Variable
         from airflow.sdk.execution_time.xcom import XCom
+
+        # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
         from airflow.sdk.log import mask_secret
 
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")

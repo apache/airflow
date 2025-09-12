@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-dingding/|version|/providers/dinging/tests/system/dingding>
+    Example Dags <https://github.com/apache/airflow/tree/providers-dingding/|version|/providers/dinging/tests/system/dingding>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dingding/>
     Installing from sources <installing-providers-from-sources>
 
@@ -89,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.dingding`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-dingding``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

@@ -27,6 +27,8 @@ from sqlalchemy import select
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    QueryDagRunRunTypesFilter,
+    QueryDagRunTriggeringUserSearch,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -47,14 +49,14 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _merge_node_dicts,
 )
+from airflow.api_fastapi.core_api.services.ui.task_group import (
+    get_task_group_children_getter,
+    task_group_to_dict_grid,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.taskgroup import (
-    get_task_group_children_getter,
-    task_group_to_dict_grid,
-)
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -118,6 +120,8 @@ def get_dag_structure(
         Depends(SortParam(["run_after", "logical_date", "start_date", "end_date"], DagRun).dynamic_depends()),
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
+    triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
@@ -136,7 +140,7 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after],
+        filters=[run_after, run_type, triggering_user],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -214,6 +218,8 @@ def get_grid_runs(
         ),
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
+    triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
@@ -241,7 +247,7 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after],
+        filters=[run_after, run_type, triggering_user],
         limit=limit,
     )
     return session.execute(dag_runs_select_filter)

@@ -49,7 +49,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
-    "apache-airflow-core<3.2.0,>=3.1.0",
+    "apache-airflow-core<3.3.0,>=3.2.0",
     "attrs>=24.2.0, !=25.2.0",
     "fsspec>=2023.10.0",
     "httpx>=0.27.0",
@@ -67,6 +67,13 @@ dependencies = [
     # Start of shared timezones dependencies
     "pendulum>=3.1.0",
     # End of shared timezones dependencies
+    # Start of shared secrets_masker dependencies
+    "colorlog>=6.8.2",
+    "pydantic>2.11.0",
+    # End of shared secrets_masker dependencies
+    # Start of shared logging dependencies
+    "pygtrie>=2.5.0",
+    # End of shared logging dependencies
 ]
 
 [project.urls]
@@ -88,6 +95,8 @@ build-backend = "hatchling.build"
 path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
+"../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
+"../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
 [tool.hatch.build.targets.wheel]
@@ -146,7 +155,7 @@ codegen = [
     "datamodel-code-generator[http]==0.32.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
-    "rich>=12.4.4",
+    "rich>=13.6.0",
 ]
 dev = [
     "apache-airflow-providers-common-sql",
@@ -230,5 +239,7 @@ tmp_path_retention_policy = "failed"
 
 [tool.airflow]
 shared_distributions = [
+    "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
 ]

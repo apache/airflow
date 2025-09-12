@@ -28,6 +28,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
+import type { DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -59,6 +60,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
+  const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
+    `run_type_filter-${dagId}`,
+    undefined,
+  );
+  const [triggeringUserFilter, setTriggeringUserFilter] = useLocalStorage<string | undefined>(
+    `triggering_user_filter-${dagId}`,
+    undefined,
+  );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
   const { fitView, getZoom } = useReactFlow();
@@ -90,15 +99,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Tooltip content={translate("common:showDetailsPanel")}>
             <IconButton
               aria-label={translate("common:showDetailsPanel")}
-              bg="bg.surface"
-              borderRadius="full"
+              bg="fg.subtle"
+              borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
               boxShadow="md"
-              cursor="pointer"
-              left={direction === "rtl" ? 0 : undefined}
+              left={direction === "rtl" ? "-5px" : undefined}
               onClick={() => setIsRightPanelCollapsed(false)}
               position="absolute"
-              right={direction === "ltr" ? 0 : undefined}
-              size="sm"
+              right={direction === "ltr" ? "-5px" : undefined}
+              size="2xs"
               top="50%"
               zIndex={10}
             >
@@ -116,7 +124,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel
             defaultSize={dagView === "graph" ? 70 : 20}
             id="main-panel"
-            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 30 : 6}
+            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
             order={1}
           >
             <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
@@ -124,16 +132,25 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 dagView={dagView}
                 limit={limit}
                 panelGroupRef={panelGroupRef}
+                runTypeFilter={runTypeFilter}
                 setDagView={setDagView}
                 setLimit={setLimit}
+                setRunTypeFilter={setRunTypeFilter}
                 setShowGantt={setShowGantt}
+                setTriggeringUserFilter={setTriggeringUserFilter}
                 showGantt={showGantt}
+                triggeringUserFilter={triggeringUserFilter}
               />
               {dagView === "graph" ? (
                 <Graph />
               ) : (
                 <HStack gap={0}>
-                  <Grid limit={limit} showGantt={Boolean(runId) && showGantt} />
+                  <Grid
+                    limit={limit}
+                    runType={runTypeFilter}
+                    showGantt={Boolean(runId) && showGantt}
+                    triggeringUser={triggeringUserFilter}
+                  />
                   {showGantt ? <Gantt limit={limit} /> : undefined}
                 </HStack>
               )}
@@ -153,32 +170,38 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               >
                 <Box
                   alignItems="center"
-                  bg="fg.subtle"
+                  bg="border.emphasized"
                   cursor="col-resize"
                   display="flex"
                   h="100%"
                   justifyContent="center"
                   position="relative"
                   w={0.5}
-                >
+                  // onClick={(e) => console.log(e)}
+                />
+              </PanelResizeHandle>
+
+              {/* Collapse button positioned next to the resize handle */}
+
+              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Box display="flex" flexDirection="column" h="100%" position="relative">
                   <Tooltip content={translate("common:collapseDetailsPanel")}>
                     <IconButton
                       aria-label={translate("common:collapseDetailsPanel")}
-                      bg="bg.surface"
-                      borderRadius="full"
+                      bg="fg.subtle"
+                      borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
                       boxShadow="md"
-                      cursor="pointer"
+                      left={direction === "ltr" ? "-5px" : undefined}
                       onClick={() => setIsRightPanelCollapsed(true)}
-                      size="xs"
+                      position="absolute"
+                      right={direction === "rtl" ? "-5px" : undefined}
+                      size="2xs"
+                      top="50%"
                       zIndex={2}
                     >
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
                   </Tooltip>
-                </Box>
-              </PanelResizeHandle>
-              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
-                <Box display="flex" flexDirection="column" h="100%">
                   {children}
                   {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                     <>

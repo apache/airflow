@@ -26,19 +26,19 @@ from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -138,9 +138,7 @@ class TestS3KeySensor:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -199,9 +197,7 @@ class TestS3KeySensor:
         else:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,

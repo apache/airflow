@@ -29,6 +29,7 @@ import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
+import { Calendar } from "src/pages/Dag/Calendar/Calendar";
 import { Code } from "src/pages/Dag/Code";
 import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
@@ -67,8 +68,8 @@ const pluginRoute = {
   path: "plugin/:page",
 };
 
-const taskInstanceRoutes = [
-  { element: <Logs />, index: true },
+export const taskInstanceRoutes = [
+  { element: <Logs />, index: true, path: undefined },
   { element: <Events />, path: "events" },
   { element: <XCom />, path: "xcom" },
   { element: <Code />, path: "code" },
@@ -161,6 +162,7 @@ export const routerConfig = [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
+          { element: <Calendar />, path: "calendar" },
           { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },

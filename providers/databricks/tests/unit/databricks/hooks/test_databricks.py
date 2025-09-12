@@ -1449,7 +1449,6 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_async_do_api_call_only_existing_response_properties_are_read(self, mock_get):
-        self.hook.log.setLevel("DEBUG")
         response = mock_get.return_value.__aenter__.return_value
         response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
         response.json = AsyncMock(return_value={"bar": "baz"})
