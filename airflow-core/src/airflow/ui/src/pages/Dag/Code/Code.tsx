@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack, Link } from "@chakra-ui/react";
+import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
+import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -27,6 +28,7 @@ import {
   useDagServiceGetDagDetails,
   useDagSourceServiceGetDagSource,
   useDagVersionServiceGetDagVersion,
+  useDagVersionServiceGetDagVersions,
 } from "openapi/queries";
 import type { ApiError } from "openapi/requests/core/ApiError";
 import type { DAGSourceResponse } from "openapi/requests/types.gen";
@@ -40,6 +42,9 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
 import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
+
+import { CodeDiffViewer } from "./CodeDiffViewer";
+import { VersionCompareSelect } from "./VersionCompareSelect";
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common"]);
@@ -64,6 +69,16 @@ export const Code = () => {
     { enabled: dag !== undefined && selectedVersion !== undefined },
   );
 
+  const { data: dagVersions } = useDagVersionServiceGetDagVersions({
+    dagId: dagId ?? "",
+  });
+
+  const defaultWrap = Boolean(useConfig("default_wrap"));
+
+  const [wrap, setWrap] = useState(defaultWrap);
+  const [isDiffMode, setIsDiffMode] = useState(false);
+  const [compareVersionNumber, setCompareVersionNumber] = useState<number | undefined>(undefined);
+
   const {
     data: code,
     error: codeError,
@@ -73,24 +88,56 @@ export const Code = () => {
     versionNumber: selectedVersion,
   });
 
-  const defaultWrap = Boolean(useConfig("default_wrap"));
-
-  const [wrap, setWrap] = useState(defaultWrap);
+  const {
+    data: compareCode,
+    error: compareCodeError,
+    isLoading: isCompareCodeLoading,
+  } = useDagSourceServiceGetDagSource<DAGSourceResponse, ApiError | null>(
+    {
+      dagId: dagId ?? "",
+      versionNumber: compareVersionNumber,
+    },
+    undefined,
+    { enabled: isDiffMode && compareVersionNumber !== undefined },
+  );
 
   const toggleWrap = () => setWrap(!wrap);
+  const toggleDiffMode = () => {
+    setIsDiffMode(!isDiffMode);
+    if (isDiffMode) {
+      setCompareVersionNumber(undefined);
+    }
+  };
+
   const { colorMode } = useColorMode();
 
   useHotkeys("w", toggleWrap);
+  useHotkeys("d", toggleDiffMode);
 
-  const style = colorMode === "dark" ? oneDark : oneLight;
+  const editorOptions: EditorProps["options"] = {
+    automaticLayout: true,
+    contextmenu: false,
+    find: {
+      addExtraSpaceOnTop: false,
+      autoFindInSelection: "never" as const,
+      seedSearchStringFromSelection: "always" as const,
+    },
+    fontSize: 14,
+    glyphMargin: false,
+    lineDecorationsWidth: 20,
+    lineNumbers: "on",
+    minimap: { enabled: false },
+    readOnly: true,
+    renderLineHighlight: "none",
+    wordWrap: wrap ? "on" : "off",
+  };
 
-  // wrapLongLines wasn't working with the prsim styles so we have to manually apply the style
-  if (style['code[class*="language-"]'] !== undefined) {
-    style['code[class*="language-"]'].whiteSpace = wrap ? "pre-wrap" : "pre";
-  }
+  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
+
+  const hasMultipleVersions = (dagVersions?.dag_versions.length ?? 0) >= 2;
 
   return (
-    <Box>
+    <Box h="100%" overflow="hidden">
       <HStack justifyContent="space-between" mt={2}>
         <HStack gap={5}>
           {dag?.last_parsed_time !== undefined && (
@@ -127,83 +174,115 @@ export const Code = () => {
             ) : undefined
           }
         </HStack>
-        <HStack>
-          <DagVersionSelect showLabel={false} />
-          <ClipboardRoot value={code?.content ?? ""}>
-            <ClipboardButton />
-          </ClipboardRoot>
-          <Tooltip
-            closeDelay={100}
-            content={translate("common:wrap.tooltip", { hotkey: "w" })}
-            openDelay={100}
-          >
-            <Button
-              aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-              onClick={toggleWrap}
-              variant="outline"
+        <VStack gap={2} position="relative">
+          <HStack flexWrap="wrap" gap={2}>
+            <DagVersionSelect showLabel={false} />
+            <ClipboardRoot value={code?.content ?? ""}>
+              <ClipboardButton />
+            </ClipboardRoot>
+            <Tooltip
+              closeDelay={100}
+              content={translate("common:wrap.tooltip", { hotkey: "w" })}
+              openDelay={100}
             >
-              {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-            </Button>
-          </Tooltip>
-        </HStack>
+              <Button
+                aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
+                onClick={toggleWrap}
+                variant="outline"
+              >
+                {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
+              </Button>
+            </Tooltip>
+            {hasMultipleVersions ? (
+              <Tooltip
+                closeDelay={100}
+                content={translate("common:diff.tooltip", { hotkey: "d" })}
+                openDelay={100}
+              >
+                <Button
+                  aria-label={translate(`common:diff.${isDiffMode ? "exit" : "enter"}`)}
+                  onClick={toggleDiffMode}
+                  variant={isDiffMode ? "solid" : "outline"}
+                >
+                  {translate(`common:diff.${isDiffMode ? "exit" : "enter"}`)}
+                </Button>
+              </Tooltip>
+            ) : undefined}
+          </HStack>
+          {isDiffMode ? (
+            <Box
+              bg="bg.panel"
+              borderRadius="md"
+              insetInlineEnd={0}
+              mt={4}
+              p={2}
+              position="absolute"
+              shadow="sm"
+              top="100%"
+              zIndex={10}
+            >
+              <VersionCompareSelect
+                excludeVersionNumber={selectedVersion}
+                label="Compare with"
+                onVersionChange={setCompareVersionNumber}
+                placeholder="Select version to compare"
+                selectedVersionNumber={compareVersionNumber}
+              />
+            </Box>
+          ) : undefined}
+        </VStack>
       </HStack>
       {/* We want to show an empty state on 404 instead of an error */}
-      <ErrorAlert error={error ?? (codeError?.status === 404 ? undefined : codeError)} />
-      <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
-      <Box
-        css={{
-          "& *::selection": {
-            bg: "blue.emphasized",
-          },
-        }}
-        fontSize="14px"
-      >
-        <SyntaxHighlighter
-          language="python"
-          renderer={({ rows, stylesheet, useInlineStyles }) =>
-            rows.map((row, index) => {
-              const { children } = row;
-              const lineNumberElement = children?.shift();
+      <ErrorAlert
+        error={
+          error ??
+          (codeError?.status === 404 ? undefined : codeError) ??
+          (compareCodeError?.status === 404 ? undefined : compareCodeError)
+        }
+      />
+      <ProgressBar
+        size="xs"
+        visibility={isLoading || isCodeLoading || isCompareCodeLoading ? "visible" : "hidden"}
+      />
 
-              // Skip line number span when applying line break styles https://github.com/react-syntax-highlighter/react-syntax-highlighter/issues/376#issuecomment-1584440759
-              if (lineNumberElement) {
-                if (lineNumberElement.properties) {
-                  lineNumberElement.properties.style = {
-                    ...(lineNumberElement.properties.style as Record<string, string>),
-                    WebkitUserSelect: "none",
-                  };
-                }
-
-                row.children = [
-                  lineNumberElement,
-                  {
-                    children,
-                    properties: {
-                      className: [],
-                    },
-                    tagName: "span",
-                    type: "element",
-                  },
-                ];
-              }
-
-              return createElement({
-                key: index,
-                node: row,
-                stylesheet,
-                useInlineStyles,
-              });
-            })
-          }
-          showLineNumbers
-          style={style}
-          wrapLongLines={wrap}
+      {isDiffMode && compareVersionNumber !== undefined ? (
+        <Box dir="ltr" height="full">
+          <CodeDiffViewer
+            modifiedCode={
+              codeError?.status === 404 && !Boolean(code?.content)
+                ? translate("code.noCode")
+                : (code?.content ?? "")
+            }
+            originalCode={
+              compareCodeError?.status === 404 && !Boolean(compareCode?.content)
+                ? translate("code.noCode")
+                : (compareCode?.content ?? "")
+            }
+          />
+        </Box>
+      ) : (
+        <Box
+          css={{
+            "& *::selection": {
+              bg: "gray.emphasized",
+            },
+          }}
+          dir="ltr"
+          fontSize="14px"
+          height="full"
         >
-          {codeError?.status === 404 && !Boolean(code?.content)
-            ? translate("code.noCode")
-            : (code?.content ?? "")}
-        </SyntaxHighlighter>
-      </Box>
+          <Editor
+            language="python"
+            options={editorOptions}
+            theme={theme}
+            value={
+              codeError?.status === 404 && !Boolean(code?.content)
+                ? translate("code.noCode")
+                : (code?.content ?? "")
+            }
+          />
+        </Box>
+      )}
     </Box>
   );
 };
