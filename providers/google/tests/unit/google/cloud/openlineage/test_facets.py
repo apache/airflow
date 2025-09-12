@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet
+from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet, DataFusionRunFacet
 
 
 def test_bigquery_job_run_facet():
@@ -24,3 +24,10 @@ def test_bigquery_job_run_facet():
     assert facet.cached is True
     assert facet.billedBytes == 123
     assert facet.properties == "some_properties"
+
+
+def test_datafusion_run_facet():
+    facet = DataFusionRunFacet(runId="abc123", runtimeArgs={"arg1": "val1"})
+
+    assert facet.runId == "abc123"
+    assert facet.runtimeArgs == {"arg1": "val1"}

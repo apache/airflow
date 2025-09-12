@@ -35,8 +35,10 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionStopPipelineOperator,
     CloudDataFusionUpdateInstanceOperator,
 )
+from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
+from airflow.providers.openlineage.extractors import OperatorLineage
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
 RESOURCE_PATH_TO_DICT_STR = "airflow.providers.google.cloud.operators.datafusion.resource_path_to_dict"
@@ -411,6 +413,67 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
             match=r"Both asynchronous and deferrable parameters were passed. Please, provide only one.",
         ):
             op.execute(context=mock.MagicMock())
+
+    @pytest.mark.parametrize(
+        "pipeline_id, runtime_args, expected_run_id, expected_runtime_args, expected_output_suffix",
+        [
+            ("abc123", {"arg1": "val1"}, "abc123", {"arg1": "val1"}, "/runs/abc123"),
+            (None, None, None, None, "/runs/unknown"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink.persist")
+    @mock.patch(HOOK_STR)
+    def test_openlineage_facets_with_mock(
+        self,
+        mock_hook,
+        mock_persist,
+        pipeline_id,
+        runtime_args,
+        expected_run_id,
+        expected_runtime_args,
+        expected_output_suffix,
+    ):
+        mock_persist.return_value = None
+
+        mock_instance = {"apiEndpoint": "https://mock-endpoint", "serviceEndpoint": "https://mock-service"}
+        mock_hook.return_value.get_instance.return_value = mock_instance
+        mock_hook.return_value.start_pipeline.return_value = pipeline_id
+
+        op = CloudDataFusionStartPipelineOperator(
+            task_id=TASK_ID,
+            pipeline_name=PIPELINE_NAME,
+            instance_name=INSTANCE_NAME,
+            namespace=NAMESPACE,
+            location=LOCATION,
+            project_id=PROJECT_ID,
+            runtime_args=runtime_args,
+        )
+
+        result_pipeline_id = op.execute(context={})
+        results = op.get_openlineage_facets_on_complete(task_instance=None)
+
+        assert result_pipeline_id == pipeline_id
+        assert op.pipeline_id == pipeline_id
+
+        expected_input_name = (
+            f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_NAME}/pipelines/{PIPELINE_NAME}"
+        )
+
+        assert results is not None
+        assert len(results.inputs) == 1
+        assert results.inputs[0].namespace == "datafusion"
+        assert results.inputs[0].name == expected_input_name
+
+        assert len(results.outputs) == 1
+        assert results.outputs[0].namespace == "datafusion"
+        assert results.outputs[0].name == f"{expected_input_name}{expected_output_suffix}"
+
+        facet = results.run_facets["dataFusionRun"]
+        assert isinstance(facet, DataFusionRunFacet)
+        assert facet.runId == expected_run_id
+        assert facet.runtimeArgs == expected_runtime_args
+
+        assert results.job_facets == {}
 
 
 class TestCloudDataFusionStopPipelineOperator:
