@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+
+logger = logging.getLogger(__name__)
 
 ## The following constants are taken from the SkipMixin class in the standard provider
 # The key used by SkipMixin to store XCom data.
@@ -58,27 +62,121 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
+                # Pull the SkipMixin XCom from the upstream parent.
+                # If the parent is mapped, pull the XCom for the same map index.
+                # If the parent is NOT mapped (common for ShortCircuitOperator), pull WITHOUT
+                # the map_indexes filter so mapped children (map_index >= 0) can see the parent's
+                # XCom written at the parent's TI row.
+                is_parent_mapped = getattr(parent, "is_mapped", False)
+                map_indexes = ti.map_index if is_parent_mapped else None
+
+                logger.info(
+                    "Checking SkipMixin XCom from parent task %s (mapped=%s, map_index=%s, child_map_index=%s)",
+                    parent.task_id,
+                    is_parent_mapped,
+                    map_indexes,
+                    ti.map_index,
+                )
+
                 prev_result = ti.xcom_pull(
-                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session, map_indexes=ti.map_index
+                    task_ids=parent.task_id,
+                    key=XCOM_SKIPMIXIN_KEY,
+                    session=session,
+                    map_indexes=map_indexes,
                 )
 
                 if prev_result is None:
-                    # This can happen if the parent task has not yet run.
+                    logger.info(
+                        "No SkipMixin XCom found for parent task %s (map_index=%s), continuing",
+                        parent.task_id,
+                        map_indexes,
+                    )
                     continue
 
                 should_skip = False
-                if (
-                    XCOM_SKIPMIXIN_FOLLOWED in prev_result
-                    and ti.task_id not in prev_result[XCOM_SKIPMIXIN_FOLLOWED]
-                ):
-                    # Skip any tasks that are not in "followed"
-                    should_skip = True
-                elif (
-                    XCOM_SKIPMIXIN_SKIPPED in prev_result
-                    and ti.task_id in prev_result[XCOM_SKIPMIXIN_SKIPPED]
-                ):
-                    # Skip any tasks that are in "skipped"
-                    should_skip = True
+
+                # The SkipMixin XCom may have several shapes depending on version/usage:
+                # 1) {"skipped": ["task_id1", ...], "followed": [...]}
+                # 2) {"skipped": {"task_id1": [0,1], ...}, "followed": {"task_id2": [0]}}
+                #
+                # Handle both shapes for robust behavior.
+
+                # Handle "followed" first: if the parent says which tasks to follow and the current
+                # task is not in that set/list/dict for the current map_index, then it should be skipped.
+                if XCOM_SKIPMIXIN_FOLLOWED in prev_result:
+                    followed_val = prev_result[XCOM_SKIPMIXIN_FOLLOWED]
+                    logger.debug("Found 'followed' in SkipMixin XCom: %s", followed_val)
+
+                    if isinstance(followed_val, dict):
+                        # dict: task_id -> list-of-map-indexes
+                        idxs = followed_val.get(ti.task_id)
+                        if idxs is None:
+                            # This task is not in the followed dict -> skip it
+                            logger.info("Task %s not in 'followed' dict, marking to skip", ti.task_id)
+                            should_skip = True
+                        else:
+                            # If current TI is mapped, ensure its map_index is in idxs; otherwise skip.
+                            if getattr(ti, "map_index", None) is not None and ti.map_index >= 0:
+                                if ti.map_index not in idxs:
+                                    logger.info(
+                                        "Mapped task %s[%s] not in followed map indexes %s, marking to skip",
+                                        ti.task_id,
+                                        ti.map_index,
+                                        idxs,
+                                    )
+                                    should_skip = True
+                                else:
+                                    logger.debug(
+                                        "Mapped task %s[%s] is in followed map indexes %s, not skipping",
+                                        ti.task_id,
+                                        ti.map_index,
+                                        idxs,
+                                    )
+                            # If TI is unmapped, presence in dict above is enough to follow.
+                            else:
+                                logger.debug(
+                                    "Unmapped task %s is in 'followed' dict, not skipping", ti.task_id
+                                )
+                    else:
+                        # followed_val assumed to be iterable of task_ids (list/set)
+                        if ti.task_id not in followed_val:
+                            logger.info(
+                                "Task %s not in 'followed' list %s, marking to skip", ti.task_id, followed_val
+                            )
+                            should_skip = True
+
+                # If not already determined to skip via "followed", check "skipped".
+                if not should_skip and XCOM_SKIPMIXIN_SKIPPED in prev_result:
+                    skipped_val = prev_result[XCOM_SKIPMIXIN_SKIPPED]
+                    logger.debug("Found 'skipped' in SkipMixin XCom: %s", skipped_val)
+
+                    if isinstance(skipped_val, dict):
+                        # dict: task_id -> list-of-map-indexes
+                        idxs = skipped_val.get(ti.task_id)
+                        if idxs is not None:
+                            if getattr(ti, "map_index", None) is not None and ti.map_index >= 0:
+                                # Mapped TI: skip only if this map_index is in the list
+                                if ti.map_index in idxs:
+                                    logger.info(
+                                        "Mapped task %s[%s] is in 'skipped' map %s, marking to skip",
+                                        ti.task_id,
+                                        ti.map_index,
+                                        skipped_val,
+                                    )
+                                    should_skip = True
+                            else:
+                                # Unmapped TI: presence alone means skip.
+                                logger.info(
+                                    "Unmapped task %s is in 'skipped' map, marking to skip", ti.task_id
+                                )
+                                should_skip = True
+                    else:
+                        # skipped_val is a simple list of task_ids
+                        if ti.task_id in skipped_val:
+                            logger.info(
+                                "Task %s is in 'skipped' list %s, marking to skip", ti.task_id, skipped_val
+                            )
+                            should_skip = True
 
                 if should_skip:
                     # If the parent SkipMixin has run, and the XCom result stored indicates this
