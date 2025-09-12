@@ -72,7 +72,7 @@ export const usePatchTaskInstance = ({
     const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
     const affectsMultipleRuns = includeFuture === true || includePast === true;
 
-    const invalidateKeys = [
+    const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
       UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
@@ -84,7 +84,7 @@ export const usePatchTaskInstance = ({
         : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
     ];
 
-    await Promise.all(invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     if (onSuccess) {
       onSuccess();

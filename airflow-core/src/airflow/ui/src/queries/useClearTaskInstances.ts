@@ -83,7 +83,7 @@ export const useClearTaskInstances = ({
     const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
     const affectsMultipleRuns = includeFuture === true || includePast === true;
 
-    const invalidateKeys = [
+    const queryKeys = [
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
@@ -93,7 +93,7 @@ export const useClearTaskInstances = ({
       UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: affectsMultipleRuns ? undefined : dagRunId }),
     ];
 
-    await Promise.all(invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     onSuccessConfirm();
   };
