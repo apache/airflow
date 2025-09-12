@@ -31,27 +31,15 @@ if TYPE_CHECKING:
 
 class VoyageEmbeddingOperator(BaseOperator):
     """
-    Airflow Operator to generate vector embeddings for a list of input texts using the Voyage AI API.
+    Generate embeddings for a list of texts using the Voyage AI API.
 
-    This operator leverages the VoyageAIHook to interact with the Voyage AI service, sending a batch of texts
-    and retrieving their corresponding embedding vectors. The embeddings can be used for downstream tasks such
-    as semantic search, clustering, or machine learning pipelines.
+    This operator uses the :class:`~airflow.providers.voyageai.hooks.voyage.VoyageAIHook`
+    to send a list of texts to the Voyage AI embedding endpoint. The resulting list
+    of embedding vectors is pushed to XCom for use by downstream tasks.
 
-    Attributes:
-        conn_id (str): The Airflow connection ID to authenticate with the Voyage AI API.
-        input_texts (list[str]): A list of text strings to be embedded.
-        model (str): The identifier of the embedding model to use.
-
-    Template Fields:
-        input_texts: This field supports templating, allowing dynamic generation of input texts at runtime.
-
-    Usage example:
-        voyage_embedding = VoyageEmbeddingOperator(
-            task_id='generate_embeddings',
-            conn_id='voyage_ai_default',
-            input_texts=['text1', 'text2', 'text3'],
-            model='voyage-embedding-model-v1',
-        )
+    :param conn_id: The Airflow connection ID for the Voyage AI service.
+    :param input_texts: A list of strings to be embedded. This field is templated.
+    :param model: The name of the Voyage AI model to use for embedding (e.g., 'voyage-2').
     """
 
     template_fields: Sequence[str] = ("input_texts",)
@@ -70,18 +58,7 @@ class VoyageEmbeddingOperator(BaseOperator):
         self.model = model
 
     def execute(self, context: Context) -> list[list[float]]:
-        """
-        Execute the operator by calling the Voyage AI API to generate embeddings.
-
-        This method instantiates the VoyageAIHook with the provided connection ID, sends the input texts
-        to the API using the specified model, and returns the resulting list of embedding vectors.
-
-        Args:
-            context (Context): The Airflow execution context.
-
-        Returns:
-            list[list[float]]: A list of embedding vectors, each corresponding to an input text.
-        """
+        """Instantiate the hook, call the embed method, and return the result."""
         self.log.info(f"Executing VoyageEmbeddingOperator for {len(self.input_texts)} texts.")
         hook = VoyageAIHook(conn_id=self.conn_id)
 
