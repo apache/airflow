@@ -77,6 +77,8 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
 - [Links](#links)
 - [Sponsors](#sponsors)
+- [Star History](#star-history)
+- [Contributors](#contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -548,3 +550,11 @@ The CI infrastructure for Apache Airflow has been sponsored by:
 
 <a href="https://astronomer.io"><img src="https://assets2.astronomer.io/logos/logoForLIGHTbackground.png" alt="astronomer.io" width="250px"></a>
 <a href="https://aws.amazon.com/opensource/"><img src="https://github.com/apache/airflow/blob/main/providers/amazon/docs/integration-logos/AWS-Cloud-alt_light-bg@4x.png?raw=true" alt="AWS OpenSource" width="130px"></a>
+
+## Star History
+
+[![Apache Airflow Star History](https://api.star-history.com/svg?repos=apache/airflow&type=Date)](https://www.star-history.com/#apache/airflow&Date)
+
+## Contributors
+
+[![Apache Airflow Contributors](https://contrib.rocks/image?repo=apache/airflow&anon=0&max=500)](https://github.com/apache/airflow/graphs/contributors)]
