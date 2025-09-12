@@ -987,14 +987,14 @@ QueryHITLDetailTaskIdPatternSearch = Annotated[
         )
     ),
 ]
-QueryHITLDetailDagRunIdFilter = Annotated[
-    FilterParam[str],
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
     Depends(
         filter_param_factory(
-            TaskInstance.run_id,
-            str,
-            filter_name="dag_run_id",
-        ),
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
+        )
     ),
 ]
 QueryHITLDetailSubjectSearch = Annotated[
@@ -1025,7 +1025,6 @@ QueryHITLDetailResponseReceivedFilter = Annotated[
         )
     ),
 ]
-
 QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
@@ -1047,26 +1046,6 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
             filter_name="responded_by_user_name",
-        )
-    ),
-]
-QueryHITLDetailDagIdFilter = Annotated[
-    FilterParam[str | None],
-    Depends(
-        filter_param_factory(
-            TaskInstance.dag_id,
-            str | None,
-            filter_name="dag_id",
-        )
-    ),
-]
-QueryHITLDetailTaskIdFilter = Annotated[
-    FilterParam[str | None],
-    Depends(
-        filter_param_factory(
-            TaskInstance.task_id,
-            str | None,
-            filter_name="task_id",
         )
     ),
 ]
