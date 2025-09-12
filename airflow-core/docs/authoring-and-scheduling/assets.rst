@@ -109,7 +109,7 @@ This can be used to supply custom description to the asset, such as who has owne
 Information template on asset events
 ------------------------------------
 
-In addition to static extra information, Airflow also supports attaching dynamic information to individual asset events using the event_extra_template parameter.
+Airflow also supports attaching dynamic information to individual asset events using the ``event_extra_template`` parameter.
 
 This dictionary supports Jinja templating, allowing runtime values such as execution dates, run IDs, or task-specific information to be rendered when the asset event is emitted.
 
