@@ -2,11 +2,11 @@
   "assetSchedule": "{{count}} di {{total}} assets aggiornati",
   "dagActions": {
     "delete": {
-      "button": "Elimina DAG",
-      "warning": "Questo rimuoverà tutti i metadati relativi al DAG, compresi i Run e le Task."
+      "button": "Elimina Dag",
+      "warning": "Questo rimuoverà tutti i metadati relativi al Dag, compresi i Run e le Task."
     }
   },
-  "favoriteDag": "DAG Preferito",
+  "favoriteDag": "Dag Preferito",
   "filters": {
     "allRunTypes": "Tutti i Tipi di Run",
     "allStates": "Tutti gli Stati",
@@ -20,7 +20,7 @@
       "all": "Tutti",
       "paused": "In Pausa"
     },
-    "runIdPatternFilter": "Cerca DAG Runs",
+    "runIdPatternFilter": "Cerca Dag Runs",
     "triggeringUserNameFilter": "Cerca per Utente che ha Attivato"
   },
   "ownerLink": "Link dell'Owner per {{owner}}",
@@ -70,7 +70,7 @@
   "search": {
     "advanced": "Ricerca Avanzata",
     "clear": "Pulisci la ricerca",
-    "dags": "Cerca DAG",
+    "dags": "Cerca Dag",
     "hotkey": "+K",
     "tasks": "Cerca Task"
   },
@@ -88,10 +88,10 @@
       "desc": "Ordina per Stato del Run più Recente (Z-A)"
     },
     "nextDagRun": {
-      "asc": "Ordina per Next DAG Run (Prima-Ultimo)",
-      "desc": "Ordina per Next DAG Run (Ultimo-Prima)"
+      "asc": "Ordina per Next Dag Run (Prima-Ultimo)",
+      "desc": "Ordina per Next Dag Run (Ultimo-Prima)"
     },
     "placeholder": "Ordina per"
   },
-  "unfavoriteDag": "Rimuovi DAG dai Preferiti"
+  "unfavoriteDag": "Rimuovi Dag dai Preferiti"
 }

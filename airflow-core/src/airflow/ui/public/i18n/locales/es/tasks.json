@@ -1,0 +1,10 @@
+{
+  "mapped": "Mapeado",
+  "notMapped": "No mapeado",
+  "retries": "Intentos",
+  "searchTasks": "Buscar tareas",
+  "selectMapped": "Seleccionar mapeados",
+  "selectOperator": "Seleccionar operadores",
+  "selectRetryValues": "Seleccionar valores de intento",
+  "selectTriggerRules": "Seleccionar reglas de Trigger"
+}
