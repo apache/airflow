@@ -460,7 +460,8 @@ class SerializedDagModel(Base):
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+        latest_item_id = select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+        return select(cls).where(cls.id == latest_item_id)
 
     @classmethod
     @provide_session
