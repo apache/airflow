@@ -105,7 +105,13 @@
     "any": "N'importe lequel",
     "or": "Ou"
   },
-  "filter": "Filtrer",
+  "filter": "Filtre",
+  "filters": {
+    "logicalDateFrom": "Date logique de début",
+    "logicalDateTo": "Date logique de fin",
+    "runAfterFrom": "Exécuté après - de",
+    "runAfterTo": "Exécuté après - à"
+  },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
   "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
@@ -147,6 +153,7 @@
     "running": "En cours",
     "scheduled": "Planifié"
   },
+  "reset": "Réinitialiser",
   "runId": "ID d'exécution",
   "runTypes": {
     "asset_triggered": "Déclenché par Asset",

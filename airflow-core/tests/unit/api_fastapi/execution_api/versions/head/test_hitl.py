@@ -45,13 +45,12 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
     "defaults": ["Approve"],
     "multiple": False,
     "params": {"input_1": 1},
-    "respondents": None,
+    "assignees": None,
 }
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
     "response_at": None,
     "chosen_options": None,
-    "responded_user_id": None,
-    "responded_user_name": None,
+    "responded_by_user": None,
     "params_input": {},
     "response_received": False,
 }
@@ -94,8 +93,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
                 "params_input": {"input_1": 2},
                 "response_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
                 "chosen_options": ["Reject"],
-                "responded_user_id": "Fallback to defaults",
-                "responded_user_name": "Fallback to defaults",
+                "responded_by": None,
             },
         },
     ],
@@ -125,11 +123,15 @@ def test_upsert_hitl_detail(
             **default_hitl_detail_request_kwargs,
         },
     )
-    assert response.status_code == 201
-    assert response.json() == {
+
+    expected_json = {
         "ti_id": ti.id,
         **default_hitl_detail_request_kwargs,
     }
+    expected_json["assigned_users"] = expected_json.pop("assignees") or []
+
+    assert response.status_code == 201
+    assert response.json() == expected_json
 
 
 def test_upsert_hitl_detail_with_empty_option(
@@ -172,8 +174,7 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
         "response_at": "2025-07-03T00:00:00Z",
         "chosen_options": ["Reject"],
         "response_received": True,
-        "responded_user_id": "Fallback to defaults",
-        "responded_user_name": "Fallback to defaults",
+        "responded_by_user": None,
     }
 
 

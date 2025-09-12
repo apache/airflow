@@ -525,16 +525,13 @@ class FastAPIRootMiddlewareResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
-class HITLDetailResponse(BaseModel):
+class HITLUser(BaseModel):
     """
-    Response of updating a Human-in-the-loop detail.
+    Schema for a Human-in-the-loop users.
     """
 
-    responded_user_id: Annotated[str, Field(title="Responded User Id")]
-    responded_user_name: Annotated[str, Field(title="Responded User Name")]
-    response_at: Annotated[datetime, Field(title="Response At")]
-    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    id: Annotated[str, Field(title="Id")]
+    name: Annotated[str, Field(title="Name")]
 
 
 class HTTPExceptionResponse(BaseModel):
@@ -1434,6 +1431,17 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class HITLDetailResponse(BaseModel):
+    """
+    Response of updating a Human-in-the-loop detail.
+    """
+
+    responded_by: HITLUser
+    response_at: Annotated[datetime, Field(title="Response At")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
 
@@ -1828,9 +1836,8 @@ class HITLDetail(BaseModel):
     defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    respondents: Annotated[list[str] | None, Field(title="Respondents")] = None
-    responded_user_id: Annotated[str | None, Field(title="Responded User Id")] = None
-    responded_user_name: Annotated[str | None, Field(title="Responded User Name")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+    responded_by_user: HITLUser | None = None
     response_at: Annotated[datetime | None, Field(title="Response At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None

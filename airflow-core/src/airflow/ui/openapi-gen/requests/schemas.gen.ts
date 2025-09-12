@@ -3571,41 +3571,22 @@ export const $HITLDetail = {
             type: 'object',
             title: 'Params'
         },
-        respondents: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Respondents'
+        assigned_users: {
+            items: {
+                '$ref': '#/components/schemas/HITLUser'
+            },
+            type: 'array',
+            title: 'Assigned Users'
         },
-        responded_user_id: {
+        responded_by_user: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HITLUser'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Responded User Id'
-        },
-        responded_user_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Responded User Name'
+            ]
         },
         response_at: {
             anyOf: [
@@ -3672,13 +3653,8 @@ export const $HITLDetailCollection = {
 
 export const $HITLDetailResponse = {
     properties: {
-        responded_user_id: {
-            type: 'string',
-            title: 'Responded User Id'
-        },
-        responded_user_name: {
-            type: 'string',
-            title: 'Responded User Name'
+        responded_by: {
+            '$ref': '#/components/schemas/HITLUser'
         },
         response_at: {
             type: 'string',
@@ -3700,9 +3676,26 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['responded_user_id', 'responded_user_name', 'response_at', 'chosen_options'],
+    required: ['responded_by', 'response_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
+} as const;
+
+export const $HITLUser = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name'],
+    title: 'HITLUser',
+    description: 'Schema for a Human-in-the-loop users.'
 } as const;
 
 export const $HTTPExceptionResponse = {

@@ -27,7 +27,13 @@ from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_view
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, exit_maintenance, request_maintenance
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    exit_maintenance,
+    remove_worker,
+    request_maintenance,
+    request_shutdown,
+)
 from airflow.providers.edge3.worker_api.datamodels_ui import (
     Job,
     JobCollectionResponse,
@@ -154,5 +160,51 @@ def exit_worker_maintenance(
 
     try:
         exit_maintenance(worker_name, session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.post(
+    "/worker/{worker_name}/shutdown",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def request_worker_shutdown(
+    worker_name: str,
+    session: SessionDep,
+) -> None:
+    """Request shutdown of a worker."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        request_shutdown(worker_name, session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.delete(
+    "/worker/{worker_name}",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def delete_worker(
+    worker_name: str,
+    session: SessionDep,
+) -> None:
+    """Delete a worker record from the system."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        remove_worker(worker_name, session=session)
     except Exception as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))

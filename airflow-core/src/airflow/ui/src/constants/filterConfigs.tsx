@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useTranslation } from "react-i18next";
-import { FiBarChart } from "react-icons/fi";
+import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import { MdDateRange, MdSearch } from "react-icons/md";
 
@@ -37,10 +37,35 @@ export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "admin"]);
 
   const filterConfigMap = {
+    [SearchParamsKeys.AFTER]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.BEFORE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.to"),
+      type: FilterTypes.DATE,
+    },
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,
       label: translate("common:dagId"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.DAG_ID]: {
+      hotkeyDisabled: true,
+      icon: <DagIcon />,
+      label: translate("common:dagId"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.END_DATE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.to"),
+      type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.EVENT_TYPE]: {
+      label: translate("browse:auditLog.filters.eventType"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.KEY_PATTERN]: {
@@ -50,12 +75,12 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.LOGICAL_DATE_GTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateFromLabel", "Logical date from"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.logicalDateFrom"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.LOGICAL_DATE_LTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateToLabel", "Logical date to"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.logicalDateTo"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.MAP_INDEX]: {
@@ -66,13 +91,19 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.RUN_AFTER_GTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterFromLabel", "Run after from"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.runAfterFrom"),
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.RUN_AFTER_LTE]: {
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterToLabel", "Run after to"), // TODO: delete the fallback after the translation freeze
+      label: translate("common:filters.runAfterTo"),
       type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.RUN_ID]: {
+      hotkeyDisabled: true,
+      icon: <FiBarChart />,
+      label: translate("common:runId"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.RUN_ID_PATTERN]: {
       hotkeyDisabled: true,
@@ -80,10 +111,31 @@ export const useFilterConfigs = () => {
       label: translate("common:runId"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.START_DATE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.TASK_ID]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("common:taskId"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.TASK_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TRY_NUMBER]: {
+      label: translate("common:tryNumber"),
+      min: 1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.USER]: {
+      icon: <FiUser />,
+      label: translate("common:user"),
       type: FilterTypes.TEXT,
     },
   };
