@@ -125,7 +125,7 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["1"],
                 params_input={"input": 1},
-                responded_by_user={"id": "Fallback to defaults", "name": "Fallback to defaults"},
+                responded_by_user=None,
                 timedout=True,
             )
         )

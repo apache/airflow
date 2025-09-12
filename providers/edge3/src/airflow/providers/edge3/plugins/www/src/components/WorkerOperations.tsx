@@ -23,6 +23,7 @@ import { toaster } from "src/components/ui";
 
 import { MaintenanceEnterButton } from "./MaintenanceEnterButton";
 import { MaintenanceExitButton } from "./MaintenanceExitButton";
+import { WorkerDeleteButton } from "./WorkerDeleteButton";
 import { WorkerShutdownButton } from "./WorkerShutdownButton";
 
 interface WorkerOperationsProps {
@@ -59,9 +60,18 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
         </Box>
         <Flex justifyContent="end" gap={2}>
           <MaintenanceExitButton onExitMaintenance={onWorkerChange} workerName={workerName} />
+          {state === "offline maintenance" && (
+            <WorkerDeleteButton onDelete={onWorkerChange} workerName={workerName} />
+          )}
           <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
         </Flex>
       </VStack>
+    );
+  } else if (state === "offline" || state === "unknown") {
+    return (
+      <Flex justifyContent="end">
+        <WorkerDeleteButton onDelete={onWorkerChange} workerName={workerName} />
+      </Flex>
     );
   }
   return null;
