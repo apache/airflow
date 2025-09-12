@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import boto3
 import pytest
 from moto import mock_aws
@@ -138,6 +140,89 @@ class TestS3ToSFTPOperator:
         )
         assert remove_file_task is not None
         remove_file_task.execute(None)
+
+    @mock_aws
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_s3_to_sftp_operation_confirm_true_default(self, mock_ssh_conn):
+        """Test that S3ToSFTPOperator calls sftp_client.put with confirm=True by default"""
+        # Mock setup
+        mock_sftp_client = MagicMock()
+        mock_ssh_connection = MagicMock()
+        mock_ssh_connection.open_sftp.return_value = mock_sftp_client
+        mock_ssh_conn.return_value = mock_ssh_connection
+
+        # S3 setup
+        s3_hook = S3Hook(aws_conn_id=None)
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.s3_bucket)
+
+        with open(LOCAL_FILE_PATH, "w") as file:
+            file.write("test content for confirm=True test")
+        s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
+
+        # Test with default confirm=True
+        run_task = S3ToSFTPOperator(
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            task_id=TASK_ID + "_confirm_true",
+            dag=self.dag,
+        )
+
+        run_task.execute(None)
+
+        # Verify confirm=True was used
+        mock_sftp_client.put.assert_called_once()
+        call_args = mock_sftp_client.put.call_args
+        assert "confirm" in call_args.kwargs
+        assert call_args.kwargs["confirm"] is True
+
+        # Cleanup
+        conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
+        conn.delete_bucket(Bucket=self.s3_bucket)
+
+    @mock_aws
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_s3_to_sftp_operation_confirm_false(self, mock_ssh_conn):
+        """Test that S3ToSFTPOperator calls sftp_client.put with confirm=False when specified"""
+        # Mock setup
+        mock_sftp_client = MagicMock()
+        mock_ssh_connection = MagicMock()
+        mock_ssh_connection.open_sftp.return_value = mock_sftp_client
+        mock_ssh_conn.return_value = mock_ssh_connection
+
+        # S3 setup
+        s3_hook = S3Hook(aws_conn_id=None)
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.s3_bucket)
+
+        with open(LOCAL_FILE_PATH, "w") as file:
+            file.write("test content for confirm=False test")
+        s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
+
+        # Test with explicit confirm=False
+        run_task = S3ToSFTPOperator(
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            task_id=TASK_ID + "_confirm_false",
+            confirm=False,  # Explicitly set to False
+            dag=self.dag,
+        )
+
+        run_task.execute(None)
+
+        # Verify confirm=False was used
+        mock_sftp_client.put.assert_called_once()
+        call_args = mock_sftp_client.put.call_args
+        assert "confirm" in call_args.kwargs
+        assert call_args.kwargs["confirm"] is False
+
+        # Cleanup
+        conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
+        conn.delete_bucket(Bucket=self.s3_bucket)
 
     def teardown_method(self):
         self.delete_remote_resource()
