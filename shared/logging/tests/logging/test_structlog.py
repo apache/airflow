@@ -21,6 +21,7 @@ import contextlib
 import io
 import json
 import logging
+import os
 import sys
 import textwrap
 from datetime import datetime, timezone
@@ -28,6 +29,7 @@ from datetime import datetime, timezone
 import pytest
 import structlog
 from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as RESET
+from structlog.processors import CallsiteParameter
 
 from airflow_shared.logging.structlog import configure_logging
 
@@ -64,24 +66,40 @@ def structlog_config():
 
 
 @pytest.mark.parametrize(
-    ("get_logger", "extra_kwargs", "extra_output"),
+    ("get_logger", "config_kwargs", "extra_kwargs", "extra_output"),
     [
         pytest.param(
             structlog.get_logger,
+            {},
             {"key1": "value1"},
             f" {CYAN}key1{RESET}={MAGENTA}value1{RESET}",
             id="structlog",
         ),
         pytest.param(
+            structlog.get_logger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {"key1": "value1"},
+            f" {CYAN}key1{RESET}={MAGENTA}value1{RESET} {CYAN}process{RESET}={MAGENTA}{os.getpid()}{RESET}",
+            id="structlog-callsite",
+        ),
+        pytest.param(
             logging.getLogger,
+            {},
             {},
             "",
             id="stdlib",
         ),
+        pytest.param(
+            logging.getLogger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {},
+            f" {CYAN}process{RESET}={MAGENTA}{os.getpid()}{RESET}",
+            id="stdlib-callsite",
+        ),
     ],
 )
-def test_colorful(structlog_config, get_logger, extra_kwargs, extra_output):
-    with structlog_config(colors=True) as sio:
+def test_colorful(structlog_config, get_logger, config_kwargs, extra_kwargs, extra_output):
+    with structlog_config(colors=True, **config_kwargs) as sio:
         logger = get_logger("my.logger")
         # Test that interoplations work too
         x = "world"
@@ -128,40 +146,62 @@ def test_precent_fmt_force_no_colors(
 ):
     with structlog_config(
         colors=False,
-        log_format="%(blue)s[%(asctime)s]%(reset)s %(log_color)s%(levelname)s - %(message)s",
+        log_format="%(blue)s[%(asctime)s]%(reset)s {%(filename)s:%(lineno)d} %(log_color)s%(levelname)s - %(message)s",
     ) as sio:
         logger = structlog.get_logger("my.logger")
         logger.info("Hello", key1="value1")
 
+        lineno = sys._getframe().f_lineno - 2
+
     written = sio.getvalue()
-    assert written == "[1985-10-26T00:00:00.000001Z] INFO - Hello key1=value1\n"
+    assert (
+        written == f"[1985-10-26T00:00:00.000001Z] {{test_structlog.py:{lineno}}} INFO - Hello key1=value1\n"
+    )
 
 
 @pytest.mark.parametrize(
-    ("get_logger", "extra_kwargs"),
+    ("get_logger", "config_kwargs", "log_kwargs", "expected_kwargs"),
     [
         pytest.param(
             structlog.get_logger,
+            {},
+            {"key1": "value1"},
             {"key1": "value1"},
             id="structlog",
         ),
         pytest.param(
+            structlog.get_logger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {"key1": "value1"},
+            {"key1": "value1", "process": os.getpid()},
+            id="structlog-callsite",
+        ),
+        pytest.param(
             logging.getLogger,
+            {},
+            {},
             {},
             id="stdlib",
         ),
+        pytest.param(
+            logging.getLogger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {},
+            {"process": os.getpid()},
+            id="stdlib-callsite",
+        ),
     ],
 )
-def test_json(structlog_config, get_logger, extra_kwargs):
-    with structlog_config(json_output=True) as bio:
+def test_json(structlog_config, get_logger, config_kwargs, log_kwargs, expected_kwargs):
+    with structlog_config(json_output=True, **(config_kwargs or {})) as bio:
         logger = get_logger("my.logger")
-        logger.info("Hello", **extra_kwargs)
+        logger.info("Hello", **log_kwargs)
 
     written = json.load(bio)
     assert written == {
         "event": "Hello",
         "level": "info",
-        **extra_kwargs,
+        **expected_kwargs,
         "logger": "my.logger",
         "timestamp": "1985-10-26T00:00:00.000001Z",
     }
