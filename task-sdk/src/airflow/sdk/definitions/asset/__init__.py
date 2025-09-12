@@ -496,6 +496,7 @@ class Asset(os.PathLike, BaseAsset):
         """
         return AssetProfile(name=self.name or None, uri=self.uri or None, type=Asset.__name__)
 
+
 class AssetRef(BaseAsset, AttrsInstance):
     """
     Reference to an asset.
