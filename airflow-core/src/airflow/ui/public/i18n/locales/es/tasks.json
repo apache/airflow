@@ -5,6 +5,6 @@
   "searchTasks": "Buscar tareas",
   "selectMapped": "Seleccionar mapeados",
   "selectOperator": "Seleccionar operadores",
-  "selectRetryValues": "Seleccionar valores de intento",
+  "selectRetryValues": "Seleccionar valores de reintento",
   "selectTriggerRules": "Seleccionar reglas de Trigger"
 }
