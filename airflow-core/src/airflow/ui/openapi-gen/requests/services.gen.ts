@@ -3550,6 +3550,7 @@ export class HumanInTheLoopService {
      * @param data.taskId
      * @param data.requestBody
      * @param data.mapIndex
+     * @param data.updateMask
      * @returns HITLDetailResponse Successful Response
      * @throws ApiError
      */
@@ -3563,7 +3564,8 @@ export class HumanInTheLoopService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                update_mask: data.updateMask
             },
             body: data.requestBody,
             mediaType: 'application/json',
