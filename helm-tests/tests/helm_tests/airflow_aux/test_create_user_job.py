@@ -487,6 +487,7 @@ class TestCreateUserJob:
             in_init_containers=True,
             in_containers=False
         )
+
     @pytest.mark.parametrize(
         "restart_policy",
         [
