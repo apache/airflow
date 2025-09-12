@@ -109,62 +109,62 @@ export const createChartOptions = ({
     onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
       const target = event.native?.target as HTMLElement | undefined;
 
-    if (target) {
-      target.style.cursor = elements.length > 0 ? "pointer" : "default";
-    }
-  },
-  plugins: {
-    annotation: {
-      annotations:
-        selectedId === undefined || selectedId === ""
-          ? []
-          : [
-              {
-                backgroundColor: selectedItemColor,
-                borderWidth: 0,
-                drawTime: "beforeDatasetsDraw" as const,
-                type: "box" as const,
-                xMax: "max" as const,
-                xMin: "min" as const,
-                yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
-                yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
-              },
-            ],
+      if (target) {
+        target.style.cursor = elements.length > 0 ? "pointer" : "default";
+      }
     },
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      callbacks: {
-        afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
-          const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
-          const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
-          const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
+    plugins: {
+      annotation: {
+        annotations:
+          selectedId === undefined || selectedId === ""
+            ? []
+            : [
+                {
+                  backgroundColor: selectedItemColor,
+                  borderWidth: 0,
+                  drawTime: "beforeDatasetsDraw" as const,
+                  type: "box" as const,
+                  xMax: "max" as const,
+                  xMin: "min" as const,
+                  yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
+                  yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
+                },
+              ],
+      },
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
+            const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
+            const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
+            const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
 
-          return [
-            `${translate("startDate")}: ${startDate}`,
-            `${translate("endDate")}: ${endDate}`,
-            `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
-          ];
-        },
-        label(tooltipItem: TooltipItem<"bar">) {
-          const { label } = tooltipItem;
-          const taskInstance = data.find((dataItem) => dataItem.y === label);
+            return [
+              `${translate("startDate")}: ${startDate}`,
+              `${translate("endDate")}: ${endDate}`,
+              `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
+            ];
+          },
+          label(tooltipItem: TooltipItem<"bar">) {
+            const { label } = tooltipItem;
+            const taskInstance = data.find((dataItem) => dataItem.y === label);
 
-          return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+            return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+          },
         },
       },
     },
-  },
-  resizeDelay: 100,
-  responsive: true,
-  scales: {
-    x: {
-      grid: {
-        color: gridColor,
-        display: true,
-      },
-      max:
+    resizeDelay: 100,
+    responsive: true,
+    scales: {
+      x: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        max:
         data.length > 0
           ? (() => {
               const maxTime = Math.max(...data.map((item) => new Date(item.x[1] ?? "").getTime()));
@@ -175,31 +175,31 @@ export const createChartOptions = ({
               return maxTime + totalDuration * 0.05;
             })()
           : formatDate(effectiveEndDate, selectedTimezone),
-      min:
+        min:
         data.length > 0
           ? Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()))
           : formatDate(selectedRun?.start_date, selectedTimezone),
-      position: "top" as const,
-      stacked: true,
-      ticks: {
-        align: "start" as const,
-        callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
-        maxRotation: 8,
-        maxTicksLimit: 8,
-        minRotation: 8,
+        position: "top" as const,
+        stacked: true,
+        ticks: {
+          align: "start" as const,
+          callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
+          maxRotation: 8,
+          maxTicksLimit: 8,
+          minRotation: 8,
+        },
+        type: "time" as const,
       },
-      type: "time" as const,
+      y: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        stacked: true,
+        ticks: {
+          display: false,
+        },
+      },
     },
-    y: {
-      grid: {
-        color: gridColor,
-        display: true,
-      },
-      stacked: true,
-      ticks: {
-        display: false,
-      },
-    },
-  },
   };
 };
