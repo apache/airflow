@@ -778,7 +778,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         self.pipeline_timeout = pipeline_timeout
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.pipeline_id: Optional[str] = None
+        self.pipeline_id: str | None = None
 
         if success_states:
             self.success_states = success_states
