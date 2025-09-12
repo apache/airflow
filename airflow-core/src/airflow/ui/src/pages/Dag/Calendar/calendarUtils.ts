@@ -25,7 +25,6 @@ import type {
   RunCounts,
   DailyCalendarData,
   HourlyCalendarData,
-  CalendarCellData,
   CalendarColorMode,
   CalendarGranularity,
   CalendarScale,
@@ -308,18 +307,4 @@ export const createCalendarScale = (
     legendItems,
     type: "gradient",
   };
-};
-
-export const createTooltipContent = (cellData: CalendarCellData): string => {
-  const { counts, date } = cellData;
-
-  if (counts.total === 0) {
-    return `${date}: No runs`;
-  }
-
-  const parts = Object.entries(counts)
-    .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => `${count} ${state}`);
-
-  return `${date}: ${counts.total} runs (${parts.join(", ")})`;
 };

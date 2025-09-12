@@ -16,13 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+
+import type { CalendarCellData, CalendarColorMode } from "./types";
+
+const SQUARE_SIZE = "12px";
+const SQUARE_BORDER_RADIUS = "2px";
 
 type Props = {
-  readonly content: string;
+  readonly cellData: CalendarCellData | null;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const CalendarTooltip = ({ content }: Props) => {
+const stateColorMap = {
+  failed: "red.500",
+  planned: "stone.500",
+  success: "green.500",
+};
+
+export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
+  const { t: translate } = useTranslation(["dag", "common"]);
+
   const tooltipStyle = useMemo(
     () => ({
       backgroundColor: "var(--chakra-colors-gray-800)",
@@ -30,6 +46,7 @@ export const CalendarTooltip = ({ content }: Props) => {
       color: "white",
       fontSize: "14px",
       left: "50%",
+      minWidth: "200px",
       opacity: 0,
       padding: "8px",
       pointerEvents: "none" as const,
@@ -60,10 +77,71 @@ export const CalendarTooltip = ({ content }: Props) => {
     [],
   );
 
+  if (!cellData) {
+    return (
+      <div data-tooltip style={tooltipStyle}>
+        <div style={arrowStyle} />
+      </div>
+    );
+  }
+
+  const { counts, date } = cellData;
+
+  const relevantCount = viewMode === "failed" ? counts.failed : counts.total;
+  const hasRuns = relevantCount > 0;
+
+  // In failed mode, only show failed runs; in total mode, show all non-zero states
+  const states = Object.entries(counts)
+    .filter(([key, value]) => {
+      if (key === "total") {
+        return false;
+      }
+      if (value === 0) {
+        return false;
+      }
+      if (viewMode === "failed") {
+        return key === "failed";
+      }
+
+      return true;
+    })
+    .map(([state, count]) => ({
+      color: stateColorMap[state as keyof typeof stateColorMap] || "gray.500",
+      count,
+      state: translate(`common:states.${state}`),
+    }));
+
   return (
     <div data-tooltip style={tooltipStyle}>
       <div style={arrowStyle} />
-      {content}
+      {hasRuns ? (
+        <VStack align="start" gap={2}>
+          <Text fontSize="sm" fontWeight="medium">
+            {date}
+          </Text>
+          <VStack align="start" gap={1.5}>
+            {states.map(({ color, count, state }) => (
+              <HStack gap={3} key={state}>
+                <Box
+                  bg={color}
+                  border="1px solid"
+                  borderColor="border.emphasized"
+                  borderRadius={SQUARE_BORDER_RADIUS}
+                  height={SQUARE_SIZE}
+                  width={SQUARE_SIZE}
+                />
+                <Text fontSize="xs">
+                  {count} {state}
+                </Text>
+              </HStack>
+            ))}
+          </VStack>
+        </VStack>
+      ) : (
+        <Text fontSize="sm">
+          {date}: {viewMode === "failed" ? translate("calendar.noFailedRuns") : translate("calendar.noRuns")}
+        </Text>
+      )}
     </div>
   );
 };

@@ -19,26 +19,37 @@
 import { Box } from "@chakra-ui/react";
 
 import { CalendarTooltip } from "./CalendarTooltip";
+import type { CalendarCellData, CalendarColorMode } from "./types";
 import { useDelayedTooltip } from "./useDelayedTooltip";
 
 type Props = {
   readonly backgroundColor: Record<string, string> | string;
-  readonly content: string;
+  readonly cellData: CalendarCellData | null;
   readonly index?: number;
   readonly marginRight?: string;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const CalendarCell = ({ backgroundColor, content, index, marginRight }: Props) => {
+export const CalendarCell = ({
+  backgroundColor,
+  cellData,
+  index,
+  marginRight,
+  viewMode = "total",
+}: Props) => {
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
 
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
 
-  const hasData = Boolean(content);
+  const relevantCount =
+    viewMode === "failed" ? (cellData?.counts.failed ?? 0) : (cellData?.counts.total ?? 0);
+  const hasData = Boolean(cellData && relevantCount > 0);
+  const hasTooltip = Boolean(cellData); // Show tooltip if we have cell data (even if no runs)
 
   return (
     <Box
-      onMouseEnter={hasData ? handleMouseEnter : undefined}
-      onMouseLeave={hasData ? handleMouseLeave : undefined}
+      onMouseEnter={hasTooltip ? handleMouseEnter : undefined}
+      onMouseLeave={hasTooltip ? handleMouseLeave : undefined}
       position="relative"
     >
       <Box
@@ -50,7 +61,7 @@ export const CalendarCell = ({ backgroundColor, content, index, marginRight }: P
         marginRight={computedMarginRight}
         width="14px"
       />
-      <CalendarTooltip content={hasData ? content : ""} />
+      <CalendarTooltip cellData={cellData} viewMode={viewMode} />
     </Box>
   );
 };
