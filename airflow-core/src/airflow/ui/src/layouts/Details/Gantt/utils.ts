@@ -26,8 +26,8 @@ import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
-  isGroup: boolean;
-  isMapped: boolean | null;
+  isGroup?: boolean | null;
+  isMapped?: boolean | null;
   state?: TaskInstanceState | null;
   taskId: string;
   x: Array<string>;
@@ -65,7 +65,7 @@ export const createHandleBarClick =
         const taskUrl = buildTaskInstanceUrl({
           currentPathname: location.pathname,
           dagId,
-          isGroup,
+          isGroup: Boolean(isGroup),
           isMapped: Boolean(isMapped),
           runId,
           taskId,

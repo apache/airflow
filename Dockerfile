@@ -49,14 +49,14 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_VERSION="3.0.6"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-
+ARG AIRFLOW_PYTHON_VERSION="3.12.11"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.8.14
+ARG AIRFLOW_UV_VERSION=0.8.17
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -1096,7 +1096,8 @@ function install_from_sources() {
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
         uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -1115,6 +1116,7 @@ function install_from_sources() {
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
               --editable ./task-sdk-tests \
+              --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -1140,8 +1142,10 @@ function install_from_sources() {
                 for project_folder in "${projects_with_devel_dependencies[@]}"; do
                     echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
                     set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" --constraint "${HOME}/constraints.txt" --group dev; then
-                        fallback_no_constraints_installation="true"
+                    if ! uv pip install --editable .  --directory "${project_folder}" \
+                        --constraint "${HOME}/constraints.txt" --group dev \
+                        --no-python-downloads --no-managed-python; then
+                            fallback_no_constraints_installation="true"
                     fi
                     set +x
                 done
@@ -1159,7 +1163,8 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+                --no-python-downloads --no-managed-python
             set +x
         fi
     fi
@@ -1689,14 +1694,14 @@ ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_ENV=""
+ARG AIRFLOW_PYTHON_VERSION
 
 ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
-    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
-
-ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
+    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev

@@ -47,7 +47,7 @@ export const StateFilters = ({
   return (
     <HStack>
       <QuickFilterButton isActive={isAll} onClick={onStateChange} value="all">
-        {translate("filters.paused.all")}
+        {translate("dags:filters.paused.all")}
       </QuickFilterButton>
       <QuickFilterButton
         data-testid="dags-failed-filter"

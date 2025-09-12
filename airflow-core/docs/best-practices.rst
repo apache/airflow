@@ -310,13 +310,13 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.11.6"
+      pip install "ruff>=0.13.0"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
    .. code-block:: bash
 
-      ruff check dags/ --select AIR3 --preview
+      ruff check dags/ --select AIR3
 
    This command will analyze your Dags located in the ``dags/`` directory and report any issues related to the specified rules.
 
@@ -773,8 +773,7 @@ This is an example test want to verify the structure of a code-generated Dag aga
 
     import pendulum
 
-    from airflow.sdk import DAG
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk import DAG, TaskInstanceState
 
 
     def test_my_custom_operator_execute_no_trigger(dag):

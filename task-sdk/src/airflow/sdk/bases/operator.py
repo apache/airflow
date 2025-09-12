@@ -213,6 +213,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
+    "email_on_failure": True,
+    "email_on_retry": True,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},

@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
+    EmailNotificationRequest,
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
@@ -51,7 +52,7 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_task_error_email
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
 from airflow.utils.file import iter_airflow_imports
@@ -224,8 +225,10 @@ def _execute_callbacks(
         log.debug("Processing Callback Request", request=request.to_json())
         if isinstance(request, TaskCallbackRequest):
             _execute_task_callbacks(dagbag, request, log)
-        if isinstance(request, DagCallbackRequest):
+        elif isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
+        elif isinstance(request, EmailNotificationRequest):
+            _execute_email_callbacks(dagbag, request, log)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -333,6 +336,68 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             callback(context)
         except Exception:
             log.exception("Error in callback at index %d: %s", idx, callback_repr)
+
+
+def _execute_email_callbacks(
+    dagbag: DagBag, request: EmailNotificationRequest, log: FilteringBoundLogger
+) -> None:
+    """Execute email notification for task failure/retry."""
+    dag = dagbag.dags[request.ti.dag_id]
+    task = dag.get_task(request.ti.task_id)
+
+    if not task.email:
+        log.warning(
+            "Email callback requested but no email configured",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+        return
+
+    # Check if email should be sent based on task configuration
+    should_send_email = False
+    if request.email_type == "failure" and task.email_on_failure:
+        should_send_email = True
+    elif request.email_type == "retry" and task.email_on_retry:
+        should_send_email = True
+
+    if not should_send_email:
+        log.info(
+            "Email not sent - task configured with email_on_%s=False",
+            request.email_type,
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+        return
+
+    ctx_from_server = request.context_from_server
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **request.ti.model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=ctx_from_server,
+        max_tries=ctx_from_server.max_tries,
+    )
+
+    log.info(
+        "Sending %s email for task %s",
+        request.email_type,
+        request.ti.task_id,
+        dag_id=request.ti.dag_id,
+        run_id=request.ti.run_id,
+    )
+
+    try:
+        _send_task_error_email(task.email, runtime_ti, request.msg, log)
+    except Exception:
+        log.exception(
+            "Failed to send %s email",
+            request.email_type,
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
 
 
 def in_process_api_server() -> InProcessExecutionAPI:

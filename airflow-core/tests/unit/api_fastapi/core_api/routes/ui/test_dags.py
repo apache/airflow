@@ -160,7 +160,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 defaults=["Approve"],
                 response_at=utcnow(),
                 chosen_options=["Approve"],
-                responded_user_id="test",
+                responded_by={"id": "test", "name": "test"},
             )
             for i in range(3, 5)
         ]
@@ -186,6 +186,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                         "params": {},
                         "params_input": {},
                         "response_received": False,
+                        "assigned_users": [],
                     }
                     for i in range(3)
                 ],
@@ -215,7 +216,9 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         # Check pending_actions structure when specified
         if expected_pending_actions is not None:
             for dag_json in body["dags"]:
-                assert dag_json["pending_actions"] == expected_pending_actions
+                pending_actions = dag_json["pending_actions"]
+                pending_actions.sort(key=lambda x: x["subject"])
+                assert pending_actions == expected_pending_actions
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})

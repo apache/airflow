@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-redis``
 
 Release: ``4.3.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Redis <https://redis.io/>`__
 
