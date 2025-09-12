@@ -87,6 +87,29 @@ def get_extra_links(
     )
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
 
+    from airflow.models.xcom import XComModel
+
+    query = XComModel.get_many(
+        dag_ids=dag_id,
+        run_id=dag_run_id,
+        task_ids=task_id,
+        map_indexes=map_index,
+    ).filter(XComModel.key.like("_link_%"))
+
+    link_map = {}
+    if hasattr(task, "operator_extra_links"):
+        link_map = {
+            getattr(link, "xcom_key", link.name).removeprefix("_link_"): link.name
+            for link in getattr(task, "operator_extra_links", [])
+        }
+
+    # Execute and iterate result rows (works on SQLA 1.4 and 2.0)
+    for row in session.execute(query).scalars():
+        raw_class_name = row.key.removeprefix("_link_")
+        value = XComModel.deserialize_value(row)
+        display_name = link_map.get(raw_class_name, raw_class_name)
+        all_extra_links[display_name] = value
+
     return ExtraLinkCollectionResponse(
         extra_links=all_extra_links,
         total_entries=len(all_extra_links),
