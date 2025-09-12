@@ -233,8 +233,6 @@ This setting can be configured in the Airflow chart at different levels:
     safeToEvict: true
   scheduler:
     safeToEvict: true
-  webserver:
-    safeToEvict: true
 
 ``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
 ``workers.safeToEvict`` shouldn't be set to ``true`` or workers may be removed before finishing.
