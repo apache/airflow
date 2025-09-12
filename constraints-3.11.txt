@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-12T07:49:14.821652
+# This constraints file was automatically generated on 2025-09-12T13:52:54.889064
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -292,7 +292,7 @@ docstring_parser==0.17.0
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
-elasticsearch==8.19.0
+elasticsearch==8.19.1
 email-validator==2.3.0
 entrypoints==0.4
 et_xmlfile==2.0.0
@@ -397,7 +397,7 @@ humanize==4.13.0
 hvac==2.3.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.2
-ibmcloudant==0.10.6
+ibmcloudant==0.10.7
 idna==3.10
 ijson==3.4.0
 immutabledict==4.2.1
