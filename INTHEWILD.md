@@ -123,6 +123,7 @@ Currently, **officially** using Airflow:
 1. [CAVA](https://www.cava.com) [[@minh5](https://github.com/minh5) & [@patchus](https://github.com/patchus)]
 1. [Celect](http://www.celect.com) [[@superdosh](https://github.com/superdosh) & [@chadcelect](https://github.com/chadcelect)]
 1. [Censys](https://censys.io) [[@zakird](https://github.com/zakird), [@dadrian](https://github.com/dadrian), & [@andrewsardone](https://github.com/andrewsardone)]
+1. [CERTI Foundation](https://certi.org.br/en) [[@ArthurKretzer](https://github.com/ArthurKretzer), [@CarduCaldeira](https://github.com/CarduCaldeira) & [@nannayusuf](https://github.com/nannayusuf)]
 1. [Change.org](https://www.change.org) [[@change](https://github.com/change), [@vijaykramesh](https://github.com/vijaykramesh)]
 1. [Chartboost](https://www.chartboost.com) [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
 1. [Checkr](https://checkr.com) [[@tongboh](https://github.com/tongboh)]
