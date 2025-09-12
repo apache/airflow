@@ -781,7 +781,7 @@ class DeleteVariable(BaseModel):
 class GetProcessState(BaseModel):
     process_name: str
     key: str
-    type: Literal["DeleteVariable"] = "GetProcessState"
+    type: Literal["GetProcessState"] = "GetProcessState"
 
 
 class PutProcessState(BaseModel):

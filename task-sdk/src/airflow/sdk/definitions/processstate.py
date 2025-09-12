@@ -27,4 +27,4 @@ class ProcessStateResponse(StrictBaseModel):
 
     process_name: str
     key: str
-    val: str | None = Field(alias="value")
+    value: str
