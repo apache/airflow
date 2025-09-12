@@ -30,6 +30,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun
+from airflow.models.xcom import XComModel as XCom
 
 if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
@@ -86,6 +87,26 @@ def get_extra_links(
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
+
+    extra_link_records = (
+        session.query(XCom)
+        .filter(
+            XCom.dag_id == dag_id,
+            XCom.run_id == dag_run_id,
+            XCom.task_id == task_id,
+            XCom.map_index == map_index,
+            XCom.key.like("extra_link:%"),
+        )
+        .all()
+    )
+    for rec in extra_link_records:
+        link_name = rec.key.split("extra_link:")[1]
+        try:
+            url = rec.value
+        except Exception:
+            url = None
+        if url:
+            all_extra_links[link_name] = url
 
     return ExtraLinkCollectionResponse(
         extra_links=all_extra_links,
