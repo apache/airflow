@@ -1,7 +1,7 @@
 {
   "consumingDags": "Dag Consumatori",
   "createEvent": {
-    "button": "Crea un Evento",
+    "button": "Creare un Evento",
     "manual": {
       "description": "Crea manualmente un Evento Asset",
       "extra": "Extra dell'Evento Asset",
@@ -19,12 +19,12 @@
       "materializeDescription": "Il Dag upstream {{dagId}} è stato attivato con successo.",
       "materializeTitle": "Materializzazione dell'Asset"
     },
-    "title": "Crea Evento Asset per {{name}}"
+    "title": "Creare Evento Asset per {{name}}"
   },
   "group": "Gruppo",
   "lastAssetEvent": "Ultimo Evento Asset",
   "name": "Nome",
   "producingTasks": "Task Produttori",
   "scheduledDags": "Dag Programmati",
-  "searchPlaceholder": "Cerca Assets"
+  "searchPlaceholder": "Cercare Assets"
 }
