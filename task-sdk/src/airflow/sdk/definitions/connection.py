@@ -24,7 +24,6 @@ from typing import Any
 
 import attrs
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
@@ -192,7 +191,7 @@ class Connection:
     def _handle_connection_error(cls, e: AirflowRuntimeError, conn_id: str) -> None:
         """Handle connection retrieval errors."""
         if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+            raise RuntimeError(f"The conn_id `{conn_id}` isn't defined") from None
         raise
 
     @classmethod
