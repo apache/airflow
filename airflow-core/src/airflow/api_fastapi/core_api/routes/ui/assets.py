@@ -88,7 +88,7 @@ def next_run_assets(
     ]
 
     for event in events:
-        if not event.pop('queued', None):
+        if not event.pop("queued", None):
             event["lastUpdate"] = None
 
     data = {"asset_expression": dag_model.asset_expression, "events": events}
