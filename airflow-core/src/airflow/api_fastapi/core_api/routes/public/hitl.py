@@ -205,6 +205,7 @@ def get_hitl_details(
                     "ti_id",
                     "subject",
                     "response_at",
+                    "created_at",
                 ],
                 model=HITLDetailModel,
                 to_replace={
