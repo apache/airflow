@@ -399,6 +399,10 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
 
+        if self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
+            # Links are rendered only for dataflow runner
+            self.operator_extra_links = ()
+
         if self.deferrable and not self.is_dataflow:
             self.defer(
                 trigger=BeamPythonPipelineTrigger(
@@ -577,6 +581,9 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         ) = self._init_pipeline_options()
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
+        if self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
+            # Links are rendered only for dataflow runner
+            self.operator_extra_links = ()
 
         if self.deferrable and not self.is_dataflow:
             self.defer(
