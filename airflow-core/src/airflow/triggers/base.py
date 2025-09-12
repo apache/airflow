@@ -82,6 +82,8 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         # when run, they are injected into logger record.
         self._task_instance = None
         self.trigger_id = None
+        self.template_fields = ()
+        self.template_ext = ()
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""

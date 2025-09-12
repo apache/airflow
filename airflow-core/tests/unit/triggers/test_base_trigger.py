@@ -51,6 +51,8 @@ def test_render_template_fields(create_task_instance):
     trigger = DummyTrigger(name="Hello {{ name }}")
 
     assert not trigger.task_instance
+    assert trigger.template_fields == ()
+    assert trigger.template_ext == ()
 
     trigger.task_instance = ti
 
