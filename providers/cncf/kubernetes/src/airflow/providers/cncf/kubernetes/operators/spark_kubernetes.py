@@ -32,6 +32,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_sidecar_to_spark_operator_pod_spec
 
 if TYPE_CHECKING:
     import jinja2
@@ -230,7 +231,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels["try_number"] == context["ti"].try_number
 
-    @property
+    @cached_property
     def template_body(self):
         """Templated body for CustomObjectLauncher."""
         return self.manage_template_specs()
@@ -259,7 +260,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             driver_pod = self.find_spark_job(context)
             if driver_pod:
                 return driver_pod
-
         driver_pod, spark_obj_spec = self.launcher.start_spark_job(
             image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
         )
@@ -294,6 +294,17 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def custom_obj_api(self) -> CustomObjectsApi:
         return CustomObjectsApi()
 
+    def update_pod_spec_add_xcom_sidecar(self) -> None:
+        if self.do_xcom_push:
+            self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
+            driver_template = self.template_body["spark"]["spec"]
+            driver_with_xcom_template = add_sidecar_to_spark_operator_pod_spec(
+                driver_template,
+                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
+                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+            )
+            self.template_body["spark"]["spec"] = driver_with_xcom_template
+
     @cached_property
     def launcher(self) -> CustomObjectLauncher:
         launcher = CustomObjectLauncher(
@@ -307,11 +318,10 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def execute(self, context: Context):
         self.name = self.create_job_name()
-
         self.log.info("Creating sparkApplication.")
+        self.update_pod_spec_add_xcom_sidecar()
         self.pod = self.get_or_create_spark_crd(context)
         self.pod_request_obj = self.launcher.pod_spec
-
         return super().execute(context=context)
 
     def on_kill(self) -> None:
