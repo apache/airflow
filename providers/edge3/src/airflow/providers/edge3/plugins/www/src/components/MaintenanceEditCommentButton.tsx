@@ -47,6 +47,7 @@ export const MaintenanceEditCommentButton = ({
         title: "Maintenance Comments updated",
         type: "success",
       });
+      onClose();
     },
   });
 
