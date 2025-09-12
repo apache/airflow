@@ -120,8 +120,9 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Load, Query, Session
     from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
@@ -210,7 +211,7 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
-def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Query:
+def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
     """Get the dag_run IDs and how many tasks are in the provided states for each one."""
     return (
         select(TI.run_id, func.count("*").label("dr_count"))
