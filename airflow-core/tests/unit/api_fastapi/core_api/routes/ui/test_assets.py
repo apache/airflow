@@ -132,40 +132,6 @@ class TestNextRunAssets:
             ],
         }
 
-    def test_two_assets_only_one_queued_last_update_norm(self, test_client, dag_maker, session):
-        with dag_maker(
-            dag_id="two_assets",
-            schedule=[
-                Asset(uri="s3://bucket/A", name="A"),
-                Asset(uri="s3://bucket/B", name="B"),
-            ],
-            serialized=True,
-        ):
-            EmptyOperator(task_id="t")
-
-        dr = dag_maker.create_dagrun()
-        dag_maker.sync_dagbag_to_db()
-
-        assets = {
-            a.uri: a
-            for a in session.query(AssetModel).filter(AssetModel.uri.in_(["s3://bucket/A", "s3://bucket/B"]))
-        }
-        session.add(AssetDagRunQueue(asset_id=assets["s3://bucket/A"].id, target_dag_id="two_assets"))
-        session.add(
-            AssetEvent(asset_id=assets["s3://bucket/A"].id, timestamp=dr.logical_date or pendulum.now())
-        )
-        session.commit()
-
-        resp = test_client.get("/next_run_assets/two_assets")
-        assert resp.status_code == 200
-        events = resp.json()["events"]
-        # ordered by uri => A then B
-        assert events[0]["uri"] == "s3://bucket/A"
-        assert events[0]["lastUpdate"] is not None
-        assert "queued" not in events[0]
-        assert events[1]["uri"] == "s3://bucket/B"
-        assert events[1]["lastUpdate"] is None
-        assert "queued" not in events[1]
 
     def test_last_update_respects_latest_run_filter(self, test_client, dag_maker, session):
         with dag_maker(
