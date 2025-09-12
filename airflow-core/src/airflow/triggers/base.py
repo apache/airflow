@@ -22,8 +22,8 @@ from collections.abc import AsyncIterator, Collection, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, Any
-
 import structlog
+
 from pydantic import (
     BaseModel,
     Discriminator,
@@ -32,7 +32,7 @@ from pydantic import (
     model_serializer,
 )
 
-from airflow.models import Templater
+from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -41,7 +41,8 @@ log = structlog.get_logger(logger_name=__name__)
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.models import BaseOperator, Context
+    from airflow.sdk.definitions.context import Context
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 @dataclass
@@ -81,7 +82,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         pass
 
     @property
-    def task(self) -> BaseOperator | None:
+    def task(self) -> SerializedBaseOperator | None:
         if self.task_instance:
             return self.task_instance.task
         return None
