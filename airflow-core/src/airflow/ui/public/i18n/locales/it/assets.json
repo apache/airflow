@@ -11,7 +11,7 @@
       "description": "Attiva il Dag upstream di questo asset",
       "descriptionWithDag": "Attiva il Dag upstream di questo asset: {{dagName}}",
       "label": "Materializza",
-      "unpauseDag": "Riattiva {{dagName}} al trigger"
+      "unpauseDag": "Riattiva {{dagName}} al momento del trigger"
     },
     "success": {
       "manualDescription": "La creazione manuale dell'evento asset è avvenuta con successo.",
