@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
+import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -91,93 +92,100 @@ export const createChartOptions = ({
   selectedRun,
   selectedTimezone,
   translate,
-}: ChartOptionsParams) => ({
-  animation: {
-    duration: 100,
-  },
-  indexAxis: "y" as const,
-  maintainAspectRatio: false,
-  onClick: handleBarClick,
-  onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
-    const target = event.native?.target as HTMLElement | undefined;
+}: ChartOptionsParams) => {
+  const isActivePending = isStatePending(selectedRun?.state);
+  const effectiveEndDate = isActivePending
+    ? dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss")
+    : selectedRun?.end_date;
 
-    if (target) {
-      target.style.cursor = elements.length > 0 ? "pointer" : "default";
-    }
-  },
-  plugins: {
-    annotation: {
-      annotations:
-        selectedId === undefined
-          ? []
-          : [
-              {
-                backgroundColor: selectedItemColor,
-                borderWidth: 0,
-                drawTime: "beforeDatasetsDraw" as const,
-                type: "box" as const,
-                xMax: "max" as const,
-                xMin: "min" as const,
-                yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
-                yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
-              },
-            ],
+  return {
+    animation: {
+      duration: 100,
     },
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      callbacks: {
-        afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
-          const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
-          const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
-          const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
+    indexAxis: "y" as const,
+    maintainAspectRatio: false,
+    onClick: handleBarClick,
+    onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
+      const target = event.native?.target as HTMLElement | undefined;
 
-          return [
-            `${translate("startDate")}: ${startDate}`,
-            `${translate("endDate")}: ${endDate}`,
-            `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
-          ];
-        },
-        label(tooltipItem: TooltipItem<"bar">) {
-          const { label } = tooltipItem;
-          const taskInstance = data.find((dataItem) => dataItem.y === label);
-
-          return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
-        },
-      },
+      if (target) {
+        target.style.cursor = elements.length > 0 ? "pointer" : "default";
+      }
     },
-  },
-  resizeDelay: 100,
-  responsive: true,
-  scales: {
-    x: {
-      grid: {
-        color: gridColor,
-        display: true,
+    plugins: {
+      annotation: {
+        annotations:
+          selectedId === undefined
+            ? []
+            : [
+                {
+                  backgroundColor: selectedItemColor,
+                  borderWidth: 0,
+                  drawTime: "beforeDatasetsDraw" as const,
+                  type: "box" as const,
+                  xMax: "max" as const,
+                  xMin: "min" as const,
+                  yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
+                  yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
+                },
+              ],
       },
-      max: formatDate(selectedRun?.end_date, selectedTimezone),
-      min: formatDate(selectedRun?.start_date, selectedTimezone),
-      position: "top" as const,
-      stacked: true,
-      ticks: {
-        align: "start" as const,
-        callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
-        maxRotation: 8,
-        maxTicksLimit: 8,
-        minRotation: 8,
-      },
-      type: "time" as const,
-    },
-    y: {
-      grid: {
-        color: gridColor,
-        display: true,
-      },
-      stacked: true,
-      ticks: {
+      legend: {
         display: false,
       },
+      tooltip: {
+        callbacks: {
+          afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
+            const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
+            const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
+            const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
+
+            return [
+              `${translate("startDate")}: ${startDate}`,
+              `${translate("endDate")}: ${endDate}`,
+              `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
+            ];
+          },
+          label(tooltipItem: TooltipItem<"bar">) {
+            const { label } = tooltipItem;
+            const taskInstance = data.find((dataItem) => dataItem.y === label);
+
+            return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+          },
+        },
+      },
     },
-  },
-});
+    resizeDelay: 100,
+    responsive: true,
+    scales: {
+      x: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        max: formatDate(effectiveEndDate, selectedTimezone),
+        min: formatDate(selectedRun?.start_date, selectedTimezone),
+        position: "top" as const,
+        stacked: true,
+        ticks: {
+          align: "start" as const,
+          callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
+          maxRotation: 8,
+          maxTicksLimit: 8,
+          minRotation: 8,
+        },
+        type: "time" as const,
+      },
+      y: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        stacked: true,
+        ticks: {
+          display: false,
+        },
+      },
+    },
+  };
+};
