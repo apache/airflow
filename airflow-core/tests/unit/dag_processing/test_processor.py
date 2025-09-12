@@ -884,10 +884,6 @@ class TestExecuteDagCallbacks:
                 XComResult(
                     key="direct_value",
                     value="test",
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    map_index=None,
                 ),
             ),
         ],
@@ -909,7 +905,7 @@ class TestExecuteDagCallbacks:
             def __call__(self, context):
                 ti = context["ti"]
                 dag = context["dag"]
-                task_ids = list(dag.task_dict.keys())
+                task_ids = list(dag.task_dict)
                 xcom_operation(ti, task_ids)
 
         with DAG(dag_id="test_dag", on_success_callback=TestNotifier()) as dag:
@@ -960,8 +956,7 @@ class TestExecuteDagCallbacks:
 
         _execute_dag_callbacks(dagbag, request, structlog.get_logger())
 
-        mock_supervisor_comms.send.assert_called()
-        mock_supervisor_comms.send.assert_called_with(msg=expected_message)
+        mock_supervisor_comms.send.assert_called_once_with(msg=expected_message)
 
 
 class TestExecuteTaskCallbacks:
