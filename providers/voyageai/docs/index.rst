@@ -54,3 +54,47 @@ to generate high-quality text embeddings within your Airflow DAGs.
     :caption: Internals
 
     _api/airflow/providers/voyageai/index
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+apache-airflow-providers-voyageai package
+------------------------------------------------------
+
+`Apache Airflow provider to interact with the Voyage AI embeddings API. <https://docs.voyageai.com/docs/introduction>`__
+
+
+Release: 0.1.0
+
+Provider package
+----------------
+
+This package is for the ``voyageai`` provider.
+All classes for this package are included in the ``airflow.providers.voyageai`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow installation via
+``pip install apache-airflow-providers-voyageai``.
+For the minimum Airflow version supported, see ``Requirements`` below.
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.10.0``
+``voyageai``        ``>=0.2.0``
+==================  ==================
