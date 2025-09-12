@@ -625,7 +625,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                     f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
                 ],
                 f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
-                id="simgle-arn",
+                id="single-arn",
             ),
         ],
     )
