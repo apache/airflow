@@ -56,10 +56,10 @@ def upgrade():
 
         rows = result.all() if result is not None else []
         existing_indexes = {row[0] for row in rows}
-        index_names = ["unique_conn_id", "connection_conn_id_uq"]
-        for index_name in index_names:
-            if index_name in existing_indexes:
-                conn.execute(sa.text(f"ALTER TABLE connection DROP INDEX {index_name}"))
+        drop_indexes = ["unique_conn_id", "connection_conn_id_uq"]
+        for idx in drop_indexes:
+            if idx in existing_indexes:
+                conn.execute(sa.text(f"ALTER TABLE connection DROP INDEX {idx}"))
 
     elif conn.dialect.name == "sqlite":
         # SQLite does not support DROP CONSTRAINT
