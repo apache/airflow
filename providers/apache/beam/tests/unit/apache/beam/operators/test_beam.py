@@ -494,6 +494,29 @@ class TestBeamRunJavaPipelineOperator:
 
         dataflow_cancel_job.assert_not_called()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_dataflow_streaming_not_stuck(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
+    ):
+        """Check that start java streaming pipeline does not enter infinite loop,
+        when streaming pipeline with the same prefix is already running and check_is_running=True"""
+        dataflow_config = DataflowConfiguration()
+        op_kwargs = copy.deepcopy(self.default_op_kwargs)
+        op_kwargs["pipeline_options"]["streaming"] = True
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = True
+        start_java_mock = beam_hook_mock.return_value.start_java_pipeline
+
+        op = BeamRunJavaPipelineOperator(
+            **op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
+        )
+        res = op.execute({})
+
+        start_java_mock.assert_not_called()
+        assert res == {"dataflow_job_id": None}
+
 
 class TestBeamRunGoPipelineOperator:
     @pytest.fixture(autouse=True)
