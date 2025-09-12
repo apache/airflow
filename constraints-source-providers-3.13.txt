@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-11T13:48:31.220142
+# This constraints file was automatically generated on 2025-09-12T07:45:50.387014
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.1
+alibabacloud-adb20211201==3.2.2
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -86,10 +86,10 @@ aws-sam-translator==1.100.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.35.0
+azure-core==1.35.1
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.24.0
+azure-identity==1.25.0
 azure-keyvault-secrets==4.10.0
 azure-kusto-data==5.0.5
 azure-mgmt-containerinstance==10.1.0
@@ -361,14 +361,14 @@ moto==5.1.12
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.33.0
-msgraph-core==1.3.5
+msgraph-core==1.3.8
 msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.6.4
 mypy-boto3-appflow==1.40.17
-mypy-boto3-rds==1.40.24
+mypy-boto3-rds==1.40.29
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.26
 mypy==1.17.1
@@ -466,7 +466,7 @@ pyenchant==3.2.2
 pyexasol==1.1.1
 pygraphviz==1.14
 pygtrie==2.5.0
-pyiceberg==0.9.1
+pyiceberg==0.10.0
 pykerberos==1.2.4
 pymongo==4.15.0
 pymssql==2.3.7
@@ -475,9 +475,10 @@ pyodps==0.12.4.1
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
+pyroaring==1.0.2
 pyspark==4.0.1
 pyspnego==0.12.0
-pytest-asyncio==1.1.0
+pytest-asyncio==1.2.0
 pytest-cov==7.0.0
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
@@ -525,7 +526,7 @@ rfc3986==2.0.0
 rich-argparse==1.7.1
 rich-click==1.8.9
 rich-toolkit==0.15.1
-rich==13.9.4
+rich==14.1.0
 roman-numerals-py==3.1.0
 rpds-py==0.27.1
 rsa==4.9.1
@@ -536,7 +537,7 @@ s3fs==2025.9.0
 s3transfer==0.13.1
 sagemaker_studio==1.0.21
 scikit-learn==1.7.2
-scipy==1.16.1
+scipy==1.16.2
 scramp==1.4.6
 scrapbook==0.5.0
 segment-analytics-python==2.3.4
@@ -611,7 +612,7 @@ towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-trove-classifiers==2025.9.9.12
+trove-classifiers==2025.9.11.17
 twine==6.2.0
 typer==0.17.4
 types-Deprecated==1.2.15.20250304
@@ -645,7 +646,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.16
+uv==0.8.17
 uvicorn==0.35.0
 uvloop==0.21.0
 validators==0.35.0
@@ -668,6 +669,6 @@ yarl==1.20.1
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==5.1.1
-zope.interface==7.2
+zope.event==6.0
+zope.interface==8.0
 zstandard==0.24.0
