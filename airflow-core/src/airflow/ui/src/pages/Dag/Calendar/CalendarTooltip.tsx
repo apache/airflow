@@ -139,7 +139,11 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
         </VStack>
       ) : (
         <Text fontSize="sm">
-          {date}: {viewMode === "failed" ? translate("calendar.noFailedRuns") : translate("calendar.noRuns")}
+          {/* To do: remove fallback translations */}
+          {date}:{" "}
+          {viewMode === "failed"
+            ? translate("calendar.noFailedRuns", "No failed runs")
+            : translate("calendar.noRuns", "No runs")}
         </Text>
       )}
     </div>

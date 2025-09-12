@@ -7,8 +7,6 @@
   },
   "calendar": {
     "daily": "每日",
-    "failedRun_one": "1 個失敗的執行",
-    "failedRun_other": "{{count}} 個失敗的執行",
     "hourly": "每小時",
     "legend": {
       "less": "較少",
@@ -21,7 +19,6 @@
       "previousYear": "上一年"
     },
     "noData": "沒有可用的資料",
-    "noFailedRuns": "沒有失敗的執行",
     "noRuns": "沒有執行",
     "totalRuns": "總執行數",
     "week": "第 {{weekNumber}} 週",

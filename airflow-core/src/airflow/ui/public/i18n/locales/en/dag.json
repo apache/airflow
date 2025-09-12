@@ -7,8 +7,6 @@
   },
   "calendar": {
     "daily": "Daily",
-    "failedRun_one": "1 Failed Run}",
-    "failedRun_other": "{{count}} Failed Runs",
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
@@ -21,7 +19,6 @@
       "previousYear": "Previous year"
     },
     "noData": "No data available",
-    "noFailedRuns": "No failed runs",
     "noRuns": "No runs",
     "totalRuns": "Total Runs",
     "week": "Week {{weekNumber}}",
