@@ -270,7 +270,10 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
 
 @pytest.mark.parametrize(
     "trigger, watcher_count, trigger_count",
-    [(TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1), (FileDeleteTrigger("/tmp/foo.txt"), 1, 0)],
+    [
+        (TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1),
+        (FileDeleteTrigger("/tmp/foo.txt", poke_interval=1), 1, 0),
+    ],
 )
 @patch("time.monotonic", side_effect=itertools.count(start=1, step=60))
 def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, session, capsys):
