@@ -17,7 +17,7 @@
       "manualDescription": "La creazione manuale dell'evento asset è avvenuta con successo.",
       "manualTitle": "Evento Asset Creato",
       "materializeDescription": "Il Dag upstream {{dagId}} è stato attivato con successo.",
-      "materializeTitle": "Materializzazione Asset"
+      "materializeTitle": "Materializzazione dell'Asset"
     },
     "title": "Crea Evento Asset per {{name}}"
   },
