@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
@@ -933,8 +934,6 @@ class TriggerRunner:
 
     async def create_triggers(self):
         def create_runtime_ti(dag: dict) -> RuntimeTaskInstance:
-            from airflow.serialization.serialized_objects import SerializedDAG
-
             task = SerializedDAG.from_dict(dag).get_task(workload.ti.task_id)
 
             # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
