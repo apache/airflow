@@ -456,6 +456,7 @@ class EventLogResponse(BaseModel):
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
+    task_display_name: Annotated[str | None, Field(title="Task Display Name")] = None
 
 
 class ExternalLogUrlResponse(BaseModel):
