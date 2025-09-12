@@ -323,7 +323,7 @@ class Asset(os.PathLike, BaseAsset):
         factory=dict,
         converter=_set_extra_default,
     )
-    # New: dynamic metadata template (rendered at runtime into AssetEvent.extra)
+    # Dynamic metadata template (rendered at runtime into AssetEvent.extra)
     event_extra_template: dict[str, Any] | None = attrs.field(factory=dict)
 
     watchers: list[AssetWatcher | SerializedAssetWatcher] = attrs.field(factory=list)

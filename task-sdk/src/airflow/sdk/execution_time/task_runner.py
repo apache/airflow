@@ -1302,7 +1302,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
         if isinstance(outlet, Asset):
             # Render template at runtime
             rendered_extra = render_event_extra_template(
-                outlet.event_extra_template,context=context, jinja_env=task.dag.get_template_env()
+                outlet.event_extra_template, context=context, jinja_env=task.dag.get_template_env()
             )
             outlet_events[outlet].extra.update(rendered_extra)
 
@@ -1338,8 +1338,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     return result
 
+
 def render_event_extra_template(
-    event_extra_template : dict[str, Any] | None,
+    event_extra_template: dict[str, Any] | None,
     context: Context,
     jinja_env: jinja2.Environment | None = None,
 ) -> dict[str, Any]:
@@ -1367,6 +1368,7 @@ def render_event_extra_template(
         return value
 
     return _render(template)
+
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
     """Render named map index if the Dag author defined map_index_template at the task level."""
