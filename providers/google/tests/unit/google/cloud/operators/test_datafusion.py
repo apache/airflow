@@ -23,6 +23,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, PipelineStates
+from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator,
     CloudDataFusionCreatePipelineOperator,
@@ -35,10 +36,8 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionStopPipelineOperator,
     CloudDataFusionUpdateInstanceOperator,
 )
-from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
-from airflow.providers.openlineage.extractors import OperatorLineage
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
 RESOURCE_PATH_TO_DICT_STR = "airflow.providers.google.cloud.operators.datafusion.resource_path_to_dict"
