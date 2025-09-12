@@ -361,7 +361,7 @@ def create_cluster(
                 ]
         check_async_run_results(
             results=results,
-            success="All clusters created.",
+            success_message="All clusters created.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -699,7 +699,7 @@ def build_k8s_image(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S images built correctly.",
+            success_message="All K8S images built correctly.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -776,7 +776,7 @@ def upload_k8s_image(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S images uploaded correctly.",
+            success_message="All K8S images uploaded correctly.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -961,7 +961,7 @@ def configure_cluster(
                 ]
         check_async_run_results(
             results=results,
-            success="All clusters configured correctly.",
+            success_message="All clusters configured correctly.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -1228,7 +1228,7 @@ def deploy_airflow(
                 ]
         check_async_run_results(
             results=results,
-            success="All Airflow charts successfully deployed.",
+            success_message="All Airflow charts successfully deployed.",
             outputs=outputs,
             skip_cleanup=skip_cleanup,
             include_success_outputs=include_success_outputs,
@@ -1570,7 +1570,7 @@ def kubernetes_tests_command(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S tests successfully completed.",
+            success_message="All K8S tests successfully completed.",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,
@@ -1822,7 +1822,7 @@ def run_complete_tests(
                 ]
         check_async_run_results(
             results=results,
-            success="All K8S tests successfully completed.",
+            success_message="All K8S tests successfully completed.",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,

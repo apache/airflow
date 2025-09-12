@@ -21,7 +21,7 @@ import pendulum
 import pytest
 
 from airflow.sdk import dag, task, task_group
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 
 
 @pytest.mark.db_test

@@ -63,7 +63,7 @@ export const HistoricalMetrics = () => {
 
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit: 6,
-    orderBy: assetSortBy,
+    orderBy: [assetSortBy],
     timestampGte: startDate,
     timestampLte: endDate,
   });

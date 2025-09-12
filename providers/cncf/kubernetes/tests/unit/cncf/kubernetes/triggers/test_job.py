@@ -45,7 +45,9 @@ def trigger():
     return KubernetesJobTrigger(
         job_name=JOB_NAME,
         job_namespace=NAMESPACE,
-        pod_name=POD_NAME,
+        pod_names=[
+            POD_NAME,
+        ],
         pod_namespace=NAMESPACE,
         base_container_name=CONTAINER_NAME,
         kubernetes_conn_id=CONN_ID,
@@ -66,7 +68,9 @@ class TestKubernetesJobTrigger:
         assert kwargs_dict == {
             "job_name": JOB_NAME,
             "job_namespace": NAMESPACE,
-            "pod_name": POD_NAME,
+            "pod_names": [
+                POD_NAME,
+            ],
             "pod_namespace": NAMESPACE,
             "base_container_name": CONTAINER_NAME,
             "kubernetes_conn_id": CONN_ID,
@@ -105,7 +109,9 @@ class TestKubernetesJobTrigger:
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
-                "pod_name": POD_NAME,
+                "pod_names": [
+                    POD_NAME,
+                ],
                 "pod_namespace": NAMESPACE,
                 "status": "success",
                 "message": "Job completed successfully",
@@ -141,7 +147,9 @@ class TestKubernetesJobTrigger:
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
-                "pod_name": POD_NAME,
+                "pod_names": [
+                    POD_NAME,
+                ],
                 "pod_namespace": NAMESPACE,
                 "status": "error",
                 "message": "Job failed with error: Error",

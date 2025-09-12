@@ -24,10 +24,10 @@ import pytest
 import time_machine
 from slugify import slugify
 
+from airflow._shared.timezones import timezone
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 

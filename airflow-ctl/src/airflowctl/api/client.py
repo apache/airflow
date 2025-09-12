@@ -156,7 +156,9 @@ class Credentials:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
+                raise AirflowCtlCredentialNotFoundException(
+                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
+                )
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 
@@ -297,7 +299,7 @@ def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI):
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
-            token=credentials.api_token or "",
+            token=credentials.api_token or str(os.getenv("AIRFLOW_CLI_TOKEN", "")),
             kind=kind,
         )
         yield api_client

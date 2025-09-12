@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
-from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
 from airflow.listeners import hookimpl
@@ -48,15 +48,21 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
+from airflow.providers.openlineage.version_compat import timeout, timezone
 from airflow.settings import configure_orm
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.settings import Session
+
+if sys.platform == "darwin":
+    from setproctitle import getproctitle
+
+    setproctitle = lambda title: logging.getLogger(__name__).debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import getproctitle, setproctitle
 
 _openlineage_listener: OpenLineageListener | None = None
 

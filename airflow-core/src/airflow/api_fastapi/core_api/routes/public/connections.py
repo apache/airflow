@@ -43,7 +43,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_connection
+from airflow.api_fastapi.core_api.security import requires_access_connection, requires_access_connection_bulk
 from airflow.api_fastapi.core_api.services.public.connections import (
     BulkConnectionService,
     update_orm_from_pydantic,
@@ -157,7 +157,7 @@ def post_connection(
 
 
 @connections_router.patch(
-    "", dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())]
+    "", dependencies=[Depends(requires_access_connection_bulk()), Depends(action_logging())]
 )
 def bulk_connections(
     request: BulkBody[ConnectionBody],

@@ -33,7 +33,11 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     store_databricks_job_run_link,
 )
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
-from airflow.utils.task_group import TaskGroup
+
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from types import TracebackType

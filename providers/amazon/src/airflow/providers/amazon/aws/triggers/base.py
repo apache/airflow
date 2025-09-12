@@ -80,7 +80,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         waiter_config_overrides: dict[str, Any] | None = None,
-        aws_conn_id: str | None,
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,

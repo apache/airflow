@@ -212,7 +212,11 @@ class MongoHook(BaseHook):
             netloc = f"{quote_plus(login)}:{quote_plus(password)}@{netloc}"
         if self.connection.port:
             netloc = f"{netloc}:{self.connection.port}"
-        path = f"/{self.connection.schema}"
+
+        if self.connection.schema:
+            path = f"/{self.connection.schema}"
+        else:
+            path = ""
         return urlunsplit((scheme, netloc, path, "", ""))
 
     def get_collection(self, mongo_collection: str, mongo_db: str | None = None) -> MongoCollection:

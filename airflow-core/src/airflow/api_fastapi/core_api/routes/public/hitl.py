@@ -23,15 +23,20 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
+    QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
     QueryHITLDetailDagRunIdFilter,
+    QueryHITLDetailRespondedUserIdFilter,
+    QueryHITLDetailRespondedUserNameFilter,
     QueryHITLDetailResponseReceivedFilter,
     QueryHITLDetailSubjectSearch,
-    QueryHITLDetailUserIdFilter,
+    QueryHITLDetailTaskIdFilter,
+    QueryHITLDetailTaskIdPatternSearch,
     QueryLimit,
     QueryOffset,
     QueryTIStateFilter,
@@ -46,26 +51,31 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
-from airflow.models.hitl import HITLDetail as HITLDetailModel
+from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.models.dagrun import DagRun
+from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.utils import timezone
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitl-details")
+hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
 
 log = structlog.get_logger(__name__)
 
 
-def _get_task_instance(
+def _get_task_instance_with_hitl_detail(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    map_index: int | None = None,
+    map_index: int,
 ) -> TI:
-    query = select(TI).where(
-        TI.dag_id == dag_id,
-        TI.run_id == dag_run_id,
-        TI.task_id == task_id,
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+        )
+        .options(joinedload(TI.hitl_detail))
     )
 
     if map_index is not None:
@@ -74,105 +84,35 @@ def _get_task_instance(
     task_instance = session.scalar(query)
     if task_instance is None:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, "
+                f"task_id: `{task_id}` and map_index: `{map_index}` was not found"
+            ),
         )
-    if map_index is None and task_instance.map_index != -1:
+
+    if not task_instance.hitl_detail:
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {task_instance.id}",
         )
 
     return task_instance
-
-
-def _update_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    update_hitl_detail_payload: UpdateHITLDetailPayload,
-    user: GetUserDep,
-    session: SessionDep,
-    map_index: int | None = None,
-) -> HITLDetailResponse:
-    task_instance = _get_task_instance(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=map_index,
-    )
-    ti_id_str = str(task_instance.id)
-    hitl_detail_model = session.scalar(select(HITLDetailModel).where(HITLDetailModel.ti_id == ti_id_str))
-    if not hitl_detail_model:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Human-in-the-loop detail does not exist for Task Instance with id {ti_id_str}",
-        )
-
-    if hitl_detail_model.response_received:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop detail has already been updated for Task Instance with id {ti_id_str} "
-            "and is not allowed to write again.",
-        )
-
-    hitl_detail_model.user_id = user.get_id()
-    hitl_detail_model.response_at = timezone.utcnow()
-    hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
-    session.add(hitl_detail_model)
-    session.commit()
-    return HITLDetailResponse.model_validate(hitl_detail_model)
-
-
-def _get_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: SessionDep,
-    map_index: int | None = None,
-) -> HITLDetail:
-    """Get a Human-in-the-loop detail of a specific task instance."""
-    task_instance = _get_task_instance(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=map_index,
-    )
-    if task_instance is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-        )
-
-    ti_id_str = str(task_instance.id)
-    hitl_detail_model = session.scalar(
-        select(HITLDetailModel)
-        .where(HITLDetailModel.ti_id == ti_id_str)
-        .options(joinedload(HITLDetailModel.task_instance))
-    )
-    if not hitl_detail_model:
-        log.error("Human-in-the-loop detail not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Human-in-the-loop detail not found",
-            },
-        )
-    return HITLDetail.model_validate(hitl_detail_model)
 
 
 @hitl_router.patch(
     "/{dag_id}/{dag_run_id}/{task_id}",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL)),
+        Depends(action_logging()),
+    ],
 )
 def update_hitl_detail(
     dag_id: str,
@@ -181,99 +121,78 @@ def update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
+    map_index: int = -1,
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
-    return _update_hitl_detail(
+    task_instance = _get_task_instance_with_hitl_detail(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
         session=session,
-        update_hitl_detail_payload=update_hitl_detail_payload,
-        user=user,
-        map_index=None,
-    )
-
-
-@hitl_router.patch(
-    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
-    ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
-)
-def update_mapped_ti_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    update_hitl_detail_payload: UpdateHITLDetailPayload,
-    user: GetUserDep,
-    session: SessionDep,
-    map_index: int,
-) -> HITLDetailResponse:
-    """Update a Human-in-the-loop detail."""
-    return _update_hitl_detail(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        update_hitl_detail_payload=update_hitl_detail_payload,
-        user=user,
         map_index=map_index,
     )
+
+    hitl_detail_model = task_instance.hitl_detail
+    if hitl_detail_model.response_received:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Human-in-the-loop detail has already been updated for Task Instance with id {task_instance.id} "
+                "and is not allowed to write again."
+            ),
+        )
+
+    user_id = user.get_id()
+    user_name = user.get_name()
+    if isinstance(user_id, int):
+        # FabAuthManager (ab_user) store user id as integer, but common interface is string type
+        user_id = str(user_id)
+    hitl_user = HITLUser(id=user_id, name=user_name)
+    if hitl_detail_model.assigned_users:
+        if hitl_user not in hitl_detail_model.assigned_users:
+            log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"User={user_name} (id={user_id}) is not a respondent for the task.",
+            )
+
+    hitl_detail_model.responded_by = hitl_user
+    hitl_detail_model.response_at = timezone.utcnow()
+    hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
+    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+    session.add(hitl_detail_model)
+    session.commit()
+    return HITLDetailResponse.model_validate(hitl_detail_model)
 
 
 @hitl_router.get(
     "/{dag_id}/{dag_run_id}/{task_id}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_detail(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
+    map_index: int = -1,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
-    return _get_hitl_detail(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_id=task_id,
-        session=session,
-        map_index=None,
-    )
-
-
-@hitl_router.get(
-    "/{dag_id}/{dag_run_id}/{task_id}/{map_index}",
-    status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
-)
-def get_mapped_ti_hitl_detail(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: SessionDep,
-    map_index: int,
-) -> HITLDetail:
-    """Get a Human-in-the-loop detail of a specific task instance."""
-    return _get_hitl_detail(
+    task_instance = _get_task_instance_with_hitl_detail(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
         task_id=task_id,
         session=session,
         map_index=map_index,
     )
+    return task_instance.hitl_detail
 
 
 @hitl_router.get(
     "/",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
     limit: QueryLimit,
@@ -282,17 +201,18 @@ def get_hitl_details(
         SortParam,
         Depends(
             SortParam(
-                [
+                allowed_attrs=[
                     "ti_id",
                     "subject",
                     "response_at",
-                    "task_instance.dag_id",
-                    "task_instance.run_id",
                 ],
-                HITLDetailModel,
+                model=HITLDetailModel,
                 to_replace={
                     "dag_id": TI.dag_id,
                     "run_id": TI.run_id,
+                    "run_after": DagRun.run_after,
+                    "rendered_map_index": TI.rendered_map_index,
+                    "task_instance_operator": TI.operator,
                 },
             ).dynamic_depends(),
         ),
@@ -300,12 +220,16 @@ def get_hitl_details(
     session: SessionDep,
     # ti related filter
     readable_ti_filter: ReadableTIFilterDep,
+    dag_id: QueryHITLDetailDagIdFilter,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     dag_run_id: QueryHITLDetailDagRunIdFilter,
+    task_id: QueryHITLDetailTaskIdFilter,
+    task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
-    user_id: QueryHITLDetailUserIdFilter,
+    responded_user_id: QueryHITLDetailRespondedUserIdFilter,
+    responded_user_name: QueryHITLDetailRespondedUserNameFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
 ) -> HITLDetailCollection:
@@ -313,19 +237,28 @@ def get_hitl_details(
     query = (
         select(HITLDetailModel)
         .join(TI, HITLDetailModel.ti_id == TI.id)
-        .options(joinedload(HITLDetailModel.task_instance))
+        .join(TI.dag_run)
+        .options(
+            joinedload(HITLDetailModel.task_instance).options(
+                joinedload(TI.dag_run),
+            )
+        )
     )
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[
             # ti related filter
             readable_ti_filter,
+            dag_id,
             dag_id_pattern,
             dag_run_id,
+            task_id,
+            task_id_pattern,
             ti_state,
             # hitl detail related filter
             response_received,
-            user_id,
+            responded_user_id,
+            responded_user_name,
             subject_patten,
             body_patten,
         ],

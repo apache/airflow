@@ -121,7 +121,7 @@ and loosely organized team. We have both - contributors that commit one commit o
 more commits. It happens that some people assume informal "stewardship" over parts of code for some time -
 but at any time we should make sure that the code can be taken over by others, without excessive communication.
 Setting high requirements for the code (fairly strict code review, static code checks, requirements of
-automated tests, pre-commit checks) is the best way to achieve that - by only accepting good quality
+automated tests, prek hooks) is the best way to achieve that - by only accepting good quality
 code. Thanks to full test coverage we can make sure that we will be able to work with the code in the future.
 So do not be surprised if you are asked to add more tests or make the code cleaner -
 this is for the sake of maintainability.

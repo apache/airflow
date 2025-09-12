@@ -152,6 +152,9 @@ spec:
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- include "airflow_dags_mount" (list . "dagProcessor") | nindent 12 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
@@ -203,6 +206,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}

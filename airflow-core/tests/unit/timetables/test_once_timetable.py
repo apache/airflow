@@ -23,9 +23,9 @@ import datetime
 import pytest
 import time_machine
 
+from airflow._shared.timezones import timezone
 from airflow.timetables.base import DagRunInfo, TimeRestriction
 from airflow.timetables.simple import OnceTimetable
-from airflow.utils import timezone
 
 FROZEN_NOW = timezone.coerce_datetime(datetime.datetime(2025, 3, 4, 5, 6, 7, 8))
 

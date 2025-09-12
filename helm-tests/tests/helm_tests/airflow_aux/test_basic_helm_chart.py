@@ -613,6 +613,9 @@ class TestBaseChartTest:
             "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
             "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor",
             "CeleryExecutor,KubernetesExecutor",
+            "CustomExecutor",
+            "my.org.CustomExecutor",
+            "CeleryExecutor,CustomExecutor",
         ],
     )
     def test_supported_executor(self, executor):
@@ -623,12 +626,20 @@ class TestBaseChartTest:
             },
         )
 
-    def test_unsupported_executor(self):
+    @pytest.mark.parametrize(
+        "invalid_executor",
+        [
+            "Executor",  # class name must include more than just Executor
+            "ExecutorCustom",  # class name must end with Executor
+            "Customexecutor",  # lowercase Executor is disallowed
+        ],
+    )
+    def test_unsupported_executor(self, invalid_executor):
         with pytest.raises(CalledProcessError):
             render_chart(
                 "test-basic",
                 {
-                    "executor": "SequentialExecutor",  # just keeping this one here as its an incompatible one
+                    "executor": invalid_executor,
                 },
             )
 

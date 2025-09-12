@@ -24,8 +24,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cappuccinotm/slogx/slogt"
 	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -77,7 +79,10 @@ func TestWorkerSuite(t *testing.T) {
 }
 
 func (s *WorkerSuite) SetupSuite() {
-	s.worker = New(slog.Default())
+	// Stop the test from writing log files
+	viper.Set("logging.task.stdout_only", "true")
+
+	s.worker = New(slog.New(slogt.Handler(s.T())))
 
 	s.transport = httpmock.NewMockTransport()
 	s.client = &mocks.ClientInterface{}

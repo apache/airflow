@@ -22,12 +22,18 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 import pytest
-import re
+
 from airflow.configuration import conf
 from airflow.models import DagBag
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAGS_DIR = os.path.join(os.path.dirname(__file__), "../src/performance_dags/performance_dag")
 

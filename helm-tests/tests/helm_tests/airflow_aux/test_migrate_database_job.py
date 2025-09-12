@@ -448,6 +448,21 @@ class TestMigrateDatabaseJob:
             in_containers=False
         )
 
+    @pytest.mark.parametrize(
+        "restart_policy",
+        [
+            "OnFailure",
+            "Never",
+        ],
+    )
+    def test_restart_policy(self, restart_policy):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"restartPolicy": restart_policy}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert restart_policy == jmespath.search("spec.template.spec.restartPolicy", docs[0])
+
+
 class TestMigrateDatabaseJobServiceAccount:
     """Tests migrate database job service account."""
 

@@ -44,6 +44,7 @@ import click
 from rich.progress import Progress
 from rich.syntax import Syntax
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
@@ -87,8 +88,10 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
+from airflow_breeze.commands.release_candidate_command import create_tarball_release
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
+    ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
@@ -225,6 +228,12 @@ option_use_local_hatch = click.option(
     envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
+option_tag = click.option(
+    "--tag",
+    type=str,
+    help="Tag to use for the release processes",
+    default=None,
+)
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(
@@ -243,18 +252,16 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.8.0"
+AIRFLOW_PIP_VERSION = "25.2"
+AIRFLOW_UV_VERSION = "0.8.17"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.44"
-RICH_VERSION = "14.0.0"
-PRE_COMMIT_VERSION = "4.2.0"
-PRE_COMMIT_UV_VERSION = "4.1.4"
+GITPYTHON_VERSION = "3.1.45"
+RICH_VERSION = "14.1.0"
+PREK_VERSION = "0.1.6"
 HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
-# no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
-# pre-commit environment and this is done with node, no python installation is needed.
+# prek environment and this is done with node, no python installation is needed.
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
@@ -263,7 +270,7 @@ RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
   pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
-  pre-commit=={PRE_COMMIT_VERSION} pre-commit-uv=={PRE_COMMIT_UV_VERSION}
+  prek=={PREK_VERSION}
 COPY . /opt/airflow
 """
 
@@ -355,7 +362,7 @@ def _build_local_build_image():
     AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH.unlink(missing_ok=True)
     dockerignore_content = AIRFLOW_DOCKERIGNORE_PATH.read_text()
     dockerignore_content = dockerignore_content + textwrap.dedent("""
-        # Include git in the build context - we need to get git version and pre-commit configuration
+        # Include git in the build context - we need to get git version and prek configuration
         # And clients python code to be included in the context
         !.git
         !.pre-commit-config.yaml
@@ -531,6 +538,22 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
+def create_tarball_from_tag(
+    version_suffix: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    if tag is not None:
+        get_console().print(f"Tag Used for source tarball creation: {tag}")
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name=distribution_name,
+            tag=tag,
+        )
+    else:
+        get_console().print("No tag provided, skipping source tarball creation.")
+
+
 @release_management.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
@@ -538,12 +561,14 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
+@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
+    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -575,6 +600,13 @@ def prepare_airflow_distributions(
         )
     get_console().print("[success]Successfully prepared Airflow packages")
 
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="airflow",
+        tag=tag,
+    )
+
 
 def _prepare_non_core_distributions(
     distribution_format: str,
@@ -585,7 +617,10 @@ def _prepare_non_core_distributions(
     distribution_path: Path,
     distribution_name: str,
     distribution_pretty_name: str,
+    full_distribution_pretty_name: str | None = None,
 ):
+    if full_distribution_pretty_name is not None:
+        distribution_pretty_name = full_distribution_pretty_name
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -679,13 +714,15 @@ def _prepare_non_core_distributions(
         with apply_version_suffix_to_non_provider_pyproject_tomls(
             version_suffix=version_suffix,
             init_file_path=init_file_path,
-            pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
+            pyproject_toml_paths=[root_path / "pyproject.toml"],
         ) as pyproject_toml_paths:
             debug_pyproject_tomls(pyproject_toml_paths)
             _build_package_with_docker(
                 build_distribution_format=distribution_format,
             )
-    get_console().print(f"[success]Successfully prepared Airflow {distribution_pretty_name} packages")
+    get_console().print(
+        f"[success]Successfully prepared {f'Airflow {distribution_pretty_name}' if not full_distribution_pretty_name else full_distribution_pretty_name} packages"
+    )
 
 
 @release_management.command(
@@ -695,12 +732,14 @@ def _prepare_non_core_distributions(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
+@option_tag
 @option_verbose
 @option_dry_run
 def prepare_task_sdk_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
+    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -715,20 +754,29 @@ def prepare_task_sdk_distributions(
         distribution_pretty_name="Task SDK",
     )
 
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="task-sdk",
+        tag=tag,
+    )
+
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
-    help="Prepare sdist/whl distributions of Airflow CTL.",
+    help="Prepare sdist/whl distributions of airflowctl.",
 )
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
+@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_ctl_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
+    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -740,7 +788,15 @@ def prepare_airflow_ctl_distributions(
         init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
         distribution_name="airflow-ctl",
-        distribution_pretty_name="CTL",
+        distribution_pretty_name="",
+        full_distribution_pretty_name="airflowctl",
+    )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="airflowctl",
+        tag=tag,
     )
 
 
@@ -794,12 +850,12 @@ def provider_action_summary(description: str, message_type: MessageType, package
 @click.option(
     "--skip-changelog",
     is_flag=True,
-    help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
+    help="Skip changelog generation. This is used in prek that updates build-files only.",
 )
 @click.option(
     "--skip-readme",
     is_flag=True,
-    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+    help="Skip readme generation. This is used in prek that updates build-files only.",
 )
 @option_verbose
 def prepare_provider_documentation(
@@ -1036,6 +1092,7 @@ def _build_provider_distributions(
 @option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_distributions
+@option_tag
 @option_verbose
 def prepare_provider_distributions(
     clean_dist: bool,
@@ -1049,6 +1106,7 @@ def prepare_provider_distributions(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix: str,
+    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1134,6 +1192,13 @@ def prepare_provider_distributions(
         get_console().print(str(dist_info))
     get_console().print()
 
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="providers",
+        tag=tag,
+    )
+
 
 def run_generate_constraints(
     shell_params: ShellParams,
@@ -1200,7 +1265,7 @@ def run_generate_constraints_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All constraints are generated.",
+        success_message="All constraints are generated.",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -1271,7 +1336,7 @@ def tag_providers(
             if push_result.returncode == 0:
                 get_console().print("\n[success]Tags pushed successfully.[/]")
         except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
+            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to GitHub.[/]")
             if clean_local_tags:
                 for tag in tags:
                     with contextlib.suppress(subprocess.CalledProcessError):
@@ -1578,7 +1643,7 @@ def install_provider_distributions(
                 ]
         check_async_run_results(
             results=results,
-            success="All packages installed successfully",
+            success_message="All packages installed successfully",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,
@@ -1883,12 +1948,35 @@ def publish_docs(
 @argument_doc_packages
 @option_dry_run
 @option_verbose
+@click.option(
+    "--head-ref",
+    help="The branch of redirect files to use.",
+    default=AIRFLOW_BRANCH,
+    envvar="HEAD_REF",
+    show_default=True,
+)
+@click.option(
+    "--head-repo",
+    help="The repository of redirect files to use.",
+    default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    envvar="HEAD_REPO",
+    show_default=True,
+)
 def add_back_references(
     airflow_site_directory: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     doc_packages: tuple[str, ...],
+    head_ref: str,
+    head_repo: str,
 ):
+    # head_ref and head_repo could be empty in canary runs
+
+    if head_ref == "":
+        head_ref = AIRFLOW_BRANCH
+    if head_repo == "":
+        head_repo = APACHE_AIRFLOW_GITHUB_REPOSITORY
+
     """Adds back references for documentation generated by build-docs and publish-docs"""
     site_path = Path(airflow_site_directory)
     if not site_path.is_dir():
@@ -1911,6 +1999,8 @@ def add_back_references(
                 include_not_ready=include_not_ready_providers,
             )
         ),
+        head_ref=head_ref,
+        head_repo=head_repo,
     )
 
 
@@ -2122,7 +2212,8 @@ def release_prod_images(
     for python in python_versions:
         build_args = {
             "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-            "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
+            "BASE_IMAGE": "debian:bookworm-slim",
+            "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
             "AIRFLOW_VERSION": airflow_version,
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",
@@ -2370,12 +2461,20 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
+@click.option(
+    "--no-include-browser-link",
+    "include_browser_link",
+    flag_value=False,
+    default=True,
+    help="Do not include browser link to prefill GitHub issue",
+)
 @argument_provider_distributions
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
+    include_browser_link: bool,
     provider_distributions: list[str],
 ):
     import jinja2
@@ -2518,12 +2617,13 @@ def generate_issue_content_providers(
             body=issue_content,
             labels=["testing status", "kind:meta"],
         )
-        get_console().print()
-        get_console().print(
-            "[info]You can prefill the issue by copy&pasting this link to browser "
-            "(or Cmd+Click if your terminal supports it):\n"
-        )
-        print(url_to_create_the_issue)
+        if include_browser_link:
+            get_console().print()
+            get_console().print(
+                "[info]You can prefill the issue by copy&pasting this link to browser "
+                "(or Cmd+Click if your terminal supports it):\n"
+            )
+            print(url_to_create_the_issue)
 
 
 def get_git_log_command(
@@ -2637,7 +2737,7 @@ def print_issue_content(
     all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
-    all_users = {user for user in all_users if user != "github-actions[bot]"}
+    all_users = {user for user in all_users if user not in {"github-actions[bot]", "dependabot[bot]"}}
     all_user_logins = " ".join(f"@{u}" for u in all_users)
     content = render_template(
         template_name="ISSUE",
@@ -3103,8 +3203,8 @@ def _get_python_client_version(version_suffix):
     version = Version(python_client_version)
     if version_suffix:
         if version.pre:
-            currrent_suffix = version.pre[0] + str(version.pre[1])
-            if currrent_suffix != version_suffix:
+            current_suffix = version.pre[0] + str(version.pre[1])
+            if current_suffix != version_suffix:
                 get_console().print(
                     f"[error]The version suffix for PyPI ({version_suffix}) does not match the "
                     f"suffix in the version ({version})[/]"

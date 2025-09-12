@@ -20,27 +20,28 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk import DAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState, TerminalTIState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from unit.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
 
 
-def test_dagrun_state_enum_escape():
+def test_dagrun_state_enum_escape(testing_dag_bundle):
     """
     Make sure DagRunState.QUEUED is converted to string 'queued' when
     referenced in DB query
     """
     with create_session() as session:
-        dag = DAG(dag_id="test_dagrun_state_enum_escape", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag = sync_dag_to_db(
+            DAG(dag_id="test_dagrun_state_enum_escape", schedule=timedelta(days=1), start_date=DEFAULT_DATE),
+            session=session,
+        )
         dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.SCHEDULED,

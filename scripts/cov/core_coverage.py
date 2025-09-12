@@ -143,7 +143,6 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/utils/task_group.py",
     "airflow-core/src/airflow/utils/task_instance_session.py",
     "airflow-core/src/airflow/utils/timeout.py",
-    "airflow-core/src/airflow/utils/timezone.py",
     "airflow-core/src/airflow/utils/weight_rule.py",
     "airflow-core/src/airflow/utils/yaml.py",
 ]

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -113,19 +114,22 @@ class BigQueryToSqlBaseOperator(BaseOperator):
     def persist_links(self, context: Context) -> None:
         """Persist the connection to the SQL provider."""
 
-    def execute(self, context: Context) -> None:
-        big_query_hook = BigQueryHook(
+    @cached_property
+    def bigquery_hook(self) -> BigQueryHook:
+        return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
+
+    def execute(self, context: Context) -> None:
         self.persist_links(context)
         sql_hook = self.get_sql_hook()
         for rows in bigquery_get_data(
             self.log,
             self.dataset_id,
             self.table_id,
-            big_query_hook,
+            self.bigquery_hook,
             self.batch_size,
             self.selected_fields,
         ):

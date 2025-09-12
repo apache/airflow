@@ -84,10 +84,8 @@ def create_app(apps: str = "all") -> FastAPI:
     dag_bag = create_dag_bag()
 
     if "execution" in apps_list or "all" in apps_list:
-        from airflow.jobs.scheduler_job_runner import SchedulerDagBag
-
         task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = SchedulerDagBag()
+        task_exec_api_app.state.dag_bag = dag_bag
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
@@ -200,6 +198,10 @@ def init_plugins(app: FastAPI) -> None:
 
         if middleware is None:
             log.error("'middleware' key is missing for the fastapi middleware: %s", name)
+            continue
+
+        if not callable(middleware):
+            log.error("'middleware' value for %s is should be callable: %s", name, middleware)
             continue
 
         log.debug("Adding root middleware %s", name)

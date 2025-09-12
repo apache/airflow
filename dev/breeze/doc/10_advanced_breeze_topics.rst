@@ -76,7 +76,7 @@ When you are in the CI container, the following directories are used:
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
   /files - files mounted from "files" folder in your sources. You can edit them in the host as well
-      dags - this is the folder where Airflow DAGs are read from
+      dags - this is the folder where Airflow Dags are read from
       airflow-breeze-config - this is where you can keep your own customization configuration of breeze
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
@@ -95,7 +95,7 @@ When you are in the production container, the following directories are used:
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
   /files - files mounted from "files" folder in your sources. You can edit them in the host as well
-      dags - this is the folder where Airflow DAGs are read from
+      dags - this is the folder where Airflow Dags are read from
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
@@ -118,7 +118,7 @@ configure and run Docker. They will not be removed between Docker runs.
 
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_ROOT_PATH>/files/dags`` and this is
 the directory used by Airflow scheduler and api-server to scan dags for. You can use it to test your dags
-from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
+from local sources in Airflow. If you wish to add local Dags that can be run by Breeze.
 
 The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
 customize your breeze instance. Those files will be kept across checking out a code from different
@@ -149,16 +149,13 @@ If you want to add core dependency that should always be installed - you need to
 to ``dependencies`` section. If you want to add it to one of the optional core extras, you should
 add it in the extra definition in ``pyproject.toml`` (you need to find out where it is defined).
 If you want to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
-directory - but remember that this should be followed by running pre-commit that will automatically update
+directory - but remember that this should be followed by running prek that will automatically update
 the ``pyproject.toml`` with the new dependencies as the ``provider.yaml`` files are not used directly, they
 are used to update ``pyproject.toml`` file:
 
 .. code-block:: bash
 
-    pre-commit run update-providers-dependencies  --all-files
-
-You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
-command - which provides autocomplete.
+    prek update-providers-dependencies  --all-files
 
 After you've updated the dependencies, you need to rebuild the image:
 
@@ -191,15 +188,11 @@ scripts are present in ``scripts/docker`` directory and are aptly (!) named ``in
 of the apt dependencies are installed in the ``install_os_dependencies.sh``, but some are installed in
 other scripts (for example ``install_postgres.sh`` or ``install_mysql.sh``).
 
-After you modify the dependencies in the scripts, you need to inline them by running pre-commit:
+After you modify the dependencies in the scripts, you need to inline them by running prek:
 
 .. code-block:: bash
 
-    pre-commit run update-inlined-dockerfile-scripts --all-files
-
-You can also run the pre-commit by ``breeze static-checks --type update-inlined-dockerfile-scripts --all-files``
-command - which provides autocomplete.
-
+    prek update-inlined-dockerfile-scripts --all-files
 
 After you've updated the dependencies, you need to rebuild the image:
 

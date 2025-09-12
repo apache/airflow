@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#    "rich>=12.4.4",
+#    "rich>=13.6.0",
 #    "diagrams>=0.23.4",
 # ]
 # ///
@@ -96,7 +96,7 @@ def generate_distributed_airflow_diagram():
 
         operations_user = User("Operations User")
         with Cluster("UI"):
-            webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+            webservers = Custom("API Server(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
         webservers >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> operations_user
 

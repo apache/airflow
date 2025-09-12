@@ -36,7 +36,7 @@ For most Docs writing purposes, the `reStructured Text Primer <https://www.sphin
 
 A general docs workflow
 -----------------------
-When you make changes to the docs, it follows roughly the same process as creating and testing code changes. However, for docs, instead of unit tests and integration tests, you run pre-commit checks, spell checks, and visual inspection of your changes in a documentation build.
+When you make changes to the docs, it follows roughly the same process as creating and testing code changes. However, for docs, instead of unit tests and integration tests, you run prek hook, spell checks, and visual inspection of your changes in a documentation build.
 
 1. **Decide to edit in GitHub UI or locally** - Depending on the size and type of docs update you want to make, it might be easier to work in the UI or to make your edits in a local fork.
 2. **Find the source files to edit** - While you can access most of the docs source files using the **Suggest a change on this page** button or by searching for a string in the ``/docs/`` file directory, in some cases, the source strings might be located in different provider docs or in the source code itself.
@@ -234,7 +234,7 @@ Docs troubleshooting
 ``example_dags`` Apache license
 -------------------------------
 
-If you are creating ``example_dags`` directory, you need to create an ``example_dags/__init__.py`` file. You can leave the file empty and the pre-commit processing
+If you are creating ``example_dags`` directory, you need to create an ``example_dags/__init__.py`` file. You can leave the file empty and the prek processing
 adds the license automatically. Otherwise, you can add a file with the Apache license or copy another ``__init__.py`` file that contains the necessary license.
 
 Common Docs build errors

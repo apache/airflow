@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+9.1.2
+.....
+
+Misc
+~~~~
+
+* ``Fix hive changelog (#53665)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Bump mypy to 1.17.0 (#53523)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in apache/hive provider (#53302)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace 'BaseHook' to Task SDK for 'apache/hive' (#52685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.1.1
 .....
 

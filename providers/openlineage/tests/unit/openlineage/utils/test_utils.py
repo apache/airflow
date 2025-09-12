@@ -58,7 +58,6 @@ from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
@@ -66,10 +65,11 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, task
+    from airflow.sdk import BaseOperator, TaskGroup, task
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -274,7 +274,7 @@ def test_get_fully_qualified_class_name_serialized_operator():
     op_path_after_deserialization = get_fully_qualified_class_name(deserialized)
     assert op_path_after_deserialization == f"{op_module_path}.{op_name}"
     assert deserialized._task_module == op_module_path
-    assert deserialized._task_type == op_name
+    assert deserialized.task_type == op_name
 
 
 def test_get_fully_qualified_class_name_mapped_operator():
@@ -1763,7 +1763,7 @@ def test_taskinstance_info_af3():
     runtime_ti.bundle_instance = bundle_instance
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
-        "log_url": None,
+        "log_url": runtime_ti.log_url,
         "map_index": 2,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",

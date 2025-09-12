@@ -98,7 +98,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
 
   // Check if bundle versions are different
   const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version.bundle_version;
+  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
   const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
   const shouldShowBundleVersionOption =
     bundleVersionsDiffer &&
@@ -171,7 +171,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {

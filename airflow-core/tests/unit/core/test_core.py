@@ -23,11 +23,11 @@ from time import sleep
 
 import pytest
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs

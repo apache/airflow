@@ -18,7 +18,7 @@
 Operators
 =========
 
-An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your DAG::
+An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your Dag::
 
     with DAG("my-dag") as dag:
         ping = HttpOperator(endpoint="http://example.com/update/")
@@ -57,7 +57,7 @@ and transfers in our
 
     Inside Airflow's code, we often mix the concepts of :doc:`tasks` and Operators, and they are mostly
     interchangeable. However, when we talk about a *Task*, we mean the generic "unit of execution" of a
-    DAG; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic
+    Dag; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic
     is all done for you and that just needs some arguments.
 
 
@@ -162,7 +162,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
     )
 
 
-You can pass custom options to the Jinja ``Environment`` when creating your DAG. One common usage is to avoid Jinja from dropping a trailing newline from a template string:
+You can pass custom options to the Jinja ``Environment`` when creating your Dag. One common usage is to avoid Jinja from dropping a trailing newline from a template string:
 
 .. code-block:: python
 
@@ -176,7 +176,7 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 
 See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
 
-Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into DAG code.
+Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into Dag code.
 
 For example, consider a BashOperator which runs a multi-line bash script, this will load the file at ``script.sh`` and use its contents as the value for ``bash_command``:
 
@@ -187,7 +187,7 @@ For example, consider a BashOperator which runs a multi-line bash script, this w
         bash_command="script.sh",
     )
 
-By default, paths provided in this way should be provided relative to the DAG's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the DAG.
+By default, paths provided in this way should be provided relative to the Dag's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the Dag.
 
 In some cases, you may want to exclude a string from templating and use it directly. Consider the following task:
 
@@ -273,7 +273,7 @@ There are two solutions if we want to get the actual dict instead. The first is 
         python_callable=transform,
     )
 
-Alternatively, Jinja can also be instructed to render a native Python object. This is done by passing ``render_template_as_native_obj=True`` to the DAG. This makes Airflow use `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_ instead of the default ``SandboxedEnvironment``:
+Alternatively, Jinja can also be instructed to render a native Python object. This is done by passing ``render_template_as_native_obj=True`` to the Dag. This makes Airflow use `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_ instead of the default ``SandboxedEnvironment``:
 
 .. code-block:: python
 
@@ -296,7 +296,7 @@ Alternatively, Jinja can also be instructed to render a native Python object. Th
 Reserved params keyword
 -----------------------
 
-In Apache Airflow 2.2.0 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
+In Apache Airflow 2.2.0 ``params`` variable is used during Dag serialization. Please do not use that name in third party operators.
 If you upgrade your environment and get the following error:
 
 .. code-block::
@@ -330,4 +330,4 @@ If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literall
       dag=dag,
   )
 
-This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during DAG parsing or unexpected behavior at runtime when the templating does not occur as expected.
+This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during Dag parsing or unexpected behavior at runtime when the templating does not occur as expected.

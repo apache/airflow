@@ -28,12 +28,12 @@ from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select,
 from sqlalchemy.orm import Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
+from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import asset_trigger_association_table
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
@@ -324,6 +324,11 @@ class Trigger(Base):
         capacity -= count
 
         if capacity <= 0:
+            log.info(
+                "Triggerer %s has reached the maximum capacity triggers assigned (%d). Not assigning any more triggers",
+                triggerer_id,
+                count,
+            )
             return
 
         alive_triggerer_ids = select(Job.id).where(

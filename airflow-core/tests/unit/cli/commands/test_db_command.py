@@ -241,9 +241,51 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg://postgres:airflow@postgres:5432/airflow"),
+    )
+    def test_cli_shell_postgres_ppg3(self, mock_execute_interactive):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
+        db_command.shell(self.parser.parse_args(["db", "shell"]))
+        mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs["env"]
+        postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
+        assert postgres_env == {
+            "PGDATABASE": "airflow",
+            "PGHOST": "postgres",
+            "PGPASSWORD": "airflow",
+            "PGPORT": "5432",
+            "PGUSER": "postgres",
+        }
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
     )
     def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
+        db_command.shell(self.parser.parse_args(["db", "shell"]))
+        mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs["env"]
+        postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
+        assert postgres_env == {
+            "PGDATABASE": "airflow",
+            "PGHOST": "postgres",
+            "PGPASSWORD": "airflow",
+            "PGPORT": "5432",
+            "PGUSER": "postgres",
+        }
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_postgres_without_port_ppg3(self, mock_execute_interactive):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
         db_command.shell(self.parser.parse_args(["db", "shell"]))
         mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
         _, kwargs = mock_execute_interactive.call_args
@@ -263,6 +305,16 @@ class TestCliDb:
     )
     def test_cli_shell_invalid(self):
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg2"):
+            db_command.shell(self.parser.parse_args(["db", "shell"]))
+
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("invalid+psycopg://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_invalid_ppg3(self):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
+        with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg"):
             db_command.shell(self.parser.parse_args(["db", "shell"]))
 
     @pytest.mark.parametrize(
@@ -658,3 +710,33 @@ class TestCLIDBClean:
         )
         db_command.drop_archived(args)
         mock_drop_archived_records.assert_called_once_with(table_names=None, needs_confirm=expected)
+
+
+def test_get_version_revision():
+    heads: dict[str, str] = {
+        "2.10.0": "22ed7efa9da2",
+        "2.10.3": "5f2621c13b39",
+        "3.0.0": "29ce7909c52b",
+        "3.0.3": "fe199e1abd77",
+        "3.1.0": "808787349f22",
+    }
+
+    assert db_command._get_version_revision("3.1.0", heads) == "808787349f22"
+    assert db_command._get_version_revision("3.1.1", heads) == "808787349f22"
+    assert db_command._get_version_revision("2.11.1", heads) == "5f2621c13b39"
+    assert db_command._get_version_revision("2.10.1", heads) == "22ed7efa9da2"
+    assert db_command._get_version_revision("2.0.0", heads) is None
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("pa!sw0rd#", '"pa!sw0rd#"'),
+        ('he"llo', '"he\\"llo"'),
+        ("path\\file", '"path\\\\file"'),
+        (None, ""),
+    ],
+)
+def test_quote_mysql_password_for_cnf(raw, expected):
+    password = db_command._quote_mysql_password_for_cnf(raw)
+    assert password == expected

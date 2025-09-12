@@ -48,8 +48,13 @@ try:
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 from airflow.sdk import Param
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.sdk.execution_time.context import context_to_airflow_vars
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
@@ -301,7 +306,7 @@ with DAG(
             except AirflowNotFoundException:
                 print("Connection 'integration_test' not found... but also OK.")
 
-        command = CmdOperator(task_id="command", command="echo Parameter is {{params.mapping_count}}")
+        command = CmdOperator(task_id="command", command="echo Hello World")
 
         def python_call():
             print("Hello world")

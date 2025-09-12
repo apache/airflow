@@ -62,4 +62,4 @@ class HITLTriggerEventError(AirflowException):
 
 
 class HITLTimeoutError(HITLTriggerEventError):
-    """Raised when HILTOperator timeouts."""
+    """Raised when HITLOperator timeouts."""

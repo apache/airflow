@@ -89,7 +89,7 @@ Grouping of log lines
 
 Like CI pipelines also Airflow logs can be quite large and become hard to read. Sometimes therefore it is useful to group sections of log areas
 and provide folding of text areas to hide non relevant content. Airflow therefore implements a compatible log message grouping like
-`Github <https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines>`_ and
+`GitHub <https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines>`_ and
 `Azure DevOps <https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands>`_
 such that areas of text can be folded. The implemented scheme is compatible such that tools making output in CI can leverage the same experience
 in Airflow directly.

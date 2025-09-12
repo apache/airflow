@@ -103,8 +103,6 @@ jobs:
         with:
           # Needed to perform push action
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
@@ -157,6 +155,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Deps: ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
         shell: bash
         run: >
@@ -190,6 +189,4 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: >
-      inputs.canary-run == 'true' &&
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: inputs.canary-run == 'true' && github.event_name != 'pull_request'

@@ -21,6 +21,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import suppress
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -33,25 +34,28 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.providers.openlineage.extractors.base import OperatorLineage
+from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.utils import types
+from airflow.utils.state import DagRunState, State
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import EmptyOperator, PythonOperator
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import create_scheduler_dag
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow._shared.timezones import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-
-from airflow.providers.openlineage.extractors.base import OperatorLineage
-from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-from airflow.utils import timezone, types
-from airflow.utils.state import DagRunState, State
-
-from tests_common.test_utils.compat import EmptyOperator, PythonOperator
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 EXPECTED_TRY_NUMBER_1 = 1
 
@@ -196,15 +200,27 @@ class TestOpenLineageListenerAirflow2:
         )
         t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
         run_id = str(uuid.uuid1())
-        dagrun = dag.create_dagrun(
+        dagrun = create_scheduler_dag(dag).create_dagrun(
             run_id=run_id,
             data_interval=(date, date),
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.RUNNING,
             execution_date=date,  # type: ignore
         )
-        if AIRFLOW_V_3_0_PLUS:
-            task_instance = TaskInstance(t, run_id=run_id, dag_version_id=dagrun.created_dag_version_id)
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.serialization.serialized_objects import create_scheduler_operator
+
+            task_instance = TaskInstance(
+                create_scheduler_operator(t),
+                run_id=run_id,
+                dag_version_id=dagrun.created_dag_version_id,
+            )
+        elif AIRFLOW_V_3_0_PLUS:
+            task_instance = TaskInstance(
+                t,  # type: ignore[arg-type]
+                run_id=run_id,
+                dag_version_id=dagrun.created_dag_version_id,
+            )
         else:
             task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
         return dagrun, task_instance
@@ -876,6 +892,8 @@ class TestOpenLineageListenerAirflow2:
     def test_listener_on_dag_run_state_changes(self, mock_emit, method, dag_run_state, create_task_instance):
         mock_executor = MockExecutor()
         ti = create_task_instance(dag_id="dag", task_id="op")
+        ti.start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ti.end_date = datetime(2020, 1, 1, 1, tzinfo=timezone.utc)
         # Change the state explicitly to set end_date following the logic in the method
         ti.dag_run.set_state(dag_run_state)
         with mock.patch(
@@ -1042,7 +1060,7 @@ class TestOpenLineageListenerAirflow3:
             "triggered_by": types.DagRunTriggeredByType.TEST,
         }
 
-        dagrun = dag.create_dagrun(
+        dagrun = create_scheduler_dag(dag).create_dagrun(
             run_id=run_id,
             data_interval=(date, date),
             start_date=date,
@@ -1803,6 +1821,8 @@ class TestOpenLineageListenerAirflow3:
     def test_listener_on_dag_run_state_changes(self, mock_emit, method, dag_run_state, create_task_instance):
         mock_executor = MockExecutor()
         ti = create_task_instance(dag_id="dag", task_id="op")
+        ti.start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ti.end_date = datetime(2020, 1, 1, 1, tzinfo=timezone.utc)
         # Change the state explicitly to set end_date following the logic in the method
         ti.dag_run.set_state(dag_run_state)
         with mock.patch(

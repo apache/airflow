@@ -72,7 +72,7 @@ apache-airflow-providers-git package
 `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 
-Release: 0.0.4
+Release: 0.0.7
 
 Provider package
 ----------------
@@ -83,7 +83,7 @@ All classes for this package are included in the ``airflow.providers.git`` pytho
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-git``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

@@ -64,11 +64,14 @@ services:
         source: ../../../airflow-ctl
         target: /opt/airflow/airflow-ctl
       - type: bind
-        source: ../../../constraints
-        target: /opt/airflow/constraints
+        source: ../../../chart
+        target: /opt/airflow/chart
       - type: bind
         source: ../../../clients
         target: /opt/airflow/clients
+      - type: bind
+        source: ../../../constraints
+        target: /opt/airflow/constraints
       - type: bind
         source: ../../../dags
         target: /opt/airflow/dags
@@ -76,17 +79,26 @@ services:
         source: ../../../dev
         target: /opt/airflow/dev
       - type: bind
-        source: ../../../docs
-        target: /opt/airflow/docs
+        source: ../../../devel-common
+        target: /opt/airflow/devel-common
       - type: bind
         source: ../../../docker-stack-docs
         target: /opt/airflow/docker-stack-docs
       - type: bind
-        source: ../../../providers-summary-docs
-        target: /opt/airflow/providers-summary-docs
+        source: ../../../docker-tests
+        target: /opt/airflow/docker-tests
+      - type: bind
+        source: ../../../docs
+        target: /opt/airflow/docs
       - type: bind
         source: ../../../generated
         target: /opt/airflow/generated
+      - type: bind
+        source: ../../../helm-tests
+        target: /opt/airflow/helm-tests
+      - type: bind
+        source: ../../../kubernetes-tests
+        target: /opt/airflow/kubernetes-tests
       - type: bind
         source: ../../../logs
         target: /root/airflow/logs
@@ -94,8 +106,8 @@ services:
         source: ../../../providers
         target: /opt/airflow/providers
       - type: bind
-        source: ../../../task-sdk
-        target: /opt/airflow/task-sdk
+        source: ../../../providers-summary-docs
+        target: /opt/airflow/providers-summary-docs
       - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
@@ -106,20 +118,11 @@ services:
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
       - type: bind
-        source: ../../../devel-common
-        target: /opt/airflow/devel-common
+        source: ../../../shared
+        target: /opt/airflow/shared
       - type: bind
-        source: ../../../helm-tests
-        target: /opt/airflow/helm-tests
-      - type: bind
-        source: ../../../kubernetes-tests
-        target: /opt/airflow/kubernetes-tests
-      - type: bind
-        source: ../../../docker-tests
-        target: /opt/airflow/docker-tests
-      - type: bind
-        source: ../../../chart
-        target: /opt/airflow/chart
+        source: ../../../task-sdk
+        target: /opt/airflow/task-sdk
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
 volumes:
   root-airflow-volume:

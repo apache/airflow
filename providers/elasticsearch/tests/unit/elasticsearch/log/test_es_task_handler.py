@@ -117,7 +117,12 @@ class TestElasticsearchTaskHandler:
         self.index_name = "test_index"
         self.doc_type = "log"
         self.test_message = "some random stuff"
-        self.body = {"message": self.test_message, "log_id": self.LOG_ID, "offset": 1}
+        self.body = {
+            "message": self.test_message,
+            "log_id": self.LOG_ID,
+            "offset": 1,
+            "event": self.test_message,
+        }
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
 
     def teardown_method(self):
@@ -210,7 +215,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost:9200"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "some random stuff"
 
@@ -238,7 +243,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost:9200"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "some random stuff"
 
@@ -365,7 +370,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost:9200"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "some random stuff"
 
@@ -388,7 +393,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost:9200"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "some random stuff"
 
@@ -438,7 +443,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost:9200"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "some random stuff"
 
@@ -528,7 +533,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["default_host"]
+            assert logs[0].sources == ["http://localhost:9200"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "some random stuff"
 
@@ -593,6 +598,7 @@ class TestElasticsearchTaskHandler:
 
         self.body = {
             "message": self.test_message,
+            "event": self.test_message,
             "log_id": f"{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1",
             "offset": 1,
             "asctime": "2020-12-24 19:25:00,962",
@@ -606,12 +612,13 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        expected_message = "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
-            assert logs[2].event == expected_message
+            assert logs[2].event == self.test_message
         else:
-            assert logs[0][0][1] == expected_message
+            assert (
+                logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+            )
 
     @pytest.mark.db_test
     def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
@@ -626,6 +633,7 @@ class TestElasticsearchTaskHandler:
 
         self.body = {
             "message": self.test_message,
+            "event": self.test_message,
             "log_id": f"{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1",
             "log": {"offset": 1},
             "host": {"name": "somehostname"},
@@ -640,12 +648,13 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        expected_message = "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
-            assert logs[2].event == expected_message
+            assert logs[2].event == self.test_message
         else:
-            assert logs[0][0][1] == expected_message
+            assert (
+                logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+            )
 
     @pytest.mark.db_test
     def test_read_with_custom_offset_and_host_fields(self, ti):
@@ -658,6 +667,7 @@ class TestElasticsearchTaskHandler:
 
         self.body = {
             "message": self.test_message,
+            "event": self.test_message,
             "log_id": self.LOG_ID,
             "log": {"offset": 1},
             "host": {"name": "somehostname"},
@@ -670,7 +680,7 @@ class TestElasticsearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             pass
         else:
-            assert self.test_message == logs[0][0][1]
+            assert logs[0][0][1] == "some random stuff"
 
     @pytest.mark.db_test
     def test_close(self, ti):

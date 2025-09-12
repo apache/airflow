@@ -28,6 +28,45 @@
 Changelog
 ---------
 
+4.4.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Change operator DbtCloudRunJobOperator to send job_run_id to XCom (#55184)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore in dbt provider where possible (#53270)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``mocking definition order FIX (#52905)``
+
 4.4.1
 .....
 

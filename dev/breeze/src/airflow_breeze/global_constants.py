@@ -31,6 +31,7 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
@@ -52,7 +53,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
 # Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -124,7 +125,7 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -199,25 +200,38 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1.1"
-UV_VERSION = "0.8.0"
+PIP_VERSION = "25.2"
+UV_VERSION = "0.8.17"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
 
-# packages that  providers docs
+# packages that providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+    "apache-airflow-ctl",
 ]
+
+
+# packages that are distributions of Airflow
+class DistributionType(Enum):
+    AIRFLOW_CORE = "airflow"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    AIRFLOW_CTL = "airflowctl"
+    HELM_CHART = "helm-chart"
+
 
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
+
+PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 
 @clearable_cache
@@ -259,6 +273,7 @@ class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
@@ -294,6 +309,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
+    GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
 }
@@ -352,6 +368,8 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
+GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
+
 
 def normalize_platform_machine(platform_machine: str) -> str:
     if "linux/" in platform_machine:
@@ -381,6 +399,13 @@ REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
+BREEZE_DEBUG_SCHEDULER_PORT = "50231"
+BREEZE_DEBUG_DAG_PROCESSOR_PORT = "50232"
+BREEZE_DEBUG_TRIGGERER_PORT = "50233"
+BREEZE_DEBUG_APISERVER_PORT = "50234"
+BREEZE_DEBUG_CELERY_WORKER_PORT = "50235"
+BREEZE_DEBUG_EDGE_PORT = "50236"
+BREEZE_DEBUG_WEBSERVER_PORT = "50237"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -548,6 +573,19 @@ COMMITTERS = [
 ]
 
 
+def get_airflowctl_version():
+    airflowctl_init_py_file = AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py"
+    airflowctl_version = "unknown"
+    with open(airflowctl_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflowctl_version = line.split()[2][1:-1]
+                break
+    if airflowctl_version == "unknown":
+        raise RuntimeError("Unable to determine AirflowCTL version")
+    return airflowctl_version
+
+
 def get_airflow_version():
     airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
@@ -592,7 +630,7 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
 )
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 ALL_PYPROJECT_TOML_FILES = []
@@ -689,8 +727,9 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_VERSION = "25.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
+MIN_GH_VERSION = "2.70.0"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
@@ -738,30 +777,28 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "python-version": "3.10",
         "airflow-version": "2.10.5",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.3",
+        "airflow-version": "3.0.6",
         "remove-providers": "",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
 ]
 
-ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
-    "3.6": "v3.6.15",
-    "3.7": "v3.7.17",
-    "3.8": "v3.8.20",
-    "3.9": "v3.9.23",
-    "3.10": "v3.10.18",
-    "3.11": "v3.11.13",
-    "3.12": "v3.12.11",
+ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
+    "3.9": "3.9.23",
+    "3.10": "3.10.18",
+    "3.11": "3.11.13",
+    "3.12": "3.12.11",
+    "3.13": "3.13.7",
 }
 
 # Number of slices for low dep tests

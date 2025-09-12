@@ -40,7 +40,11 @@ from airflow.providers.common.compat.assets import Asset
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup
+
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
@@ -102,7 +106,7 @@ with DAG(
     task_2 = PythonOperator(
         task_id="task_2",
         python_callable=do_nothing,
-        inlets=[Asset(uri="s3://bucket2/dir2/file2.txt")],
+        inlets=[Asset(uri="s3://bucket2/dir2/file2.txt"), Asset(uri="s3://bucket2/dir2/file3.txt")],
         max_retry_delay=42,
         doc="text doc",
         doc_md="should be skipped",

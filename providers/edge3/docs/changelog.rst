@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Provide React UI for Edge (#53563)``
+* ``Feature/add auto refresh to edge react UI (#54994)``
+* ``Feature/add state badge to edge react UI (#54993)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix setproctitle usage on macos (#53122)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Add a note to edgeexecutor doc regarding multiple executors (#54077)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
+1.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Prevent duplicate edge_job insertions for deferrable tasks in EdgeExecutor (#53610) (#53927)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove parameter from Edge example (#53997)``
+
 1.1.2
 .....
 
@@ -34,10 +76,23 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix UnboundLocalError for 'edge_job_command_len' (#52328)``
+* ``Extend run detection to dev-mode to load plugin (#53576)``
+* ``Add queue and remove queue cli commands for EdgeExecutor (#53505)``
+* ``Ensure Edge Plugin for API endpoint is only loaded on API-Server and AF2 Webserver (#52952)``
+* ``Fix unreachable code mypy warnings in edge3 provider (#53430)``
+* ``Make edge3 provider compatible with mypy 1.16.1 (#53104)``
+* ``Fix task configuration defaults for AbstractOperator (#52871)``
 
 Misc
 ~~~~
 
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in edge3 provider where possible (#53248)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove deprecation in Edge for DEFAULT_QUEUE (#52954)``
 * ``Move 'BaseHook' implementation to task SDK (#51873)``
 * ``Force the definition of 'execution_api_server_url' based on 'api_url' (#52184)``
 * ``Drop support for Python 3.9 (#52072)``
@@ -58,6 +113,11 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Revert "Revert "Remove FAB dependency from Edge3 Provider (#51995)"" (#52000)``
    * ``Revert "Remove FAB dependency from Edge3 Provider (#51995)" (#51998)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Fix spelling of GitHub brand name (#53735)``
+   * ``Replace mock.patch("utcnow") with time_machine in Edge Executor (#53670)``
+   * ``Prepare release for July 2025 1st provider wave (#52727)``
+
 
 1.1.1
 .....

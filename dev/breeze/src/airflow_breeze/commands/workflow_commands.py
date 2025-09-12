@@ -96,6 +96,12 @@ def workflow_run():
     default=None,
     type=str,
 )
+@click.option(
+    "--workflow-branch",
+    help="Branch to run the workflow on. Defaults to 'main'.",
+    default="main",
+    type=str,
+)
 @argument_doc_packages
 def workflow_run_publish(
     ref: str,
@@ -107,7 +113,13 @@ def workflow_run_publish(
     airflow_version: str | None = None,
     airflow_base_version: str | None = None,
     apply_commits: str | None = None,
+    workflow_branch: str = "main",
 ):
+    if len(doc_packages) == 0:
+        get_console().print(
+            "[red]Error: No doc packages provided. Please provide at least one doc package.[/red]",
+        )
+        sys.exit(1)
     if os.environ.get("GITHUB_TOKEN", ""):
         get_console().print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
         get_console().print(
@@ -184,7 +196,7 @@ def workflow_run_publish(
     trigger_workflow_and_monitor(
         workflow_name=WORKFLOW_NAME_MAPS["publish-docs"],
         repo=APACHE_AIRFLOW_REPO,
-        branch="main",
+        branch=workflow_branch,
         **workflow_fields,
     )
 

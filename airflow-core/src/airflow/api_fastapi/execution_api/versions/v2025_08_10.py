@@ -19,15 +19,8 @@ from __future__ import annotations
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
-
-
-class AddDagVersionIdField(VersionChange):
-    """Add the `dag_version_id` field to the TaskInstance model."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("dag_version_id").didnt_exist,)
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
+from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams, GetXComSliceFilterParams
 
 
 class AddDagRunStateFieldAndPreviousEndpoint(VersionChange):
@@ -45,3 +38,14 @@ class AddDagRunStateFieldAndPreviousEndpoint(VersionChange):
         """Remove the `state` field from the dag_run object when converting to the previous version."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("state", None)
+
+
+class AddIncludePriorDatesToGetXComSlice(VersionChange):
+    """Add the `include_prior_dates` field to GetXComSliceFilterParams and GetXcomFilterParams."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams).field("include_prior_dates").didnt_exist,
+        schema(GetXcomFilterParams).field("include_prior_dates").didnt_exist,
+    )

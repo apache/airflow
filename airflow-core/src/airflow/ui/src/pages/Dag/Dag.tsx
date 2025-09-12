@@ -19,16 +19,16 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiCode } from "react-icons/fi";
+import { FiBarChart, FiCode, FiUser, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useDagServiceGetDagsUi } from "openapi/queries";
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -36,7 +36,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const Dag = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "" } = useParams();
 
   // Get external views with dag destination
@@ -46,6 +46,8 @@ export const Dag = () => {
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
     { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
+    { icon: <FiCalendar />, label: translate("tabs.calendar"), value: "calendar" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -64,47 +66,50 @@ export const Dag = () => {
   const refetchInterval = useAutoRefresh({ dagId });
   const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
 
-  // TODO: replace with with a list dag runs by dag id request
-  const {
-    data: runsData,
-    error: runsError,
-    isLoading: isLoadingRuns,
-  } = useDagServiceGetDagsUi({ dagIds: [dagId], dagRunsLimit: 1 }, undefined, {
-    enabled: Boolean(dagId),
-    refetchInterval: (query) => {
-      setHasPendingRuns(
-        query.state.data?.dags
-          .find((recentDag) => recentDag.dag_id === dagId)
-          ?.latest_dag_runs.some((run) => isStatePending(run.state)),
-      );
-
-      return hasPendingRuns ? refetchInterval : false;
-    },
-  });
-
-  // Ensures continuous refresh to detect new runs when there's no pending state and new runs are initiated from other page
+  // Ensures continuous refresh to detect new runs when there's no
+  // pending state and new runs are initiated from other page
   useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
-  let dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
+  const {
+    data: latestRun,
+    error: runsError,
+    isLoading: isLoadingRuns,
+  } = useDagServiceGetLatestRunInfo(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      enabled: Boolean(dagId),
+      refetchInterval: (query) => {
+        if (query.state.data && isStatePending(query.state.data.state)) {
+          setHasPendingRuns(true);
+        }
 
-  if (dagWithRuns === undefined && dag !== undefined) {
-    dagWithRuns = {
-      latest_dag_runs: [],
-      ...dag,
-    } satisfies DAGWithLatestDagRunsResponse;
-  }
+        return hasPendingRuns ? refetchInterval : false;
+      },
+    },
+  );
 
-  const displayTabs = tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"));
+  const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
+    refetchInterval: isStatePending(latestRun?.state) ? refetchInterval : false,
+  });
+
+  const displayTabs = processedTabs.filter((tab) => {
+    if (dag?.timetable_summary === null && tab.value === "backfills") {
+      return false;
+    }
+
+    return true;
+  });
 
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
         <Header
           dag={dag}
-          dagWithRuns={dagWithRuns}
-          isRefreshing={Boolean(
-            dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && Boolean(refetchInterval),
-          )}
+          isRefreshing={Boolean(isStatePending(latestRun?.state) && Boolean(refetchInterval))}
+          latestRunInfo={latestRun ?? undefined}
         />
       </DetailsLayout>
     </ReactFlowProvider>

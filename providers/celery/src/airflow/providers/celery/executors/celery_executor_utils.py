@@ -38,19 +38,17 @@ from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, timeout
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.timeout import timeout
 
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -58,6 +56,11 @@ except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 
 log = logging.getLogger(__name__)
+
+if sys.platform == "darwin":
+    setproctitle = lambda title: log.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle
 
 if TYPE_CHECKING:
     from typing import TypeAlias

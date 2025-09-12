@@ -237,7 +237,6 @@ class SlackHook(BaseHook):
         initial_comment: str | None = None,
         title: str | None = None,
         snippet_type: str | None = None,
-        **kwargs,
     ) -> list[SlackResponse]:
         """
         Smooth transition between ``send_file`` and ``send_file_v2`` methods.
@@ -401,7 +400,7 @@ class SlackHook(BaseHook):
                 "password": "Slack API Token",
             },
             "placeholders": {
-                "password": "xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
+                "password": "REPLACE ME WITH A SLACK ACCESS TOKEN",
                 "timeout": "30",
                 "base_url": "https://www.slack.com/api/",
                 "proxy": "http://localhost:9000",

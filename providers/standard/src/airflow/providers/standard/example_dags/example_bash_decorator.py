@@ -23,7 +23,12 @@ from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import chain, dag, task
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 
 @dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
@@ -100,6 +105,7 @@ def example_bash_decorator():
         from shlex import join
 
         files = _get_files_in_cwd()
+        files = files if files else ["."]
         cmd = join(["stat", *files])
 
         return cmd

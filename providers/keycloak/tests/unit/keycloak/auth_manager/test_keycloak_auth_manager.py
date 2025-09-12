@@ -112,7 +112,7 @@ class TestKeycloakAuthManager:
                 "Configuration#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_configuration", "GET", None, "Configuration#GET", None],
+            ["is_authorized_configuration", "GET", None, "Configuration#LIST", None],
             [
                 "is_authorized_configuration",
                 "PUT",
@@ -127,7 +127,7 @@ class TestKeycloakAuthManager:
                 "Connection#DELETE",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_connection", "GET", None, "Connection#GET", {}],
+            ["is_authorized_connection", "GET", None, "Connection#LIST", {}],
             [
                 "is_authorized_backfill",
                 "POST",
@@ -135,7 +135,7 @@ class TestKeycloakAuthManager:
                 "Backfill#POST",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "1"},
             ],
-            ["is_authorized_backfill", "GET", None, "Backfill#GET", {}],
+            ["is_authorized_backfill", "GET", None, "Backfill#LIST", {}],
             [
                 "is_authorized_asset",
                 "GET",
@@ -143,7 +143,7 @@ class TestKeycloakAuthManager:
                 "Asset#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_asset", "GET", None, "Asset#GET", {}],
+            ["is_authorized_asset", "GET", None, "Asset#LIST", {}],
             [
                 "is_authorized_asset_alias",
                 "GET",
@@ -151,7 +151,7 @@ class TestKeycloakAuthManager:
                 "AssetAlias#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_asset_alias", "GET", None, "AssetAlias#GET", {}],
+            ["is_authorized_asset_alias", "GET", None, "AssetAlias#LIST", {}],
             [
                 "is_authorized_variable",
                 "PUT",
@@ -159,7 +159,7 @@ class TestKeycloakAuthManager:
                 "Variable#PUT",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_variable", "GET", None, "Variable#GET", {}],
+            ["is_authorized_variable", "GET", None, "Variable#LIST", {}],
             [
                 "is_authorized_pool",
                 "POST",
@@ -167,7 +167,7 @@ class TestKeycloakAuthManager:
                 "Pool#POST",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_pool", "GET", None, "Pool#GET", {}],
+            ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
         ],
     )
     @pytest.mark.parametrize(
@@ -257,7 +257,7 @@ class TestKeycloakAuthManager:
                 "GET",
                 None,
                 None,
-                "Dag#GET",
+                "Dag#LIST",
                 {},
             ],
             [
@@ -278,7 +278,7 @@ class TestKeycloakAuthManager:
                 "GET",
                 DagAccessEntity.TASK_INSTANCE,
                 None,
-                "Dag#GET",
+                "Dag#LIST",
                 {"dag_entity": "TASK_INSTANCE"},
             ],
         ],

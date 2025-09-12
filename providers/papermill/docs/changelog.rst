@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+3.11.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in papermill provider where possible (#53279)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for papermill (#52947)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate decorators from Core (#53629)``
+
 3.11.1
 ......
 

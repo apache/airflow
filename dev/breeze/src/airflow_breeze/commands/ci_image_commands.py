@@ -176,7 +176,7 @@ def run_build_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images built correctly",
+        success_message="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -505,7 +505,7 @@ def run_verify_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images verified",
+        success_message="All images verified",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -825,9 +825,7 @@ def run_build_ci_image(
         process = subprocess.run(
             [
                 sys.executable,
-                os.fspath(
-                    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
-                ),
+                os.fspath(AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"),
             ],
             check=False,
         )

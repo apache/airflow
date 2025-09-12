@@ -96,7 +96,7 @@ def get_all_constraint_files_and_airflow_releases(
                 "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
                 "the URL:\n\n"
                 "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-refresh-constraints\n\n"
-                "Once you have the token you can prepend pre-commit command with GITHUB_TOKEN='<your token>' or"
+                "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
                 "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
             )
             sys.exit(1)

@@ -29,7 +29,7 @@ export const useDagTagsInfinite = <TError = unknown>(
     tagNamePattern,
   }: {
     limit?: number;
-    orderBy?: string;
+    orderBy?: Array<string>;
     tagNamePattern?: string;
   } = {},
   queryKey?: Array<unknown>,

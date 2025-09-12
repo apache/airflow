@@ -27,6 +27,94 @@
 Changelog
 ---------
 
+12.7.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Add setter for blob_service_client in WasbHook to support async injection (#54219)``
+* ``Add CI support for SQLAlchemy 2.0 (#52233)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Made get_conn method async for KiotaRequestAdapterHook to fix AsyncToSync  error (#54598)``
+* ``fix unreachable mypy warnings for microsoft/azure (#53647)``
+
+Misc
+~~~~
+
+* ``Remove portalocker dependency (#54751)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix short names in test_adls (#54907)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+12.6.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix typo in AdminClientHook.create_subscription (#54130)``
+
+Misc
+~~~~
+
+* ``Silence mypy warnings for microsoft azure WasbAsyncHook (#54168)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+12.6.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for custom Azure Blob endpoint domain in ADLS connection and updated document (#53521)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+
+Misc
+~~~~
+
+* ``Set up process for sharing code between different components (#53149)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Bump mypy to 1.17.0 (#53523)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Bumping min version of azure-storage-blob to 12.26.0 (#53440)``
+* ``Remove 'airflow.utils.xcom' module and add backcompat shim (#53187)``
+* ``Cleanup type ignores in 4 microsoft providers where possible (#53312)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Import XCOM_RETURN_KEY in providers from task SDK (#53180)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Make microsoft azure provider compatible with mypy 1.16.1 (#53107)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for microsoft azure (#52821)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
 12.5.0
 ......
 

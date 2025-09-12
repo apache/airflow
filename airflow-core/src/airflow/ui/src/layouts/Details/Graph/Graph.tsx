@@ -19,7 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -34,6 +34,7 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { getReactFlowThemeStyle } from "src/theme";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -65,12 +66,12 @@ export const Graph = () => {
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
-    "white",
-    "black",
-    "gray.200",
-    "gray.800",
-    "gray.200",
-    "gray.800",
+    "bg",
+    "fg",
+    "bg.muted",
+    "bg.emphasized",
+    "bg.muted",
+    "bg.emphasized",
   ]);
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
@@ -89,16 +90,16 @@ export const Graph = () => {
     { enabled: selectedVersion !== undefined },
   );
 
-  const { allGroupIds: observedGroupIds } = useMemo(
-    () => flattenGraphNodes(graphData.nodes),
-    [graphData.nodes],
-  );
-
   useEffect(() => {
-    if (observedGroupIds !== allGroupIds) {
+    const observedGroupIds = flattenGraphNodes(graphData.nodes).allGroupIds;
+
+    if (
+      observedGroupIds.length !== allGroupIds.length ||
+      observedGroupIds.some((element, index) => allGroupIds[index] !== element)
+    ) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [allGroupIds, observedGroupIds, setAllGroupIds]);
+  }, [allGroupIds, graphData.nodes, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
     enabled: dependencies === "all",
@@ -164,6 +165,7 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
+      style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
       <Controls showInteractive={false} />

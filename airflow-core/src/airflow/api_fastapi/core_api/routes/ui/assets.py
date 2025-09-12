@@ -39,11 +39,6 @@ def next_run_assets(
     dag_bag: DagBagDep,
     session: SessionDep,
 ) -> dict:
-    dag = dag_bag.get_dag(dag_id)
-
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find dag {dag_id}")
-
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
     if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find associated dag_model {dag_id}")

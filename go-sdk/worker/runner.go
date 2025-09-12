@@ -205,7 +205,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	// Store the configured API client in the context so we can get it out for accessing Variables etc.
 	taskContext = context.WithValue(taskContext, sdkcontext.ApiClientContextKey, workloadClient)
 
-	taskLogger, err := w.setupTaskLogger(ctx, workload)
+	taskLogger, err := w.setupTaskLogger(ctx, logger, workload)
 	if err != nil {
 		logger.ErrorContext(taskContext, "Could not create logger", slog.Any("error", err))
 		_ = reportStateFailed()
@@ -364,12 +364,17 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 
 func (w *worker) setupTaskLogger(
 	_ context.Context,
+	supervisorLogger *slog.Logger,
 	workload api.ExecuteTaskWorkload,
 ) (*slog.Logger, error) {
 	// Create a logger that:
 	// - only exits the go-routine on panic, not the whole program
 	// - Writes JSON to a file
 	// - And streams output to stdout in a nice format too
+
+	if viper.GetBool("logging.task.stdout_only") {
+		return supervisorLogger, nil
+	}
 
 	base := viper.GetString("logging.base_log_path")
 	filename := path.Join(base, *workload.LogPath)
@@ -385,17 +390,19 @@ func (w *worker) setupTaskLogger(
 	if err != nil {
 		return nil, err
 	}
-	taskLogger := slog.New(
-		logging.NewTeeLogger(
-			slog.NewJSONHandler(
-				fh,
-				&slog.HandlerOptions{
-					AddSource:   false,
-					ReplaceAttr: nil,
-				},
-			),
-			slog.Default().Handler(),
-		),
+
+	var h slog.Handler = slog.NewJSONHandler(
+		fh,
+		&slog.HandlerOptions{
+			AddSource:   false,
+			ReplaceAttr: nil, // TODO: mask secrets here
+		},
 	)
+
+	if viper.GetBool("logging.task.to_stdout") {
+		h = logging.NewTeeLogger(h, supervisorLogger.Handler())
+	}
+
+	taskLogger := slog.New(h)
 	return taskLogger, nil
 }

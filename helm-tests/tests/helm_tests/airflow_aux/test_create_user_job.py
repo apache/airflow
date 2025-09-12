@@ -487,6 +487,19 @@ class TestCreateUserJob:
             in_init_containers=True,
             in_containers=False
         )
+    @pytest.mark.parametrize(
+        "restart_policy",
+        [
+            "OnFailure",
+            "Never",
+        ],
+    )
+    def test_restart_policy(self, restart_policy):
+        docs = render_chart(
+            values={"createUserJob": {"restartPolicy": restart_policy}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert restart_policy == jmespath.search("spec.template.spec.restartPolicy", docs[0])
 
 
 class TestCreateUserJobServiceAccount:

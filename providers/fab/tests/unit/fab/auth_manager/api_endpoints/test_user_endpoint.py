@@ -19,11 +19,10 @@ from __future__ import annotations
 import unittest.mock
 
 import pytest
-from sqlalchemy.sql.functions import count
+from sqlalchemy import delete, func, select
 
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.providers.fab.www.security import permissions
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
@@ -34,6 +33,12 @@ from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_role,
     delete_user,
 )
+
+try:
+    from airflow.utils import timezone  # type: ignore[attr-defined]
+except AttributeError:
+    from airflow.sdk import timezone
+
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
@@ -85,8 +90,7 @@ class TestUserEndpoint:
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time
-        users = self.session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME))
-        users.delete(synchronize_session=False)
+        self.session.execute(delete(User).where(User.changed_on == timezone.parse(DEFAULT_TIME)))
         self.session.commit()
 
     def _create_users(self, count, roles=None):
@@ -354,11 +358,11 @@ EXAMPLE_USER_EMAIL = "example_user@example.com"
 
 def _delete_user(**filters):
     with create_session() as session:
-        user = session.query(User).filter_by(**filters).first()
+        user = session.scalars(select(User).filter_by(**filters)).first()
         if user is None:
             return
         user.roles = []
-        session.delete(user)
+        session.execute(delete(User).filter_by(**filters))
 
 
 @pytest.fixture
@@ -676,10 +680,7 @@ class TestPatchUser(TestUserEndpoint):
         assert "password" not in response.json
 
         mock_generate_password_hash.assert_called_once_with("new-pass")
-
-        password_in_db = (
-            self.session.query(User.password).filter(User.username == autoclean_username).scalar()
-        )
+        password_in_db = self.session.scalar(select(User.password).where(User.username == autoclean_username))
         assert password_in_db == "fake-hashed-pass"
 
     @pytest.mark.usefixtures("autoclean_admin_user")
@@ -788,7 +789,9 @@ class TestDeleteUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204, response.json  # NO CONTENT.
-        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 0
+        assert (
+            self.session.scalar(select(func.count(User.id)).where(User.username == autoclean_username)) == 0
+        )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_unauthenticated(self, autoclean_username):
@@ -796,7 +799,9 @@ class TestDeleteUser(TestUserEndpoint):
             f"/fab/v1/users/{autoclean_username}",
         )
         assert response.status_code == 401, response.json
-        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
+        assert (
+            self.session.scalar(select(func.count(User.id)).where(User.username == autoclean_username)) == 1
+        )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_forbidden(self, autoclean_username):
@@ -805,7 +810,9 @@ class TestDeleteUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403, response.json
-        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
+        assert (
+            self.session.scalar(select(func.count(User.id)).where(User.username == autoclean_username)) == 1
+        )
 
     def test_not_found(self, autoclean_username):
         # This test does not populate autoclean_admin_user into the database.

@@ -47,7 +47,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Github parameters",
+            "name": "GitHub parameters",
             "options": [
                 "--github-event-name",
                 "--github-repository",

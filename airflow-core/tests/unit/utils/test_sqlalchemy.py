@@ -29,8 +29,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk import DAG
+from airflow.sdk.timezone import utcnow
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
@@ -42,8 +42,9 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import State
-from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -62,7 +63,7 @@ class TestSqlAlchemyUtils:
 
         self.session = session
 
-    def test_utc_transformations(self):
+    def test_utc_transformations(self, testing_dag_bundle):
         """
         Test whether what we are storing is what we are retrieving
         for datetimes
@@ -72,10 +73,8 @@ class TestSqlAlchemyUtils:
         iso_date = start_date.isoformat()
         logical_date = start_date + datetime.timedelta(hours=1, days=1)
 
-        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
+        dag = sync_dag_to_db(DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date))
         dag.clear()
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
         run = dag.create_dagrun(
             run_id=iso_date,
             run_type=DagRunType.MANUAL,
@@ -107,7 +106,7 @@ class TestSqlAlchemyUtils:
 
         # naive
         start_date = datetime.datetime.now()
-        dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
+        dag = sync_dag_to_db(DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1)))
         dag.clear()
 
         with pytest.raises((ValueError, StatementError)):

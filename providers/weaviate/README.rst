@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-weaviate``
 
-Release: ``3.2.1``
+Release: ``3.2.3``
 
 
 `Weaviate <https://weaviate.io/developers/weaviate>`__
@@ -36,12 +36,12 @@ This is a provider package for ``weaviate`` provider. All classes for this provi
 are in ``airflow.providers.weaviate`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.2.3/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-weaviate``
 
@@ -55,10 +55,10 @@ PIP package          Version required
 ===================  =====================================
 ``apache-airflow``   ``>=2.10.0``
 ``httpx``            ``>=0.25.0``
-``weaviate-client``  ``>=4.4.0``
+``weaviate-client``  ``!=4.16.7,>=4.4.0``
 ``pandas``           ``>=2.1.2; python_version < "3.13"``
 ``pandas``           ``>=2.2.3; python_version >= "3.13"``
 ===================  =====================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.2.3/changelog.html>`_.

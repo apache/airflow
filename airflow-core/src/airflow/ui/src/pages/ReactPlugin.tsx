@@ -24,6 +24,13 @@ import type { ReactAppResponse } from "openapi/requests/types.gen";
 
 import { ErrorPage } from "./Error";
 
+type PluginComponentType = FC<{
+  dagId?: string;
+  mapIndex?: string;
+  runId?: string;
+  taskId?: string;
+}>;
+
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
@@ -31,20 +38,23 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
     // We are assuming the plugin manager is trusted and the bundle_url is safe
     import(/* @vite-ignore */ reactApp.bundle_url)
       .then(() => {
-        const component = (
-          globalThis as unknown as {
-            AirflowPlugin: FC<{
-              dagId?: string;
-              mapIndex?: string;
-              runId?: string;
-              taskId?: string;
-            }>;
-          }
-        ).AirflowPlugin;
+        // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
+        // global variable.
+        let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
+          | PluginComponentType
+          | undefined;
 
-        return {
-          default: component,
-        };
+        if (pluginComponent === undefined) {
+          pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;
+
+          (globalThis as Record<string, unknown>)[reactApp.name] = pluginComponent;
+        }
+
+        if (typeof pluginComponent !== "function") {
+          throw new TypeError(`Expected function, got ${typeof pluginComponent} for plugin ${reactApp.name}`);
+        }
+
+        return { default: pluginComponent };
       })
       .catch((error: unknown) => {
         console.error("Component Failed Loading:", error);

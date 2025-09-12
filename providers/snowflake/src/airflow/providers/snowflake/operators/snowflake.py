@@ -76,8 +76,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         Template references are recognized by str ending in '.sql'
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :param autocommit: if True, each command is automatically committed.
-        (default value: True)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
@@ -109,8 +107,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         sql: str,
         snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -179,8 +175,6 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         tolerance: Any = None,
         snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
@@ -202,7 +196,12 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
                 **hook_params,
             }
         super().__init__(
-            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
+            sql=sql,
+            pass_value=pass_value,
+            tolerance=tolerance,
+            conn_id=snowflake_conn_id,
+            parameters=parameters,
+            **kwargs,
         )
         self.query_ids: list[str] = []
 
@@ -259,9 +258,6 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
         snowflake_conn_id: str = "snowflake_default",
-        parameters: Iterable | Mapping[str, Any] | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,

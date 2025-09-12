@@ -38,6 +38,7 @@ S3_URI = os.environ.get("S3_URI", None)
 # Input and output keys
 TASK_KEY_KEY = "task_key"
 COMMAND_KEY = "command"
+EXECUTOR_CONFIG_KEY = "executor_config"
 RETURN_CODE_KEY = "return_code"
 
 
@@ -47,8 +48,9 @@ def lambda_handler(event, context):
 
     command = event.get(COMMAND_KEY)
     task_key = event.get(TASK_KEY_KEY)
+    executor_config = event.get(EXECUTOR_CONFIG_KEY, {})  # noqa: F841
 
-    # Any pre-processing or validation of the command or use of the context can be done here or above.
+    # Any pre-processing or validation of the command or use of the executor_config can be done here or above.
 
     # Sync dags from s3 to the local dags directory
     if S3_URI:

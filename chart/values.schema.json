@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.0.3",
+            "default": "3.0.6",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.0.3",
+            "default": "3.0.6",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -687,7 +687,7 @@
             "type": "string",
             "x-docsSection": "Common",
             "default": "CeleryExecutor",
-            "pattern": "^(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.edge3.executors.EdgeExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor)(,(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.edge3.executors.EdgeExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor))*$"
+            "pattern": "^(([a-zA-Z_][a-zA-Z0-9_]*.)*[A-Z][a-zA-Z0-9]+Executor)(,(([a-zA-Z_][a-zA-Z0-9_]*.)*[A-Z][a-zA-Z0-9]+Executor))*$"
         },
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
@@ -947,7 +947,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v4.3.0"
+                            "default": "v4.4.2"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -2296,6 +2296,15 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "schedulerName": {
+                    "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Common"
                 },
                 "labels": {
                     "description": "Labels to add to the Airflow Celery workers objects and pods created with pod-template-file.",
@@ -4303,6 +4312,14 @@
                         "type": "string"
                     }
                 },
+                "restartPolicy": {
+                    "type": "string",
+                    "description": "Restart policy for the database migration job.",
+                    "enum": [
+                        "OnFailure",
+                        "Never"
+                    ]
+                },
                 "labels": {
                     "description": "Labels to add to the create user job objects and pods.",
                     "type": "object",
@@ -4643,6 +4660,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "restartPolicy": {
+                    "type": "string",
+                    "description": "Restart policy for the database migration job.",
+                    "enum": [
+                        "OnFailure",
+                        "Never"
+                    ]
                 },
                 "labels": {
                     "description": "Labels to add to the migrate database job objects and pods.",
@@ -9164,6 +9189,16 @@
                                 }
                             ]
                         },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for git sync container.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                        },
+                        "readinessProbe": {
+                            "description": "Readiness probe configuration for git sync container.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
+                        },
                         "emptyDirConfig": {
                             "description": "Configuration for dags empty dir volume.",
                             "type": "object",
@@ -9368,6 +9403,14 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "subPath": {
+                            "description": "The subpath of the existing PVC to use.",
                             "type": [
                                 "string",
                                 "null"

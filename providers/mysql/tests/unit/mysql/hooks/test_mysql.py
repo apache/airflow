@@ -36,7 +36,11 @@ except ImportError:
     MYSQL_AVAILABLE = False
 
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
@@ -124,6 +128,18 @@ class TestMySqlHookConn:
                 },
                 "mysql+mysqlconnector://user%40domain:password@host/schema",
                 id="mysql_connector_python",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"client": "pymysql"}),
+                },
+                "mysql+pymysql://user%40domain:password@host/schema",
+                id="mysql_connector_pymysql",
             ),
             pytest.param(
                 {

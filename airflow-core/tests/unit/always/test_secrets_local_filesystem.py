@@ -25,7 +25,12 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFileParseException,
+    ConnectionNotUnique,
+    VariableNotUnique,
+)
 from airflow.models import Variable
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -37,7 +42,6 @@ from tests_common.test_utils.config import conf_vars
 def mock_local_file(content):
     with (
         mock.patch("airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)) as file_mock,
-        mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True),
     ):
         yield file_mock
 
@@ -48,6 +52,7 @@ class TestFileParsers:
         [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
+            ("KEY=", "Invalid line format. Value is empty."),
         ],
     )
     def test_env_file_invalid_format(self, content, expected_message):
@@ -68,6 +73,19 @@ class TestFileParsers:
             with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.json")
 
+    @pytest.mark.parametrize(
+        "content, expected_message",
+        [
+            ("[]", "The file should contain the object."),
+            ("key:\n  - item1\n  - item2\ninvalid_yaml: }", "did not find expected"),
+            ("", "The file is empty."),
+        ],
+    )
+    def test_yaml_file_invalid_format(self, content, expected_message):
+        with mock_local_file(content):
+            with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
+                local_filesystem.load_variables("a.yaml")
+
 
 class TestLoadVariables:
     @pytest.mark.parametrize(
@@ -78,6 +96,7 @@ class TestLoadVariables:
             ("KEY_A=AAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("KEY_A=AAA\n # AAAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("\n\n\n\nKEY_A=AAA\n\n\n\n\nKEY_B=BBB\n\n\n", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ('KEY_DICT=\'{"k1": "val1", "k2": "val2"}\'', {"KEY_DICT": '\'{"k1": "val1", "k2": "val2"}\''}),
         ],
     )
     def test_env_file_should_load_variables(self, file_content, expected_variables):
@@ -93,7 +112,7 @@ class TestLoadVariables:
     )
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
-            with pytest.raises(AirflowException, match=re.escape(expected_message)):
+            with pytest.raises(VariableNotUnique, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @pytest.mark.parametrize(
@@ -109,18 +128,23 @@ class TestLoadVariables:
             variables = local_filesystem.load_variables("a.json")
             assert expected_variables == variables
 
-    @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
-    def test_missing_file(self, mock_exists):
-        with pytest.raises(
-            AirflowException,
-            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
-        ):
+    def test_missing_file(self):
+        with pytest.raises(FileNotFoundError):
             local_filesystem.load_variables("a.json")
 
     @pytest.mark.parametrize(
         "file_content, expected_variables",
         [
             ("KEY: AAA", {"KEY": "AAA"}),
+            (
+                """
+            KEY:
+                KEY_1:
+                    - item1
+                    - item2
+            """,
+                {"KEY": {"KEY_1": ["item1", "item2"]}},
+            ),
             (
                 """
             KEY_A: AAA
@@ -188,6 +212,7 @@ class TestLoadConnection:
         [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
+            ("CONN_ID=", "Invalid line format. Value is empty."),
         ],
     )
     def test_env_file_invalid_format(self, content, expected_message):
@@ -230,12 +255,8 @@ class TestLoadConnection:
             with pytest.raises(AirflowException, match=re.escape(expected_connection_uris)):
                 local_filesystem.load_connections_dict("a.json")
 
-    @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
-    def test_missing_file(self, mock_exists):
-        with pytest.raises(
-            AirflowException,
-            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
-        ):
+    def test_missing_file(self):
+        with pytest.raises(FileNotFoundError):
             local_filesystem.load_connections_dict("a.json")
 
     @pytest.mark.parametrize(

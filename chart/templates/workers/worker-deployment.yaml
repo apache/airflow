@@ -40,6 +40,7 @@
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
@@ -111,8 +112,8 @@ spec:
       {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
       {{- end }}
-      {{- if .Values.schedulerName }}
-      schedulerName: {{ .Values.schedulerName }}
+      {{- if $schedulerName }}
+      schedulerName: {{ $schedulerName }}
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
@@ -160,6 +161,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
         {{- end }}
         {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.workers (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
@@ -173,6 +177,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -253,6 +260,9 @@ spec:
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.kerberos.enabled }}
             - name: kerberos-keytab
@@ -320,6 +330,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -343,6 +356,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}

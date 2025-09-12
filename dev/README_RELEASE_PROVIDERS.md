@@ -55,6 +55,7 @@
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Remove Provider distributions scheduled for removal](#remove-provider-distributions-scheduled-for-removal)
+  - [Misc / Post Release Helpers](#misc--post-release-helpers)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -411,7 +412,7 @@ If you are seeing others there is an issue.
 You can remove the redundant provider files manually with:
 
 ```shell script
-svn rm file_name  // repeate that for every file
+svn rm file_name  // repeat that for every file
 svn commit -m "delete old providers"
 ```
 
@@ -477,7 +478,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -646,6 +647,14 @@ issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in t
 Hit Preview button on "create issue" screen before creating it to verify how it will look like
 for the contributors.
 
+By default, the command will output a clickable link to create the issue from terminal if you don't want this option use --no-include-browser-link flag
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management generate-issue-content-providers --only-available-in-dist --no-include-browser-link --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
 
 
 ## Prepare voting email for Providers release candidate
@@ -757,19 +766,23 @@ The following files should be present (6 files):
 As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
 Or update it if you already checked it out:
 
 ```shell script
+cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+Set an environment variable: PATH_TO_SVN to the root of folder where you have providers
 
 ``` shell
-export PATH_TO_SVN=<set your path to svn here>
+cd asf-dist/dev/airflow
+export PATH_TO_SVN=${pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -835,7 +848,7 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 
 ```shell
 cd ${PATH_TO_SVN}
-cd airflow/providers
+cd providers
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -900,10 +913,34 @@ This can be done with the Apache RAT tool.
 * Enter the sources folder run the check
 
 ```shell script
-java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
+# Get rat if you do not have it
+wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Cleanup old folders (if needed)
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+cat /tmp/files.txt | xargs rm -rf
+# Unpack all providers
+for i in *.tar.gz
+do
+   tar -xvzf $i
+done
+# Generate list of unpacked providers
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+# Check licences
+for d in $(cat /tmp/files.txt)
+do
+  pushd $d
+  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
+  popd >/dev/null
+done
 ```
 
-where `.rat-excludes` is the file in the root of Airflow source code.
+You should see only '0 Unknown licences"
+
+Cleanup:
+
+```shell script
+cat /tmp/files.txt | xargs rm -rf
+```
 
 ### Signature check
 
@@ -1251,7 +1288,7 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
-Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
@@ -1495,3 +1532,23 @@ The following places should be checked:
 Run `breeze setup regenerate-command-images --force`
 
 Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by removing the provider from the list
+
+
+## Misc / Post Release Helpers
+
+In case you need to rebuild docs with addition of a commit that is not part of the original release use
+
+
+```shell script
+  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 \
+  --apply-commits <commit_hash> --skip-write-to-stable-folder \
+  PACKAGE1
+```
+
+Example:
+
+```shell script
+breeze workflow-run publish-docs --ref providers-apache-hive/9.0.0 --site-env live \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
+  apache.hive
+```
