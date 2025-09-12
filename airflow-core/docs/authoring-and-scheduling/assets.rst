@@ -106,8 +106,8 @@ This can be used to supply custom description to the asset, such as who has owne
 
 .. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
 
-Event extra information on asset events
----------------------------------------
+Information template on asset events
+------------------------------------
 
 In addition to static extra information, Airflow also supports attaching dynamic information to individual asset events using the event_extra_template parameter.
 
