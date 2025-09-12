@@ -42,12 +42,12 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import PokeReturnValue, timezone
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.definitions._internal.decorators import remove_task_decorator
-    from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
+    from airflow.sdk.exceptions import AirflowFailException, AirflowNotFoundException
 
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
     from airflow.exceptions import (  # type: ignore[no-redef, attr-defined, assignment]
-        AirflowException,
+        AirflowFailException,
         AirflowNotFoundException,
     )
     from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
@@ -78,6 +78,6 @@ __all__ = [
     "PokeReturnValue",
     "remove_task_decorator",
     "timezone",
-    "AirflowException",
     "AirflowNotFoundException",
+    "AirflowFailException",
 ]
