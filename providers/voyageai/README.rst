@@ -57,14 +57,5 @@ PIP package         Version required
 ``voyageai``        ``>=0.2.0``
 ==================  ==================
 
-Optional dependencies
-----------------------
-
-========  ===========================
-Extra     Dependencies
-========  ===========================
-``test``  ``pytest``, ``pytest-mock``
-========  ===========================
-
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-voyageai/0.1.0/changelog.html>`_.
