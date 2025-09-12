@@ -19,7 +19,7 @@ from __future__ import annotations
 import contextlib
 import json
 import uuid
-from functools import cache
+from functools import cache, lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
@@ -47,6 +47,16 @@ T = TypeVar("T")
 SECTION = "common.io"
 
 
+@lru_cache(maxsize=1)
+def _get_available_compressions():
+    """Return cached available and legacy compression mappings from fsspec."""
+    # fsspec >=2023: list of available compression algorithms
+    available = {c.lower(): c for c in fsspec.available_compressions() if c is not None}
+    # fsspec <2023: dict mapping suffix -> codec (e.g., {'gz': 'gzip'})
+    legacy_compressions = {k.lower(): v for k, v in fsspec.utils.compressions.items() if v}
+    return available, legacy_compressions
+
+
 def _get_compression_suffix(compression: str) -> str:
     """
     Return the compression suffix (e.g., 'gz' for gzip) for the given compression.
@@ -56,11 +66,7 @@ def _get_compression_suffix(compression: str) -> str:
     if compression is None:
         return ""
 
-    # fsspec >=2023: list of available compression algorithms
-    available = {c.lower(): c for c in fsspec.available_compressions() if c is not None}
-
-    # fsspec <2023: dict mapping suffix -> codec (e.g., {'gz': 'gzip'})
-    legacy_compressions = {k.lower(): v for k, v in fsspec.utils.compressions.items() if v}
+    available, legacy_compressions = _get_available_compressions()
 
     if compression.lower() in available:
         canonical_name = available[compression.lower()]  # e.g. 'gzip'
