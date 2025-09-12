@@ -116,7 +116,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models import BaseOperator
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
@@ -1443,7 +1442,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # TODO: TaskSDK add start_trigger_args to SDK definitions
         if TYPE_CHECKING:
-            assert isinstance(self.task, BaseOperator)
+            assert isinstance(self.task, Operator)
 
         if not (self.task and self.task.start_from_trigger):
             raise TaskDeferralError(

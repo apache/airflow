@@ -22,8 +22,8 @@ from collections.abc import AsyncIterator, Collection, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, Any
-import structlog
 
+import structlog
 from pydantic import (
     BaseModel,
     Discriminator,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.sdk.definitions.context import Context
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator as Operator
 
 
 @dataclass
@@ -82,7 +82,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         pass
 
     @property
-    def task(self) -> SerializedBaseOperator | None:
+    def task(self) -> Operator | None:
         if self.task_instance:
             return self.task_instance.task
         return None
@@ -136,7 +136,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
             # We only need to render templated fields if templated fields are part of the start_trigger_args
             if attribute_names:
                 for attr_name in attribute_names:
-                    value = getattr(self, attr_name)
+                    value = getattr(self, attr_name, None)
 
                     if value:
                         try:
