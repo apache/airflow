@@ -17,40 +17,28 @@
  * under the License.
  */
 import { useMemo } from "react";
-import type { ReactNode } from "react";
-
-const TOOLTIP_MIN_WIDTH = "200px";
-const TOOLTIP_MAX_WIDTH = "350px";
-const TOOLTIP_MAX_HEIGHT = "200px";
-const TOOLTIP_PADDING = "12px";
 
 type Props = {
-  readonly content: ReactNode;
+  readonly content: string;
 };
 
 export const CalendarTooltip = ({ content }: Props) => {
   const tooltipStyle = useMemo(
     () => ({
-      backgroundColor: "var(--chakra-colors-bg-muted)",
-      border: "1px solid var(--chakra-colors-border-emphasized)",
+      backgroundColor: "var(--chakra-colors-gray-800)",
       borderRadius: "4px",
-      color: "fg",
+      color: "white",
       fontSize: "14px",
       left: "50%",
-      maxHeight: TOOLTIP_MAX_HEIGHT,
-      maxWidth: TOOLTIP_MAX_WIDTH,
-      minWidth: TOOLTIP_MIN_WIDTH,
       opacity: 0,
-      overflowY: "auto" as const,
-      padding: TOOLTIP_PADDING,
+      padding: "8px",
       pointerEvents: "none" as const,
       position: "absolute" as const,
       top: "22px",
       transform: "translateX(-50%)",
       transition: "opacity 0.2s, visibility 0.2s",
       visibility: "hidden" as const,
-      whiteSpace: "normal" as const,
-      width: "auto",
+      whiteSpace: "nowrap" as const,
       zIndex: 1000,
     }),
     [],
@@ -58,7 +46,7 @@ export const CalendarTooltip = ({ content }: Props) => {
 
   const arrowStyle = useMemo(
     () => ({
-      borderBottom: "4px solid var(--chakra-colors-bg-muted)",
+      borderBottom: "4px solid var(--chakra-colors-gray-800)",
       borderLeft: "4px solid transparent",
       borderRight: "4px solid transparent",
       content: '""',
