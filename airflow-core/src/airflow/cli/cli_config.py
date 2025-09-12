@@ -1275,6 +1275,7 @@ TASKS_COMMANDS = (
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_BUNDLE_NAME,
+            ARG_DAGFILE_PATH,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
         ),

@@ -115,14 +115,12 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     logical_date = association_proxy("dag_run", "logical_date")
 
-    def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
+    def __init__(self, ti: TaskInstance, rendered_fields=None):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id
         self.map_index = ti.map_index
         self.ti = ti
-        if render_templates:
-            ti.render_templates()
 
         if TYPE_CHECKING:
             assert isinstance(ti.task, SerializedBaseOperator)
