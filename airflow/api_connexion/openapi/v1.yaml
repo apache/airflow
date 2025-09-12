@@ -5529,12 +5529,8 @@ components:
         - always
 
     WeightRule:
-      description: Weight rule.
+      description: Weight rule. One of 'downstream', 'upstream', 'absolute', or the path of the custom priority weight strategy class.
       type: string
-      enum:
-        - downstream
-        - upstream
-        - absolute
 
     HealthStatus:
       description: Health status
