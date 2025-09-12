@@ -547,14 +547,14 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
         for filename in files:
             if filename.endswith(".log"):
                 full_path = os.path.join(root, filename)
-                log.info("\n===== LOG FILE: %s - START =====\n", full_path)
+                print("\n===== LOG FILE: %s - START =====\n", full_path)
                 try:
                     with open(full_path) as f:
-                        log.info(f.read())
+                        print(f.read())
                 except Exception as e:
                     log.error("Could not read %s: %s", full_path, e)
 
-                log.info("\n===== END =====\n")
+                print("\n===== END =====\n")
 
 
 @pytest.mark.integration("redis")

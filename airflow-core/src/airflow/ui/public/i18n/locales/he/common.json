@@ -44,6 +44,7 @@
     "fileLocation": "מיקום קובץ",
     "hasTaskConcurrencyLimits": "מגבלות על משימות במקביל",
     "lastExpired": "פג תוקף לאחרונה",
+    "lastParseDuration": "משך זמן הניתוח האחרון",
     "lastParsed": "ניתוח אחרון",
     "latestDagVersion": "גרסת Dag אחרונה",
     "latestRun": "ריצה אחרונה",
@@ -104,16 +105,12 @@
     "any": "כלשהו",
     "or": "או"
   },
+  "filter": "מסנן",
   "filters": {
-    "dagDisplayNamePlaceholder": "סנן לפי Dag",
-    "keyPlaceholder": "סנן לפי מפתח XCom",
-    "logicalDateFromPlaceholder": "תאריך לוגי מ-",
-    "logicalDateToPlaceholder": "תאריך לוגי עד",
-    "mapIndexPlaceholder": "סנן לפי אינדקס מיפוי",
-    "runAfterFromPlaceholder": "ריצה לאחר (מתאריך)",
-    "runAfterToPlaceholder": "ריצה לאחר (עד תאריך)",
-    "runIdPlaceholder": "סנן לפי מזהה ריצה",
-    "taskIdPlaceholder": "סנן לפי מזהה משימה"
+    "logicalDateFrom": "תאריך לוגי מ-",
+    "logicalDateTo": "תאריך לוגי עד",
+    "runAfterFrom": "ריצה לאחר (מתאריך)",
+    "runAfterTo": "ריצה לאחר (עד תאריך)"
   },
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
@@ -156,6 +153,7 @@
     "running": "בביצוע",
     "scheduled": "מתוזמן"
   },
+  "reset": "אתחל",
   "runId": "מזהה ריצה",
   "runTypes": {
     "asset_triggered": "הופעל על-ידי נכס",

@@ -1567,7 +1567,6 @@ my_postgres_conn:
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
-    @pytest.mark.usefixtures("clear_all_logger_handlers")
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
@@ -1596,7 +1595,7 @@ my_postgres_conn:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
-            assert record.getMessage() == (
+            assert record.message == (
                 f"Failed to fetch run info after data interval {data_interval} "
                 f"for DAG 'test_next_dagrun_info_timetable_exception'"
             )
@@ -1811,6 +1810,61 @@ my_postgres_conn:
 
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
+
+    def test_dag_with_multiple_deadlines(self, dag_maker, session):
+        """Test that a DAG with multiple deadlines stores all deadlines in the database."""
+        deadlines = [
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=datetime.timedelta(minutes=10),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        ]
+
+        with dag_maker(
+            dag_id="test_multiple_deadlines",
+            schedule=datetime.timedelta(days=1),
+            deadline=deadlines,
+        ) as dag:
+            ...
+
+        scheduler_dag = sync_dag_to_db(dag)
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_multiple_deadlines",
+            run_type=DagRunType.SCHEDULED,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        # Check that all 3 deadlines were created
+        assert len(dr.deadlines) == 3
+
+        # Verify each deadline has correct properties
+        deadline_times = [d.deadline_time for d in dr.deadlines]
+        expected_times = [
+            dr.queued_at + datetime.timedelta(minutes=5),
+            dr.queued_at + datetime.timedelta(minutes=10),
+            dr.logical_date + datetime.timedelta(hours=1),
+        ]
+
+        # Sort both lists to compare regardless of order
+        deadline_times.sort()
+        expected_times.sort()
+        assert deadline_times == expected_times
 
 
 class TestDagModel:
@@ -2585,7 +2639,6 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     assert expected_infos == list(iterator)
 
 
-@pytest.mark.usefixtures("clear_all_logger_handlers")
 def test_iter_dagrun_infos_between_error(caplog):
     start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
     end = pendulum.instance(DEFAULT_DATE)
@@ -2626,7 +2679,7 @@ def test_iter_dagrun_infos_between_error(caplog):
             f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
         ),
     ]
-    assert caplog.records[0].exc_info is not None, "should contain exception context"
+    assert caplog.entries[0].get("exc_info") is not None, "should contain exception context"
 
 
 @pytest.mark.parametrize(

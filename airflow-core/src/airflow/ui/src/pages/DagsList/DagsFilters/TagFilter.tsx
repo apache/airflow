@@ -61,7 +61,7 @@ export const TagFilter = ({
             }),
             control: (provided) => ({
               ...provided,
-              colorPalette: "blue",
+              colorPalette: "brand",
             }),
             menu: (provided) => ({
               ...provided,

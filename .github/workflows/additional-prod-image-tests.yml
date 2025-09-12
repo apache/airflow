@@ -191,3 +191,12 @@ jobs:
         id: breeze
       - name: "Run Task SDK integration tests"
         run: breeze testing task-sdk-integration-tests
+
+  test-e2e-integration-tests:
+    name: "Test e2e integration tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}

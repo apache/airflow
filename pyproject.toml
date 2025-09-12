@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.9.8.13",
+    "trove-classifiers==2025.9.9.12",
 ]
 build-backend = "hatchling.build"
 
@@ -64,11 +64,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.1.0"
+version = "3.2.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.2.0,>=1.0.4",
-    "apache-airflow-core==3.1.0",
+    "apache-airflow-task-sdk<1.3.0,>=1.1.0",
+    "apache-airflow-core==3.2.0",
     "natsort>=8.4.0",
 ]
 
@@ -257,7 +257,7 @@ packages = []
     "apache-airflow-providers-jenkins>=3.7.2"
 ]
 "keycloak" = [
-    "apache-airflow-providers-keycloak"
+    "apache-airflow-providers-keycloak>=0.0.1"
 ]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=10.5.1"
@@ -444,7 +444,7 @@ packages = []
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-jdbc>=4.5.2",
     "apache-airflow-providers-jenkins>=3.7.2",
-    "apache-airflow-providers-keycloak",
+    "apache-airflow-providers-keycloak>=0.0.1",
     "apache-airflow-providers-microsoft-azure>=10.5.1",
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
@@ -535,7 +535,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.8.15",
+    "uv>=0.8.17",
 ]
 
 
@@ -750,6 +750,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
 "devel-common/tests/*" = ["S101"]
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
+"airflow-e2e-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -1264,8 +1265,9 @@ dev = [
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
     "apache-airflow-ctl",
-    "apache-airflow-shared-timezones",
+    "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-timezones",
 ]
 
 # To build docs:
@@ -1307,13 +1309,15 @@ apache-airflow-ctl = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
+apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-tests = { workspace = true }
 apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
-apache-airflow-shared-timezones = { workspace = true }
+apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1418,6 +1422,7 @@ apache-airflow-providers-zendesk = { workspace = true }
 members = [
     ".",
     "airflow-core",
+    "airflow-e2e-tests",
     "dev/breeze",
     "airflow-ctl",
     "dev",
@@ -1429,8 +1434,9 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
-    "shared/timezones",
+    "shared/logging",
     "shared/secrets_masker",
+    "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

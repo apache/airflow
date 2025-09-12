@@ -43,7 +43,7 @@ export const AttrSelectFilter = ({ handleSelect, placeholderText, selectedValue,
       onValueChange={handleValueChange}
       value={selectedValue === undefined ? [] : [selectedValue]}
     >
-      <Select.Trigger colorPalette="blue" minW="max-content">
+      <Select.Trigger colorPalette="brand" minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
           {() => selectedDisplay?.label}
         </Select.ValueText>

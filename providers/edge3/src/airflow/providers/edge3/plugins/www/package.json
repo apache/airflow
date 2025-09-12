@@ -37,7 +37,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
-    "react-router-dom": "^6.30.0"
+    "react-router-dom": "^6.30.0",
+    "react-timeago": "^8.3.0"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.2",
@@ -66,7 +67,7 @@
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.31.1",
-    "vite": "^5.4.19",
+    "vite": "^5.4.20",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^2.1.9"
