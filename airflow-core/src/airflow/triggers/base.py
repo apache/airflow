@@ -41,6 +41,7 @@ log = structlog.get_logger(logger_name=__name__)
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
     from airflow.serialization.serialized_objects import SerializedBaseOperator as Operator
 
@@ -74,7 +75,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         super().__init__()
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
-        self.task_instance = None
+        self._task_instance = None
         self.trigger_id = None
 
     def _set_context(self, context):
@@ -88,26 +89,15 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         return None
 
     @property
-    def template_fields(self) -> Collection[str]:
-        if self.task:
-            return self.task.template_fields
-        return ()
+    def task_instance(self) -> TaskInstance | None:
+        return self.task_instance
 
-    @template_fields.setter
-    def template_fields(self, value: Collection[str]):
+    @task_instance.setter
+    def task_instance(self, value: TaskInstance | None) -> None:
+        self.task_instance = value
         if self.task:
-            self.task.template_fields = value
-
-    @property
-    def template_ext(self) -> Sequence[str]:
-        if self.task:
-            return self.task.template_ext
-        return ()
-
-    @template_ext.setter
-    def template_ext(self, value: Sequence[str]):
-        if self.task:
-            self.task._template_ext = value
+            self.template_fields = self.task.template_fields
+            self.template_ext = self.task.template_ext
 
     def render_template_fields(
         self,
