@@ -37,10 +37,7 @@ DAG_ID = "openlineage_schedule_list_multiple_assets_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=[
-        Asset(uri="s3://bucket/file.txt", extra={"a": 1}),
-        Asset(uri="s3://bucket2/file.txt"),
-    ],
+    schedule=[Asset(uri="s3://bucket/file.txt", extra={"a": 1}), Asset(uri="s3://bucket2/file.txt")],
     catchup=False,
     default_args={"retries": 0},
 ) as dag:

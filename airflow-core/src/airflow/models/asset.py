@@ -285,12 +285,7 @@ class AssetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Asset) -> AssetModel:
-        return cls(
-            name=obj.name,
-            uri=obj.uri,
-            group=obj.group,
-            extra=obj.extra,
-        )
+        return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=obj.extra)
 
     def __init__(self, name: str = "", uri: str = "", **kwargs):
         if not name and not uri:
@@ -324,12 +319,7 @@ class AssetModel(Base):
     def to_public(self) -> Asset:
         from airflow.sdk.definitions.asset import Asset
 
-        return Asset(
-            name=self.name,
-            uri=self.uri,
-            group=self.group,
-            extra=self.extra,
-        )
+        return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
 
 
 class AssetActive(Base):

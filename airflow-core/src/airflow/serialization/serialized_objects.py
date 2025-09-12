@@ -294,7 +294,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             "uri": var.uri,
             "group": var.group,
             "extra": var.extra,
-            "extra_event_template": getattr(var, "extra_event_template", None),
+            "event_extra_template": getattr(var, "event_extra_template", {}),
         }
 
         if len(var.watchers) > 0:
