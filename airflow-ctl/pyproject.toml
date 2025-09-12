@@ -100,7 +100,7 @@ dev = [
     "apache-airflow-ctl[dev]",
 ]
 codegen = [
-    "datamodel-code-generator[http]==0.28.2",
+    "datamodel-code-generator[http]==0.33.0",
 ]
 
 # To use:
