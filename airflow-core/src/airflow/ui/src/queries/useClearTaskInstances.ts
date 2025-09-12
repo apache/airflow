@@ -90,7 +90,9 @@ export const useClearTaskInstances = ({
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: affectsMultipleRuns ? undefined : dagRunId }),
+      affectsMultipleRuns
+        ? [useGridServiceGetGridTiSummariesKey, { dagId }]
+        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
