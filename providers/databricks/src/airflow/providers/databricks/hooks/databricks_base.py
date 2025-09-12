@@ -374,16 +374,17 @@ class BaseDatabricksHook(BaseHook):
                 ManagedIdentityCredential as AsyncManagedIdentityCredential,
             )
 
+            conn = await self.a_databricks_conn()
             async for attempt in self._a_get_retry_object():
                 with attempt:
-                    if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
+                    if conn.extra_dejson.get("use_azure_managed_identity", False):
                         async with AsyncManagedIdentityCredential() as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     else:
                         async with AsyncClientSecretCredential(
-                            client_id=self.databricks_conn.login,
-                            client_secret=self.databricks_conn.password,
-                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            client_id=conn.login,
+                            client_secret=conn.password,
+                            tenant_id=conn.extra_dejson["azure_tenant_id"],
                         ) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -513,11 +514,10 @@ class BaseDatabricksHook(BaseHook):
         :return: dictionary with filled AAD headers
         """
         headers = {}
-        if "azure_resource_id" in self.databricks_conn.extra_dejson:
+        conn = await self.a_databricks_conn()
+        if "azure_resource_id" in conn.extra_dejson:
             mgmt_token = await self._a_get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
-            headers["X-Databricks-Azure-Workspace-Resource-Id"] = self.databricks_conn.extra_dejson[
-                "azure_resource_id"
-            ]
+            headers["X-Databricks-Azure-Workspace-Resource-Id"] = conn.extra_dejson["azure_resource_id"]
             headers["X-Databricks-Azure-SP-Management-Token"] = mgmt_token
         return headers
 
@@ -748,7 +748,8 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = aiohttp.BasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+            conn = await self.a_databricks_conn()
+            auth = aiohttp.BasicAuth(conn.login, conn.password)
 
         request_func: Any
         if method == "GET":

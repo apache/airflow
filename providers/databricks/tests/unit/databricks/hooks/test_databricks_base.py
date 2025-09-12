@@ -747,6 +747,7 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.get_connection")
     async def test_cached_a_databricks_conn(self, mock_get_connection):
+        """Verify get_connection caching + ensure sync databricks_conn isn't referenced."""
         mock_get_connection.return_value = Connection(login="foo", password="bar")
         with mock.patch.object(
             BaseDatabricksHook, "databricks_conn", new_callable=mock.PropertyMock
