@@ -264,7 +264,12 @@ def change_maintenance_comment(
     """Write maintenance comment in the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    if worker.state in (EdgeWorkerState.MAINTENANCE_MODE, EdgeWorkerState.OFFLINE_MAINTENANCE):
+    if worker.state in (
+        EdgeWorkerState.MAINTENANCE_MODE,
+        EdgeWorkerState.MAINTENANCE_PENDING,
+        EdgeWorkerState.MAINTENANCE_REQUEST,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+    ):
         worker.maintenance_comment = maintenance_comment
     else:
         error_message = f"Cannot change maintenance comment as {worker_name} is not in maintenance!"
