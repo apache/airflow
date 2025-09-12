@@ -134,9 +134,11 @@ class TestJenkinsOperator:
             operator.execute(None)
             assert jenkins_mock.get_build_info.call_count == 2
             assert jenkins_mock.get_queue_item.call_count == 4
-
-            assert mock_log.warning.call_count == 2
-            assert mock_log.warning.call_args == mock.call("polling failed, retrying", exc_info=True)
+            # on HTTPError and JenkinsException
+            assert mock_log.warning.mock_calls == [
+                mock.call("polling failed, retrying", exc_info=True),
+                mock.call("polling failed, retrying", exc_info=True),
+            ]
 
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
     def test_execute_job_failure(self, parameters, mocker):
