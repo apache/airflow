@@ -115,6 +115,29 @@ class TestKubernetesInstallKueueOperator:
         mock_hook.return_value.check_kueue_deployment_running.assert_not_called()
         mock_log.info.assert_called_once_with("Kueue is already enabled for the cluster")
 
+    @mock.patch(KUEUE_OPERATORS_PATH.format("KubernetesInstallKueueOperator.log"))
+    @mock.patch(KUEUE_OPERATORS_PATH.format("KubernetesHook"))
+    def test_execute_non_json_response(self, mock_hook, mock_log):
+        """Test handling of non-JSON API response bodies (e.g., 429 errors)."""
+        mock_get_yaml_content_from_file = mock_hook.return_value.get_yaml_content_from_file
+        mock_yaml_objects = mock_get_yaml_content_from_file.return_value
+        mock_apply_from_yaml_file = mock_hook.return_value.apply_from_yaml_file
+
+        # Create mock exceptions with non-JSON bodies (simulating 429 errors)
+        api_exceptions = [
+            mock.MagicMock(body="Too many requests, please try again later.", reason="TooManyRequests"),
+            mock.MagicMock(body="", reason="RateLimited"),  # Empty body case
+        ]
+        mock_apply_from_yaml_file.side_effect = FailToCreateError(api_exceptions)
+        expected_error_message = "Too many requests, please try again later.\nRateLimited"
+
+        with pytest.raises(AirflowException, match=expected_error_message):
+            self.operator.execute(context=mock.MagicMock())
+
+        mock_get_yaml_content_from_file.assert_called_once_with(kueue_yaml_url=KUEUE_YAML_URL)
+        mock_apply_from_yaml_file.assert_called_once_with(yaml_objects=mock_yaml_objects)
+        mock_hook.return_value.check_kueue_deployment_running.assert_not_called()
+
 
 class TestKubernetesStartKueueJobOperator:
     def test_template_fields(self):

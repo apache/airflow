@@ -21,7 +21,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 import uuid6
@@ -32,7 +33,8 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Trigger
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base
+from airflow.serialization.serde import deserialize, serialize
 from airflow.settings import json
 from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -42,6 +44,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.definitions.deadline import Callback
     from airflow.triggers.base import TriggerEvent
 
 
@@ -76,9 +79,14 @@ class classproperty:
 
 
 class DeadlineCallbackState(str, Enum):
-    """All possible states of deadline callbacks."""
+    """
+    All possible states of deadline callbacks once the deadline is missed.
+
+    `None` state implies that the deadline is pending (`deadline_time` hasn't passed yet).
+    """
 
     QUEUED = "queued"
+    RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
 
@@ -90,16 +98,13 @@ class Deadline(Base):
 
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
-    # If the Deadline Alert is for a DAG, store the DAG ID and Run ID from the dag_run.
-    dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
+    # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
     dagrun_id = Column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
 
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline_time = Column(UtcDateTime, nullable=False)
-    # The Callback to be called when the Deadline has passed.
-    callback = Column(String(500), nullable=False)
-    # Serialized kwargs to pass to the callback.
-    callback_kwargs = Column(sqlalchemy_jsonfield.JSONField(json=json))
+    # The (serialized) callback to be called when the Deadline has passed.
+    _callback = Column("callback", sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     # The state of the deadline callback
     callback_state = Column(String(20))
 
@@ -114,44 +119,38 @@ class Deadline(Base):
     def __init__(
         self,
         deadline_time: datetime,
-        callback: str,
-        callback_kwargs: dict | None = None,
-        dag_id: str | None = None,
-        dagrun_id: int | None = None,
+        callback: Callback,
+        dagrun_id: int,
     ):
         super().__init__()
         self.deadline_time = deadline_time
-        self.callback = callback
-        self.callback_kwargs = callback_kwargs
-        self.dag_id = dag_id
+        self._callback = serialize(callback)
         self.dagrun_id = dagrun_id
 
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
-            if self.dag_id and self.dagrun_id:
-                # The deadline is for a dagrun:
-                return "DagRun", f"Dag: {self.dag_id} Run: {self.dagrun_id}"
+            if self.dagrun_id:
+                # The deadline is for a Dag run:
+                return "DagRun", f"Dag: {self.dagrun.dag_id} Run: {self.dagrun_id}"
 
             return "Unknown", ""
 
         resource_type, resource_details = _determine_resource()
-        callback_kwargs = json.dumps(self.callback_kwargs) if self.callback_kwargs else ""
 
         return (
             f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline_time} or run: {self.callback}({callback_kwargs})"
+            f"{self.deadline_time} or run: {self.callback.path}({self.callback.kwargs or ''})"
         )
 
     @classmethod
-    @provide_session
     def prune_deadlines(cls, *, session: Session, conditions: dict[Column, Any]) -> int:
         """
         Remove deadlines from the table which match the provided conditions and return the number removed.
 
         NOTE: This should only be used to remove deadlines which are associated with
-            successful DagRuns. If the deadline was missed, it will be handled by the
-            scheduler.
+            successful events (DagRuns, etc). If the deadline was missed, it will be
+            handled by the scheduler.
 
         :param conditions: Dictionary of conditions to evaluate against.
         :param session: Session to use.
@@ -165,9 +164,10 @@ class Deadline(Base):
 
         try:
             # Get deadlines which match the provided conditions and their associated DagRuns.
-            deadline_dagrun_pairs = (
-                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
-            )
+            deadline_dagrun_pairs = session.execute(
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+            ).all()
+
         except AttributeError as e:
             logger.exception("Error resolving deadlines: %s", e)
             raise
@@ -194,18 +194,40 @@ class Deadline(Base):
 
         return deleted_count
 
-    def handle_miss(self, session: Session):
-        """Handle a missed deadline by creating a trigger to run the callback."""
-        # TODO: check to see if the callback is meant to run in triggerer or executor. For now, the code below assumes it's for the triggerer
-        callback_trigger = DeadlineCallbackTrigger(
-            callback_path=self.callback,
-            callback_kwargs=self.callback_kwargs,
-        )
+    @cached_property
+    def callback(self) -> Callback:
+        return cast("Callback", deserialize(self._callback))
 
-        trigger_orm = Trigger.from_object(callback_trigger)
-        session.add(trigger_orm)
-        session.flush()
-        self.trigger_id = trigger_orm.id
+    def handle_miss(self, session: Session):
+        """Handle a missed deadline by running the callback in the appropriate host and updating the `callback_state`."""
+        from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+
+        def get_simple_context():
+            from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+
+            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
+            #  from the scheduler
+            return {
+                "dag_run": DAGRunResponse.model_validate(self.dagrun).model_dump(mode="json"),
+                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
+            }
+
+        if isinstance(self.callback, AsyncCallback):
+            callback_trigger = DeadlineCallbackTrigger(
+                callback_path=self.callback.path,
+                callback_kwargs=(self.callback.kwargs or {}) | {"context": get_simple_context()},
+            )
+            trigger_orm = Trigger.from_object(callback_trigger)
+            session.add(trigger_orm)
+            session.flush()
+            self.trigger = trigger_orm
+
+        elif isinstance(self.callback, SyncCallback):
+            raise NotImplementedError("SyncCallback is currently not supported")
+
+        else:
+            raise TypeError("Unknown Callback type")
+
         self.callback_state = DeadlineCallbackState.QUEUED
         session.add(self)
 
@@ -213,9 +235,11 @@ class Deadline(Base):
         if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
             DeadlineCallbackState.SUCCESS,
             DeadlineCallbackState.FAILED,
+            DeadlineCallbackState.RUNNING,
         }:
-            self.trigger = None
-            self.callback_state = event.payload[PAYLOAD_STATUS_KEY]
+            self.callback_state = status
+            if status != DeadlineCallbackState.RUNNING:
+                self.trigger = None
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)

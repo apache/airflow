@@ -28,13 +28,10 @@ from python_on_whales import DockerClient, docker
 from python_on_whales.exceptions import DockerException
 from rich.console import Console
 
-# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import AIRFLOW_ROOT_PATH
 
 from tests_common.test_utils.api_client_helpers import generate_access_token
-
-# isort:on (needed to workaround isort bug)
 
 console = Console(width=400, color_system="standard")
 

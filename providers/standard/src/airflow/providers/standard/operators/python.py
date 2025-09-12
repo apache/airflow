@@ -51,9 +51,8 @@ from airflow.exceptions import (
 from airflow.models.variable import Variable
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, context_merge
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -487,7 +486,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = context_copy_partial(context, serializable_keys)
+        new = {k: v for k, v in context.items() if k in serializable_keys}
+        serializable_context = cast("Context", new)
         return super().execute(context=serializable_context)
 
     def get_python_source(self):
@@ -889,9 +889,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
-            tmp_dir, temp_venv_dir = tmp_path.relative_to(tmp_path.anchor).parts
             custom_pycache_prefix = Path(sys.pycache_prefix or "")
-            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / tmp_dir / temp_venv_dir
+            r_path = tmp_path.relative_to(tmp_path.anchor)
+            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / r_path
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path)
@@ -1076,7 +1076,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self._get_airflow_version_from_target_env():
+        if self.expect_airflow and self._get_airflow_version_from_target_env():
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
         elif self._is_pendulum_installed_in_target_env():

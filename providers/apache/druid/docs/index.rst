@@ -57,7 +57,7 @@
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-druid/>
     Installing from sources <installing-providers-from-sources>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-druid/|version|/providers/apache/druid/tests/system/apache/druid>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-druid/|version|/providers/apache/druid/tests/system/apache/druid>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -89,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.apache.drui
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-apache-druid``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

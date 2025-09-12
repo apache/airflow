@@ -43,7 +43,6 @@ Package ``{{ PACKAGE_PIP_NAME }}``
 
 Release: ``{{ RELEASE }}{{ VERSION_SUFFIX }}``
 
-Release Date: ``|PypiReleaseDate|``
 
 {{  PROVIDER_DESCRIPTION | safe }}
 
@@ -71,7 +70,7 @@ in the `documentation <https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install {{PACKAGE_PIP_NAME}}``
 
@@ -101,6 +100,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 
 {{ CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST | safe }}
+
+{%- endif %}
+{%- if OPTIONAL_DEPENDENCIES %}
+
+Optional dependencies
+----------------------
+
+{{ OPTIONAL_DEPENDENCIES_TABLE_RST | safe }}
 
 {%- endif %}
 

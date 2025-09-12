@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import itertools
 import os
 import selectors
 import time
@@ -43,17 +44,19 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook
+from airflow.sdk import BaseHook, BaseOperator
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -61,6 +64,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_variables,
@@ -79,18 +83,26 @@ def clean_database():
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     yield  # Test runs here
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
-    dag_model = DagModel(dag_id="test_dag")
+    bundle_name = "testing"
+
+    testing_bundle = DagBundleModel(name=bundle_name)
+    session.merge(testing_bundle)
+    session.flush()
+
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
@@ -107,7 +119,8 @@ def create_trigger_in_db(session, trigger, operator=None):
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
@@ -197,7 +210,7 @@ def supervisor_builder(mocker, session):
     return builder
 
 
-def test_trigger_lifecycle(spy_agency: SpyAgency, session):
+def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
     and send it to the trigger runner, and then delete it when it vanishes.
@@ -253,6 +266,30 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
     finally:
         # We always have to stop the runner
         trigger_runner_supervisor.kill(force=False)
+
+
+@pytest.mark.parametrize(
+    "trigger, watcher_count, trigger_count",
+    [(TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1), (FileDeleteTrigger("/tmp/foo.txt"), 1, 0)],
+)
+@patch("time.monotonic", side_effect=itertools.count(start=1, step=60))
+def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, session, capsys):
+    """
+    Checks that the triggerer will log watcher and trigger in separate lines.
+    """
+    create_trigger_in_db(session, trigger)
+
+    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
+    trigger_runner_supervisor.load_triggers()
+
+    for _ in range(10):
+        trigger_runner_supervisor._service_subprocess(0.1)
+
+    stdout = capsys.readouterr().out
+    assert f"{trigger_count} triggers currently running" in stdout
+    assert f"{watcher_count} watchers currently running" in stdout
+
+    trigger_runner_supervisor.kill(force=False)
 
 
 class TestTriggerRunner:
@@ -388,7 +425,7 @@ class TestTriggerRunner:
 
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder):
+async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -411,10 +448,12 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     trigger_orm = Trigger.from_object(trigger)
     session.add(trigger_orm)
     session.flush()
+
+    bundle_name = "testing"
     dag = DAG(dag_id="test-dag")
-    dm = DagModel(dag_id="test-dag")
+    dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
@@ -645,22 +684,71 @@ class CustomTrigger(BaseTrigger):
         from airflow.sdk import Variable
         from airflow.sdk.execution_time.xcom import XCom
 
+        # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
+        from airflow.sdk.log import mask_secret
+
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
         self.log.info("Loaded conn %s", conn.conn_id)
 
-        variable = await sync_to_async(Variable.get)("test_variable")
-        self.log.info("Loaded variable %s", variable)
+        get_variable_value = await sync_to_async(Variable.get)("test_get_variable")
+        await sync_to_async(mask_secret)(get_variable_value)
+        self.log.info("Loaded variable %s", get_variable_value)
 
-        xcom = await sync_to_async(XCom.get_one)(
-            key="test_xcom",
+        get_xcom_value = await sync_to_async(XCom.get_one)(
+            key="test_get_xcom",
             dag_id=self.dag_id,
             run_id=self.run_id,
             task_id=self.task_id,
             map_index=self.map_index,
         )
-        self.log.info("Loaded XCom %s", xcom)
+        self.log.info("Loaded XCom %s", get_xcom_value)
 
-        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
+        set_variable_key = "test_set_variable"
+        set_variable_value = "set_value"
+        await sync_to_async(Variable.set)(key=set_variable_key, value=set_variable_value)
+        self.log.info("Set variable with key %s and value %s", set_variable_key, set_variable_value)
+
+        set_xcom_key = "test_set_xcom"
+        set_xcom_value = "set_xcom"
+        await sync_to_async(XCom.set)(
+            key=set_xcom_key,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+            value=set_xcom_value,
+        )
+        self.log.info("Set xcom with key %s and value %s", set_xcom_key, set_xcom_value)
+
+        delete_variable_key = "test_delete_variable"
+        await sync_to_async(Variable.delete)(delete_variable_key)
+        self.log.info("Deleted variable with key %s", delete_variable_key)
+
+        delete_xcom_key = "test_delete_xcom"
+        await sync_to_async(XCom.delete)(
+            key=delete_xcom_key,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        self.log.info("Delete xcom with key %s", delete_xcom_key)
+
+        yield TriggerEvent(
+            {
+                "connection": attrs.asdict(conn),
+                "variable": {
+                    "get_variable": get_variable_value,
+                    "set_variable": set_variable_value,
+                    "delete_variable": delete_variable_key,
+                },
+                "xcom": {
+                    "get_xcom": get_xcom_value,
+                    "set_xcom": set_xcom_value,
+                    "delete_xcom": delete_xcom_key,
+                },
+            }
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -687,8 +775,8 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
-async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
-    """Checks that the trigger will successfully access Variables, Connections and XComs."""
+async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
+    """Checks that the trigger will successfully call Variables, Connections and XComs methods."""
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
         EmptyOperator(task_id="dummy1")
@@ -704,7 +792,7 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
     )
     session.add(trigger_orm)
-    session.commit()
+    session.flush()
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
@@ -718,9 +806,15 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         port=443,
         host="example.com",
     )
-    variable = Variable(key="test_variable", val="some_variable_value")
+    get_variable = Variable(key="test_get_variable", val="some_variable_value")
+    delete_variable = Variable(key="test_delete_variable", val="delete_value")
+
+    session.add(connection)
+    session.add(get_variable)
+    session.add(delete_variable)
+
     XComModel.set(
-        key="test_xcom",
+        key="test_get_xcom",
         value="some_xcom_value",
         task_id=task_instance.task_id,
         dag_id=dr.dag_id,
@@ -728,8 +822,16 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         map_index=-1,
         session=session,
     )
-    session.add(connection)
-    session.add(variable)
+
+    XComModel.set(
+        key="test_delete_xcom",
+        value="some_xcom_value",
+        task_id=task_instance.task_id,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        map_index=-1,
+        session=session,
+    )
 
     job = Job()
     session.add(job)
@@ -741,7 +843,7 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method != "__fail__"
-    assert task_instance.next_kwargs == {
+    expected_event = {
         "event": {
             "connection": {
                 "conn_id": "test_connection",
@@ -754,10 +856,19 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
                 "port": 443,
                 "extra": '{"key": "value"}',
             },
-            "variable": "some_variable_value",
-            "xcom": '"some_xcom_value"',
+            "variable": {
+                "get_variable": "some_variable_value",
+                "set_variable": "set_value",
+                "delete_variable": "test_delete_variable",
+            },
+            "xcom": {
+                "get_xcom": '"some_xcom_value"',
+                "set_xcom": "set_xcom",
+                "delete_xcom": "test_delete_xcom",
+            },
         }
     }
+    assert task_instance.next_kwargs == expected_event
 
 
 class CustomTriggerDagRun(BaseTrigger):
@@ -938,3 +1049,80 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, d
     assert task_instance.next_kwargs == {
         "event": {"ti_count": 1, "dr_count": 1, "task_states": {"test": {"parent_task": "success"}}}
     }
+
+
+def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supervisor_builder):
+    """
+    Test that update_triggers prevents adding triggers to the creation queue
+    if they are already queued for creation.
+    """
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+
+    supervisor = supervisor_builder()
+
+    # First call to update_triggers should add the trigger to creating_triggers
+    supervisor.update_triggers({trigger_orm.id})
+    assert len(supervisor.creating_triggers) == 1
+    assert supervisor.creating_triggers[0].id == trigger_orm.id
+
+    # Second call to update_triggers with the same trigger_id should not add it again
+    supervisor.update_triggers({trigger_orm.id})
+    assert len(supervisor.creating_triggers) == 1
+    assert supervisor.creating_triggers[0].id == trigger_orm.id
+
+    # Verify that the trigger is not in running_triggers yet (it's still queued)
+    assert trigger_orm.id not in supervisor.running_triggers
+
+    # Verify that the trigger is not in any other tracking sets
+    assert trigger_orm.id not in supervisor.cancelling_triggers
+    assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.events)
+    assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.failed_triggers)
+
+
+def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple_triggers(
+    session, supervisor_builder, dag_maker
+):
+    """
+    Test that update_triggers prevents adding multiple triggers to the creation queue
+    if they are already queued for creation.
+    """
+    trigger1 = TimeDeltaTrigger(datetime.timedelta(days=7))
+    trigger2 = TimeDeltaTrigger(datetime.timedelta(days=14))
+
+    dag_model1, run1, trigger_orm1, task_instance1 = create_trigger_in_db(session, trigger1)
+
+    with dag_maker("test_dag_2"):
+        EmptyOperator(task_id="test_ti_2")
+
+    run2 = dag_maker.create_dagrun()
+    trigger_orm2 = Trigger.from_object(trigger2)
+    ti2 = run2.task_instances[0]
+    session.add(trigger_orm2)
+    session.flush()
+    ti2.trigger_id = trigger_orm2.id
+    session.merge(ti2)
+    session.flush()
+    # Create a supervisor
+    supervisor = supervisor_builder()
+
+    # First call to update_triggers should add both triggers to creating_triggers
+    supervisor.update_triggers({trigger_orm1.id, trigger_orm2.id})
+    assert len(supervisor.creating_triggers) == 2
+    trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
+    assert trigger_orm1.id in trigger_ids
+    assert trigger_orm2.id in trigger_ids
+
+    # Second call to update_triggers with the same trigger_ids should not add them again
+    supervisor.update_triggers({trigger_orm1.id, trigger_orm2.id})
+    assert len(supervisor.creating_triggers) == 2
+    trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
+    assert trigger_orm1.id in trigger_ids
+    assert trigger_orm2.id in trigger_ids
+
+    # Third call with just one trigger should not add duplicates
+    supervisor.update_triggers({trigger_orm1.id})
+    assert len(supervisor.creating_triggers) == 2
+    trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
+    assert trigger_orm1.id in trigger_ids
+    assert trigger_orm2.id in trigger_ids

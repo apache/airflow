@@ -321,6 +321,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -407,6 +408,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
@@ -648,6 +650,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             timestamp_split_column_name=None,
             tensorboard=None,
             sync=True,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -736,6 +739,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             timestamp_split_column_name=None,
             tensorboard=None,
             sync=True,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
@@ -976,6 +980,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -1057,6 +1062,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))

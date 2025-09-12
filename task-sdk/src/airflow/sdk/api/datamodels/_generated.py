@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-08-10"
+API_VERSION: Final[str] = "2025-09-23"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -154,30 +154,13 @@ class DagRunType(str, Enum):
     ASSET_TRIGGERED = "asset_triggered"
 
 
-class HITLDetailRequest(BaseModel):
+class HITLUser(BaseModel):
     """
-    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
-    """
-
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
-    options: Annotated[list[str], Field(title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-
-
-class HITLDetailResponse(BaseModel):
-    """
-    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    Schema for a Human-in-the-loop users.
     """
 
-    response_received: Annotated[bool, Field(title="Response Received")]
-    user_id: Annotated[str | None, Field(title="User Id")] = None
-    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
-    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    id: Annotated[str, Field(title="Id")]
+    name: Annotated[str, Field(title="Name")]
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -370,7 +353,7 @@ class UpdateHITLDetailPayload(BaseModel):
     """
 
     ti_id: Annotated[UUID, Field(title="Ti Id")]
-    chosen_options: Annotated[list[str], Field(title="Chosen Options")]
+    chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
@@ -485,6 +468,28 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
+class WeightRule(str, Enum):
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
+    ABSOLUTE = "absolute"
+
+
+class TriggerRule(str, Enum):
+    ALL_SUCCESS = "all_success"
+    ALL_FAILED = "all_failed"
+    ALL_DONE = "all_done"
+    ALL_DONE_MIN_ONE_SUCCESS = "all_done_min_one_success"
+    ALL_DONE_SETUP_SUCCESS = "all_done_setup_success"
+    ONE_SUCCESS = "one_success"
+    ONE_FAILED = "one_failed"
+    ONE_DONE = "one_done"
+    NONE_FAILED = "none_failed"
+    NONE_SKIPPED = "none_skipped"
+    ALWAYS = "always"
+    NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
+    ALL_SKIPPED = "all_skipped"
+
+
 class AssetEventDagRunReference(BaseModel):
     """
     Schema for AssetEvent model used in DagRun.
@@ -548,6 +553,33 @@ class DagRun(BaseModel):
     state: DagRunState
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
+
+
+class HITLDetailRequest(BaseModel):
+    """
+    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    response_received: Annotated[bool, Field(title="Response Received")]
+    responded_by_user: HITLUser | None = None
+    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 
 
 class HTTPValidationError(BaseModel):

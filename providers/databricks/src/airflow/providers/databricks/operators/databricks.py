@@ -24,7 +24,6 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from functools import cached_property
-from logging import Logger
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
@@ -60,12 +59,8 @@ if TYPE_CHECKING:
         DatabricksWorkflowTaskGroup,
     )
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
-
-    try:
-        from airflow.sdk import TaskGroup
-    except ImportError:
-        from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+    from airflow.sdk import TaskGroup
+    from airflow.sdk.types import Context, Logger
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
@@ -398,10 +393,6 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
-        if (access_control_list := self.json.get("access_control_list")) is not None:
-            acl_json = {"access_control_list": access_control_list}
-            self._hook.update_job_permission(job_id, normalise_json_content(acl_json))
-
         return job_id
 
 

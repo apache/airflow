@@ -1318,7 +1318,9 @@ api:
   options:
     instance_name:
       description: |
-        Sets a custom page title for the DAGs overview page and site title for all pages
+        Sets a custom homepage heading and site title for all Airflow UI pages.
+        If set, the Dashboard will display this value instead of the default
+        "Welcome" message.
       version_added: 2.1.0
       type: string
       example: ~

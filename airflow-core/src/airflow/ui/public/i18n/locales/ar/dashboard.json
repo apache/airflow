@@ -44,6 +44,7 @@
     "activeDags": "Dags النشطة",
     "failedDags": "Dags الفاشلة",
     "queuedDags": "Dags في الانتظار",
+    "requiredActions": "إجراءات مطلوبة",
     "runningDags": "Dags قيد التشغيل",
     "stats": "الإحصائيات"
   },

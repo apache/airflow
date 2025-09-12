@@ -27,6 +27,22 @@ Changelog
 ---------
 
 
+5.2.3
+.....
+
+Misc
+~~~~
+
+* ``Improve debug logging in Airbyte provider (#51503)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve connection docs (#53942)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.2.2
 .....
 

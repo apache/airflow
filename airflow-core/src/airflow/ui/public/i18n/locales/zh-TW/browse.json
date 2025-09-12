@@ -10,6 +10,9 @@
       "user": "使用者",
       "when": "時間"
     },
+    "filters": {
+      "eventType": "事件類型"
+    },
     "title": "審計日誌事件"
   },
   "xcom": {

@@ -61,7 +61,7 @@
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.31.1",
-    "vite": "^5.4.19",
+    "vite": "^5.4.20",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^2.1.9"

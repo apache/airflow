@@ -66,14 +66,14 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.sdk.types import Operator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 router = VersionedAPIRouter()
 
@@ -129,7 +129,6 @@ def ti_run(
             TI.run_id,
             TI.task_id,
             TI.map_index,
-            TI.next_method,
             TI.try_number,
             TI.max_tries,
             TI.next_method,
@@ -255,7 +254,14 @@ def ti_run(
 
         if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
             upstream_map_indexes = dict(
-                _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session)
+                _get_upstream_map_indexes(
+                    # TODO (GH-52141): This get_task should return scheduler
+                    # types instead, but currently it inherits SDK's DAG.
+                    cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id)),
+                    ti.map_index,
+                    ti.run_id,
+                    session=session,
+                )
             )
         else:
             upstream_map_indexes = None
@@ -286,22 +292,22 @@ def ti_run(
 
 
 def _get_upstream_map_indexes(
-    task: Operator, ti_map_index: int, run_id: str, session: SessionDep
+    task: MappedOperator | SerializedBaseOperator, ti_map_index: int, run_id: str, session: SessionDep
 ) -> Iterator[tuple[str, int | list[int] | None]]:
+    task_mapped_group = task.get_closest_mapped_task_group()
     for upstream_task in task.upstream_list:
+        upstream_mapped_group = upstream_task.get_closest_mapped_task_group()
         map_indexes: int | list[int] | None
-        if not isinstance(upstream_task.task_group, MappedTaskGroup):
+        if upstream_mapped_group is None:
             # regular tasks or non-mapped task groups
             map_indexes = None
-        elif task.task_group == upstream_task.task_group:
-            # tasks in the same mapped task group
-            # the task should use the map_index as the previous task in the same mapped task group
+        elif task_mapped_group == upstream_mapped_group:
+            # tasks in the same mapped task group hierarchy
             map_indexes = ti_map_index
         else:
             # tasks not in the same mapped task group
             # the upstream mapped task group should combine the return xcom as a list and return it
             mapped_ti_count: int
-            upstream_mapped_group = upstream_task.task_group
             try:
                 # for cases that does not need to resolve xcom
                 mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()

@@ -18,8 +18,10 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
+import tz from "dayjs/plugin/timezone";
 
 dayjs.extend(dayjsDuration);
+dayjs.extend(tz);
 
 export const renderDuration = (durationSeconds: number | null | undefined): string => {
   if (
@@ -44,4 +46,16 @@ export const getDuration = (startDate?: string | null, endDate?: string | null) 
   const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
 
   return renderDuration(seconds);
+};
+
+export const formatDate = (
+  date: number | string | null | undefined,
+  timezone: string,
+  format: string = "YYYY-MM-DD HH:mm:ss",
+) => {
+  if (date === null || date === undefined || !dayjs(date).isValid()) {
+    return dayjs().tz(timezone).format(format);
+  }
+
+  return dayjs(date).tz(timezone).format(format);
 };

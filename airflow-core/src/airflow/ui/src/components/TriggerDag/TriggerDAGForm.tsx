@@ -153,7 +153,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
       {isPaused ? (
         <Checkbox
           checked={unpause}
-          colorPalette="blue"
+          colorPalette="brand"
           onChange={() => setUnpause(!unpause)}
           wordBreak="break-all"
         >
@@ -165,7 +165,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >

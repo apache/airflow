@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
@@ -27,10 +26,8 @@ from flask_appbuilder import BaseView
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models import DagBag
-from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink, TaskGroup, XCom
@@ -47,6 +44,7 @@ if TYPE_CHECKING:
 
     from airflow.models import BaseOperator
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
+    from airflow.sdk.types import Logger
     from airflow.utils.context import Context
 
 
@@ -64,7 +62,7 @@ def get_auth_decorator():
 
 
 def get_databricks_task_ids(
-    group_id: str, task_map: dict[str, DatabricksTaskBaseOperator], log: logging.Logger
+    group_id: str, task_map: dict[str, DatabricksTaskBaseOperator], log: Logger
 ) -> list[str]:
     """
     Return a list of all Databricks task IDs for a dictionary of Airflow tasks.
@@ -90,8 +88,15 @@ def get_databricks_task_ids(
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
-    @provide_session
-    def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun:
+    def _get_dag(dag_id: str, session: Session):
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag = SerializedDagModel.get_dag(dag_id, session=session)
+        if not dag:
+            raise AirflowException("Dag not found.")
+        return dag
+
+    def _get_dagrun(dag, run_id: str, session: Session) -> DagRun:
         """
         Retrieve the DagRun object associated with the specified DAG and run_id.
 
@@ -107,10 +112,9 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def _clear_task_instances(
-        dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None
+        dag_id: str, run_id: str, task_ids: list[str], log: Logger, session: Session = NEW_SESSION
     ) -> None:
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(dag_id)
+        dag = _get_dag(dag_id, session=session)
         log.debug("task_ids %s to clear", str(task_ids))
         dr: DagRun = _get_dagrun(dag, run_id, session=session)
         tis_to_clear = [ti for ti in dr.get_task_instances() if ti.databricks_task_key in task_ids]
@@ -141,7 +145,7 @@ def _repair_task(
     databricks_conn_id: str,
     databricks_run_id: int,
     tasks_to_repair: list[str],
-    logger: logging.Logger,
+    logger: Logger,
 ) -> int:
     """
     Repair a Databricks task using the Databricks API.
@@ -274,13 +278,8 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
             ti = get_task_instance(operator, dttm)
             ti_key = ti.key
         task_group = operator.task_group
-
         if not task_group:
             raise AirflowException("Task group is required for generating Databricks Workflow Job Run Link.")
-
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(ti_key.dag_id)
-        dag.get_task(ti_key.task_id)
         self.log.info("Getting link for task %s", ti_key.task_id)
         if ".launch" not in ti_key.task_id:
             self.log.debug("Finding the launch task for job run metadata %s", ti_key.task_id)
@@ -295,7 +294,7 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
 def store_databricks_job_run_link(
     context: Context,
     metadata: Any,
-    logger: logging.Logger,
+    logger: Logger,
 ) -> None:
     """
     Store the Databricks job run link in XCom during task execution.
@@ -369,15 +368,18 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
                 children[child_id] = child
         return children
 
-    def get_tasks_to_run(self, ti_key: TaskInstanceKey, operator: BaseOperator, log: logging.Logger) -> str:
+    def get_tasks_to_run(self, ti_key: TaskInstanceKey, operator: BaseOperator, log: Logger) -> str:
         task_group = operator.task_group
         if not task_group:
             raise AirflowException("Task group is required for generating repair link.")
         if not task_group.group_id:
             raise AirflowException("Task group ID is required for generating repair link.")
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(ti_key.dag_id)
-        dr = _get_dagrun(dag, ti_key.run_id)
+
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            dag = _get_dag(ti_key.dag_id, session=session)
+            dr = _get_dagrun(dag, ti_key.run_id, session=session)
         log.debug("Getting failed and skipped tasks for dag run %s", dr.run_id)
         task_group_sub_tasks = self.get_task_group_children(task_group).items()
         failed_and_skipped_tasks = self._get_failed_and_skipped_tasks(dr)
@@ -435,9 +437,14 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             task_group.group_id,
             ti_key.task_id,
         )
-        dag_bag = DagBag(read_dags_from_db=True)
-        dag = dag_bag.get_dag(ti_key.dag_id)
+
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            dag = _get_dag(ti_key.dag_id, session=session)
         task = dag.get_task(ti_key.task_id)
+        if TYPE_CHECKING:
+            assert isinstance(task, DatabricksTaskBaseOperator)
 
         if ".launch" not in ti_key.task_id:
             launch_task_id = get_launch_task_id(task_group)

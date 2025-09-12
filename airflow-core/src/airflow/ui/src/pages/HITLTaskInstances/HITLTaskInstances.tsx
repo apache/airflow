@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Box, Heading, Link, createListCollection } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
@@ -30,11 +31,15 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { useAutoRefresh } from "src/utils";
+import { Select } from "src/components/ui";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
 type TaskInstanceRow = { row: { original: HITLDetail } };
+
+const { OFFSET: OFFSET_PARAM, RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM }: SearchParamsKeysType =
+  SearchParamsKeys;
 
 const taskInstanceColumns = ({
   dagId,
@@ -52,7 +57,7 @@ const taskInstanceColumns = ({
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),
-    header: translate("Required Action State"),
+    header: translate("requiredActionState"),
   },
   {
     accessorKey: "subject",
@@ -63,7 +68,7 @@ const taskInstanceColumns = ({
         </RouterLink>
       </Link>
     ),
-    header: translate("Subject"),
+    header: translate("subject"),
   },
   ...(Boolean(dagId)
     ? []
@@ -71,7 +76,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_instance.dag_id",
           enableSorting: false,
-          header: translate("dagId"),
+          header: translate("common:dagId"),
         },
       ]),
   ...(Boolean(runId)
@@ -79,18 +84,10 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original.task_instance)}>
-                  <Time datetime={original.task_instance.run_after} />
-                </RouterLink>
-              </Link>
-            ) : (
-              <Time datetime={original.task_instance.run_after} />
-            ),
-          header: translate("dagRun_one"),
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Time datetime={original.task_instance.run_after} />
+          ),
+          header: translate("common:dagRun.runAfter"),
         },
       ]),
   ...(Boolean(taskId)
@@ -102,69 +99,109 @@ const taskInstanceColumns = ({
             <TruncatedText text={original.task_instance.task_display_name} />
           ),
           enableSorting: false,
-          header: translate("taskId"),
+          header: translate("common:taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
-    header: translate("mapIndex"),
-  },
-  {
-    accessorKey: "response_received",
-    header: translate("Response Received"),
+    header: translate("common:mapIndex"),
   },
   {
     accessorKey: "response_at",
     cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
-    header: translate("Response At"),
+    header: translate("response.received"),
   },
 ];
 
 export const HITLTaskInstances = () => {
-  const { t: translate } = useTranslation();
-  const { dagId, groupId, runId, taskId } = useParams();
+  const { t: translate } = useTranslation("hitl");
+  const { dagId, runId, taskId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination } = tableURLState;
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  const refetchInterval = useAutoRefresh({});
-
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagIdPattern: dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    {
-      enabled: !isNaN(pagination.pageSize),
-      refetchInterval,
-    },
-  );
-
-  const filteredData = data?.hitl_details.filter((hitl) => {
-    if (taskId !== undefined) {
-      return hitl.task_instance.task_id === taskId;
-    } else if (groupId !== undefined) {
-      return hitl.task_instance.task_id.includes(groupId);
-    }
-
-    return true;
+  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails({
+    dagId,
+    dagRunId: runId,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
+    responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+    state: responseReceived === "false" ? ["deferred"] : undefined,
+    taskId,
   });
 
+  const enabledOptions = createListCollection({
+    items: [
+      { label: translate("filters.response.all"), value: "all" },
+      { label: translate("filters.response.pending"), value: "false" },
+      { label: translate("filters.response.received"), value: "true" },
+    ],
+  });
+
+  const handleResponseChange = useCallback(
+    ({ value }: { value: Array<string> }) => {
+      const [val] = value;
+
+      if (val === undefined || val === "all") {
+        searchParams.delete(RESPONSE_RECEIVED_PARAM);
+      } else {
+        searchParams.set(RESPONSE_RECEIVED_PARAM, val);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      searchParams.delete(OFFSET_PARAM);
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams, pagination, sorting, setTableURLState],
+  );
+
   return (
-    <DataTable
-      columns={taskInstanceColumns({
-        dagId,
-        runId,
-        taskId: Boolean(groupId) ? undefined : taskId,
-        translate,
-      })}
-      data={filteredData ?? []}
-      errorMessage={<ErrorAlert error={error} />}
-      initialState={tableURLState}
-      isLoading={isLoading}
-      modelName={translate("hitl:requiredAction_other")}
-      onStateChange={setTableURLState}
-      total={filteredData?.length}
-    />
+    <Box>
+      {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
+        <Heading size="md">
+          {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
+        </Heading>
+      ) : undefined}
+      <Box mt={3}>
+        <Select.Root
+          collection={enabledOptions}
+          maxW="250px"
+          onValueChange={handleResponseChange}
+          value={[responseReceived ?? "all"]}
+        >
+          <Select.Label fontSize="xs">{translate("requiredActionState")}</Select.Label>
+          <Select.Trigger isActive={Boolean(responseReceived)}>
+            <Select.ValueText />
+          </Select.Trigger>
+          <Select.Content>
+            {enabledOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Box>
+      <DataTable
+        columns={taskInstanceColumns({
+          dagId,
+          runId,
+          taskId,
+          translate,
+        })}
+        data={data?.hitl_details ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isLoading={isLoading}
+        modelName={translate("requiredAction_other")}
+        onStateChange={setTableURLState}
+        total={data?.total_entries}
+      />
+    </Box>
   );
 };

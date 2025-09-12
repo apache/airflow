@@ -65,8 +65,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_boto_schema.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/batch/test_utils.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
@@ -117,6 +115,7 @@ class TestProjectStructure:
             "providers/edge3/tests/unit/edge3/worker_api/test_app.py",
             "providers/edge3/tests/unit/edge3/worker_api/test_auth.py",
             "providers/edge3/tests/unit/edge3/worker_api/test_datamodels.py",
+            "providers/edge3/tests/unit/edge3/worker_api/test_datamodels_ui.py",
             "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_exceptions.py",
@@ -197,6 +196,7 @@ class TestProjectStructure:
             "providers/standard/tests/unit/standard/sensors/test_external_task.py",
             "providers/standard/tests/unit/standard/sensors/test_filesystem.py",
             "providers/standard/tests/unit/standard/utils/test_sensor_helper.py",
+            "providers/sftp/tests/unit/sftp/test_exceptions.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")

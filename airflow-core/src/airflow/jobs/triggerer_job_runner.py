@@ -27,7 +27,6 @@ import time
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
-from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
@@ -49,6 +48,8 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteVariable,
+    DeleteXCom,
     DRCount,
     ErrorResponse,
     GetConnection,
@@ -59,6 +60,10 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    MaskSecret,
+    OKResponse,
+    PutVariable,
+    SetXCom,
     TaskStatesResult,
     TICount,
     UpdateHITLDetail,
@@ -241,7 +246,8 @@ ToTriggerRunner = Annotated[
     | TICount
     | TaskStatesResult
     | HITLDetailResponseResult
-    | ErrorResponse,
+    | ErrorResponse
+    | OKResponse,
     Field(discriminator="type"),
 ]
 """
@@ -253,14 +259,19 @@ code).
 ToTriggerSupervisor = Annotated[
     messages.TriggerStateChanges
     | GetConnection
+    | DeleteVariable
     | GetVariable
+    | PutVariable
+    | DeleteXCom
     | GetXCom
+    | SetXCom
     | GetTICount
     | GetTaskStates
     | GetDagRunState
     | GetDRCount
     | GetHITLDetailResponse
-    | UpdateHITLDetail,
+    | UpdateHITLDetail
+    | MaskSecret,
     Field(discriminator="type"),
 ]
 """
@@ -427,14 +438,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if isinstance(process_state, ProcessStateResponse):
                 resp = process_state
 
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
+
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                # TODO: call for help to figure out why this is needed
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
@@ -443,6 +466,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = xcom
+        elif isinstance(msg, SetXCom):
+            self.client.xcoms.set(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+            )
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -489,6 +516,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, MaskSecret):
+            from airflow.sdk.log import mask_secret
+
+            mask_secret(msg.value, msg.name)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
@@ -496,10 +527,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
-        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
-
-        reset_secrets_masker()
-
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
@@ -591,6 +618,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
             .union(trigger[0] for trigger in self.failed_triggers)
+            .union(trigger.id for trigger in self.creating_triggers)
         )
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
@@ -669,11 +697,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         import msgspec
         from structlog.stdlib import NAME_TO_LEVEL
 
+        from airflow.sdk.log import configure_logging
+
+        configure_logging()
+
         fallback_log = structlog.get_logger(logger_name=__name__)
 
         from airflow.sdk.log import logging_processors
 
-        processors, _ = logging_processors(enable_pretty_log=False)
+        processors = logging_processors(json_output=True)
 
         def get_logger(trigger_id: int) -> WrappedLogger:
             # TODO: Is a separate dict worth it, or should we make `self.running_triggers` a dict?
@@ -698,16 +730,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 # Log message about the TriggerRunner itself -- just output it
                 log = fallback_log
-
-            if ts := event.get("timestamp"):
-                # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
-                # datetime.strptime
-                #
-                # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-                # from a subprocess we know that the timezone of the log message is the same, so having some
-                # messages include tz (from subprocess) but others not (ones from supervisor process) is
-                # confusing.
-                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
 
             if exc := event.pop("exception", None):
                 # TODO: convert the dict back to a pretty stack trace
@@ -750,7 +772,10 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         return async_to_sync(self.asend)(msg)
 
     async def _aread_frame(self):
-        len_bytes = await self._async_reader.readexactly(4)
+        try:
+            len_bytes = await self._async_reader.readexactly(4)
+        except ConnectionResetError:
+            asyncio.current_task().cancel("Supervisor closed")
         length = int.from_bytes(len_bytes, byteorder="big")
         if length >= 2**32:
             raise OverflowError(f"Refusing to receive messages larger than 4GiB {length=}")
@@ -854,8 +879,10 @@ class TriggerRunner:
                 await asyncio.sleep(1)
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
-                    count = len(self.triggers)
-                    self.log.info("%i triggers currently running", count)
+                    watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
+                    triggers = len(self.triggers) - watchers
+                    self.log.info("%i triggers currently running", triggers)
+                    self.log.info("%i watchers currently running", watchers)
                     last_status = now
 
         except Exception:
@@ -940,6 +967,7 @@ class TriggerRunner:
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance), name=trigger_name
                 ),
+                "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }

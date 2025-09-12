@@ -24,8 +24,10 @@ import itertools
 import json
 import logging
 import os
+import signal
 import sys
 import time
+import traceback
 import warnings
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
@@ -58,6 +60,21 @@ from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.task_instance_session import get_current_task_instance_session
+
+USE_PSYCOPG3: bool
+try:
+    from importlib.util import find_spec
+
+    import sqlalchemy
+    from packaging.version import Version
+
+    is_psycopg3 = find_spec("psycopg") is not None
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
+
+    USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
@@ -93,8 +110,47 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "3bda03debd04",
+    "3.1.0": "eaf332f43c7c",
 }
+
+
+@contextlib.contextmanager
+def timeout_with_traceback(seconds, message="Operation timed out"):
+    """
+    Raise a TimeoutException after specified seconds.
+
+    Logs the full call stack when timeout occurs.
+
+    Note: This uses SIGALRM and only works on Unix systems (not Windows).
+    """
+
+    class TimeoutException(Exception):
+        """Exception raised when a timeout occurs."""
+
+    def timeout_handler(signum, frame):
+        # Capture the full call stack
+        stack_trace = "".join(traceback.format_stack(frame))
+
+        # Log the timeout and stack trace
+        log.error(
+            "\n%s after %s seconds\nFull call stack at timeout:\n%s",
+            message,
+            seconds,
+            stack_trace,
+        )
+
+        raise TimeoutException(message)
+
+    # Set the signal handler
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+
+    try:
+        yield
+    finally:
+        # Cancel the alarm and restore the old handler
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session
@@ -571,19 +627,110 @@ def get_default_connections():
     return conns
 
 
-def _create_db_from_orm(session):
-    log.info("Creating Airflow database tables from the ORM")
-    from alembic import command
+class AutocommitEngineForMySQL:
+    """
+    Context manager to temporarily use AUTOCOMMIT isolation level for MySQL.
 
+    This is needed to work around MySQL 8.4 metadata lock issues with SQLAlchemy 2.0.
+    """
+
+    def __init__(self):
+        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
+        self.original_prepare_engine_args = None
+
+    def __enter__(self):
+        if not self.is_mysql:
+            return self
+
+        log.info("Entering AUTOCOMMIT mode for MySQL DDL operations")
+
+        # Save and replace prepare_engine_args
+        self.original_prepare_engine_args = settings.prepare_engine_args
+
+        def autocommit_prepare_engine_args(disable_connection_pool=False, pool_class=None):
+            # Call with keyword arguments to preserve the calling convention
+            args = self.original_prepare_engine_args(
+                disable_connection_pool=disable_connection_pool, pool_class=pool_class
+            )
+            args["isolation_level"] = "AUTOCOMMIT"
+            return args
+
+        settings.prepare_engine_args = autocommit_prepare_engine_args
+
+        # Recreate engine with AUTOCOMMIT
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.is_mysql:
+            return
+
+        log.info("Exiting AUTOCOMMIT mode, restoring normal transaction engine")
+
+        # Restore original function
+        settings.prepare_engine_args = self.original_prepare_engine_args
+
+        # Recreate engine with normal settings
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+
+def _create_db_from_orm(session):
+    """Create database tables from ORM models and stamp alembic version."""
     from airflow.models.base import Base
 
+    log.info("Creating Airflow database tables from the ORM")
+
+    # Debug setup if requested
+    _setup_debug_logging_if_needed()
+
+    log.info("Creating context")
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        log.info("Binding engine")
         engine = session.get_bind().engine
+        log.info("Pool status: %s", engine.pool.status())
+
+        log.info("Creating metadata")
         Base.metadata.create_all(engine)
-        # stamp the migration head
+
+        log.info("Getting alembic config")
         config = _get_alembic_config()
-        command.stamp(config, "head")
+
+        # Use AUTOCOMMIT for DDL to avoid metadata lock issues
+        with AutocommitEngineForMySQL():  # TODO: enable for sqlite too
+            from alembic import command
+
+            log.info("Stamping migration head")
+            command.stamp(config, "head")
+
         log.info("Airflow database tables created")
+
+
+def _setup_debug_logging_if_needed():
+    """Set up debug logging and stack trace dumping if SQLALCHEMY_ENGINE_DEBUG is set."""
+    if not os.environ.get("SQLALCHEMY_ENGINE_DEBUG"):
+        return
+
+    import faulthandler
+    import threading
+
+    # Enable SQLA debug logging
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+
+    # Enable Fault Handler
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+
+    # Print Active Threads and Stack Traces Periodically
+    def dump_stacks():
+        while True:
+            for thread_id, frame in sys._current_frames().items():
+                log.info("\nThread %s stack:", thread_id)
+                traceback.print_stack(frame)
+            time.sleep(300)
+
+    threading.Thread(target=dump_stacks, daemon=True).start()
 
 
 @provide_session
@@ -596,10 +743,11 @@ def initdb(session: Session = NEW_SESSION):
     import_all_models()
 
     db_exists = _get_current_revision(session)
-    if db_exists:
-        upgradedb(session=session)
-    else:
-        _create_db_from_orm(session=session)
+    with timeout_with_traceback(60 * 20, "DB upgrade/creation timed out."):
+        if db_exists:
+            upgradedb(session=session)
+        else:
+            _create_db_from_orm(session=session)
 
     external_db_manager.initdb(session)
     # Add default pool & sync log_template
@@ -1054,23 +1202,9 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
-    # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
+    # If downgrading to less than 3.0.0, we need to handle the FAB provider
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
-        unitest_mode = conf.getboolean("core", "unit_test_mode")
-        if unitest_mode:
-            try:
-                from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-                dbm = FABDBManager(session)
-                dbm.initdb()
-            except ImportError:
-                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
-                return
-        if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
-            raise AirflowException(
-                "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
-                "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
-            )
+        _handle_fab_downgrade(session=session)
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
@@ -1081,6 +1215,62 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations to Airflow database.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+
+def _get_fab_migration_version(*, session: Session) -> str | None:
+    """
+    Get the current FAB migration version from the database.
+
+    This intentionally queries the db directly, as the FAB provider and FABDBManager may not even be installed.
+
+    :param session: sqlalchemy session for connection to airflow metadata database
+    :return: The current FAB migration revision, or None if not found
+    """
+    try:
+        result = session.execute(text("SELECT version_num FROM alembic_version_fab LIMIT 1"))
+        row = result.fetchone()
+        return row[0] if row else None
+    except Exception:
+        # Table might not exist or other database error
+        return None
+
+
+def _handle_fab_downgrade(*, session: Session) -> None:
+    """
+    Handle FAB downgrade requirements for downgrades to Airflow versions < 3.0.0.
+
+    First, checks if the FAB db version matches the known version from 1.4.0.
+    If it matches, no FAB db tables need to be touched.
+    Otherwise, imports the FABDBManager and calls its downgrade method.
+
+    :param session: sqlalchemy session for connection to airflow metadata database
+    :raises RuntimeError: If FAB provider is required but cannot be imported
+    """
+    fab_version = _get_fab_migration_version(session=session)
+    if fab_version == "6709f7a774b9":  # 1.4.0
+        # FAB version matches - we can proceed without touching the FAB db tables
+        log.info(
+            "FAB migration version %s matches known version from 1.4.0. "
+            "FAB provider is not required for downgrade.",
+            fab_version,
+        )
+        return
+
+    # FAB db version is different or not found - require the FAB provider
+    try:
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
+    except ImportError:
+        raise RuntimeError(
+            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "downgrade to <3.0.0."
+        )
+    dbm = FABDBManager(session)
+    if hasattr(dbm, "reset_to_2_x"):
+        dbm.reset_to_2_x()
+    else:
+        # Older version before we added that function, it only has a single migration so we can just create the tables
+        # to ensure they are there
+        dbm.create_db_from_orm()
 
 
 def drop_airflow_models(connection):
@@ -1151,15 +1341,28 @@ def create_global_lock(
     dialect = conn.dialect
     try:
         if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+            if USE_PSYCOPG3:
+                # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
+                # The timeout value must be passed as a string of milliseconds.
+                conn.execute(
+                    text("SELECT set_config('lock_timeout', :timeout, false)"),
+                    {"timeout": str(lock_timeout)},
+                )
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
     finally:
         if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
+            if USE_PSYCOPG3:
+                # Use set_config() to reset the timeout to its default (0 = off/wait forever).
+                conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
             (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")

@@ -47,9 +47,9 @@ from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -860,7 +860,8 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow._shared.secrets_masker import mask_secret as mask_secret_core
+        from airflow.sdk.log import mask_secret as mask_secret_sdk
 
         for section, key in self.sensitive_config_values:
             try:
@@ -873,14 +874,17 @@ class AirflowConfigParser(ConfigParser):
                     key,
                 )
                 continue
-            mask_secret(value)
+            mask_secret_core(value)
+            mask_secret_sdk(value)
 
-    def _env_var_name(self, section: str, key: str) -> str:
-        return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
+    def _env_var_name(self, section: str, key: str, team_name: str | None = None) -> str:
+        team_component: str = f"{team_name.upper()}___" if team_name else ""
+        return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
 
-    def _get_env_var_option(self, section: str, key: str):
-        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
-        env_var = self._env_var_name(section, key)
+    def _get_env_var_option(self, section: str, key: str, team_name: str | None = None):
+        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore) OR for team based
+        # configuration must have the format AIRFLOW__{TEAM_NAME}___{SECTION}__{KEY}
+        env_var: str = self._env_var_name(section, key, team_name=team_name)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
         # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
@@ -902,7 +906,16 @@ class AirflowConfigParser(ConfigParser):
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
-                return run_command(command)
+                try:
+                    cmd_output = run_command(command)
+                except AirflowConfigException as e:
+                    raise e
+                except Exception as e:
+                    raise AirflowConfigException(
+                        f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
+                        f" Please check the {fallback_key} value."
+                    ) from e
+                return cmd_output
         return None
 
     def _get_cmd_option_from_config_sources(
@@ -971,6 +984,7 @@ class AirflowConfigParser(ConfigParser):
         suppress_warnings: bool = False,
         lookup_from_deprecated: bool = True,
         _extra_stacklevel: int = 0,
+        team_name: str | None = None,
         **kwargs,
     ) -> str | None:
         section = section.lower()
@@ -1033,6 +1047,7 @@ class AirflowConfigParser(ConfigParser):
             section,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
+            team_name=team_name,
         )
         if option is not None:
             return option
@@ -1159,13 +1174,14 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
+        team_name: str | None = None,
     ) -> str | None:
-        option = self._get_env_var_option(section, key)
+        option = self._get_env_var_option(section, key, team_name=team_name)
         if option is not None:
             return option
         if deprecated_section and deprecated_key:
             with self.suppress_future_warnings():
-                option = self._get_env_var_option(deprecated_section, deprecated_key)
+                option = self._get_env_var_option(deprecated_section, deprecated_key, team_name=team_name)
             if option is not None:
                 if issue_warning:
                     self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)

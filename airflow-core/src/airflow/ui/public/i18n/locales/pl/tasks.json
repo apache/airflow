@@ -1,0 +1,10 @@
+{
+  "mapped": "Zmapowane",
+  "notMapped": "Niezmapowane",
+  "retries": "Ponowne próby",
+  "searchTasks": "Szukaj zadań",
+  "selectMapped": "Wybierz zmapowane",
+  "selectOperator": "Wybierz operatory",
+  "selectRetryValues": "Wybierz wartości prób",
+  "selectTriggerRules": "Wybierz reguły wyzwalania"
+}

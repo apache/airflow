@@ -348,5 +348,5 @@ The dependencies for Airflow providers are managed in the ``provider.yaml`` file
 All provider dependencies, including versions and constraints, are listed in this file.
 When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
 
-To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
-Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.
+To ensure consistency and manage dependencies, ``prek`` is configured to automatically update all dependencies.
+Once you have ``prek`` installed, it will automatically handle the dependency updates.

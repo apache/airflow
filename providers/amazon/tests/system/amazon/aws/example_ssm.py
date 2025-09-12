@@ -27,7 +27,12 @@ from airflow.providers.amazon.aws.operators.ec2 import EC2CreateInstanceOperator
 from airflow.providers.amazon.aws.operators.ssm import SsmRunCommandOperator
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
 from airflow.sdk import DAG, chain, task
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, get_role_name
 from system.amazon.aws.utils.ec2 import get_latest_ami_id
@@ -156,7 +161,7 @@ with DAG(
     instance_profile_name = f"{env_id}-ssm-instance-profile"
 
     config = {
-        "InstanceType": "t2.micro",
+        "InstanceType": "t4g.micro",
         "IamInstanceProfile": {"Name": instance_profile_name},
         # Optional: Tags for identifying test resources in the AWS console
         "TagSpecifications": [

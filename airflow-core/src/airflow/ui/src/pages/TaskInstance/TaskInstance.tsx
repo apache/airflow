@@ -24,11 +24,9 @@ import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } fr
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import {
-  useHumanInTheLoopServiceGetHitlDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -36,9 +34,8 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
-
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
@@ -79,30 +76,12 @@ export const TaskInstance = () => {
 
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
-  const { data: hitlDetails } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagIdPattern: dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId && runId),
-      refetchInterval,
-    },
-  );
-
-  const hasHitlForTask = Boolean(
-    hitlDetails?.hitl_details.find((hitl) => hitl.task_instance.task_id === taskId),
-  );
-
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = useMemo(
     () =>
-      Array.isArray(taskInstanceSummary?.child_states)
-        ? taskInstanceSummary.child_states
-            .map((_state: string, count: number) => count)
-            .reduce((acc: number, val: unknown) => acc + (typeof val === "number" ? val : 0), 0)
-        : 0,
+      Object.entries(taskInstanceSummary?.child_states ?? {})
+        .map(([_state, count]) => count)
+        .reduce((sum, val) => sum + val, 0),
     [taskInstanceSummary],
   );
   let newTabs = tabs;
@@ -121,12 +100,9 @@ export const TaskInstance = () => {
     ];
   }
 
-  const displayTabs = newTabs.filter((tab) => {
-    if (tab.value === "required_actions" && !hasHitlForTask) {
-      return false;
-    }
-
-    return true;
+  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
+    autoRedirect: true,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 
   return (

@@ -16,26 +16,66 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict
 
-ADOPTED = "adopted"
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.state import TaskInstanceState
 
-    # TODO: Remove after Airflow 2 support is removed
-    CommandType = Sequence[str]
 
-    # TaskInstance key, command, configuration, pod_template_file
-    KubernetesJobType = tuple[TaskInstanceKey, CommandType, Any, str | None]
+ADOPTED = "adopted"
 
-    # key, pod state, pod_name, namespace, resource_version
-    KubernetesResultsType = tuple[TaskInstanceKey, TaskInstanceState | str | None, str, str, str]
 
-    # pod_name, namespace, pod state, annotations, resource_version
-    KubernetesWatchType = tuple[str, str, TaskInstanceState | str | None, dict[str, str], str]
+class FailureDetails(TypedDict, total=False):
+    """Detailed information about pod/container failure."""
+
+    pod_status: str | None
+    pod_reason: str | None
+    pod_message: str | None
+    container_state: str | None
+    container_reason: str | None
+    container_message: str | None
+    exit_code: int | None
+    container_type: Literal["init", "main"] | None
+    container_name: str | None
+
+
+class KubernetesResults(NamedTuple):
+    """Results from Kubernetes task execution."""
+
+    key: TaskInstanceKey
+    state: TaskInstanceState | str | None
+    pod_name: str
+    namespace: str
+    resource_version: str
+    failure_details: FailureDetails | None
+
+
+class KubernetesWatch(NamedTuple):
+    """Watch event data from Kubernetes pods."""
+
+    pod_name: str
+    namespace: str
+    state: TaskInstanceState | str | None
+    annotations: dict[str, str]
+    resource_version: str
+    failure_details: FailureDetails | None
+
+
+# TODO: Remove after Airflow 2 support is removed
+CommandType = "Sequence[str]"
+
+
+class KubernetesJob(NamedTuple):
+    """Job definition for Kubernetes execution."""
+
+    key: TaskInstanceKey
+    command: Sequence[str]
+    kube_executor_config: Any
+    pod_template_file: str | None
+
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"

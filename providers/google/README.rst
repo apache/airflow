@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``17.0.0``
+Release: ``17.2.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 Google services including:
 
@@ -44,12 +43,12 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/17.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/17.2.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-google``
 
@@ -76,7 +75,7 @@ PIP package                                 Version required
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.73.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
@@ -91,7 +90,7 @@ PIP package                                 Version required
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
 ``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.12.0``
+``google-cloud-dataproc``                   ``>=5.21.0``
 ``google-cloud-dataproc-metastore``         ``>=1.12.0``
 ``google-cloud-dlp``                        ``>=3.12.0``
 ``google-cloud-kms``                        ``>=2.15.0``
@@ -173,4 +172,4 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/17.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/17.2.0/changelog.html>`_.

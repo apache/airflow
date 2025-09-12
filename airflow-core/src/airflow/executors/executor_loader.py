@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 _alias_to_executors: dict[str, ExecutorName] = {}
 _module_to_executors: dict[str, ExecutorName] = {}
 # Used to lookup an ExecutorName via the team id.
-_team_id_to_executors: dict[str | None, ExecutorName] = {}
+_team_name_to_executors: dict[str | None, ExecutorName] = {}
 _classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
@@ -67,18 +67,13 @@ class ExecutorLoader:
 
         :return: List of executor names from Airflow configuration
         """
-        from airflow.configuration import conf
-
         if _executor_names:
             return _executor_names
 
-        all_executor_names: list[tuple[None | str, list[str]]] = [
-            (None, conf.get_mandatory_list_value("core", "EXECUTOR"))
-        ]
-        all_executor_names.extend(cls._get_team_executor_configs())
+        all_executor_names: list[tuple[str | None, list[str]]] = cls._get_team_executor_configs()
 
         executor_names = []
-        for team_id, executor_names_config in all_executor_names:
+        for team_name, executor_names_config in all_executor_names:
             executor_names_per_team = []
             for name in executor_names_config:
                 if len(split_name := name.split(":")) == 1:
@@ -87,12 +82,12 @@ class ExecutorLoader:
                     # paths won't be provided by the user in that case.
                     if core_executor_module := cls.executors.get(name):
                         executor_names_per_team.append(
-                            ExecutorName(module_path=core_executor_module, alias=name, team_id=team_id)
+                            ExecutorName(module_path=core_executor_module, alias=name, team_name=team_name)
                         )
                     # A module path was provided
                     else:
                         executor_names_per_team.append(
-                            ExecutorName(alias=None, module_path=name, team_id=team_id)
+                            ExecutorName(alias=None, module_path=name, team_name=team_name)
                         )
                 # An alias was provided with the module path
                 elif len(split_name) == 2:
@@ -109,7 +104,7 @@ class ExecutorLoader:
                             f"configuration must be a module path but received: {module_path}"
                         )
                     executor_names_per_team.append(
-                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
+                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_name=team_name)
                     )
                 else:
                     raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
@@ -133,7 +128,7 @@ class ExecutorLoader:
                 _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a team id. It _may_ be None, for now that means it is a system
             # level executor
-            _team_id_to_executors[executor_name.team_id] = executor_name
+            _team_name_to_executors[executor_name.team_name] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
             _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
@@ -157,7 +152,7 @@ class ExecutorLoader:
             raise AirflowConfigException("Configuring multiple team based executors is not yet supported!")
 
     @classmethod
-    def _get_team_executor_configs(cls) -> list[tuple[str, list[str]]]:
+    def _get_team_executor_configs(cls) -> list[tuple[str | None, list[str]]]:
         """
         Return a list of executor configs to be loaded.
 
@@ -166,13 +161,30 @@ class ExecutorLoader:
         """
         from airflow.configuration import conf
 
-        team_config = conf.get("core", "multi_team_config_files", fallback=None)
-        configs = []
-        if team_config:
-            cls.block_use_of_multi_team()
-            for team in team_config.split(","):
-                (_, team_id) = team.split(":")
-                configs.append((team_id, conf.get_mandatory_list_value("core", "executor", team_id=team_id)))
+        executor_config = conf.get_mandatory_value("core", "executor")
+        if not executor_config:
+            raise AirflowConfigException(
+                "The 'executor' key in the 'core' section of the configuration is mandatory and cannot be empty"
+            )
+        configs: list[tuple[str | None, list[str]]] = []
+        # The executor_config can look like a few things. One is just a single executor name, such as
+        # "CeleryExecutor". Or a list of executors, such as "CeleryExecutor,KubernetesExecutor,module.path.to.executor".
+        # In these cases these are all executors that are available to all teams, with the first one being the
+        # default executor, as usual. The config can also look like a list of executors, per team, with the team name
+        # prefixing each list of executors separated by a equal sign and then each team list separated by a
+        # semi-colon.
+        # "LocalExecutor;team1=CeleryExecutor;team2=KubernetesExecutor,module.path.to.executor".
+        for team_executor_config in executor_config.split(";"):
+            # The first item in the list may not have a team id (either empty string before the equal
+            # sign or no equal sign at all), which means it is a global executor config.
+            if "=" not in team_executor_config or team_executor_config.startswith("="):
+                team_executor_config = team_executor_config.strip("=")
+                # Split by comma to get the individual executor names and strip spaces off of them
+                configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
+            else:
+                cls.block_use_of_multi_team()
+                team_name, executor_names = team_executor_config.split("=")
+                configs.append((team_name, [name.strip() for name in executor_names.split(",")]))
         return configs
 
     @classmethod
@@ -255,8 +267,8 @@ class ExecutorLoader:
         try:
             executor_cls, import_source = cls.import_executor_cls(_executor_name)
             log.debug("Loading executor %s from %s", _executor_name, import_source.value)
-            if _executor_name.team_id:
-                executor = executor_cls(team_id=_executor_name.team_id)
+            if _executor_name.team_name:
+                executor = executor_cls(team_name=_executor_name.team_name)
             else:
                 executor = executor_cls()
 

@@ -26,9 +26,12 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
     except ImportError:
-        from airflow.utils.log.secrets_masker import mask_secret
+        try:
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+        except ImportError:
+            from airflow.utils.log.secrets_masker import mask_secret
 
 
 class SsmHook(AwsBaseHook):

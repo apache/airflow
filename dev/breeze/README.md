@@ -131,10 +131,10 @@ Note that when you update dependencies/lock them you should commit the changes i
 See [uv documentation](https://docs.astral.sh/uv/getting-started/) for more details on using `uv`.
 
 
-PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
+PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PREK.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: ca0dde3dc813baf255b7f645c73025b9ce0729d24acf33499f15ba62a6d94cb6e665fa84c575fc88b5a20f3a1c73ded735ff2dcfad353d2b91434b03e11a4467
+Package config hash: 85824868b3ba0b7a43509b65f87150d872d2e2f50fea09872d37c9d1e0207ae3084072fb126ba5ebc314c83d86fa17e026630ee3253ddd44a0e139d3f9f1e281
 
 ---------------------------------------------------------------------------------------------------------

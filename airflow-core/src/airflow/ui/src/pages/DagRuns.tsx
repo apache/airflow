@@ -202,7 +202,6 @@ export const DagRuns = () => {
     },
     undefined,
     {
-      enabled: !isNaN(pageSize),
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
@@ -303,7 +302,7 @@ export const DagRuns = () => {
           onValueChange={handleStateChange}
           value={[filteredState ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredState)} minW="max-content">
+          <Select.Trigger colorPalette="brand" isActive={Boolean(filteredState)} minW="max-content">
             <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
@@ -335,7 +334,7 @@ export const DagRuns = () => {
           onValueChange={handleTypeChange}
           value={[filteredType ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredType)} minW="max-content">
+          <Select.Trigger colorPalette="brand" isActive={Boolean(filteredType)} minW="max-content">
             <Select.ValueText width="auto">
               {() =>
                 filteredType === null ? (

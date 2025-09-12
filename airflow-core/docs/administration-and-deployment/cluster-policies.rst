@@ -18,17 +18,19 @@
 Cluster Policies
 ================
 
-If you want to check or mutate dags or Tasks on a cluster-wide level, then a Cluster Policy will let you do
-that. They have three main purposes:
+If you want to check or mutate Dags or Tasks on a cluster-wide level, then a Cluster Policy will let you do
+it. They also let you apply cluster-wide settings to Dags based on the dag_id or other properties.
 
-* Checking that dags / tasks meet a certain standard
-* Setting default arguments on dags / tasks
+Common use-cases include:
+
+* Checking that Dags / tasks meet a certain standard
+* Setting default arguments on Dags / tasks
 * Performing custom routing logic
 
 There are three main types of cluster policy:
 
 * ``dag_policy``: Takes a :class:`~airflow.models.dag.DAG` parameter called ``dag``. Runs at load time of the
-  DAG from DagBag :class:`~airflow.models.dagbag.DagBag`.
+  Dag from DagBag :class:`~airflow.models.dagbag.DagBag`.
 * ``task_policy``: Takes a :class:`~airflow.models.baseoperator.BaseOperator` parameter called ``task``. The
   policy gets executed when the task is created during parsing of the task from DagBag at load time. This
   means that the whole task definition can be altered in the task policy. It does not relate to a specific
@@ -36,19 +38,19 @@ There are three main types of cluster policy:
   executed in the future.
 * ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called
   ``task_instance``. The ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
-  relates to a particular DagRun. It is executed in a "worker", not in the dag file processor, just before the
+  relates to a particular DagRun. It is executed in a "worker", not in the Dag file processor, just before the
   task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that
   task.
 
-The DAG and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
-exception to indicate that the dag/task they were passed is not compliant and should not be loaded.
+The Dag and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+exception to indicate that the Dag/task they were passed is not compliant and should not be loaded.
 
 They can also raise the :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception
-when skipping that DAG is needed intentionally. Unlike :class:`~airflow.exceptions.AirflowClusterPolicyViolation`,
+when skipping that Dag is needed intentionally. Unlike :class:`~airflow.exceptions.AirflowClusterPolicyViolation`,
 this exception is not displayed on the Airflow web UI (Internally, it's not recorded on ``import_error`` table on meta database.)
 
-Any extra attributes set by a cluster policy take priority over those defined in your DAG file; for example,
-if you set an ``sla`` on your Task in the DAG file, and then your cluster policy also sets an ``sla``, the
+Any extra attributes set by a cluster policy take priority over those defined in your Dag file; for example,
+if you set an ``sla`` on your Task in the Dag file, and then your cluster policy also sets an ``sla``, the
 cluster policy's value will take precedence.
 
 .. _administration-and-deployment:cluster-policies-define:
@@ -104,7 +106,7 @@ configure local settings.
     [project.entry-points.'airflow.policy']
     _ = 'my_airflow_plugin.policies'
 
-   The entrypoint group must be ``airflow.policy``, and the name is ignored. The value should be your module (or class) decorated with the ``@hookimpl`` marker.
+   The entrypoint group must be ``airflow.policy``, and the name must be unique per entry, otherwise duplicate entries will be ignored by pluggy. The value should be your module (or class) decorated with the ``@hookimpl`` marker.
 
    Once you have done that, and you have installed your distribution into your Airflow env, the policy functions will get called by the various Airflow components. (The exact call order is undefined, so don't rely on any particular calling order if you have multiple plugins).
 
@@ -124,10 +126,10 @@ Available Policy Functions
 Examples
 --------
 
-DAG policies
+Dag policies
 ~~~~~~~~~~~~
 
-This policy checks if each DAG has at least one tag defined:
+This policy checks if each Dag has at least one tag defined:
 
 .. literalinclude:: /../tests/unit/cluster_policies/__init__.py
       :language: python
@@ -140,7 +142,7 @@ This policy checks if each DAG has at least one tag defined:
 
 .. note::
 
-    DAG policies are applied after the DAG has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
+    Dag policies are applied after the Dag has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
 
 Task policies
 ~~~~~~~~~~~~~

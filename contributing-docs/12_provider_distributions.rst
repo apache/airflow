@@ -107,9 +107,9 @@ needs to be updated after you change dependencies:
 
 .. code:: bash
 
-    breeze static-checks --type update-providers-dependencies --all-files
+    prek update-providers-dependencies --all-files
 
-If you have ``pre-commit`` installed, this will be done automatically for you when you commit the changes and
+If you have ``prek`` installed, this will be done automatically for you when you commit the changes and
 you should do it before you make a PR with such changed dependency changes
 
 Also, you should rebuild the image ``breeze ci-image build`` or answer ``y`` when you are asked to rebuild the
@@ -121,7 +121,7 @@ Provider's cross-dependencies
 Some of the providers have cross-dependencies with other providers distributions.
 This typically happens for transfer operators where operators use hooks from the other providers
 in case they are transferring data between the providers. The list of dependencies is maintained
-(automatically with the ``update-providers-dependencies`` pre-commit) in the
+(automatically with the ``update-providers-dependencies`` prek hook) in the
 ``generated/provider_dependencies.json``.
 
 Cross-dependencies between providers are converted into optional dependencies (extras) - if
@@ -165,7 +165,7 @@ in the previous chapter. However when they are locally developed, together with 
 of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
 the provider. The ``provider.yaml`` is the single source of truth for the provider metadata and it is
 there where you should add and remove dependencies for providers (following by running
-``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
+``update-providers-dependencies`` prek hook to synchronize the dependencies with ``pyproject.toml``
 of Airflow).
 
 The ``provider.yaml`` file is compliant with the schema that is available in
@@ -235,7 +235,7 @@ The rules are as follows:
        * PROVIDER
     * system
       * PROVIDER
-          * example_dags -> example DAGs are stored here (used for documentation and System Tests)
+          * example_dags -> example Dags are stored here (used for documentation and System Tests)
 
 * Module names do not contain word "hooks", "operators" etc. The right type comes from
   the python package. For example 'hooks.datastore' module contains DataStore hook and
@@ -278,7 +278,7 @@ and documented. Part of the documentation is ``provider.yaml`` file ``integratio
 ``version`` information. This information is stripped-out from provider info available at runtime,
 however it is used to automatically generate documentation for the provider.
 
-If you have pre-commits installed, pre-commit will warn you and let you know what changes need to be
+If you have prek installed, it will warn you and let you know what changes need to be
 done in the ``provider.yaml`` file when you add a new Operator, Hooks, Sensor or Transfer. You can
 also take a look at the other ``provider.yaml`` files as examples.
 
@@ -293,7 +293,7 @@ Well documented provider contains those:
 You can see for example ``google`` provider which has very comprehensive documentation:
 
 * `Documentation <../../providers/google/docs>`_
-* `System tests/Example DAGs <../providers/google/tests/system/google/>`_
+* `System tests/Example Dags <../providers/google/tests/system/google/>`_
 
 Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
 they are in ``tests/system`` is because we are using the example dags for various purposes:
