@@ -44,7 +44,7 @@ class HITLTriggerEventSuccessPayload(TypedDict, total=False):
 
     chosen_options: list[str]
     params_input: dict[str, Any]
-    responded_by_user: HITLUser
+    responded_by_user: HITLUser | None
     timedout: bool
 
 
@@ -148,10 +148,7 @@ class HITLTrigger(BaseTrigger):
                     HITLTriggerEventSuccessPayload(
                         chosen_options=self.defaults,
                         params_input=self.params,
-                        responded_by_user=HITLUser(
-                            id="Fallback to defaults",
-                            name="Fallback to defaults",
-                        ),
+                        responded_by_user=None,
                         timedout=True,
                     )
                 )
