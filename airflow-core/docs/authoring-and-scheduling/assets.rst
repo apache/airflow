@@ -124,7 +124,7 @@ This dictionary supports Jinja templating, allowing runtime values such as execu
         },
     )
 
-    At runtime, the templates are rendered in the task's execution context, and the resulting dictionary is attached to the emitted AssetEvent. This allows metadata such as row counts, partitions, or execution identifiers to be recorded for each specific event.
+    At runtime, the templates are rendered in the task's execution context, and the resulting dictionary is attached to the emitted asset event's ``extra``. This allows metadata such as row counts, partitions, or execution identifiers to be recorded for each specific event.
 
     Distinction between extra and event_extra_template
 
