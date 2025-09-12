@@ -36,8 +36,8 @@ from typing import TYPE_CHECKING
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":

@@ -34,11 +34,11 @@ from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun, Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
-from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 from tests_common.test_utils.asserts import assert_queries_count

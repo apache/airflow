@@ -39,7 +39,12 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseSensorOperator
 else:
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
-from airflow.utils.state import TaskInstanceState
+from airflow.providers.google.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

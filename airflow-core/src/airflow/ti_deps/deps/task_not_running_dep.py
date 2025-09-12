@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
 
 
 class TaskNotRunningDep(BaseTIDep):

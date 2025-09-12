@@ -24,12 +24,12 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.models.team import Team
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
