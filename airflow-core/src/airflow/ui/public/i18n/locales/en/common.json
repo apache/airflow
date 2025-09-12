@@ -100,6 +100,12 @@
     "or": "OR"
   },
   "filter": "Filter",
+  "filters": {
+    "logicalDateFrom": "Logical Date From",
+    "logicalDateTo": "Logical Date To",
+    "runAfterFrom": "Run After From",
+    "runAfterTo": "Run After To"
+  },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -140,6 +146,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",

@@ -64,7 +64,7 @@ describe("Task log grouping", () => {
     );
 
     const summarySource = screen.getByTestId(
-      'summary-Log message source details: sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
+      'summary-Log message source details sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
     );
 
     expect(summarySource).toBeVisible();
