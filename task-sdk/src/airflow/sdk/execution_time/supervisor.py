@@ -803,11 +803,12 @@ class WatchedSubprocess:
                 self.process_log.critical(SIGSEGV_MESSAGE)
             # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
             elif name := getattr(self._exit_code, "name", None):
-                message = "Process terminated by signal"
+                message = "Process terminated by signal."
                 level = logging.ERROR
                 if self._exit_code == -signal.SIGKILL:
-                    message += ". For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#TaskRunner-killed"
+                    message += " Likely out of memory error (OOM)."
                     level = logging.CRITICAL
+                message += " For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#process-terminated-by-signal."
                 self.process_log.log(level, message, signal=int(self._exit_code), signal_name=name)
             elif self._exit_code:
                 # Run of the mill exit code (1, 42, etc).
