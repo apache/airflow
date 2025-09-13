@@ -362,8 +362,6 @@ repos:
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
         entry: zizmor
-        args:
-          - "--fix"
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
