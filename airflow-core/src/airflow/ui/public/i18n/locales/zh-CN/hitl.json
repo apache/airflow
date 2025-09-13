@@ -8,6 +8,8 @@
   },
   "requiredAction_one": "待响应的任务实例",
   "requiredAction_other": "待响应的任务实例",
+  "requiredActionCount_one": "需要响应的任务实例 ({{count}})",
+  "requiredActionCount_other": "需要响应的任务实例 ({{count}})",
   "requiredActionState": "待响应的任务实例状态",
   "response": {
     "error": "响应失败",
@@ -23,6 +25,7 @@
     "approvalRequired": "需要批准",
     "choiceReceived": "已选择",
     "choiceRequired": "需要选择",
+    "noResponseReceived": "需要操作的",
     "rejectionReceived": "已拒绝",
     "responseReceived": "已响应",
     "responseRequired": "需要响应"
