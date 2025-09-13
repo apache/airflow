@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy.pool import NullPool
 
 from airflow import settings
-from airflow.exceptions import AirflowConfigException
+from airflow._shared.configuration import AirflowConfigException
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4

@@ -131,7 +131,7 @@ from airflow.sdk.execution_time.supervisor import (
 )
 from airflow.sdk.execution_time.task_runner import run
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 if TYPE_CHECKING:
     import kgb

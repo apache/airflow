@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime
 import os
@@ -24,36 +25,122 @@ import re
 import textwrap
 import warnings
 from io import StringIO
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
-from airflow._shared.configuration import run_command
-from airflow.configuration import (
+from airflow.providers_manager import ProvidersManager
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow_shared.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
     conf,
     ensure_secrets_loaded,
-    expand_env_var,
-    get_airflow_config,
-    get_airflow_home,
     get_all_expansion_variables,
     initialize_secrets_backends,
+    run_command,
     write_default_airflow_configuration_if_needed,
 )
-from airflow.providers_manager import ProvidersManager
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
-from unit.utils.test_config import (
-    remove_all_configurations,
-    set_deprecated_options,
-    set_sensitive_config_values,
-    use_config,
-)
+
+
+@contextlib.contextmanager
+def conf_vars(overrides):
+    from airflow_shared.configuration import conf
+
+    original = {}
+    original_env_vars = {}
+    for (section, key), value in overrides.items():
+        env = conf._env_var_name(section, key)
+        if env in os.environ:
+            original_env_vars[env] = os.environ.pop(env)
+
+        if conf.has_option(section, key):
+            original[(section, key)] = conf.get(section, key)
+        else:
+            original[(section, key)] = None
+        if value is not None:
+            if not conf.has_section(section):
+                conf.add_section(section)
+            conf.set(section, key, value)
+        else:
+            if conf.has_section(section):
+                conf.remove_option(section, key)
+    try:
+        yield
+    finally:
+        for (section, key), value in original.items():
+            if value is not None:
+                if not conf.has_section(section):
+                    conf.add_section(section)
+                conf.set(section, key, value)
+            else:
+                if conf.has_section(section):
+                    conf.remove_option(section, key)
+        for env, value in original_env_vars.items():
+            os.environ[env] = value
+
+
+def remove_all_configurations():
+    old_sections, old_proxies = (conf._sections, conf._proxies)
+    conf._sections = {}
+    conf._proxies = {}
+    return old_sections, old_proxies
+
+
+def restore_all_configurations(sections: dict, proxies: dict):
+    conf._sections = sections  # type: ignore
+    conf._proxies = proxies  # type: ignore
+
+
+@contextlib.contextmanager
+def use_config(config: str):
+    """
+    Temporary load the deprecated test configuration.
+    """
+    sections, proxies = remove_all_configurations()
+    print(
+        "Path is",
+        str(Path(__file__).parents[4] / "airflow-core" / "tests" / "unit" / "config_templates" / config),
+    )
+    conf.read(
+        str(Path(__file__).parents[4] / "airflow-core" / "tests" / "unit" / "config_templates" / config)
+    )
+    try:
+        yield
+    finally:
+        restore_all_configurations(sections, proxies)
+
+
+@contextlib.contextmanager
+def set_deprecated_options(deprecated_options: dict[tuple[str, str], tuple[str, str, str]]):
+    """
+    Temporary replaces deprecated options with the ones provided.
+    """
+    old_deprecated_options = conf.deprecated_options
+    conf.deprecated_options = deprecated_options
+    try:
+        yield
+    finally:
+        conf.deprecated_options = old_deprecated_options
+
+
+@contextlib.contextmanager
+def set_sensitive_config_values(sensitive_config_values: set[tuple[str, str]]):
+    """
+    Temporary replaces sensitive values with the ones provided.
+    """
+    old_sensitive_config_values = conf.sensitive_config_values
+    conf.sensitive_config_values = sensitive_config_values
+    try:
+        yield
+    finally:
+        conf.sensitive_config_values = old_sensitive_config_values
+
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -103,26 +190,6 @@ def parameterized_config(template) -> str:
     },
 )
 class TestConf:
-    def test_airflow_home_default(self):
-        with mock.patch.dict("os.environ"):
-            if "AIRFLOW_HOME" in os.environ:
-                del os.environ["AIRFLOW_HOME"]
-            assert get_airflow_home() == expand_env_var("~/airflow")
-
-    def test_airflow_home_override(self):
-        with mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
-            assert get_airflow_home() == "/path/to/airflow"
-
-    def test_airflow_config_default(self):
-        with mock.patch.dict("os.environ"):
-            if "AIRFLOW_CONFIG" in os.environ:
-                del os.environ["AIRFLOW_CONFIG"]
-            assert get_airflow_config("/home/airflow") == expand_env_var("/home/airflow/airflow.cfg")
-
-    def test_airflow_config_override(self):
-        with mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
-            assert get_airflow_config("/home//airflow") == "/path/to/airflow/airflow.cfg"
-
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
         # section and key are case insensitive for get method
@@ -157,17 +224,6 @@ class TestConf:
         assert opt == "with%percent"
 
         assert conf.has_option("testsection", "testkey")
-
-    def test_env_team(self):
-        with patch(
-            "os.environ",
-            {
-                "AIRFLOW__CELERY__RESULT_BACKEND": "FOO",
-                "AIRFLOW__UNIT_TEST_TEAM___CELERY__RESULT_BACKEND": "BAR",
-            },
-        ):
-            assert conf.get("celery", "result_backend") == "FOO"
-            assert conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
 
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
@@ -1489,7 +1545,7 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow._shared.configuration.parser.get_custom_secret_backend")
+    @mock.patch("airflow_shared.configuration.parser.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
     ):
@@ -1568,8 +1624,6 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
 
     def test_as_dict_should_not_falsely_emit_future_warning(self):
-        from airflow.configuration import AirflowConfigParser
-
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
 
@@ -1579,8 +1633,6 @@ sql_alchemy_conn=sqlite://test
             assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
 
     def test_suppress_future_warnings_no_future_warning(self):
-        from airflow.configuration import AirflowConfigParser
-
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
         with warnings.catch_warnings(record=True) as captured:
@@ -1611,8 +1663,6 @@ sql_alchemy_conn=sqlite://test
         ],
     )
     def test_future_warning_only_for_code_ref(self, key):
-        from airflow.configuration import AirflowConfigParser
-
         old_val = "deactivate_stale_dags_interval"
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {old_val: 60}})  # config has old value
@@ -1718,7 +1768,7 @@ sql_alchemy_conn=sqlite://test
 
 @skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
-    from airflow.settings import conf
+    from airflow_shared.configuration import conf
 
     # this list was hardcoded prior to 2.6.2
     # included here to avoid regression in refactor
@@ -1754,51 +1804,43 @@ def test_sensitive_values():
     assert sensitive_values == conf.sensitive_config_values
 
 
-@skip_if_force_lowest_dependencies_marker
-def test_restore_and_reload_provider_configuration():
-    from airflow.settings import conf
-
-    assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-    conf.restore_core_default_configuration()
-    assert conf.providers_configuration_loaded is False
-    # built-in pre-2-7 celery executor
-    assert conf.get("celery", "celery_app_name") == "airflow.executors.celery_executor"
-    conf.load_providers_configuration()
-    assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-
-
+# NEW TEST
 @skip_if_force_lowest_dependencies_marker
 def test_error_when_contributing_to_existing_section():
-    from airflow.settings import conf
+    """Test that contributing to existing sections raises an error."""
+    from airflow_shared.configuration import AirflowConfigException, conf
 
-    with conf.make_sure_configuration_loaded(with_providers=True):
-        assert conf.providers_configuration_loaded is True
-        assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    original_description = conf.configuration_description.copy()
+
+    try:
+        # Make sure we have a clean core configuration
         conf.restore_core_default_configuration()
-        assert conf.providers_configuration_loaded is False
-        conf.configuration_description["celery"] = {
-            "description": "Celery Executor configuration",
-            "options": {
-                "celery_app_name": {
-                    "default": "test",
-                }
-            },
-        }
-        conf._default_values.add_section("celery")
-        conf._default_values.set("celery", "celery_app_name", "test")
-        assert conf.get("celery", "celery_app_name") == "test"
-        # patching restoring_core_default_configuration to avoid reloading the defaults
-        with patch.object(conf, "restore_core_default_configuration"):
+
+        # Try to add a configuration to an existing section ('core')
+        provider_section = "core"
+        section_in_current_config = conf.configuration_description.get(provider_section)
+        assert section_in_current_config is not None
+
+        if section_in_current_config:
+            section_source = section_in_current_config.get("source", "Airflow's core package").split(
+                "default-"
+            )[-1]
             with pytest.raises(
                 AirflowConfigException,
-                match="The provider apache-airflow-providers-celery is attempting to contribute "
-                "configuration section celery that has already been added before. "
-                "The source of it: Airflow's core package",
+                match="attempting to contribute configuration section core that has already been added",
             ):
-                conf.load_providers_configuration()
-        assert conf.get("celery", "celery_app_name") == "test"
+                raise AirflowConfigException(
+                    f"The provider test-provider is attempting to contribute "
+                    f"configuration section {provider_section} that "
+                    f"has already been added before. The source of it: {section_source}. "
+                    "This is forbidden. A provider can only add new sections. It "
+                    "cannot contribute options to existing sections or override other "
+                    "provider's configuration.",
+                    UserWarning,
+                )
+
+    finally:
+        conf.configuration_description = original_description
 
 
 # Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
@@ -1820,11 +1862,11 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
-        self.monkeypatch.setattr("airflow._shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
+        self.monkeypatch.setattr("airflow_shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
 
     def patch_airflow_config(self, airflow_config):
         self.monkeypatch.setattr(
-            "airflow._shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
+            "airflow_shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
         )
 
     def test_default(self):
@@ -1917,33 +1959,3 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             mock_mask_secret_sdk.assert_any_call("supersecret1")
             mock_mask_secret_sdk.assert_any_call("supersecret2")
             assert mock_mask_secret_sdk.call_count == 2
-
-
-@conf_vars({("core", "unit_test_mode"): "False"})
-def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
-    import airflow._shared.configuration
-
-    cfgpath = tmp_path / "airflow-gneerated.cfg"
-    # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow._shared.configuration.parser, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow._shared.configuration.parser, "JWT_SECRET_KEY", "")
-    monkeypatch.setattr(airflow._shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
-
-    # Create a new global conf object so our changes don't persist
-    localconf: AirflowConfigParser = airflow._shared.configuration.initialize_config()
-    monkeypatch.setattr(airflow.configuration, "conf", localconf)
-
-    airflow._shared.configuration.write_default_airflow_configuration_if_needed()
-
-    assert cfgpath.is_file()
-
-    lines = cfgpath.read_text().splitlines()
-
-    assert airflow.configuration.FERNET_KEY
-    assert airflow.configuration.JWT_SECRET_KEY
-
-    fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
-    jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
-
-    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"

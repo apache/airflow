@@ -24,9 +24,9 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow._shared.configuration.exceptions import AirflowConfigException
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 

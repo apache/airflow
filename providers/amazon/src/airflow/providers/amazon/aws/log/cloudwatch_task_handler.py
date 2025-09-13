@@ -30,7 +30,11 @@ from typing import TYPE_CHECKING, Any
 import attrs
 import watchtower
 
-from airflow.configuration import conf
+try:
+    from airflow.sdk.configuration import conf
+except ImportError:
+    # Compat for Airflow < 3.1
+    from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.log.file_task_handler import FileTaskHandler
