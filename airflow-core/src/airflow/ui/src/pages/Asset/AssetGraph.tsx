@@ -28,6 +28,7 @@ import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
+import { getReactFlowThemeStyle } from "src/theme";
 
 export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { assetId } = useParams();
@@ -45,7 +46,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
     node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
 
-  const [selectedDarkColor, selectedLightColor] = useToken("colors", ["gray.200", "gray.800"]);
+  const [selectedDarkColor, selectedLightColor] = useToken("colors", ["bg.muted", "bg.emphasized"]);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
@@ -74,6 +75,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
+      style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
       <Controls showInteractive={false} />

@@ -71,7 +71,7 @@ updates:
         patterns:
           - "*"
 
-  # Repeat dependency updates on v3-0-test branch as well
+  # Repeat dependency updates on v3-1-test branch as well
   - package-ecosystem: pip
     directories:
       - /airflow-core
@@ -85,14 +85,14 @@ updates:
       - /
     schedule:
       interval: daily
-    target-branch: v3-0-test
+    target-branch: v3-1-test
 
   - package-ecosystem: npm
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
       interval: daily
-    target-branch: v3-0-test
+    target-branch: v3-1-test
     groups:
       core-ui-package-updates:
         patterns:

@@ -46,9 +46,11 @@ airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
 airflow-core/src/airflow/ui/public/i18n/locales/hi/ @vatsrahul1001
 airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl @potiuk # +@majorosdonat
+airflow-core/src/airflow/ui/public/i18n/locales/it/ @bbovenzi # + @aoelvp94
 airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @0ne-stone
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
+airflow-core/src/airflow/ui/public/i18n/locales/pt/ @potiuk  # + @aoelvp94 @victoru2
 airflow-core/src/airflow/ui/public/i18n/locales/tr/ @bugraoz93 # +@hasancatalgol
 airflow-core/src/airflow/ui/public/i18n/locales/zh-CN/ @potiuk # + @Fortytwoo @gyli
 airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming

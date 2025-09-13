@@ -53,8 +53,8 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
 
   return (
     <Box
-      _hover={{ bg: "blue.subtle" }}
-      bg={isSelected ? "blue.muted" : undefined}
+      _hover={{ bg: "brand.subtle" }}
+      bg={isSelected ? "brand.muted" : undefined}
       position="relative"
       transition="background-color 0.2s"
     >
@@ -77,7 +77,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
       >
         <GridButton
           alignItems="center"
-          color="white"
+          color="fg"
           dagId={dagId}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
@@ -89,7 +89,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
           state={run.state}
           zIndex={1}
         >
-          {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
+          {run.run_type !== "scheduled" && <RunTypeIcon color="white" runType={run.run_type} size="10px" />}
         </GridButton>
       </Flex>
 

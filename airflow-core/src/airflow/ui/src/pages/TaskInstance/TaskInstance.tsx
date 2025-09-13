@@ -17,18 +17,16 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import {
-  useHumanInTheLoopServiceGetHitlDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -36,10 +34,8 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
@@ -80,21 +76,6 @@ export const TaskInstance = () => {
 
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
-  const { data: hitlDetails, isLoading: isLoadingHitl } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagId,
-      dagRunId: runId,
-      taskId,
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId && runId),
-      refetchInterval,
-    },
-  );
-
-  const hasHitlForTask = (hitlDetails?.total_entries ?? 0) > 0;
-
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = useMemo(
     () =>
@@ -119,19 +100,10 @@ export const TaskInstance = () => {
     ];
   }
 
-  const displayTabs = newTabs.filter((tab) => {
-    if (tab.value === "required_actions" && !hasHitlForTask) {
-      return false;
-    }
-
-    return true;
+  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
+    autoRedirect: true,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
-
-  useEffect(() => {
-    if (!hasHitlForTask && !isLoadingHitl && location.pathname.includes("required_actions")) {
-      navigate(`/dags/${dagId}/runs/${runId}/tasks/${taskId}`);
-    }
-  }, [dagId, error, hasHitlForTask, isLoadingHitl, location.pathname, navigate, runId, taskId]);
 
   return (
     <ReactFlowProvider>

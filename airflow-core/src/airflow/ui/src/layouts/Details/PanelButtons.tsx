@@ -204,11 +204,11 @@ export const PanelButtons = ({
 
   return (
     <Box position="absolute" top={1} width="100%" zIndex={1}>
-      <Flex flexWrap="wrap" justifyContent="space-between">
+      <Flex justifyContent="space-between">
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
             aria-label={translate("dag:panel.buttons.showGridShortcut")}
-            colorPalette="blue"
+            colorPalette="brand"
             onClick={() => {
               setDagView("grid");
               if (dagView === "grid") {
@@ -222,7 +222,7 @@ export const PanelButtons = ({
           </IconButton>
           <IconButton
             aria-label={translate("dag:panel.buttons.showGraphShortcut")}
-            colorPalette="blue"
+            colorPalette="brand"
             onClick={() => {
               setDagView("graph");
               if (dagView === "graph") {
@@ -254,6 +254,7 @@ export const PanelButtons = ({
                       <>
                         <DagVersionSelect />
                         <DagRunSelect limit={limit} />
+
                         <Select.Root
                           // @ts-expect-error The expected option type is incorrect
                           collection={getOptions(translate)}
@@ -283,6 +284,7 @@ export const PanelButtons = ({
                             </Select.Content>
                           </Select.Positioner>
                         </Select.Root>
+
                         <Select.Root
                           // @ts-expect-error The expected option type is incorrect
                           collection={directionOptions(translate)}
@@ -396,7 +398,7 @@ export const PanelButtons = ({
                             hideAdvanced
                             hotkeyDisabled
                             onChange={handleTriggeringUserChange}
-                            placeHolder={translate("common:filters.triggeringUserPlaceholder")}
+                            placeHolder={translate("common:dagRun.triggeringUser")}
                           />
                         </VStack>
                         {shouldShowToggleButtons ? (
@@ -443,6 +445,7 @@ export const PanelButtons = ({
           </Popover.Root>
         </Flex>
       </Flex>
+
       {dagView === "grid" && (
         <Flex color="fg.muted" justifyContent="flex-end" mt={1}>
           <Tooltip

@@ -305,7 +305,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: 3.10
+      PYTHON_MAJOR_MINOR_VERSION: "3.10"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"

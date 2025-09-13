@@ -223,6 +223,7 @@ UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true
 UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
 UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
 UPGRADE_RUFF: bool = os.environ.get("UPGRADE_RUFF", "true").lower() == "true"
+UPGRADE_MYPY: bool = os.environ.get("UPGRADE_MYPY", "true").lower() == "true"
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
@@ -269,6 +270,7 @@ if __name__ == "__main__":
     rich_version = get_latest_pypi_version("rich")
     ruff_version = get_latest_pypi_version("ruff")
     node_lts_version = get_latest_lts_node_version()
+    mypy_version = get_latest_pypi_version("mypy")
     for file, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file}")
         file_content = file.read_text()
@@ -396,6 +398,15 @@ if __name__ == "__main__":
                 f"ruff>={ruff_version}",
                 new_content,
             )
+        if UPGRADE_MYPY:
+            console.print(f"[bright_blue]Latest mypy version: {mypy_version}")
+
+            new_content = re.sub(
+                r"(mypy==)([0-9.]+)",
+                f"mypy=={mypy_version}",
+                new_content,
+            )
+
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")

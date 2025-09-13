@@ -183,14 +183,14 @@ export const Calendar = () => {
 
           <ButtonGroup attached size="sm" variant="outline">
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setGranularity("daily")}
               variant={granularity === "daily" ? "solid" : "outline"}
             >
               {translate("calendar.daily")}
             </Button>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setGranularity("hourly")}
               variant={granularity === "hourly" ? "solid" : "outline"}
             >
@@ -200,14 +200,14 @@ export const Calendar = () => {
 
           <ButtonGroup attached size="sm" variant="outline">
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setViewMode("total")}
               variant={viewMode === "total" ? "solid" : "outline"}
             >
               {translate("calendar.totalRuns")}
             </Button>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setViewMode("failed")}
               variant={viewMode === "failed" ? "solid" : "outline"}
             >
@@ -237,9 +237,9 @@ export const Calendar = () => {
               <Box
                 animation={`${spin} 1s linear infinite`}
                 border="3px solid"
-                borderColor={{ _dark: "gray.600", _light: "blue.100" }}
+                borderColor={{ _dark: "border.emphasized", _light: "brand.100" }}
                 borderRadius="50%"
-                borderTopColor="blue.500"
+                borderTopColor="brand.500"
                 height="24px"
                 width="24px"
               />

@@ -16,29 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, VStack, Text } from "@chakra-ui/react";
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useMemo } from "react";
 
-import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import { DateTimeInput } from "src/components/DateTimeInput";
-import { SearchBar } from "src/components/SearchBar";
-import { ResetButton } from "src/components/ui";
+import { FilterBar, type FilterValue } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { getFilterCount } from "src/utils/filterUtils";
-
-const {
-  AFTER: AFTER_PARAM,
-  BEFORE: BEFORE_PARAM,
-  DAG_ID: DAG_ID_PARAM,
-  EVENT_TYPE: EVENT_TYPE_PARAM,
-  MAP_INDEX: MAP_INDEX_PARAM,
-  RUN_ID: RUN_ID_PARAM,
-  TASK_ID: TASK_ID_PARAM,
-  TRY_NUMBER: TRY_NUMBER_PARAM,
-  USER: USER_PARAM,
-} = SearchParamsKeys;
+import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 type EventsFiltersProps = {
   readonly urlDagId?: string;
@@ -47,205 +29,57 @@ type EventsFiltersProps = {
 };
 
 export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersProps) => {
-  const { t: translate } = useTranslation(["browse", "common", "components"]);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+    const keys: Array<FilterableSearchParamsKeys> = [
+      SearchParamsKeys.AFTER,
+      SearchParamsKeys.BEFORE,
+      SearchParamsKeys.EVENT_TYPE,
+      SearchParamsKeys.USER,
+      SearchParamsKeys.MAP_INDEX,
+      SearchParamsKeys.TRY_NUMBER,
+    ];
 
-  const { pagination, sorting } = tableURLState;
+    // Only add DAG ID filter if not in URL context
+    if (urlDagId === undefined) {
+      keys.push(SearchParamsKeys.DAG_ID);
+    }
 
-  const resetPagination = useCallback(() => {
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-  }, [pagination, setTableURLState, sorting]);
+    // Only add Run ID filter if not in URL context
+    if (urlRunId === undefined) {
+      keys.push(SearchParamsKeys.RUN_ID);
+    }
 
-  const afterFilter = searchParams.get(AFTER_PARAM);
-  const beforeFilter = searchParams.get(BEFORE_PARAM);
-  const dagIdFilter = searchParams.get(DAG_ID_PARAM);
-  const eventTypeFilter = searchParams.get(EVENT_TYPE_PARAM);
-  const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
-  const runIdFilter = searchParams.get(RUN_ID_PARAM);
-  const taskIdFilter = searchParams.get(TASK_ID_PARAM);
-  const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
-  const userFilter = searchParams.get(USER_PARAM);
+    // Only add Task ID filter if not in URL context
+    if (urlTaskId === undefined) {
+      keys.push(SearchParamsKeys.TASK_ID);
+    }
 
-  const updateSearchParams = useCallback(
-    (paramName: string, value: string) => {
-      if (value) {
-        searchParams.set(paramName, value);
-      } else {
-        searchParams.delete(paramName);
+    return keys;
+  }, [urlDagId, urlRunId, urlTaskId]);
+
+  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
+
+  const initialValues = useMemo(() => {
+    const values: Record<string, FilterValue> = {};
+
+    filterConfigs.forEach((config) => {
+      const value = searchParams.get(config.key);
+
+      if (value !== null && value !== "") {
+        if (config.type === "number") {
+          const parsedValue = Number(value);
+
+          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
+        } else {
+          values[config.key] = value;
+        }
       }
-      resetPagination();
-      setSearchParams(searchParams);
-    },
-    [resetPagination, searchParams, setSearchParams],
-  );
+    });
 
-  const onClearFilters = useCallback(() => {
-    searchParams.delete(AFTER_PARAM);
-    searchParams.delete(BEFORE_PARAM);
-    searchParams.delete(DAG_ID_PARAM);
-    searchParams.delete(EVENT_TYPE_PARAM);
-    searchParams.delete(MAP_INDEX_PARAM);
-    searchParams.delete(RUN_ID_PARAM);
-    searchParams.delete(TASK_ID_PARAM);
-    searchParams.delete(TRY_NUMBER_PARAM);
-    searchParams.delete(USER_PARAM);
-    resetPagination();
-    setSearchParams(searchParams);
-  }, [resetPagination, searchParams, setSearchParams]);
-
-  const handleSearchChange = useCallback(
-    (paramName: string) => (value: string) => {
-      updateSearchParams(paramName, value);
-    },
-    [updateSearchParams],
-  );
-
-  const handleDateTimeChange = useCallback(
-    (paramName: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      const { value } = event.target;
-
-      updateSearchParams(paramName, value);
-    },
-    [updateSearchParams],
-  );
-
-  const filterCount = getFilterCount({
-    after: afterFilter,
-    before: beforeFilter,
-    dagId: dagIdFilter,
-    eventType: eventTypeFilter,
-    mapIndex: mapIndexFilter,
-    runId: runIdFilter,
-    taskId: taskIdFilter,
-    tryNumber: tryNumberFilter,
-    user: userFilter,
-  });
+    return values;
+  }, [searchParams, filterConfigs]);
 
   return (
-    <HStack alignItems="end" justifyContent="space-between">
-      <HStack alignItems="end" gap={4}>
-        {/* Timestamp Range Filters */}
-        <VStack alignItems="flex-start" gap={1}>
-          <Text fontSize="xs" fontWeight="medium">
-            {translate("components:backfill.dateRangeFrom")}
-          </Text>
-          <DateTimeInput
-            onChange={handleDateTimeChange(AFTER_PARAM)}
-            placeholder={translate("common:startDate")}
-            size="sm"
-            value={afterFilter ?? ""}
-          />
-        </VStack>
-        <VStack alignItems="flex-start" gap={1}>
-          <Text fontSize="xs" fontWeight="medium">
-            {translate("components:backfill.dateRangeTo")}
-          </Text>
-          <DateTimeInput
-            onChange={handleDateTimeChange(BEFORE_PARAM)}
-            placeholder={translate("common:endDate")}
-            size="sm"
-            value={beforeFilter ?? ""}
-          />
-        </VStack>
-
-        {/* Event Type Filter */}
-        <Box>
-          <SearchBar
-            buttonProps={{ disabled: true }}
-            defaultValue={eventTypeFilter ?? ""}
-            hideAdvanced={true}
-            hotkeyDisabled={true}
-            onChange={handleSearchChange(EVENT_TYPE_PARAM)}
-            placeHolder={translate("auditLog.filters.eventType")}
-          />
-        </Box>
-
-        {/* User Filter */}
-        <Box>
-          <SearchBar
-            buttonProps={{ disabled: true }}
-            defaultValue={userFilter ?? ""}
-            hideAdvanced={true}
-            hotkeyDisabled={true}
-            onChange={handleSearchChange(USER_PARAM)}
-            placeHolder={translate("common:user")}
-          />
-        </Box>
-
-        {/* DAG ID Filter - Hide if URL already has dagId */}
-        {urlDagId === undefined && (
-          <Box>
-            <SearchBar
-              buttonProps={{ disabled: true }}
-              defaultValue={dagIdFilter ?? ""}
-              hideAdvanced={true}
-              hotkeyDisabled={true}
-              onChange={handleSearchChange(DAG_ID_PARAM)}
-              placeHolder={translate("common:dagId")}
-            />
-          </Box>
-        )}
-
-        {/* Task ID Filter - Hide if URL already has taskId */}
-        {urlTaskId === undefined && (
-          <Box>
-            <SearchBar
-              buttonProps={{ disabled: true }}
-              defaultValue={taskIdFilter ?? ""}
-              hideAdvanced={true}
-              hotkeyDisabled={true}
-              onChange={handleSearchChange(TASK_ID_PARAM)}
-              placeHolder={translate("common:taskId")}
-            />
-          </Box>
-        )}
-
-        {/* Run ID Filter - Hide if URL already has runId */}
-        {urlRunId === undefined && (
-          <Box>
-            <SearchBar
-              buttonProps={{ disabled: true }}
-              defaultValue={runIdFilter ?? ""}
-              hideAdvanced={true}
-              hotkeyDisabled={true}
-              onChange={handleSearchChange(RUN_ID_PARAM)}
-              placeHolder={translate("common:runId")}
-            />
-          </Box>
-        )}
-
-        {/* Map Index Filter */}
-        <Box>
-          <SearchBar
-            buttonProps={{ disabled: true }}
-            defaultValue={mapIndexFilter ?? ""}
-            hideAdvanced={true}
-            hotkeyDisabled={true}
-            onChange={handleSearchChange(MAP_INDEX_PARAM)}
-            placeHolder={translate("common:mapIndex")}
-          />
-        </Box>
-
-        {/* Try Number Filter */}
-        <Box>
-          <SearchBar
-            buttonProps={{ disabled: true }}
-            defaultValue={tryNumberFilter ?? ""}
-            hideAdvanced={true}
-            hotkeyDisabled={true}
-            onChange={handleSearchChange(TRY_NUMBER_PARAM)}
-            placeHolder={translate("common:tryNumber")}
-          />
-        </Box>
-      </HStack>
-
-      <Box>
-        <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
-      </Box>
-    </HStack>
+    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
   );
 };

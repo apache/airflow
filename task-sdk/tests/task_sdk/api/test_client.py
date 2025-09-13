@@ -38,6 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunStateResponse,
     HITLDetailResponse,
+    HITLUser,
     VariableResponse,
     XComResponse,
 )
@@ -1289,7 +1290,7 @@ class TestHITLOperations:
         assert result.defaults == ["Approval"]
         assert result.params is None
         assert result.multiple is False
-        assert result.respondents is None
+        assert result.assigned_users is None
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
@@ -1302,10 +1303,9 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "responded_user_id": "admin",
-                        "responded_user_name": "admin",
+                        "responded_by_user": {"id": "admin", "name": "admin"},
                         "response_received": True,
-                        "response_at": "2025-07-03T00:00:00Z",
+                        "responded_at": "2025-07-03T00:00:00Z",
                     },
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
@@ -1320,9 +1320,8 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.responded_user_id == "admin"
-        assert result.responded_user_name == "admin"
-        assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
+        assert result.responded_by_user == HITLUser(id="admin", name="admin")
+        assert result.responded_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
     def test_get_detail_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
@@ -1335,10 +1334,9 @@ class TestHITLOperations:
                     json={
                         "chosen_options": ["Approval"],
                         "params_input": {},
-                        "responded_user_id": "admin",
-                        "responded_user_name": "admin",
+                        "responded_by_user": {"id": "admin", "name": "admin"},
                         "response_received": True,
-                        "response_at": "2025-07-03T00:00:00Z",
+                        "responded_at": "2025-07-03T00:00:00Z",
                     },
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
@@ -1349,6 +1347,5 @@ class TestHITLOperations:
         assert result.response_received is True
         assert result.chosen_options == ["Approval"]
         assert result.params_input == {}
-        assert result.responded_user_id == "admin"
-        assert result.responded_user_name == "admin"
-        assert result.response_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
+        assert result.responded_by_user == HITLUser(id="admin", name="admin")
+        assert result.responded_at == timezone.datetime(2025, 7, 3, 0, 0, 0)

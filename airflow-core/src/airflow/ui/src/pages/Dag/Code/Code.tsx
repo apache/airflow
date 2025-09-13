@@ -142,7 +142,6 @@ export const Code = () => {
           >
             <Button
               aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-              bg="bg.panel"
               onClick={toggleWrap}
               variant="outline"
             >

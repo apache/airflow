@@ -222,7 +222,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         if self.deferrable:
             start_date, end_date = self._get_logical_dates(context)
             self.defer(
-                timeout=self.timeout,
+                timeout=timedelta(seconds=self.timeout) if self.timeout else None,
                 trigger=CloudComposerDAGRunTrigger(
                     project_id=self.project_id,
                     region=self.region,

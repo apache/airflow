@@ -84,7 +84,6 @@
     "tooltip": "حذف الموَّصلات المحددة"
   },
   "formActions": {
-    "reset": "إعادة تعيين",
     "save": "حفظ"
   },
   "plugins": {

@@ -19,11 +19,14 @@
       "host": "Hôte",
       "port": "Port"
     },
+    "connection_many": "Connexions",
     "connection_one": "Connexion",
     "connection_other": "Connexions",
     "delete": {
+      "deleteConnection_many": "Supprimer {{count}} connexions",
       "deleteConnection_one": "Supprimer 1 connexion",
       "deleteConnection_other": "Supprimer {{count}} connexions",
+      "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la connexion suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "title": "Supprimer la Connexion"
@@ -72,13 +75,13 @@
     "tooltip": "Supprimer les connexions sélectionnées"
   },
   "formActions": {
-    "reset": "Réinitialiser",
     "save": "Sauvegarder"
   },
   "plugins": {
     "columns": {
       "source": "Source"
     },
+    "importError_many": "Erreurs d'importation de plugin",
     "importError_one": "Erreur d'importation de plugin",
     "importError_other": "Erreurs d'importation de plugins",
     "searchPlaceholder": "Rechercher par fichier"
@@ -100,6 +103,7 @@
       "slots": "Slots"
     },
     "noPoolsFound": "Aucun pool trouvé",
+    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Rechercher des Pools",
@@ -121,8 +125,10 @@
       "isEncrypted": "Est chiffrée"
     },
     "delete": {
+      "deleteVariable_many": "Supprimer {{count}} Variables",
       "deleteVariable_one": "Supprimer 1 Variable",
       "deleteVariable_other": "Supprimer {{count}} Variables",
+      "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les variables suivantes :",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la variable suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les variables suivantes :",
       "title": "Supprimer la Variable",
@@ -161,6 +167,7 @@
     },
     "noRowsMessage": "Aucune variable trouvée",
     "searchPlaceholder": "Rechercher des Variables",
+    "variable_many": "Variables",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }

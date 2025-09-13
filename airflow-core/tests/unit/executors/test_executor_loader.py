@@ -395,3 +395,168 @@ class TestExecutorLoader:
                     executor_loader.ExecutorLoader.load_executor(executor_loader._executor_names[0]),
                     AwsEcsExecutor,
                 )
+
+    def test_get_executor_names_set_module_variables(self):
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "executor",
+                ): "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor"
+            }
+        ):
+            celery_path = "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
+            local_path = "airflow.executors.local_executor.LocalExecutor"
+            fake_exec_path = "unit.executors.test_executor_loader.FakeExecutor"
+            celery_global = ExecutorName(module_path=celery_path, alias="CeleryExecutor", team_name=None)
+            local_global = ExecutorName(module_path=local_path, alias="LocalExecutor", team_name=None)
+            fake_global = ExecutorName(module_path=fake_exec_path, alias="fake_exec", team_name=None)
+            team_a_celery = ExecutorName(
+                module_path=celery_path,
+                alias="CeleryExecutor",
+                team_name="team_a",
+            )
+            team_a_fake = ExecutorName(
+                module_path=fake_exec_path,
+                team_name="team_a",
+            )
+            team_b_fake = ExecutorName(
+                module_path=fake_exec_path,
+                alias="fake_exec",
+                team_name="team_b",
+            )
+            assert executor_loader._executor_names == []
+            assert executor_loader._alias_to_executors_per_team == {}
+            assert executor_loader._module_to_executors_per_team == {}
+            assert executor_loader._classname_to_executors_per_team == {}
+            assert executor_loader._team_name_to_executors == {}
+            with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+                executor_loader.ExecutorLoader._get_executor_names()
+            assert executor_loader._executor_names == [
+                celery_global,
+                local_global,
+                fake_global,
+                team_a_celery,
+                team_a_fake,
+                team_b_fake,
+            ]
+            assert executor_loader._alias_to_executors_per_team == {
+                None: {
+                    "CeleryExecutor": celery_global,
+                    "LocalExecutor": local_global,
+                    "fake_exec": fake_global,
+                },
+                "team_a": {"CeleryExecutor": team_a_celery},
+                "team_b": {"fake_exec": team_b_fake},
+            }
+            assert executor_loader._module_to_executors_per_team == {
+                None: {
+                    celery_path: celery_global,
+                    local_path: local_global,
+                    fake_exec_path: fake_global,
+                },
+                "team_a": {
+                    celery_path: team_a_celery,
+                    fake_exec_path: team_a_fake,
+                },
+                "team_b": {
+                    fake_exec_path: team_b_fake,
+                },
+            }
+            assert executor_loader._classname_to_executors_per_team == {
+                None: {
+                    "CeleryExecutor": celery_global,
+                    "LocalExecutor": local_global,
+                    "FakeExecutor": fake_global,
+                },
+                "team_a": {
+                    "CeleryExecutor": team_a_celery,
+                    "FakeExecutor": team_a_fake,
+                },
+                "team_b": {
+                    "FakeExecutor": team_b_fake,
+                },
+            }
+            assert executor_loader._team_name_to_executors == {
+                None: [celery_global, local_global, fake_global],
+                "team_a": [team_a_celery, team_a_fake],
+                "team_b": [team_b_fake],
+            }
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "team1=CeleryExecutor;team1=LocalExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor;team1=KubernetesExecutor",
+            "CeleryExecutor;team1=LocalExecutor;team1=KubernetesExecutor",
+            "team_a=CeleryExecutor;team_b=LocalExecutor;team_a=KubernetesExecutor",
+        ],
+    )
+    def test_duplicate_team_names_should_fail(self, executor_config):
+        """Test that duplicate team names in executor configuration raise an exception."""
+        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+            with conf_vars({("core", "executor"): executor_config}):
+                with pytest.raises(
+                    AirflowConfigException,
+                    match=r"Team '.+' appears more than once in executor configuration",
+                ):
+                    executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "CeleryExecutor;LocalExecutor",  # Two separate global teams
+            "CeleryExecutor;KubernetesExecutor;LocalExecutor",  # Three separate global teams
+            "=CeleryExecutor;LocalExecutor",  # Explicit global team followed by another global team
+            "CeleryExecutor;=LocalExecutor",  # Global team followed by explicit global team
+        ],
+    )
+    def test_multiple_global_team_specifications_should_fail(self, executor_config):
+        """Test that multiple global team specifications raise an exception.
+
+        Only one global team specification should be allowed (comma-delimited executors),
+        not multiple semicolon-separated global teams.
+        """
+        with conf_vars({("core", "executor"): executor_config}):
+            with pytest.raises(
+                AirflowConfigException, match=r"Team 'None' appears more than once in executor configuration"
+            ):
+                executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_valid_team_configurations_order_preservation(self):
+        """Test that valid team configurations preserve order and work correctly."""
+        executor_config = "LocalExecutor;team1=CeleryExecutor,KubernetesExecutor;team2=LocalExecutor"
+        expected_configs = [
+            (None, ["LocalExecutor"]),
+            ("team1", ["CeleryExecutor", "KubernetesExecutor"]),
+            ("team2", ["LocalExecutor"]),
+        ]
+
+        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+            with conf_vars({("core", "executor"): executor_config}):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+                assert configs == expected_configs
+
+    @pytest.mark.parametrize(
+        ("executor_config", "expected_configs"),
+        [
+            # Single global team with one executor
+            ("CeleryExecutor", [(None, ["CeleryExecutor"])]),
+            # Single global team with multiple comma-delimited executors
+            ("CeleryExecutor,LocalExecutor", [(None, ["CeleryExecutor", "LocalExecutor"])]),
+            (
+                "CeleryExecutor,LocalExecutor,KubernetesExecutor",
+                [(None, ["CeleryExecutor", "LocalExecutor", "KubernetesExecutor"])],
+            ),
+            # Single global team with explicit = prefix
+            ("=CeleryExecutor,LocalExecutor", [(None, ["CeleryExecutor", "LocalExecutor"])]),
+        ],
+    )
+    def test_single_global_team_configurations_work(self, executor_config, expected_configs):
+        """Test that single global team configurations work correctly.
+
+        A single global team can have multiple executors specified as comma-delimited list.
+        """
+        with conf_vars({("core", "executor"): executor_config}):
+            configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+            assert configs == expected_configs

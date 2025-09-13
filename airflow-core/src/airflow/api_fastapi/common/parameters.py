@@ -718,7 +718,10 @@ class _PendingActionsFilter(BaseParam[bool]):
         pending_actions_count_subquery = (
             sql_select(func.count(HITLDetail.ti_id))
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(HITLDetail.response_at.is_(None))
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
         )
@@ -1022,15 +1025,16 @@ QueryHITLDetailResponseReceivedFilter = Annotated[
         )
     ),
 ]
+
 QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_user_id,
+            HITLDetail.responded_by_user_id,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="responded_user_id",
+            filter_name="responded_by_user_id",
         )
     ),
 ]
@@ -1038,11 +1042,11 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_user_name,
+            HITLDetail.responded_by_user_name,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="responded_user_name",
+            filter_name="responded_by_user_name",
         )
     ),
 ]

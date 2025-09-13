@@ -111,17 +111,12 @@
     "any": "Dowolne",
     "or": "LUB"
   },
+  "filter": "Filtr",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtruj według Daga",
-    "keyPlaceholder": "Filtruj według klucza XCom",
-    "logicalDateFromPlaceholder": "Data logiczna od",
-    "logicalDateToPlaceholder": "Data logiczna do",
-    "mapIndexPlaceholder": "Filtruj według indeksu mapowania",
-    "runAfterFromPlaceholder": "Uruchom po (od)",
-    "runAfterToPlaceholder": "Uruchom po (do)",
-    "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
-    "taskIdPlaceholder": "Filtruj według identyfikatora zadania",
-    "triggeringUserPlaceholder": "Filtruj według uruchamiającego użytkownika"
+    "logicalDateFrom": "Data logiczna od",
+    "logicalDateTo": "Data logiczna do",
+    "runAfterFrom": "Uruchom po (od)",
+    "runAfterTo": "Uruchom po (do)"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
@@ -165,6 +160,7 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
+  "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
     "asset_triggered": "Uruchomiony przez zasób",
