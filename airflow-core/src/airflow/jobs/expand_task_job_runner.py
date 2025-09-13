@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, run_job_async
 from airflow.models import DagBag, DagRun
+from airflow.models.taskmap import update_task_map_length
 from airflow.policies import task_instance_mutation_hook
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.ti_deps.dep_context import DepContext
