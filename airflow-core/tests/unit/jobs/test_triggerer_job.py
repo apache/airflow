@@ -31,6 +31,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from sqlalchemy.orm import selectinload
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -109,13 +110,20 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.flush()
 
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
+    dag_version = DagVersion(
+        dag_id="test_dag",
+        version_number="version_number",
+        bundle_name=bundle_name,
+        bundle_version="bundle_version",
+    )
+    dag_model.dag_versions.append(dag_version)
     session.add(dag_model)
 
     date = pendulum.datetime(2023, 1, 1)
     dag = DAG(
-        dag_id = dag_model.dag_id,
-        schedule = "@daily",
-        start_date = pendulum.datetime(2023, 1, 1),
+        dag_id=dag_model.dag_id,
+        schedule="@daily",
+        start_date=date,
     )
     run = DagRun(
         dag_id=dag_model.dag_id,
@@ -136,8 +144,6 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(trigger_orm)
     session.flush()
 
-    dag_version = DagVersion.get_latest_version(dag.dag_id)
-    dag_model.dag_versions.append(dag_version)
     task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
