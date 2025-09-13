@@ -27,6 +27,7 @@ import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
 import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData } from "src/utils/hitl";
 
 type HITLResponseFormProps = {
@@ -97,7 +98,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
       {hitlDetail.response_received ? (
         <Text color="fg.muted" fontSize="sm">
           {translate("response.received")}
-          <Time datetime={hitlDetail.response_at} format="YYYY-MM-DD, HH:mm:ss" />
+          <Time datetime={hitlDetail.responded_at} format={DEFAULT_DATETIME_FORMAT} />
         </Text>
       ) : undefined}
       <Accordion.Root
@@ -128,7 +129,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           {shouldRenderOptionButton || isApprovalTask ? (
             hitlDetail.options.map((option) => (
               <Button
-                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
+                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "brand" : "gray"}
                 disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
@@ -139,7 +140,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             ))
           ) : hitlDetail.response_received ? undefined : (
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={errors || isSubmitting}
               loading={isSubmitting}
               onClick={() => handleSubmit()}

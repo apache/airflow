@@ -92,16 +92,12 @@
     "any": "Bármely",
     "or": "VAGY"
   },
+  "filter": "Szűrő",
   "filters": {
-    "dagDisplayNamePlaceholder": "Szűrés Dag szerint",
-    "keyPlaceholder": "Szűrés XCom kulcs szerint",
-    "logicalDateFromPlaceholder": "Logikai dátum -tól",
-    "logicalDateToPlaceholder": "Logikai dátum -ig",
-    "mapIndexPlaceholder": "Szűrés Map Index szerint",
-    "runAfterFromPlaceholder": "Futás ekkortól",
-    "runAfterToPlaceholder": "Futás eddig",
-    "runIdPlaceholder": "Szűrés futás azonosító szerint",
-    "taskIdPlaceholder": "Szűrés feladat azonosító szerint"
+    "logicalDateFrom": "Logikai dátum -tól",
+    "logicalDateTo": "Logikai dátum -ig",
+    "runAfterFrom": "Futás ekkortól",
+    "runAfterTo": "Futás eddig"
   },
   "logicalDate": "Logikai dátum",
   "logout": "Kijelentkezés",
@@ -143,6 +139,7 @@
     "running": "Fut",
     "scheduled": "Ütemezett"
   },
+  "reset": "Alaphelyzetbe állítás",
   "runId": "Futás azonosító",
   "runTypes": {
     "asset_triggered": "Adatkészlet által indított",

@@ -67,6 +67,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.models import DagModel, DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -201,7 +202,10 @@ def get_dags(
                 HITLDetail,
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(HITLDetail.response_at.is_(None))
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
             .order_by(TaskInstance.dag_id)
         )
