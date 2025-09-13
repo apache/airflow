@@ -10865,12 +10865,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -10913,10 +10913,10 @@ components:
       properties:
         responded_by:
           $ref: '#/components/schemas/HITLUser'
-        response_at:
+        responded_at:
           type: string
           format: date-time
-          title: Response At
+          title: Responded At
         chosen_options:
           items:
             type: string
@@ -10930,7 +10930,7 @@ components:
       type: object
       required:
       - responded_by
-      - response_at
+      - responded_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.

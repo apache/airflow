@@ -1480,13 +1480,13 @@
 <text text-anchor="start" x="2303" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
 <text text-anchor="start" x="2354" y="-2088.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="2197,-2054 2197,-2079 2435,-2079 2435,-2054 2197,-2054"/>
-<text text-anchor="start" x="2202" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_by</text>
-<text text-anchor="start" x="2300" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2305" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<text text-anchor="start" x="2202" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_at</text>
+<text text-anchor="start" x="2296" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2301" y="-2063.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
 <polygon fill="none" stroke="black" points="2197,-2029 2197,-2054 2435,-2054 2435,-2029 2197,-2029"/>
-<text text-anchor="start" x="2202" y="-2038.8" font-family="Helvetica,sans-Serif" font-size="14.00">response_at</text>
-<text text-anchor="start" x="2286" y="-2038.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2291" y="-2038.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="2202" y="-2038.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_by</text>
+<text text-anchor="start" x="2300" y="-2038.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2305" y="-2038.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
 <polygon fill="none" stroke="black" points="2197,-2004 2197,-2029 2435,-2029 2435,-2004 2197,-2004"/>
 <text text-anchor="start" x="2202" y="-2013.8" font-family="Helvetica,sans-Serif" font-size="14.00">subject</text>
 <text text-anchor="start" x="2253" y="-2013.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>

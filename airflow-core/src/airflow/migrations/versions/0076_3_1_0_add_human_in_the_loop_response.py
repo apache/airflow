@@ -60,7 +60,7 @@ def upgrade():
         Column("multiple", Boolean, unique=False, default=False),
         Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         Column("assignees", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-        Column("response_at", UtcDateTime, nullable=True),
+        Column("responded_at", UtcDateTime, nullable=True),
         Column("responded_by", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("chosen_options", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
