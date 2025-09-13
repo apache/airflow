@@ -109,8 +109,21 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.flush()
 
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
-    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
+    dag_version = DagVersion(
+        dag_id="test_dag",
+        version_number=1,
+        bundle_name=bundle_name,
+        bundle_version=1,
+    )
+    dag_model.dag_versions.append(dag_version)
+    session.add(dag_model)
+
     date = pendulum.datetime(2023, 1, 1)
+    dag = DAG(
+        dag_id=dag_model.dag_id,
+        schedule="@daily",
+        start_date=date,
+    )
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -124,13 +137,12 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    session.add(dag_model)
 
-    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name, session=session)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    dag_version = DagVersion.get_latest_version(dag.dag_id)
+
     task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
@@ -253,6 +265,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
+                dag=dag_model.dag_versions[0].serialized_dag.data,
             )
         )
         # OK, now remove it from the DB
@@ -346,7 +359,7 @@ class TestTriggerRunner:
         mock_get_trigger_by_classpath.return_value = fn
 
         trigger_runner.to_create.append(
-            workloads.RunTrigger.model_construct(id=1, classpath="abc", encrypted_kwargs="fake"),
+            workloads.RunTrigger.model_construct(id=1, ti=None, classpath="abc", encrypted_kwargs="fake"),
         )
         await trigger_runner.create_triggers()
 

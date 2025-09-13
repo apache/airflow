@@ -1668,6 +1668,7 @@ repos:
           ^airflow-core/src/airflow/timetables/assets\.py$|
           ^airflow-core/src/airflow/timetables/base\.py$|
           ^airflow-core/src/airflow/timetables/simple\.py$|
+          ^airflow-core/src/airflow/triggers/base\.py$|
           ^airflow-core/src/airflow/utils/cli\.py$|
           ^airflow-core/src/airflow/utils/context\.py$|
           ^airflow-core/src/airflow/utils/dag_cycle_tester\.py$|
