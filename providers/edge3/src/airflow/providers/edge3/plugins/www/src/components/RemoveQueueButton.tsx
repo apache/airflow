@@ -77,7 +77,11 @@ export const RemoveQueueButton = ({ onQueueUpdate, worker }: RemoveQueueButtonPr
   };
 
   const availableQueues = worker.queues || [];
-  const isDisabled = availableQueues.length === 0;
+
+  // Don't render the button if there are no queues to remove
+  if (availableQueues.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -88,7 +92,6 @@ export const RemoveQueueButton = ({ onQueueUpdate, worker }: RemoveQueueButtonPr
         aria-label="Remove Queue"
         title="Remove Queue"
         colorPalette="danger"
-        disabled={isDisabled}
       >
         <LuListMinus />
       </IconButton>
@@ -103,46 +106,38 @@ export const RemoveQueueButton = ({ onQueueUpdate, worker }: RemoveQueueButtonPr
               </Dialog.Header>
               <Dialog.Body>
                 <VStack gap={4} align="stretch">
-                  {availableQueues.length > 0 ? (
-                    <>
-                      <Text>Select a queue to remove from this worker:</Text>
-                      <VStack gap={2} align="stretch">
-                        <For each={availableQueues}>
-                          {(queue) => (
-                            <Button
-                              key={queue}
-                              variant={selectedQueue === queue ? "solid" : "outline"}
-                              colorPalette={selectedQueue === queue ? "blue" : "gray"}
-                              onClick={() => setSelectedQueue(queue)}
-                              justifyContent="flex-start"
-                            >
-                              {queue}
-                            </Button>
-                          )}
-                        </For>
-                      </VStack>
-                    </>
-                  ) : (
-                    <Text>This worker has no queues to remove.</Text>
-                  )}
+                  <Text>Select a queue to remove from this worker:</Text>
+                  <VStack gap={2} align="stretch">
+                    <For each={availableQueues}>
+                      {(queue) => (
+                        <Button
+                          key={queue}
+                          variant={selectedQueue === queue ? "solid" : "outline"}
+                          colorPalette={selectedQueue === queue ? "blue" : "gray"}
+                          onClick={() => setSelectedQueue(queue)}
+                          justifyContent="flex-start"
+                        >
+                          {queue}
+                        </Button>
+                      )}
+                    </For>
+                  </VStack>
                 </VStack>
               </Dialog.Body>
               <Dialog.Footer>
                 <Dialog.ActionTrigger asChild>
                   <Button variant="outline">Cancel</Button>
                 </Dialog.ActionTrigger>
-                {availableQueues.length > 0 && (
-                  <Button
-                    onClick={handleRemoveQueue}
-                    colorPalette="danger"
-                    loading={removeQueueMutation.isPending}
-                    loadingText="Removing queue..."
-                    disabled={!selectedQueue}
-                  >
-                    <LuListMinus style={{ marginRight: "8px" }} />
-                    Remove Queue
-                  </Button>
-                )}
+                <Button
+                  onClick={handleRemoveQueue}
+                  colorPalette="danger"
+                  loading={removeQueueMutation.isPending}
+                  loadingText="Removing queue..."
+                  disabled={!selectedQueue}
+                >
+                  <LuListMinus />
+                  Remove Queue
+                </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
                 <CloseButton size="sm" />

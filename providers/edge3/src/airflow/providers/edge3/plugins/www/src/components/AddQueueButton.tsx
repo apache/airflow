@@ -120,8 +120,9 @@ export const AddQueueButton = ({ onQueueUpdate, workerName }: AddQueueButtonProp
                   colorPalette="success"
                   loading={addQueueMutation.isPending}
                   loadingText="Adding queue..."
+                  disabled={!queueName.trim()}
                 >
-                  <LuListPlus style={{ marginRight: "8px" }} />
+                  <LuListPlus />
                   Add Queue
                 </Button>
               </Dialog.Footer>
