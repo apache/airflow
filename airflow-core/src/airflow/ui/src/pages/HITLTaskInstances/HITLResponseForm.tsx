@@ -51,7 +51,6 @@ const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITL
 };
 
 export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
-  const DEFAULT_USERNAME = "Fallback to defaults";
   const { t: translate } = useTranslation("hitl");
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -100,9 +99,9 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         <Text color="fg.muted" fontSize="sm">
           {translate("response.received")}
           <Time datetime={hitlDetail.responded_at} format={DEFAULT_DATETIME_FORMAT} />
-          {hitlDetail.responded_user_name === DEFAULT_USERNAME
-            ? undefined
-            : ` ${translate("common:table.from").toLowerCase()} ${hitlDetail.responded_user_name}`}
+          {hitlDetail.responded_by_user
+            ? ` ${translate("common:table.from").toLowerCase()} ${hitlDetail.responded_by_user.name}`
+            : undefined}
         </Text>
       ) : undefined}
       <Accordion.Root
