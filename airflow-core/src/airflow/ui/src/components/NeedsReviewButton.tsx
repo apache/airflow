@@ -52,7 +52,9 @@ export const NeedsReviewButton = ({
   );
 
   const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
-  const { t: translate } = useTranslation("hitl");
+  const { i18n, t: translate } = useTranslation("hitl");
+
+  const isRTL = i18n.dir() === "rtl";
 
   return hitlTIsCount > 0 ? (
     <Box maxW="250px">
@@ -61,6 +63,7 @@ export const NeedsReviewButton = ({
         count={hitlTIsCount}
         icon={<LuUserRoundPen />}
         isLoading={isLoading}
+        isRTL={isRTL}
         label={translate("requiredAction_other")}
         link="required_actions?response_received=false"
       />
