@@ -119,35 +119,6 @@ def _get_current_dag(dag_id: str, session: Session) -> SerializedDAG | None:
     return serdag.dag
 
 
-class ConcurrencyMap:
-    """
-    Dataclass to represent concurrency maps.
-
-    It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
-    to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
-    to # of task instances in the given state list in each DAG run.
-    """
-
-    def __init__(self):
-        self.dag_run_active_tasks_map: Counter[tuple[str, str]] = Counter()
-        self.task_concurrency_map: Counter[tuple[str, str]] = Counter()
-        self.task_dagrun_concurrency_map: Counter[tuple[str, str, str]] = Counter()
-
-    def load(self, session: Session) -> None:
-        self.dag_run_active_tasks_map.clear()
-        self.task_concurrency_map.clear()
-        self.task_dagrun_concurrency_map.clear()
-        query = session.execute(
-            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
-            .where(TI.state.in_(EXECUTION_STATES))
-            .group_by(TI.task_id, TI.run_id, TI.dag_id)
-        )
-        for dag_id, task_id, run_id, c in query:
-            self.dag_run_active_tasks_map[dag_id, run_id] += c
-            self.task_concurrency_map[(dag_id, task_id)] += c
-            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
-
-
 def _is_parent_process() -> bool:
     """
     Whether this is a parent process.
