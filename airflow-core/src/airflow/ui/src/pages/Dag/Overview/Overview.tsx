@@ -76,7 +76,15 @@ export const Overview = () => {
     timestampLte: endDate,
   });
 
+<<<<<<< HEAD
+  const autoRefreshEnabled =
+    Boolean(useAutoRefresh({ dagId })) &&
+    gridRuns &&
+    gridRuns.length > 0 &&
+    isStatePending(gridRuns[0]?.state);
+=======
   const refetchInterval = useAutoRefresh({});
+>>>>>>> origin/main
 
   return (
     <Box m={4} spaceY={4}>
@@ -130,7 +138,11 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={gridRuns?.slice().reverse()} kind="Dag Run" />
+            <DurationChart
+              autoRefreshEnabled={autoRefreshEnabled}
+              entries={gridRuns?.slice().reverse()}
+              kind="Dag Run"
+            />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (
