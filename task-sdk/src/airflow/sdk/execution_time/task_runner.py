@@ -58,9 +58,9 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, Asset
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
-    AirflowException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRuntimeError,
+    AirflowSDKException,
     AirflowTaskTimeout,
     ErrorType,
 )
@@ -971,7 +971,7 @@ def run(
         )
         state = TaskInstanceState.FAILED
         error = e
-    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError, RuntimeError) as e:
+    except (AirflowTaskTimeout, AirflowSDKException, AirflowRuntimeError, RuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg, state = _handle_current_task_failed(ti)
