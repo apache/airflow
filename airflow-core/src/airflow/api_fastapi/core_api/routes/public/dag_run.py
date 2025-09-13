@@ -459,7 +459,7 @@ def trigger_dag_run(
     "/{dag_run_id}/wait",
     tags=["experimental"],
     summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
-    description="🚧 This is an experimental endpoint and may change or be removed without notice.",
+    description="🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.",
     responses={
         **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {

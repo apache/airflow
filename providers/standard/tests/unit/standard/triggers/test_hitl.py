@@ -81,7 +81,7 @@ class TestHITLTrigger:
             response_received=False,
             responded_user_id=None,
             responded_user_name=None,
-            response_at=None,
+            responded_at=None,
             chosen_options=None,
             params_input={},
         )
@@ -111,7 +111,7 @@ class TestHITLTrigger:
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
             responded_by_user=None,
-            response_at=None,
+            responded_at=None,
             chosen_options=None,
             params_input={},
         )
@@ -126,6 +126,7 @@ class TestHITLTrigger:
                 chosen_options=["1"],
                 params_input={"input": 1},
                 responded_by_user=None,
+                responded_at=mock.ANY,
                 timedout=True,
             )
         )
@@ -154,7 +155,7 @@ class TestHITLTrigger:
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
             responded_by_user=HITLUser(id="1", name="test"),
-            response_at=action_datetime,
+            responded_at=action_datetime,
             chosen_options=["2"],
             params_input={},
         )
@@ -168,6 +169,7 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["2"],
                 params_input={},
+                responded_at=mock.ANY,
                 responded_by_user={"id": "1", "name": "test"},
                 timedout=False,
             )
@@ -197,7 +199,7 @@ class TestHITLTrigger:
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
             responded_by_user=HITLUser(id="test", name="test"),
-            response_at=utcnow(),
+            responded_at=utcnow(),
             chosen_options=["3"],
             params_input={"input": 50},
         )
@@ -210,6 +212,7 @@ class TestHITLTrigger:
             HITLTriggerEventSuccessPayload(
                 chosen_options=["3"],
                 params_input={"input": 50},
+                responded_at=mock.ANY,
                 responded_by_user={"id": "test", "name": "test"},
                 timedout=False,
             )

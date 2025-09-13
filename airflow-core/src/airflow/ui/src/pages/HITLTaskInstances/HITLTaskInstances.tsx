@@ -107,8 +107,8 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_at",
-    cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
   },
 ];

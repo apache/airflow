@@ -99,7 +99,7 @@ class HITLDetail(Base):
     assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     # Response Content Detail
-    response_at = Column(UtcDateTime, nullable=True)
+    responded_at = Column(UtcDateTime, nullable=True)
     responded_by = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     chosen_options = Column(
         sqlalchemy_jsonfield.JSONField(json=json),
@@ -125,11 +125,11 @@ class HITLDetail(Base):
 
     @hybrid_property
     def response_received(self) -> bool:
-        return self.response_at is not None
+        return self.responded_at is not None
 
     @response_received.expression  # type: ignore[no-redef]
     def response_received(cls):
-        return cls.response_at.is_not(None)
+        return cls.responded_at.is_not(None)
 
     @hybrid_property
     def responded_by_user_id(self) -> str | None:

@@ -45,6 +45,7 @@ class HITLTriggerEventSuccessPayload(TypedDict, total=False):
     chosen_options: list[str]
     params_input: dict[str, Any]
     responded_by_user: HITLUser | None
+    responded_at: datetime
     timedout: bool
 
 
@@ -106,18 +107,20 @@ class HITLTrigger(BaseTrigger):
                 if resp.response_received and resp.chosen_options:
                     if TYPE_CHECKING:
                         assert resp.responded_by_user is not None
+                        assert resp.responded_at is not None
 
                     self.log.info(
                         "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
                         resp.responded_by_user.name,
                         resp.responded_by_user.id,
                         resp.chosen_options,
-                        resp.response_at,
+                        resp.responded_at,
                     )
                     yield TriggerEvent(
                         HITLTriggerEventSuccessPayload(
                             chosen_options=resp.chosen_options,
                             params_input=resp.params_input or {},
+                            responded_at=resp.responded_at,
                             responded_by_user=HITLUser(
                                 id=resp.responded_by_user.id,
                                 name=resp.responded_by_user.name,
@@ -136,11 +139,13 @@ class HITLTrigger(BaseTrigger):
                     )
                     return
 
-                await sync_to_async(update_hitl_detail_response)(
+                resp = await sync_to_async(update_hitl_detail_response)(
                     ti_id=self.ti_id,
                     chosen_options=self.defaults,
                     params_input=self.params,
                 )
+                if TYPE_CHECKING:
+                    assert resp.responded_at is not None
                 self.log.info(
                     "[HITL] timeout reached before receiving response, fallback to default %s", self.defaults
                 )
@@ -149,6 +154,7 @@ class HITLTrigger(BaseTrigger):
                         chosen_options=self.defaults,
                         params_input=self.params,
                         responded_by_user=None,
+                        responded_at=resp.responded_at,
                         timedout=True,
                     )
                 )
@@ -158,17 +164,19 @@ class HITLTrigger(BaseTrigger):
             if resp.response_received and resp.chosen_options:
                 if TYPE_CHECKING:
                     assert resp.responded_by_user is not None
+                    assert resp.responded_at is not None
                 self.log.info(
                     "[HITL] responded_by=%s (id=%s) options=%s at %s",
                     resp.responded_by_user.name,
                     resp.responded_by_user.id,
                     resp.chosen_options,
-                    resp.response_at,
+                    resp.responded_at,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=resp.chosen_options,
                         params_input=resp.params_input or {},
+                        responded_at=resp.responded_at,
                         responded_by_user=HITLUser(
                             id=resp.responded_by_user.id,
                             name=resp.responded_by_user.name,

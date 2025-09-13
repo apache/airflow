@@ -28,7 +28,7 @@ import attr
 class File:
     """File entity. Refers to a file."""
 
-    template_fields: ClassVar = ("url",)
+    template_fields: ClassVar[tuple[str, ...]] = ("url",)
 
     url: str = attr.ib()
     type_hint: str | None = None

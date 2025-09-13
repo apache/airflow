@@ -179,6 +179,7 @@ class HITLOperator(BaseOperator):
         return HITLTriggerEventSuccessPayload(
             chosen_options=chosen_options,
             params_input=params_input,
+            responded_at=event["responded_at"],
             responded_by_user=event["responded_by_user"],
         )
 

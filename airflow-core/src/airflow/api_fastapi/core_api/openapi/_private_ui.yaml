@@ -2003,12 +2003,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:

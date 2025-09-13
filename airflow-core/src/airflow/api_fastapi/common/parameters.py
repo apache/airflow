@@ -718,7 +718,10 @@ class _PendingActionsFilter(BaseParam[bool]):
         pending_actions_count_subquery = (
             sql_select(func.count(HITLDetail.ti_id))
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(HITLDetail.response_at.is_(None))
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
         )

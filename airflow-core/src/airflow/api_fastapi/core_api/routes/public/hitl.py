@@ -157,7 +157,7 @@ def update_hitl_detail(
             )
 
     hitl_detail_model.responded_by = hitl_user
-    hitl_detail_model.response_at = timezone.utcnow()
+    hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
     session.add(hitl_detail_model)
@@ -204,7 +204,7 @@ def get_hitl_details(
                 allowed_attrs=[
                     "ti_id",
                     "subject",
-                    "response_at",
+                    "responded_at",
                 ],
                 model=HITLDetailModel,
                 to_replace={
