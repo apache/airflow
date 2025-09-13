@@ -49,9 +49,18 @@ def upgrade():
     """Apply Change TI table to have unique UUID id/pk per attempt."""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
+
+    # Take the backup of task_instance_id column
+    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.alter_column(
+            "task_instance_id",
+            new_column_name="task_instance_id_backup",
+            existing_type=_get_uuid_type(dialect_name),
+            existing_nullable=False,
+        )
+
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.create_index("idx_tih_dag_run", ["dag_id", "run_id"], unique=False)
-        batch_op.drop_column("task_instance_id")
         batch_op.alter_column(
             "try_id",
             new_column_name="task_instance_id",
@@ -113,9 +122,13 @@ def downgrade():
             existing_nullable=False,
         )
         batch_op.drop_index("idx_tih_dag_run")
+
     # This has to be in a separate batch, else on sqlite it throws `sqlalchemy.exc.CircularDependencyError`
     # (and on non sqlite batching isn't "a thing", it issue alter tables fine)
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("task_instance_id", UUIDType(binary=False), autoincrement=False, nullable=True)
+        batch_op.alter_column(
+            "task_instance_id_backup",
+            new_column_name="task_instance_id",
+            existing_type=_get_uuid_type(dialect_name),
+            existing_nullable=False,
         )
