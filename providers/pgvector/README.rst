@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-pgvector``
 
 Release: ``1.5.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `pgvector <https://github.com/pgvector/pgvector>`__
 

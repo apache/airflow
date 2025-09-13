@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-qdrant``
 
 Release: ``1.4.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Qdrant <https://qdrant.tech/documentation>`__
 

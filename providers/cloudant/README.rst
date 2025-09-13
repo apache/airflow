@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-cloudant``
 
 Release: ``4.2.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 

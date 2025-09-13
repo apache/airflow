@@ -38,7 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_variable
+from airflow.api_fastapi.core_api.security import requires_access_variable, requires_access_variable_bulk
 from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
@@ -192,7 +192,7 @@ def post_variable(
 
 
 @variables_router.patch(
-    "", dependencies=[Depends(action_logging()), Depends(requires_access_variable("DELETE"))]
+    "", dependencies=[Depends(action_logging()), Depends(requires_access_variable_bulk())]
 )
 def bulk_variables(
     request: BulkBody[VariableBody],

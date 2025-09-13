@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-cohere``
 
 Release: ``1.5.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Cohere <https://docs.cohere.com/docs>`__
 

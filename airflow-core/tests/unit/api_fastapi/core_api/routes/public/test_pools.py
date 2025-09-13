@@ -831,5 +831,17 @@ class TestBulkPools(TestPoolsEndpoint):
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/pools", json={})
+        response = unauthorized_test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"pool": "pool1", "slots": 1},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403

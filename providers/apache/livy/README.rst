@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-livy``
 
 Release: ``4.4.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Livy <https://livy.apache.org/>`__
 

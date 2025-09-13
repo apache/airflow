@@ -45,7 +45,7 @@ export const useUpdateHITLDetail = ({
 }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
-  const { t: translate } = useTranslation(["common", "hitl"]);
+  const { t: translate } = useTranslation("hitl");
   const onSuccess = async () => {
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
@@ -59,7 +59,7 @@ export const useUpdateHITLDetail = ({
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      title: translate("hitl:response.success", { taskId }),
+      title: translate("response.success", { taskId }),
       type: "success",
     });
   };
@@ -67,7 +67,7 @@ export const useUpdateHITLDetail = ({
   const onError = (_error: Error) => {
     toaster.create({
       description: _error.message,
-      title: translate("hitl:response.error"),
+      title: translate("response.error"),
       type: "error",
     });
   };

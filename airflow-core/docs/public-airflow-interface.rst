@@ -577,8 +577,7 @@ Example of using Task Context instead of direct database access:
 
 .. code-block:: python
 
-    from airflow.sdk import dag, get_current_context, task
-    from airflow.utils.state import DagRunState
+    from airflow.sdk import dag, get_current_context, task, DagRunState
     from datetime import datetime
 
 

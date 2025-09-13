@@ -42,6 +42,7 @@ export default defineConfig(({ command }) => {
         output: {
           globals: {
             react: "React",
+            "react-dom": "ReactDOM",
             "react/jsx-runtime": "ReactJSXRuntime",
           },
         },
@@ -77,6 +78,7 @@ export default defineConfig(({ command }) => {
       environment: "happy-dom",
       globals: true,
       mockReset: true,
+      passWithNoTests: true,
       restoreMocks: true,
       setupFiles: "./testsSetup.ts",
     },

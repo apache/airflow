@@ -1244,7 +1244,19 @@ class TestBulkConnections(TestConnectionEndpoint):
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/connections", json={})
+        response = unauthorized_test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"connection_id": "test1", "conn_type": "test1"},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403
 
 

@@ -91,6 +91,9 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.ObjectStoragePath`
 - :class:`airflow.sdk.Param`
 - :class:`airflow.sdk.TaskGroup`
+- :class:`airflow.sdk.TaskInstanceState`
+- :class:`airflow.sdk.DagRunState`
+- :class:`airflow.sdk.WeightRule`
 - :class:`airflow.sdk.Variable`
 
 **Decorators and helper functions**

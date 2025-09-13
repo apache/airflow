@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-teradata``
 
 Release: ``3.2.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Teradata <https://www.teradata.com/>`__
 

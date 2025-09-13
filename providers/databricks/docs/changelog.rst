@@ -26,6 +26,38 @@
 Changelog
 ---------
 
+7.7.2
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks sqlalchemy URL construction (#54478)``
+* ``Ensures DatabricksWorkflowOperator updates ACL (if available) when resetting a job. (#47827)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``chore: change openlineage to optional dependency (#54748)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 7.7.1
 .....
 

@@ -8,6 +8,12 @@
     "Variables": "Variables"
   },
   "allOperators": "All Operators",
+  "appearance": {
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "systemMode": "Follow System Setting"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -33,6 +39,7 @@
     "fileLocation": "File Location",
     "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
     "lastExpired": "Last Expired",
+    "lastParseDuration": "Last Parse Duration",
     "lastParsed": "Last Parsed",
     "latestDagVersion": "Latest Dag Version",
     "latestRun": "Latest Run",
@@ -92,16 +99,12 @@
     "any": "Any",
     "or": "OR"
   },
+  "filter": "Filter",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filter by Dag",
-    "keyPlaceholder": "Filter by XCom key",
-    "logicalDateFromPlaceholder": "Logical Date From",
-    "logicalDateToPlaceholder": "Logical Date To",
-    "mapIndexPlaceholder": "Filter by Map Index",
-    "runAfterFromPlaceholder": "Run After From",
-    "runAfterToPlaceholder": "Run After To",
-    "runIdPlaceholder": "Filter by Run ID",
-    "taskIdPlaceholder": "Filter by Task ID"
+    "logicalDateFrom": "Logical Date From",
+    "logicalDateTo": "Logical Date To",
+    "runAfterFrom": "Run After From",
+    "runAfterTo": "Run After To"
   },
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -143,6 +146,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
@@ -193,8 +197,6 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
-  "switchToDarkMode": "Switch to Dark Mode",
-  "switchToLightMode": "Switch to Light Mode",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

@@ -77,9 +77,7 @@ apache-airflow-providers-http package
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 5.3.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 5.3.4
 
 Provider package
 ----------------
@@ -99,12 +97,12 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-=====================  ====================
+=====================  ==================
 PIP package            Version required
-=====================  ====================
+=====================  ==================
 ``apache-airflow``     ``>=2.10.0``
 ``requests``           ``>=2.32.0,<3``
 ``requests-toolbelt``  ``>=1.0.0``
-``aiohttp``            ``!=3.11.0,>=3.9.2``
+``aiohttp``            ``>=3.12.14``
 ``asgiref``            ``>=2.3.0``
-=====================  ====================
+=====================  ==================

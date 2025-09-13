@@ -394,6 +394,7 @@ Class | Method | HTTP request | Description
 *DagRunApi* | [**get_dag_runs**](docs/DagRunApi.md#get_dag_runs) | **GET** /api/v2/dags/{dag_id}/dagRuns | Get Dag Runs
 *DagRunApi* | [**get_list_dag_runs_batch**](docs/DagRunApi.md#get_list_dag_runs_batch) | **POST** /api/v2/dags/{dag_id}/dagRuns/list | Get List Dag Runs Batch
 *DagRunApi* | [**get_upstream_asset_events**](docs/DagRunApi.md#get_upstream_asset_events) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get Upstream Asset Events
+*DagRunApi* | [**wait_dag_run_until_finished**](docs/DagRunApi.md#wait_dag_run_until_finished) | **GET** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait | Experimental: Wait for a dag run to complete, and return task results if requested.
 *DagRunApi* | [**patch_dag_run**](docs/DagRunApi.md#patch_dag_run) | **PATCH** /api/v2/dags/{dag_id}/dagRuns/{dag_run_id} | Patch Dag Run
 *DagRunApi* | [**trigger_dag_run**](docs/DagRunApi.md#trigger_dag_run) | **POST** /api/v2/dags/{dag_id}/dagRuns | Trigger Dag Run
 *DagSourceApi* | [**get_dag_source**](docs/DagSourceApi.md#get_dag_source) | **GET** /api/v2/dagSources/{dag_id} | Get Dag Source

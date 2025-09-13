@@ -190,6 +190,10 @@
         "deadline": {
             "anyOf": [
                 { "$ref": "#/definitions/dict" },
+                {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/dict" }
+                },
                 { "type": "null" }
             ]
         },

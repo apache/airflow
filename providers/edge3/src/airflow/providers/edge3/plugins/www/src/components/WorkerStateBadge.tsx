@@ -48,6 +48,38 @@ const state2Color = (state: EdgeWorkerState | null | undefined) => {
   }
 };
 
+const state2TooltipText = (state: EdgeWorkerState | null | undefined) => {
+  switch (state) {
+    // see enum mapping from providers/edge3/src/airflow/providers/edge3/models/edge_worker.py:EdgeWorkerState
+    case "starting":
+      return "Edge Worker is in initialization.";
+    case "running":
+      return "Edge Worker is actively running a task.";
+    case "idle":
+      return "Edge Worker is active and waiting for a task.";
+    case "shutdown request":
+      return "Request to shutdown Edge Worker is issued. It will be picked-up on the next heartbeat, tasks will drain and then worker will terminate.";
+    case "terminating":
+      return "Edge Worker is completing work (draining running tasks) and stopping.";
+    case "offline":
+      return "Edge Worker was shut down.";
+    case "unknown":
+      return "No heartbeat signal from worker for some time, Edge Worker probably down or got disconnected.";
+    case "maintenance request":
+      return "Worker was requested to enter maintenance mode. Once worker receives this message it will pause fetching tasks and drain tasks.";
+    case "maintenance pending":
+      return "Edge Worker received the request for maintenance, waiting for tasks to finish. Once tasks are finished will move to 'maintenance mode'.";
+    case "maintenance mode":
+      return "Edge Worker is in maintenance mode. It is online but pauses fetching tasks.";
+    case "maintenance exit":
+      return "Request Worker is requested to exit maintenance mode. Once the worker receives this state it will un-pause and fetch new tasks.";
+    case "offline maintenance":
+      return "Worker was shut down in maintenance mode. It will be in maintenance mode when restarted.";
+    default:
+      return undefined;
+  }
+};
+
 export type Props = {
   readonly state?: EdgeWorkerState | null;
 } & BadgeProps;
@@ -61,6 +93,7 @@ export const WorkerStateBadge = React.forwardRef<HTMLDivElement, Props>(
       px={children === undefined ? 1 : 2}
       py={1}
       ref={ref}
+      title={state2TooltipText(state)}
       variant="solid"
       {...rest}
     >

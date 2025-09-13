@@ -611,7 +611,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-api-server-config" .Release.Name) .Values.apiServer.apiServerConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}

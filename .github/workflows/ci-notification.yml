@@ -36,7 +36,7 @@ jobs:
   workflow-status:
     strategy:
       matrix:
-        branch: ["v3-0-test"]
+        branch: ["v3-1-test"]
         workflow-id: ["ci-amd.yml", "ci-arm.yml"]
     runs-on: ubuntu-latest
     steps:

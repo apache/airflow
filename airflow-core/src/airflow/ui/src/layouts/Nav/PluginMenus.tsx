@@ -49,8 +49,8 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
     return undefined;
   }
 
-  // Show plugins in menu if there are more than 2
-  return navItems.length > 2 ? (
+  // Show plugins in menu if there are more than or equal to 2
+  return navItems.length >= 2 ? (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
         <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />

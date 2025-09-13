@@ -1222,9 +1222,13 @@ class DagRun(Base, LoggingMixin):
                     msg="success",
                 )
 
-            if (deadline := dag.deadline) and isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                # The dagrun has succeeded.  If there wre any Deadlines for it which were not breached, they are no longer needed.
-                Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
+            if dag.deadline:
+                # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
+                if any(
+                    isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
+                    for d in cast("list", dag.deadline)
+                ):
+                    Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:

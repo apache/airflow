@@ -71,9 +71,7 @@ apache-airflow-providers-pinecone package
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 
-Release: 2.3.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 2.3.4
 
 Provider package
 ----------------

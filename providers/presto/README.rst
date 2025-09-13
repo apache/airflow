@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-presto``
 
 Release: ``5.9.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Presto <https://prestodb.io/>`__
 

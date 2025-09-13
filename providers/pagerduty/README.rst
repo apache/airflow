@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-pagerduty``
 
 Release: ``5.0.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Pagerduty <https://www.pagerduty.com/>`__
 

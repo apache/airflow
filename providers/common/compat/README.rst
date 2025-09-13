@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-common-compat``
 
 Release: ``1.7.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 Common Compatibility Provider - providing compatibility code for previous Airflow versions
 

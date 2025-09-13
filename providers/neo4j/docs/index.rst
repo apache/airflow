@@ -77,9 +77,7 @@ apache-airflow-providers-neo4j package
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.10.0
-
-Release Date: ``|PypiReleaseDate|``
+Release: 3.10.1
 
 Provider package
 ----------------

@@ -667,6 +667,7 @@ def sync_bag_to_db(
         bundle_version,
         [LazyDeserializedDAG.from_dag(dag) for dag in dagbag.dags.values()],
         import_errors,
+        None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
     )

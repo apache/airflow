@@ -78,9 +78,7 @@ apache-airflow-providers-keycloak package
 ``Keycloak Provider``
 
 
-Release: 0.0.1
-
-Release Date: ``|PypiReleaseDate|``
+Release: 0.1.0
 
 Provider package
 ----------------

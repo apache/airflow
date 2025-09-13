@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-singularity``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 

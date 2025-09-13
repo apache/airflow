@@ -333,6 +333,22 @@ in ``--from-ref`` and ``--to-ref`` flags.
     The main reason is to keep consistency in the results of static checks and to make sure that
     our code is fine when running the lowest supported version.
 
+Compiling ui assets
+--------------------
+
+Before starting Airflow, Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
+command takes care about it. This is needed when you want to run API server inside of the breeze.
+
+.. image:: ./images/output_compile-ui-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
+  :width: 100%
+  :alt: Breeze compile-ui-assets
+
+Note
+
+This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-prek>`__.
+
+
 Starting Airflow
 ----------------
 
@@ -376,6 +392,29 @@ These are all available flags of ``start-airflow`` command:
   :width: 100%
   :alt: Breeze start-airflow
 
+Running External System Integrations with Breeze
+------------------------------------------------
+
+You can run Airflow alongside external systems in Breeze, such as Kafka, Cassandra, MongoDB, and more.
+
+To start Airflow with an integration, use the following command:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration <integration_name>
+
+For example, to run Airflow with Kafka:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration kafka
+
+Check the available integrations by running:
+
+.. code-block:: bash
+
+    breeze --integration --help
+
 Launching multiple terminals in the same environment
 ----------------------------------------------------
 
@@ -402,20 +441,6 @@ These are all available flags of ``exec`` command:
   :alt: Breeze exec
 
 
-Compiling ui assets
---------------------
-
-Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
-command takes care about it. This is needed when you want to run API server inside of the breeze.
-
-.. image:: ./images/output_compile-ui-assets.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
-  :width: 100%
-  :alt: Breeze compile-ui-assets
-
-Note
-
-This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-prek>`__.
 
 Breeze cleanup
 --------------

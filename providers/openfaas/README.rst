@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-openfaas``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `OpenFaaS <https://www.openfaas.com/>`__
 

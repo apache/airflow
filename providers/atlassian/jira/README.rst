@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-atlassian-jira``
 
 Release: ``3.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 

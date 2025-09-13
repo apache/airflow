@@ -819,13 +819,20 @@ class TestTableOperations(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
-    def test_create_table_with_extras_succeed(self, mock_bq_client, mock_table):
+    @pytest.mark.parametrize(
+        "partitioning",
+        [
+            {"timePartitioning": {"field": "created", "type": "DAY"}},
+            {"rangePartitioning": {"field": "grade", "range": {"start": 0, "end": 100, "interval": 20}}},
+        ],
+    )
+    def test_create_table_with_extras_succeed(self, mock_bq_client, mock_table, partitioning):
         schema_fields = [
             {"name": "id", "type": "STRING", "mode": "REQUIRED"},
             {"name": "name", "type": "STRING", "mode": "NULLABLE"},
             {"name": "created", "type": "DATE", "mode": "REQUIRED"},
+            {"name": "grade", "type": "INTEGER", "mode": "REQUIRED"},
         ]
-        time_partitioning = {"field": "created", "type": "DAY"}
         cluster_fields = ["name"]
         body = {
             "tableReference": {
@@ -834,9 +841,9 @@ class TestTableOperations(_BigQueryBaseTestClass):
                 "datasetId": DATASET_ID,
             },
             "schema": {"fields": schema_fields},
-            "timePartitioning": time_partitioning,
             "clustering": {"fields": cluster_fields},
         }
+        body.update(partitioning)
         self.hook.create_table(
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,

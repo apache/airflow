@@ -877,12 +877,14 @@ class AirflowConfigParser(ConfigParser):
             mask_secret_core(value)
             mask_secret_sdk(value)
 
-    def _env_var_name(self, section: str, key: str) -> str:
-        return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
+    def _env_var_name(self, section: str, key: str, team_name: str | None = None) -> str:
+        team_component: str = f"{team_name.upper()}___" if team_name else ""
+        return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
 
-    def _get_env_var_option(self, section: str, key: str):
-        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
-        env_var = self._env_var_name(section, key)
+    def _get_env_var_option(self, section: str, key: str, team_name: str | None = None):
+        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore) OR for team based
+        # configuration must have the format AIRFLOW__{TEAM_NAME}___{SECTION}__{KEY}
+        env_var: str = self._env_var_name(section, key, team_name=team_name)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
         # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
@@ -982,6 +984,7 @@ class AirflowConfigParser(ConfigParser):
         suppress_warnings: bool = False,
         lookup_from_deprecated: bool = True,
         _extra_stacklevel: int = 0,
+        team_name: str | None = None,
         **kwargs,
     ) -> str | None:
         section = section.lower()
@@ -1044,6 +1047,7 @@ class AirflowConfigParser(ConfigParser):
             section,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
+            team_name=team_name,
         )
         if option is not None:
             return option
@@ -1170,13 +1174,14 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
+        team_name: str | None = None,
     ) -> str | None:
-        option = self._get_env_var_option(section, key)
+        option = self._get_env_var_option(section, key, team_name=team_name)
         if option is not None:
             return option
         if deprecated_section and deprecated_key:
             with self.suppress_future_warnings():
-                option = self._get_env_var_option(deprecated_section, deprecated_key)
+                option = self._get_env_var_option(deprecated_section, deprecated_key, team_name=team_name)
             if option is not None:
                 if issue_warning:
                     self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)

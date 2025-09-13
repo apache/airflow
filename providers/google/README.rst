@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``17.1.0``
+Release: ``17.2.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 Google services including:
 
@@ -44,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/17.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/17.2.0/>`_.
 
 Installation
 ------------
@@ -173,4 +172,4 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/17.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/17.2.0/changelog.html>`_.

@@ -29,7 +29,9 @@ import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
 export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation("dashboard");
+  const { i18n, t: translate } = useTranslation("dashboard");
+
+  const isRTL = i18n.dir() === "rtl";
 
   const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
@@ -63,6 +65,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           count={importErrorsCount}
           icon={<LuFileWarning />}
           isLoading={isLoading}
+          isRTL={isRTL}
           label={translate("importErrors.dagImportError", { count: importErrorsCount })}
           onClick={onOpen}
         />

@@ -970,20 +970,24 @@ class TestKubernetesPodOperatorSystem:
         await_pod_completion_mock.return_value = pod_mock
         context = create_context(k)
 
-        # I'm not really sure what the point is of this assert
-        with caplog.at_level(logging.DEBUG, logger="airflow.task.operators"):
+        # TODO: once Airflow 3.1 is the min version, replace this with out structlog-based caplog fixture
+        with mock.patch.object(k.log, "debug") as debug_logs:
             k.execute(context)
-            expected_lines = [
-                "Starting pod:",
-                "api_version: v1",
-                "kind: Pod",
-                "metadata:",
-                "  annotations: {}",
-                "  creation_timestamp: null",
-                "  deletion_grace_period_seconds: null",
-            ]
-            actual = next(x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s").splitlines()
-            assert actual[: len(expected_lines)] == expected_lines
+            expected_lines = "\n".join(
+                [
+                    "api_version: v1",
+                    "kind: Pod",
+                    "metadata:",
+                    "  annotations: {}",
+                    "  creation_timestamp: null",
+                    "  deletion_grace_period_seconds: null",
+                ]
+            )
+            # Make a nice assert if it's not there
+            debug_logs.assert_any_call("Starting pod:\n%s", mock.ANY)
+            # Now we know it is there, examine the second argument
+            mock_call = next(call for call in debug_logs.mock_calls if call[1][0] == "Starting pod:\n%s")
+            assert mock_call[1][1][: len(expected_lines)] == expected_lines
 
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         expected_dict = {
@@ -1473,8 +1477,7 @@ class TestKubernetesPodOperatorSystem:
         )
 
         # Test the _log_message method directly
-        logger = logging.getLogger("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager")
-        with mock.patch.object(logger, "info") as mock_info:
+        with mock.patch.object(k.pod_manager.log, "info") as mock_info:
             k.pod_manager._log_message(
                 message=marker,
                 container_name="base",

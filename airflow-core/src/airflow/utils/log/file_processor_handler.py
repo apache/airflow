@@ -25,7 +25,7 @@ from pathlib import Path
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.utils.helpers import parse_template_string
-from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
+from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ class FileProcessorHandler(logging.Handler):
             self._symlink_latest_log_directory()
             self._cur_date = datetime.today()
 
-        return DISABLE_PROPOGATE
+        return SetContextPropagate.DISABLE_PROPAGATE
 
     def emit(self, record):
         if self.handler is not None:

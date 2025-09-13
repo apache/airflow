@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-tableau``
 
 Release: ``5.2.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Tableau <https://www.tableau.com/>`__
 

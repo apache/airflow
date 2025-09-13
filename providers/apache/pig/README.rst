@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-pig``
 
 Release: ``4.7.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Pig <https://pig.apache.org/>`__
 

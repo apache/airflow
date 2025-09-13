@@ -1,4 +1,11 @@
 {
+  "favorite": {
+    "favoriteDags_many": "Primeros {{count}} Dags Favoritos",
+    "favoriteDags_one": "Primer {{count}} Dag Favorito",
+    "favoriteDags_other": "Primeros {{count}} Dags Favoritos",
+    "noDagRuns": "Aún no hay Ejecuciones de Dag para este Dag.",
+    "noFavoriteDags": "Aún no hay favoritos. Haz clic en el ícono de estrella junto a un Dag en la lista para agregarlo a tus favoritos."
+  },
   "group": "Grupo",
   "health": {
     "dagProcessor": "Procesador de Dags",
@@ -13,6 +20,7 @@
   },
   "history": "Historial",
   "importErrors": {
+    "dagImportError_many": "Errores de Importación de Dags",
     "dagImportError_one": "Error de Importación de Dag",
     "dagImportError_other": "Errores de Importación de Dags",
     "searchByFile": "Buscar por archivo",
@@ -30,6 +38,7 @@
     "activeDags": "Dags Activos",
     "failedDags": "Dags Fallidos",
     "queuedDags": "Dags en Cola",
+    "requiredActions": "Acciones Requeridas",
     "runningDags": "Dags en Ejecución",
     "stats": "Estadísticas"
   },

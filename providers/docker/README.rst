@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-docker``
 
 Release: ``4.4.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Docker <https://www.docker.com/>`__
 

@@ -66,7 +66,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.3"
+    "apache-airflow-providers-common-messaging>=2.0.0"
 ]
 
 [dependency-groups]

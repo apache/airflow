@@ -67,6 +67,7 @@ export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient,
 * @param data.sourceTaskId
 * @param data.sourceRunId
 * @param data.sourceMapIndex
+* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.timestampGte
 * @param data.timestampGt
 * @param data.timestampLte
@@ -74,9 +75,10 @@ export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient,
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient, { assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient, { assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   sourceDagId?: string;
@@ -87,7 +89,7 @@ export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -325,7 +327,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, dagVersion, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ dagId, dagVersion, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -342,7 +344,7 @@ export const ensureUseDagRunServiceWaitDagRunUntilFinishedData = (queryClient: Q
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => DagRunService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -459,6 +461,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.excludeStale
 * @param data.paused
+* @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
@@ -478,7 +481,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -495,6 +498,7 @@ export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { asset
   dagRunState?: string[];
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
+  hasImportErrors?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -504,7 +508,7 @@ export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { asset
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Dag
 * Get basic information about a DAG.
@@ -559,6 +563,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.excludeStale
 * @param data.paused
+* @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
@@ -570,7 +575,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -580,6 +585,7 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { ass
   dagRunsLimit?: number;
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
+  hasImportErrors?: boolean;
   hasPendingActions?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
@@ -590,7 +596,7 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { ass
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Latest Run Info
 * Get latest run.
@@ -1367,14 +1373,14 @@ export const ensureUseHumanInTheLoopServiceGetHitlDetailData = (queryClient: Que
 * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.responseReceived
-* @param data.respondedUserId
-* @param data.respondedUserName
+* @param data.respondedByUserId
+* @param data.respondedByUserName
 * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient, { bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedUserId, respondedUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
+export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: QueryClient, { bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
   bodySearch?: string;
   dagId?: string;
   dagIdPattern?: string;
@@ -1382,14 +1388,14 @@ export const ensureUseHumanInTheLoopServiceGetHitlDetailsData = (queryClient: Qu
   limit?: number;
   offset?: number;
   orderBy?: string[];
-  respondedUserId?: string[];
-  respondedUserName?: string[];
+  respondedByUserId?: string[];
+  respondedByUserName?: string[];
   responseReceived?: boolean;
   state?: string[];
   subjectSearch?: string;
   taskId?: string;
   taskIdPattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedUserId, respondedUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedUserId, respondedUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
@@ -1506,10 +1512,12 @@ export const ensureUseStructureServiceStructureDataData = (queryClient: QueryCli
 * @param data.runAfterGt
 * @param data.runAfterLte
 * @param data.runAfterLt
+* @param data.runType
+* @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns GridNodeResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
+export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -1518,7 +1526,9 @@ export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }) });
+  runType?: string[];
+  triggeringUser?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }) });
 /**
 * Get Grid Runs
 * Get info about a run for the grid.
@@ -1531,10 +1541,12 @@ export const ensureUseGridServiceGetDagStructureData = (queryClient: QueryClient
 * @param data.runAfterGt
 * @param data.runAfterLte
 * @param data.runAfterLt
+* @param data.runType
+* @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns GridRunsResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }: {
+export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
@@ -1543,7 +1555,9 @@ export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { 
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte }) });
+  runType?: string[];
+  triggeringUser?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, triggeringUser }) });
 /**
 * Get Grid Ti Summaries
 * Get states for TIs / "groups" of TIs.

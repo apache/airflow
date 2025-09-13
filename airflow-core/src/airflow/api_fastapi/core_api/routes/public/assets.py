@@ -291,13 +291,26 @@ def get_asset_events(
     source_map_index: Annotated[
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
+    name_pattern: QueryAssetNamePatternSearch,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
+    base_statement = select(AssetEvent)
+    if name_pattern.value:
+        base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
+
     assets_event_select, total_entries = paginated_select(
-        statement=select(AssetEvent),
-        filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index, timestamp_range],
+        statement=base_statement,
+        filters=[
+            asset_id,
+            source_dag_id,
+            source_task_id,
+            source_run_id,
+            source_map_index,
+            name_pattern,
+            timestamp_range,
+        ],
         order_by=order_by,
         offset=offset,
         limit=limit,

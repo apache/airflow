@@ -10,8 +10,6 @@
     "allRuns": "جميع التشغيلات",
     "backwards": "تشغيل رجعي",
     "dateRange": "نطاق التاريخ",
-    "dateRangeFrom": "من",
-    "dateRangeTo": "إلى",
     "errorStartDateBeforeEndDate": "يجب أن يكون تاريخ البدء قبل تاريخ الانتهاء",
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
     "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
@@ -113,7 +111,7 @@
     "taskCount_many": "{{count}} مهمة",
     "taskCount_one": "{{count}} مهمة",
     "taskCount_other": "{{count}} مهمة",
-    "taskCount_two": "{{count}} مهمتان",
+    "taskCount_two": "مهمتان",
     "taskCount_zero": "لا يوجد أي مهمة",
     "taskGroup": "مجموعة المهام"
   },

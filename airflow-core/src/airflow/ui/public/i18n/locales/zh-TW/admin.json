@@ -72,7 +72,6 @@
     "tooltip": "刪除所選連線"
   },
   "formActions": {
-    "reset": "重置",
     "save": "儲存"
   },
   "plugins": {

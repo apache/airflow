@@ -1,0 +1,49 @@
+{
+  "favorite": {
+    "favoriteDags_many": "{{count}} DAGs preferiti",
+    "favoriteDags_one": "Primo {{count}} DAG preferito",
+    "favoriteDags_other": "Primi {{count}} DAGs preferiti",
+    "favoriteDags_zero": "Nessun DAG preferito",
+    "noDagRuns": "Non ci sono ancora DagRun per questo dag.",
+    "noFavoriteDags": "Nessun preferito ancora. Clicca sull'icona stella accanto a un Dag nella lista per aggiungerlo ai tuoi preferiti."
+  },
+  "group": "Gruppo",
+  "health": {
+    "dagProcessor": "Processore DAG",
+    "health": "Salute",
+    "healthy": "Sano",
+    "lastHeartbeat": "Ultimo Heartbeat",
+    "metaDatabase": "Database di metadati",
+    "scheduler": "Pianificatrice",
+    "status": "Stato",
+    "triggerer": "Triggerer",
+    "unhealthy": "Malato"
+  },
+  "history": "Cronologia",
+  "importErrors": {
+    "dagImportError_many": "Errori di Importazione DAG",
+    "dagImportError_one": "Errore di Importazione DAG",
+    "dagImportError_other": "Errori di Importazione DAG",
+    "dagImportError_zero": "Nessun errore di importazione DAG",
+    "searchByFile": "Cerca per file",
+    "timestamp": "Timestamp"
+  },
+  "managePools": "Gestisci Pools",
+  "noAssetEvents": "Nessun evento di asset trovato.",
+  "poolSlots": "Slot del Pool",
+  "sortBy": {
+    "newestFirst": "Più Recenti",
+    "oldestFirst": "Più Vecchi"
+  },
+  "source": "Fonte",
+  "stats": {
+    "activeDags": "DAG Attivi",
+    "failedDags": "DAG Falliti",
+    "queuedDags": "DAG In Attesa",
+    "requiredActions": "Azioni Richieste",
+    "runningDags": "DAG In Esecuzione",
+    "stats": "Statistiche"
+  },
+  "uri": "Uri",
+  "welcome": "Benvenuto"
+}
