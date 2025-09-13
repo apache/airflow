@@ -145,7 +145,6 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
-
 def test_is_needed(session):
     """Checks the triggerer-is-needed logic"""
     # No triggers, no need
