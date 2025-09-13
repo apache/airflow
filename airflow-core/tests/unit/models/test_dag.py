@@ -925,8 +925,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.handle_dag_callback(dag=scheduler_dag, success=False)
-            dag_run.handle_dag_callback(dag=scheduler_dag, success=True)
+            dag_run.handle_dag_callback(dag=dag, success=False)
+            dag_run.handle_dag_callback(dag=dag, success=True)
 
     @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
     def test_next_dagrun_after_fake_scheduled_previous(
@@ -2242,12 +2242,7 @@ class TestDagModel:
             ),
             start_date=datetime.datetime.min,
         )
-        SerializedDAG.bulk_write_to_db(
-            "testing",
-            None,
-            [SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))],
-            session=session,
-        )
+        SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
 
         expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {

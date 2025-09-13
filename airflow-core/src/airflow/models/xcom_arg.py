@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attrs
 from sqlalchemy import func, or_, select
@@ -92,8 +92,7 @@ class SchedulerPlainXComArg(SchedulerXComArg):
 
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
-        # TODO (GH-52141): SerializedDAG should return scheduler operator instead.
-        return cls(cast("Operator", dag.get_task(data["task_id"])), data["key"])
+        return cls(dag.get_task(data["task_id"]), data["key"])
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key

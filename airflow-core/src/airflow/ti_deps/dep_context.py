@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import attr
 
@@ -29,9 +29,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagrun import DagRun
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 @attr.define
@@ -100,9 +98,7 @@ class DepContext:
                 if getattr(ti, "task", None) is not None or (dag := dag_run.dag) is None:
                     continue
                 with contextlib.suppress(TaskNotFound):
-                    # TODO (GH-52141): get_task in scheduler should contain scheduler
-                    # types instead, but currently it inherits SDK's DAG.
-                    ti.task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
+                    ti.task = dag.get_task(ti.task_id)
             self.finished_tis = finished_tis
         else:
             finished_tis = self.finished_tis
