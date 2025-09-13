@@ -29,9 +29,11 @@ from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_vi
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
+    add_worker_queues,
     change_maintenance_comment,
     exit_maintenance,
     remove_worker,
+    remove_worker_queues,
     request_maintenance,
     request_shutdown,
 )
@@ -238,5 +240,53 @@ def delete_worker(
 
     try:
         remove_worker(worker_name, session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.put(
+    "/worker/{worker_name}/queues/{queue_name}",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def add_worker_queue(
+    worker_name: str,
+    queue_name: str,
+    session: SessionDep,
+) -> None:
+    """Add a queue to a worker."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        add_worker_queues(worker_name, [queue_name], session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.delete(
+    "/worker/{worker_name}/queues/{queue_name}",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def remove_worker_queue(
+    worker_name: str,
+    queue_name: str,
+    session: SessionDep,
+) -> None:
+    """Remove a queue from a worker."""
+    # Check if worker exists first
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        remove_worker_queues(worker_name, [queue_name], session=session)
     except Exception as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))

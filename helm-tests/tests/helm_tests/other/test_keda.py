@@ -107,7 +107,7 @@ class TestKeda:
             queue_value = queue or "kubernetes"
             query += f" AND queue != '{queue_value}'"
         elif "KubernetesExecutor" in executor:
-            query += " AND executor != 'KubernetesExecutor'"
+            query += " AND executor IS DISTINCT FROM 'KubernetesExecutor'"
         return query
 
     @pytest.mark.parametrize(
