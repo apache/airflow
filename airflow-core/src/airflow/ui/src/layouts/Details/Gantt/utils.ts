@@ -46,6 +46,9 @@ type ChartOptionsParams = {
   data: Array<GanttDataItem>;
   gridColor?: string;
   handleBarClick: (event: ChartEvent, elements: Array<ActiveElement>) => void;
+  handleBarHover: (event: ChartEvent, elements: Array<ActiveElement>) => void;
+  hoveredId?: string | null;
+  hoveredItemColor?: string;
   selectedId?: string;
   selectedItemColor?: string;
   selectedRun?: GridRunsResponse;
@@ -82,10 +85,54 @@ export const createHandleBarClick =
     }
   };
 
+export const createHandleBarHover = (
+  data: Array<GanttDataItem>,
+  setHoveredTaskId: (taskId: string | undefined) => void,
+) => {
+  let lastHoveredTaskId: string | undefined = undefined;
+
+  return (_: ChartEvent, elements: Array<ActiveElement>) => {
+    // Clear previous hover styles
+    if (lastHoveredTaskId !== undefined) {
+      const previousTasks = document.querySelectorAll<HTMLDivElement>(
+        `#${lastHoveredTaskId.replaceAll(".", "-")}`,
+      );
+
+      previousTasks.forEach((task) => {
+        task.style.backgroundColor = "";
+      });
+    }
+
+    if (elements.length > 0 && elements[0] && elements[0].index < data.length) {
+      const hoveredData = data[elements[0].index];
+
+      if (hoveredData?.taskId !== undefined) {
+        lastHoveredTaskId = hoveredData.taskId;
+        setHoveredTaskId(hoveredData.taskId);
+
+        // Apply new hover styles
+        const tasks = document.querySelectorAll<HTMLDivElement>(
+          `#${hoveredData.taskId.replaceAll(".", "-")}`,
+        );
+
+        tasks.forEach((task) => {
+          task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+        });
+      }
+    } else {
+      lastHoveredTaskId = undefined;
+      setHoveredTaskId(undefined);
+    }
+  };
+};
+
 export const createChartOptions = ({
   data,
   gridColor,
   handleBarClick,
+  handleBarHover,
+  hoveredId,
+  hoveredItemColor,
   selectedId,
   selectedItemColor,
   selectedRun,
@@ -105,11 +152,14 @@ export const createChartOptions = ({
     if (target) {
       target.style.cursor = elements.length > 0 ? "pointer" : "default";
     }
+
+    handleBarHover(event, elements);
   },
   plugins: {
     annotation: {
-      annotations:
-        selectedId === undefined || selectedId === ""
+      annotations: [
+        // Selected task annotation
+        ...(selectedId === undefined || selectedId === "" || hoveredId === selectedId
           ? []
           : [
               {
@@ -122,7 +172,23 @@ export const createChartOptions = ({
                 yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
                 yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
               },
-            ],
+            ]),
+        // Hovered task annotation
+        ...(hoveredId === null || hoveredId === undefined
+          ? []
+          : [
+              {
+                backgroundColor: hoveredItemColor,
+                borderWidth: 0,
+                drawTime: "beforeDatasetsDraw" as const,
+                type: "box" as const,
+                xMax: "max" as const,
+                xMin: "min" as const,
+                yMax: data.findIndex((dataItem) => dataItem.y === hoveredId) + 0.5,
+                yMin: data.findIndex((dataItem) => dataItem.y === hoveredId) - 0.5,
+              },
+            ]),
+      ],
     },
     legend: {
       display: false,

@@ -23,6 +23,7 @@ import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 
 import type { GridTask } from "./utils";
@@ -33,29 +34,34 @@ type Props = {
   onRowClick?: () => void;
 };
 
-const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-  });
-};
-
-const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-};
-
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
 export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
+  const { setHoveredTaskId } = useHover();
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
+
+  const onMouseEnter = (event: MouseEvent<HTMLDivElement>, nodeId: string) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    });
+
+    setHoveredTaskId(nodeId);
+  };
+
+  const onMouseLeave = (nodeId: string) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${nodeId.replaceAll(".", "-")}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "";
+    });
+
+    setHoveredTaskId(undefined);
+  };
 
   return nodes.map((node) => (
     <Box
@@ -66,8 +72,8 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       id={node.id.replaceAll(".", "-")}
       key={node.id}
       maxHeight="20px"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={(event) => onMouseEnter(event, node.id)}
+      onMouseLeave={() => onMouseLeave(node.id)}
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
