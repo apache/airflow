@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -390,6 +390,52 @@ export class UiService {
             url: '/edge_worker/ui/worker/{worker_name}',
             path: {
                 worker_name: data.workerName
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Add Worker Queue
+     * Add a queue to a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.queueName
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static addWorkerQueue(data: AddWorkerQueueData): CancelablePromise<AddWorkerQueueResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/edge_worker/ui/worker/{worker_name}/queues/{queue_name}',
+            path: {
+                worker_name: data.workerName,
+                queue_name: data.queueName
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Remove Worker Queue
+     * Remove a queue from a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.queueName
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static removeWorkerQueue(data: RemoveWorkerQueueData): CancelablePromise<RemoveWorkerQueueResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/edge_worker/ui/worker/{worker_name}/queues/{queue_name}',
+            path: {
+                worker_name: data.workerName,
+                queue_name: data.queueName
             },
             errors: {
                 422: 'Validation Error'
