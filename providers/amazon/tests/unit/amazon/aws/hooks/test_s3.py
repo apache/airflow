@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import gzip as gz
 import inspect
+import json
 import os
 import re
 from datetime import datetime as std_datetime, timezone
@@ -306,22 +307,30 @@ class TestAwsS3Hook:
         assert sorted(dirs) == sorted(hook.list_prefixes(s3_bucket, delimiter="/", page_size=1))
 
     def test_list_prefixes_when_requester_pays(self, s3_bucket):
-        hook = S3Hook(requester_pays=True)
-        hook.get_conn = MagicMock()
-        hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
-
-        assert hook.list_prefixes(s3_bucket, prefix="non-existent/") == []
-
-        hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
-            Bucket="airflow-test-s3-bucket",
-            Delimiter="",
-            PaginationConfig={
-                "MaxItems": None,
-                "PageSize": None,
-            },
-            Prefix="non-existent/",
-            RequestPayer="requester",
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
         )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            hook = S3Hook()
+            hook.get_conn = MagicMock()
+            hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
+
+            assert hook.list_prefixes(s3_bucket, prefix="non-existent/") == []
+
+            hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
+                Bucket="airflow-test-s3-bucket",
+                Delimiter="",
+                PaginationConfig={
+                    "MaxItems": None,
+                    "PageSize": None,
+                },
+                Prefix="non-existent/",
+                RequestPayer="requester",
+            )
 
     def test_list_keys(self, s3_bucket):
         hook = S3Hook()
@@ -361,23 +370,31 @@ class TestAwsS3Hook:
         assert hook.list_keys(s3_bucket, prefix="b*", apply_wildcard=True) == ["ba", "bxa", "bxb"]
 
     def test_list_keys_when_requester_pays(self, s3_bucket):
-        hook = S3Hook(requester_pays=True)
-        hook.get_conn = MagicMock()
-        hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
-
-        assert hook.list_keys(s3_bucket, prefix="non-existent/") == []
-
-        hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
-            Bucket="airflow-test-s3-bucket",
-            Delimiter="",
-            PaginationConfig={
-                "MaxItems": None,
-                "PageSize": None,
-            },
-            Prefix="non-existent/",
-            RequestPayer="requester",
-            StartAfter="",
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
         )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            hook = S3Hook()
+            hook.get_conn = MagicMock()
+            hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
+
+            assert hook.list_keys(s3_bucket, prefix="non-existent/") == []
+
+            hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
+                Bucket="airflow-test-s3-bucket",
+                Delimiter="",
+                PaginationConfig={
+                    "MaxItems": None,
+                    "PageSize": None,
+                },
+                Prefix="non-existent/",
+                RequestPayer="requester",
+                StartAfter="",
+            )
 
     def test_list_keys_paged(self, s3_bucket):
         hook = S3Hook()
@@ -400,21 +417,29 @@ class TestAwsS3Hook:
         assert len(hook.get_file_metadata("a", s3_bucket)) == 0
 
     def test_get_file_metadata_when_requester_pays(self, s3_bucket):
-        hook = S3Hook(requester_pays=True)
-        hook.get_conn = MagicMock()
-        hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
-
-        assert hook.get_file_metadata("test", s3_bucket) == []
-
-        hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
-            Bucket="airflow-test-s3-bucket",
-            PaginationConfig={
-                "MaxItems": None,
-                "PageSize": None,
-            },
-            Prefix="test",
-            RequestPayer="requester",
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
         )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            hook = S3Hook()
+            hook.get_conn = MagicMock()
+            hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
+
+            assert hook.get_file_metadata("test", s3_bucket) == []
+
+            hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
+                Bucket="airflow-test-s3-bucket",
+                PaginationConfig={
+                    "MaxItems": None,
+                    "PageSize": None,
+                },
+                Prefix="test",
+                RequestPayer="requester",
+            )
 
     def test_head_object(self, s3_bucket):
         hook = S3Hook()
@@ -427,17 +452,25 @@ class TestAwsS3Hook:
         assert hook.head_object(f"s3://{s3_bucket}//b") is None
 
     def test_head_object_when_requester_pays(self, s3_bucket):
-        hook = S3Hook(requester_pays=True)
-        hook.get_conn = MagicMock()
-        hook.get_conn.return_value.head_object.return_value = []
-
-        assert hook.head_object("a", s3_bucket) == []
-
-        hook.get_conn.return_value.head_object.assert_called_with(
-            Bucket="airflow-test-s3-bucket",
-            Key="a",
-            RequestPayer="requester",
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
         )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            hook = S3Hook()
+            hook.get_conn = MagicMock()
+            hook.get_conn.return_value.head_object.return_value = []
+
+            assert hook.head_object("a", s3_bucket) == []
+
+            hook.get_conn.return_value.head_object.assert_called_with(
+                Bucket="airflow-test-s3-bucket",
+                Key="a",
+                RequestPayer="requester",
+            )
 
     def test_check_for_key(self, s3_bucket):
         hook = S3Hook()
@@ -458,14 +491,22 @@ class TestAwsS3Hook:
         assert hook.get_key(f"s3://{s3_bucket}/a").key == "a"
 
     def test_get_key_when_requester_pays(self, s3_bucket):
-        hook = S3Hook(requester_pays=True)
-        hook.resource = MagicMock()
-
-        hook.get_key("a", s3_bucket)
-
-        hook.resource.Object.return_value.load.assert_called_with(
-            RequestPayer="requester",
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
         )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            hook = S3Hook()
+            hook.resource = MagicMock()
+
+            hook.get_key("a", s3_bucket)
+
+            hook.resource.Object.return_value.load.assert_called_with(
+                RequestPayer="requester",
+            )
 
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
@@ -480,13 +521,13 @@ class TestAwsS3Hook:
         mock_get_client_type.return_value.select_object_content.return_value = {
             "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook()
         assert hook.select_key("my_key", s3_bucket) == "Contént"
         mock_get_client_type.return_value.select_object_content.assert_called_with(
             Bucket="airflow-test-s3-bucket",
             Expression="SELECT * FROM S3Object",
             ExpressionType="SQL",
-            ExtraArgs={"RequestPayer": "requester"},
+            ExtraArgs={},
             InputSerialization={"CSV": {}},
             Key="my_key",
             OutputSerialization={"CSV": {}},
@@ -576,11 +617,7 @@ class TestAwsS3Hook:
         assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "requester_pays",
-        [False, True],
-    )
-    async def test_s3_key_hook_get_file_metadata_async_when_requester_pays_is(self, requester_pays):
+    async def test_s3_key_hook_get_file_metadata_async(self):
         """
         Test check_wildcard_key for a valid response
         :return:
@@ -598,7 +635,7 @@ class TestAwsS3Hook:
         mock_paginate.__aiter__.return_value = test_resp_iter
         mock_paginator.paginate.return_value = mock_paginate
 
-        s3_hook_async = S3Hook(client_type="S3", requester_pays=requester_pays)
+        s3_hook_async = S3Hook(client_type="S3")
         mock_client = AsyncMock()
         mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
         keys = [x async for x in s3_hook_async.get_file_metadata_async(mock_client, "test_bucket", "test*")]
@@ -608,8 +645,6 @@ class TestAwsS3Hook:
             {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
         ]
         extra_params = {}
-        if requester_pays:
-            extra_params["RequestPayer"] = "requester"
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="",
@@ -676,17 +711,25 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     async def test_get_head_object_async_when_requester_pays(self, s3_bucket):
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=True)
-        mock_client = AsyncMock()
-        mock_client.head_object.return_value = None
-
-        await s3_hook_async.get_head_object_async(mock_client, "s3://test_bucket/file", "test_bucket")
-
-        mock_client.head_object.assert_called_with(
-            Key="s3://test_bucket/file",
-            Bucket="test_bucket",
-            RequestPayer="requester",
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
         )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+            mock_client = AsyncMock()
+            mock_client.head_object.return_value = None
+
+            await s3_hook_async.get_head_object_async(mock_client, "s3://test_bucket/file", "test_bucket")
+
+            mock_client.head_object.assert_called_with(
+                Key="s3://test_bucket/file",
+                Bucket="test_bucket",
+                RequestPayer="requester",
+            )
 
     @pytest.mark.asyncio
     async def test_s3_key_hook_get_files_without_wildcard_async(self):
@@ -707,7 +750,7 @@ class TestAwsS3Hook:
         mock_paginate.__aiter__.return_value = test_resp_iter
         mock_paginator.paginate.return_value = mock_paginate
 
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=True)
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         mock_client = AsyncMock()
         mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
         response = await s3_hook_async.get_files_async(mock_client, "test_bucket", "test.txt", False)
@@ -716,7 +759,6 @@ class TestAwsS3Hook:
             Bucket="test_bucket",
             Delimiter="/",
             Prefix="test.txt",
-            RequestPayer="requester",
         )
 
     @pytest.mark.asyncio
@@ -777,7 +819,7 @@ class TestAwsS3Hook:
         mock_paginate.__aiter__.return_value = test_resp_iter
         mock_paginator.paginate.return_value = mock_paginate
 
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=True)
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         mock_client = AsyncMock()
         mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
         response = await s3_hook_async.get_files_async(
@@ -791,7 +833,6 @@ class TestAwsS3Hook:
                 Bucket="test_bucket",
                 Delimiter="/",
                 Prefix=test_bucket_key,
-                RequestPayer="requester",
             )
 
     @pytest.mark.asyncio
@@ -821,15 +862,12 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "test_first_prefix, test_second_prefix, requester_pays",
+        "test_first_prefix, test_second_prefix",
         [
-            ("async-prefix1/", "async-prefix2/", False),
-            ("async-prefix1/", "async-prefix2/", True),
+            ("async-prefix1/", "async-prefix2/"),
         ],
     )
-    async def test_s3_prefix_sensor_hook_list_prefixes_async(
-        self, test_first_prefix, test_second_prefix, requester_pays
-    ):
+    async def test_s3_prefix_sensor_hook_list_prefixes_async(self, test_first_prefix, test_second_prefix):
         """
         Test list_prefixes whether it returns a valid response
         """
@@ -839,7 +877,7 @@ class TestAwsS3Hook:
         mock_paginate.__aiter__.return_value = test_resp_iter
         mock_paginator.paginate.return_value = mock_paginate
 
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=requester_pays)
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         mock_client = AsyncMock()
         mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
 
@@ -847,8 +885,6 @@ class TestAwsS3Hook:
         expected_output = [test_first_prefix, test_second_prefix]
         assert expected_output == actual_output
         extra_params = {}
-        if requester_pays:
-            extra_params["RequestPayer"] = "requester"
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="",
@@ -1091,7 +1127,7 @@ class TestAwsS3Hook:
         """
         mock_list_keys.return_value = []
 
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=True)
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         mock_client = AsyncMock()
 
         response = await s3_hook_async.is_keys_unchanged_async(
@@ -1213,7 +1249,7 @@ class TestAwsS3Hook:
         assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_load_file_gzip(self, s3_bucket, tmp_path):
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook()
         path = tmp_path / "testfile"
         path.write_text("Content")
         hook.load_file(path, "my_key", s3_bucket, gzip=True)
@@ -1240,7 +1276,7 @@ class TestAwsS3Hook:
         assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_copy_object_acl(self, s3_bucket, tmp_path):
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook()
         path = tmp_path / "testfile"
         path.write_text("Content")
         hook.load_file_obj(path.open("rb"), "my_key", s3_bucket)
@@ -1289,7 +1325,7 @@ class TestAwsS3Hook:
 
     @mock_aws
     def test_copy_object_ol_instrumentation(self, s3_bucket, hook_lineage_collector):
-        mock_hook = S3Hook(requester_pays=True)
+        mock_hook = S3Hook()
 
         with mock.patch.object(
             S3Hook,
@@ -1314,7 +1350,6 @@ class TestAwsS3Hook:
                     "VersionId": None,
                 },
                 Key="my_key3",
-                RequestPayer="requester",
             )
 
     @mock_aws
@@ -1363,7 +1398,7 @@ class TestAwsS3Hook:
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
         # It will succeed idempotently
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook()
         hook.delete_objects(bucket=s3_bucket, keys=["key-1"])
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
@@ -1416,7 +1451,7 @@ class TestAwsS3Hook:
     def test_download_file(self, mock_temp_file, tmp_path):
         path = tmp_path / "airflow_tmp_test_s3_hook"
         mock_temp_file.return_value = path
-        s3_hook = S3Hook(aws_conn_id="s3_test", requester_pays=True)
+        s3_hook = S3Hook(aws_conn_id="s3_test")
         s3_hook.check_for_key = Mock(return_value=True)
         s3_obj = Mock()
         s3_obj.download_fileobj = Mock(return_value=None)
@@ -1430,7 +1465,7 @@ class TestAwsS3Hook:
         s3_obj.download_fileobj.assert_called_once_with(
             path,
             Config=s3_hook.transfer_config,
-            ExtraArgs={"RequestPayer": "requester"},
+            ExtraArgs={},
         )
 
         assert path.name == output_file
@@ -1845,6 +1880,18 @@ class TestAwsS3Hook:
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert "S3 object size" in logs_string
         assert "differ. Downloaded dag_03.py to" in logs_string
+
+    def test_requester_pays_flag_parsed_from_extra_field(self):
+        conn = Connection(
+            conn_id="my_s3_conn",
+            conn_type="aws",
+            extra=json.dumps({"requester_pays": True}),
+        )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_connection", return_value=conn
+        ):
+            hook = S3Hook(aws_conn_id="my_s3_conn")
+            assert hook._requester_pays is True
 
 
 @pytest.mark.parametrize(

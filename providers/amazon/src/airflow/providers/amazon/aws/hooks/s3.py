@@ -193,7 +193,6 @@ class S3Hook(AwsBaseHook):
     ) -> None:
         kwargs["client_type"] = "s3"
         kwargs["aws_conn_id"] = aws_conn_id
-        self._requester_pays = kwargs.pop("requester_pays", False)
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
@@ -204,6 +203,12 @@ class S3Hook(AwsBaseHook):
         self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
+        try:
+            conn = self.get_connection(str(aws_conn_id))
+            conn_extra = conn.extra_dejson or {}
+            self._requester_pays = bool(conn_extra.get("requester_pays", False))
+        except Exception:
+            self._requester_pays = False
 
     @cached_property
     def resource(self):
