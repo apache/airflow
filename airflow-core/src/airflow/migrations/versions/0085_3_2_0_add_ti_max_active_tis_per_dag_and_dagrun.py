@@ -21,7 +21,7 @@ Add TI.max_active_tis_per_dag and TI.max_active_tis_per_dagrun.
 
 Revision ID: 2f49f2dae90c
 Revises: eaf332f43c7c
-Create Date: 2025-07-28 16:39:01.181132
+Create Date: 2025-09-12 23:20:39.502229
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ revision = "2f49f2dae90c"
 down_revision = "eaf332f43c7c"
 branch_labels = None
 depends_on = None
-airflow_version = "3.1.0"
+airflow_version = "3.2.0"
 
 
 def upgrade():

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from typing_extensions import Unpack
 
+from airflow.task.linear_scan_selector import LinearScanSelector
 from airflow.task.optimistic_task_selector import OptimisticTaskSelector
 
 if TYPE_CHECKING:
@@ -30,11 +31,13 @@ if TYPE_CHECKING:
     from airflow.task.task_selector_strategy import TaskSelectorStrategy
 
 OPTIMISTIC_SELECTOR = "OPTIMISTIC"
+LINEAR_SCAN_SELECTOR = "LINEAR_SCAN"
 
 TASK_SELECTORS: dict[str, TaskSelectorStrategy] = {}
 TASK_SELECTOR_PARAMS_PROVIDERS: dict[str, Callable[[ParamsProviderType], Any]] = {}
 
 TASK_SELECTORS[OPTIMISTIC_SELECTOR] = OptimisticTaskSelector()
+TASK_SELECTORS[LINEAR_SCAN_SELECTOR] = LinearScanSelector()
 
 
 class ParamsProviderType(TypedDict):
@@ -65,4 +68,13 @@ def _get_params_for_optimistic_selector(
     return params
 
 
+def _get_params_for_linear_scan_selector(
+    **kwargs: Unpack[ParamsProviderType],
+) -> Mapping[str, Any]:
+    conf: AirflowConfigParser = kwargs["conf"]
+
+    return {"max_tis": conf.getint("scheduler", "max_tis_per_query")}
+
+
 TASK_SELECTOR_PARAMS_PROVIDERS[OPTIMISTIC_SELECTOR] = _get_params_for_optimistic_selector  # type: ignore[assignment]
+TASK_SELECTOR_PARAMS_PROVIDERS[LINEAR_SCAN_SELECTOR] = _get_params_for_linear_scan_selector  # type: ignore[assignment]
