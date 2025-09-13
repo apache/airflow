@@ -241,8 +241,134 @@ BEGIN
 END;
 """
 
+
+pgsql_ti_selector_proc = """
+CREATE OR REPLACE FUNCTION select_scheduled_tis_to_queue(max_tis INTEGER)
+RETURNS TABLE(id UUID)
+AS $$
+DECLARE
+    rec RECORD;
+    mapped_running INTEGER;
+    dag_running INTEGER;
+    dagrun_running INTEGER;
+    pool_running INTEGER;
+    tasks_for_scheduling UUID[] := '{}';
+
+    dag_counts      hstore := ''::hstore;
+    dagrun_counts   hstore := ''::hstore;
+    pool_counts     hstore := ''::hstore;
+    mapped_counts   hstore := ''::hstore;
+BEGIN
+	
+	-- Compute concurrency maps
+    SELECT COALESCE(hstore(array_agg(key), array_agg(value)), ''::hstore) INTO mapped_counts
+	FROM (
+	    SELECT (dag_id || ',' || run_id || ',' || task_id) AS key,
+	           count(*)::text AS value
+	    FROM task_instance
+	    WHERE state IN ('queued', 'running')
+	    GROUP BY dag_id, run_id, task_id
+	) sub;
+	
+	SELECT COALESCE(hstore(array_agg(key), array_agg(value)), ''::hstore) INTO dagrun_counts
+	FROM (
+	    SELECT (dag_id || ',' || run_id) AS key,
+	           count(*)::text AS value
+	    FROM task_instance
+	    WHERE state IN ('queued', 'running')
+	    GROUP BY dag_id, run_id
+	) sub;
+	
+	SELECT COALESCE(hstore(array_agg(key), array_agg(value)), ''::hstore) INTO dag_counts
+	FROM (
+	    SELECT (dag_id || ',' || task_id) AS key,
+	           count(*)::text AS value
+	    FROM task_instance
+	    WHERE state IN ('queued', 'running')
+	    GROUP BY dag_id, task_id
+	) sub;
+	
+	SELECT COALESCE(hstore(array_agg(pool), array_agg(value)), ''::hstore) INTO pool_counts
+	FROM (
+	    SELECT pool,
+	           count(*)::text AS value
+	    FROM task_instance
+	    WHERE state IN ('queued', 'running', 'deferred')
+	    GROUP BY pool
+	) sub;
+
+    -- Fire base query
+    FOR rec IN
+        SELECT ti.id, ti.dag_id, ti.task_id, ti.run_id, ti.pool,
+               ti.max_active_tis_per_dag, ti.max_active_tis_per_dagrun,
+               dag.max_active_tasks, ti.pool_slots, slot_pool.slots
+        FROM task_instance ti
+        JOIN dag_run ON dag_run.dag_id = ti.dag_id AND dag_run.run_id = ti.run_id
+        JOIN dag ON ti.dag_id = dag.dag_id
+        JOIN dag_run AS dag_run_1 ON dag_run_1.dag_id = ti.dag_id AND dag_run_1.run_id = ti.run_id
+        JOIN slot_pool ON ti.pool = slot_pool.pool
+        WHERE dag_run.state = 'running'
+          AND NOT dag.is_paused
+          AND ti.state = 'scheduled'
+          AND dag.bundle_name IS NOT NULL
+        ORDER BY -ti.priority_weight, dag_run.logical_date, ti.map_index
+    LOOP
+        IF array_length(tasks_for_scheduling, 1) >= max_tis THEN
+            EXIT;
+        END IF;
+
+        mapped_running := COALESCE((mapped_counts -> (rec.dag_id || ',' || rec.run_id || ',' || rec.task_id)::text)::int, 0);
+        dagrun_running := COALESCE((dagrun_counts -> (rec.dag_id || ',' || rec.run_id)::text)::int, 0);
+        dag_running := COALESCE((dag_counts -> (rec.dag_id || ',' || rec.task_id)::text)::int, 0);
+        pool_running := COALESCE((pool_counts -> rec.pool::text)::int, 0);
+
+        -- Compare limits including newly scheduling tasks (hstores maintain increments)
+        IF (mapped_running + 1) > COALESCE(rec.max_active_tis_per_dagrun, max_tis) THEN
+            CONTINUE;
+        ELSIF (dagrun_running + 1) > COALESCE(rec.max_active_tasks, max_tis) THEN
+            CONTINUE;
+        ELSIF (dag_running + 1) > COALESCE(rec.max_active_tis_per_dag, max_tis) THEN
+            CONTINUE;
+        ELSIF (pool_running + rec.pool_slots) > rec.slots THEN
+            CONTINUE;
+        END IF;
+
+        tasks_for_scheduling := array_append(tasks_for_scheduling, rec.id);
+
+        mapped_counts := mapped_counts || hstore(
+            (rec.dag_id || ',' || rec.run_id || ',' || rec.task_id)::text, (mapped_running + 1)::text
+        );
+        dag_counts := dag_counts || hstore(
+            (rec.dag_id || ',' || rec.task_id)::text, (dag_running + 1)::text
+        );
+        dagrun_counts := dagrun_counts || hstore(
+            (rec.dag_id || ',' || rec.run_id)::text, (dagrun_running + 1)::text
+        );
+        pool_counts := pool_counts || hstore(
+            rec.pool::text, (pool_running + rec.pool_slots)::text
+        );
+
+    END LOOP;
+    RETURN QUERY SELECT UNNEST(tasks_for_scheduling);
+
+END;
+$$ LANGUAGE plpgsql;
+"""
+
 mysql_ti_selector_proc_drop = """
 DROP PROCEDURE IF EXISTS select_scheduled_tis_to_queue;
+"""
+
+pgsql_ti_selector_proc_drop = """
+DROP FUNCTION IF EXISTS select_scheduled_tis_to_queue(INTEGER);
+"""
+
+pgsql_hstore_extension = """
+CREATE EXTENSION IF NOT EXISTS hstore;
+"""
+
+pgsql_hstore_extension_drop = """
+DROP EXTENSION IF EXISTS hstore;
 """
 
 
@@ -257,12 +383,27 @@ def _mysql_downgrade():
     conn.execute(text(mysql_ti_selector_proc_drop))
 
 
+def _pgsql_upgrade():
+    conn = op.get_bind()
+    conn.execute(text(pgsql_hstore_extension))
+    conn.execute(text(pgsql_ti_selector_proc_drop))
+    conn.execute(text(pgsql_ti_selector_proc))
+
+
+def _pgsql_downgrade():
+    conn = op.get_bind()
+    conn.execute(text(pgsql_ti_selector_proc_drop))
+    conn.execute(text(pgsql_hstore_extension_drop))
+
+
 _UPGRADE_BY_DIALECT = {
     "mysql": _mysql_upgrade,
+    "postgresql": _pgsql_upgrade,
 }
 
 _DOWNGRADE_BY_DIALECT = {
     "mysql": _mysql_downgrade,
+    "postgresql": _pgsql_downgrade,
 }
 
 

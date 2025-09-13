@@ -31,16 +31,7 @@ if TYPE_CHECKING:
 
 TI = TaskInstance
 
-
-def _select_tasks_with_locks_pgsql(session: Session, **additional_params) -> list[TI]:
-    raise NotImplementedError("PostgreSQL implementation is not provided yet.")
-
-
-def _select_tasks_with_locks_mysql(session: Session, **additional_params) -> list[TI]:
-    query = text("CALL select_scheduled_tis_to_queue(:max_tis)")
-    task_ids = (
-        session.execute(statement=query, params={"max_tis": additional_params["max_tis"]}).scalars().all()
-    )
+def _get_tis_for_ids(session: Session, task_ids: list[str]) -> list[TI]:
     return (
         session.query(TI)
         .join(TI.dag_run)
@@ -48,6 +39,22 @@ def _select_tasks_with_locks_mysql(session: Session, **additional_params) -> lis
         .options(selectinload(TI.dag_model))
         .all()
     )
+
+def _get_ti_ids_from_query_with_limit(session: Session, query: Query, max_tis: int) -> list:
+    return session.execute(statement=query, params={"max_tis": max_tis}).scalars().all()
+
+def _get_tis_from_query_with_limit(session: Session, query: Query, max_tis: int) -> list[TI]:
+    ti_ids = _get_ti_ids_from_query_with_limit(session, query, max_tis)
+    return _get_tis_for_ids(session, [str(ti_id) for ti_id in ti_ids])  # SQLAlchemy needs string for filtering
+
+
+def _select_tasks_with_locks_pgsql(session: Session, **additional_params) -> list[TI]:
+    query = text("SELECT * FROM select_scheduled_tis_to_queue(:max_tis)")
+    return _get_tis_from_query_with_limit(session, query, additional_params["max_tis"])
+
+def _select_tasks_with_locks_mysql(session: Session, **additional_params) -> list[TI]:
+    query = text("CALL select_scheduled_tis_to_queue(:max_tis)")
+    return _get_tis_from_query_with_limit(session, query, additional_params["max_tis"])
 
 
 def _select_tasks_with_locks_sqlite(session: Session, **additional_params) -> list[TI]:
