@@ -30,11 +30,12 @@ import { SearchParamsKeys } from "./searchParams";
 export enum FilterTypes {
   DATE = "date",
   NUMBER = "number",
+  SELECT = "select",
   TEXT = "text",
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin"]);
+  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.AFTER]: {
@@ -88,6 +89,16 @@ export const useFilterConfigs = () => {
       label: translate("common:mapIndex"),
       min: -1,
       type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.RESPONSE_RECEIVED]: {
+      icon: <FiUser />,
+      label: translate("hitl:requiredActionState"),
+      options: [
+        { label: translate("hitl:filters.response.all"), value: "all" },
+        { label: translate("hitl:filters.response.pending"), value: "false" },
+        { label: translate("hitl:filters.response.received"), value: "true" },
+      ],
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.RUN_AFTER_GTE]: {
       icon: <MdDateRange />,
