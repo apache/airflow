@@ -56,7 +56,15 @@ from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
+task_instances_hitl_router = AirflowRouter(
+    tags=["Task Instance"],
+    prefix="",
+)
+
+dags_prefix = "/dags/{dag_id}"
+dag_runs_prefix = "/dagRuns/{dag_run_id}"
+task_instances_prefix = "/taskInstances/{task_id}/{map_index}"
+hitl_details_prefix = f"{dags_prefix}/{dag_runs_prefix}/{task_instances_prefix}/hitlDetails"
 
 log = structlog.get_logger(__name__)
 
@@ -100,8 +108,8 @@ def _get_task_instance_with_hitl_detail(
     return task_instance
 
 
-@hitl_router.patch(
-    "/{dag_id}/{dag_run_id}/{task_id}",
+@task_instances_hitl_router.patch(
+    hitl_details_prefix,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_403_FORBIDDEN,
@@ -165,8 +173,8 @@ def update_hitl_detail(
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 
-@hitl_router.get(
-    "/{dag_id}/{dag_run_id}/{task_id}",
+@task_instances_hitl_router.get(
+    hitl_details_prefix,
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
@@ -189,8 +197,8 @@ def get_hitl_detail(
     return task_instance.hitl_detail
 
 
-@hitl_router.get(
-    "/",
+@task_instances_hitl_router.get(
+    f"{dags_prefix}/{dag_runs_prefix}/hitlDetails",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
