@@ -21,24 +21,35 @@ import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
 
 import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
 
 export const NeedsReviewButton = ({
   dagId,
+  refreshInterval,
   runId,
   taskId,
 }: {
   readonly dagId?: string;
+  readonly refreshInterval?: number | false;
   readonly runId?: string;
   readonly taskId?: string;
 }) => {
-  const { data: hitlStatsData, isLoading } = useHumanInTheLoopServiceGetHitlDetails({
-    dagId,
-    dagRunId: runId,
-    responseReceived: false,
-    taskId,
-  });
+  const hookAutoRefresh = useAutoRefresh({ dagId });
+  const { data: hitlStatsData, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
+    {
+      dagId,
+      dagRunId: runId,
+      responseReceived: false,
+      state: ["deferred"],
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval: refreshInterval ?? hookAutoRefresh,
+    },
+  );
 
   const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
   const { t: translate } = useTranslation("hitl");
@@ -51,7 +62,7 @@ export const NeedsReviewButton = ({
         icon={<LuUserRoundPen />}
         isLoading={isLoading}
         label={translate("requiredAction_other")}
-        link="dags?needs_review=true"
+        link="required_actions?response_received=false"
       />
     </Box>
   ) : undefined;

@@ -68,7 +68,10 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
       <IconButton
         aria-label={translate("graph.downloadImage")}
-        onClick={() => void onClick()}
+        colorPalette="info"
+        onClick={() => {
+          void onClick();
+        }}
         size="xs"
         title={translate("graph.downloadImage")}
         variant="ghost"

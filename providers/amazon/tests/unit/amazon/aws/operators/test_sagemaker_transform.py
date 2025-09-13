@@ -48,7 +48,7 @@ CREATE_TRANSFORM_PARAMS: dict = {
     "BatchStrategy": "MultiRecord",
     "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
     "TransformOutput": {"S3OutputPath": "output_path"},
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": "3"},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": "3"},
 }
 CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "TransformJobName": "job_name",
@@ -58,7 +58,7 @@ CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "BatchStrategy": "MultiRecord",
     "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
     "TransformOutput": {"S3OutputPath": "output_path"},
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": 3},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": 3},
 }
 
 CREATE_MODEL_PARAMS: dict = {
