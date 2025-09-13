@@ -41,6 +41,7 @@ from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.execution_time.hitl import HITLUser
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
@@ -70,7 +71,7 @@ class HITLOperator(BaseOperator):
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
-        respondents: str | list[str] | None = None,
+        assigned_users: HITLUser | list[HITLUser] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -86,7 +87,7 @@ class HITLOperator(BaseOperator):
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
-        self.respondents = [respondents] if isinstance(respondents, str) else respondents
+        self.assigned_users = [assigned_users] if isinstance(assigned_users, dict) else assigned_users
 
         self.validate_options()
         self.validate_params()
@@ -98,13 +99,9 @@ class HITLOperator(BaseOperator):
 
         Raises:
             ValueError: If `options` is empty.
-            ValueError: If any option contains a comma (`,`), which is not allowed.
         """
         if not self.options:
             raise ValueError('"options" cannot be empty.')
-
-        if any("," in option for option in self.options):
-            raise ValueError('"," is not allowed in option')
 
     def validate_params(self) -> None:
         """
@@ -142,7 +139,7 @@ class HITLOperator(BaseOperator):
             defaults=self.defaults,
             multiple=self.multiple,
             params=self.serialized_params,
-            respondents=self.respondents,
+            assigned_users=self.assigned_users,
         )
 
         if self.execution_timeout:
@@ -182,6 +179,8 @@ class HITLOperator(BaseOperator):
         return HITLTriggerEventSuccessPayload(
             chosen_options=chosen_options,
             params_input=params_input,
+            responded_at=event["responded_at"],
+            responded_by_user=event["responded_by_user"],
         )
 
     def process_trigger_event_error(self, event: dict[str, Any]) -> None:
@@ -235,7 +234,7 @@ class HITLOperator(BaseOperator):
         if options:
             if diff := set(options) - set(self.options):
                 raise ValueError(f"options {diff} are not valid options")
-            query_param["_options"] = ",".join(options)
+            query_param["_options"] = options
 
         if params_input:
             if diff := set(params_input.keys()) - set(self.params.keys()):
@@ -354,9 +353,57 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
 
     inherits_from_skipmixin = True
 
+    def __init__(self, *, options_mapping: dict[str, str] | None = None, **kwargs) -> None:
+        """
+        Initialize HITLBranchOperator.
+
+        Args:
+            options_mapping:
+                A dictionary mapping option labels (must match entries in `self.options`)
+                to string values (e.g., task IDs). Defaults to an empty dict if not provided.
+
+        Raises:
+            ValueError:
+                - If `options_mapping` contains keys not present in `self.options`.
+                - If any value in `options_mapping` is not a string.
+        """
+        super().__init__(**kwargs)
+        self.options_mapping = options_mapping or {}
+        self.validate_options_mapping()
+
+    def validate_options_mapping(self) -> None:
+        """
+        Validate that `options_mapping` keys match `self.options` and all values are strings.
+
+        Raises:
+            ValueError: If any key is not in `self.options` or any value is not a string.
+        """
+        if not self.options_mapping:
+            return
+
+        # Validate that the choice options are keys in the mapping are the same
+        invalid_keys = set(self.options_mapping.keys()) - set(self.options)
+        if invalid_keys:
+            raise ValueError(
+                f"`options_mapping` contains keys that are not in `options`: {sorted(invalid_keys)}"
+            )
+
+        # validate that all values are strings
+        invalid_entries = {
+            k: (v, type(v).__name__) for k, v in self.options_mapping.items() if not isinstance(v, str)
+        }
+        if invalid_entries:
+            raise ValueError(
+                f"`options_mapping` values must be strings (task_ids).\nInvalid entries: {invalid_entries}"
+            )
+
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """Execute the operator and branch based on chosen options."""
         ret = super().execute_complete(context=context, event=event)
         chosen_options = ret["chosen_options"]
+
+        # Map options to task IDs using the mapping, fallback to original option
+        chosen_options = [self.options_mapping.get(option, option) for option in chosen_options]
         return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 

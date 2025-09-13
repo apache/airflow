@@ -27,7 +27,6 @@ import time
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
-from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
@@ -43,7 +42,6 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models import DagBag
 from airflow.models.trigger import Trigger
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.definitions import enable_lazy_task_expansion
@@ -614,45 +612,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         trigger set.
         """
         render_log_fname = log_filename_template_renderer()
-        dag_bag = DagBag(collect_dags=False)
-
-        def expand_start_trigger_args(trigger: Trigger) -> Trigger:
-            task = dag_bag.get_dag(trigger.task_instance.dag_id).get_task(trigger.task_instance.task_id)
-            if task.template_fields:
-                trigger.task_instance.refresh_from_task(task)
-                context = trigger.task_instance.get_template_context()
-                task.render_template_fields(context=context)
-                start_trigger_args = task.expand_start_trigger_args(context=context)
-                if start_trigger_args:
-                    trigger.kwargs = start_trigger_args.trigger_kwargs
-            return trigger
-
-        def create_workload(trigger: Trigger) -> workloads.RunTrigger:
-            if trigger.task_instance:
-                log_path = render_log_fname(ti=trigger.task_instance)
-
-                trigger = expand_start_trigger_args(trigger)
-
-                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log",
-                    ti=ser_ti,  # type: ignore
-                )
-
-                return workloads.RunTrigger(
-                    classpath=trigger.classpath,
-                    id=new_id,
-                    encrypted_kwargs=trigger.encrypted_kwargs,
-                    ti=ser_ti,
-                    timeout_after=trigger.task_instance.trigger_timeout,
-                )
-            return workloads.RunTrigger(
-                classpath=trigger.classpath,
-                id=new_id,
-                encrypted_kwargs=trigger.encrypted_kwargs,
-                ti=None,
-            )
 
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
@@ -690,7 +649,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
                 continue
 
-            workload = create_workload(new_trigger_orm)
+            workload = workloads.RunTrigger(
+                classpath=new_trigger_orm.classpath,
+                id=new_id,
+                encrypted_kwargs=new_trigger_orm.encrypted_kwargs,
+                ti=None,
+            )
+            if new_trigger_orm.task_instance:
+                log_path = render_log_fname(ti=new_trigger_orm.task_instance)
+
+                ser_ti = workloads.TaskInstance.model_validate(
+                    new_trigger_orm.task_instance, from_attributes=True
+                )
+                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+                self.logger_cache[new_id] = TriggerLoggingFactory(
+                    log_path=f"{log_path}.trigger.{self.job.id}.log",
+                    ti=ser_ti,  # type: ignore
+                )
+
+                workload.ti = ser_ti
+                workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
 
             to_create.append(workload)
 
@@ -718,11 +696,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         import msgspec
         from structlog.stdlib import NAME_TO_LEVEL
 
+        from airflow.sdk.log import configure_logging
+
+        configure_logging()
+
         fallback_log = structlog.get_logger(logger_name=__name__)
 
         from airflow.sdk.log import logging_processors
 
-        processors, _ = logging_processors(enable_pretty_log=False)
+        processors = logging_processors(json_output=True)
 
         def get_logger(trigger_id: int) -> WrappedLogger:
             # TODO: Is a separate dict worth it, or should we make `self.running_triggers` a dict?
@@ -747,16 +729,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 # Log message about the TriggerRunner itself -- just output it
                 log = fallback_log
-
-            if ts := event.get("timestamp"):
-                # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
-                # datetime.strptime
-                #
-                # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-                # from a subprocess we know that the timezone of the log message is the same, so having some
-                # messages include tz (from subprocess) but others not (ones from supervisor process) is
-                # confusing.
-                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
 
             if exc := event.pop("exception", None):
                 # TODO: convert the dict back to a pretty stack trace
@@ -799,7 +771,10 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         return async_to_sync(self.asend)(msg)
 
     async def _aread_frame(self):
-        len_bytes = await self._async_reader.readexactly(4)
+        try:
+            len_bytes = await self._async_reader.readexactly(4)
+        except ConnectionResetError:
+            asyncio.current_task().cancel("Supervisor closed")
         length = int.from_bytes(len_bytes, byteorder="big")
         if length >= 2**32:
             raise OverflowError(f"Refusing to receive messages larger than 4GiB {length=}")
@@ -903,8 +878,10 @@ class TriggerRunner:
                 await asyncio.sleep(1)
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
-                    count = len(self.triggers)
-                    self.log.info("%i triggers currently running", count)
+                    watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
+                    triggers = len(self.triggers) - watchers
+                    self.log.info("%i triggers currently running", triggers)
+                    self.log.info("%i watchers currently running", watchers)
                     last_status = now
 
         except Exception:
@@ -989,6 +966,7 @@ class TriggerRunner:
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance), name=trigger_name
                 ),
+                "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }

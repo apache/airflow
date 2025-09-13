@@ -84,17 +84,9 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original.task_instance)}>
-                  <Time datetime={original.task_instance.run_after} />
-                </RouterLink>
-              </Link>
-            ) : (
-              <Time datetime={original.task_instance.run_after} />
-            ),
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Time datetime={original.task_instance.run_after} />
+          ),
           header: translate("common:dagRun.runAfter"),
         },
       ]),
@@ -115,8 +107,8 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_at",
-    cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
   },
 ];
@@ -137,6 +129,7 @@ export const HITLTaskInstances = () => {
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
     responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+    state: responseReceived === "false" ? ["deferred"] : undefined,
     taskId,
   });
 
@@ -181,6 +174,7 @@ export const HITLTaskInstances = () => {
           onValueChange={handleResponseChange}
           value={[responseReceived ?? "all"]}
         >
+          <Select.Label fontSize="xs">{translate("requiredActionState")}</Select.Label>
           <Select.Trigger isActive={Boolean(responseReceived)}>
             <Select.ValueText />
           </Select.Trigger>

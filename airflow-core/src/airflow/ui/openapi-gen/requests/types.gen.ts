@@ -494,6 +494,7 @@ export type DAGDetailsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -543,6 +544,7 @@ export type DAGDetailsResponse = {
      * Return max_active_tasks as concurrency.
      *
      * Deprecated: Use max_active_tasks instead.
+     * @deprecated
      */
     readonly concurrency: number;
     /**
@@ -567,6 +569,7 @@ export type DAGResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -937,9 +940,9 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
-    respondents?: Array<(string)> | null;
-    user_id?: string | null;
-    response_at?: string | null;
+    assigned_users?: Array<HITLUser>;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
@@ -959,12 +962,20 @@ export type HITLDetailCollection = {
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
-    user_id: string;
-    response_at: string;
+    responded_by: HITLUser;
+    responded_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Schema for a Human-in-the-loop users.
+ */
+export type HITLUser = {
+    id: string;
+    name: string;
 };
 
 /**
@@ -1765,6 +1776,7 @@ export type DAGWithLatestDagRunsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -1788,6 +1800,7 @@ export type DAGWithLatestDagRunsResponse = {
     [key: string]: unknown;
 } | null;
     latest_dag_runs: Array<DAGRunResponse>;
+    pending_actions: Array<HITLDetail>;
     /**
      * Return file token.
      */
@@ -1993,6 +2006,10 @@ export type GetAssetAliasResponse = unknown;
 export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    namePattern?: string | null;
     offset?: number;
     orderBy?: Array<(string)>;
     sourceDagId?: string | null;
@@ -2226,6 +2243,7 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
@@ -2341,7 +2359,7 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2365,9 +2383,13 @@ export type GetDagsData = {
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2451,7 +2473,7 @@ export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2468,9 +2490,14 @@ export type GetDagsUiData = {
     dagRunsLimit?: number;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
+    hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
@@ -2500,7 +2527,15 @@ export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
     dagId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     event?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    eventPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
     includedEvents?: Array<(string)> | null;
     limit?: number;
@@ -2508,8 +2543,20 @@ export type GetEventLogsData = {
     offset?: number;
     orderBy?: Array<(string)>;
     owner?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    ownerPattern?: string | null;
     runId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     tryNumber?: number | null;
 };
 
@@ -3063,6 +3110,8 @@ export type GetHitlDetailsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
+    respondedByUserId?: Array<(string)>;
+    respondedByUserName?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
@@ -3074,7 +3123,6 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     taskIdPattern?: string | null;
-    userId?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
@@ -3138,6 +3186,11 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetDagStructureResponse = Array<GridNodeResponse>;
@@ -3151,6 +3204,11 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;

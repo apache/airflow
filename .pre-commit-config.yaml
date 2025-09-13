@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.18.0
+  node: 22.19.0
   golang: 1.24.0
 minimum_prek_version: '0.1.3'
 exclude: ^.*/.*_vendor/
@@ -77,7 +77,7 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|ui/openapi-gen/|.*/dist/.*
+        exclude: ^\.github/.*$|ui/openapi-gen/|www/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
@@ -203,6 +203,13 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-translations-completeness
+        name: Check translation completeness (manual)
+        entry: ./dev/i18n/check_translations_completeness.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/prek/update_chart_dependencies.py
@@ -223,10 +230,9 @@ repos:
         language: python
         entry: ./scripts/ci/prek/check_deferrable_default.py
         pass_filenames: false
-        # libcst doesn't have source wheels for all PY except PY3.12, excluding it
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
-  - repo: https://github.com/asottile/blacken-docs
-    rev: 78a9dcbecf4f755f65d1f3dec556bc249d723600  # frozen: 1.19.1
+  - repo: https://github.com/adamchainz/blacken-docs
+    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
@@ -348,7 +354,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 5fee7cc03a2498e0ce36a18f36dfb558a30a426c  # frozen: v1.12.1
+    rev: b933184438555436e38621f46ceb0c417cbed400  # frozen: v1.13.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -419,7 +425,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.12.8']
+        additional_dependencies: ['ruff==0.13.0']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -435,7 +441,15 @@ repos:
         entry: ./scripts/ci/prek/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|^airflow-core/src/airflow/ui/openapi-gen/|.*/dist/.*|\.go$|/go\.(mod|sum)$
+        exclude: >
+          (?x)
+          ^clients/gen/go\.sh$|
+          ^\.gitmodules$|
+          ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
+          .*/dist/.*|
+          \.go$|
+          /go\.(mod|sum)$
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
@@ -534,6 +548,8 @@ repos:
         files: >
             (?x)
             ^airflow-ctl.*\.py$|
+            ^airflow-core/src/airflow/models/.*\.py$|
+            ^providers/fab/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
@@ -759,7 +775,8 @@ repos:
           ^airflow-core/newsfragments/43349\.significant\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           .*/dist/.*|
-          package-lock\.json$
+          package-lock\.json$|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/pnpm-lock.yaml$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -937,6 +954,13 @@ repos:
         language: node
         files: ^providers/fab/.*/www/
         entry: ./scripts/ci/prek/compile_provider_assets.py fab
+        pass_filenames: false
+        additional_dependencies: ['yarn@1.22.21']
+      - id: compile-edge-assets
+        name: Compile Edge provider assets
+        language: node
+        files: ^providers/edge3/.*/www/
+        entry: ./scripts/ci/prek/compile_provider_assets.py edge
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
@@ -1342,6 +1366,22 @@ repos:
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: true
         require_serial: true
+      - id: ts-compile-lint-edge-ui
+        name: Compile / format / lint edge UI
+        description: TS types generation / ESLint / Prettier new UI files in Edge Provider
+        language: node
+        files: |
+          (?x)
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$|
+          ^providers/edge3/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml$
+        exclude: |
+          (?x)
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/node-modules/.*|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.pnpm-store
+        entry: ./scripts/ci/prek/ts_compile_lint_edge.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev
@@ -1442,6 +1482,12 @@ repos:
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+      - id: generate-openapi-spec-edge
+        name: Generate the FastAPI API spec for Edge
+        language: python
+        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py edge
+        pass_filenames: false
+        files: ^providers/edge3/src/airflow/providers/edge3/worker_api/.*\.py$
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
         language: python
@@ -1539,6 +1585,7 @@ repos:
           ^airflow-core/tests/unit/core/test_configuration\.py$|
           ^airflow-core/tests/unit/models/test_renderedtifields\.py$|
           ^airflow-core/tests/unit/models/test_variable\.py$
+
       - id: check-sdk-imports
         name: Check for SDK imports in core files
         entry: ./scripts/ci/prek/check_sdk_imports.py
@@ -1608,7 +1655,7 @@ repos:
           ^airflow-core/src/airflow/operators/subdag\.py$|
           ^airflow-core/src/airflow/plugins_manager\.py$|
           ^airflow-core/src/airflow/providers_manager\.py$|
-          ^airflow-core/src/airflow/serialization/dag\.py$|
+          ^airflow-core/src/airflow/serialization/definitions/[_a-z]+\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
           ^airflow-core/src/airflow/serialization/helpers\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
@@ -1637,3 +1684,10 @@ repos:
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
+      - id: check-schema-defaults
+        name: Check schema defaults match server-side defaults
+        entry: ./scripts/ci/prek/check_schema_defaults.py
+        language: python
+        files: ^airflow-core/src/airflow/serialization/schema\.json$|^airflow-core/src/airflow/serialization/serialized_objects\.py$
+        pass_filenames: false
+        require_serial: true

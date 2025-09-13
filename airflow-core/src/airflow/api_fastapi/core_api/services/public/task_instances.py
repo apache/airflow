@@ -39,8 +39,8 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInsta
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
@@ -55,7 +55,7 @@ def _patch_ti_validate_request(
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
-) -> tuple[DAG, list[TI], dict]:
+) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
@@ -94,7 +94,7 @@ def _patch_ti_validate_request(
 def _patch_task_instance_state(
     task_id: str,
     dag_run_id: str,
-    dag: DAG,
+    dag: SerializedDAG,
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,

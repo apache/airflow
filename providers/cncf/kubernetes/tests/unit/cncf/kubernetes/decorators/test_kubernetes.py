@@ -36,7 +36,7 @@ XCOM_IMAGE = "XCOM_IMAGE"
 class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
     def test_basic_kubernetes(self):
         """Test basic proper KubernetesPodOperator creation from @task.kubernetes decorator"""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes(
                 image="python:3.10-slim-buster",
@@ -77,7 +77,7 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
     @pytest.mark.asyncio
     def test_kubernetes_with_input_output(self):
         """Verify @task.kubernetes will run XCom container if do_xcom_push is set."""
-        with self.dag:
+        with self.dag_maker:
 
             @task.kubernetes(
                 image="python:3.10-slim-buster",

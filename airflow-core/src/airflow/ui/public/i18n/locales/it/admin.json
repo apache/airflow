@@ -1,0 +1,182 @@
+{
+  "columns": {
+    "description": "Descrizione",
+    "key": "Chiave",
+    "name": "Nome",
+    "value": "Valore"
+  },
+  "config": {
+    "columns": {
+      "section": "Sezione"
+    },
+    "title": "Configurazione di Airflow"
+  },
+  "connections": {
+    "add": "Aggiungi Connessione",
+    "columns": {
+      "connectionId": "ID Connessione",
+      "connectionType": "Tipo di Connessione",
+      "host": "Host",
+      "port": "Port"
+    },
+    "connection_many": "Connessioni",
+    "connection_one": "Connessione",
+    "connection_other": "Connessioni",
+    "connection_zero": "Nessuna connessione",
+    "delete": {
+      "deleteConnection_many": "Elimina {{count}} connessioni",
+      "deleteConnection_one": "Elimina 1 connessione",
+      "deleteConnection_other": "Elimina {{count}} connessioni",
+      "deleteConnection_zero": "Nessuna connessione da eliminare",
+      "firstConfirmMessage_many": "Stai per eliminare le seguenti connessioni:",
+      "firstConfirmMessage_one": "Stai per eliminare la seguente connessione:",
+      "firstConfirmMessage_other": "Stai per eliminare le seguenti connessioni:",
+      "firstConfirmMessage_zero": "Nessuna connessione da eliminare:",
+      "title": "Elimina Connessione"
+    },
+    "edit": "Modifica Connessione",
+    "form": {
+      "connectionIdRequired": "L'ID della connessione è obbligatorio",
+      "connectionIdRequirement": "L'ID della connessione non può contenere solo spazi",
+      "connectionTypeRequired": "Il tipo di connessione è obbligatorio",
+      "extraFields": "Campi Extra",
+      "extraFieldsJson": "Campi Extra JSON",
+      "helperText": "Il tipo di connessione è mancante? Assicurati di aver installato il pacchetto corrispondente di Airflow Providers.",
+      "helperTextForRedactedFields": "I campi redatti ('***') rimarranno invariati se non modificati.",
+      "selectConnectionType": "Seleziona Tipo di Connessione",
+      "standardFields": "Campi Standard"
+    },
+    "nothingFound": {
+      "description": "Le connessioni definite tramite variabili d'ambiente o gestori di segreti non sono elencate qui.",
+      "documentationLink": "Scopri di più nella documentazione di Airflow.",
+      "learnMore": "Queste sono risolte in fase di runtime e non sono visibili nell'interfaccia utente.",
+      "title": "Nessuna connessione trovata!"
+    },
+    "searchPlaceholder": "Cerca Connessioni",
+    "test": "Test Connessione",
+    "testDisabled": "La funzione di test della connessione è disabilitata. Per favore contatta un amministratore per abilitarla.",
+    "typeMeta": {
+      "error": "Impossibile recuperare il tipo di connessione",
+      "standardFields": {
+        "description": "Descrizione",
+        "host": "Host",
+        "login": "Login",
+        "password": "Password",
+        "port": "Porta",
+        "url_schema": "Schema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Elimina",
+    "modal": {
+      "confirmButton": "Sì, Elimina",
+      "secondConfirmMessage": "Questa azione è permanente e non può essere annullata.",
+      "thirdConfirmMessage": "Confermi di voler procedere?"
+    },
+    "selected": "Selezionato",
+    "tooltip": "Elimina le connessioni selezionate"
+  },
+  "formActions": {
+    "save": "Salva"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Fonte"
+    },
+    "importError_many": "Errori di Importazione Plugin",
+    "importError_one": "Errore di Importazione Plugin",
+    "importError_other": "Errori di Importazione Plugin",
+    "importError_zero": "Nessun errore di importazione plugin",
+    "searchPlaceholder": "Cerca per file"
+  },
+  "pools": {
+    "add": "Aggiungi Pool",
+    "deferredSlotsIncluded": "Slots Deferiti Inclusi",
+    "delete": {
+      "title": "Elimina Pool",
+      "warning": "Questo rimuoverà tutti i metadati relativi al pool e potrebbe influenzare le tare che lo utilizzano."
+    },
+    "edit": "Modifica Pool",
+    "form": {
+      "checkbox": "Seleziona per includere le tare deferite quando si calcolano gli slot liberi del pool",
+      "description": "Descrizione",
+      "includeDeferred": "Includi Deferiti",
+      "nameMaxLength": "Il nome può contenere un massimo di 256 caratteri",
+      "nameRequired": "Il nome è obbligatorio",
+      "slots": "Slot"
+    },
+    "noPoolsFound": "Nessun pool trovato",
+    "pool_many": "Pools",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "pool_zero": "Nessun pool",
+    "searchPlaceholder": "Cerca Pools",
+    "sort": {
+      "asc": "Nome (A-Z)",
+      "desc": "Nome (Z-A)",
+      "placeholder": "Ordina per"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Nome del Pacchetto",
+      "version": "Versione"
+    }
+  },
+  "variables": {
+    "add": "Aggiungi Variabile",
+    "columns": {
+      "isEncrypted": "È Crittografata"
+    },
+    "delete": {
+      "deleteVariable_many": "Elimina {{count}} Variabili",
+      "deleteVariable_one": "Elimina 1 Variabile",
+      "deleteVariable_other": "Elimina {{count}} Variabili",
+      "deleteVariable_zero": "Nessuna variabile da eliminare",
+      "firstConfirmMessage_many": "Stai per eliminare le seguenti variabili:",
+      "firstConfirmMessage_one": "Stai per eliminare la seguente variabile:",
+      "firstConfirmMessage_other": "Stai per eliminare le seguenti variabili:",
+      "firstConfirmMessage_zero": "Nessuna variabile da eliminare:",
+      "title": "Elimina Variabile",
+      "tooltip": "Elimina le variabili selezionate"
+    },
+    "edit": "Modifica Variabile",
+    "export": "Esporta",
+    "exportTooltip": "Esporta le variabili selezionate",
+    "form": {
+      "invalidJson": "JSON non valido",
+      "keyMaxLength": "La chiave può contenere un massimo di 250 caratteri",
+      "keyRequired": "La chiave è obbligatoria",
+      "valueRequired": "Il valore è obbligatorio"
+    },
+    "import": {
+      "button": "Importa",
+      "conflictResolution": "Seleziona la risoluzione dei conflitti delle variabili",
+      "errorParsingJsonFile": "Errore nell'analisi del file JSON: Carica un file JSON contenente le variabili (es. {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Fallisce l'importazione se vengono rilevate variabili esistenti.",
+          "title": "Fallisci"
+        },
+        "overwrite": {
+          "description": "Sovrascrive la variabile in caso di conflitto.",
+          "title": "Sovrascrivi"
+        },
+        "skip": {
+          "description": "Salta l'importazione delle variabili che già esistono.",
+          "title": "Salta"
+        }
+      },
+      "title": "Importa Variabili",
+      "upload": "Carica un File JSON",
+      "uploadPlaceholder": "Carica un file JSON contenente le variabili (es. {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "Nessuna variabile trovata",
+    "searchPlaceholder": "Cerca Chiavi",
+    "variable_many": "Variabili",
+    "variable_one": "Variabile",
+    "variable_other": "Variabili",
+    "variable_zero": "Nessuna variabile"
+  }
+}

@@ -1419,12 +1419,13 @@ def test_upstream_in_mapped_group_when_mapped_tasks_list_is_empty(dag_maker, ses
 
 
 @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+@pytest.mark.need_serialized_dag
 def test_mapped_task_check_before_expand(dag_maker, session, flag_upstream_failed):
     """
     t3 depends on t2, which depends on t1 for expansion. Since t1 has not yet run, t2 has not expanded yet,
     and we need to guarantee this lack of expansion does not fail the dependency-checking logic.
     """
-    with dag_maker(session=session):
+    with dag_maker(session=session) as dag:
 
         @task
         def t(x):
@@ -1439,9 +1440,11 @@ def test_mapped_task_check_before_expand(dag_maker, session, flag_upstream_faile
         tg.expand(a=t([1, 2, 3]))
 
     dr: DagRun = dag_maker.create_dagrun()
+    ti = next(ti for ti in dr.task_instances if ti.task_id == "tg.t3" and ti.map_index == -1)
+    ti.refresh_from_task(dag.get_task(ti.task_id))
 
     _test_trigger_rule(
-        ti=next(ti for ti in dr.task_instances if ti.task_id == "tg.t3" and ti.map_index == -1),
+        ti=ti,
         session=session,
         flag_upstream_failed=flag_upstream_failed,
         expected_reason="requires all upstream tasks to have succeeded, but found 1",
@@ -1449,6 +1452,7 @@ def test_mapped_task_check_before_expand(dag_maker, session, flag_upstream_faile
 
 
 @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+@pytest.mark.need_serialized_dag
 def test_mapped_task_group_finished_upstream_before_expand(
     dag_maker, session, flag_upstream_failed, expected_ti_state
 ):
@@ -1456,7 +1460,7 @@ def test_mapped_task_group_finished_upstream_before_expand(
     t3 depends on t2, which was skipped before it was expanded. We need to guarantee this lack of expansion
     does not fail the dependency-checking logic.
     """
-    with dag_maker(session=session):
+    with dag_maker(session=session) as dag:
 
         @task
         def t(x):
@@ -1472,6 +1476,8 @@ def test_mapped_task_group_finished_upstream_before_expand(
     tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
     tis["t2"].set_state(SKIPPED, session=session)
     session.flush()
+
+    tis["tg.t3"].refresh_from_task(dag.get_task("tg.t3"))
     _test_trigger_rule(
         ti=tis["tg.t3"],
         session=session,
@@ -1734,6 +1740,7 @@ def test_setup_constraint_wait_for_past_depends_before_skipping(
 
 
 @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+@pytest.mark.need_serialized_dag
 def test_setup_mapped_task_group_finished_upstream_before_expand(
     dag_maker, session, flag_upstream_failed, expected_ti_state
 ):
@@ -1741,7 +1748,7 @@ def test_setup_mapped_task_group_finished_upstream_before_expand(
     t3 indirectly depends on t1, which was skipped before it was expanded. We need to guarantee this lack of
     expansion does not fail the dependency-checking logic.
     """
-    with dag_maker(session=session):
+    with dag_maker(session=session) as dag:
 
         @task(trigger_rule=TriggerRule.ALL_DONE)
         def t(x):
@@ -1760,6 +1767,8 @@ def test_setup_mapped_task_group_finished_upstream_before_expand(
     tis["t1"].set_state(SKIPPED, session=session)
     tis["t2"].set_state(SUCCESS, session=session)
     session.flush()
+
+    tis["tg.t3"].refresh_from_task(dag.get_task("tg.t3"))
     _test_trigger_rule(
         ti=tis["tg.t3"],
         session=session,

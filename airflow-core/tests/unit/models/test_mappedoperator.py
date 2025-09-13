@@ -26,18 +26,15 @@ import pytest
 from sqlalchemy import select
 
 from airflow.exceptions import AirflowSkipException
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import setup, task, task_group, teardown
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
@@ -70,8 +67,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
-    DAG.bulk_write_to_db("testing", None, [dag])
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    sync_dag_to_db(dag)
     dag.test()
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"

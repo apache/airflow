@@ -31,21 +31,18 @@ except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for s
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 try:
-    from airflow.sdk import StartTriggerArgs
-except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for standard provider
-    try:
-        from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]
-    except ImportError:  # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]
+except ImportError:  # TODO: Remove this when min airflow version is 2.10.0 for standard provider
 
-        @dataclass
-        class StartTriggerArgs:  # type: ignore[no-redef]
-            """Arguments required for start task execution from triggerer."""
+    @dataclass
+    class StartTriggerArgs:  # type: ignore[no-redef]
+        """Arguments required for start task execution from triggerer."""
 
-            trigger_cls: str
-            next_method: str
-            trigger_kwargs: dict[str, Any] | None = None
-            next_kwargs: dict[str, Any] | None = None
-            timeout: datetime.timedelta | None = None
+        trigger_cls: str
+        next_method: str
+        trigger_kwargs: dict[str, Any] | None = None
+        next_kwargs: dict[str, Any] | None = None
+        timeout: datetime.timedelta | None = None
 
 
 if TYPE_CHECKING:

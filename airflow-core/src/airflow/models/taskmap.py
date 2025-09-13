@@ -35,7 +35,6 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -147,7 +146,7 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
-        if not enable_lazy_task_expansion:
+                if not enable_lazy_task_expansion:
             if not isinstance(task, (MappedOperator, SerializedBaseOperator)):
                 raise RuntimeError(
                     f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"

@@ -21,35 +21,19 @@ import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "src/components/ui";
 
-import type { CalendarColorMode } from "./types";
+import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
-  readonly colorMode: CalendarColorMode;
+  readonly scale: CalendarScale;
   readonly vertical?: boolean;
+  readonly viewMode: CalendarColorMode;
 };
 
-const totalRunsLegendData = [
-  { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
-  { color: { _dark: "green.300", _light: "green.200" }, label: "1-5" },
-  { color: { _dark: "green.500", _light: "green.400" }, label: "6-15" },
-  { color: { _dark: "green.700", _light: "green.600" }, label: "16-25" },
-  { color: { _dark: "green.900", _light: "green.800" }, label: "26+" },
-];
-
-const failedRunsLegendData = [
-  { color: { _dark: "gray.700", _light: "gray.100" }, label: "0" },
-  { color: { _dark: "red.300", _light: "red.200" }, label: "1-2" },
-  { color: { _dark: "red.500", _light: "red.400" }, label: "3-5" },
-  { color: { _dark: "red.700", _light: "red.600" }, label: "6-10" },
-  { color: { _dark: "red.900", _light: "red.800" }, label: "11+" },
-];
-
-export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
+export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => {
   const { t: translate } = useTranslation("dag");
 
-  const legendData = colorMode === "total" ? totalRunsLegendData : failedRunsLegendData;
   const legendTitle =
-    colorMode === "total" ? translate("calendar.totalRuns") : translate("overview.buttons.failedRun_other");
+    viewMode === "failed" ? translate("overview.buttons.failedRun_other") : translate("calendar.totalRuns");
 
   return (
     <Box>
@@ -57,14 +41,18 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
         <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
           {legendTitle}
         </Text>
-        {vertical ? (
+        {scale.type === "empty" ? (
+          <Text color="fg.muted" fontSize="xs" textAlign="center">
+            {translate("calendar.noRuns")}
+          </Text>
+        ) : vertical ? (
           <VStack align="center" gap={2}>
             <Text color="fg.muted" fontSize="xs">
               {translate("calendar.legend.more")}
             </Text>
             <VStack gap={0.5}>
-              {[...legendData].reverse().map(({ color, label }) => (
-                <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
+              {[...scale.legendItems].reverse().map(({ color, label }) => (
+                <Tooltip content={`${label} ${viewMode === "failed" ? "failed" : "runs"}`} key={label}>
                   <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
                 </Tooltip>
               ))}
@@ -79,8 +67,8 @@ export const CalendarLegend = ({ colorMode, vertical = false }: Props) => {
               {translate("calendar.legend.less")}
             </Text>
             <HStack gap={0.5}>
-              {legendData.map(({ color, label }) => (
-                <Tooltip content={`${label} ${colorMode === "total" ? "runs" : "failed"}`} key={label}>
+              {scale.legendItems.map(({ color, label }) => (
+                <Tooltip content={`${label} ${viewMode === "failed" ? "failed" : "runs"}`} key={label}>
                   <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
                 </Tooltip>
               ))}

@@ -1,0 +1,30 @@
+{
+  "consumingDags": "消费者 Dags",
+  "createEvent": {
+    "button": "创建事件",
+    "manual": {
+      "description": "手动创建资源事件",
+      "extra": "资源事件额外信息",
+      "label": "手动"
+    },
+    "materialize": {
+      "description": "触发此资源上游的 Dag",
+      "descriptionWithDag": "触发此资源上游的 Dag: {{dagName}}",
+      "label": "物化",
+      "unpauseDag": "触发时取消暂停 {{dagName}}"
+    },
+    "success": {
+      "manualDescription": "已成功手动创建资源事件。",
+      "manualTitle": "已创建资源事件",
+      "materializeDescription": "已成功触发上游 Dag {{dagId}}。",
+      "materializeTitle": "正在物化资源"
+    },
+    "title": "为 {{name}} 创建资源事件"
+  },
+  "group": "分组",
+  "lastAssetEvent": "最后资源事件",
+  "name": "名称",
+  "producingTasks": "生产任务",
+  "scheduledDags": "已调度的 Dags",
+  "searchPlaceholder": "搜索资源"
+}

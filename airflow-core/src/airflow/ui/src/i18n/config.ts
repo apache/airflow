@@ -24,16 +24,21 @@ import { initReactI18next } from "react-i18next";
 export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ar", name: "العربية" },
+  { code: "ca", name: "Català" },
   { code: "de", name: "Deutsch" },
   { code: "es", name: "Español" },
   { code: "fr", name: "Français" },
   { code: "he", name: "עברית" },
   { code: "hi", name: "हिन्दी" },
+  { code: "hu", name: "Magyar" },
+  { code: "it", name: "Italiano" },
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
-  { code: "zh-TW", name: "繁體中文" },
+  { code: "pt", name: "Português" },
   { code: "tr", name: "Türkçe" },
+  { code: "zh-CN", name: "简体中文" },
+  { code: "zh-TW", name: "繁體中文" },
 ] as const;
 
 export const defaultLanguage = "en";

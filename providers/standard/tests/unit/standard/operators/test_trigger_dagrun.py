@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import update
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
@@ -32,16 +33,19 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused, TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DagRunTriggerException
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -749,9 +753,12 @@ class TestDagRunOperatorAF2:
         # The second DagStateTrigger call should still use the original `logical_date` value.
         assert mock_task_defer.call_args_list[1].kwargs["trigger"].run_ids == [run_id]
 
-    def test_trigger_dagrun_with_fail_when_dag_is_paused(self, dag_maker):
+    def test_trigger_dagrun_with_fail_when_dag_is_paused(self, dag_maker, session):
         """Test TriggerDagRunOperator with fail_when_dag_is_paused set to True."""
-        self.dag_model.set_is_paused(True)
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == self.dag_model.dag_id).values(is_paused=True)
+        )
+        session.commit()
 
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True

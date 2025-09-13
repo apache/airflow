@@ -52,7 +52,7 @@ infrastructure is available).
 
 When using EdgeExecutor in addition to other executors and EdgeExecutor not being the default executor
 (that is to say the first one in the list of executors), be reminded to also define EdgeExecutor
-as the executor at task or dag level in addition to the queues you are targeting.
+as the executor at task or Dag level in addition to the queues you are targeting.
 For more details on multiple executors please see :ref:`apache-airflow:using-multiple-executors-concurrently`.
 
 .. _edge_executor:concurrency_slots:
@@ -80,12 +80,12 @@ Here is an example setting pool_slots for a task:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow import Dag
     from airflow.decorators import task
     from airflow.example_dags.libs.helper import print_stuff
     from airflow.settings import AIRFLOW_HOME
 
-    with DAG(
+    with Dag(
         dag_id="example_edge_pool_slots",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
