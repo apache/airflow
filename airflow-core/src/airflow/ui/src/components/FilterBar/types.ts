@@ -30,7 +30,7 @@ export type FilterConfig = {
   readonly min?: number;
   readonly placeholder?: string;
   readonly required?: boolean;
-  readonly type: "date" | "number" | "text";
+  readonly type: "date" | "number" | "select" | "text";
 };
 
 export type FilterState = {
