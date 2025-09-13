@@ -29,6 +29,7 @@
     "approvalRequired": "Wymagane zatwierdzenie",
     "choiceReceived": "Wybór otrzymany",
     "choiceRequired": "Wymagany wybór",
+    "noResponseReceived": "Brak odpowiedzi",
     "rejectionReceived": "Odrzucenie otrzymane",
     "responseReceived": "Odpowiedź otrzymana",
     "responseRequired": "Wymagana odpowiedź"

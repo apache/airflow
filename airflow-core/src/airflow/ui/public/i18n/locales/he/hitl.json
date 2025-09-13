@@ -8,8 +8,10 @@
   },
   "requiredAction_one": "פעולה נדרשת",
   "requiredAction_other": "פעולות נדרשות",
+  "requiredAction_two": "פעולות נדרשות",
   "requiredActionCount_one": "פעולה נדרשת ({{count}})",
   "requiredActionCount_other": "פעולות נדרשות ({{count}})",
+  "requiredActionCount_two": "פעולות נדרשות ({{count}})",
   "requiredActionState": "מצב פעולה נדרשת",
   "response": {
     "error": "התגובה נכשלה",

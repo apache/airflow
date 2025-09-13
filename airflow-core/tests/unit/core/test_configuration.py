@@ -158,6 +158,17 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
+    def test_env_team(self):
+        with patch(
+            "os.environ",
+            {
+                "AIRFLOW__CELERY__RESULT_BACKEND": "FOO",
+                "AIRFLOW__UNIT_TEST_TEAM___CELERY__RESULT_BACKEND": "BAR",
+            },
+        ):
+            assert conf.get("celery", "result_backend") == "FOO"
+            assert conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
+
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()

@@ -76,15 +76,22 @@ export const Overview = () => {
     timestampLte: endDate,
   });
 
+<<<<<<< HEAD
   const autoRefreshEnabled =
     Boolean(useAutoRefresh({ dagId })) &&
     gridRuns &&
     gridRuns.length > 0 &&
     isStatePending(gridRuns[0]?.state);
+=======
+  const refetchInterval = useAutoRefresh({});
+>>>>>>> origin/main
 
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton dagId={dagId} />
+      <NeedsReviewButton
+        dagId={dagId}
+        refreshInterval={gridRuns?.some((dr) => isStatePending(dr.state)) ? refetchInterval : false}
+      />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}

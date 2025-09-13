@@ -217,10 +217,11 @@ def _configure_logs_over_json_channel(log_fd: int):
     # A channel that the task can send JSON-formatted logs over.
     #
     # JSON logs sent this way will be handled nicely
-    from airflow.sdk.log import configure_logging
+    from airflow.sdk.log import configure_logging, reset_logging
 
     log_io = os.fdopen(log_fd, "wb", buffering=0)
-    configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+    reset_logging()
+    configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
 
 
 def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
@@ -541,12 +542,12 @@ class WatchedSubprocess:
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
         self.selector.register(
-            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, channel="stdout")
+            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
         )
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_log_forwarder(target_loggers, channel="stderr", log_level=logging.ERROR),
+            self._create_log_forwarder(target_loggers, "task.stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
@@ -561,10 +562,10 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    def _create_log_forwarder(self, loggers, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         return make_buffered_socket_reader(
-            forward_to_log(loggers, chan=channel, level=log_level), on_close=self._on_socket_closed
+            forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
         )
 
     def _on_socket_closed(self, sock: socket):
@@ -1342,7 +1343,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 defaults=msg.defaults,
                 params=msg.params,
                 multiple=msg.multiple,
-                respondents=msg.respondents,
+                assigned_users=msg.assigned_users,
             )
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         elif isinstance(msg, MaskSecret):
@@ -1732,7 +1733,7 @@ def process_log_messages_from_subprocess(
 
 
 def forward_to_log(
-    target_loggers: tuple[FilteringBoundLogger, ...], chan: str, level: int
+    target_loggers: tuple[FilteringBoundLogger, ...], logger: str, level: int
 ) -> Generator[None, bytes | bytearray, None]:
     while True:
         line = yield
@@ -1743,7 +1744,7 @@ def forward_to_log(
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
         for log in target_loggers:
-            log.log(level, msg, chan=chan)
+            log.log(level, msg, logger=logger)
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
@@ -1766,16 +1767,16 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
     log_file = init_log_file(log_path)
 
-    pretty_logs = False
-    if pretty_logs:
-        log_file_descriptor = log_file.open("a", buffering=1)
-        underlying_logger: WrappedLogger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
-    else:
+    json_logs = True
+    if json_logs:
         log_file_descriptor = log_file.open("ab")
-        underlying_logger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
+        underlying_logger: WrappedLogger = structlog.BytesLogger(cast("BinaryIO", log_file_descriptor))
+    else:
+        log_file_descriptor = log_file.open("a", buffering=1)
+        underlying_logger = structlog.WriteLogger(cast("TextIO", log_file_descriptor))
 
     with _remote_logging_conn(client):
-        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+        processors = logging_processors(json_output=json_logs)
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
     return logger, log_file_descriptor

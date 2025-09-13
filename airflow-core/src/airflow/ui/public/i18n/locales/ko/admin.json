@@ -72,7 +72,6 @@
     "tooltip": "선택된 커넥션들 삭제"
   },
   "formActions": {
-    "reset": "초기화",
     "save": "저장"
   },
   "plugins": {

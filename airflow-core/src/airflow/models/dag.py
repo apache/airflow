@@ -28,6 +28,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Column,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -323,6 +324,8 @@ class DagModel(Base):
     is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
+    # How long it took to parse this file
+    last_parse_duration = Column(Float)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
@@ -449,12 +452,25 @@ class DagModel(Base):
     @property
     def deadline(self):
         """Get the deserialized deadline alert."""
-        return DeadlineAlert.deserialize_deadline_alert(self._deadline) if self._deadline else None
+        if self._deadline is None:
+            return None
+        if isinstance(self._deadline, list):
+            return [DeadlineAlert.deserialize_deadline_alert(item) for item in self._deadline]
+        return DeadlineAlert.deserialize_deadline_alert(self._deadline)
 
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
-        self._deadline = value if isinstance(value, dict) else value.serialize_deadline_alert()
+        if value is None:
+            self._deadline = None
+        elif isinstance(value, list):
+            self._deadline = [
+                item if isinstance(item, dict) else item.serialize_deadline_alert() for item in value
+            ]
+        elif isinstance(value, dict):
+            self._deadline = value
+        else:
+            self._deadline = value.serialize_deadline_alert()
 
     @property
     def timezone(self):
@@ -696,6 +712,17 @@ class DagModel(Base):
             .where(DagModel.dag_id == dag_id)
         )
         return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_dag_id_to_team_name_mapping(dag_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+        stmt = (
+            select(DagModel.dag_id, Team.name)
+            .join(DagBundleModel.teams)
+            .join(DagModel, DagModel.bundle_name == DagBundleModel.name)
+            .where(DagModel.dag_id.in_(dag_ids))
+        )
+        return {dag_id: team_name for dag_id, team_name in session.execute(stmt)}
 
 
 STATICA_HACK = True

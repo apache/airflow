@@ -23,6 +23,9 @@ import tz from "dayjs/plugin/timezone";
 dayjs.extend(dayjsDuration);
 dayjs.extend(tz);
 
+export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
+export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
+
 export const renderDuration = (durationSeconds: number | null | undefined): string => {
   if (
     durationSeconds === null ||
@@ -51,7 +54,7 @@ export const getDuration = (startDate?: string | null, endDate?: string | null) 
 export const formatDate = (
   date: number | string | null | undefined,
   timezone: string,
-  format: string = "YYYY-MM-DD HH:mm:ss",
+  format: string = DEFAULT_DATETIME_FORMAT,
 ) => {
   if (date === null || date === undefined || !dayjs(date).isValid()) {
     return dayjs().tz(timezone).format(format);

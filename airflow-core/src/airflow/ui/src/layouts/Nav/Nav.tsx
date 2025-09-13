@@ -136,7 +136,7 @@ export const Nav = () => {
         right: 0,
       }}
       alignItems="center"
-      bg="blue.muted"
+      bg="brand.muted"
       height="100%"
       justifyContent="space-between"
       position="fixed"

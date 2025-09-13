@@ -54,11 +54,8 @@ def serve_logs(port=None):
     logger.info("Starting log server on %s", serve_log_uri)
 
     # Use uvicorn directly for ASGI applications
-    uvicorn.run("airflow.utils.serve_logs.log_server:app", host=host, port=port, workers=2, log_level="info")
-    # Note: if we want to use more than 1 workers, we **can't** use the instance of FastAPI directly
-    # This is way we split the instantiation of log server to a separate module
-    #
-    # https://github.com/encode/uvicorn/blob/374bb6764e8d7f34abab0746857db5e3d68ecfdd/docs/deployment/index.md?plain=1#L50-L63
+    uvicorn.run("airflow.utils.serve_logs.log_server:get_app", host=host, port=port, log_level="info")
+    # Log serving is I/O bound and has low concurrency, so single process is sufficient
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
+    "parseDuration": "Czas parsowania:",
     "parsedAt": "Przeanalizowano o:"
   },
   "extraLinks": "Dodatkowe linki",

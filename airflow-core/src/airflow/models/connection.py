@@ -598,3 +598,15 @@ class Connection(Base, LoggingMixin):
             .where(Connection.conn_id == connection_id)
         )
         return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_conn_id_to_team_name_mapping(
+        connection_ids: list[str], session=NEW_SESSION
+    ) -> dict[str, str | None]:
+        stmt = (
+            select(Connection.conn_id, Team.name)
+            .join(Team, Connection.team_id == Team.id)
+            .where(Connection.conn_id.in_(connection_ids))
+        )
+        return {conn_id: team_name for conn_id, team_name in session.execute(stmt)}

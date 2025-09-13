@@ -66,29 +66,37 @@ def parser():
     return cli_parser.get_parser()
 
 
+# The "*_capture" fixtures all ensure that the `caplog` fixture is loaded so that they dont get polluted with
+# log messages
+
+
 @pytest.fixture
-def stdout_capture():
+def stdout_capture(request):
     """Fixture that captures stdout only."""
+    request.getfixturevalue("caplog")
     return StdoutCaptureManager()
 
 
 @pytest.fixture
-def stderr_capture():
+def stderr_capture(request):
     """Fixture that captures stderr only."""
+    request.getfixturevalue("caplog")
     return StderrCaptureManager()
 
 
 @pytest.fixture
-def stream_capture():
+def stream_capture(request):
     """Fixture that returns a configurable stream capture manager."""
 
     def _capture(stdout=True, stderr=False):
+        request.getfixturevalue("caplog")
         return StreamCaptureManager(capture_stdout=stdout, capture_stderr=stderr)
 
     return _capture
 
 
 @pytest.fixture
-def combined_capture():
+def combined_capture(request):
     """Fixture that captures both stdout and stderr."""
+    request.getfixturevalue("caplog")
     return CombinedCaptureManager()

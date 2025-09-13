@@ -22,7 +22,7 @@ import logging
 from typing import Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
-from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
+from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
@@ -50,7 +50,6 @@ def dag_processor(args):
     """Start Airflow Dag Processor Job."""
     job_runner = _create_dag_processor_job_runner(args)
 
-    reload_configuration_for_dag_processing()
     run_command_with_daemon_option(
         args=args,
         process_name="dag-processor",

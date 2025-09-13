@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import logging
 import os
 from unittest import mock
 
@@ -138,27 +139,33 @@ class TestS3RemoteLogIO:
             with pytest.raises(ConnectionError, match="Fake: Failed to connect"):
                 subject.s3_log_exists(self.remote_log_location)
 
-    def test_s3_read_when_log_missing(self):
+    def test_s3_read_when_log_missing(self, caplog):
         url = "s3://bucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             result = self.subject.s3_read(url, return_error=True)
-            msg = (
-                f"Could not read logs from {url} with error: An error occurred (404) when calling the "
-                f"HeadObject operation: Not Found"
-            )
-            assert result == msg
-            mock_error.assert_called_once_with(msg, exc_info=True)
+        msg = (
+            f"Could not read logs from {url} with error: An error occurred (404) when calling the "
+            f"HeadObject operation: Not Found"
+        )
+        assert result == msg
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.exc_info is not None
 
-    def test_read_raises_return_error(self):
+    def test_read_raises_return_error(self, caplog):
         url = "s3://nonexistentbucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             result = self.subject.s3_read(url, return_error=True)
             msg = (
                 f"Could not read logs from {url} with error: An error occurred (NoSuchBucket) when "
                 f"calling the HeadObject operation: The specified bucket does not exist"
             )
-            assert result == msg
-            mock_error.assert_called_once_with(msg, exc_info=True)
+        assert result == msg
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.exc_info is not None
 
     def test_write(self):
         with mock.patch.object(self.subject.log, "error") as mock_error:
@@ -176,11 +183,15 @@ class TestS3RemoteLogIO:
 
         assert body == b"previous \ntext"
 
-    def test_write_raises(self):
+    def test_write_raises(self, caplog):
         url = "s3://nonexistentbucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             self.subject.write("text", url)
-            mock_error.assert_called_once_with("Could not write logs to %s", url, exc_info=True)
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.message == f"Could not write logs to {url}"
+        assert rec.exc_info is not None
 
 
 @pytest.mark.db_test

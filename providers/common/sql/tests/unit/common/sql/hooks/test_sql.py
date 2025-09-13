@@ -27,7 +27,6 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -227,7 +226,6 @@ def test_query(
 
 class TestDbApiHook:
     def setup_method(self, **kwargs):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = True
 
     @pytest.mark.db_test

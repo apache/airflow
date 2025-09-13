@@ -1,0 +1,97 @@
+{
+  "assetSchedule": "{{count}} di {{total}} assets aggiornati",
+  "dagActions": {
+    "delete": {
+      "button": "Elimina DAG",
+      "warning": "Questo rimuoverà tutti i metadati relativi al DAG, compresi i Run e le Task."
+    }
+  },
+  "favoriteDag": "DAG Preferito",
+  "filters": {
+    "allRunTypes": "Tutti i Tipi di Run",
+    "allStates": "Tutti gli Stati",
+    "favorite": {
+      "all": "Tutti",
+      "favorite": "Preferito",
+      "unfavorite": "Rimuovi dai preferiti"
+    },
+    "paused": {
+      "active": "Attivo",
+      "all": "Tutti",
+      "paused": "In Pausa"
+    },
+    "runIdPatternFilter": "Cerca DAG Runs",
+    "triggeringUserNameFilter": "Cerca per Utente che ha Attivato"
+  },
+  "ownerLink": "Link dell'Owner per {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Nessuna task trovata.",
+      "title": "Task interessati: {{count}}"
+    },
+    "clear": {
+      "button": "Pulisci {{type}}",
+      "buttonTooltip": "Premi shift+c per pulire",
+      "error": "Impossibile pulire {{type}}",
+      "title": "Pulisci {{type}}"
+    },
+    "delete": {
+      "button": "Elimina {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Elimina {{type}}",
+        "warning": "Questo rimuoverà tutti i metadati relativi a {{type}}."
+      },
+      "error": "Errore nell'eliminazione di {{type}}",
+      "success": {
+        "description": "La richiesta di eliminazione di {{type}} è stata completata con successo.",
+        "title": "{{type}} Eliminato con Successo"
+      }
+    },
+    "markAs": {
+      "button": "Marca {{type}} come...",
+      "buttonTooltip": {
+        "failed": "Premi shift+f per marcare come fallito",
+        "success": "Premi shift+s per marcare come successo"
+      },
+      "title": "Marca {{type}} come {{state}}"
+    },
+    "options": {
+      "downstream": "Downstream",
+      "existingTasks": "Pulisci le task esistenti",
+      "future": "Futuro",
+      "onlyFailed": "Pulisci solo le task fallite",
+      "past": "Passato",
+      "queueNew": "Inserisci nuove task",
+      "runOnLatestVersion": "Esegui con l'ultima versione del bundle",
+      "upstream": "Upstream"
+    }
+  },
+  "search": {
+    "advanced": "Ricerca Avanzata",
+    "clear": "Pulisci la ricerca",
+    "dags": "Cerca DAG",
+    "hotkey": "+K",
+    "tasks": "Cerca Task"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Ordina per Nome (A-Z)",
+      "desc": "Ordina per Nome (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Ordina per Data di Inizio del Run più Recente (Prima-Ultimo)",
+      "desc": "Ordina per Data di Inizio del Run più Recente (Ultimo-Prima)"
+    },
+    "lastRunState": {
+      "asc": "Ordina per Stato del Run più Recente (A-Z)",
+      "desc": "Ordina per Stato del Run più Recente (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Ordina per Next DAG Run (Prima-Ultimo)",
+      "desc": "Ordina per Next DAG Run (Ultimo-Prima)"
+    },
+    "placeholder": "Ordina per"
+  },
+  "unfavoriteDag": "Rimuovi DAG dai Preferiti"
+}
