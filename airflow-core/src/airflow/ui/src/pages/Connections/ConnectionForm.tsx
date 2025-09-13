@@ -74,14 +74,21 @@ const ConnectionForm = ({
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
 
   const [formErrors, setFormErrors] = useState(false);
+  const [isExtraFieldsDirty, setIsExtraFieldsDirty] = useState(false);
+  const [initialExtra, setInitialExtra] = useState("");
 
   useEffect(() => {
+    const parsedInitialExtra = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+    const formattedInitialExtra = JSON.stringify(parsedInitialExtra, undefined, 2);
+
     reset((prevValues) => ({
       ...initialConnection,
       conn_type: selectedConnType,
       connection_id: prevValues.connection_id,
     }));
-    setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
+    setConf(formattedInitialExtra);
+    setInitialExtra(formattedInitialExtra);
+    setIsExtraFieldsDirty(false);
   }, [selectedConnType, reset, initialConnection, setConf]);
 
   // Automatically reset form when conf is fetched
@@ -90,11 +97,18 @@ const ConnectionForm = ({
       ...prevValues, // Retain existing form values
       extra,
     }));
-  }, [extra, reset, setConf]);
+    // Mark as dirty when extra fields are updated - compare parsed JSON objects
+    try {
+      const initialParsed = JSON.parse(initialExtra) as Record<string, unknown>;
+      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+      const hasChanged = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
 
-  const onSubmit = (data: ConnectionBody) => {
-    mutateConnection(data);
-  };
+      setIsExtraFieldsDirty(hasChanged);
+    } catch {
+      // If parsing fails, fall back to string comparison
+      setIsExtraFieldsDirty(extra !== initialExtra);
+    }
+  }, [extra, reset, setConf, initialExtra]);
 
   const validateAndPrettifyJson = (value: string) => {
     try {
@@ -251,8 +265,20 @@ const ConnectionForm = ({
           <Spacer />
           <Button
             colorPalette="brand"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !isDirty}
-            onClick={() => void handleSubmit(onSubmit)()}
+            disabled={
+              Boolean(errors.conf) || formErrors || isPending || !isValid || (!isDirty && !isExtraFieldsDirty)
+            }
+            onClick={() => {
+              // Update the form's extra field with the latest conf value before submitting
+              void handleSubmit((data) => {
+                const updatedData = {
+                  ...data,
+                  extra,
+                };
+
+                mutateConnection(updatedData);
+              })();
+            }}
           >
             <FiSave /> {translate("formActions.save")}
           </Button>
