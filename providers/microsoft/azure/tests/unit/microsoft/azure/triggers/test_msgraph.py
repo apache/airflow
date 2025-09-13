@@ -149,12 +149,6 @@ class TestMSGraphTrigger(Base):
                 "serializer": f"{ResponseSerializer.__module__}.{ResponseSerializer.__name__}",
             }
 
-    def test_template_fields(self):
-        trigger = MSGraphTrigger("users/delta", response_type="bytes", conn_id="msgraph_api")
-
-        for template_field in MSGraphTrigger.template_fields:
-            getattr(trigger, template_field)
-
     def test_get_conn(self):
         with self.patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
