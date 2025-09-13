@@ -39,7 +39,14 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XCOM_RETURN_KEY
     from airflow.sdk import BaseHook, BaseOperator
     from airflow.sdk.definitions.context import context_merge
+    from airflow.sdk.exceptions import AirflowNotFoundException, AirflowSkipException, TaskDeferred
+
 else:
+    from airflow.exceptions import (  # type: ignore[no-redef, attr-defined, assignment]
+        AirflowNotFoundException,
+        AirflowSkipException,
+        TaskDeferred,
+    )
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models import BaseOperator
     from airflow.utils.context import context_merge  # type: ignore[attr-defined, no-redef]
@@ -67,4 +74,7 @@ __all__ = [
     "task_decorator_factory",
     "XCOM_RETURN_KEY",
     "context_merge",
+    "AirflowSkipException",
+    "TaskDeferred",
+    "AirflowNotFoundException",
 ]

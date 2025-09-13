@@ -175,7 +175,7 @@ class SparkJDBCHook(SparkSubmitHook):
             conn_data["password"] = cast("str", conn.password)
             extra = conn.extra_dejson
             conn_data["conn_prefix"] = extra.get("conn_prefix", "")
-        except AirflowException:
+        except (AirflowException, RuntimeError):
             self.log.debug(
                 "Could not load jdbc connection string %s, defaulting to %s", self._jdbc_conn_id, ""
             )

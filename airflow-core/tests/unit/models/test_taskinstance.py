@@ -2478,7 +2478,7 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        with contextlib.suppress(AirflowException):
+        with contextlib.suppress(AirflowFailException):
             ti.run()
         assert ti.state == State.FAILED
 
