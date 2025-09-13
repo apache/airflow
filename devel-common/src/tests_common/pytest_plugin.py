@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import importlib
-import itertools
 import json
+import logging
 import os
 import platform
 import re
@@ -1700,13 +1700,9 @@ def create_log_template(request):
 
 @pytest.fixture
 def reset_logging_config():
-    import logging.config
+    from airflow.logging_config import configure_logging
 
-    from airflow import settings
-    from airflow.utils.module_loading import import_string
-
-    logging_config = import_string(settings.LOGGING_CLASS_PATH)
-    logging.config.dictConfig(logging_config)
+    configure_logging()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1795,6 +1791,7 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(autouse=True, scope="session")
+@pytest.mark.usefixture("_ensure_configured_logging")
 def initialize_providers_manager():
     if importlib.util.find_spec("airflow") is None:
         # If airflow is not installed, we should not initialize providers manager
@@ -2025,7 +2022,7 @@ def add_expected_folders_to_pythonpath():
 
 
 @pytest.fixture
-def cap_structlog():
+def cap_structlog(monkeypatch, request):
     """
     Test that structlog messages are logged.
 
@@ -2040,60 +2037,94 @@ def cap_structlog():
     ...
     ...     assert "not logged" not in cap_structlog  # not in works too
     """
-    import structlog.testing
-    from structlog import configure, get_config
+    import structlog.stdlib
+    from structlog import DropEvent, configure, get_config
 
-    class LogCapture(structlog.testing.LogCapture):
-        # Partial comparison -- only check keys passed in, or the "event"/message if a single value is given
-        def __contains__(self, target):
-            if not isinstance(target, dict):
-                target = {"event": target}
+    from tests_common.test_utils.logs import StructlogCapture
 
-            def predicate(e):
-                def check_one(key, want):
-                    try:
-                        val = e.get(key)
-                        if isinstance(want, re.Pattern):
-                            return want.match(val)
-                        return val == want
-                    except Exception:
-                        return False
-
-                return all(itertools.starmap(check_one, target.items()))
-
-            return any(predicate(e) for e in self.entries)
-
-        def __getitem__(self, i):
-            return self.entries[i]
-
-        def __iter__(self):
-            return iter(self.entries)
-
-        def __repr__(self):
-            return repr(self.entries)
-
-        @property
-        def text(self):
-            """All the event text as a single multi-line string."""
-            return "\n".join(e["event"] for e in self.entries)
-
-    cap = LogCapture()
+    cap = StructlogCapture()
     # Modify `_Configuration.default_processors` set via `configure` but always
     # keep the list instance intact to not break references held by bound
     # loggers.
     processors = get_config()["processors"]
     old_processors = processors.copy()
+
+    # And modify the stdlib logging to capture too
+    handler = logging.root.handlers[0]
+    if not isinstance(handler.formatter, structlog.stdlib.ProcessorFormatter):
+        raise AssertionError(
+            f"{type(handler.formatter)} is not an instance of structlog.stblid.ProcessorFormatter"
+        )
+
+    std_formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=handler.formatter.foreign_pre_chain,
+        pass_foreign_args=True,
+        use_get_message=False,
+        processor=cap,
+    )
+
+    def stdlib_filter(record):
+        with suppress(DropEvent):
+            std_formatter.format(record)
+        return False
+
+    dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
+        use_rich=False,
+        show_locals=False,
+    )
+
+    dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+    timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+
+    level = logging.INFO
+    for setting_name in ("log_cli_level", "log_level"):
+        log_level = request.config.getoption(setting_name)
+        if log_level is None:
+            log_level = request.config.getini(setting_name)
+        if log_level:
+            level = structlog.processors.NAME_TO_LEVEL[log_level.lower()]
+            break
+
+    monkeypatch.setattr(logging.root, "level", level)
+    # Ensure the handler doesn't filter anything itself (in stblib both loggers and handlers have their own
+    # independent level!)
+    monkeypatch.setattr(handler, "level", 0)
+    monkeypatch.setattr(handler, "filters", [stdlib_filter])
+
     try:
         # clear processors list and use LogCapture for testing
         processors.clear()
+        processors.append(timestamper)
+        processors.append(dict_tracebacks)
         processors.append(cap)
         configure(processors=processors)
         yield cap
     finally:
+        cap._finalize()
         # remove LogCapture and restore original processors
         processors.clear()
         processors.extend(old_processors)
         configure(processors=processors)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_configured_logging(request):
+    try:
+        from airflow.sdk._shared.logging import configure_logging
+    except ModuleNotFoundError:
+        try:
+            from airflow.sdk._shared.logging import configure_logging
+        except ModuleNotFoundError:
+            return
+
+    log_level = logging.INFO
+    for setting_name in ("log_cli_level", "log_level"):
+        log_level = request.config.getoption(setting_name)
+        if log_level is None:
+            log_level = request.config.getini(setting_name)
+        if log_level:
+            break
+    configure_logging(log_level=log_level)
 
 
 @pytest.fixture(name="caplog")
@@ -2104,15 +2135,28 @@ def override_caplog(request):
     This is in an effort to reduce flakiness from caplog related tests where one test file can change log
     behaviour and bleed in to affecting other test files
     """
-    # We need this `_ispytest` so it doesn't warn about using private
-    fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
-    yield fixture
-    fixture._finalize()
 
-    if "airflow.logging_config" in sys.modules:
-        import airflow.logging_config
+    try:
+        import airflow.sdk._shared.logging
+    except ModuleNotFoundError:
+        try:
+            import airflow.sdk._shared.logging
+        except ModuleNotFoundError:
+            # No structlog available, fallback to the stock one. Compat for pre-3.1
 
-        airflow.logging_config.configure_logging()
+            # We need this `_ispytest` so it doesn't warn about using private
+            fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
+            yield fixture
+            fixture._finalize()
+
+            if "airflow.logging_config" in sys.modules:
+                import airflow.logging_config
+
+                airflow.logging_config.configure_logging()
+            return
+
+    yield request.getfixturevalue("cap_structlog")
+    return
 
 
 @pytest.fixture

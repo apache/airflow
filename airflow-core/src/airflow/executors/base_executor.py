@@ -97,6 +97,28 @@ class RunningRetryAttemptType:
         return True
 
 
+class ExecutorConf:
+    """
+    This class is used to fetch configuration for an executor for a particular team_name.
+
+    It wraps the implementation of the configuration.get() to look for the particular section and key
+    prefixed with the team_name. This makes it easy for child classes (i.e. concrete executors) to fetch
+    configuration values for a particular team_name without having to worry about passing through the
+    team_name for every call to get configuration.
+
+    Currently config only supports environment variables for team specific configuration.
+    """
+
+    def __init__(self, team_name: str | None = None) -> None:
+        self.team_name: str | None = team_name
+
+    def get(self, *args, **kwargs) -> str | None:
+        return conf.get(*args, **kwargs, team_name=self.team_name)
+
+    def getboolean(self, *args, **kwargs) -> bool:
+        return conf.getboolean(*args, **kwargs, team_name=self.team_name)
+
+
 class BaseExecutor(LoggingMixin):
     """
     Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
@@ -150,6 +172,7 @@ class BaseExecutor(LoggingMixin):
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
+        self.conf = ExecutorConf(team_name)
 
         if self.parallelism <= 0:
             raise ValueError("parallelism is set to 0 or lower")

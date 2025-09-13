@@ -272,24 +272,21 @@ class TestWatchedSubprocess:
         assert captured_logs == unordered(
             [
                 {
-                    "chan": "stdout",
+                    "logger": "task.stdout",
                     "event": "I'm a short message",
                     "level": "info",
-                    "logger": "task",
                     "timestamp": "2024-11-07T12:34:56.078901Z",
                 },
                 {
-                    "chan": "stderr",
+                    "logger": "task.stderr",
                     "event": "stderr message",
                     "level": "error",
-                    "logger": "task",
                     "timestamp": "2024-11-07T12:34:56.078901Z",
                 },
                 {
-                    "chan": "stdout",
+                    "logger": "task.stdout",
                     "event": "Message split across two writes",
                     "level": "info",
-                    "logger": "task",
                     "timestamp": "2024-11-07T12:34:56.078901Z",
                 },
                 {
@@ -578,10 +575,9 @@ class TestWatchedSubprocess:
 
         # We should have a log from the task!
         assert {
-            "chan": "stdout",
+            "logger": "task.stdout",
             "event": "Hello World hello!",
             "level": "info",
-            "logger": "task",
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
@@ -1144,36 +1140,34 @@ class TestWatchedSubprocessKill:
         assert proc.wait() == exit_after or -signal.SIGKILL
         exit_after = exit_after or signal.SIGKILL
 
-        logs = [{"event": m["event"], "chan": m.get("chan"), "logger": m["logger"]} for m in captured_logs]
+        logs = [{"event": m["event"], "logger": m["logger"]} for m in captured_logs]
         expected_logs = [
-            {"chan": "stdout", "event": "Ready", "logger": "task"},
+            {"logger": "task.stdout", "event": "Ready"},
         ]
         # Work out what logs we expect to see
         if signal_to_send == signal.SIGINT:
-            expected_logs.append({"chan": "stderr", "event": "Signal 2 received", "logger": "task"})
+            expected_logs.append({"logger": "task.stderr", "event": "Signal 2 received"})
         if signal_to_send == signal.SIGTERM or (
             signal_to_send == signal.SIGINT and exit_after != signal.SIGINT
         ):
             if signal_to_send == signal.SIGINT:
                 expected_logs.append(
                     {
-                        "chan": None,
                         "event": "Process did not terminate in time; escalating",
                         "logger": "supervisor",
                     }
                 )
-            expected_logs.append({"chan": "stderr", "event": "Signal 15 received", "logger": "task"})
+            expected_logs.append({"logger": "task.stderr", "event": "Signal 15 received"})
         if exit_after == signal.SIGKILL:
             if signal_to_send in {signal.SIGINT, signal.SIGTERM}:
                 expected_logs.append(
                     {
-                        "chan": None,
                         "event": "Process did not terminate in time; escalating",
                         "logger": "supervisor",
                     }
                 )
 
-        expected_logs.extend(({"chan": None, "event": "Process exited", "logger": "supervisor"},))
+        expected_logs.extend(({"event": "Process exited", "logger": "supervisor"},))
         assert logs == expected_logs
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
@@ -2006,7 +2000,7 @@ REQUEST_TEST_CASES = [
             "defaults": ["Approve"],
             "multiple": False,
             "params": {},
-            "respondents": None,
+            "assigned_users": None,
             "type": "HITLDetailRequestResult",
         },
         client_mock=ClientMock(
@@ -2017,7 +2011,7 @@ REQUEST_TEST_CASES = [
                 "multiple": False,
                 "options": ["Approve", "Reject"],
                 "params": {},
-                "respondents": None,
+                "assigned_users": None,
                 "subject": "This is subject",
                 "ti_id": TI_ID,
             },

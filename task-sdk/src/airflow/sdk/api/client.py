@@ -44,6 +44,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     DagRunType,
     HITLDetailResponse,
+    HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
@@ -723,7 +724,7 @@ class HITLOperations:
         defaults: list[str] | None = None,
         multiple: bool = False,
         params: dict[str, Any] | None = None,
-        respondents: list[str] | None = None,
+        assigned_users: list[HITLUser] | None = None,
     ) -> HITLDetailRequestResult:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
         payload = CreateHITLDetailPayload(
@@ -734,7 +735,7 @@ class HITLOperations:
             defaults=defaults,
             multiple=multiple,
             params=params,
-            respondents=respondents,
+            assigned_users=assigned_users,
         )
         resp = self.client.post(
             f"/hitlDetails/{ti_id}",
