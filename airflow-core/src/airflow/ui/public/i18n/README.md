@@ -369,7 +369,7 @@ label is applied to the PR. This still allows issues in the English translation 
 deliberate updates to be made, while avoiding accidental changes.
 
 Any change in the English translation files during freeze time MUST be communicated in the
-`#18n` Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
+[#18n](https://app.slack.com/client/TCQ18L22Z/C09D0A7FESJ?) Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
 being added.
 
 > [!NOTE]
