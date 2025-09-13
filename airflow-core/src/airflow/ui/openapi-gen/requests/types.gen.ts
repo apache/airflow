@@ -2006,6 +2006,10 @@ export type GetAssetAliasResponse = unknown;
 export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    namePattern?: string | null;
     offset?: number;
     orderBy?: Array<(string)>;
     sourceDagId?: string | null;
