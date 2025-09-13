@@ -230,8 +230,19 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     trigger_should_wrap = True
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, **kwargs):
-        super().__init__(base_log_folder)
+    def __init__(
+        self,
+        base_log_folder: str,
+        log_group_arn: str,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+        **kwargs,
+    ) -> None:
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         split_arn = log_group_arn.split(":")
 
         self.handler = None
