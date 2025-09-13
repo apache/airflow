@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
