@@ -942,7 +942,7 @@ export type HITLDetail = {
     };
     assigned_users?: Array<HITLUser>;
     responded_by_user?: HITLUser | null;
-    response_at?: string | null;
+    responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
@@ -963,7 +963,7 @@ export type HITLDetailCollection = {
  */
 export type HITLDetailResponse = {
     responded_by: HITLUser;
-    response_at: string;
+    responded_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
