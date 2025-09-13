@@ -1631,21 +1631,21 @@ sql_alchemy_conn=sqlite://test
     def test_as_dict_raw(self):
         test_conf = AirflowConfigParser()
         raw_dict = test_conf.as_dict(raw=True)
-        assert "%%" in raw_dict["logging"]["log_format"]
+        assert "%%" in raw_dict["logging"]["simple_log_format"]
 
     def test_as_dict_not_raw(self):
         test_conf = AirflowConfigParser()
         raw_dict = test_conf.as_dict(raw=False)
-        assert "%%" not in raw_dict["logging"]["log_format"]
+        assert "%%" not in raw_dict["logging"]["simple_log_format"]
 
     def test_default_value_raw(self):
         test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "log_format", raw=True)
+        log_format = test_conf.get_default_value("logging", "simple_log_format", raw=True)
         assert "%%" in log_format
 
     def test_default_value_not_raw(self):
         test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "log_format", raw=False)
+        log_format = test_conf.get_default_value("logging", "simple_log_format", raw=False)
         assert "%%" not in log_format
 
     def test_default_value_raw_with_fallback(self):
