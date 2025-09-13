@@ -5,7 +5,7 @@
     "affected_one": "مهمة واحدة ستُشغّل.",
     "affected_other": "{{count}} مهمة ستُشغل.",
     "affected_two": "مهمتان ستُشغّلان.",
-    "affected_zero": "لا توجد أي مهمة ستُشغَّل.",
+    "affected_zero": "لا توجد أي مهمة ستُشَّل.",
     "affectedNone": "لا توجد مهام تطابق المعايير المحددة.",
     "allRuns": "جميع التشغيلات",
     "backwards": "تشغيل رجعي",
@@ -116,6 +116,11 @@
     "taskGroup": "مجموعة المهام"
   },
   "limitedList": "+{{count}} المزيد",
+  "limitedList.allItems": "جميع العناصر {{count}}:",
+  "limitedList.clickToInteract": "انقر على علامة لتصفية DAGs",
+  "limitedList.clickToOpenFull": "انقر \"+{{count}} المزيد\" لعرض القائمة الكاملة",
+  "limitedList.copyPasteText": "يمكنك نسخ ولصق النص أعلاه",
+  "limitedList.showingItems": "عرض {{count}} عنصرًا",
   "logs": {
     "file": "ملف",
     "location": "سطر {{line}} في {{name}}"
