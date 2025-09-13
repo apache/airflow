@@ -111,8 +111,12 @@ def create_trigger_in_db(session, trigger, operator=None):
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
     session.add(dag_model)
 
-    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1),)
     date = pendulum.datetime(2023, 1, 1)
+    dag = DAG(
+        dag_id = dag_model.dag_id,
+        schedule = "@daily",
+        start_date = pendulum.datetime(2023, 1, 1),
+    )
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
