@@ -19,36 +19,49 @@
 import { Box } from "@chakra-ui/react";
 
 import { CalendarTooltip } from "./CalendarTooltip";
-import { CalendarTooltipContent } from "./CalendarTooltipContent";
-import type { CalendarCellData } from "./types";
+import type { CalendarCellData, CalendarColorMode } from "./types";
 import { useDelayedTooltip } from "./useDelayedTooltip";
 
 type Props = {
   readonly backgroundColor: Record<string, string> | string;
-  readonly cellData?: CalendarCellData; // For rich tooltip content
+  readonly cellData: CalendarCellData | null;
   readonly index?: number;
   readonly marginRight?: string;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const CalendarCell = ({ backgroundColor, cellData, index, marginRight }: Props) => {
+export const CalendarCell = ({
+  backgroundColor,
+  cellData,
+  index,
+  marginRight,
+  viewMode = "total",
+}: Props) => {
   const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
 
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
 
+  const relevantCount =
+    viewMode === "failed" ? (cellData?.counts.failed ?? 0) : (cellData?.counts.total ?? 0);
+  const hasData = Boolean(cellData && relevantCount > 0);
+  const hasTooltip = Boolean(cellData); // Show tooltip if we have cell data (even if no runs)
+
   return (
-    <Box onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} position="relative">
+    <Box
+      onMouseEnter={hasTooltip ? handleMouseEnter : undefined}
+      onMouseLeave={hasTooltip ? handleMouseLeave : undefined}
+      position="relative"
+    >
       <Box
-        _hover={{ transform: "scale(1.1)" }}
+        _hover={hasData ? { transform: "scale(1.1)" } : {}}
         bg={backgroundColor}
-        border="1px solid"
-        borderColor="border.emphasized"
         borderRadius="2px"
-        cursor="pointer"
+        cursor={hasData ? "pointer" : "default"}
         height="14px"
         marginRight={computedMarginRight}
         width="14px"
       />
-      <CalendarTooltip content={cellData ? <CalendarTooltipContent cellData={cellData} /> : ""} />
+      <CalendarTooltip cellData={cellData} viewMode={viewMode} />
     </Box>
   );
 };
