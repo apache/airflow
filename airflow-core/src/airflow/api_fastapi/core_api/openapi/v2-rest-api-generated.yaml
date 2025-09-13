@@ -5703,6 +5703,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -6503,6 +6511,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
