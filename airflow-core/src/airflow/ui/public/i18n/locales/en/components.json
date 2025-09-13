@@ -86,6 +86,11 @@
     "taskGroup": "Task Group"
   },
   "limitedList": "+{{count}} more",
+  "limitedList.allItems": "All {{count}} items:",
+  "limitedList.clickToInteract": "Click a tag to filter DAGs",
+  "limitedList.clickToOpenFull": "Click \"+{{count}} more\" to open full view",
+  "limitedList.copyPasteText": "You can copy and paste the text above",
+  "limitedList.showingItems": "Showing {{count}} items",
   "logs": {
     "file": "File",
     "location": "line {{line}} in {{name}}"

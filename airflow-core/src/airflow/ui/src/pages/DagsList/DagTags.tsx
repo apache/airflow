@@ -40,5 +40,7 @@ export const DagTags = ({ hideIcon = false, tags }: Props) => (
       </RouterLink>
     ))}
     maxItems={MAX_TAGS}
+    modalTitle={`All Tags (${tags.length})`}
+    showModal={true}
   />
 );
