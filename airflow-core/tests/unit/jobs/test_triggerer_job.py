@@ -31,7 +31,6 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
-from sqlalchemy.orm import selectinload
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
