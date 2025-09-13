@@ -26,6 +26,7 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
+import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 type Props = {
@@ -40,26 +41,31 @@ type Props = {
   readonly taskId: string;
 };
 
-const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-brand-subtle)";
-  });
-};
-
-const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-};
-
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
+  const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
+
+  const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    });
+
+    setHoveredTaskId(taskId);
+  };
+
+  const onMouseLeave = () => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "";
+    });
+
+    setHoveredTaskId(undefined);
+  };
 
   const getTaskUrl = useCallback(
     () =>
