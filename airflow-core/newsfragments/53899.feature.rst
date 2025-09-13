@@ -1,0 +1,1 @@
+SMTP email configuration now supports both legacy config and Airflow Connections for more flexibility and security. You can use either the classic [smtp] section in airflow.cfg or a Connection (type SMTP) for sending emails. This allows seamless migration and more dynamic setups.
