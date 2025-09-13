@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -298,6 +298,30 @@ export class UiService {
     public static requestWorkerMaintenance(data: RequestWorkerMaintenanceData): CancelablePromise<RequestWorkerMaintenanceResponse> {
         return __request(OpenAPI, {
             method: 'POST',
+            url: '/edge_worker/ui/worker/{worker_name}/maintenance',
+            path: {
+                worker_name: data.workerName
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Update Worker Maintenance
+     * Update maintenance comments for a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.requestBody
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static updateWorkerMaintenance(data: UpdateWorkerMaintenanceData): CancelablePromise<UpdateWorkerMaintenanceResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
             url: '/edge_worker/ui/worker/{worker_name}/maintenance',
             path: {
                 worker_name: data.workerName

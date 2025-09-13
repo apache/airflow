@@ -33,5 +33,6 @@ export type UiServiceRequestWorkerShutdownMutationResult = Awaited<ReturnType<ty
 export type JobsServiceStateMutationResult = Awaited<ReturnType<typeof JobsService.state>>;
 export type WorkerServiceSetStateMutationResult = Awaited<ReturnType<typeof WorkerService.setState>>;
 export type WorkerServiceUpdateQueuesMutationResult = Awaited<ReturnType<typeof WorkerService.updateQueues>>;
+export type UiServiceUpdateWorkerMaintenanceMutationResult = Awaited<ReturnType<typeof UiService.updateWorkerMaintenance>>;
 export type UiServiceExitWorkerMaintenanceMutationResult = Awaited<ReturnType<typeof UiService.exitWorkerMaintenance>>;
 export type UiServiceDeleteWorkerMutationResult = Awaited<ReturnType<typeof UiService.deleteWorker>>;
