@@ -98,7 +98,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
       {hitlDetail.response_received ? (
         <Text color="fg.muted" fontSize="sm">
           {translate("response.received")}
-          <Time datetime={hitlDetail.response_at} format={DEFAULT_DATETIME_FORMAT} />
+          <Time datetime={hitlDetail.responded_at} format={DEFAULT_DATETIME_FORMAT} />
         </Text>
       ) : undefined}
       <Accordion.Root

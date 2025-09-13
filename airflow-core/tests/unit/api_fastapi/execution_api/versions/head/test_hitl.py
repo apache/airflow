@@ -48,7 +48,7 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
     "assignees": None,
 }
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
-    "response_at": None,
+    "responded_at": None,
     "chosen_options": None,
     "responded_by_user": None,
     "params_input": {},
@@ -91,7 +91,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             **default_hitl_detail_request_kwargs,
             **{
                 "params_input": {"input_1": 2},
-                "response_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
+                "responded_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
                 "chosen_options": ["Reject"],
                 "responded_by": None,
             },
@@ -171,7 +171,7 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "params_input": {"input_1": 2},
-        "response_at": "2025-07-03T00:00:00Z",
+        "responded_at": "2025-07-03T00:00:00Z",
         "chosen_options": ["Reject"],
         "response_received": True,
         "responded_by_user": None,
