@@ -59,7 +59,7 @@ class HITLDetailResponse(BaseModel):
 
     response_received: bool
     responded_by_user: HITLUser | None = None
-    response_at: datetime | None
+    responded_at: datetime | None
     # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
@@ -77,7 +77,7 @@ class HITLDetailResponse(BaseModel):
 
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
-            response_at=hitl_detail.response_at,
+            responded_at=hitl_detail.responded_at,
             responded_by_user=hitl_user,
             chosen_options=hitl_detail.chosen_options,
             params_input=hitl_detail.params_input or {},
