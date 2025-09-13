@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "homepage": "/ui",
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
@@ -75,8 +78,8 @@
     "@types/react": "^18.3.19",
     "@types/react-dom": "^18.3.5",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@vitejs/plugin-react-swc": "^3.9.0",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitejs/plugin-react-swc": "^4.0.1",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-i18next": "^6.1.1",
@@ -96,9 +99,9 @@
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.31.1",
-    "vite": "^5.4.19",
+    "vite": "^7.1.5",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vitest": "^2.1.9",
+    "vitest": "^3.2.4",
     "web-worker": "^1.5.0"
   },
   "pnpm": {
