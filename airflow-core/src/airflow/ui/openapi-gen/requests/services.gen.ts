@@ -108,6 +108,7 @@ export class AssetService {
      * @param data.sourceTaskId
      * @param data.sourceRunId
      * @param data.sourceMapIndex
+     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.timestampGte
      * @param data.timestampGt
      * @param data.timestampLte
@@ -128,6 +129,7 @@ export class AssetService {
                 source_task_id: data.sourceTaskId,
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
+                name_pattern: data.namePattern,
                 timestamp_gte: data.timestampGte,
                 timestamp_gt: data.timestampGt,
                 timestamp_lte: data.timestampLte,
@@ -1080,7 +1082,7 @@ export class DagRunService {
     
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1142,7 +1144,7 @@ export class DagRunService {
 export class ExperimentalService {
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3623,8 +3625,8 @@ export class HumanInTheLoopService {
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.responseReceived
-     * @param data.respondedUserId
-     * @param data.respondedUserName
+     * @param data.respondedByUserId
+     * @param data.respondedByUserName
      * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns HITLDetailCollection Successful Response
@@ -3645,8 +3647,8 @@ export class HumanInTheLoopService {
                 task_id_pattern: data.taskIdPattern,
                 state: data.state,
                 response_received: data.responseReceived,
-                responded_user_id: data.respondedUserId,
-                responded_user_name: data.respondedUserName,
+                responded_by_user_id: data.respondedByUserId,
+                responded_by_user_name: data.respondedByUserName,
                 subject_search: data.subjectSearch,
                 body_search: data.bodySearch
             },

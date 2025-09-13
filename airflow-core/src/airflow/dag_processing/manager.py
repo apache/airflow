@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import contextlib
 import functools
-import importlib
 import inspect
 import logging
 import os
@@ -35,7 +34,6 @@ from collections import defaultdict, deque
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from importlib import import_module
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
@@ -47,7 +45,6 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
-import airflow.models
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
@@ -876,7 +873,7 @@ class DagFileProcessorManager(LoggingMixin):
         log_file = init_log_file(log_filename)
         logger_filehandle = log_file.open("ab")
         underlying_logger = structlog.BytesLogger(logger_filehandle)
-        processors = logging_processors(enable_pretty_log=False)[0]
+        processors = logging_processors(json_output=True)
         return structlog.wrap_logger(
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle
@@ -1100,29 +1097,6 @@ class DagFileProcessorManager(LoggingMixin):
                     "import_errors": sum(stat.import_errors for stat in self._file_stats.values()),
                 }
             )
-
-
-def reload_configuration_for_dag_processing():
-    # Reload configurations and settings to avoid collision with parent process.
-    # Because this process may need custom configurations that cannot be shared,
-    # e.g. RotatingFileHandler. And it can cause connection corruption if we
-    # do not recreate the SQLA connection pool.
-    os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"] = "True"
-    os.environ["AIRFLOW__LOGGING__COLORED_CONSOLE_LOG"] = "False"
-    # Replicating the behavior of how logging module was loaded
-    # in logging_config.py
-    # TODO: This reloading should be removed when we fix our logging behaviour
-    # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
-    # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
-    # in a parent process (likely via resources shared in memory by the ORM libraries).
-    # This caused flaky tests in our CI for many months and has been discovered while
-    # iterating on https://github.com/apache/airflow/pull/19860
-    # The issue that describes the problem and possible remediation is
-    # at https://github.com/apache/airflow/issues/19934
-    importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit(".", 1)[0]))
-    importlib.reload(airflow.settings)
-    airflow.settings.initialize()
-    del os.environ["CONFIG_PROCESSOR_MANAGER_LOGGER"]
 
 
 def process_parse_results(

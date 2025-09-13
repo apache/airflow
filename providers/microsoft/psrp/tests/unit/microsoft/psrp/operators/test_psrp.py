@@ -100,7 +100,7 @@ class TestPsrpOperator:
         else:
             output = op.execute(None)
             assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
-            is_logged = hook_impl.call_args.kwargs["on_output_callback"] == op.log.info
+            is_logged = hook_impl.call_args.kwargs["on_output_callback"] is not None
             assert do_xcom_push ^ is_logged
         expected_ps_calls = [
             call.add_command(psrp_session_init),

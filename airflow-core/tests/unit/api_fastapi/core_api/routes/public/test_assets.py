@@ -745,6 +745,9 @@ class TestGetAssetEvents(TestAssets):
             ({"source_task_id": "source_task_id"}, 2),
             ({"source_run_id": "source_run_id_1"}, 1),
             ({"source_map_index": "-1"}, 2),
+            ({"name_pattern": "simple1"}, 1),
+            ({"name_pattern": "simple%"}, 2),
+            ({"name_pattern": "nonexistent"}, 0),
         ],
     )
     @provide_session
