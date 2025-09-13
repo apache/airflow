@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
@@ -122,7 +122,9 @@ def request_worker_maintenance(
     worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker = session.scalar(worker_query)
     if not worker:
-        raise HTTPException(status_code=404, detail=f"Worker {worker_name} not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+    if not maintenance_request.maintenance_comment:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Maintenance comment is required")
 
     # Format the comment with timestamp and username (username will be added by plugin layer)
     formatted_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {user.get_name()} put node into maintenance mode\nComment: {maintenance_request.maintenance_comment}"
@@ -130,7 +132,7 @@ def request_worker_maintenance(
     try:
         request_maintenance(worker_name, formatted_comment, session=session)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @ui_router.delete(
@@ -148,9 +150,9 @@ def exit_worker_maintenance(
     worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker = session.scalar(worker_query)
     if not worker:
-        raise HTTPException(status_code=404, detail=f"Worker {worker_name} not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
 
     try:
         exit_maintenance(worker_name, session=session)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))

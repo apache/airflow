@@ -16,8 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Table } from "@chakra-ui/react";
+import { Box, Link, Table } from "@chakra-ui/react";
 import { useUiServiceJobs } from "openapi/queries";
+import { Link as RouterLink } from "react-router-dom";
+import TimeAgo from "react-timeago";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
@@ -33,8 +35,7 @@ export const JobsPage = () => {
   // Use DataTable as component from Airflow-Core UI
   // Add sorting
   // Add filtering
-  // Add links to see job details / jobs list
-  // Translation
+  // Translation?
   if (data)
     return (
       <Box p={2}>
@@ -58,18 +59,43 @@ export const JobsPage = () => {
               <Table.Row
                 key={`${job.dag_id}.${job.run_id}.${job.task_id}.${job.map_index}.${job.try_number}`}
               >
-                <Table.Cell>{job.dag_id}</Table.Cell>
-                <Table.Cell>{job.run_id}</Table.Cell>
-                <Table.Cell>{job.task_id}</Table.Cell>
-                <Table.Cell>{job.map_index}</Table.Cell>
+                <Table.Cell>
+                  {/* TODO Check why <Link to={`/dags/${job.dag_id}`}> is not working via react-router-dom! */}
+                  <Link href={`../dags/${job.dag_id}`}>{job.dag_id}</Link>
+                </Table.Cell>
+                <Table.Cell>
+                  <Link href={`../dags/${job.dag_id}/runs/${job.run_id}`}>{job.run_id}</Link>
+                </Table.Cell>
+                <Table.Cell>
+                  {job.map_index >= 0 ? (
+                    <Link
+                      href={`../dags/${job.dag_id}/runs/${job.run_id}/tasks/${job.task_id}/mapped/${job.map_index}?try_number=${job.try_number}`}
+                    >
+                      {job.task_id}
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`../dags/${job.dag_id}/runs/${job.run_id}/tasks/${job.task_id}?try_number=${job.try_number}`}
+                    >
+                      {job.task_id}
+                    </Link>
+                  )}
+                </Table.Cell>
+                <Table.Cell>{job.map_index >= 0 ? job.map_index : "-"}</Table.Cell>
                 <Table.Cell>{job.try_number}</Table.Cell>
                 <Table.Cell>
                   <StateBadge state={job.state}>{job.state}</StateBadge>
                 </Table.Cell>
                 <Table.Cell>{job.queue}</Table.Cell>
-                <Table.Cell>{job.queued_dttm}</Table.Cell>
-                <Table.Cell>{job.edge_worker}</Table.Cell>
-                <Table.Cell>{job.last_update}</Table.Cell>
+                <Table.Cell>
+                  {job.queued_dttm ? <TimeAgo date={job.queued_dttm} live={false} /> : undefined}
+                </Table.Cell>
+                <Table.Cell>
+                  <RouterLink to={`/plugin/edge_worker#${job.edge_worker}`}>{job.edge_worker}</RouterLink>
+                </Table.Cell>
+                <Table.Cell>
+                  {job.last_update ? <TimeAgo date={job.last_update} live={false} /> : undefined}
+                </Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

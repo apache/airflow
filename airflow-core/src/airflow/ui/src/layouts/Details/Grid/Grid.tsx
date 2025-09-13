@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -41,10 +41,12 @@ dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly limit: number;
+  readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
+  readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ limit, showGantt }: Props) => {
+export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
-  const { data: gridRuns, isLoading } = useGridRuns({ limit });
+  const { data: gridRuns, isLoading } = useGridRuns({ limit, runType, triggeringUser });
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -77,7 +79,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
     }
   }, [gridRuns, setHasActiveRun]);
 
-  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit, runType, triggeringUser });
   // calculate dag run bar heights relative to max
 
   const max = Math.max.apply(

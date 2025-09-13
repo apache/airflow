@@ -56,7 +56,7 @@
     "duration": "Duració (segons)",
     "lastDagRun_one": "Última execució del Dag",
     "lastDagRun_other": "Últimes {{count}} execucions del Dag",
-    "lastTaskInstance_one": "Última instance de tasca",
+    "lastTaskInstance_one": "Última instància de tasca",
     "lastTaskInstance_other": "Últimes {{count}} instàncies de tasca",
     "queuedDuration": "Durada en cua",
     "runAfter": "Executar després",

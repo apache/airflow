@@ -48,6 +48,38 @@ const state2Color = (state: EdgeWorkerState | null | undefined) => {
   }
 };
 
+const state2TooltipText = (state: EdgeWorkerState | null | undefined) => {
+  switch (state) {
+    // see enum mapping from providers/edge3/src/airflow/providers/edge3/models/edge_worker.py:EdgeWorkerState
+    case "starting":
+      return "Edge Worker is in initialization.";
+    case "running":
+      return "Edge Worker is actively running a task.";
+    case "idle":
+      return "Edge Worker is active and waiting for a task.";
+    case "shutdown request":
+      return "Request to shutdown Edge Worker.";
+    case "terminating":
+      return "Edge Worker is completing work and stopping.";
+    case "offline":
+      return "Edge Worker was shut down.";
+    case "unknown":
+      return "No heartbeat signal from worker for some time, Edge Worker probably down.";
+    case "maintenance request":
+      return "Worker was requested to enter maintenance mode. Once worker receives this it will pause fetching jobs.";
+    case "maintenance pending":
+      return "Edge worker received the request for maintenance, waiting for jobs to finish. Once jobs are finished will move to 'maintenance mode'.";
+    case "maintenance mode":
+      return "Edge worker is in maintenance mode. It is online but pauses fetching jobs.";
+    case "maintenance exit":
+      return "Request worker to exit maintenance mode. Once the worker receives this state it will un-pause and fetch new jobs.";
+    case "offline maintenance":
+      return "Worker was shut down in maintenance mode. It will be in maintenance mode when restarted.";
+    default:
+      return undefined;
+  }
+};
+
 export type Props = {
   readonly state?: EdgeWorkerState | null;
 } & BadgeProps;
@@ -61,6 +93,7 @@ export const WorkerStateBadge = React.forwardRef<HTMLDivElement, Props>(
       px={children === undefined ? 1 : 2}
       py={1}
       ref={ref}
+      title={state2TooltipText(state)}
       variant="solid"
       {...rest}
     >

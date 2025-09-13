@@ -98,11 +98,9 @@ export const TaskInstance = () => {
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = useMemo(
     () =>
-      Array.isArray(taskInstanceSummary?.child_states)
-        ? taskInstanceSummary.child_states
-            .map((_state: string, count: number) => count)
-            .reduce((acc: number, val: unknown) => acc + (typeof val === "number" ? val : 0), 0)
-        : 0,
+      Object.entries(taskInstanceSummary?.child_states ?? {})
+        .map(([_state, count]) => count)
+        .reduce((sum, val) => sum + val, 0),
     [taskInstanceSummary],
   );
   let newTabs = tabs;

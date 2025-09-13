@@ -39,6 +39,7 @@
     "fileLocation": "檔案位置",
     "hasTaskConcurrencyLimits": "有任務並行數限制",
     "lastExpired": "最後過期時間",
+    "lastParseDuration": "最後解析時長",
     "lastParsed": "最後解析時間",
     "latestDagVersion": "最新 Dag 版本",
     "latestRun": "上次 Dag 執行",
@@ -107,7 +108,8 @@
     "runAfterFromPlaceholder": "執行時間起始",
     "runAfterToPlaceholder": "執行時間結束",
     "runIdPlaceholder": "依執行 ID 篩選",
-    "taskIdPlaceholder": "依任務 ID 篩選"
+    "taskIdPlaceholder": "依任務 ID 篩選",
+    "triggeringUserPlaceholder": "依觸發使用者篩選"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",
