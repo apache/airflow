@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Link, List, Table, Text } from "@chakra-ui/react";
+import { Box, Button, Code, Link, List, Table, Text } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
 import { LuExternalLink } from "react-icons/lu";
 import TimeAgo from "react-timeago";
@@ -24,7 +24,7 @@ import TimeAgo from "react-timeago";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { WorkerOperations } from "src/components/WorkerOperations";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
-import { ScrollToAnchor } from "src/components/ui";
+import { ScrollToAnchor, toaster } from "src/components/ui";
 import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
@@ -32,6 +32,15 @@ export const WorkerPage = () => {
     enabled: true,
     refetchInterval: autoRefreshInterval,
   });
+  const onToasterTestClick = () => {
+    console.log("Nav onToasterTestClick");
+    toaster.create({
+      description: `Toaster from Plugin.`,
+      title: "Test Toaster",
+      type: "success",
+    });
+    console.log("Nav onToasterTestClick DONE");
+  };
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
@@ -102,6 +111,7 @@ export const WorkerPage = () => {
           </Table.Body>
         </Table.Root>
         <ScrollToAnchor />
+        <Button onClick={onToasterTestClick}>Open a Toaster in Plugin</Button>
       </Box>
     );
   if (data) {
