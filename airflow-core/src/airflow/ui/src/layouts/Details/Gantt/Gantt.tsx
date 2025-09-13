@@ -88,8 +88,8 @@ export const Gantt = ({ limit }: Props) => {
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
     "gray.200",
     "gray.800",
-    "brand.200",
-    "brand.800",
+    "blue.200",
+    "blue.800",
   ]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
