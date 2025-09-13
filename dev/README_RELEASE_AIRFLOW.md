@@ -21,7 +21,7 @@
 **Table of contents**
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
-  - [Validating completeness of i18n locale files](#validating-completeness-of-i18n-locale-files)
+  - [Validating completeness of i18n locale files and announcing i18n freeze time](#validating-completeness-of-i18n-locale-files-and-announcing-i18n-freeze-time)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
   - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
@@ -73,45 +73,72 @@ The first step of a release is to work out what is being included. This differs 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
 
 
-## Validating completeness of i18n locale files
+## Validating completeness of i18n locale files and announcing i18n freeze time
 
-At this point you should validate the completeness of the i18n locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md) for doing so.
-If there are any incomplete locales, copy the names of the incomplete locales and send out a reminder to the code owners to ensure completion of the translation by a due date of your choice
-before cutting the release candidate (RC).
-The reminder should be sent via dev@airflow.apache.org mailing list, preferably with an accompanying GitHub issue for tracking purposes.
-Do not hold the release process beyond the due date if there are still incomplete locales.
+> [!NOTE]
+> It is recommended to delegate all operations in this task to another committer.
+
+Before cutting the release candidate (RC), you should announce a freeze time for i18n changes to allow translators to complete translations for the upcoming release without being overloaded by new terms, or other significant changes.
+The freeze should last at least one week, and until the RC is cut.
+It is recommended to announce the freeze at least two weeks before it starts.
+To prepare for the announcement, generate an output of completeness for all locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md#81-checking-completeness-of-i18n-files) for doing so.
+The reminder should be sent via dev@airflow.apache.org mailing list - you may accompany it with a GitHub issue for tracking purposes.
+
+> [!NOTE]
+> When applicable - you should mention, within the output, translations that have been incomplete in the past release,
+> and warn that they might be removed if they are not completed by the release date.
 
 Subject:
 
 ```shell script
 cat <<EOF
-[REMINDER] Complete translations for Airflow ${VERSION} RC by <date>
+[ANNOUNCEMENT] English Translation freeze for Airflow ${VERSION} RC starting at <START_DATE>
 EOF
 ```
 
-Body:
+Body (assuming delegation to another committer):
 
 ```shell script
 cat <<EOF
 Hey fellow Airflowers,
 
-I'm planning to cut the Airflow ${VERSION} RC soon.
+I'm sending this message on behalf of the release managers.
+The release managers are planning to cut the Airflow ${VERSION} RC soon/by <RELEASE_DATE>.
 
-After running the i18n completeness script, I found that the following locales are currently incomplete:
-<list of incomplete locales>
+After running the i18n completeness script, this is the coverage state of all merged locales as of <CURRENT_DATE>:
 
-I'd like to ask locales' code owners to ensure the completion of the translations for these locales by <due date>,
-and respond to this email after doing so.
-During this time, I'd like all committers to refrain merging PRs that add new terms to the default locale (English),
-or rename/relocate keys of existing terms to avoid overloading the translators.
-When creating a PR, please run locally the i18n completeness script on your locale to ensure all translations are complete.
-Changes applied after this date will not be included in the release, and the missing terms will fall back to English instead.
+<OUTPUT_OF_I18N_COMPLETENESS_SCRIPT>
+
+To prevent overloading the translators and to ensure completeness of all translations by the release, a freeze upon the English locale will be applied starting <START_DATE>,
+and until the RC is cut.
+Code owners, translation owners, and engaged translators are asked to complete the coverage of their assigned locales during this time.
+
+Important notes:
+1. Any changes merged after the final release won't not be included, and missing terms will fall back to English.
+2. Any PR that modifies the English locale during the freeze time will fail CI checks.
+3. Requests for exemptions should be communicated in the #i18n Slack channel, and approved by at least 1 PMC member - guidelines for approval are available in the i18n policy.
+4. PRs approved for an exemption will be labeled with `allow translation change`, and then the relevant CI check will pass. Translators are encouraged to complete the translations for the exempted terms during the freeze time.
+5. Merging PRs for adding new translations could be done during the freeze time - designated code owners should validate that by the end of the freeze time, the coverage of the suggested translation is complete.
 
 
 Thanks for your cooperation!
 <your name>
 EOF
 ```
+
+When the freeze starts, you should merge a PR for setting the flag `FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED` to `True` in the file [selective_checks.py](./breeze/src/airflow_breeze/utils/selective_checks.py).
+If the freeze gets extended, you should update the announcement thread accordingly.
+When it is time to cut the RC, you should:
+
+1. Generate an additional completeness output:
+  a. If there are incomplete locales that were also incomplete in the previous completeness output, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
+  b. If there are other incomplete locales, please write it as a reminder for the next freeze announcement.
+2. Create a PR for setting the flag back to `False`.
+3. Post on the same thread that the freeze is lifted, and share the final completeness output.
+
+> [!NOTE]
+> Release managers - do not hold the release process beyond the due date if there are still incomplete locales after the freeze.
+> It is the responsibility of code owners to ensure the completeness of their locales by the due date.
 
 ## Selecting what to cherry-pick
 
