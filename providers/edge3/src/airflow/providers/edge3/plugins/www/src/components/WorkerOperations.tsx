@@ -21,9 +21,11 @@ import type { Worker } from "openapi/requests/types.gen";
 
 import { toaster } from "src/components/ui";
 
+import { AddQueueButton } from "./AddQueueButton";
 import { MaintenanceEditCommentButton } from "./MaintenanceEditCommentButton";
 import { MaintenanceEnterButton } from "./MaintenanceEnterButton";
 import { MaintenanceExitButton } from "./MaintenanceExitButton";
+import { RemoveQueueButton } from "./RemoveQueueButton";
 import { WorkerDeleteButton } from "./WorkerDeleteButton";
 import { WorkerShutdownButton } from "./WorkerShutdownButton";
 
@@ -44,6 +46,8 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
   if (state === "idle" || state === "running") {
     return (
       <Flex justifyContent="end" gap={2}>
+        <AddQueueButton onQueueUpdate={onWorkerChange} workerName={workerName} />
+        <RemoveQueueButton onQueueUpdate={onWorkerChange} worker={worker} />
         <MaintenanceEnterButton onEnterMaintenance={onWorkerChange} workerName={workerName} />
         <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
       </Flex>
