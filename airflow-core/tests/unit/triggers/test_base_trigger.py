@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
@@ -37,6 +39,7 @@ class DummyTrigger(BaseTrigger):
         return {"name": self.name}
 
 
+@pytest.mark.db_test
 def test_render_template_fields(create_task_instance):
     op = DummyOperator(task_id="dummy_task")
     ti = create_task_instance(
