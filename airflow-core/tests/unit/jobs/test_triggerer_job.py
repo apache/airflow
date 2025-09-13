@@ -109,6 +109,8 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.flush()
 
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
+    dag_version = DagVersion.get_latest_version(dag_id="test_dag")
+    dag_model.dag_versions.append(dag_version)
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
@@ -130,7 +132,6 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    dag_version = DagVersion.get_latest_version(dag.dag_id)
     task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
