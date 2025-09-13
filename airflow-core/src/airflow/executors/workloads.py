@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
@@ -28,7 +29,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models import DagRun
-    from airflow.models.callback import Callback as CallbackModel, CallbackType
+    from airflow.models.callback import Callback as CallbackModel
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -83,11 +84,19 @@ class TaskInstance(BaseModel):
         )
 
 
+class CallbackFetchType(str, Enum):
+    # For when Dag Processor callbacks (on_success_callback/on_failure_callback) once they get moved to executors
+    DAG_ATTRIBUTE = "dag_attribute"
+
+    # For deadline callbacks since they import callbacks through the import path
+    IMPORT_PATH = "import_path"
+
+
 class Callback(BaseModel):
     """Schema for Callback with minimal required fields needed for Executors and Task SDK."""
 
     id: uuid.UUID
-    type: CallbackType
+    type: CallbackFetchType
     data: dict
 
 
