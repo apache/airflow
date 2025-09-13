@@ -36,7 +36,6 @@ import { getRedirectPath } from "src/utils/links.ts";
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
 import { system } from "./theme";
-import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
 // Set React, ReactDOM, and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
 // Only one instance of React should be used.
@@ -53,7 +52,6 @@ axios.interceptors.response.use(
       error.response?.status === 401 ||
       (error.response?.status === 403 && error.response.data.detail === "Invalid JWT token")
     ) {
-      clearToken();
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
@@ -65,8 +63,6 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
-axios.interceptors.request.use(tokenHandler);
 
 const html = document.documentElement;
 const updateHtml = (lng: string) => {
