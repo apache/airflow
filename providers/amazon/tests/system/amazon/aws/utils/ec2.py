@@ -70,7 +70,7 @@ def get_latest_ami_id():
             {"Name": "description", "Values": [image_prefix]},
             {
                 "Name": "architecture",
-                "Values": ["x86_64"],
+                "Values": ["arm64"],
             },  # t3 instances are only compatible with x86 architecture
             {
                 "Name": "root-device-type",

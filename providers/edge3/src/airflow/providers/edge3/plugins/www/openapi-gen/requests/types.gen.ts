@@ -483,6 +483,18 @@ export type ExitWorkerMaintenanceData = {
 
 export type ExitWorkerMaintenanceResponse = null;
 
+export type RequestWorkerShutdownData = {
+    workerName: string;
+};
+
+export type RequestWorkerShutdownResponse = null;
+
+export type DeleteWorkerData = {
+    workerName: string;
+};
+
+export type DeleteWorkerResponse = null;
+
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
         post: {
@@ -691,6 +703,36 @@ export type $OpenApiTs = {
         };
         delete: {
             req: ExitWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/shutdown': {
+        post: {
+            req: RequestWorkerShutdownData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}': {
+        delete: {
+            req: DeleteWorkerData;
             res: {
                 /**
                  * Successful Response

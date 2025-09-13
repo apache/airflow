@@ -49,14 +49,14 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_VERSION="3.0.6"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-
+ARG AIRFLOW_PYTHON_VERSION="3.12.11"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.8.15
+ARG AIRFLOW_UV_VERSION=0.8.17
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -1116,6 +1116,7 @@ function install_from_sources() {
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
               --editable ./task-sdk-tests \
+              --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -1693,14 +1694,14 @@ ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_ENV=""
+ARG AIRFLOW_PYTHON_VERSION
 
 ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
-    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
-
-ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
+    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev

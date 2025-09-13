@@ -709,7 +709,9 @@ class TestOtelIntegration:
             module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
             alias="CeleryExecutor",
         )
-        monkeypatch.setattr(executor_loader, "_alias_to_executors", {"CeleryExecutor": executor_name})
+        monkeypatch.setattr(
+            executor_loader, "_alias_to_executors_per_team", {None: {"CeleryExecutor": executor_name}}
+        )
 
     @pytest.fixture(autouse=True)
     def cleanup_control_file_if_needed(self):
