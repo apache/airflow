@@ -102,6 +102,11 @@
     "taskGroup": "Grupa zadań"
   },
   "limitedList": "+{{count}} więcej",
+  "limitedList.allItems": "Wszystkie {{count}} elementy:",
+  "limitedList.clickToInteract": "Kliknij etykietę, aby przefiltrować DAGi",
+  "limitedList.clickToOpenFull": "Kliknij \"+{{count}} więcej\", aby zobaczyć pełną listę",
+  "limitedList.copyPasteText": "Możesz skopiować i wkleić powyższy tekst",
+  "limitedList.showingItems": "Wyświetlanie {{count}} elementów",
   "logs": {
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
