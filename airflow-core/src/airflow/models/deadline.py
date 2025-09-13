@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -365,6 +365,65 @@ class ReferenceModels:
             from airflow.models import DagRun
 
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
+
+    @dataclass
+    class AverageRuntimeDeadline(BaseDeadlineReference):
+        """A deadline that calculates the average runtime from past DAG runs."""
+
+        DEFAULT_LIMIT = 10
+        limit: int
+        required_kwargs = {"dag_id"}
+
+        @provide_session
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
+            from airflow.models import DagRun
+
+            dag_id = kwargs["dag_id"]
+
+            # Query for completed DAG runs with both start and end dates
+            # Order by logical_date descending to get most recent runs first
+            query = (
+                select(func.extract("epoch", DagRun.end_date - DagRun.start_date))
+                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .order_by(DagRun.logical_date.desc())
+            )
+
+            # Apply limit
+            query = query.limit(self.limit)
+
+            # Get all durations and calculate average
+            durations = session.execute(query).scalars().all()
+
+            if len(durations) < self.limit:
+                logger.warning(
+                    "Only %d completed DAG runs found for dag_id: %s (need %d), using 24 hour default",
+                    len(durations),
+                    dag_id,
+                    self.limit,
+                )
+                avg_seconds = 48 * 3600  # 48 hours as default
+            else:
+                avg_seconds = sum(durations) / len(durations)
+                logger.info(
+                    "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                    dag_id,
+                    len(durations),
+                    avg_seconds,
+                )
+                with open("/temporary.txt", "a") as f:
+                    f.write(f"Calculated average: {avg_seconds} seconds\n")
+
+            return timezone.utcnow() + timedelta(seconds=avg_seconds)
+
+        def serialize_reference(self) -> dict:
+            return {
+                ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
+                "limit": self.limit,
+            }
+
+        @classmethod
+        def deserialize_reference(cls, reference_data: dict):
+            return cls(limit=reference_data.get("limit", cls.DEFAULT_LIMIT))
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference

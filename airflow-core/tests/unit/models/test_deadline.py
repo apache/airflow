@@ -43,6 +43,7 @@ REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+    pytest.param(DeadlineReference.AVERAGE_RUNTIME(), id="average_runtime"),
 ]
 
 
@@ -356,6 +357,7 @@ class TestCalculatedDeadlineDatabaseCalls:
             pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, DagRun.logical_date, id="logical_date"),
             pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, DagRun.queued_at, id="queued_at"),
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), None, id="fixed_deadline"),
+            pytest.param(DeadlineReference.AVERAGE_RUNTIME(), None, id="average_runtime"),
         ],
     )
     def test_deadline_database_integration(self, reference, expected_column, session):
@@ -375,11 +377,25 @@ class TestCalculatedDeadlineDatabaseCalls:
             if expected_column is not None:
                 result = reference.evaluate_with(session=session, interval=interval, **conditions)
                 mock_fetch.assert_called_once_with(expected_column, session=session, **conditions)
+            elif reference == DeadlineReference.AVERAGE_RUNTIME():
+                with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+                    mock_utcnow.return_value = DEFAULT_DATE
+                    with mock.patch.object(session, "execute") as mock_execute:
+                        # Mock the result object that execute() returns
+                        mock_result = mock.Mock()
+                        mock_scalars = mock.Mock()
+                        mock_scalars.all.return_value = [3600]
+                        mock_result.scalars.return_value = mock_scalars
+                        mock_execute.return_value = mock_result
+                        result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+                        mock_fetch.assert_not_called()
+                        # Should be DEFAULT_DATE + default average deadline of 48 hours + the 1 hour mocked execution time
+                        expected = DEFAULT_DATE + timedelta(hours=48) + timedelta(hours=1)
+                        assert result == expected
             else:
                 result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
-
-            assert result == DEFAULT_DATE + interval
+                assert result == DEFAULT_DATE + interval
 
 
 class TestDeadlineReference:
@@ -424,7 +440,7 @@ class TestDeadlineReference:
                 f"{reference.__class__.__name__} is missing required parameters: ",
                 *reference.required_kwargs,
             }
-            assert [substring in str(raised_exception) for substring in expected_substrings]
+            assert all(substring in str(raised_exception.value) for substring in expected_substrings)
         else:
             # Let the lack of an exception here effectively assert that no exception is raised.
             reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
@@ -440,3 +456,7 @@ class TestDeadlineReference:
 
         queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
         assert isinstance(queued_reference, ReferenceModels.DagRunQueuedAtDeadline)
+
+        average_runtime_reference = DeadlineReference.AVERAGE_RUNTIME()
+        assert isinstance(average_runtime_reference, ReferenceModels.AverageRuntimeDeadline)
+        assert average_runtime_reference.limit == 10
