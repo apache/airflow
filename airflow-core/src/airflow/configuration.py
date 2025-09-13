@@ -22,7 +22,6 @@ import functools
 import itertools
 import json
 import logging
-import multiprocessing
 import os
 import pathlib
 import re
@@ -414,7 +413,6 @@ class AirflowConfigParser(ConfigParser):
     enums_options = {
         ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
         ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],
-        ("core", "mp_start_method"): multiprocessing.get_all_start_methods(),
         ("dag_processor", "file_parsing_sort_mode"): [
             "modified_time",
             "random_seeded_by_host",
