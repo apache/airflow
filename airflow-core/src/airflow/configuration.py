@@ -777,6 +777,7 @@ class AirflowConfigParser(ConfigParser):
                     )
 
         self._upgrade_postgres_metastore_conn()
+        self._strip_trailing_slash_from_base_url()
         self.is_validated = True
 
     def _upgrade_postgres_metastore_conn(self):
@@ -807,6 +808,19 @@ class AirflowConfigParser(ConfigParser):
             # otherwise, it'll "win" over our adjusted value
             old_env_var = self._env_var_name("core", key)
             os.environ.pop(old_env_var, None)
+
+    def _strip_trailing_slash_from_base_url(self):
+        """Validate that api base_url config does not end with `/`."""
+        key = "base_url"
+        base_url = self.get("api", key, fallback="")
+        if base_url and base_url.endswith("/"):
+            self.upgraded_values[("api", key)] = base_url
+            new_base_url = base_url.rstrip("/")
+            self._update_env_var(section="api", name=key, new_value=new_base_url)
+        # if the old value is set via env var, we need to wipe it
+        # otherwise, it'll "win" over our adjusted value
+        old_env_var = self._env_var_name("core", key)
+        os.environ.pop(old_env_var, None)
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value."""
