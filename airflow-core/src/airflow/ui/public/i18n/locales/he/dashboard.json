@@ -8,7 +8,7 @@
   },
   "group": "קבוצה",
   "health": {
-    "dagProcessor": "Dag מנתח",
+    "dagProcessor": "מנתח Dags",
     "health": "תקינות",
     "healthy": "תקין",
     "lastHeartbeat": "פעימה אחרונה",
@@ -35,8 +35,8 @@
   },
   "source": "מקור",
   "stats": {
-    "activeDags": "Dags פעיל",
-    "failedDags": "Dags בכשלון",
+    "activeDags": "Dags פעילים",
+    "failedDags": "Dags נכשלו",
     "queuedDags": "Dags בתור",
     "requiredActions": "פעולות נדרשות",
     "runningDags": "Dags בריצה",
