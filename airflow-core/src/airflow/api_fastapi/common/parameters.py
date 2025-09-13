@@ -901,6 +901,15 @@ QueryTIOperatorFilter = Annotated[
     ),
 ]
 
+QueryTIMapIndexFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
 # XCom
 QueryXComKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
