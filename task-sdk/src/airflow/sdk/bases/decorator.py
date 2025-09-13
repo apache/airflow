@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import builtins
 import inspect
 import itertools
 import re
 import textwrap
+import time
 import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
@@ -64,6 +66,9 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
     from airflow.sdk.definitions.taskgroup import TaskGroup
+
+STANDARD_NAMES = set(dir(builtins))
+STANDARD_NAMES.update(dir(time))
 
 
 class ExpandableFactory(Protocol):
@@ -672,6 +677,11 @@ def task_decorator_factory(
         raise TypeError("No args allowed while using @task, use kwargs instead")
 
     def decorator_factory(python_callable):
+        if python_callable.__name__ in STANDARD_NAMES:
+            raise ValueError(
+                f"Function name '{python_callable.__name__}' is a Python built-in. "
+                "Please use a different name for your task function to avoid unexpected errors."
+            )
         return _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
