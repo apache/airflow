@@ -123,7 +123,7 @@ class AzureServiceBusQueueTrigger(BaseAzureServiceBusTrigger):
                     queue_name=queue_name, max_wait_time=self.max_wait_time
                 )
                 if message:
-                    yield TriggerEvent({"message": str(message.body), "queue": queue_name})
+                    yield TriggerEvent({"message": next(message.body).decode("utf-8"), "queue": queue_name})
                     break
             await asyncio.sleep(self.poll_interval)
 
@@ -187,7 +187,7 @@ class AzureServiceBusSubscriptionTrigger(BaseAzureServiceBusTrigger):
                 if message:
                     yield TriggerEvent(
                         {
-                            "message": str(message.body),
+                            "message": next(message.body).decode("utf-8"),
                             "topic": topic_name,
                             "subscription": self.subscription_name,
                         }
