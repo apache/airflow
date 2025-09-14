@@ -198,15 +198,12 @@ with DAG(
         document_name="AWS-RunShellScript",
         run_command_kwargs=run_command_kwargs,
         wait_for_completion=False,
-        deferrable=True
     )
     # [END howto_operator_run_command]
 
     # [START howto_sensor_run_command]
     await_run_command = SsmRunCommandCompletedSensor(
-        task_id="await_run_command", 
-        command_id="{{ ti.xcom_pull(task_ids='run_command') }}",
-        deferrable=True
+        task_id="await_run_command", command_id="{{ ti.xcom_pull(task_ids='run_command') }}"
     )
     # [END howto_sensor_run_command]
 
