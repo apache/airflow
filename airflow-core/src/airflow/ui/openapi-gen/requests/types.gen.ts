@@ -494,6 +494,7 @@ export type DAGDetailsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -568,6 +569,7 @@ export type DAGResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -938,10 +940,9 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
-    respondents?: Array<(string)> | null;
-    responded_user_id?: string | null;
-    responded_user_name?: string | null;
-    response_at?: string | null;
+    assigned_users?: Array<HITLUser>;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
@@ -961,13 +962,20 @@ export type HITLDetailCollection = {
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
-    responded_user_id: string;
-    responded_user_name: string;
-    response_at: string;
+    responded_by: HITLUser;
+    responded_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Schema for a Human-in-the-loop users.
+ */
+export type HITLUser = {
+    id: string;
+    name: string;
 };
 
 /**
@@ -1768,6 +1776,7 @@ export type DAGWithLatestDagRunsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -1997,6 +2006,10 @@ export type GetAssetAliasResponse = unknown;
 export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    namePattern?: string | null;
     offset?: number;
     orderBy?: Array<(string)>;
     sourceDagId?: string | null;
@@ -3097,8 +3110,8 @@ export type GetHitlDetailsData = {
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
-    respondedUserId?: Array<(string)>;
-    respondedUserName?: Array<(string)>;
+    respondedByUserId?: Array<(string)>;
+    respondedByUserName?: Array<(string)>;
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
@@ -3173,6 +3186,11 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetDagStructureResponse = Array<GridNodeResponse>;
@@ -3186,6 +3204,11 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;

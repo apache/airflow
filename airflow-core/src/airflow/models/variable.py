@@ -462,3 +462,13 @@ class Variable(Base, LoggingMixin):
             select(Team.name).join(Variable, Team.id == Variable.team_id).where(Variable.key == variable_key)
         )
         return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_key_to_team_name_mapping(variable_keys: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+        stmt = (
+            select(Variable.key, Team.name)
+            .join(Team, Variable.team_id == Team.id)
+            .where(Variable.key.in_(variable_keys))
+        )
+        return {key: team_name for key, team_name in session.execute(stmt)}

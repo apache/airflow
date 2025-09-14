@@ -72,6 +72,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "drill",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
@@ -82,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
+    "localstack",  # just for local integration testing for now
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -201,7 +203,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.14"
+UV_VERSION = "0.8.17"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900

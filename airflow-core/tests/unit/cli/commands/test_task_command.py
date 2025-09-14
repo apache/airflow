@@ -21,7 +21,6 @@ import contextlib
 import io
 import json
 import logging
-import logging.config
 import os
 import shutil
 from argparse import ArgumentParser
@@ -35,7 +34,6 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -89,7 +87,6 @@ class TestCliTasks:
 
     @classmethod
     def setup_class(cls):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()

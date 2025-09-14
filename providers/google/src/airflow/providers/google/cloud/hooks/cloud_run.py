@@ -178,7 +178,7 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         account from the list granting this role to the originating account.
     """
 
-    sync_hook_class = GoogleBaseHook
+    sync_hook_class = CloudRunHook
 
     def __init__(
         self,
@@ -264,7 +264,7 @@ class CloudRunServiceHook(GoogleBaseHook):
         return operation.result()
 
 
-class CloudRunServiceAsyncHook(GoogleBaseHook):
+class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
     """
     Async hook for the Google Cloud Run services.
 
@@ -278,6 +278,8 @@ class CloudRunServiceAsyncHook(GoogleBaseHook):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
     """
+
+    sync_hook_class = CloudRunServiceHook
 
     def __init__(
         self,

@@ -429,6 +429,7 @@ class ShellParams:
         else:
             integrations = self.integration
         for integration in integrations:
+            get_console().print(f"[info]Adding integration compose file for {integration}[/]")
             compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
         if "trino" in integrations and "kerberos" not in integrations:
             get_console().print(

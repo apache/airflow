@@ -29,7 +29,7 @@ from airflow.models import DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from unit.api_fastapi.core_api.routes.public.test_dags import (
@@ -136,6 +136,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 run_id=f"hitl_run_{ti_i}",
                 task_id=f"test_task_{ti_i}",
                 session=session,
+                state=TaskInstanceState.DEFERRED,
             )
             for ti_i in range(TI_COUNT)
         ]
@@ -158,9 +159,9 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 options=["Approve", "Reject"],
                 subject=f"This is subject {i}",
                 defaults=["Approve"],
-                response_at=utcnow(),
+                responded_at=utcnow(),
                 chosen_options=["Approve"],
-                responded_user_id="test",
+                responded_by={"id": "test", "name": "test"},
             )
             for i in range(3, 5)
         ]
@@ -186,6 +187,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                         "params": {},
                         "params_input": {},
                         "response_received": False,
+                        "assigned_users": [],
                     }
                     for i in range(3)
                 ],
@@ -215,7 +217,9 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         # Check pending_actions structure when specified
         if expected_pending_actions is not None:
             for dag_json in body["dags"]:
-                assert dag_json["pending_actions"] == expected_pending_actions
+                pending_actions = dag_json["pending_actions"]
+                pending_actions.sort(key=lambda x: x["subject"])
+                assert pending_actions == expected_pending_actions
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})

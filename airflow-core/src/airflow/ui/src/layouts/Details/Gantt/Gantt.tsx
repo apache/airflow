@@ -33,7 +33,7 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -46,9 +46,9 @@ import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
-import { system } from "src/theme";
+import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { formatDate } from "src/utils/datetimeUtils";
+import { DEFAULT_DATETIME_FORMAT, formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createChartOptions } from "./utils";
 
@@ -77,6 +77,7 @@ const MIN_BAR_WIDTH = 10;
 export const Gantt = ({ limit }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
+  const deferredOpenGroupIds = useDeferredValue(openGroupIds);
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
   const { colorMode } = useColorMode();
@@ -87,8 +88,8 @@ export const Gantt = ({ limit }: Props) => {
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
     "gray.200",
     "gray.800",
-    "blue.200",
-    "blue.800",
+    "brand.200",
+    "brand.800",
   ]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
@@ -119,7 +120,10 @@ export const Gantt = ({ limit }: Props) => {
     },
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = useMemo(
+    () => flattenNodes(dagStructure, deferredOpenGroupIds),
+    [dagStructure, deferredOpenGroupIds],
+  );
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
@@ -143,8 +147,8 @@ export const Gantt = ({ limit }: Props) => {
             state: gridSummary.state,
             taskId: gridSummary.task_id,
             x: [
-              formatDate(gridSummary.min_start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-              formatDate(gridSummary.max_end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
             ],
             y: gridSummary.task_id,
           };
@@ -159,8 +163,8 @@ export const Gantt = ({ limit }: Props) => {
               state: taskInstance.state,
               taskId: taskInstance.task_id,
               x: [
-                formatDate(taskInstance.start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-                formatDate(taskInstance.end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+                formatDate(taskInstance.end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
               ],
               y: taskInstance.task_id,
             };
@@ -172,23 +176,32 @@ export const Gantt = ({ limit }: Props) => {
       .filter((item) => item !== undefined);
   }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
 
+  // Get all unique states and their colors
+  const states = [...new Set(data.map((item) => item.state ?? "none"))];
+  const stateColorTokens = useToken(
+    "colors",
+    states.map((state) => `${state}.solid`),
+  );
+  const stateColorMap = Object.fromEntries(
+    states.map((state, index) => [
+      state,
+      getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
+    ]),
+  );
+
   const chartData = useMemo(
     () => ({
       datasets: [
         {
-          backgroundColor: data.map(
-            (dataItem) =>
-              system.tokens.categoryMap.get("colors")?.get(`${dataItem.state ?? "none"}.600`)
-                ?.value as string,
-          ),
+          backgroundColor: data.map((dataItem) => stateColorMap[dataItem.state ?? "none"]),
           data,
           maxBarThickness: CHART_ROW_HEIGHT,
           minBarLength: MIN_BAR_WIDTH,
         },
       ],
-      labels: [],
+      labels: flatNodes.map((node) => node.id),
     }),
-    [data],
+    [data, flatNodes, stateColorMap],
   );
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
@@ -228,7 +241,7 @@ export const Gantt = ({ limit }: Props) => {
   }
 
   return (
-    <Box height={`${fixedHeight}px`} minW="200px" ml={-2} mt={36} w="100%">
+    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} mt={36} w="100%">
       <Bar
         data={chartData}
         options={chartOptions}
