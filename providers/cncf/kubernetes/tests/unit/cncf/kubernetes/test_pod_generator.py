@@ -789,3 +789,88 @@ class TestPodGenerator:
             items.append("airflow-worker")
         exp_selector = ",".join(items)
         assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="workload_to_command_args is only available in Airflow 3+")
+    def test_workload_to_command_args_uses_json_path(self):
+        """Test that workload_to_command_args uses --json-path instead of --json-string to avoid shell escaping issues."""
+        from unittest.mock import Mock
+        import os
+        import json
+        from airflow.providers.cncf.kubernetes.pod_generator import workload_to_command_args
+        from airflow.executors.workloads import ExecuteTask
+
+        # Create a mock workload with a task instance that has JSON-problematic content
+        mock_ti = Mock()
+        mock_ti.dag_id = "test_dag"
+        mock_ti.task_id = "test_task"
+        mock_ti.run_id = "test_run"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        mock_workload = Mock(spec=ExecuteTask)
+        mock_workload.ti = mock_ti
+        # Simulate JSON with double quotes that would be problematic in shell
+        mock_workload.model_dump_json.return_value = '{"key": "value with \\"quotes\\"", "nested": {"inner": "data"}}'
+
+        # Call the function
+        result = workload_to_command_args(mock_workload)
+
+        # Verify the command structure
+        assert len(result) == 5
+        assert result[0] == "python"
+        assert result[1] == "-m"
+        assert result[2] == "airflow.sdk.execution_time.execute_workload"
+        assert result[3] == "--json-path"
+        
+        # Verify the JSON file was created and contains the correct content
+        json_path = result[4]
+        assert json_path.startswith("/tmp/airflow_task_")
+        assert json_path.endswith(".json")
+        assert os.path.exists(json_path)
+        
+        # Verify the file content
+        with open(json_path, "r") as f:
+            file_content = f.read()
+        
+        assert file_content == mock_workload.model_dump_json.return_value
+        
+        # Verify the JSON is valid
+        parsed_json = json.loads(file_content)
+        assert parsed_json["key"] == 'value with "quotes"'
+        assert parsed_json["nested"]["inner"] == "data"
+        
+        # Clean up
+        os.unlink(json_path)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="workload_to_command_args is only available in Airflow 3+")
+    def test_workload_to_command_args_with_mapped_task(self):
+        """Test that workload_to_command_args handles mapped tasks correctly in the filename."""
+        from unittest.mock import Mock
+        import os
+        from airflow.providers.cncf.kubernetes.pod_generator import workload_to_command_args
+        from airflow.executors.workloads import ExecuteTask
+
+        # Create a mock workload with a mapped task instance
+        mock_ti = Mock()
+        mock_ti.dag_id = "test_dag"
+        mock_ti.task_id = "test_task"
+        mock_ti.run_id = "test_run"
+        mock_ti.try_number = 2
+        mock_ti.map_index = 3  # This is a mapped task
+
+        mock_workload = Mock(spec=ExecuteTask)
+        mock_workload.ti = mock_ti
+        mock_workload.model_dump_json.return_value = '{"test": "data"}'
+
+        # Call the function
+        result = workload_to_command_args(mock_workload)
+
+        # Verify the JSON file path includes map_index
+        json_path = result[4]
+        expected_filename = "airflow_task_test_dag_test_task_test_run_2_3.json"
+        assert json_path == f"/tmp/{expected_filename}"
+        
+        # Verify the file was created
+        assert os.path.exists(json_path)
+        
+        # Clean up
+        os.unlink(json_path)

@@ -69,13 +69,34 @@ def workload_to_command_args(workload: workloads.ExecuteTask) -> list[str]:
     :param workload: The ExecuteTask workload to convert
     :return: List of command arguments for the Task SDK
     """
+    import tempfile
+    import os
+    
     ser_input = workload.model_dump_json()
+    
+    # Write JSON to a temporary file to avoid shell escaping issues with double quotes
+    # This is particularly important when running in containerized environments like Spark
+    # where the container entrypoint may process arguments through a shell
+    temp_dir = "/tmp"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Create a temporary file with a predictable name based on the task instance
+    ti = workload.ti
+    temp_filename = f"airflow_task_{ti.dag_id}_{ti.task_id}_{ti.run_id}_{ti.try_number}.json"
+    if ti.map_index >= 0:
+        temp_filename = f"airflow_task_{ti.dag_id}_{ti.task_id}_{ti.run_id}_{ti.try_number}_{ti.map_index}.json"
+    
+    temp_path = os.path.join(temp_dir, temp_filename)
+    
+    with open(temp_path, "w") as f:
+        f.write(ser_input)
+    
     return [
         "python",
         "-m",
         "airflow.sdk.execution_time.execute_workload",
-        "--json-string",
-        ser_input,
+        "--json-path",
+        temp_path,
     ]
 
 
