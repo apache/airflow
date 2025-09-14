@@ -32,9 +32,14 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBIWorkspaceListTrigger,
 )
 from airflow.providers.microsoft.azure.version_compat import BaseHook
-from airflow.utils import timezone
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[no-redef]
+
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operators"

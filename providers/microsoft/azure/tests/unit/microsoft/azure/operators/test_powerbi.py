@@ -30,10 +30,15 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.providers.microsoft.azure.version_compat import BaseHook
-from airflow.utils import timezone
 
 from tests_common.test_utils.mock_context import mock_context
 from unit.microsoft.azure.test_utils import get_airflow_connection
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[no-redef]
+
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
