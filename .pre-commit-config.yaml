@@ -305,6 +305,14 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$|
           ^\.github/workflows/.*$
+  - repo: https://github.com/adrienverge/yamllint
+    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
+    hooks:
+      - id: yamllint
+        name: Check github actions YAML files with yamllint
+        entry: yamllint -c github-actions-yamllint-config.yml --strict
+        types: [yaml]
+        files: ^\.github/workflows/.*$
   - repo: https://github.com/ikamensh/flynt
     rev: '97be693bf18bc2f050667dd282d243e2824b81e2'  # frozen: 1.0.6
     hooks:
