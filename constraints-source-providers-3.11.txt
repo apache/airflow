@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-14T02:20:19.528103
+# This constraints file was automatically generated on 2025-09-14T07:44:52.356511
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -463,7 +463,7 @@ polars==1.33.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.1.6
+prek==0.2.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.22.1
@@ -653,15 +653,15 @@ twine==6.2.0
 typer==0.17.4
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.9.0.20250906
-types-PyMySQL==1.1.0.20250909
+types-PyMySQL==1.1.0.20250914
 types-PyYAML==6.0.12.20250822
 types-aiofiles==24.1.0.20250822
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250822
+types-cffi==1.17.0.20250914
 types-croniter==6.0.0.20250809
-types-docutils==0.22.0.20250822
+types-docutils==0.22.0.20250914
 types-paramiko==3.5.0.20250801
-types-protobuf==6.30.2.20250822
+types-protobuf==6.30.2.20250914
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20250822
 types-python-slugify==8.0.2.20240310
