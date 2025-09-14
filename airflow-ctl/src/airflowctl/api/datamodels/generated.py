@@ -49,6 +49,17 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetWatcherResponse(BaseModel):
+    """
+    Asset watcher serializer for responses.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    trigger_id: Annotated[int, Field(title="Trigger Id")]
+    trigger_classpath: Annotated[str, Field(title="Trigger Classpath")]
+    created_date: Annotated[datetime, Field(title="Created Date")]
+
+
 class BaseInfoResponse(BaseModel):
     """
     Base info serializer for responses.
@@ -1047,6 +1058,7 @@ class AssetResponse(BaseModel):
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
+    watchers: Annotated[list[AssetWatcherResponse], Field(title="Watchers")]
     last_asset_event: LastAssetEventResponse | None = None
 
 
