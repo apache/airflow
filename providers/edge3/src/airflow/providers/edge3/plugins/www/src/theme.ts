@@ -361,7 +361,7 @@ export const customConfig = defineConfig({
         up_for_reschedule: generateSemanticTokens("sky"),
         up_for_retry: generateSemanticTokens("yellow"),
         upstream_failed: generateSemanticTokens("orange"),
-        running: generateSemanticTokens("cyan"),
+        running: generateSemanticTokens("lime"),
         restarting: generateSemanticTokens("violet"),
         deferred: generateSemanticTokens("purple"),
         scheduled: generateSemanticTokens("zinc"),
