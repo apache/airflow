@@ -148,11 +148,11 @@ const eventsColumn = (
 const {
   AFTER: AFTER_PARAM,
   BEFORE: BEFORE_PARAM,
-  DAG_ID: DAG_ID_PARAM,
+  DAG_DISPLAY_NAME_PATTERN: DAG_DISPLAY_NAME_PATTERN_PARAM,
   EVENT_TYPE: EVENT_TYPE_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
-  RUN_ID: RUN_ID_PARAM,
-  TASK_ID: TASK_ID_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
+  TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
   USER: USER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -168,11 +168,11 @@ export const Events = () => {
 
   const afterFilter = searchParams.get(AFTER_PARAM);
   const beforeFilter = searchParams.get(BEFORE_PARAM);
-  const dagIdFilter = searchParams.get(DAG_ID_PARAM);
+  const dagDisplayNameFilter = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
   const eventTypeFilter = searchParams.get(EVENT_TYPE_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
-  const runIdFilter = searchParams.get(RUN_ID_PARAM);
-  const taskIdFilter = searchParams.get(TASK_ID_PARAM);
+  const runIdFilter = searchParams.get(RUN_ID_PATTERN_PARAM);
+  const taskIdFilter = searchParams.get(TASK_ID_PATTERN_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const userFilter = searchParams.get(USER_PARAM);
 
@@ -191,7 +191,9 @@ export const Events = () => {
       // Use exact match for URL params (dag/run/task context)
       dagId: dagId ?? undefined,
       // Use pattern search for filter inputs (partial matching)
-      dagIdPattern: dagIdFilter ?? undefined,
+      // NOTE: keeping API param name the same for minimal change;
+      // we feed it from the display-name URL param.
+      dagIdPattern: dagDisplayNameFilter ?? undefined,
       eventPattern: eventTypeFilter ?? undefined,
       limit: pagination.pageSize,
       mapIndex: mapIndexNumber,

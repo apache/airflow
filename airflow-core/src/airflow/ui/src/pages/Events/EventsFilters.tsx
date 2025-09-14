@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
 
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
@@ -41,17 +42,17 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
 
     // Only add DAG ID filter if not in URL context
     if (urlDagId === undefined) {
-      keys.push(SearchParamsKeys.DAG_ID);
+      keys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
     }
 
     // Only add Run ID filter if not in URL context
     if (urlRunId === undefined) {
-      keys.push(SearchParamsKeys.RUN_ID);
+      keys.push(SearchParamsKeys.RUN_ID_PATTERN);
     }
 
     // Only add Task ID filter if not in URL context
     if (urlTaskId === undefined) {
-      keys.push(SearchParamsKeys.TASK_ID);
+      keys.push(SearchParamsKeys.TASK_ID_PATTERN);
     }
 
     return keys;
@@ -80,6 +81,12 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
   }, [searchParams, filterConfigs]);
 
   return (
-    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
+    <VStack align="start" gap={4} paddingY="4px">
+      <FilterBar
+        configs={filterConfigs}
+        initialValues={initialValues}
+        onFiltersChange={handleFiltersChange}
+      />
+    </VStack>
   );
 };
