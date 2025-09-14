@@ -49,7 +49,7 @@ import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { DEFAULT_DATETIME_FORMAT, formatDate } from "src/utils/datetimeUtils";
+import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createChartOptions } from "./utils";
 
@@ -128,7 +128,7 @@ export const Gantt = ({ limit }: Props) => {
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
-  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
+  const currentTime = dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT_WITH_TZ);
 
   const data = useMemo(() => {
     if (isLoading || runId === "") {
@@ -150,8 +150,8 @@ export const Gantt = ({ limit }: Props) => {
             state: gridSummary.state,
             taskId: gridSummary.task_id,
             x: [
-              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
-              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
             ],
             y: gridSummary.task_id,
           };
@@ -169,8 +169,8 @@ export const Gantt = ({ limit }: Props) => {
               state: taskInstance.state,
               taskId: taskInstance.task_id,
               x: [
-                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
-                formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
               ],
               y: taskInstance.task_id,
             };
