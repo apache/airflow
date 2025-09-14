@@ -1,25 +1,9 @@
 /*!
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Licensed to the Apache Software Foundation (ASF)...
  */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -39,7 +23,7 @@ import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
-import { TaskInstancesFilter } from "./TaskInstancesFilter";
+import { RunTaskFilters } from "./RunTaskFilters";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
@@ -49,6 +33,7 @@ const {
   POOL: POOL_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
+  TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
@@ -76,7 +61,6 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
               <Link asChild color="fg.info" fontWeight="bold">
@@ -201,9 +185,9 @@ export const TaskInstances = () => {
   const hasFilteredState = filteredState.length > 0;
   const hasFilteredPool = pool.length > 0;
 
-  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  // Read the pill value (name_pattern), but accept legacy task_id_pattern too.
+  const taskNamePattern =
+    searchParams.get(NAME_PATTERN_PARAM) ?? searchParams.get(TASK_ID_PATTERN_PARAM) ?? undefined;
 
   const refetchInterval = useAutoRefresh({});
 
@@ -218,7 +202,7 @@ export const TaskInstances = () => {
       pool: hasFilteredPool ? pool : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
+      taskDisplayNamePattern: groupId ?? taskNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
@@ -230,10 +214,9 @@ export const TaskInstances = () => {
 
   return (
     <>
-      <TaskInstancesFilter
-        setTaskDisplayNamePattern={setTaskDisplayNamePattern}
-        taskDisplayNamePattern={taskDisplayNamePattern}
-      />
+      {/* Pill-based FilterBar for Task name + From/To */}
+      <RunTaskFilters />
+
       <DataTable
         columns={taskInstanceColumns({
           dagId,
