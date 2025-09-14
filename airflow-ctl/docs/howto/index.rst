@@ -96,7 +96,7 @@ The default value is ``http://localhost:8080``. Full URL of the Airflow API. Wit
 If you are running the ``airflowctl`` in ``breeze`` container, it is optional.
 
 **--api-token**: This parameter is optional.
-If you neither do not provide it nor or set the environment variable ``AIRFLOW_CLI_TOKEN``, you can skip using this parameter.
+If you are setting the token via the environment variable ``AIRFLOW_CLI_TOKEN``, you can skip using this parameter.
 
 **--username**: This parameter is optional.
 If you do not provide ``--api-token`` or set the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide this parameter along with ``--password``.
