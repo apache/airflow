@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -32,46 +31,11 @@ except ImportError:
 if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
-# [START queue_regexp]
-QUEUE_REGEXP = (
-    r"^projects/(?P<project_id>[^/]+)/subscriptions/"
-    r"(?P<subscription>(?!goog)[A-Za-z][A-Za-z0-9\-_.~+%]{2,254})$"
-)
-# [END queue_regexp]
-
 
 class PubsubMessageQueueProvider(BaseMessageQueueProvider):
     """Configuration for PubSub integration with common-messaging."""
 
-    def queue_matches(self, queue: str) -> bool:
-        return bool(re.match(QUEUE_REGEXP, queue))
+    scheme = "google+pubsub"
 
     def trigger_class(self) -> type[BaseEventTrigger]:
         return PubsubPullTrigger  # type: ignore[return-value]
-
-    def trigger_kwargs(self, queue: str, **kwargs) -> dict:
-        pattern = re.compile(QUEUE_REGEXP)
-        match = pattern.match(queue)
-
-        if match is None:
-            raise ValueError(f"Queue '{queue}' does not match the expected PubSub format")
-
-        project_id = match.group("project_id")
-        subscription = match.group("subscription")
-
-        if "project_id" in kwargs or "subscription" in kwargs:
-            raise ValueError(
-                "project_id or subscription cannot be provided in kwargs, use the queue param instead"
-            )
-
-        return_kwargs = {
-            "project_id": project_id,
-            "subscription": subscription,
-            "ack_messages": True,
-        }
-        if "max_messages" not in kwargs:
-            return_kwargs["max_messages"] = 1
-        if "gcp_conn_id" not in kwargs:
-            return_kwargs["gcp_conn_id"] = "google_cloud_default"
-
-        return return_kwargs
