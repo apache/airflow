@@ -371,7 +371,6 @@ class TestGetAssets(TestAssets):
                         {
                             "name": "watcher_1",
                             "trigger_id": asset1.watchers[0].trigger_id,
-                            "trigger_classpath": "airflow.triggers.testing.TestTrigger1",
                             "created_date": tz_datetime_format,
                         }
                     ],
@@ -393,7 +392,6 @@ class TestGetAssets(TestAssets):
                         {
                             "name": "watcher_2",
                             "trigger_id": asset2.watchers[0].trigger_id,
-                            "trigger_classpath": "airflow.triggers.testing.TestTrigger2",
                             "created_date": tz_datetime_format,
                         }
                     ],
@@ -1078,7 +1076,6 @@ class TestGetAssetEndpoint(TestAssets):
                 {
                     "name": "watcher_1",
                     "trigger_id": asset.watchers[0].trigger_id,
-                    "trigger_classpath": "airflow.triggers.testing.TestTrigger1",
                     "created_date": tz_datetime_format,
                 }
             ],

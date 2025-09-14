@@ -376,10 +376,6 @@ export const $AssetWatcherResponse = {
             type: 'integer',
             title: 'Trigger Id'
         },
-        trigger_classpath: {
-            type: 'string',
-            title: 'Trigger Classpath'
-        },
         created_date: {
             type: 'string',
             format: 'date-time',
@@ -387,7 +383,7 @@ export const $AssetWatcherResponse = {
         }
     },
     type: 'object',
-    required: ['name', 'trigger_id', 'trigger_classpath', 'created_date'],
+    required: ['name', 'trigger_id', 'created_date'],
     title: 'AssetWatcherResponse',
     description: 'Asset watcher serializer for responses.'
 } as const;

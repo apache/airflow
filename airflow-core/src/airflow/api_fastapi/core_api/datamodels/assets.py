@@ -63,7 +63,6 @@ class AssetWatcherResponse(BaseModel):
 
     name: str
     trigger_id: int
-    trigger_classpath: str
     created_date: datetime
 
 

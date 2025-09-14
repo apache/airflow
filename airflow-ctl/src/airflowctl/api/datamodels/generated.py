@@ -56,7 +56,6 @@ class AssetWatcherResponse(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     trigger_id: Annotated[int, Field(title="Trigger Id")]
-    trigger_classpath: Annotated[str, Field(title="Trigger Classpath")]
     created_date: Annotated[datetime, Field(title="Created Date")]
 
 

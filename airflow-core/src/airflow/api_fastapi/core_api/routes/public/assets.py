@@ -194,7 +194,6 @@ def get_assets(
             {
                 "name": watcher.name,
                 "trigger_id": watcher.trigger_id,
-                "trigger_classpath": watcher.trigger.classpath,
                 "created_date": watcher.trigger.created_date,
             }
             for watcher in asset.watchers
@@ -500,7 +499,6 @@ def get_asset(
         {
             "name": watcher.name,
             "trigger_id": watcher.trigger_id,
-            "trigger_classpath": watcher.trigger.classpath,
             "created_date": watcher.trigger.created_date,
         }
         for watcher in asset.watchers

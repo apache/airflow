@@ -101,7 +101,6 @@ export type AssetResponse = {
 export type AssetWatcherResponse = {
     name: string;
     trigger_id: number;
-    trigger_classpath: string;
     created_date: string;
 };
 
