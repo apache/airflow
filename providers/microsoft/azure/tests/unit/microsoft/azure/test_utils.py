@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from contextlib import contextmanager, ExitStack
+from contextlib import ExitStack, contextmanager
 from json import JSONDecodeError
 from typing import Any
 from unittest import mock
@@ -38,7 +38,6 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-
 from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 MODULE = "airflow.providers.microsoft.azure.utils"

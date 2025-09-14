@@ -21,7 +21,6 @@ import locale
 from base64 import b64decode, b64encode
 from datetime import datetime
 from os.path import dirname
-from unittest.mock import patch
 from uuid import uuid4
 
 import pendulum
@@ -40,11 +39,10 @@ from airflow.triggers.base import TriggerEvent
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 from unit.microsoft.azure.test_utils import (
-    get_airflow_connection,
     mock_json_response,
     mock_response,
-    patch_hook_and_request_adapter,
     patch_hook,
+    patch_hook_and_request_adapter,
 )
 
 

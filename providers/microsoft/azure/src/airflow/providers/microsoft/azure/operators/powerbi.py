@@ -27,7 +27,10 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBITrigger,
     PowerBIWorkspaceListTrigger,
 )
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, BaseOperatorLink
+from airflow.providers.microsoft.azure.version_compat import (
+    BaseOperator,
+    BaseOperatorLink,
+)
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
