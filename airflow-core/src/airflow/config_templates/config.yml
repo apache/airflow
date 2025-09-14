@@ -1990,10 +1990,10 @@ scheduler:
         .. note:: |experimental|
 
         The type of the task selector to be used by the scheduler, decides how the
-        airflow scheduler should get it's tasks that need to be queried, as of now,
+        airflow scheduler should get it's tasks that need to be queued, as of now,
         there are only 2 types of task queriers, which include 'OPTIMISTIC'
-        and 'PESSIMISTIC'.
-      version_added: 3.1.0
+        and 'LINEAR_SCAN'.
+      version_added: 3.2.0
       type: string
       example: OPTIMISTIC
       default: "OPTIMISTIC"
