@@ -102,7 +102,7 @@ If you are setting the token via the environment variable ``AIRFLOW_CLI_TOKEN``,
 If you are not using ``--api-token`` or the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide a username to authentication along with ``--password``.
 
 **--password**: This parameter is optional.
-If you do not provide ``--api-token`` or set the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide this parameter along with ``--username``.
+If you provide a username via ``--username`` this is the required password to authenticate.
 
 **--env**: This parameter is optional.
 The name of the environment to create or update. The default value is ``production``.
