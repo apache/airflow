@@ -930,21 +930,29 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
     @pytest.mark.parametrize(
-        ["signal_to_raise", "log_pattern"],
+        ["signal_to_raise", "log_pattern", "level"],
         (
             pytest.param(
                 signal.SIGKILL,
-                re.compile(r"Process terminated by signal. For more information, see"),
+                re.compile(r"Process terminated by signal. Likely out of memory error"),
+                "critical",
                 id="kill",
+            ),
+            pytest.param(
+                signal.SIGTERM,
+                re.compile(r"Process terminated by signal. For more information"),
+                "error",
+                id="term",
             ),
             pytest.param(
                 signal.SIGSEGV,
                 re.compile(r".*SIGSEGV \(Segmentation Violation\) signal indicates", re.DOTALL),
+                "critical",
                 id="segv",
             ),
         ),
     )
-    def test_exit_by_signal(self, signal_to_raise, log_pattern, cap_structlog, client_with_ti_start):
+    def test_exit_by_signal(self, signal_to_raise, log_pattern, level, cap_structlog, client_with_ti_start):
         def subprocess_main():
             import faulthandler
             import os
@@ -976,7 +984,7 @@ class TestWatchedSubprocess:
         rc = proc.wait()
 
         assert {
-            "log_level": "critical",
+            "log_level": level,
             "event": log_pattern,
         } in cap_structlog
         assert rc == -signal_to_raise
