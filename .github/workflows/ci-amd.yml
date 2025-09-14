@@ -193,7 +193,7 @@ jobs:
           skip-prek-hooks: ""
       - name: "Run pin-versions"
         run: >
-          prek -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
+          prek -c dev/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
           pin-versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

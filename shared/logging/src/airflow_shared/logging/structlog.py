@@ -70,11 +70,9 @@ def _make_airflow_structlogger(min_level):
     def handlers(self):
         return [logging.NullHandler()]
 
-    def isEnabledFor(self: Any, level):
-        return self.is_enabled_for(level)
-
-    def getEffectiveLevel(self: Any):
-        return self.get_effective_level()
+    @property
+    def level(self):
+        return min_level
 
     @property
     def name(self):
@@ -109,8 +107,9 @@ def _make_airflow_structlogger(min_level):
         f"AirflowBoundLoggerFilteringAt{LEVEL_TO_NAME.get(min_level, 'Notset').capitalize()}",
         (base,),
         {
-            "isEnabledFor": isEnabledFor,
-            "getEffectiveLevel": getEffectiveLevel,
+            "isEnabledFor": base.is_enabled_for,
+            "getEffectiveLevel": base.get_effective_level,
+            "level": level,
             "name": name,
             "handlers": handlers,
         }

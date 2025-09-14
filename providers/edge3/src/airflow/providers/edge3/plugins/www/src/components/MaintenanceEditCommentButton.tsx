@@ -57,7 +57,14 @@ export const MaintenanceEditCommentButton = ({
 
   return (
     <>
-      <IconButton size="sm" variant="ghost" aria-label="Edit Comments" title="Edit Comments" onClick={onOpen}>
+      <IconButton
+        size="sm"
+        variant="ghost"
+        aria-label="Edit Comments"
+        title="Edit Comments"
+        onClick={onOpen}
+        colorPalette="warning"
+      >
         <FiEdit />
       </IconButton>
 
