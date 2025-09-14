@@ -99,7 +99,7 @@ If you are running the ``airflowctl`` in ``breeze`` container, it is optional.
 If you are setting the token via the environment variable ``AIRFLOW_CLI_TOKEN``, you can skip using this parameter.
 
 **--username**: This parameter is optional.
-If you do not provide ``--api-token`` or set the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide this parameter along with ``--password``.
+If you are not using ``--api-token`` or the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide a username to authentication along with ``--password``.
 
 **--password**: This parameter is optional.
 If you do not provide ``--api-token`` or set the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide this parameter along with ``--username``.
