@@ -41,6 +41,7 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -56,7 +57,6 @@ from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import create_session
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
@@ -140,12 +140,11 @@ def getattr_nested(obj, item, default):
 def _render_log_id(ti: TaskInstance | TaskInstanceKey, try_number: int, json_format: bool) -> str:
     from airflow.models.taskinstance import TaskInstanceKey
 
-    with create_session() as session:
-        if isinstance(ti, TaskInstanceKey):
-            ti = _ensure_ti(ti, session)
-        dag_run = ti.get_dagrun(session=session)
-        if USE_PER_RUN_LOG_ID:
-            log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+    if isinstance(ti, TaskInstanceKey):
+        ti = _ensure_ti(ti, settings.Session)
+    dag_run = ti.get_dagrun(session=settings.Session)
+    if USE_PER_RUN_LOG_ID:
+        log_id_template = dag_run.get_log_template(session=settings.Session).elasticsearch_id
 
     if json_format:
         data_interval_start = _clean_date(dag_run.data_interval_start)
@@ -623,13 +622,18 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             local_loc = self.base_log_folder.joinpath(path)
 
-        log_id = _render_log_id(ti, ti.try_number, self.json_format)  # type: ignore[arg-type]
         # Convert the runtimeTI to the real TaskInstance that via fetching from DB
         ti = TaskInstance.get_task_instance(
-            ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1
+            ti.dag_id,
+            ti.run_id,
+            ti.task_id,
+            ti.map_index if ti.map_index is not None else -1,
+            session=settings.Session,
         )  # type: ignore[assignment]
+        log_id = _render_log_id(ti, ti.try_number, self.json_format)  # type: ignore[arg-type]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
+
             log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
             for line in log_lines:
                 sys.stdout.write(json.dumps(line) + "\n")
