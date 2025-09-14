@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-12T13:49:23.313594
+# This constraints file was automatically generated on 2025-09-14T02:21:11.465318
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -19,6 +19,7 @@ SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.0
 SQLAlchemy==1.4.54
 a2wsgi==1.10.10
+aiosmtplib==4.0.2
 aiosqlite==0.21.0
 alembic==1.16.5
 annotated-types==0.7.0
@@ -78,7 +79,7 @@ pluggy==1.6.0
 protobuf==4.25.8
 psutil==7.0.0
 pycparser==2.23
-pydantic==2.11.7
+pydantic==2.11.9
 pydantic_core==2.33.2
 pygtrie==2.5.0
 python-daemon==3.1.2
@@ -107,7 +108,7 @@ tenacity==9.1.2
 termcolor==3.1.0
 text-unidecode==1.3
 typer==0.17.4
-types-requests==2.32.4.20250809
+types-requests==2.32.4.20250913
 typing-inspection==0.4.1
 typing_extensions==4.15.0
 tzdata==2025.2

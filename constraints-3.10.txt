@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-12T13:53:43.471204
+# This constraints file was automatically generated on 2025-09-14T02:23:56.841468
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -37,7 +37,7 @@ Events==0.5
 Flask-AppBuilder==4.6.3
 Flask-Babel==2.0.0
 Flask-JWT-Extended==4.7.1
-Flask-Limiter==3.12
+Flask-Limiter==3.13
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -78,7 +78,7 @@ aiosignal==1.4.0
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.2
+alibabacloud-adb20211201==3.2.3
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea-openapi==0.4.1
@@ -261,7 +261,7 @@ click-repl==0.3.0
 click==8.2.1
 clickclick==20.10.2
 cloudpickle==3.1.1
-cohere==5.17.0
+cohere==5.18.0
 colorama==0.4.6
 colorful==0.5.7
 colorlog==6.9.0
@@ -319,14 +319,14 @@ gcsfs==2025.9.0
 geomet==0.2.1.post1
 gevent==25.8.2
 gitdb==4.0.12
-google-ads==28.0.0
+google-ads==28.0.0.post2
 google-analytics-admin==0.25.0
 google-api-core==2.25.1
 google-api-python-client==2.181.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.112.0
+google-cloud-aiplatform==1.113.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -386,7 +386,7 @@ gssapi==1.10.0
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
-hf-xet==1.1.9
+hf-xet==1.1.10
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
@@ -439,7 +439,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.4
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.77.0
+litellm==1.77.1
 lockfile==0.12.2
 looker-sdk==25.10.0
 lxml==6.0.1
@@ -480,7 +480,7 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.107.1
+openai==1.107.2
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.37.0
@@ -546,7 +546,7 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
-pydantic==2.11.7
+pydantic==2.11.9
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
@@ -559,7 +559,7 @@ pymongo==4.15.0
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.4.1
-pyparsing==3.2.3
+pyparsing==3.2.4
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.0.1
@@ -574,7 +574,7 @@ python-keycloak==5.8.1
 python-ldap==3.4.4
 python-multipart==0.0.20
 python-slugify==8.0.4
-python-telegram-bot==22.3
+python-telegram-bot==22.4
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
@@ -595,7 +595,7 @@ requests_ntlm==1.3.0
 retryhttp==1.3.3
 rich-argparse==1.7.1
 rich-toolkit==0.15.1
-rich==13.9.4
+rich==14.1.0
 rpds-py==0.27.1
 rsa==4.9.1
 ruamel.yaml.clib==0.2.12
@@ -659,7 +659,7 @@ trino==0.336.0
 typer==0.17.4
 types-protobuf==6.30.2.20250822
 types-pytz==2025.2.0.20250809
-types-requests==2.32.4.20250809
+types-requests==2.32.4.20250913
 typing-inspect==0.9.0
 typing-inspection==0.4.1
 typing_extensions==4.15.0
@@ -688,7 +688,7 @@ websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.3
 xmlsec==1.3.16
-xmltodict==0.15.1
+xmltodict==1.0.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
