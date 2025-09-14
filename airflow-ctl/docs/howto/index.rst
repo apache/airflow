@@ -79,7 +79,7 @@ configuration file. The keyring backend is used to securely store the token and 
 
 What is authentication for ``airflowctl``?
 ``````````````````````````````````````````
-For ``airflowctl`` to be able to communicate with the Airflow API, it needs to authenticate itself and aquire token.
+For ``airflowctl`` to be able to communicate with the Airflow API, it needs to authenticate itself and acquire token.
 This is done using either a token or a username and password.
 The token can be acquired from the Airflow API or generated using a username and password.
 
