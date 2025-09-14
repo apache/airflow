@@ -14,27 +14,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import itertools
 from collections import Counter
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select, tuple_, update
-from sqlalchemy.orm import Query, Session, selectinload
+from sqlalchemy import tuple_
 
-from airflow.models import DagRun, Pool, TaskInstance
-from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models import TaskInstance
 from airflow.stats import Stats
+from airflow.task.in_code_selector_helpers import (
+    BASE_ORDERED_TI_QUERY,
+    get_pool_stats,
+    set_tis_failed_for_dag,
+)
 from airflow.task.task_selector_strategy import TaskSelectorStrategy
-from airflow.utils.concurency import ConcurrencyMap
+from airflow.utils.concurrency import ConcurrencyMap
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Query, Session
+
+    from airflow.models.dagbag import DBDagBag
     from airflow.models.pool import PoolStats
 
 
@@ -43,45 +47,29 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
     Optimistic task selector.
 
     This task selector contains the way the old airflow scheduler fetches tasks.
-    It works in an optimistic manner meaning that it always fetches `max_tis` tasks untill it can get at least
-    1 task to be scheduled, this causes issues as described in GitHub Issue #45636.
-    The 'old scheduler' can be seen here:
-    https://github.com/apache/airflow/blob/478a2b458bae57a04aebcda3ac5b231fb49ff764/airflow-core/src/airflow/jobs/scheduler_job_runner.py#L293
+    It works in an optimistic manner meaning that it fetches batches of `max_tis` tasks until it can get at least
+    one task to be scheduled, this may cause starvation issues as described in GitHub Issue #45636.
     """
 
     def __init__(self) -> None:
         super().__init__()
         self.num_starving_tasks_total = 0
-        self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
 
     def _get_query(self, **additional_params) -> Query:
-        priority_order = self.priority_order
         max_tis = additional_params.get("max_tis", 32)
-        query = (
-            select(TaskInstance)
-            .with_hint(TaskInstance, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(TaskInstance.dag_run)
-            .where(DagRun.state == DagRunState.RUNNING)
-            .join(TaskInstance.dag_model)
-            .where(~DagModel.is_paused)
-            .where(TaskInstance.state == TaskInstanceState.SCHEDULED)
-            .where(DagModel.bundle_name.is_not(None))
-            .options(selectinload(TaskInstance.dag_model))
-            .order_by(*priority_order)
-            .limit(max_tis)
-        )
-
+        query = BASE_ORDERED_TI_QUERY.limit(max_tis)
         return query
 
-    def query_tasks_with_locks(self, session: Session, **additional_params) -> Query:
+    def query_tasks_with_locks(self, session: Session, **additional_params) -> list[TaskInstance]:
         executor_slots_available: dict[str, int] = additional_params["executor_slots_available"]
         max_tis: int = additional_params.get("max_tis", 32)
+        dag_bag = additional_params["dag_bag"]
 
         query = self._get_query(
             max_tis=max_tis,
         )
 
-        pools, pool_slots_free = self._get_pool_stats(session)
+        pools, pool_slots_free = get_pool_stats(session)
 
         if pool_slots_free == 0:
             self.log.debug("All pools are full!")
@@ -131,6 +119,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 starved_tasks,
                 starved_dags,
                 starved_tasks_task_dagrun_concurrency,
+                dag_bag,
                 executor_slots_available,
             )
 
@@ -176,6 +165,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         starved_tasks: set[tuple[str, str]],
         starved_dags: set[str],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
+        dag_bag: DBDagBag,
         executor_slots_available: dict[str, int],
     ) -> tuple[list[TaskInstance], int]:
         executable_tis: list[TaskInstance] = []
@@ -217,9 +207,9 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
 
             if task_instance.dag_model.has_task_concurrency_limits:
                 if (
-                    not self._check_not_serialized_dag(task_instance, session)
-                    or not self._check_task_dag_concurency(task_instance, starved_tasks, concurrency_map)
-                    or not self._check_task_dagrun_concurency(
+                    not self._check_not_serialized_dag(session, task_instance, dag_bag)
+                    or not self._check_task_dag_concurrency(task_instance, starved_tasks, concurrency_map)
+                    or not self._check_task_dagrun_concurrency(
                         task_instance, starved_tasks_task_dagrun_concurrency, concurrency_map
                     )
                 ):
@@ -285,17 +275,6 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
 
         return query
 
-    def _get_pool_stats(self, session: Session) -> tuple[dict[str, PoolStats], int]:
-        # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
-        # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = Pool.slots_stats(lock_rows=True, session=session)
-
-        # If the pools are full, there is no point doing anything!
-        # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
-        pool_slots_free = sum(max(0, pool["open"]) for pool in pools.values())
-
-        return pools, pool_slots_free
-
     def _check_pool_slots_predicates(self, task_instance: TaskInstance, pool_stats: PoolStats) -> bool:
         pool_name = task_instance.pool
 
@@ -360,16 +339,13 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
 
         return True
 
-    def _check_not_serialized_dag(self, task_instance: TaskInstance, session: Session):
+    def _check_not_serialized_dag(
+        self, session: Session, task_instance: TaskInstance, dag_bag: DBDagBag
+    ) -> bool:
         dag_id = task_instance.dag_id
         # Many dags don't have a task_concurrency, so where we can avoid loading the full
         # If the dag is missing, fail the task and continue to the next task.
-        serialized_dag = (
-            select(TaskInstance)
-            .where(TaskInstance.id == task_instance.id)
-            .join(DagVersion, DagVersion.id == task_instance.dag_version_id)
-            .join(SerializedDagModel, SerializedDagModel.dag_version_id == DagVersion.id)
-        )
+        serialized_dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
         serialized_dag = session.execute(serialized_dag).all()
         if not serialized_dag:
             self.log.error(
@@ -377,17 +353,12 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 dag_id,
                 task_instance,
             )
-            session.execute(
-                update(TaskInstance)
-                .where(TaskInstance.dag_id == dag_id, TaskInstance.state == TaskInstanceState.SCHEDULED)
-                .values(state=TaskInstanceState.FAILED)
-                .execution_options(synchronize_session="fetch")
-            )
+            set_tis_failed_for_dag(session, dag_id)
             return False
 
         return True
 
-    def _check_task_dag_concurency(
+    def _check_task_dag_concurrency(
         self,
         task_instance: TaskInstance,
         starved_tasks: set,
@@ -412,7 +383,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
 
         return True
 
-    def _check_task_dagrun_concurency(
+    def _check_task_dagrun_concurrency(
         self,
         task_instance: TaskInstance,
         starved_tasks_task_dagrun_concurrency: set,

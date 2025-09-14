@@ -51,20 +51,17 @@ def _get_params_for_optimistic_selector(
     **kwargs: Unpack[ParamsProviderType],
 ) -> Mapping[str, Any]:
     conf: AirflowConfigParser = kwargs["conf"]
-    scheduler_job_runner = kwargs["scheduler_job_runner"]
-
-    params = {}
-
-    params["max_tis"] = conf.getint("scheduler", "max_tis_per_query")
+    scheduler_job_runner = kwargs["scheduler_job_runner"]  # type: ignore[assignment]
 
     if TYPE_CHECKING:
-        # making mypy happy, though it is always passed
         assert scheduler_job_runner
 
+    params = {}
+    params["max_tis"] = conf.getint("scheduler", "max_tis_per_query")
     params["executor_slots_available"] = {  # type: ignore[assignment]
         str(executor.name): executor.slots_available for executor in scheduler_job_runner.job.executors
     }
-
+    params["dag_bag"] = scheduler_job_runner.scheduler_dag_bag  # type: ignore[assignment]
     return params
 
 
@@ -72,8 +69,15 @@ def _get_params_for_linear_scan_selector(
     **kwargs: Unpack[ParamsProviderType],
 ) -> Mapping[str, Any]:
     conf: AirflowConfigParser = kwargs["conf"]
+    scheduler_job_runner = kwargs["scheduler_job_runner"]  # type: ignore[assignment]
 
-    return {"max_tis": conf.getint("scheduler", "max_tis_per_query")}
+    if TYPE_CHECKING:
+        assert scheduler_job_runner
+
+    params = {}
+    params["max_tis"] = conf.getint("scheduler", "max_tis_per_query")
+    params["dag_bag"] = scheduler_job_runner.scheduler_dag_bag  # type: ignore[assignment]
+    return params
 
 
 TASK_SELECTOR_PARAMS_PROVIDERS[OPTIMISTIC_SELECTOR] = _get_params_for_optimistic_selector  # type: ignore[assignment]

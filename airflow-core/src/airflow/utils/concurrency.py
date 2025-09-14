@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 from collections import Counter
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
