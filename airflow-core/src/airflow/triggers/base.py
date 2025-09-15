@@ -146,6 +146,42 @@ class BaseEventTrigger(BaseTrigger):
 
         return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
 
+    @property
+    def trigger_hash(self):
+        """Make the value returned by ``hash`` available via a property."""
+        from airflow.serialization.serialized_objects import _encode_trigger
+
+        # Returns a dict with classpath and kwargs
+        encoded_trigger = _encode_trigger(self)
+
+        return self.hash(
+            classpath=encoded_trigger["classpath"],
+            kwargs=encoded_trigger["kwargs"],
+        )
+
+    def set_watermark(self, key: str, value: Any) -> None:
+        """
+        Set a watermark for the Trigger instance.
+
+        :param key: The key to identify this watermark
+        :param value: The value to store (the "watermark")
+        :return: None
+        """
+        from airflow.models.trigger import TriggerWatermark
+
+        TriggerWatermark.set(trigger_hash=self.trigger_hash, key=key, value=value)
+
+    def get_watermark(self, key: str) -> str:
+        """
+        Retrieve a watermark for the Trigger instance.
+
+        :param key: The key to identify this watermark
+        :return: (str) The value stored via the ``key``
+        """
+        from airflow.models.trigger import TriggerWatermark
+
+        return TriggerWatermark.get(trigger_hash=self.trigger_hash, key=key)
+
 
 class TriggerEvent(BaseModel):
     """
