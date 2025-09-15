@@ -89,7 +89,7 @@
   },
   "limitedList": "+{{count}} daha",
   "limitedList.allItems": "Tüm {{count}} öğe:",
-  "limitedList.clickToInteract": "Bir etikete tıklayarak DAG'ları filtreleyin",
+  "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
   "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
   "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
   "limitedList.showingItems": "{{count}} öğe gösteriliyor",
