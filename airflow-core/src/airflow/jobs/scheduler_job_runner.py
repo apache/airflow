@@ -48,6 +48,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
@@ -914,7 +915,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ti.dag_id,
                             ti,
                         )
-                        raise
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
 
                     task = dag.get_task(ti.task_id)
                 except Exception:
