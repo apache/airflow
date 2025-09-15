@@ -103,13 +103,28 @@ def _find_aggregates(
         for child in get_task_group_children_getter()(node):
             for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):
                 if child_node["parent_id"] == node_id:
-                    children.append(
-                        {
-                            "state": child_node["state"],
-                            "start_date": child_node["min_start_date"],
-                            "end_date": child_node["max_end_date"],
-                        }
-                    )
+                    # If the child has child_states (like mapped tasks), expand them
+                    # to count all individual task instances rather than just one child node
+                    if child_node.get("child_states"):
+                        # For each state in child_states, add that many entries to children
+                        for state, count in child_node["child_states"].items():
+                            for _ in range(count):
+                                children.append(
+                                    {
+                                        "state": state if state != "None" else None,
+                                        "start_date": child_node["min_start_date"],
+                                        "end_date": child_node["max_end_date"],
+                                    }
+                                )
+                    else:
+                        # For regular tasks, add one entry as before
+                        children.append(
+                            {
+                                "state": child_node["state"],
+                                "start_date": child_node["min_start_date"],
+                                "end_date": child_node["max_end_date"],
+                            }
+                        )
                 yield child_node
         if node_id:
             yield {
