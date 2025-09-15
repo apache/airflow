@@ -828,29 +828,32 @@ logging:
       type: string
       example: ~
       default: "True"
-    colored_log_format:
-      description: |
-        Log format for when Colored logs is enabled
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: >-
-        [%%(blue)s%%(asctime)s%%(reset)s] {{%%(blue)s%%(filename)s:%%(reset)s%%(lineno)d}}
-        %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
-    colored_formatter_class:
-      description: |
-        Specifies the class utilized by Airflow to implement colored logging
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "airflow.utils.log.colored_log.CustomTTYColoredFormatter"
     log_format:
       description: |
         Format of Log line
+
+        *Changed in 3.1.0*: This can now contain color escape sequences ``%(blue)s`` etc which will only
+        result in colours if :ref:`config:logging__colored_console_log` is true.
+
       version_added: 2.0.0
       type: string
+      example: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+      default: ""
+    callsite_parameters:
+      description: |
+        A comma separated list of information about the callsite (such as line number of filename etc) of
+        logger calls to include in each message.
+
+        See :class:`structlog.processors.CallsiteParameter` for the possible values.The values should be the
+        constant names (``FUNC_NAME``) or the values (``func_name``)
+
+        Including these in a log message adds a lot to the usability to the logs, but collecting these has a
+        (tiny) cost -- if you are super concerned with eking out every last ounce of performance you could
+        turn these off (by setting this value to an empty string)
+      version_added: 3.1.0
+      type: string
+      default: "filename,lineno"
       example: ~
-      default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration

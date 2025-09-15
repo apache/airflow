@@ -1235,7 +1235,7 @@ class AirflowConfigParser(ConfigParser):
         val = self.get(section, key, **kwargs)
         if val is None:
             if "fallback" in kwargs:
-                return val
+                return kwargs["fallback"]
             raise AirflowConfigException(
                 f"Failed to convert value None to list. "
                 f'Please check "{key}" key in "{section}" section is set.'
