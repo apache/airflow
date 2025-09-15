@@ -96,7 +96,7 @@
   },
   "limitedList": "+{{count}} más",
   "limitedList.allItems": "Todos los {{count}} elementos:",
-  "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar DAGs",
+  "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
   "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
   "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
   "limitedList.showingItems": "Mostrando {{count}} elementos",
