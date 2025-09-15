@@ -122,7 +122,7 @@ class Callback(Base):
             case "AsyncCallback":
                 return TriggererCallback(callback_def)
             case "SyncCallback":
-                return ExecutorCallback(callback_def)
+                return ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
             case _:
                 raise ValueError(f"Cannot handle Callback of type {type(callback_def)}")
 
@@ -151,9 +151,9 @@ class ExecutorCallback(Callback):
 
     __mapper_args__ = {"polymorphic_identity": CallbackType.EXECUTOR}
 
-    def __init__(self, callback_def, fetch_method: CallbackFetchMethod | None = None, **kwargs):
+    def __init__(self, callback_def, fetch_method: CallbackFetchMethod, **kwargs):
         super().__init__(**kwargs)
-        self.fetch_method = fetch_method or CallbackFetchMethod.IMPORT_PATH
+        self.fetch_method = fetch_method
         self.data = callback_def.serialize()
 
 

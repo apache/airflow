@@ -20,6 +20,7 @@ import pytest
 
 from airflow.models.callback import (
     Callback,
+    CallbackFetchMethod,
     CallbackState,
     ExecutorCallback,
     TriggererCallback,
@@ -58,7 +59,11 @@ class TestCallback:
                 TEST_ASYNC_CALLBACK, TriggererCallback(callback_def=TEST_ASYNC_CALLBACK), id="triggerer"
             ),
             pytest.param(
-                TEST_SYNC_CALLBACK, ExecutorCallback(callback_def=TEST_SYNC_CALLBACK), id="executor"
+                TEST_SYNC_CALLBACK,
+                ExecutorCallback(
+                    callback_def=TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH
+                ),
+                id="executor",
             ),
         ],
     )
@@ -89,10 +94,13 @@ class TestTriggererCallback:
 
         retrieved = session.query(Callback).filter_by(id=callback.id).one()
         assert isinstance(retrieved, TriggererCallback)
-        assert retrieved.created_at is not None
-        assert retrieved.state == CallbackState.PENDING
-        assert retrieved.priority_weight == 1
+        assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
+        assert retrieved.state == CallbackState.PENDING
+        assert retrieved.output is None
+        assert retrieved.priority_weight == 1
+        assert retrieved.created_at is not None
+        assert retrieved.trigger_id is None
 
     def test_queue(self):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
@@ -106,19 +114,22 @@ class TestExecutorCallback:
     @pytest.mark.db_test
     def test_polymorphic_serde(self, session):
         """Test that ExecutorCallback can be serialized and deserialized"""
-        callback = ExecutorCallback(TEST_SYNC_CALLBACK)
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
         session.add(callback)
         session.commit()
 
         retrieved = session.query(Callback).filter_by(id=callback.id).one()
         assert isinstance(retrieved, ExecutorCallback)
-        assert retrieved.created_at is not None
-        assert retrieved.state == CallbackState.PENDING
-        assert retrieved.priority_weight == 1
+        assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_SYNC_CALLBACK.serialize()
+        assert retrieved.state == CallbackState.PENDING
+        assert retrieved.output is None
+        assert retrieved.priority_weight == 1
+        assert retrieved.created_at is not None
+        assert retrieved.trigger_id is None
 
     def test_queue(self):
-        callback = ExecutorCallback(TEST_SYNC_CALLBACK)
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
         assert callback.state == CallbackState.PENDING
 
         callback.queue()
