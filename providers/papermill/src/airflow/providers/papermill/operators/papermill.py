@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection, Sequence
+from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 class NoteBook(File):
     """Jupyter notebook."""
 
-    template_fields: ClassVar[Collection[str]] = {"parameters", *File.template_fields}
+    template_fields: ClassVar[tuple[str, ...]] = ("parameters", *File.template_fields)
 
     type_hint: str | None = "jupyter_notebook"
     parameters: dict | None = {}

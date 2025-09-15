@@ -64,7 +64,7 @@ export const TaskInstanceMetrics = ({
         <RouterLink
           to={`/task_instances?${SearchParamsKeys.START_DATE}=${startDate}${endDate === undefined ? "" : `&${SearchParamsKeys.END_DATE}=${endDate}`}`}
         >
-          <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+          <StateBadge colorPalette="brand" fontSize="md" variant="solid">
             <MdOutlineTask />
             {total}
           </StateBadge>

@@ -54,9 +54,18 @@ def pytest_configure(config: pytest.Config) -> None:
     # Always skip looking for tests in these folders!
     config.addinivalue_line("norecursedirs", "tests/test_dags")
 
+    config.addinivalue_line("markers", "log_level: ")
+
     import airflow.settings
 
     airflow.settings.configure_policy_plugin_manager()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _init_log():
+    from airflow.sdk.log import configure_logging
+
+    configure_logging()
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -90,31 +99,42 @@ def test_dags_dir():
 
 
 @pytest.fixture
-def captured_logs(request):
+def captured_logs(request, monkeypatch):
     import structlog
+    import structlog.processors
 
+    from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
     from airflow.sdk.log import configure_logging, reset_logging
 
     # Use our real log config
     reset_logging()
-    configure_logging(enable_pretty_log=False)
+    configure_logging(json_output=False, colored_console_log=False)
 
     # Get log level from test parameter, which can either be a single log level or a
     # tuple of log level and desired output type, defaulting to INFO if not provided
     log_level = logging.INFO
     output = "dict"
-    param = getattr(request, "param", logging.INFO)
+
+    param = getattr(request, "param", None)
+    if not param:
+        mark = next(request.node.iter_markers(name="log_level"), None)
+        param = mark.args[0] if mark is not None else None
+
     if isinstance(param, int):
         log_level = param
     elif isinstance(param, tuple):
         log_level = param[0]
         output = param[1]
 
-    # We want to capture all logs, but we don't want to see them in the test output
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
+    monkeypatch.setitem(PER_LOGGER_LEVELS, "", log_level)
 
     cur_processors = structlog.get_config()["processors"]
     processors = cur_processors.copy()
+
+    if not any(isinstance(proc, structlog.processors.MaybeTimeStamper) for proc in processors):
+        timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+        processors.append(timestamper)
+
     if output == "dict":
         # We need to replace remove the last processor (the one that turns JSON into text, as we want the
         # event dict for tests)

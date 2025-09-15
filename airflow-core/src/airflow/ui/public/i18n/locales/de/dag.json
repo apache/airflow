@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "Bündel Url",
     "noCode": "Kein Programmcode gefunden",
+    "parseDuration": "Einlesedauer:",
     "parsedAt": "Eingelesen um:"
   },
   "extraLinks": "Extra Links",
