@@ -22,7 +22,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { useConnectionServiceTestConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
 
-export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
+export const useTestConnection = (
+  setConnected: Dispatch<SetStateAction<boolean | undefined>>,
+  setMessage: Dispatch<SetStateAction<string | undefined>>
+) => {
   const queryClient = useQueryClient();
 
   const onSuccess = async (res: ConnectionTestResponse) => {
@@ -30,10 +33,12 @@ export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean 
       queryKey: [useConnectionServiceGetConnectionsKey],
     });
     setConnected(res.status);
+    setMessage(res.message);
   };
 
-  const onError = () => {
+  const onError = (error: any) => {
     setConnected(false);
+    setMessage(error?.response?.data?.detail || "Connection test failed");
   };
 
   return useConnectionServiceTestConnection({

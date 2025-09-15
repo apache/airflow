@@ -24,6 +24,7 @@ import type { ConnectionResponse, ConnectionBody } from "openapi/requests/types.
 import ActionButton from "src/components/ui/ActionButton";
 import { useConfig } from "src/queries/useConfig";
 import { useTestConnection } from "src/queries/useTestConnection";
+import { Tooltip } from "src/components/ui";
 
 type TestConnectionOption = "Disabled" | "Enabled" | "Hidden";
 type Props = {
@@ -37,6 +38,7 @@ const disconnectedIcon = <FiWifiOff color="red" />;
 const TestConnectionButton = ({ connection }: Props) => {
   const { t: translate } = useTranslation("admin");
   const [icon, setIcon] = useState(defaultIcon);
+  const [message, setMessage] = useState<string | undefined>(undefined);
   const testConnection = useConfig("test_connection");
   let option: TestConnectionOption;
 
@@ -63,28 +65,31 @@ const TestConnectionButton = ({ connection }: Props) => {
   const { isPending, mutate } = useTestConnection((result) => {
     if (result === undefined) {
       setIcon(defaultIcon);
+      setMessage(undefined);
     } else if (result === true) {
       setIcon(connectedIcon);
     } else {
       setIcon(disconnectedIcon);
     }
-  });
+  }, setMessage);
 
   return (
-    <ActionButton
-      actionName={
-        option === "Enabled" ? translate("connections.test") : translate("connections.testDisabled")
-      }
-      disabled={option === "Disabled"}
-      display={option === "Hidden" ? "none" : "flex"}
-      icon={icon}
-      loading={isPending}
-      onClick={() => {
-        mutate({ requestBody: connectionBody });
-      }}
-      text={translate("connections.test")}
-      withText={false}
-    />
+    <Tooltip content={message || translate("connections.test")}>
+      <ActionButton
+        actionName={
+          option === "Enabled" ? translate("connections.test") : translate("connections.testDisabled")
+        }
+        disabled={option === "Disabled"}
+        display={option === "Hidden" ? "none" : "flex"}
+        icon={icon}
+        loading={isPending}
+        onClick={() => {
+          mutate({ requestBody: connectionBody });
+        }}
+        text={translate("connections.test")}
+        withText={false}
+      />
+    </Tooltip>
   );
 };
 
