@@ -21,12 +21,13 @@ import locale
 import warnings
 from base64 import b64encode
 from os.path import dirname
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
+from airflow.providers.microsoft.azure.version_compat import Context
 from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -42,9 +43,6 @@ try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[no-redef]
-
-if TYPE_CHECKING:
-    from airflow.providers.microsoft.azure.version_compat import Context
 
 
 class TestMSGraphAsyncOperator:
