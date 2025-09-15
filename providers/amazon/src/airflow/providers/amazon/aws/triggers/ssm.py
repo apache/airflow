@@ -66,8 +66,8 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()
-        async with hook.async_conn as client:
-            response = client.list_command_invocations(CommandId=self.command_id)
+        async with await hook.get_async_conn() as client:
+            response = await client.list_command_invocations(CommandId=self.command_id)
             instance_ids = [invocation["InstanceId"] for invocation in response.get("CommandInvocations", [])]
             waiter = hook.get_waiter(self.waiter_name, deferrable=True, client=client)
 
