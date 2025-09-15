@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-09T19:12:52.628244
+# This constraints file was automatically generated on 2025-09-15T02:30:20.714148
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -56,7 +56,6 @@ aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
 aiosignal==1.4.0
-aiosmtplib==4.0.2
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
@@ -217,7 +216,7 @@ gcsfs==2025.9.0
 geomet==0.2.1.post1
 gevent==25.8.2
 gitdb==4.0.12
-google-ads==28.0.0
+google-ads==28.0.0.post1
 google-analytics-admin==0.25.0
 google-api-core==2.25.1
 google-api-python-client==2.181.0
@@ -492,7 +491,7 @@ pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
 pydruid==0.6.9
-pyenchant==3.2.2
+pyenchant==3.3.0
 pyexasol==1.1.0
 pygraphviz==1.14
 pygtrie==2.5.0
@@ -713,4 +712,4 @@ zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.0
 zope.interface==8.0
-zstandard==0.24.0
+zstandard==0.25.0
