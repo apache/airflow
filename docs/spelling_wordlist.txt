@@ -1485,6 +1485,7 @@ redelivery
 Redhat
 redis
 rediss
+reindex
 redoc
 redownloading
 redshift
