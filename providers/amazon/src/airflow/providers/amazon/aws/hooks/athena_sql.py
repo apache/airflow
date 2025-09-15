@@ -66,6 +66,20 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
     supports_autocommit = True
 
     def __init__(self, athena_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+        # Extract Athena-specific parameters from kwargs to avoid passing them to AwsBaseHook
+        # These parameters come from connection extra_dejson and hook_params
+        self.s3_staging_dir = kwargs.pop("s3_staging_dir", None)
+        self.work_group = kwargs.pop("work_group", None)
+        self.driver = kwargs.pop("driver", None)
+        self.aws_domain = kwargs.pop("aws_domain", None)
+        self.session_kwargs = kwargs.pop("session_kwargs", None)
+        self.config_kwargs = kwargs.pop("config_kwargs", None)
+        self.role_arn = kwargs.pop("role_arn", None)
+        self.assume_role_method = kwargs.pop("assume_role_method", None)
+        self.assume_role_kwargs = kwargs.pop("assume_role_kwargs", None)
+        self.aws_session_token = kwargs.pop("aws_session_token", None)
+        self.endpoint_url = kwargs.pop("endpoint_url", None)
+        
         super().__init__(*args, **kwargs)
         self.athena_conn_id = athena_conn_id
 
@@ -144,10 +158,10 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             raise AirflowException("region_name must be specified in the connection's extra")
 
         return dict(
-            driver=self.conn.extra_dejson.get("driver", "rest"),
+            driver=self.conn.extra_dejson.get("driver", self.driver or "rest"),
             schema_name=self.conn.schema,
             region_name=self.conn.region_name,
-            aws_domain=self.conn.extra_dejson.get("aws_domain", "amazonaws.com"),
+            aws_domain=self.conn.extra_dejson.get("aws_domain", self.aws_domain or "amazonaws.com"),
         )
 
     def get_uri(self) -> str:
@@ -169,11 +183,32 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         """Get a ``pyathena.Connection`` object."""
         conn_params = self._get_conn_params()
 
+        # Start with connection extra_dejson, then override with hook parameters
         conn_kwargs: dict = {
             "schema_name": conn_params["schema_name"],
             "region_name": conn_params["region_name"],
             "session": self.get_session(region_name=conn_params["region_name"]),
             **self.conn.extra_dejson,
         }
+        
+        # Override with hook parameters if they were provided
+        if self.s3_staging_dir is not None:
+            conn_kwargs["s3_staging_dir"] = self.s3_staging_dir
+        if self.work_group is not None:
+            conn_kwargs["work_group"] = self.work_group
+        if self.session_kwargs is not None:
+            conn_kwargs["session_kwargs"] = self.session_kwargs
+        if self.config_kwargs is not None:
+            conn_kwargs["config_kwargs"] = self.config_kwargs
+        if self.role_arn is not None:
+            conn_kwargs["role_arn"] = self.role_arn
+        if self.assume_role_method is not None:
+            conn_kwargs["assume_role_method"] = self.assume_role_method
+        if self.assume_role_kwargs is not None:
+            conn_kwargs["assume_role_kwargs"] = self.assume_role_kwargs
+        if self.aws_session_token is not None:
+            conn_kwargs["aws_session_token"] = self.aws_session_token
+        if self.endpoint_url is not None:
+            conn_kwargs["endpoint_url"] = self.endpoint_url
 
         return pyathena.connect(**conn_kwargs)
