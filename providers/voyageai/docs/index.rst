@@ -6,7 +6,7 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+..   http://www.apache.org/licenses/LICENSE-2.0
 
 .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
@@ -15,45 +15,37 @@
     specific language governing permissions and limitations
     under the License.
 
-Voyage AI Provider
-==================
+.. _apache-airflow-providers-voyageai:
 
-The Voyage AI provider package allows you to connect to the `Voyage AI API <https://docs.voyageai.com/docs/introduction>`__
-to generate high-quality text embeddings within your Airflow DAGs.
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Guides
+==================================================
+Apache Airflow Provider for Voyage AI (`voyageai`)
+==================================================
 
 .. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: References
+   :maxdepth: 1
+   :hidden:
 
-    _api/airflow/providers/voyageai/operators/embedding/index
-    _api/airflow/providers/voyageai/hooks/voyage/index
+   self
 
 .. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: System Tests
+   :maxdepth: 1
+   :caption: Guides
+
+   operators/embedding
 
 .. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Resources
+   :maxdepth: 1
+   :caption: References
 
-    Changelog <https://airflow.apache.org/docs/apache-airflow-providers-voyageai/stable/changelog.html>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-voyageai/>
-    Source Code <https://github.com/apache/airflow/tree/main/airflow/providers/voyageai>
+   _api/airflow/providers/voyageai/index
 
 .. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Internals
+   :maxdepth: 1
+   :caption: Provider Details
 
-    _api/airflow/providers/voyageai/index
+   changelog
+   commits
+```
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
