@@ -33,6 +33,7 @@ import pytest
 
 from airflow.providers_manager import ProvidersManager
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow_shared.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
@@ -46,6 +47,60 @@ from airflow_shared.configuration import (
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
+
+
+class SimpleSecretsBackend(BaseSecretsBackend):
+    """Simple test secrets backend."""
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_config(self, key: str) -> str | None:
+        return "postgresql://"
+
+    def get_variable(self, key: str) -> str | None:
+        return None
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        return None
+
+
+class ErrorSecretsBackend(BaseSecretsBackend):
+    """Test secrets backend that raises errors."""
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_config(self, key: str) -> str | None:
+        raise ConnectionError("Test connection error")
+
+    def get_variable(self, key: str) -> str | None:
+        raise ConnectionError("Test connection error")
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        raise ConnectionError("Test connection error")
+
+
+class VaultSecretsBackend(BaseSecretsBackend):
+    """Test Vault-like secrets backend."""
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_config(self, key: str) -> str | None:
+        return "postgresql://"
+
+    def get_variable(self, key: str) -> str | None:
+        return None
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        return None
 
 
 @contextlib.contextmanager
@@ -341,35 +396,14 @@ key1 = true
             assert test_conf.getboolean(section, key) is False
 
     @skip_if_force_lowest_dependencies_marker
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend"): "tests.configuration.test_configuration.VaultSecretsBackend",
             ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
         }
     )
-    def test_config_from_secret_backend(self, mock_hvac):
+    def test_config_from_secret_backend(self):
         """Get Config Value from a Secret Backend"""
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            "request_id": "2d48a2ad-6bcb-e5b6-429d-da35fdf31f56",
-            "lease_id": "",
-            "renewable": False,
-            "lease_duration": 0,
-            "data": {
-                "data": {"value": "sqlite:////Users/airflow/airflow/airflow.db"},
-                "metadata": {
-                    "created_time": "2020-03-28T02:10:54.301784Z",
-                    "deletion_time": "",
-                    "destroyed": False,
-                    "version": 1,
-                },
-            },
-            "wrap_info": None,
-            "warnings": None,
-            "auth": None,
-        }
 
         test_config = """[test]
 sql_alchemy_conn_secret = sql_alchemy_conn
@@ -384,7 +418,7 @@ sql_alchemy_conn = airflow
             ("test", "sql_alchemy_conn"),
         }
 
-        assert test_conf.get("test", "sql_alchemy_conn") == "sqlite:////Users/airflow/airflow/airflow.db"
+        assert test_conf.get("test", "sql_alchemy_conn") == "postgresql://"
 
     def test_hidding_of_sensitive_config_values(self):
         test_config = """[test]
@@ -412,19 +446,14 @@ sql_alchemy_conn = airflow
         assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
     @skip_if_force_lowest_dependencies_marker
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend"): "tests.configuration.test_configuration.ErrorSecretsBackend",
             ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
         }
     )
-    def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
-        """Get Config Value from a Secret Backend"""
-        mock_client = mock.MagicMock()
-        # mock_client.side_effect = AirflowConfigException
-        mock_hvac.Client.return_value = mock_client
-        mock_client.secrets.kv.v2.read_secret_version.return_value = Exception
+    def test_config_raise_exception_from_secret_backend_connection_error(self):
+        """Get Config Value from a Secret Backend that raises connection errors"""
 
         test_config = """[test]
 sql_alchemy_conn_secret = sql_alchemy_conn
@@ -970,7 +999,7 @@ key7 =
             (
                 "workers",
                 "secrets_backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ): "tests.configuration.test_configuration.SimpleSecretsBackend",
             ("workers", "secrets_backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
         }
     )
@@ -980,7 +1009,7 @@ key7 =
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
         assert len(backends) == 2
-        assert "SystemsManagerParameterStoreBackend" in backend_classes
+        assert "SimpleSecretsBackend" in backend_classes
 
     @skip_if_force_lowest_dependencies_marker
     @conf_vars(
@@ -988,20 +1017,17 @@ key7 =
             (
                 "workers",
                 "secrets_backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ): "tests.configuration.test_configuration.SimpleSecretsBackend",
             ("workers", "secrets_backend_kwargs"): '{"use_ssl": false}',
         }
     )
     def test_secrets_backends_kwargs_on_workers(self):
         """Tests if secrets backend kwargs are loaded correctly for workers."""
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-        systems_manager = next(
-            backend
-            for backend in backends
-            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        test_backend = next(
+            backend for backend in backends if backend.__class__.__name__ == "SimpleSecretsBackend"
         )
-        assert systems_manager.kwargs == {}
-        assert systems_manager.use_ssl is False
+        assert test_backend.use_ssl is False
 
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
@@ -1016,21 +1042,21 @@ key7 =
         [
             # pick right backend and kwargs
             pytest.param(
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "tests.configuration.test_configuration.SimpleSecretsBackend",
                 '{"connections_prefix": "/airflow", "profile_name": null}',
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "SimpleSecretsBackend",
                 {"connections_prefix": "/airflow", "profile_name": None},
                 id="both-defined",
             ),
             # do not pick kwargs of secrets backend when not defined for worker
             pytest.param(
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "tests.configuration.test_configuration.SimpleSecretsBackend",
                 "",
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "SimpleSecretsBackend",
                 {},
                 id="worker-backend-defined-not-kwargs",
             ),
