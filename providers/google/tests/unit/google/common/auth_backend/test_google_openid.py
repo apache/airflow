@@ -93,7 +93,8 @@ def admin_user(google_openid_app):
     importlib.util.find_spec("airflow.providers.fab") is None, reason="FAB provider is not installed"
 )
 @pytest.mark.skipif(
-    importlib.util.find_spec("flask_limiter.wrappers") is None, reason="flask_limiter.wrappers is missing",
+    importlib.util.find_spec("flask_limiter.wrappers") is None,
+    reason="flask_limiter.wrappers is missing",
 )
 @pytest.mark.db_test
 class TestGoogleOpenID:
