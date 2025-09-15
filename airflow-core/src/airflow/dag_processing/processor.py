@@ -44,12 +44,20 @@ from airflow.sdk.execution_time.comms import (
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetVariable,
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     VariableResult,
+    XComCountResponse,
+    XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_task_error_email
@@ -107,6 +115,10 @@ ToManager = Annotated[
     | DeleteVariable
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetXCom
+    | GetXComCount
+    | GetXComSequenceItem
+    | GetXComSequenceSlice
     | MaskSecret,
     Field(discriminator="type"),
 ]
@@ -118,7 +130,11 @@ ToDagProcessor = Annotated[
     | PreviousDagRunResult
     | PrevSuccessfulDagRunResult
     | ErrorResponse
-    | OKResponse,
+    | OKResponse
+    | XComCountResponse
+    | XComResult
+    | XComSequenceIndexResult
+    | XComSequenceSliceResult,
     Field(discriminator="type"),
 ]
 
@@ -459,7 +475,11 @@ class DagFileProcessorProcess(WatchedSubprocess):
         self.send_msg(msg, request_id=0)
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
-        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+        from airflow.sdk.api.datamodels._generated import (
+            ConnectionResponse,
+            VariableResponse,
+            XComSequenceIndexResponse,
+        )
 
         resp: BaseModel | None = None
         dump_opts = {}
@@ -496,6 +516,34 @@ class DagFileProcessorProcess(WatchedSubprocess):
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
             resp = dagrun_result
             dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, GetXCom):
+            xcom = self.client.xcoms.get(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+            )
+            xcom_result = XComResult.from_xcom_response(xcom)
+            resp = xcom_result
+        elif isinstance(msg, GetXComCount):
+            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+        elif isinstance(msg, GetXComSequenceItem):
+            xcom = self.client.xcoms.get_sequence_item(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
+            )
+            if isinstance(xcom, XComSequenceIndexResponse):
+                resp = XComSequenceIndexResult.from_response(xcom)
+            else:
+                resp = xcom
+        elif isinstance(msg, GetXComSequenceSlice):
+            xcoms = self.client.xcoms.get_sequence_slice(
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.start,
+                msg.stop,
+                msg.step,
+                msg.include_prior_dates,
+            )
+            resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, MaskSecret):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
             from airflow.sdk.log import mask_secret

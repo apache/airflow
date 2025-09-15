@@ -183,7 +183,7 @@ class TestHITLOperator:
         assert hitl_detail_model.multiple is False
         assert hitl_detail_model.params == {"input_1": 1}
         assert hitl_detail_model.assignees == [{"id": "test", "name": "test"}]
-        assert hitl_detail_model.response_at is None
+        assert hitl_detail_model.responded_at is None
         assert hitl_detail_model.responded_by is None
         assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
@@ -230,17 +230,24 @@ class TestHITLOperator:
             params={"input": 1},
         )
 
+        responded_at_dt = timezone.utcnow()
+
         ret = hitl_op.execute_complete(
             context={},
             event={
                 "chosen_options": ["1"],
                 "params_input": {"input": 2},
+                "responded_at": responded_at_dt,
                 "responded_by_user": {"id": "test", "name": "test"},
             },
         )
 
-        assert ret["chosen_options"] == ["1"]
-        assert ret["params_input"] == {"input": 2}
+        assert ret == {
+            "chosen_options": ["1"],
+            "params_input": {"input": 2},
+            "responded_at": responded_at_dt,
+            "responded_by_user": {"id": "test", "name": "test"},
+        }
 
     def test_validate_chosen_options_with_invalid_content(self) -> None:
         hitl_op = HITLOperator(
@@ -401,11 +408,14 @@ class TestApprovalOperator:
             subject="This is subject",
         )
 
+        responded_at_dt = timezone.utcnow()
+
         ret = hitl_op.execute_complete(
             context={},
             event={
                 "chosen_options": ["Approve"],
                 "params_input": {},
+                "responded_at": responded_at_dt,
                 "responded_by_user": {"id": "test", "name": "test"},
             },
         )
@@ -413,6 +423,7 @@ class TestApprovalOperator:
         assert ret == {
             "chosen_options": ["Approve"],
             "params_input": {},
+            "responded_at": responded_at_dt,
             "responded_by_user": {"id": "test", "name": "test"},
         }
 
@@ -433,6 +444,7 @@ class TestApprovalOperator:
                 event={
                     "chosen_options": ["Reject"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
@@ -495,6 +507,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["branch_1"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
@@ -511,6 +524,8 @@ class TestHITLBranchOperator:
 
             branch_op >> [EmptyOperator(task_id=f"branch_{i}") for i in range(1, 6)]
 
+        responded_at_dt = timezone.utcnow()
+
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("make_choice")
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -519,6 +534,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": [f"branch_{i}" for i in range(1, 4)],
                     "params_input": {},
+                    "responded_at": responded_at_dt,
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
@@ -544,6 +560,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["Approve"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
@@ -575,6 +592,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["Approve", "KeepAsIs"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
@@ -600,6 +618,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["branch_2"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
@@ -625,6 +644,7 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["Approve"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
