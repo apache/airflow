@@ -383,9 +383,8 @@ class TestCalculatedDeadlineDatabaseCalls:
                     # No DAG runs exist, so it should use 24-hour default
                     result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
                     mock_fetch.assert_not_called()
-                    # Should be DEFAULT_DATE + 48 hours (default) + 1 hour (interval)
-                    expected = DEFAULT_DATE + timedelta(hours=49)
-                    assert result == expected
+                    # Should return None when no DAG runs exist
+                    assert result is None
             else:
                 result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
@@ -427,6 +426,39 @@ class TestCalculatedDeadlineDatabaseCalls:
             expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
 
             assert result == expected
+
+    def test_average_runtime_with_insufficient_history(self, session, dag_maker):
+        """Test AverageRuntimeDeadline when insufficient historical data exists."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create only 5 completed DAG runs (less than default limit of 10)
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800, 5400, 2700]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"insufficient_run_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        reference = DeadlineReference.AVERAGE_RUNTIME()
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            # Should return None since insufficient runs
+            assert result is None
 
 
 class TestDeadlineReference:

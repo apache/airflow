@@ -283,7 +283,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -295,10 +295,11 @@ class ReferenceModels:
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
                 self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
 
-            return self._evaluate_with(session=session, **filtered_kwargs) + interval
+            base_time = self._evaluate_with(session=session, **filtered_kwargs)
+            return base_time + interval if base_time is not None else None
 
         @abstractmethod
-        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -375,7 +376,7 @@ class ReferenceModels:
         required_kwargs = {"dag_id"}
 
         @provide_session
-        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             from airflow.models import DagRun
 
             dag_id = kwargs["dag_id"]
@@ -395,21 +396,20 @@ class ReferenceModels:
             durations = session.execute(query).scalars().all()
 
             if len(durations) < self.limit:
-                logger.warning(
-                    "In the AverageRuntimeDeadline: Only %d completed DAG runs found for dag_id: %s (need %d), using 48 hour default",
+                logger.info(
+                    "Only %d completed DAG runs found for dag_id: %s (need %d), skipping deadline creation",
                     len(durations),
                     dag_id,
                     self.limit,
                 )
-                avg_seconds = 48 * 3600  # 48 hours as default
-            else:
-                avg_seconds = sum(durations) / len(durations)
-                logger.info(
-                    "Average runtime for dag_id %s (from %d runs): %.2f seconds",
-                    dag_id,
-                    len(durations),
-                    avg_seconds,
-                )
+                return None
+            avg_seconds = sum(durations) / len(durations)
+            logger.info(
+                "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                dag_id,
+                len(durations),
+                avg_seconds,
+            )
             return timezone.utcnow() + timedelta(seconds=avg_seconds)
 
         def serialize_reference(self) -> dict:
