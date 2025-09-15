@@ -334,17 +334,14 @@ class BaseDatabricksHook(BaseHook):
         try:
             from azure.identity import ClientSecretCredential, ManagedIdentityCredential
 
-            if self.databricks_conn.login is None or self.databricks_conn.password is None:
-                raise AirflowException("Azure SPN credentials aren't provided (login/password).")
-
             for attempt in self._get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
                         token = ManagedIdentityCredential().get_token(f"{resource}/.default")
                     else:
                         credential = ClientSecretCredential(
-                            client_id=self.databricks_conn.login,
-                            client_secret=self.databricks_conn.password,
+                            client_id=self.databricks_conn.login or "",
+                            client_secret=self.databricks_conn.password or "",
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         )
                         token = credential.get_token(f"{resource}/.default")
@@ -385,9 +382,6 @@ class BaseDatabricksHook(BaseHook):
             )
 
             conn = await self.adatabricks_conn()
-            if conn.login is None or conn.password is None:
-                raise AirflowException("Azure SPN credentials aren't provided (login/password).")
-
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if conn.extra_dejson.get("use_azure_managed_identity", False):
@@ -395,8 +389,8 @@ class BaseDatabricksHook(BaseHook):
                             token = await credential.get_token(f"{resource}/.default")
                     else:
                         async with AsyncClientSecretCredential(
-                            client_id=conn.login,
-                            client_secret=conn.password,
+                            client_id=conn.login or "",
+                            client_secret=conn.password or "",
                             tenant_id=conn.extra_dejson["azure_tenant_id"],
                         ) as credential:
                             token = await credential.get_token(f"{resource}/.default")
