@@ -90,7 +90,7 @@
   "limitedList.clickToInteract": "點擊標籤以篩選 Dags",
   "limitedList.clickToOpenFull": "點擊 \"+{{count}} 更多\" 以開啟完整檢視",
   "limitedList.copyPasteText": "你可以複製並貼上上方文字",
-  "limitedList.showingItems": "顯示 {{count}} 項目",
+  "limitedList.showingItems": "顯示 {{count}} 個項目",
   "logs": {
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
