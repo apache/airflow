@@ -38,9 +38,9 @@ Prerequisites
 - Admin access to Airflow and your SSO provider
 
 .. note::
-   For provider-specific authentication setup (obtaining client IDs, secrets, etc.), 
+   For provider-specific authentication setup (obtaining client IDs, secrets, etc.),
    refer to the relevant provider documentation:
-   
+
    - **Google**: :doc:`apache-airflow-providers-google:api-auth-backend/google-openid` and :doc:`apache-airflow-providers-google:connections/gcp`
    - **Microsoft Azure**: :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
    - **Amazon**: :doc:`apache-airflow-providers-amazon:auth-manager/setup/identity-center`
@@ -175,7 +175,7 @@ Provider Examples
    }]'
 
 .. seealso::
-   For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure` 
+   For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
    and the `Azure OAuth2 documentation <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_.
 
 **Google OAuth2**
@@ -200,7 +200,7 @@ Provider Examples
    }]'
 
 .. seealso::
-   For Google OAuth setup and credential configuration, see :doc:`apache-airflow-providers-google:connections/gcp` 
+   For Google OAuth setup and credential configuration, see :doc:`apache-airflow-providers-google:connections/gcp`
    and :doc:`apache-airflow-providers-google:api-auth-backend/google-openid`.
 
 Troubleshooting
