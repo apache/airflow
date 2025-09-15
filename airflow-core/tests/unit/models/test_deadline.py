@@ -380,22 +380,53 @@ class TestCalculatedDeadlineDatabaseCalls:
             elif reference == DeadlineReference.AVERAGE_RUNTIME():
                 with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
                     mock_utcnow.return_value = DEFAULT_DATE
-                    with mock.patch.object(session, "execute") as mock_execute:
-                        # Mock the result object that execute() returns
-                        mock_result = mock.Mock()
-                        mock_scalars = mock.Mock()
-                        mock_scalars.all.return_value = [3600]
-                        mock_result.scalars.return_value = mock_scalars
-                        mock_execute.return_value = mock_result
-                        result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
-                        mock_fetch.assert_not_called()
-                        # Should be DEFAULT_DATE + default average deadline of 48 hours + the 1 hour mocked execution time
-                        expected = DEFAULT_DATE + timedelta(hours=48) + timedelta(hours=1)
-                        assert result == expected
+                    # No DAG runs exist, so it should use 24-hour default
+                    result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+                    mock_fetch.assert_not_called()
+                    # Should be DEFAULT_DATE + 48 hours (default) + 1 hour (interval)
+                    expected = DEFAULT_DATE + timedelta(hours=49)
+                    assert result == expected
             else:
                 result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
                 assert result == DEFAULT_DATE + interval
+
+    def test_average_runtime_with_sufficient_history(self, session, dag_maker):
+        """Test AverageRuntimeDeadline when enough historical data exists."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create 10 completed DAG runs with known durations
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800, 5400, 2700, 4500, 3300, 6000, 2400, 4200]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"test_run_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        # Test with default limit (10)
+        reference = DeadlineReference.AVERAGE_RUNTIME()
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            # Calculate expected average: sum(durations) / len(durations)
+            expected_avg_seconds = sum(durations) / len(durations)
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+
+            assert result == expected
 
 
 class TestDeadlineReference:
