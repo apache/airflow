@@ -1420,6 +1420,46 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
 
+    def test_dag_id_pattern_filter(self, test_client, session):
+        """Test DAG ID pattern filtering for task instances."""
+        # Create task instances for multiple DAGs using existing example DAGs
+        dag1_id = "example_python_operator"
+        dag2_id = "example_skip_dag"
+
+        self.create_task_instances(session, dag_id=dag1_id)
+        self.create_task_instances(session, dag_id=dag2_id)
+
+        # Test exact match
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances", params={"dag_id_pattern": "example_python_operator"}
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert all(ti["dag_id"] == dag1_id for ti in body["task_instances"])
+
+        # Test wildcard pattern - all example_*_*
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"dag_id_pattern": "example_%"})
+        assert response.status_code == 200
+        body = response.json()
+        dag_ids = {ti["dag_id"] for ti in body["task_instances"]}
+        assert dag_ids == {dag1_id, dag2_id}
+
+        # Test wildcard pattern - anything with 'skip'
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"dag_id_pattern": "%skip%"})
+        assert response.status_code == 200
+        body = response.json()
+        dag_ids = {ti["dag_id"] for ti in body["task_instances"]}
+        assert dag_ids == {dag2_id}
+
+        # Test pattern that matches nothing
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances", params={"dag_id_pattern": "nonexistent"}
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 0
+        assert body["task_instances"] == []
+
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
     def setup_method(self):
