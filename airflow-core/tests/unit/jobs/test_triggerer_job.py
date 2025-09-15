@@ -109,12 +109,10 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.flush()
 
     dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
-    dag_version = DagVersion.get_latest_version(dag_id="test_dag", session=session)
-    dag_version_number = dag_version.version_number + 1 if dag_version else 1
     dag_version = DagVersion.write_dag(
         dag_id="test_dag",
         bundle_name=bundle_name,
-        version_number=dag_version_number,
+        version_number=1,
     )
     dag_model.dag_versions.append(dag_version)
     session.add(dag_model)
