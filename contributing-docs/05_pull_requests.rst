@@ -278,9 +278,9 @@ is not done in the constructor are detected in PRs.
 Don't raise AirflowException directly
 ..............................................
 
-Our community has decided to stop adding new ``raise AirflowException`` and to adopt the following practices when an exception is necessary. For details check the relevant `mailing list thread <hhttps://lists.apache.org/thread/t8bnhyqy77kq4fk7fj3fmjd5wo9kv6w0>`_.
+Our community has decided to stop adding new ``raise AirflowException`` and to adopt the following practices when an exception is necessary. For details check the relevant `mailing list thread <https://lists.apache.org/thread/t8bnhyqy77kq4fk7fj3fmjd5wo9kv6w0>`_.
 
-1. In most cases, we should prioritize using Python’s standard exceptions (e.g., ``ValueError``, ``TypeError``, ``OSError``)
+1. In most cases, we should prioritize using Python's standard exceptions (e.g., ``ValueError``, ``TypeError``, ``OSError``)
    instead of wrapping everything in ``AirflowException``.
 2. Within ``airflow-core``, we should define and utilize more specific exception classes under ``airflow-core/src/airflow/exceptions.py``.
 3. For provider-specific implementations, exceptions should be defined within ``providers/<provider>/src/airflow/providers/<provider>/exceptions.py``.
