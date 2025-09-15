@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-15T02:23:34.380025
+# This constraints file was automatically generated on 2025-09-15T13:52:12.221679
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -329,10 +329,10 @@ jaraco.context==6.0.1
 jaraco.functools==4.3.0
 jedi==0.19.2
 jeepney==0.9.0
-jiter==0.10.0
+jiter==0.11.0
 jmespath==0.10.0
 joblib==1.5.2
-joserfc==1.3.2
+joserfc==1.3.3
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -654,10 +654,10 @@ typer==0.17.4
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.9.0.20250906
 types-PyMySQL==1.1.0.20250914
-types-PyYAML==6.0.12.20250822
+types-PyYAML==6.0.12.20250915
 types-aiofiles==24.1.0.20250822
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20250914
+types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
 types-docutils==0.22.0.20250914
 types-paramiko==3.5.0.20250801
@@ -707,7 +707,7 @@ yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
 ydb==3.21.9
-zeep==4.3.1
+zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.0

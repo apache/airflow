@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-15T02:26:25.227476
+# This constraints file was automatically generated on 2025-09-15T13:55:16.463390
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -416,7 +416,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.3.0
 jedi==0.19.2
 jeepney==0.9.0
-jiter==0.10.0
+jiter==0.11.0
 jmespath==0.10.0
 joblib==1.5.2
 jpype1==1.6.0
@@ -694,7 +694,7 @@ yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
 ydb==3.21.9
-zeep==4.3.1
+zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.0
