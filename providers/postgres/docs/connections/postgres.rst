@@ -96,7 +96,9 @@ Extra (optional)
     * ``iam`` - If set to ``True`` than use AWS IAM database authentication for
       `Amazon RDS <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html>`__,
       `Amazon Aurora <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html>`__
-      or `Amazon Redshift <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`__.
+      `Amazon Redshift <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`__
+      or use Microsoft Entra Authentication for
+      `Azure Postgres Flexible Server <https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/security-entra-concepts>`__.
     * ``aws_conn_id`` - AWS Connection ID which use for authentication via AWS IAM,
       if not specified then **aws_default** is used.
     * ``redshift`` - Used when AWS IAM database authentication enabled.
@@ -104,6 +106,9 @@ Extra (optional)
     * ``cluster-identifier`` - The unique identifier of the Amazon Redshift Cluster that contains the database
       for which you are requesting credentials. This parameter is case sensitive.
       If not specified than hostname from **Connection Host** is used.
+    * ``azure_conn_id`` - Azure Connection ID to be used for authentication via Azure Entra ID. Azure Oauth token
+      is retrieved from the azure connection which is used as password for PostgreSQL connection.
+
 
     Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
 

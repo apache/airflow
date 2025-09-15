@@ -444,6 +444,33 @@ class TestPostgresHookConn:
             port=(port or 5439),
         )
 
+    def test_get_conn_azure_iam(self, mocker, mock_connect):
+        mock_azure_conn_id = "azure_conn1"
+        mock_db_token = "azure_token1"
+        mock_conn_extra = {"iam": True, "azure_conn_id": mock_azure_conn_id}
+        self.connection.extra = json.dumps(mock_conn_extra)
+
+        mock_connection_class = mocker.patch("airflow.providers.postgres.hooks.postgres.Connection")
+        mock_azure_base_hook = mock_connection_class.get.return_value.get_hook.return_value
+        mock_azure_base_hook.get_token.return_value.token = mock_db_token
+
+        self.db_hook.get_conn()
+
+        # Check AzureBaseHook initialization and get_token call args
+        mock_connection_class.get.assert_called_once_with(mock_azure_conn_id)
+        mock_azure_base_hook.get_token.assert_called_once_with(PostgresHook.azure_oauth_scope)
+
+        # Check expected psycopg2 connection call args
+        mock_connect.assert_called_once_with(
+            user=self.connection.login,
+            password=mock_db_token,
+            host=self.connection.host,
+            dbname=self.connection.schema,
+            port=(self.connection.port or 5432),
+        )
+
+        assert mock_db_token in self.db_hook.sqlalchemy_url
+
     def test_get_uri_from_connection_without_database_override(self, mocker):
         expected: str = f"postgresql{'+psycopg' if USE_PSYCOPG3 else ''}://login:password@host:1/database"
         self.db_hook.get_connection = mocker.MagicMock(

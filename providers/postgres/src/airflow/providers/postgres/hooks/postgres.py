@@ -37,6 +37,11 @@ from airflow.exceptions import (
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
+try:
+    from airflow.sdk import Connection
+except ImportError:
+    from airflow.models.connection import Connection  # type: ignore[assignment]
+
 USE_PSYCOPG3: bool
 try:
     import psycopg as psycopg  # needed for patching in unit tests
@@ -63,11 +68,6 @@ if TYPE_CHECKING:
 
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
-
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
 CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
@@ -156,7 +156,9 @@ class PostgresHook(DbApiHook):
         "aws_conn_id",
         "sqlalchemy_scheme",
         "sqlalchemy_query",
+        "azure_conn_id",
     }
+    azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
@@ -177,6 +179,8 @@ class PostgresHook(DbApiHook):
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+        if conn.extra_dejson.get("iam", False):
+            conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
             drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
             username=self.__cast_nullable(conn.login, str),
@@ -441,8 +445,14 @@ class PostgresHook(DbApiHook):
         return PostgresHook._serialize_cell_ppg2(cell, conn)
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """Get the IAM token from different identity providers."""
+        if conn.extra_dejson.get("azure_conn_id"):
+            return self.get_azure_iam_token(conn)
+        return self.get_aws_iam_token(conn)
+
+    def get_aws_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
-        Get the IAM token.
+        Get the AWS IAM token.
 
         This uses AWSHook to retrieve a temporary password to connect to
         Postgres or Redshift. Port is required. If none is provided, the default
@@ -499,6 +509,18 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return cast("str", login), cast("str", token), port
+
+    def get_azure_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """
+        Get the Azure IAM token.
+
+        This uses AzureBaseHook to retrieve an OAUTH token to connect to Postgres.
+        """
+        azure_conn_id = conn.extra_dejson.get("azure_conn_id", "azure_default")
+        azure_conn = Connection.get(azure_conn_id)
+        azure_base_hook = azure_conn.get_hook()
+        token = azure_base_hook.get_token(self.azure_oauth_scope).token
+        return cast("str", conn.login or azure_conn.login), cast("str", token), conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
