@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.models.pool import Pool
@@ -201,6 +203,18 @@ class TestGetPools(TestPoolsEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/pools", params={"pool_name_pattern": "~"})
         assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_pools")
+    def test_should_call_get_authorized_pools(self, mock_get_authorized_pools, test_client):
+        self.create_pools()
+        mock_get_authorized_pools.return_value = {Pool.DEFAULT_POOL_NAME, POOL1_NAME}
+        response = test_client.get("/pools")
+        mock_get_authorized_pools.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [pool["name"] for pool in body["pools"]] == [Pool.DEFAULT_POOL_NAME, POOL1_NAME]
 
 
 class TestPatchPool(TestPoolsEndpoint):

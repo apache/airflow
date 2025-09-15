@@ -27,20 +27,16 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBITrigger,
     PowerBIWorkspaceListTrigger,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
+from airflow.providers.microsoft.azure.version_compat import (
+    BaseOperator,
+    BaseOperatorLink,
+)
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
-
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class PowerBILink(BaseOperatorLink):
