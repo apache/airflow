@@ -154,7 +154,6 @@ The following features are known missing and will be implemented in increments:
 - API token per worker: Today there is a global API token available only
 - Edge Worker Plugin
 
-  - Make plugin working on Airflow 3.0, depending on AIP-68
   - Overview about queues / jobs per queue
   - Allow starting Edge Worker REST API separate to api-server
   - Add some hints how to setup an additional worker
