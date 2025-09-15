@@ -287,7 +287,9 @@ def _delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
 
-# TODO: Update this
+# TODO:
+#    - Update this
+#    - Create an async-equivalent
 def _get_process_state(process_name: str, key: str) -> Any:
     from airflow.sdk.execution_time.comms import GetProcessState
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS

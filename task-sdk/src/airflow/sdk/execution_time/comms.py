@@ -933,6 +933,7 @@ ToSupervisor = Annotated[
     | GetDRCount
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetProcessState
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates
@@ -941,6 +942,7 @@ ToSupervisor = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
+    | PutProcessState
     | PutVariable
     | RescheduleTask
     | RetryTask

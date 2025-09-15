@@ -67,6 +67,7 @@ def import_all_models():
     import airflow.models.dagbundle
     import airflow.models.dagwarning
     import airflow.models.errors
+    import airflow.models.processstate
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
