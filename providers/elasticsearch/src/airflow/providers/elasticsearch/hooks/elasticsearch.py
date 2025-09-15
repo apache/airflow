@@ -252,7 +252,8 @@ class ElasticsearchPythonHook(BaseHook):
         super().__init__()
         warn(
             "ElasticsearchPythonHook is deprecated. "
-            "Use airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook instead."
+            "Use airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook instead.",
+            stacklevel=2,
         )
         self.hosts = hosts
         self.es_conn_args = es_conn_args or {}
@@ -408,7 +409,7 @@ class ElasticsearchHook(BaseHook):
             return Elasticsearch(**client_args)
         except Exception as e:
             raise AirflowConfigException(
-                "Failed to create Elasticsearch client with connection '%s': %s" % (self.conn_id, e)
+                f"Failed to create Elasticsearch client with connection '{self.conn_id}': {e}"
             )
 
     def _log_config_source(self) -> None:
@@ -451,8 +452,7 @@ class ElasticsearchHook(BaseHook):
             return True
         except ESConnectionError as e:
             raise AirflowException(
-                "Cannot connect to Elasticsearch cluster: %s. Check your connection '%s' configuration or environment variables."
-                % (e, self.conn_id)
+                f"Cannot connect to Elasticsearch cluster: {e}. Check your connection '{self.conn_id}' configuration or environment variables."
             )
         except Exception as e:
             self.log.error("Failed to connect to Elasticsearch: %s", e)
