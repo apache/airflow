@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.1.0b1 (2025-09-08)
+Airflow 3.1.0b2 (2025-09-15)
 ----------------------------
 
 Significant Changes
@@ -339,6 +339,10 @@ Bug Fixes
 - Fix ``XCom`` access in DAG processor callbacks for notifiers (#55542)
 - Fix alignment of arrows in RTL mode for right-to-left languages (#55619)
 - Fix connection form extras not inferring correct type in UI (#55492)
+- Fix incorrect log timestamps in UI when ``default_timezone`` is not UTC (#54431)
+- Fix handling of priority_weight for DAG processor callbacks (#55436)
+- Fix pointless requests from Gantt view when there is no Run ID (#55668)
+- Ensure filename and lineno of logger calls are present in Task Logs (#55581)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -363,11 +367,12 @@ Miscellaneous
 - Optimize Gantt group expansion with de-bouncing and deferred rendering (#55334)
 - Differentiate between triggers and watchers currently running for better visibility (#55376)
 - Update color palette and leverage Chakra semantic tokens (#53981)
-- Removed unused config: ``dag_stale_not_seen_duration`` (#55601)
+- Removed unused config: ``dag_stale_not_seen_duration`` (#55601, #55684)
 - Update UI's query client strategy for improved performance (#55528)
 - Unify datetime format across the UI for consistency (#55572)
 - Mark React Apps as Experimental for Airflow 3.1 release (#55478)
 - Improve OOM error messaging for clearer task failure diagnosis (#55602)
+- Display responder username for better audit trail in HITL workflows (#55509)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -688,6 +693,7 @@ Bug Fixes
 - Fix OpenAPI schema for ``get_log`` API (#50547)
 - Remove ``logical_date`` check when validating inlets and outlets (#51464)
 - Guard ``ti`` update state and set task to fail if exception encountered (#51295)
+- Fix task log URL generation with various ``base_url`` formats (#55699)
 
 Miscellaneous
 """""""""""""
