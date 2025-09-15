@@ -153,6 +153,7 @@ If you want to initialize ``airflow.cfg`` with default values before launching t
    docker compose run airflow-cli airflow config list
 
 This will seed ``airflow.cfg`` with default values in ``config`` folder.
+
 On systems with SELinux/AppArmor, you may run into permission issues. If this happens, edit your ``docker-compose.yaml`` file by added the suffix ``:z`` to all volumes:
 
 .. code-block:: yaml
