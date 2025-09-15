@@ -153,9 +153,9 @@ If you want to initialize ``airflow.cfg`` with default values before launching t
    docker compose run airflow-cli airflow config list
 
 This will seed ``airflow.cfg`` with default values in ``config`` folder.
-On systems with SELinux/AppArmor, you may run into permission issues. If this happens, edit your `docker-compose.yaml` file by added the suffix `:z` to all volumes:
+On systems with SELinux/AppArmor, you may run into permission issues. If this happens, edit your ``docker-compose.yaml`` file by added the suffix ``:z`` to all volumes:
 
-.. code-block:: text
+.. code-block:: yaml
 
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags:z
@@ -163,13 +163,13 @@ On systems with SELinux/AppArmor, you may run into permission issues. If this ha
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config:z
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins:z
 
-If, after this change, you are still experiencing permission issues when creating the `airflow.cfg` file, you can apply a very permissive setting to the `config` folder:
+If, after this change, you are still experiencing permission issues when creating the ``airflow.cfg`` file, you can apply a very permissive setting to the `config` folder:
 
 .. code-block:: bash
 
   sudo chmod -R 777 ./config
 
-Note that the above is a _work around_ that should never be used in production.
+Note that the above is a *work around* that should never be used in production.
 
 Initialize the database
 -----------------------
