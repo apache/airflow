@@ -1,3 +1,20 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 =============================
 Single Sign-On (SSO) Integration
 =============================
@@ -79,7 +96,7 @@ Configuration Steps
       oauth_providers = [
         {
           "name": "generic",
-          "icon": "fa-circle", 
+          "icon": "fa-circle",
           "token_key": "access_token",
           "remote_app": {
             "client_id": "your-client-id",
@@ -173,28 +190,28 @@ Troubleshooting
 **Common Issues**
 
 - **Authentication fails after configuration**:
-  
+
   - Check Airflow and webserver logs for detailed error messages
   - Ensure all environment variables are set and exported correctly
   - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/oauth-authorized``)
 
 - **Redirect URI mismatch**:
-  
+
   - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/oauth-authorized``
   - For development, this might be: ``http://localhost:8080/oauth-authorized``
 
 - **Scope-related errors**:
-  
+
   - Confirm that scopes (``openid email profile`` or similar) are allowed in your OAuth provider
   - Some providers require specific scopes to be explicitly configured
 
 - **Token validation errors**:
-  
+
   - Ensure your OAuth provider's clock is synchronized
   - Check if your client secret matches exactly (no extra spaces/characters)
 
 - **User creation issues**:
-  
+
   - FAB Auth Manager creates users automatically on first login
   - Check if your OAuth provider returns the expected user information fields
 
