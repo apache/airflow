@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-exasol``
 
 Release: ``4.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Exasol <https://www.exasol.com/>`__
 

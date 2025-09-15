@@ -22,7 +22,6 @@ import hashlib
 import itertools
 import logging
 import math
-import operator
 import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
@@ -1514,34 +1513,19 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
-        context = None
-        # In extreme cases (task instance heartbeat timeout in case of dag with
-        # parse error) we might _not_ have a Task.
-        if getattr(ti, "task", None):
-            context = ti.get_template_context(session)
-
-        if context is not None:
-            context["exception"] = error
-
         # Set state correctly and figure out how to log it and decide whether
         # to email
-
-        # Note, callback invocation needs to be handled by caller of
-        # _run_raw_task to avoid race conditions which could lead to duplicate
-        # invocations or miss invocation.
 
         # Since this function is called only when the TaskInstance state is running,
         # try_number contains the current try_number (not the next). We
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        # Use the original task directly - scheduler only needs to check email settings
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
-            email_for_state = operator.attrgetter("email_on_failure")
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
@@ -1553,7 +1537,6 @@ class TaskInstance(Base, LoggingMixin):
                 ti.prepare_db_for_next_try(session)
 
             ti.state = State.UP_FOR_RETRY
-            email_for_state = operator.attrgetter("email_on_retry")
 
         try:
             get_listener_manager().hook.on_task_instance_failed(
@@ -1562,12 +1545,7 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             log.exception("error calling listener")
 
-        return {
-            "ti": ti,
-            "email_for_state": email_for_state,
-            "task": task,
-            "context": context,
-        }
+        return ti
 
     @staticmethod
     @provide_session
@@ -1600,7 +1578,7 @@ class TaskInstance(Base, LoggingMixin):
             fail_fast = False
         if test_mode is None:
             test_mode = self.test_mode
-        failure_context = TaskInstance.fetch_handle_failure_context(
+        ti = TaskInstance.fetch_handle_failure_context(
             ti=self,
             error=error,
             test_mode=test_mode,
@@ -1609,23 +1587,9 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         _log_state(task_instance=self)
-        if (
-            (failure_task := failure_context["task"])
-            and failure_context["email_for_state"](failure_task)
-            and (failure_email := failure_task.email)
-        ):
-            try:
-                import structlog
-
-                from airflow.sdk.execution_time.task_runner import _send_task_error_email
-
-                log = structlog.get_logger(logger_name="task")
-                _send_task_error_email(failure_email, self, error, log=log)
-            except Exception:
-                log.exception("Failed to send email to: %s", failure_email)
 
         if not test_mode:
-            TaskInstance.save_to_db(failure_context["ti"], session)
+            TaskInstance.save_to_db(ti, session)
 
     def is_eligible_to_retry(self) -> bool:
         """Is task instance is eligible for retry."""

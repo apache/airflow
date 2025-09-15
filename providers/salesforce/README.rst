@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-salesforce``
 
-Release: ``5.11.2``
+Release: ``5.11.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Salesforce <https://www.salesforce.com/>`__
 
@@ -37,7 +36,7 @@ This is a provider package for ``salesforce`` provider. All classes for this pro
 are in ``airflow.providers.salesforce`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.3/>`_.
 
 Installation
 ------------
@@ -61,4 +60,4 @@ PIP package            Version required
 =====================  =====================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.3/changelog.html>`_.

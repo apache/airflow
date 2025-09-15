@@ -203,6 +203,13 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-translations-completeness
+        name: Check translation completeness (manual)
+        entry: ./dev/i18n/check_translations_completeness.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/prek/update_chart_dependencies.py
@@ -223,10 +230,9 @@ repos:
         language: python
         entry: ./scripts/ci/prek/check_deferrable_default.py
         pass_filenames: false
-        # libcst doesn't have source wheels for all PY except PY3.12, excluding it
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
-  - repo: https://github.com/asottile/blacken-docs
-    rev: 78a9dcbecf4f755f65d1f3dec556bc249d723600  # frozen: 1.19.1
+  - repo: https://github.com/adamchainz/blacken-docs
+    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
@@ -348,7 +354,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 5fee7cc03a2498e0ce36a18f36dfb558a30a426c  # frozen: v1.12.1
+    rev: b933184438555436e38621f46ceb0c417cbed400  # frozen: v1.13.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -419,7 +425,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.12.11']
+        additional_dependencies: ['ruff==0.13.0']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -1495,19 +1501,6 @@ repos:
         files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/prek/check_i18n_json.py
         pass_filenames: false
-      - id: check-en-language-freeze
-        name: Check for Default language (English) freeze
-        description: Prevent changes to English translation files during the language freeze period (typically around release time; time is measured in UTC)
-        language: python
-        entry: ./scripts/ci/prek/check_default_language_freeze.py
-        args:
-          - --freeze-start-date
-          - "2025-09-01"
-          - --freeze-end-date
-          - "2025-09-09"
-        files: ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*
-        exclude: ^airflow-core/src/airflow/ui/public/i18n/locales/en/_freeze_exemptions\.json.*
-        pass_filenames: true
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/prek/check_provider_yaml_files.py

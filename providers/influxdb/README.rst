@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-influxdb``
 
 Release: ``2.9.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `InfluxDB <https://www.influxdata.com/>`__
 

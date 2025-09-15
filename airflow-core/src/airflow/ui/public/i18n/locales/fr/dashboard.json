@@ -1,5 +1,6 @@
 {
   "favorite": {
+    "favoriteDags_many": "{{count}} premiers Dags favoris",
     "favoriteDags_one": "{{count}} premier Dag favori",
     "favoriteDags_other": "{{count}} premiers Dags favoris",
     "noDagRuns": "Il n'y a pas encore d'exécution pour ce Dag.",
@@ -19,6 +20,7 @@
   },
   "history": "Historique",
   "importErrors": {
+    "dagImportError_many": "Erreurs d'importation de Dag",
     "dagImportError_one": "Erreur d'importation de Dag",
     "dagImportError_other": "Erreurs d'importation de Dag",
     "searchByFile": "Rechercher par fichier",

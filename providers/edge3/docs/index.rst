@@ -90,9 +90,7 @@ Additional REST API endpoints are provided to distribute tasks and manage the ed
 are provided by the API server.
 
 
-Release: 1.1.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 1.2.0
 
 Provider package
 ----------------

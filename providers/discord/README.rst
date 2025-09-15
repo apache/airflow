@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-discord``
 
 Release: ``3.10.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Discord <https://discord.com/>`__
 

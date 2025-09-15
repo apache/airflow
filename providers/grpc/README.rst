@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-grpc``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `gRPC <https://grpc.io/>`__
 

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-impala``
 
 Release: ``1.7.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Impala <https://impala.apache.org/>`__.
 

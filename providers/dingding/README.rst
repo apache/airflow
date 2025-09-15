@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-dingding``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `DingTalk <https://www.dingtalk.com/>`__
 

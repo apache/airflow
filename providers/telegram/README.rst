@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-telegram``
 
 Release: ``4.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Telegram <https://telegram.org/>`__
 

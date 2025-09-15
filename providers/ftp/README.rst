@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-ftp``
 
 Release: ``3.13.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
