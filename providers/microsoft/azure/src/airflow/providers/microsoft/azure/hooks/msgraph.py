@@ -250,7 +250,7 @@ class KiotaRequestAdapterHook(BaseHook):
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
-        # TODO: do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
+        # TODO (#54350): do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
         #       RuntimeError: You cannot use AsyncToSync in the same thread as an async event loop.
         config = json.loads(connection.extra) if connection.extra else {}
         api_version = self.get_api_version(config)
