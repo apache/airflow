@@ -146,9 +146,12 @@ class BaseDatabricksHook(BaseHook):
     def databricks_conn(self) -> Connection:
         return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
-    async def a_databricks_conn(self) -> Connection:
+    async def adatabricks_conn(self) -> Connection:
         if self._async_databricks_conn is None:
-            self._async_databricks_conn = await sync_to_async(self.get_connection)(self.databricks_conn_id)
+            if hasattr(self, "aget_connection"):
+                self._async_databricks_conn = await self.aget_connection(self.databricks_conn_id)
+            else:
+                self._async_databricks_conn = await sync_to_async(self.get_connection)(self.databricks_conn_id)
         return self._async_databricks_conn  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
@@ -179,9 +182,10 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException("Databricks host is not set in the connection.")
         return self._parse_host(raw_host)
 
-    async def a_host(self) -> str:
+    async def ahost(self) -> str:
+        """Fetch host from connection async."""
         if self._async_host is None:
-            conn = await self.a_databricks_conn()
+            conn = await self.adatabricks_conn()
             raw_host = conn.extra_dejson.get("host") or conn.host
             if raw_host is None:
                 raise AirflowException("Databricks host is not set in the connection.")
@@ -285,7 +289,7 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
         try:
-            conn = await self.a_databricks_conn()
+            conn = await self.adatabricks_conn()
             if conn.login is None or conn.password is None:
                 raise AirflowException("Service Principal credentials aren't provided (login/password).")
 
@@ -382,7 +386,7 @@ class BaseDatabricksHook(BaseHook):
                 ManagedIdentityCredential as AsyncManagedIdentityCredential,
             )
 
-            conn = await self.a_databricks_conn()
+            conn = await self.adatabricks_conn()
             if conn.login is None or conn.password is None:
                 raise AirflowException("Azure SPN credentials aren't provided (login/password).")
 
@@ -525,7 +529,7 @@ class BaseDatabricksHook(BaseHook):
         :return: dictionary with filled AAD headers
         """
         headers = {}
-        conn = await self.a_databricks_conn()
+        conn = await self.adatabricks_conn()
         if "azure_resource_id" in conn.extra_dejson:
             mgmt_token = await self._a_get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
             headers["X-Databricks-Azure-Workspace-Resource-Id"] = conn.extra_dejson["azure_resource_id"]
@@ -616,7 +620,7 @@ class BaseDatabricksHook(BaseHook):
         return None
 
     async def _a_get_token(self, raise_error: bool = False) -> str | None:
-        conn = await self.a_databricks_conn()
+        conn = await self.adatabricks_conn()
         if "token" in conn.extra_dejson:
             self.log.info(
                 "Using token auth. For security reasons, please set token in Password field instead of extra"
@@ -657,10 +661,10 @@ class BaseDatabricksHook(BaseHook):
         return f"{schema}://{self.host}{port}/{endpoint}"
 
     async def _a_endpoint_url(self, endpoint):
-        conn = await self.a_databricks_conn()
+        conn = await self.adatabricks_conn()
         port = f":{conn.port}" if conn.port else ""
         schema = conn.schema or "https"
-        return f"{schema}://{await self.a_host()}{port}/{endpoint}"
+        return f"{schema}://{await self.ahost()}{port}/{endpoint}"
 
     def _do_api_call(
         self,
@@ -759,7 +763,7 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            conn = await self.a_databricks_conn()
+            conn = await self.adatabricks_conn()
             auth = aiohttp.BasicAuth(conn.login or "", conn.password or "")
 
         request_func: Any

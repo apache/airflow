@@ -750,8 +750,8 @@ class TestBaseDatabricksHook:
         """Verify get_connection caching."""
         mock_get_connection.return_value = Connection(login="foo", password="bar")
         hook = BaseDatabricksHook()
-        await hook.a_databricks_conn()
-        await hook.a_databricks_conn()
+        await hook.adatabricks_conn()
+        await hook.adatabricks_conn()
         mock_get_connection.assert_called_once()
 
     @pytest.mark.asyncio
