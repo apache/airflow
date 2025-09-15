@@ -464,9 +464,13 @@ New Features
 - Add HITL API endpoints with filtering and query support (#53376, #53923)
 - Add HITL utility functions for generating URLs to required actions page (#54827)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Improve HITL user experience with bug fixes, UI enhancements, and data model consistency (#55463, #55539, #55575, #55546, #55543, #55536, #55535)
 =======
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+- Improve HITL user experience with bug fixes, UI enhancements, and data model consistency (#55463, #55539, #55575, #55546, #55543, #55536, #55535)
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 - Add ordering and filtering support for HITL details endpoints (#55217)
 - Add "No Response Received" required action state (#55149)
 - Add operator filter for HITL task instances (#54773)
@@ -483,10 +487,14 @@ New Features
 - Add translation completeness validation and automated checks (#51166, #51131)
 - Add calendar data API endpoints for DAG execution visualization (#52748)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Add endpoint to watch DAG runs until completion (#51920, #53346)
 =======
 - Add endpoint to watch DAG runs until completion (#51920)
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+- Add endpoint to watch DAG runs until completion (#51920, #53346)
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 - Add DAG run ID pattern search functionality (#52437)
 - Add multi-sorting capabilities for improved data navigation (#53408)
 - Add bulk connection deletion API and UI (#51201)
@@ -545,6 +553,7 @@ New Features
 - Add DAG run deletion UI (#50368)
 - Add task instance deletion UI and endpoint (#50235, #50165)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Switch all airflow logging to structlog (#52651, #55434, #55431, #55638)
 - Add Filter Bar to Audit Log (#55487)
 - Add Filters UI for Asset View (#54640)
@@ -553,6 +562,11 @@ New Features
 =======
 - Switch all airflow logging to structlog (#52651, #55434, #55431)
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+- Switch all airflow logging to structlog (#52651, #55434, #55431, #55638)
+- Add Filter Bar to Audit Log (#55487)
+- Add Filters UI for Asset View (#54640)
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 
 Bug Fixes
 ^^^^^^^^^
@@ -604,12 +618,16 @@ Bug Fixes
 - Redact JWT tokens in task logs (#55499)
 - Fix grid view to handle long task name (#55332)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 - Allow slash characters in Variable keys similar to Airflow 2.x (#55324)
 - Fix Grid cache invalidation for multi-run task operations (#55504)
 - Fix Gantt chart rendering issues (#55554)
 - Fix ``XCom`` access in DAG processor callbacks for notifiers (#55542)
 - Fix alignment of arrows in RTL mode for right-to-left languages (#55619)
 - Fix connection form extras not inferring correct type in UI (#55492)
+<<<<<<< HEAD
 - Fix incorrect log timestamps in UI when ``default_timezone`` is not UTC (#54431)
 - Fix handling of priority_weight for DAG processor callbacks (#55436)
 - Fix pointless requests from Gantt view when there is no Run ID (#55668)
@@ -638,6 +656,8 @@ Bug Fixes
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 =======
 >>>>>>> 7a210ded70 (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -677,7 +697,15 @@ Miscellaneous
 =======
 - Differentiate between triggers and watchers currently running for better visibility (#55376)
 - Update color palette and leverage Chakra semantic tokens (#53981)
+<<<<<<< HEAD
 >>>>>>> 7a210ded70 (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+- Removed unused config: ``dag_stale_not_seen_duration`` (#55601)
+- Update UI's query client strategy for improved performance (#55528)
+- Unify datetime format across the UI for consistency (#55572)
+- Mark React Apps as Experimental for Airflow 3.1 release (#55478)
+- Improve OOM error messaging for clearer task failure diagnosis (#55602)
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -689,12 +717,17 @@ Doc Only Changes
 - Add migration guide for upgrading from legacy SLA functionality to deadline alerts (#55743)
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
+<<<<<<< HEAD
 - Remove ``--preview`` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
 - Add documentation for context parameter (#55377)
 =======
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+- Remove ``--preview `` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
+- Add documentation for context parameter (#55377)
+>>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 
 Airflow 3.0.6 (2025-08-29)
 --------------------------
