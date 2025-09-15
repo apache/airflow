@@ -396,7 +396,7 @@ class ReferenceModels:
 
             if len(durations) < self.limit:
                 logger.warning(
-                    "Only %d completed DAG runs found for dag_id: %s (need %d), using 24 hour default",
+                    "In the AverageRuntimeDeadline: Only %d completed DAG runs found for dag_id: %s (need %d), using 48 hour default",
                     len(durations),
                     dag_id,
                     self.limit,
@@ -410,9 +410,6 @@ class ReferenceModels:
                     len(durations),
                     avg_seconds,
                 )
-                with open("/temporary.txt", "a") as f:
-                    f.write(f"Calculated average: {avg_seconds} seconds\n")
-
             return timezone.utcnow() + timedelta(seconds=avg_seconds)
 
         def serialize_reference(self) -> dict:
