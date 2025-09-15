@@ -21,7 +21,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from airflow.utils.state import DagRunState
+from airflow.models.taskinstance import DagRunState
 
 
 class CalendarTimeRangeResponse(BaseModel):

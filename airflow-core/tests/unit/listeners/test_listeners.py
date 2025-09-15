@@ -26,9 +26,9 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.taskinstance import DagRunState, TaskInstanceState
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
 
 from unit.listeners import (
     class_listener,

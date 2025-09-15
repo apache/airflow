@@ -22,7 +22,12 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.utils.state import TaskInstanceState
+    from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk import TaskInstanceState
+    else:
+        from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 
 ADOPTED = "adopted"

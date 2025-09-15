@@ -34,8 +34,8 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.utils.state import State, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, TaskInstanceState
+from airflow.utils.state import State
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 

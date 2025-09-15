@@ -28,10 +28,9 @@ from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel, DagRun
 from airflow.models.errors import ParseImportError
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

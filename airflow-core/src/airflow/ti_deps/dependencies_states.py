@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 
 EXECUTION_STATES = {
     TaskInstanceState.RUNNING,

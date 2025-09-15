@@ -22,8 +22,9 @@ from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import select
 
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

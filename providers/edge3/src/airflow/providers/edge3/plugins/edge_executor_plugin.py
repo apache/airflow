@@ -66,7 +66,12 @@ else:
     from sqlalchemy import select
 
     from airflow.auth.managers.models.resource_details import AccessView
-    from airflow.models.taskinstance import TaskInstanceState
+    from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
+
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk import TaskInstanceState
+    else:
+        from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
     from airflow.utils.state import State
     from airflow.utils.yaml import safe_load
     from airflow.www.auth import has_access_view

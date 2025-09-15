@@ -32,8 +32,8 @@ from pydantic import (
     model_serializer,
 )
 
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
 

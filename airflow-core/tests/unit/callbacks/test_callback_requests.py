@@ -36,9 +36,9 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test
 

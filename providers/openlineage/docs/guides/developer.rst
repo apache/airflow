@@ -405,7 +405,7 @@ Writing a custom facet function
 .. code-block:: python
 
     import attrs
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+    from airflow.sdk import TaskInstance, TaskInstanceState
     from airflow.providers.common.compat.openlineage.facet import RunFacet
 
 
