@@ -1173,7 +1173,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="task_failure")
 
             if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=dag, success=False, reason="task_failure")
+                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1206,7 +1206,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="success")
 
             if execute_callbacks and dag.has_on_success_callback:
-                self.handle_dag_callback(dag=dag, success=True, reason="success")
+                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=True, reason="success")
             elif dag.has_on_success_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1237,7 +1237,11 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=dag, success=False, reason="all_tasks_deadlocked")
+                self.handle_dag_callback(
+                    dag=cast("SDKDAG", dag),
+                    success=False,
+                    reason="all_tasks_deadlocked",
+                )
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1306,9 +1310,7 @@ class DagRun(Base, LoggingMixin):
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
             for ti in tis:
                 try:
-                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-                    # instead, but currently it inherits SDK's DAG.
-                    ti.task = cast("Operator", dag.get_task(ti.task_id))
+                    ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
                     if ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)

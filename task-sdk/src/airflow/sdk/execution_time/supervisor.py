@@ -803,11 +803,12 @@ class WatchedSubprocess:
                 self.process_log.critical(SIGSEGV_MESSAGE)
             # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
             elif name := getattr(self._exit_code, "name", None):
-                message = "Process terminated by signal"
+                message = "Process terminated by signal."
                 level = logging.ERROR
                 if self._exit_code == -signal.SIGKILL:
-                    message += ". For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#TaskRunner-killed"
+                    message += " Likely out of memory error (OOM)."
                     level = logging.CRITICAL
+                message += " For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#process-terminated-by-signal."
                 self.process_log.log(level, message, signal=int(self._exit_code), signal_name=name)
             elif self._exit_code:
                 # Run of the mill exit code (1, 42, etc).
@@ -1715,12 +1716,7 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            #
-            # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-            # from a subprocess we know that the timezone of the log message is the same, so having some
-            # messages include tz (from subprocess) but others not (ones from supervisor process) is
-            # confusing.
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
+            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace

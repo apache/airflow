@@ -171,7 +171,7 @@ def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> lis
                 defaults=["1"],
                 multiple=False,
                 params={"input": 1},
-                response_at=utcnow(),
+                responded_at=utcnow(),
                 chosen_options=[str(i)],
                 params_input={"input": i},
                 responded_by={"id": "test", "name": "test"},
@@ -210,7 +210,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "params": {"input_1": 1},
         "assigned_users": [],
         "params_input": {},
-        "response_at": None,
+        "responded_at": None,
         "chosen_options": None,
         "response_received": False,
         "subject": "This is subject",
@@ -321,7 +321,7 @@ class TestUpdateHITLDetailEndpoint:
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
             "responded_by": {"id": "test", "name": "test"},
-            "response_at": "2025-07-03T00:00:00Z",
+            "responded_at": "2025-07-03T00:00:00Z",
         }
 
         audit_log = session.scalar(select(Log))
@@ -350,7 +350,7 @@ class TestUpdateHITLDetailEndpoint:
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
             "responded_by": {"id": "test", "name": "test"},
-            "response_at": "2025-07-03T00:00:00Z",
+            "responded_at": "2025-07-03T00:00:00Z",
         }
 
         audit_log = session.scalar(select(Log))
@@ -451,7 +451,7 @@ class TestUpdateHITLDetailEndpoint:
             "params_input": {"input_1": 2},
             "chosen_options": ["Approve"],
             "responded_by": {"id": "test", "name": "test"},
-            "response_at": "2025-07-03T00:00:00Z",
+            "responded_at": "2025-07-03T00:00:00Z",
         }
         assert response.status_code == 200
         assert response.json() == expected_response
@@ -620,7 +620,7 @@ class TestGetHITLDetailsEndpoint:
             ("task_instance_operator", lambda x: x["task_instance"]["operator_name"]),
             # htil key
             ("subject", itemgetter("subject")),
-            ("response_at", itemgetter("response_at")),
+            ("responded_at", itemgetter("responded_at")),
         ],
         ids=[
             "ti_id",
@@ -630,7 +630,7 @@ class TestGetHITLDetailsEndpoint:
             "rendered_map_index",
             "task_instance_operator",
             "subject",
-            "response_at",
+            "responded_at",
         ],
     )
     def test_should_respond_200_with_existing_response_and_order_by(

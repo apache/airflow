@@ -29,7 +29,7 @@ from airflow.models import DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from unit.api_fastapi.core_api.routes.public.test_dags import (
@@ -136,6 +136,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 run_id=f"hitl_run_{ti_i}",
                 task_id=f"test_task_{ti_i}",
                 session=session,
+                state=TaskInstanceState.DEFERRED,
             )
             for ti_i in range(TI_COUNT)
         ]
@@ -158,7 +159,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 options=["Approve", "Reject"],
                 subject=f"This is subject {i}",
                 defaults=["Approve"],
-                response_at=utcnow(),
+                responded_at=utcnow(),
                 chosen_options=["Approve"],
                 responded_by={"id": "test", "name": "test"},
             )

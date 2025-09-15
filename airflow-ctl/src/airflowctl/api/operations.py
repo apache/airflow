@@ -309,7 +309,7 @@ class AssetsOperations(BaseOperations):
             raise e
 
 
-class BackfillsOperations(BaseOperations):
+class BackfillOperations(BaseOperations):
     """Backfill operations."""
 
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
@@ -465,8 +465,8 @@ class ConnectionsOperations(BaseOperations):
             raise e
 
 
-class DagOperations(BaseOperations):
-    """Dag operations."""
+class DagsOperations(BaseOperations):
+    """Dags operations."""
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
         """Get a DAG."""
