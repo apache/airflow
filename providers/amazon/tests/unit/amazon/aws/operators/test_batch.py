@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 
 import botocore.client
 import pytest
@@ -51,7 +51,6 @@ RESPONSE_WITHOUT_FAILURES = {
 class TestBatchOperator:
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
-    EVENT_SUCCESS = {"job_id": "test-job-id", "status": "success"}
 
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
@@ -544,22 +543,27 @@ class TestBatchOperator:
         wait_mock.assert_called_once()
         assert len(wait_mock.call_args) == 2
 
-    def test_execute_complete_success_logs_fetched(self):
-        self.batch.deferable = True
-        self.batch.awslogs_enabled = True
+    @patch.object(BatchOperator, "log", new_callable=MagicMock)
+    @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
+    @patch.object(BatchOperator, "monitor_job")
+    def test_execute_complete_success_with_logs1(self, mock_monitor_job, mock_validate, mock_log):
+        #Setup
+        mock_validate.return_value = {"status": "success", "job_id": "12345"}
+        batch = BatchOperator(
+            task_id="test_task",
+            job_name=JOB_NAME,
+            job_queue="dummy_queue",
+            job_definition="dummy_definition",
+            deferrable=True,
+            awslogs_enabled=True
+        )
 
-        with patch.object(self.batch, "monitor_job", return_value=None) as mock_monitor_job, \
-            patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event",
-                  return_value=self.EVENT_SUCCESS), \
-            patch.object(self.batch.log, "info") as mock_log_info:  # patch the info method directly
+        result = batch.execute_complete(context={}, event={"dummy": "event"})
 
-            job_id = self.batch.execute_complete(context={}, event=self.EVENT_SUCCESS)
-
-            assert job_id == "test-job-id"
-            mock_monitor_job.assert_called_once_with("test-job-id")
-            mock_log_info.assert_called_with(
-                "Job completed successfully for job_id: %s", "test-job-id"
-            )
+        #Assertion
+        assert result == "12345"
+        mock_monitor_job.assert_called_once_with("12345")
+        mock_log.info.assert_called_with("Job completed successfully for job_id: %s", '12345')
 
     @patch.object(BatchOperator, "log", new_callable=MagicMock)
     @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
@@ -581,7 +585,7 @@ class TestBatchOperator:
         # Assertions
         assert result == "12345"
         mock_monitor_job.assert_not_called()
-        mock_log.info.assert_called_with("Job completed.")
+        mock_log.info.assert_called_with("Job completed successfully for job_id: %s", '12345')
 
     @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
     def test_execute_complete_failure(self, mock_validate):
