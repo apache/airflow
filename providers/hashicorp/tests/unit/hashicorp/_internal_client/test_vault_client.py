@@ -588,6 +588,55 @@ class TestVaultClient:
             )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.Kubernetes")
+    def test_kubernetes_with_audience(self, mock_kubernetes, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="kubernetes",
+            kubernetes_role="kube_role",
+            kubernetes_jwt_path="path",
+            kubernetes_audience="test-audience",
+            url="http://localhost:8180",
+            session=None,
+        )
+        with patch("builtins.open", mock_open(read_data="data")) as mock_file:
+            client = vault_client.client
+        mock_file.assert_called_with("path")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        mock_kubernetes.assert_called_with(mock_client.adapter)
+        mock_kubernetes.return_value.login.assert_called_with(
+            role="kube_role", jwt="data", audience="test-audience"
+        )
+        client.is_authenticated.assert_called_with()
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.Kubernetes")
+    def test_kubernetes_with_audience_and_mount_point(self, mock_kubernetes, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="kubernetes",
+            kubernetes_role="kube_role",
+            kubernetes_jwt_path="path",
+            kubernetes_audience="test-audience",
+            auth_mount_point="other",
+            url="http://localhost:8180",
+            session=None,
+        )
+        with patch("builtins.open", mock_open(read_data="data")) as mock_file:
+            client = vault_client.client
+        mock_file.assert_called_with("path")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        mock_kubernetes.assert_called_with(mock_client.adapter)
+        mock_kubernetes.return_value.login.assert_called_with(
+            role="kube_role", jwt="data", audience="test-audience", mount_point="other"
+        )
+        client.is_authenticated.assert_called_with()
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_ldap(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client

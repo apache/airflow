@@ -230,6 +230,17 @@ For more details, please refer to the AWS Assume Role Authentication documentati
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "aws_iam", "assume_role_kwargs": {"RoleArn":"arn:aws:iam::123456789000:role/hashicorp-aws-iam-role", "RoleSessionName": "Airflow"}}
 
+Vault authentication with Kubernetes
+""""""""""""""""""""""""""""""""""""
+
+For Vault 1.21+ you should specify the ``kubernetes_audience`` parameter to suppress deprecation warnings.
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs = {"connections_path": "airflow-connections", "variables_path": "airflow-variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200", "auth_type": "kubernetes", "kubernetes_role": "airflow-role", "kubernetes_audience": "vault"}
+
 Using multiple mount points
 """""""""""""""""""""""""""
 
