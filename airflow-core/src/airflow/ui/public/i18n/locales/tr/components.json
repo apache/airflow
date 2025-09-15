@@ -88,7 +88,7 @@
     "taskGroup": "Görev Grubu"
   },
   "limitedList": "+{{count}} daha",
-  "limitedList.allItems": "Tüm {{count}} öğe:",
+  "limitedList.allItems": "Tüm {{count}} öğeler:",
   "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
   "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
   "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
