@@ -1,6 +1,17 @@
 {
+  "filters": {
+    "response": {
+      "all": "Tous",
+      "pending": "En attente",
+      "received": "Reçue"
+    }
+  },
+  "requiredAction_many": "Actions requises",
   "requiredAction_one": "Actions requises",
   "requiredAction_other": "Actions requises",
+  "requiredActionCount_many": "Actions requises ({{count}})",
+  "requiredActionCount_one": "Action requise ({{count}})",
+  "requiredActionCount_other": "Actions requises ({{count}})",
   "requiredActionState": "État de l'action requise",
   "response": {
     "error": "Échec de la réponse",
@@ -16,6 +27,7 @@
     "approvalRequired": "Approbation requise",
     "choiceReceived": "Choix reçu",
     "choiceRequired": "Choix requis",
+    "noResponseReceived": "Aucune réponse reçue",
     "rejectionReceived": "Rejet reçu",
     "responseReceived": "Réponse reçue",
     "responseRequired": "Réponse requise"

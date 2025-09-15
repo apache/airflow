@@ -72,7 +72,6 @@
     "tooltip": "Ausgewählte Verbindungen löschen"
   },
   "formActions": {
-    "reset": "Zurücksetzen",
     "save": "Speichern"
   },
   "plugins": {

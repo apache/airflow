@@ -106,7 +106,7 @@ class TestBigQueryToMsSqlOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.MsSqlHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_get_openlineage_facets_on_complete_no_selected_fields(self, mock_bq_hook, mock_mssql_hook):
         mock_bq_client = MagicMock()
         table_obj = _make_bq_table(["id", "name", "value"])
@@ -152,7 +152,7 @@ class TestBigQueryToMsSqlOperator:
         assert set(col_lineage.fields.keys()) == {"id", "name", "value"}
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.MsSqlHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_get_openlineage_facets_on_complete_selected_fields(self, mock_bq_hook, mock_mssql_hook):
         mock_bq_client = MagicMock()
         table_obj = _make_bq_table(["id", "name", "value"])

@@ -89,12 +89,12 @@ from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    import logging
     from types import FrameType
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
 
+    from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.mappedoperator import MappedOperator
@@ -189,7 +189,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        log: logging.Logger | None = None,
+        log: Logger | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
@@ -198,7 +198,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
         )
-        self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
 
