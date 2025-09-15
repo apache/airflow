@@ -33,6 +33,7 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
+import dayjs from "dayjs";
 import { useMemo, useRef, useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
@@ -48,7 +49,7 @@ import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { DEFAULT_DATETIME_FORMAT, formatDate } from "src/utils/datetimeUtils";
+import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createChartOptions } from "./utils";
 
@@ -128,6 +129,8 @@ export const Gantt = ({ limit }: Props) => {
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
+  const currentTime = dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT_WITH_TZ);
+
   const data = useMemo(() => {
     if (isLoading || runId === "") {
       return [];
@@ -148,8 +151,8 @@ export const Gantt = ({ limit }: Props) => {
             state: gridSummary.state,
             taskId: gridSummary.task_id,
             x: [
-              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
-              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
             ],
             y: gridSummary.task_id,
           };
@@ -158,14 +161,17 @@ export const Gantt = ({ limit }: Props) => {
           const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
           if (taskInstance) {
+            const hasTaskRunning = isStatePending(taskInstance.state);
+            const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
+
             return {
               isGroup: node.isGroup,
               isMapped: node.is_mapped,
               state: taskInstance.state,
               taskId: taskInstance.task_id,
               x: [
-                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
-                formatDate(taskInstance.end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
               ],
               y: taskInstance.task_id,
             };
@@ -175,7 +181,7 @@ export const Gantt = ({ limit }: Props) => {
         return undefined;
       })
       .filter((item) => item !== undefined);
-  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId]);
+  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
