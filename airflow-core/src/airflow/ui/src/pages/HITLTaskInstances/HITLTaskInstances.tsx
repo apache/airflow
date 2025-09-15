@@ -107,14 +107,14 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_at",
-    cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
   },
 ];
 
 export const HITLTaskInstances = () => {
-  const { t: translate } = useTranslation(["hitl", "_freeze_exemptions"]);
+  const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -174,6 +174,7 @@ export const HITLTaskInstances = () => {
           onValueChange={handleResponseChange}
           value={[responseReceived ?? "all"]}
         >
+          <Select.Label fontSize="xs">{translate("requiredActionState")}</Select.Label>
           <Select.Trigger isActive={Boolean(responseReceived)}>
             <Select.ValueText />
           </Select.Trigger>

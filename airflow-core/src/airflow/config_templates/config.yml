@@ -2158,13 +2158,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    dag_stale_not_seen_duration:
-      description: |
-        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
-      version_added: 2.4.0
-      type: integer
-      example: ~
-      default: "600"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.

@@ -79,9 +79,7 @@ apache-airflow-providers-weaviate package
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 3.2.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 3.2.3
 
 Provider package
 ----------------
@@ -106,7 +104,7 @@ PIP package          Version required
 ===================  =====================================
 ``apache-airflow``   ``>=2.10.0``
 ``httpx``            ``>=0.25.0``
-``weaviate-client``  ``>=4.4.0``
+``weaviate-client``  ``!=4.16.7,>=4.4.0``
 ``pandas``           ``>=2.1.2; python_version < "3.13"``
 ``pandas``           ``>=2.2.3; python_version >= "3.13"``
 ===================  =====================================

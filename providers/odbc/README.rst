@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-odbc``
 
 Release: ``4.10.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 

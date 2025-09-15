@@ -47,7 +47,7 @@ const AddPoolButton = () => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="blue" onClick={onOpen}>
+      <Button colorPalette="brand" onClick={onOpen}>
         <FiPlusCircle /> {translate("pools.add")}
       </Button>
 

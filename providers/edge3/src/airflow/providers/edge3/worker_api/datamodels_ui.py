@@ -65,3 +65,15 @@ class JobCollectionResponse(BaseModel):
 
     jobs: list[Job]
     total_entries: int
+
+
+class MaintenanceRequest(BaseModel):
+    """Request body for maintenance operations."""
+
+    maintenance_comment: Annotated[str, Field(description="Comment describing the maintenance reason.")]
+
+
+class QueueUpdateRequest(BaseModel):
+    """Request body for queue operations."""
+
+    queue_name: Annotated[str, Field(description="Name of the queue to add or remove.")]

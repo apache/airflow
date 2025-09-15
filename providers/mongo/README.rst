@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-mongo``
 
 Release: ``5.2.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `MongoDB <https://www.mongodb.com/>`__
 

@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-papermill``
 
 Release: ``3.11.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Papermill <https://github.com/nteract/papermill>`__
 

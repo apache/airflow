@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-microsoft-mssql``
 
 Release: ``4.3.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 

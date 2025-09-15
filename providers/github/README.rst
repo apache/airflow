@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-github``
 
 Release: ``2.9.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `GitHub <https://www.github.com/>`__
 
