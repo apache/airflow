@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import mock_open, patch
 
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
@@ -291,6 +292,30 @@ class TestVaultSecrets:
 
         with pytest.raises(FileNotFoundError, match=path):
             VaultBackend(**kwargs).get_connection(conn_id="test")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.Kubernetes")
+    def test_auth_type_kubernetes_with_audience(self, mock_kubernetes, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.is_authenticated.return_value = True
+
+        kwargs = {
+            "auth_type": "kubernetes",
+            "kubernetes_role": "default",
+            "kubernetes_audience": "test-audience",
+            "url": "http://127.0.0.1:8200",
+        }
+
+        with patch("builtins.open", mock_open(read_data="test-jwt")):
+            vault_backend = VaultBackend(**kwargs)
+            # Just accessing the client to trigger authentication
+            vault_backend.vault_client.client
+
+        mock_kubernetes.assert_called_with(mock_client.adapter)
+        mock_kubernetes.return_value.login.assert_called_with(
+            role="default", jwt="test-jwt", audience="test-audience"
+        )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_config_value(self, mock_hvac):
