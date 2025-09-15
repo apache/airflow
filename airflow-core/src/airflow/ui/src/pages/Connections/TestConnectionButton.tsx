@@ -68,28 +68,56 @@ const TestConnectionButton = ({ connection }: Props) => {
       setMessage(undefined);
     } else if (result === true) {
       setIcon(connectedIcon);
+      // Message will be set by the hook's onSuccess callback
     } else {
       setIcon(disconnectedIcon);
+      // Message will be set by the hook's onSuccess callback
     }
-  }, setMessage);
+  }, (newMessage) => {
+    setMessage(newMessage);
+  });
 
+  const tooltipContent = message ? message : translate("connections.test");
+  
   return (
-    <Tooltip content={message || translate("connections.test")}>
-      <ActionButton
-        actionName={
-          option === "Enabled" ? translate("connections.test") : translate("connections.testDisabled")
-        }
-        disabled={option === "Disabled"}
-        display={option === "Hidden" ? "none" : "flex"}
-        icon={icon}
-        loading={isPending}
-        onClick={() => {
-          mutate({ requestBody: connectionBody });
-        }}
-        text={translate("connections.test")}
-        withText={false}
-      />
-    </Tooltip>
+    <div style={{ position: 'relative' }}>
+      <Tooltip content={tooltipContent}>
+        <ActionButton
+          actionName={
+            option === "Enabled" ? translate("connections.test") : translate("connections.testDisabled")
+          }
+          disabled={option === "Disabled"}
+          display={option === "Hidden" ? "none" : "flex"}
+          icon={icon}
+          loading={isPending}
+          onClick={() => {
+            // Reset message when starting a new test
+            setMessage(undefined);
+            mutate({ requestBody: connectionBody });
+          }}
+          text={translate("connections.test")}
+          withText={false}
+        />
+      </Tooltip>
+      {message && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          whiteSpace: 'nowrap',
+          zIndex: 1000,
+          marginTop: '4px',
+        }}>
+          {message}
+        </div>
+      )}
+    </div>
   );
 };
 

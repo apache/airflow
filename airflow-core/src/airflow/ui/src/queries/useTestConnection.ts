@@ -38,7 +38,38 @@ export const useTestConnection = (
 
   const onError = (error: any) => {
     setConnected(false);
-    setMessage(error?.response?.data?.detail || "Connection test failed");
+    
+    // Extract error message from different possible error structures
+    let errorMessage = "Connection test failed";
+    
+    // Try different error message extraction strategies
+    if (error?.body?.detail) {
+      errorMessage = error.body.detail;
+    } else if (error?.body?.message) {
+      errorMessage = error.body.message;
+    } else if (error?.response?.data?.detail) {
+      errorMessage = error.response.data.detail;
+    } else if (error?.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error?.message) {
+      errorMessage = error.message;
+    } else if (typeof error?.body === 'string') {
+      errorMessage = error.body;
+    } else if (error?.body && typeof error.body === 'object') {
+      // Try to extract message from nested error object
+      const bodyStr = JSON.stringify(error.body);
+      if (bodyStr.includes('detail')) {
+        try {
+          const parsed = JSON.parse(bodyStr);
+          errorMessage = parsed.detail || parsed.message || errorMessage;
+        } catch (e) {
+          // If parsing fails, use the string representation
+          errorMessage = bodyStr;
+        }
+      }
+    }
+    
+    setMessage(errorMessage);
   };
 
   return useConnectionServiceTestConnection({
