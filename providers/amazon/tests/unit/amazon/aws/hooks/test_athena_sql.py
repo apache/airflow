@@ -153,3 +153,91 @@ class TestAthenaSQLHookConn:
         hook = AthenaSQLHook(athena_conn_id=AWS_ATHENA_CONN_ID, aws_conn_id=AWS_CONN_ID)
         assert hook.athena_conn_id == AWS_ATHENA_CONN_ID
         assert hook.aws_conn_id == AWS_CONN_ID
+
+    def test_hook_params_handling(self):
+        """Test that hook_params are properly handled and don't cause TypeError."""
+        # Test that hook_params with Athena-specific parameters don't cause errors
+        hook = AthenaSQLHook(
+            athena_conn_id="test_conn",
+            s3_staging_dir="s3://test-bucket/staging/",
+            work_group="test-workgroup",
+            driver="rest",
+            aws_domain="amazonaws.com",
+            session_kwargs={"profile_name": "test"},
+            config_kwargs={"retries": {"max_attempts": 5}},
+            role_arn="arn:aws:iam::123456789012:role/test-role",
+            assume_role_method="assume_role",
+            assume_role_kwargs={"RoleSessionName": "airflow-test"},
+            aws_session_token="test-token",
+            endpoint_url="https://athena.us-east-1.amazonaws.com",
+        )
+        
+        # Verify that the parameters were extracted correctly
+        assert hook.s3_staging_dir == "s3://test-bucket/staging/"
+        assert hook.work_group == "test-workgroup"
+        assert hook.driver == "rest"
+        assert hook.aws_domain == "amazonaws.com"
+        assert hook.session_kwargs == {"profile_name": "test"}
+        assert hook.config_kwargs == {"retries": {"max_attempts": 5}}
+        assert hook.role_arn == "arn:aws:iam::123456789012:role/test-role"
+        assert hook.assume_role_method == "assume_role"
+        assert hook.assume_role_kwargs == {"RoleSessionName": "airflow-test"}
+        assert hook.aws_session_token == "test-token"
+        assert hook.endpoint_url == "https://athena.us-east-1.amazonaws.com"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_session")
+    def test_get_conn_with_hook_params(self, mock_get_session, mock_connect):
+        """Test that get_conn uses hook_params when provided."""
+        # Create hook with hook_params
+        hook = AthenaSQLHook(
+            athena_conn_id="test_conn",
+            s3_staging_dir="s3://test-bucket/staging/",
+            work_group="test-workgroup",
+        )
+        
+        # Mock the connection
+        conn = Connection(
+            conn_type="athena",
+            schema="test_schema",
+            extra={"region_name": "us-east-1"},
+        )
+        hook.get_connection = mock.Mock(return_value=conn)
+        
+        # Call get_conn
+        hook.get_conn()
+        
+        # Verify that pyathena.connect was called with hook_params
+        mock_connect.assert_called_once()
+        call_args = mock_connect.call_args[1]  # Get keyword arguments
+        assert call_args["s3_staging_dir"] == "s3://test-bucket/staging/"
+        assert call_args["work_group"] == "test-workgroup"
+
+    def test_sql_value_check_operator_compatibility(self):
+        """Test that AthenaSQLHook works with SQLValueCheckOperator (reproduces issue #55678)."""
+        from airflow.providers.common.sql.operators.sql import SQLValueCheckOperator
+        from unittest.mock import patch
+        
+        # Mock Athena connection with s3_staging_dir in extra (as described in the issue)
+        athena_conn = Connection(
+            conn_id="athena_conn",
+            conn_type="athena",
+            description="Connection to a Athena API",
+            schema="athena_sql_schema1",
+            extra={"s3_staging_dir": "s3://mybucket/athena/", "region_name": "eu-west-1"},
+        )
+
+        with patch("airflow.hooks.base.BaseHook.get_connection", return_value=athena_conn):
+            # This should NOT raise TypeError: AwsGenericHook.__init__() got an unexpected keyword argument 's3_staging_dir'
+            operator = SQLValueCheckOperator(
+                task_id="value_check", 
+                sql="SELECT TRUE", 
+                pass_value=True, 
+                conn_id="athena_conn"
+            )
+            
+            # The operator should be created successfully
+            assert operator.task_id == "value_check"
+            assert operator.sql == "SELECT TRUE"
+            assert operator.pass_value == "True"
+            assert operator.conn_id == "athena_conn"
