@@ -151,7 +151,9 @@ class BaseDatabricksHook(BaseHook):
             if hasattr(self, "aget_connection"):
                 self._async_databricks_conn = await self.aget_connection(self.databricks_conn_id)
             else:
-                self._async_databricks_conn = await sync_to_async(self.get_connection)(self.databricks_conn_id)
+                self._async_databricks_conn = await sync_to_async(self.get_connection)(
+                    self.databricks_conn_id
+                )
         return self._async_databricks_conn  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
