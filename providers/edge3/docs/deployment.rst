@@ -130,14 +130,14 @@ Also please note if the worker detects that the Airflow or Edge provider package
 is not the same as the one running on the API server, it will stop accepting new tasks and shut down gracefully.
 This is to prevent running tasks with different versions of the code.
 
-Worker status can be checked via the web UI in the "Admin" - "Edge Worker Hosts" page.
+Worker status can be checked via the web UI in the "Admin" - "Edge Worker" page. Maintenance can be set on a per worker basis.
 
 .. image:: img/worker_hosts.png
 
 .. note::
 
-    As of time of writing the web UI to see edge jobs and manage workers is not ported to Airflow 3.0.
-    Until this is available you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
+    Airflow 3.0 does not support UI plugins. The UI plugin is only available in Airflow 2.10 and in 3.1 and newer.
+    Alternatively you can use the CLI commands as described in :ref:`deployment:maintenance-mgmt-cli`.
 
 
 Worker maintenance can also be triggered via the CLI command on the machine that runs the worker.
@@ -160,9 +160,7 @@ use the command
 This will show the status of the local worker instance as JSON and the tasks running on it.
 
 The status and maintenance comments will also be shown in the web UI
-in the "Admin" - "Edge Worker Hosts" page.
-
-.. image:: img/worker_maintenance.png
+in the "Admin" - "Edge Worker" page.
 
 The local worker instance can be started to fetch new tasks via the command
 
