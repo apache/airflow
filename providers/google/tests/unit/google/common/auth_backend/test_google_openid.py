@@ -23,6 +23,7 @@ import pytest
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
+pytest.importorskip("flask_limiter")
 
 from google.auth.exceptions import GoogleAuthError
 
@@ -39,7 +40,7 @@ from tests_common.test_utils.config import conf_vars
 
 @pytest.fixture(scope="module")
 def google_openid_app():
-    if importlib.util.find_spec("flask_session") is None:
+    if importlib.util.find_spec("flask_session") is None or importlib.util.find_spec("flask_limiter") is None:
         return None
 
     def factory():
@@ -90,6 +91,9 @@ def admin_user(google_openid_app):
 
 @pytest.mark.skipif(
     importlib.util.find_spec("airflow.providers.fab") is None, reason="FAB provider is not installed"
+)
+@pytest.mark.skipif(
+    importlib.util.find_spec("flask_limiter.wrappers") is None, reason="flask_limiter.wrappers is missing",
 )
 @pytest.mark.db_test
 class TestGoogleOpenID:
