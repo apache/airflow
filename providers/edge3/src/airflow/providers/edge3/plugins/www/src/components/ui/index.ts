@@ -19,3 +19,4 @@
 
 export * from "./Alert";
 export * from "./createToaster";
+export * from "./ScrollToAnchor";

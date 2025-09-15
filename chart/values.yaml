@@ -736,7 +736,7 @@ workers:
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
-      AND executor != 'KubernetesExecutor'
+      AND executor IS DISTINCT FROM 'KubernetesExecutor'
       {{- else if contains "airflow.providers.edge3.executors.EdgeExecutor" .Values.executor }}
       AND executor IS DISTINCT FROM 'EdgeExecutor'
       {{- end }}
