@@ -22,7 +22,7 @@ import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
 import { useColorMode } from "src/context/colorMode";
 
 export const HomePage = () => {
-  const { setColorMode, colorMode } = useColorMode();
+  const { colorMode, setColorMode } = useColorMode();
 
   return (
     <Box p={8} bg="bg.subtle" flexGrow={1} height="100%">

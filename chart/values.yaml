@@ -737,6 +737,8 @@ workers:
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
       AND executor IS DISTINCT FROM 'KubernetesExecutor'
+      {{- else if contains "airflow.providers.edge3.executors.EdgeExecutor" .Values.executor }}
+      AND executor IS DISTINCT FROM 'EdgeExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled

@@ -55,7 +55,6 @@
     "eslint-plugin-prettier": "^5.2.6",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-perfectionist": "^4.12.3",
     "eslint-plugin-react-refresh": "^0.4.20",
     "eslint-plugin-unicorn": "^55.0.0",
     "globals": "^15.15.0",
