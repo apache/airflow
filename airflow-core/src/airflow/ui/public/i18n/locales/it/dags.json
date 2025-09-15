@@ -20,8 +20,8 @@
       "all": "Tutti",
       "paused": "In Pausa"
     },
-    "runIdPatternFilter": "Cerca Dag Runs",
-    "triggeringUserNameFilter": "Cerca per Utente che ha Attivato"
+    "runIdPatternFilter": "Cercare Dag Runs",
+    "triggeringUserNameFilter": "Cercare per Utente che ha Attivato"
   },
   "ownerLink": "Link dell'Owner per {{owner}}",
   "runAndTaskActions": {
@@ -68,11 +68,11 @@
     }
   },
   "search": {
-    "advanced": "Ricerca Avanzata",
+    "advanced": "RiCercare Avanzata",
     "clear": "Pulisci la ricerca",
-    "dags": "Cerca Dag",
+    "dags": "Cercare Dag",
     "hotkey": "+K",
-    "tasks": "Cerca Task"
+    "tasks": "Cercare Task"
   },
   "sort": {
     "displayName": {

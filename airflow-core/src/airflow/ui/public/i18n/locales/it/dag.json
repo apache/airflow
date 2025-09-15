@@ -48,7 +48,7 @@
   "header": {
     "buttons": {
       "advanced": "Avanzato",
-      "dagDocs": "Documentazione Dag"
+      "dagDocs": "Documentazione sul Dag"
     }
   },
   "logs": {
@@ -107,7 +107,7 @@
       "showGridShortcut": "Mostra Griglia (Premi g)"
     },
     "dagRuns": {
-      "label": "Numero di Run del Dag"
+      "label": "Numero di Runs del Dag"
     },
     "dependencies": {
       "label": "Dipendenze",

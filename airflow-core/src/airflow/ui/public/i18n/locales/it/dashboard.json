@@ -9,7 +9,7 @@
   },
   "group": "Gruppo",
   "health": {
-    "dagProcessor": "Processore Dag",
+    "dagProcessor": "Processore del Dag",
     "health": "Salute",
     "healthy": "Sano",
     "lastHeartbeat": "Ultimo Heartbeat",
@@ -25,7 +25,7 @@
     "dagImportError_one": "Errore di Importazione Dag",
     "dagImportError_other": "Errori di Importazione Dag",
     "dagImportError_zero": "Nessun errore di importazione Dag",
-    "searchByFile": "Cerca per file",
+    "searchByFile": "Cercare per file",
     "timestamp": "Timestamp"
   },
   "managePools": "Gestisci Pools",
@@ -37,11 +37,11 @@
   },
   "source": "Fonte",
   "stats": {
-    "activeDags": "Dag Attivi",
-    "failedDags": "Dag Falliti",
-    "queuedDags": "Dag In Attesa",
+    "activeDags": "Dags Attivi",
+    "failedDags": "Dags Falliti",
+    "queuedDags": "Dags In Attesa",
     "requiredActions": "Azioni Richieste",
-    "runningDags": "Dag In Esecuzione",
+    "runningDags": "Dags In Esecuzione",
     "stats": "Statistiche"
   },
   "uri": "Uri",
