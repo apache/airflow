@@ -59,7 +59,7 @@ except ImportError:
     from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 if TYPE_CHECKING:
-    from airflow.models import Connection
+    from airflow.sdk.definitions.connection import Connection
 
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
@@ -174,20 +174,18 @@ class BaseDatabricksHook(BaseHook):
 
     @cached_property
     def host(self) -> str:
-        if "host" in self.databricks_conn.extra_dejson:
-            host = self._parse_host(self.databricks_conn.extra_dejson["host"])
-        else:
-            host = self._parse_host(self.databricks_conn.host)
-
-        return host
+        raw_host = self.databricks_conn.extra_dejson.get("host") or self.databricks_conn.host
+        if raw_host is None:
+            raise AirflowException("Databricks host is not set in the connection.")
+        return self._parse_host(raw_host)
 
     async def a_host(self) -> str:
         if self._async_host is None:
             conn = await self.a_databricks_conn()
-            if "host" in conn.extra_dejson:
-                self._async_host = self._parse_host(conn.extra_dejson["host"])
-            else:
-                self._async_host = self._parse_host(conn.host)
+            raw_host = conn.extra_dejson.get("host") or conn.host
+            if raw_host is None:
+                raise AirflowException("Databricks host is not set in the connection.")
+            self._async_host = self._parse_host(raw_host)
         return self._async_host
 
     async def __aenter__(self):
@@ -246,7 +244,11 @@ class BaseDatabricksHook(BaseHook):
             return sp_token["access_token"]
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
+
         try:
+            if self.databricks_conn.login is None or self.databricks_conn.password is None:
+                raise AirflowException("Service Principal credentials aren't provided (login/password).")
+
             for attempt in self._get_retry_object():
                 with attempt:
                     resp = requests.post(
@@ -284,6 +286,9 @@ class BaseDatabricksHook(BaseHook):
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
         try:
             conn = await self.a_databricks_conn()
+            if conn.login is None or conn.password is None:
+                raise AirflowException("Service Principal credentials aren't provided (login/password).")
+
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     async with self._session.post(
@@ -326,6 +331,9 @@ class BaseDatabricksHook(BaseHook):
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
             from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+
+            if self.databricks_conn.login is None or self.databricks_conn.password is None:
+                raise AirflowException("Azure SPN credentials aren't provided (login/password).")
 
             for attempt in self._get_retry_object():
                 with attempt:
@@ -375,6 +383,9 @@ class BaseDatabricksHook(BaseHook):
             )
 
             conn = await self.a_databricks_conn()
+            if conn.login is None or conn.password is None:
+                raise AirflowException("Azure SPN credentials aren't provided (login/password).")
+
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if conn.extra_dejson.get("use_azure_managed_identity", False):
@@ -681,7 +692,7 @@ class BaseDatabricksHook(BaseHook):
             auth = _TokenAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+            auth = HTTPBasicAuth(self.databricks_conn.login or "", self.databricks_conn.password or "")
 
         request_func: Any
         if method == "GET":
@@ -749,7 +760,7 @@ class BaseDatabricksHook(BaseHook):
         else:
             self.log.info("Using basic auth.")
             conn = await self.a_databricks_conn()
-            auth = aiohttp.BasicAuth(conn.login, conn.password)
+            auth = aiohttp.BasicAuth(conn.login or "", conn.password or "")
 
         request_func: Any
         if method == "GET":
