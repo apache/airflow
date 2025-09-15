@@ -37,6 +37,14 @@ Prerequisites
 - Access to an OAuth2 SSO provider (e.g., Google, Okta, Auth0, Azure Entra ID)
 - Admin access to Airflow and your SSO provider
 
+.. note::
+   For provider-specific authentication setup (obtaining client IDs, secrets, etc.), 
+   refer to the relevant provider documentation:
+   
+   - **Google**: :doc:`apache-airflow-providers-google:api-auth-backend/google-openid` and :doc:`apache-airflow-providers-google:connections/gcp`
+   - **Microsoft Azure**: :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
+   - **Amazon**: :doc:`apache-airflow-providers-amazon:auth-manager/setup/identity-center`
+
 Configuration Steps
 -------------------
 
@@ -142,6 +150,9 @@ Provider Examples
       }
    }]'
 
+.. seealso::
+   For detailed Okta setup instructions, see the `Okta OAuth2 documentation <https://developer.okta.com/docs/guides/implement-oauth/>`_.
+
 **Azure Entra ID (Azure AD)**
 
 .. code-block:: bash
@@ -163,6 +174,10 @@ Provider Examples
       }
    }]'
 
+.. seealso::
+   For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure` 
+   and the `Azure OAuth2 documentation <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_.
+
 **Google OAuth2**
 
 .. code-block:: bash
@@ -183,6 +198,10 @@ Provider Examples
         }
       }
    }]'
+
+.. seealso::
+   For Google OAuth setup and credential configuration, see :doc:`apache-airflow-providers-google:connections/gcp` 
+   and :doc:`apache-airflow-providers-google:api-auth-backend/google-openid`.
 
 Troubleshooting
 ---------------
