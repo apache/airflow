@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import select, tuple_, update
 from sqlalchemy.orm import Query, Session, selectinload
+from typing_extensions import Unpack
 
 from airflow.models import DagRun, Pool, TaskInstance
 from airflow.models.dag import DagModel
@@ -29,13 +31,22 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.task.task_selector_strategy import TaskSelectorStrategy
-from airflow.utils.concurency import ConcurrencyMap
+from airflow.utils.concurrency import ConcurrencyMap
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
+    from airflow.configuration import AirflowConfigParser
+    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
     from airflow.models.pool import PoolStats
+
+
+class ParamsProviderType(TypedDict):
+    """Allows for better type hints."""
+
+    conf: AirflowConfigParser
+    scheduler_job_runner: SchedulerJobRunner | None
 
 
 class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
@@ -43,7 +54,7 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
     Optimistic task selector.
 
     This task selector contains the way the old airflow scheduler fetches tasks.
-    It works in an optimistic manner meaning that it always fetches `max_tis` tasks untill it can get at least
+    It works in an optimistic manner meaning that it always fetches `max_tis` tasks until it can get at least
     1 task to be scheduled, this causes issues as described in GitHub Issue #45636.
     The 'old scheduler' can be seen here:
     https://github.com/apache/airflow/blob/478a2b458bae57a04aebcda3ac5b231fb49ff764/airflow-core/src/airflow/jobs/scheduler_job_runner.py#L293
@@ -431,13 +442,35 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
                 "Not executing %s since the task concurrency per DAG run for this task has been reached.",
                 task_instance,
             )
-            starved_tasks_task_dagrun_concurrency.add(
-                (
-                    task_instance.dag_id,
-                    task_instance.run_id,
-                    task_instance.task_id,
-                )
-            )
+            starved_tasks_task_dagrun_concurrency.add((
+                task_instance.dag_id,
+                task_instance.run_id,
+                task_instance.task_id,
+            ))
             return False
 
         return True
+
+
+def get_params_for_optimistic_selector(
+    **kwargs: Unpack[ParamsProviderType],
+) -> Mapping[str, Any]:
+    conf: AirflowConfigParser = kwargs["conf"]
+    scheduler_job_runner = kwargs["scheduler_job_runner"]
+
+    params = {}
+
+    params["max_tis"] = conf.getint("scheduler", "max_tis_per_query")
+
+    if TYPE_CHECKING:
+        # making mypy happy, though it is always passed
+        assert scheduler_job_runner
+
+    params["executor_slots_available"] = {  # type: ignore[assignment]
+        str(executor.name): executor.slots_available for executor in scheduler_job_runner.job.executors
+    }
+
+    return params
+
+
+OPTIMISTIC_SELECTOR = "OPTIMISTIC"

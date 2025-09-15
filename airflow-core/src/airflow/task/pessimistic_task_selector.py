@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Column, and_, column, func, select, text
 from sqlalchemy.orm import Query, selectinload
+from typing_extensions import Unpack
 
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DagModel
@@ -36,7 +37,16 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import expression
     from sqlalchemy.sql.selectable import CTE, Select
 
+    from airflow.configuration import AirflowConfigParser
+    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
     from airflow.models.base import Base
+
+
+class ParamsProviderType(TypedDict):
+    """Allows for better type hints."""
+
+    conf: AirflowConfigParser
+    scheduler_job_runner: SchedulerJobRunner | None
 
 
 @dataclass
@@ -52,7 +62,7 @@ class LimitWindowDescriptor:
         limit_column (Column): the column by which we check the window result, the window result has to be
         less than or equal to the limit_column (used for concurrency limits).
         window (expression.ColumnElement): the window expression itself.
-        limit_join_model (Base | None): the model on which we join to get an aditional concurrency limit,
+        limit_join_model (Base | None): the model on which we join to get an additional concurrency limit,
         sometimes it is needed for limits which are outside of dagrun, taskinstance and dag.
         additional_select_from_previous_query (list[str]): additional fields and columns to select from previous window in order to reduce joins.
     """
@@ -105,6 +115,7 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
 
     def __init__(self) -> None:
         self.priority_order = [-TaskInstance.priority_weight, DagRun.logical_date, TaskInstance.map_index]
+        self.toggle_reverse_query_order = False
 
     def get_query(self, **additional_params) -> Query:
         max_tis = additional_params["max_tis"]
@@ -235,18 +246,18 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
                 additional_select_from_previous_query=additional_select_values,
             ),
             LimitWindowDescriptor(
+                running_tis_per_dag,
+                ["dag_id", "task_id"],
+                TI.max_active_tis_per_dag,
+                tis_per_dag_count,
+                additional_select_from_previous_query=additional_select_values,
+            ),
+            LimitWindowDescriptor(
                 running_total_tis_per_dagrun,
                 ["dag_id", "run_id"],
                 DagModel.max_active_tasks,
                 total_tis_per_dagrun_count,
                 TI.dag_model,
-                additional_select_from_previous_query=additional_select_values,
-            ),
-            LimitWindowDescriptor(
-                running_tis_per_dag,
-                ["dag_id", "task_id"],
-                TI.max_active_tis_per_dag,
-                tis_per_dag_count,
                 additional_select_from_previous_query=additional_select_values,
             ),
             LimitWindowDescriptor(
@@ -259,6 +270,16 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
             ),
         ]
 
+        if self.toggle_reverse_query_order:
+            # reverse the query order to solve all possible starvation cases
+            # as it is not possible to solve all starvation cases using sql WF
+            # due to the fact that they are not dynamic, and tasks will be dropped
+            # even if they can be scheduled in favor of other non schedulable tasks because
+            # of the usage of row numbers, it also solves the issue of orthogonal limits.
+            limits.reverse()
+
+        self.toggle_reverse_query_order = not self.toggle_reverse_query_order
+
         for limit in limits:
             query = add_window_limit(query, limit)
 
@@ -267,3 +288,18 @@ class PessimisticTaskSelector(TaskSelectorStrategy):
         query = query.limit(max_tis)
 
         return query
+
+
+def get_params_for_pessimistic_selector(
+    **kwargs: Unpack[ParamsProviderType],
+) -> Mapping[str, Any]:
+    conf = kwargs["conf"]
+
+    params = {}
+
+    params["max_tis"] = conf.getint("scheduler", "max_tis_per_query")
+
+    return params
+
+
+PESSIMISTIC_SELECTOR = "PESSIMISTIC"
