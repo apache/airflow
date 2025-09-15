@@ -179,18 +179,14 @@ class BaseDatabricksHook(BaseHook):
 
     @cached_property
     def host(self) -> str:
-        raw_host = self.databricks_conn.extra_dejson.get("host") or self.databricks_conn.host
-        if raw_host is None:
-            raise AirflowException("Databricks host is not set in the connection.")
+        raw_host = self.databricks_conn.extra_dejson.get("host") or self.databricks_conn.host or ""
         return self._parse_host(raw_host)
 
     async def ahost(self) -> str:
         """Fetch host from connection async."""
         if self._async_host is None:
             conn = await self.adatabricks_conn()
-            raw_host = conn.extra_dejson.get("host") or conn.host
-            if raw_host is None:
-                raise AirflowException("Databricks host is not set in the connection.")
+            raw_host = conn.extra_dejson.get("host") or conn.host or ""
             self._async_host = self._parse_host(raw_host)
         return self._async_host
 
