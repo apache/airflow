@@ -50,7 +50,7 @@ class RemoteLogIO(Protocol):
 
 
 @runtime_checkable
-class RemoteLogStreamIO(Protocol):
+class RemoteLogStreamIO(RemoteLogIO, Protocol):
     """Interface for remote task loggers with stream-based read support."""
 
     def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
