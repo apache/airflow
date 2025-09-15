@@ -2053,6 +2053,7 @@ export class TaskInstanceService {
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
+     * @param data.mapIndex
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2100,6 +2101,7 @@ export class TaskInstanceService {
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
                 operator: data.operator,
+                map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2347,6 +2349,7 @@ export class TaskInstanceService {
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
+     * @param data.mapIndex
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
@@ -2395,6 +2398,7 @@ export class TaskInstanceService {
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
                 operator: data.operator,
+                map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
