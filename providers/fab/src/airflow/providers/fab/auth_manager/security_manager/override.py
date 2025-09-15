@@ -112,6 +112,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET_ALIAS,
     )
     from airflow.sdk import DAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -122,13 +123,13 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dagbag import DBDagBag
     from airflow.utils.session import create_session
 
-    def _iter_dags() -> Iterable[DAG]:
+    def _iter_dags() -> Iterable[DAG | SerializedDAG]:
         with create_session() as session:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
     from airflow.models.dagbag import DagBag
 
-    def _iter_dags() -> Iterable[DAG]:
+    def _iter_dags() -> Iterable[DAG | SerializedDAG]:
         dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
         dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
         return dagbag.dags.values()
