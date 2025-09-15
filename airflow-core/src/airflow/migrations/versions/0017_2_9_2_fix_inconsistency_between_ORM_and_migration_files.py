@@ -44,6 +44,7 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         # TODO: Rewrite these queries to use alembic when lowest MYSQL version supports IF EXISTS
+        # Remove prepared statements for PyMySQL
         result = conn.execute(
             sa.text("""
                 SELECT CONSTRAINT_NAME
