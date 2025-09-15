@@ -132,3 +132,13 @@ def task_sdk_conf_vars(overrides):
                     conf.remove_option(section, key)
         for env, value in original_env_vars.items():
             os.environ[env] = value
+
+
+def get_appropriate_conf_vars_context():
+    """Get the appropriate conf_vars context manager."""
+    try:
+        from airflow.sdk.configuration import conf  # noqa: F401
+
+        return task_sdk_conf_vars
+    except (ImportError, ModuleNotFoundError):
+        return conf_vars

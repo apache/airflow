@@ -43,15 +43,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.config import get_appropriate_conf_vars_context
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-try:
-    from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
-except ImportError:
-    # Compat for Airflow < 3.1
-    from tests_common.test_utils.config import conf_vars
+conf_vars = get_appropriate_conf_vars_context()
 
 
 def get_time_str(time_in_milliseconds):
