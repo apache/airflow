@@ -98,7 +98,7 @@ class TestPythonPackages:
             image=default_docker_image,
         )
         if python_version.startswith("Python 3.13"):
-            packages_to_install.remove("apache-airflow-providers-fab")
+            packages_to_install.discard("apache-airflow-providers-fab")
         output = run_bash_in_docker(
             "airflow providers list --output json",
             image=default_docker_image,
