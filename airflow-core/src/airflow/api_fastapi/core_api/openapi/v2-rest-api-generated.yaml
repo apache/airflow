@@ -318,6 +318,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: timestamp_gte
         in: query
         required: false
@@ -2336,7 +2348,8 @@ paths:
       summary: 'Experimental: Wait for a dag run to complete, and return task results
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
-        \ be removed without notice."
+        \ be removed without notice.Successful response are streamed as newline-delimited\
+        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
@@ -10864,12 +10877,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -10912,10 +10925,10 @@ components:
       properties:
         responded_by:
           $ref: '#/components/schemas/HITLUser'
-        response_at:
+        responded_at:
           type: string
           format: date-time
-          title: Response At
+          title: Responded At
         chosen_options:
           items:
             type: string
@@ -10929,7 +10942,7 @@ components:
       type: object
       required:
       - responded_by
-      - response_at
+      - responded_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.

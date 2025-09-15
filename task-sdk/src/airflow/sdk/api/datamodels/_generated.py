@@ -564,7 +564,7 @@ class HITLDetailResponse(BaseModel):
 
     response_received: Annotated[bool, Field(title="Response Received")]
     responded_by_user: HITLUser | None = None
-    response_at: Annotated[AwareDatetime | None, Field(title="Response At")] = None
+    responded_at: Annotated[AwareDatetime | None, Field(title="Responded At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
 

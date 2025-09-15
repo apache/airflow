@@ -27,14 +27,16 @@ import { StatsCard } from "./StatsCard";
 
 export const NeedsReviewButton = ({
   dagId,
+  refreshInterval,
   runId,
   taskId,
 }: {
   readonly dagId?: string;
+  readonly refreshInterval?: number | false;
   readonly runId?: string;
   readonly taskId?: string;
 }) => {
-  const refetchInterval = useAutoRefresh({ dagId });
+  const hookAutoRefresh = useAutoRefresh({ dagId });
   const { data: hitlStatsData, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
     {
       dagId,
@@ -45,12 +47,14 @@ export const NeedsReviewButton = ({
     },
     undefined,
     {
-      refetchInterval,
+      refetchInterval: refreshInterval ?? hookAutoRefresh,
     },
   );
 
   const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
-  const { t: translate } = useTranslation("hitl");
+  const { i18n, t: translate } = useTranslation("hitl");
+
+  const isRTL = i18n.dir() === "rtl";
 
   return hitlTIsCount > 0 ? (
     <Box maxW="250px">
@@ -59,6 +63,7 @@ export const NeedsReviewButton = ({
         count={hitlTIsCount}
         icon={<LuUserRoundPen />}
         isLoading={isLoading}
+        isRTL={isRTL}
         label={translate("requiredAction_other")}
         link="required_actions?response_received=false"
       />
