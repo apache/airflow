@@ -17,6 +17,23 @@
 # under the License.
 set -euo pipefail
 
+# Check for required dependencies
+function check_dep() {
+    if ! command -v "$1" &> /dev/null; then
+        echo "::error ::$1 is required for this action"
+        return 1
+    fi
+}
+
+missing_dep="false"
+check_dep jq || missing_dep="true"
+
+if [ "$missing_dep" == "true" ]; then
+    echo "Missing required dependencies. Please install them:"
+    echo "  sudo apt-get update && sudo apt-get install -y jq"
+    exit 1
+fi
+
 # Parameters:
 #
 # GITHUB_REPO - repository to delete the artifacts

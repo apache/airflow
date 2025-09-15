@@ -403,6 +403,22 @@ def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str
         return token
     if GITHUB_TOKEN:
         return GITHUB_TOKEN
+    
+    # Check if gh is available
+    try:
+        subprocess.check_output(["which", "gh"], stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        if not console:
+            raise RuntimeError("gh (GitHub CLI) is required for this action. Please install it.")
+        console.print(
+            "[red]gh (GitHub CLI) is required for this action.[/]\n"
+            "Please install it using one of the following methods:\n"
+            "  • Ubuntu/Debian: sudo apt-get update && sudo apt-get install -y gh\n"
+            "  • macOS: brew install gh\n"
+            "  • Or download from: https://github.com/cli/cli/releases\n"
+        )
+        sys.exit(1)
+    
     output = subprocess.check_output(["gh", "auth", "token"])
     token = output.decode().strip()
     if not token:

@@ -114,7 +114,7 @@ def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
             None,
             "from_tag",
             "to_tag",
-            ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "from_tag...to_tag", "--", "."],
+            ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "from_tag..to_tag", "--", "."],
         ),
         (
             [Path("a"), Path("b")],
@@ -125,7 +125,7 @@ def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
                 "log",
                 "--pretty=format:%H %h %cd %s",
                 "--date=short",
-                "from_tag...to_tag",
+                "from_tag..to_tag",
                 "--",
                 "a",
                 "b",
