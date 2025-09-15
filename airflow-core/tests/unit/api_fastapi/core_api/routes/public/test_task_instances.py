@@ -1229,7 +1229,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
-                    {"map_index": -1},
                     {"map_index": 0},
                     {"map_index": 1},
                     {"map_index": 2},
@@ -1241,8 +1240,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ],
                 True,
                 ("/dags/~/dagRuns/~/taskInstances"),
-                {"map_index": [-1, 0, 1]},
-                9,
+                {"map_index": [0, 1]},
+                2,
                 id="test map_index filter",
             ),
         ],
