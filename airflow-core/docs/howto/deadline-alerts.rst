@@ -97,6 +97,55 @@ Airflow provides several built-in reference points that you can use with Deadlin
 ``DeadlineReference.FIXED_DATETIME``
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
+``DeadlineReference.AVERAGE_RUNTIME``
+    Calculates deadlines based on the average runtime of previous DAG runs. This reference
+    analyzes historical execution data to predict when the current run should complete.
+    The deadline is set to the current time plus the calculated average runtime plus the interval.
+    If insufficient historical data exists, no deadline is created.
+
+    Parameters:
+        * ``limit`` (int, optional): Maximum number of recent DAG runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``limit``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        # Use default settings (analyze up to 10 runs, require 10 runs)
+        DeadlineReference.AVERAGE_RUNTIME()
+
+        # Analyze up to 20 runs but calculate with minimum 5 runs
+        DeadlineReference.AVERAGE_RUNTIME(limit=20, min_runs=5)
+
+        # Strict: require exactly 15 runs to calculate
+        DeadlineReference.AVERAGE_RUNTIME(limit=15, min_runs=15)
+
+Here's an example using average runtime:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="average_runtime_deadline",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.AVERAGE_RUNTIME(limit=15, min_runs=5),
+            interval=timedelta(minutes=30),  # Alert if 30 minutes past expected completion
+            callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={"text": "🚨 DAG {{ dag_run.dag_id }} is running longer than expected!"},
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="data_processing")
+
+The timeline for this example would look like this:
+
+::
+
+    |------|----------|---------|------------|--------|
+         Queued     Start    Expected    Deadline
+         09:00      09:05     09:35       10:05
+                              (avg+30min)
+
 Here's an example using a fixed datetime:
 
 .. code-block:: python

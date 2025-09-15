@@ -460,6 +460,58 @@ class TestCalculatedDeadlineDatabaseCalls:
             # Should return None since insufficient runs
             assert result is None
 
+    def test_average_runtime_with_min_runs(self, session, dag_maker):
+        """Test AverageRuntimeDeadline with min_runs parameter allowing calculation with fewer runs."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create only 3 completed DAG runs
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800]  # 1h, 2h, 30min
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"min_runs_test_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        # Test with min_runs=2, should work with 3 runs
+        reference = DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=2)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            # Should calculate average from 3 runs
+            expected_avg_seconds = sum(durations) / len(durations)  # 4200 seconds
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+            assert result == expected
+
+        # Test with min_runs=5, should return None with only 3 runs
+        reference = DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=5)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            assert result is None
+
+    def test_average_runtime_min_runs_validation(self):
+        """Test that min_runs must be at least 1."""
+        with pytest.raises(ValueError, match="min_runs must be at least 1"):
+            DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=0)
+
+        with pytest.raises(ValueError, match="min_runs must be at least 1"):
+            DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=-1)
+
 
 class TestDeadlineReference:
     """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""
@@ -523,3 +575,9 @@ class TestDeadlineReference:
         average_runtime_reference = DeadlineReference.AVERAGE_RUNTIME()
         assert isinstance(average_runtime_reference, ReferenceModels.AverageRuntimeDeadline)
         assert average_runtime_reference.limit == 10
+        assert average_runtime_reference.min_runs == 10
+
+        # Test with custom parameters
+        custom_reference = DeadlineReference.AVERAGE_RUNTIME(limit=5, min_runs=3)
+        assert custom_reference.limit == 5
+        assert custom_reference.min_runs == 3

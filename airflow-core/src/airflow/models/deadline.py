@@ -373,7 +373,14 @@ class ReferenceModels:
 
         DEFAULT_LIMIT = 10
         limit: int
+        min_runs: int | None = None
         required_kwargs = {"dag_id"}
+
+        def __post_init__(self):
+            if self.min_runs is None:
+                self.min_runs = self.limit
+            if self.min_runs < 1:
+                raise ValueError("min_runs must be at least 1")
 
         @provide_session
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
@@ -395,12 +402,12 @@ class ReferenceModels:
             # Get all durations and calculate average
             durations = session.execute(query).scalars().all()
 
-            if len(durations) < self.limit:
+            if len(durations) < cast("int", self.min_runs):
                 logger.info(
                     "Only %d completed DAG runs found for dag_id: %s (need %d), skipping deadline creation",
                     len(durations),
                     dag_id,
-                    self.limit,
+                    self.min_runs,
                 )
                 return None
             avg_seconds = sum(durations) / len(durations)
@@ -416,11 +423,19 @@ class ReferenceModels:
             return {
                 ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
                 "limit": self.limit,
+                "min_runs": self.min_runs,
             }
 
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
-            return cls(limit=reference_data.get("limit", cls.DEFAULT_LIMIT))
+            limit = reference_data.get("limit", cls.DEFAULT_LIMIT)
+            min_runs = reference_data.get("min_runs", limit)
+            if min_runs < 1:
+                raise ValueError("min_runs must be at least 1")
+            return cls(
+                limit=limit,
+                min_runs=min_runs,
+            )
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
