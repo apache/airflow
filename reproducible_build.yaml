@@ -1,6 +1,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 release-notes-hash: decf692f4614345c187317f600697668
 source-date-epoch: 1759372174
 =======
@@ -15,3 +16,7 @@ source-date-epoch: 1757608627
 release-notes-hash: 0638f4d3625aa66fe5660ac969f71c72
 source-date-epoch: 1757895053
 >>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+release-notes-hash: 231c1dea9192040721d8048592300cac
+source-date-epoch: 1757972431
+>>>>>>> 922f344af6 (Update release notes for 3.1.0b2)
