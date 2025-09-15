@@ -20,6 +20,10 @@ from unittest import mock
 
 import pytest
 
+import airflow.api_fastapi.app as app_module
+import airflow.plugins_manager as plugins_manager
+from fastapi import FastAPI
+
 pytestmark = pytest.mark.db_test
 
 
@@ -90,3 +94,20 @@ def test_catch_all_route_last(client):
     """
     test_app = client(apps="all").app
     assert test_app.routes[-1].path == "/{rest_of_path:path}"
+
+def test_plugin_with_empty_url_prefix(caplog):
+    app = FastAPI()
+    with mock.patch.object(plugins_manager, "fastapi_apps", [{"name": "test", "app": FastAPI(), "url_prefix": ""}]):
+        app_module.init_plugins(app)
+
+    assert any("'url_prefix' key is empty string" in rec.message for rec in caplog.records)
+    assert not any(r.path == "" for r in app.routes)
+
+def test_plugin_with_reserved_url_prefix(caplog):
+    app = FastAPI()
+    reserved = next(iter(app_module.RESERVED_URL_PREFIXES))
+    with mock.patch.object(plugins_manager, "fastapi_apps", [{"name": "test", "app": FastAPI(), "url_prefix": reserved}]):
+        app_module.init_plugins(app)
+
+    assert any("attempted to use reserved url_prefix" in rec.message for rec in caplog.records)
+    assert not any(r.path == reserved for r in app.routes)
