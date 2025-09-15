@@ -106,11 +106,12 @@ export const Gantt = ({ limit }: Props) => {
     state: selectedRun?.state,
   });
 
-  // Get individual task instances for tasks (which have start/end times)
+  // Get non mapped task instances for tasks (which have start/end times)
   const { data: taskInstancesData, isLoading: tiLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: runId,
+      mapIndex: [-1],
     },
     undefined,
     {
