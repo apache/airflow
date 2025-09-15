@@ -31,14 +31,9 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator, MappedOperator
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as SDKTaskInstanceProtocol
 
-    # DAGNode is an alias for BaseOperator in Airflow
-    DAGNode = BaseOperator  # type: ignore[misc]  # This is a valid type alias in Airflow
-
-    # Use the SDK's RuntimeTaskInstanceProtocol
+    DAGNode = BaseOperator
     RuntimeTaskInstanceProtocol = SDKTaskInstanceProtocol
 
-    # Type alias for operator types that can be used with SkipMixin
-    # DecoratedMappedOperator is a subclass of MappedOperator, so we don't need to include it explicitly
     SkipMixinOperator = Union[BaseOperator, MappedOperator]
 else:
     SkipMixinOperator = "BaseOperator | MappedOperator"
@@ -55,7 +50,6 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 def _ensure_tasks(nodes: Iterable[DAGNode]) -> list[SkipMixinOperator]:
     """Return a list of operators from the given nodes."""
-    # Import here to avoid circular imports
     from airflow.models.baseoperator import BaseOperator, MappedOperator
 
     result: list[SkipMixinOperator] = []
@@ -77,21 +71,18 @@ class SkipMixin(LoggingMixin):
         :param tasks: List of task IDs or (task_id, map_index) tuples to skip
         :param map_index: Map index of the current task (deprecated, included for backward compatibility)
         """
-        _ = map_index  # Mark as used for backward compatibility
         processed_tasks: list[str | tuple[str, int]] = []
         for task in tasks:
             if isinstance(task, str) and "[" in task and task.endswith("]"):
-                # Handle mapped task format: 'task_id[map_index]'
                 task_id, map_idx_str = task.rsplit("[", 1)
                 try:
                     map_idx = int(map_idx_str.rstrip("]"))
                     processed_tasks.append((task_id, map_idx))
                     continue
                 except (ValueError, IndexError):
-                    # If we can't parse the map index, treat as a regular task ID
-                    processed_tasks.append(task)  # type: ignore[arg-type]
+                    processed_tasks.append(task)
             else:
-                processed_tasks.append(task)  # type: ignore[arg-type]
+                processed_tasks.append(task)
 
         from airflow.exceptions import DownstreamTasksSkipped
 
@@ -101,7 +92,7 @@ class SkipMixin(LoggingMixin):
         self,
         ti: RuntimeTaskInstanceProtocol,
         tasks: Iterable[DAGNode],
-        dag_run=None,  # Allow passing DAG run directly
+        dag_run=None,
     ) -> None:
         """
         Set tasks instances to skipped from the same dag run.
@@ -113,12 +104,10 @@ class SkipMixin(LoggingMixin):
         :param ti: the task instance for which to set the tasks to skipped
         :param tasks: tasks to skip (not task_ids)
         """
-        # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         task_id: str | None = getattr(self, "task_id", None)
         task_list = list(_ensure_tasks(tasks))
         log = self.log
-        # Log which tasks were dropped (if any)
-        tasks_list = list(tasks)  # Convert to list to get length
+        tasks_list = list(tasks)
         if len(tasks_list) != len(task_list):
             dropped = [
                 str(getattr(t, "task_id", str(t)))
@@ -127,75 +116,43 @@ class SkipMixin(LoggingMixin):
             ]
             if dropped:
                 log.info("Dropped %d non-operator tasks: %s", len(dropped), dropped)
-        log.info("Skipping tasks %s", task_list)
-        log.info("Skipping task_id %s", task_id)
-        log.info("Skipping map_index %s", ti.map_index)
-        log.info("Skipping dag_id %s", ti.dag_id)
+
         if not task_list:
             return
 
-        # task_ids_list = [d.task_id for d in task_list]
-
-        # if task_id is not None:
-        #     ti.xcom_push(
-        #         key=XCOM_SKIPMIXIN_KEY,
-        #         value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
-        #     )
-
-        # self._set_state_to_skipped(task_ids_list, ti.map_index)
-        # Expand mapped tasks into concrete indices
         expanded_task_ids: list[str] = []
 
-        # Get the DAG run from the parameter or the task instance
         dag_run = dag_run or getattr(ti, "dag_run", None)
 
-        # In Airflow 3.0, we can't directly access the database to expand mapped tasks
-        # So we'll use the task's expand_mapped_task method which is the recommended way
         for t in task_list:
             task_id = getattr(t, "task_id", "unknown")
-            task_type = type(t).__name__
             is_mapped = getattr(t, "is_mapped", False)
 
-            log.info("Processing task: %s (type: %s, mapped: %s)", task_id, task_type, is_mapped)
-
             if is_mapped and dag_run is not None:
-                log.info("Task %s is mapped, expanding...", task_id)
                 try:
-                    # Try to get the number of mapped instances
                     mapped_params = getattr(t, "mapped_params", {})
-                    log.info("Mapped params: %s", mapped_params)
-                    num_instances = 1  # Default to 1 if we can't determine
+                    num_instances = 1
                     if hasattr(mapped_params, "get_total_map_length"):
                         num_instances = mapped_params.get_total_map_length()
                     elif hasattr(t, "get_parse_time_mapped_ti_count"):
-                        # For DecoratedMappedOperator
                         num_instances = t.get_parse_time_mapped_ti_count()
 
-                    log.info("Expanding mapped task %s into %d instances", task_id, num_instances)
-
-                    # Add each mapped instance
                     for i in range(num_instances):
                         mapped_id = f"{task_id}[{i}]"
                         expanded_task_ids.append(mapped_id)
-                        log.info("Added mapped task instance: %s", mapped_id)
 
                 except Exception as e:
                     log.warning("Failed to expand mapped task %s: %s", task_id, e, exc_info=True)
                     expanded_task_ids.append(task_id)
             else:
-                log.info("Adding non-mapped task: %s", task_id)
                 expanded_task_ids.append(task_id)
 
-        log.info("Final expanded skipped list: %s", expanded_task_ids)
-
-        # Push expanded tasks to XCom
         if task_id is not None:
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY,
                 value={XCOM_SKIPMIXIN_SKIPPED: expanded_task_ids},
             )
 
-        # Mark as skipped in DB
         self._set_state_to_skipped(expanded_task_ids, ti.map_index)
 
     def skip_all_except(

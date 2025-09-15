@@ -132,11 +132,8 @@ class NotPreviouslySkippedDep(BaseTIDep):
                                         ti.map_index,
                                         idxs,
                                     )
-                            # If TI is unmapped, presence in dict above is enough to follow.
-                            else:
-                                logger.debug(
-                                    "Unmapped task %s is in 'followed' dict, not skipping", ti.task_id
-                                )
+                            # If TI is unmapped, presence in dict above is enough to follow
+                            pass
                     else:
                         # followed_val assumed to be iterable of task_ids (list/set)
                         if ti.task_id not in followed_val:

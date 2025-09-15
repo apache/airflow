@@ -311,7 +311,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                     yield t
 
         to_skip = list(get_tasks_to_skip())
-        self.log.info("Downstream tasks to skip: %s", [t.task_id for t in to_skip])
 
         # this lets us avoid an intermediate list unless debug logging
         if self.log.getEffectiveLevel() <= logging.DEBUG:
@@ -322,7 +321,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.skip(
                 ti=context["ti"],
                 tasks=to_skip,
-                dag_run=context.get("dag_run"),  # Pass the DAG run from context
+                dag_run=context.get("dag_run"),
             )
         else:
             if to_skip:
