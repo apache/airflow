@@ -117,7 +117,7 @@
   },
   "limitedList": "+{{count}} المزيد",
   "limitedList.allItems": "جميع العناصر {{count}}:",
-  "limitedList.clickToInteract": "انقر على علامة لتصفية DAGs",
+  "limitedList.clickToInteract": "انقر على علامة لتصفية Dags",
   "limitedList.clickToOpenFull": "انقر \"+{{count}} المزيد\" لعرض القائمة الكاملة",
   "limitedList.copyPasteText": "يمكنك نسخ ولصق النص أعلاه",
   "limitedList.showingItems": "عرض {{count}} عنصرًا",
