@@ -48,7 +48,7 @@ import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { formatDate } from "src/utils/datetimeUtils";
+import { DEFAULT_DATETIME_FORMAT, formatDate } from "src/utils/datetimeUtils";
 
 import { createHandleBarClick, createChartOptions } from "./utils";
 
@@ -88,8 +88,8 @@ export const Gantt = ({ limit }: Props) => {
   const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
     "gray.200",
     "gray.800",
-    "brand.200",
-    "brand.800",
+    "blue.200",
+    "blue.800",
   ]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
@@ -114,7 +114,7 @@ export const Gantt = ({ limit }: Props) => {
     },
     undefined,
     {
-      enabled: Boolean(dagId),
+      enabled: Boolean(dagId) && Boolean(runId),
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
@@ -147,8 +147,8 @@ export const Gantt = ({ limit }: Props) => {
             state: gridSummary.state,
             taskId: gridSummary.task_id,
             x: [
-              formatDate(gridSummary.min_start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-              formatDate(gridSummary.max_end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
             ],
             y: gridSummary.task_id,
           };
@@ -163,8 +163,8 @@ export const Gantt = ({ limit }: Props) => {
               state: taskInstance.state,
               taskId: taskInstance.task_id,
               x: [
-                formatDate(taskInstance.start_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
-                formatDate(taskInstance.end_date, selectedTimezone, "YYYY-MM-DD HH:mm:ss.SSS"),
+                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
+                formatDate(taskInstance.end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT),
               ],
               y: taskInstance.task_id,
             };

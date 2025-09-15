@@ -227,7 +227,6 @@ There are several reasons why Dags might disappear from the UI. Common causes in
   * :ref:`config:dag_processor__file_parsing_sort_mode` - Ensure sorting method matches your sync strategy
   * :ref:`config:dag_processor__parsing_processes` - Number of parallel parsers
   * :ref:`config:scheduler__parsing_cleanup_interval` - Controls stale Dag cleanup frequency
-  * :ref:`config:scheduler__dag_stale_not_seen_duration` - Time threshold for marking Dags as stale
 
 * **File synchronization problems** - Common with git-sync setups:
 

@@ -111,17 +111,12 @@
     "any": "Qualquer",
     "or": "OU"
   },
+  "filter": "Filtro",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtrar por DAG",
-    "keyPlaceholder": "Filtrar por chave XCom",
-    "logicalDateFromPlaceholder": "Data Lógica De",
-    "logicalDateToPlaceholder": "Data Lógica Para",
-    "mapIndexPlaceholder": "Filtrar por Índice do Mapa",
-    "runAfterFromPlaceholder": "Executar Depois De",
-    "runAfterToPlaceholder": "Executar Depois Para",
-    "runIdPlaceholder": "Filtrar por ID da Execução",
-    "taskIdPlaceholder": "Filtrar por ID da Tarefa",
-    "triggeringUserPlaceholder": "Filtrar por Usuário que Disparou"
+    "logicalDateFrom": "Data Lógica De",
+    "logicalDateTo": "Data Lógica Para",
+    "runAfterFrom": "Executar Depois De",
+    "runAfterTo": "Executar Depois Para"
   },
   "logicalDate": "Data Lógica",
   "logout": "Sair",
@@ -165,6 +160,7 @@
     "running": "Executando",
     "scheduled": "Agendado"
   },
+  "reset": "Resetar",
   "runId": "ID da Execução",
   "runTypes": {
     "asset_triggered": "Asset Acionado",

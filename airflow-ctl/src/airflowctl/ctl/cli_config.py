@@ -560,7 +560,7 @@ class CommandFactory:
                         )
 
             if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT])
+                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
