@@ -164,7 +164,7 @@ On systems with SELinux/AppArmor, you may run into permission issues. If this ha
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config:z
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins:z
 
-If, after this change, you are still experiencing permission issues when creating the ``airflow.cfg`` file, you can apply a very permissive setting to the `config` folder:
+If, after this change, you are still experiencing permission issues when creating the ``airflow.cfg`` file, you can apply a very permissive setting to the ``config/`` folder:
 
 .. code-block:: bash
 
