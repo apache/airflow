@@ -3634,11 +3634,7 @@ def prepare_helm_chart_tarball(
     default_airflow_tag_in_values = values_content["defaultAirflowTag"]
 
     # Check if this is an RC version and replace documentation links with staging URLs
-    is_rc_version = version_suffix and (
-        "rc" in version_suffix.lower()
-        or re.match(r".*\ba\d+.*", version_suffix.lower())  # alpha releases like 'a1', 'a2'
-        or re.match(r".*\bb\d+.*", version_suffix.lower())  # beta releases like 'b1', 'b2'
-    )
+    is_rc_version = version_suffix and "rc" in version_suffix.lower()
     if is_rc_version:
         get_console().print(
             f"[info]RC version detected ({version_suffix}). Replacing documentation links with staging URLs.[/]"
@@ -3798,11 +3794,7 @@ def prepare_helm_chart_package(sign_email: str, version_suffix: str):
 
     # Check if this is an RC version and temporarily replace documentation links
     chart_yaml_backup = None
-    is_rc_version = version_suffix and (
-        "rc" in version_suffix.lower()
-        or re.match(r".*\ba\d+.*", version_suffix.lower())  # alpha releases like 'a1', 'a2'
-        or re.match(r".*\bb\d+.*", version_suffix.lower())  # beta releases like 'b1', 'b2'
-    )
+    is_rc_version = version_suffix and "rc" in version_suffix.lower()
 
     if is_rc_version:
         get_console().print(
