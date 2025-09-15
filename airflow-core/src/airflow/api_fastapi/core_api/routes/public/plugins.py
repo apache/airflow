@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+import logging
 
 from fastapi import Depends
 
@@ -32,6 +32,8 @@ from airflow.api_fastapi.core_api.datamodels.plugins import (
 )
 from airflow.api_fastapi.core_api.security import requires_access_view
 
+logger = logging.getLogger(__name__)
+
 plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
@@ -44,8 +46,22 @@ def get_plugins(
     offset: QueryOffset,
 ) -> PluginCollectionResponse:
     plugins_info = sorted(plugins_manager.get_plugin_info(), key=lambda x: x["name"])
+    valid_plugins: list[PluginResponse] = []
+    for plugin_dict in plugins_info[offset.value :][: limit.value]:
+        try:
+            # Validate each plugin individually
+            plugin = PluginResponse.model_validate(plugin_dict)
+            valid_plugins.append(plugin)
+        except Exception as e:
+            logger.warning(
+                "Skipping invalid plugin %s due to error: %s",
+                plugin_dict.get("name", "<unknown>"),
+                e,
+            )
+            continue
+
     return PluginCollectionResponse(
-        plugins=cast("list[PluginResponse]", plugins_info[offset.value :][: limit.value]),
+        plugins=valid_plugins,
         total_entries=len(plugins_info),
     )
 
