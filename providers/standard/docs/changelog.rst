@@ -35,6 +35,34 @@
 Changelog
 ---------
 
+1.8.0
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``feat(hitl): get rid off "Fallback to defaults" in HITL (#55536)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hitl): make the user model in HITLDetail consistent with airflow user model (#55463)``
+* ``HITL: Resolve Conflict 409 in API server when user actions at nearly timeout (#55243)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename response_at to responded_at (#55535)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK dependency from SerializedDAG (#55538)``
+   * ``Introduce e2e testing with testcontainers (#54072)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
 1.7.0
 .....
 

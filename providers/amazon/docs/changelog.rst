@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+9.14.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Implement 'batch_is_authorized_' methods in AWS auth manager (#55307)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Catch 404/401 issues for Bedrock Operators (#55445)``
+* ``EcsRunTaskOperator fails when no containers are provided in the response (#51692)``
+
+Misc
+~~~~
+
+* ``List only connections, pools and variables the user has access to (#55298)``
+* ``Switch all airflow logging to structlog (#52651)``
+* ``AIP-67 - Multi-team: Per team executor config (env var only) (#55003)``
+
+Doc-only
+~~~~~~~~
+
+* ``add stable note to BatchExecutor (#55286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate off Xen-based ECS instances (#55527)``
+   * ``Add missing test for aws batch utils (#55407)``
+   * ``README optional dependencies template (#55280)``
+
 9.13.0
 ......
 
