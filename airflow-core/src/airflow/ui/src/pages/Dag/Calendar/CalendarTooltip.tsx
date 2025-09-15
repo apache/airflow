@@ -31,9 +31,9 @@ type Props = {
 };
 
 const stateColorMap = {
-  failed: "red.500",
-  planned: "stone.500",
-  success: "green.500",
+  failed: "failed.solid",
+  planned: "stone.600",
+  success: "success.solid",
 };
 
 export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
@@ -43,7 +43,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
     () => ({
       backgroundColor: "var(--chakra-colors-gray-800)",
       borderRadius: "4px",
-      color: "white",
+      color: "var(--chakra-colors-gray-contrast)",
       fontSize: "14px",
       left: "50%",
       minWidth: "200px",

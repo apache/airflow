@@ -237,7 +237,7 @@ export const Calendar = () => {
               <Box
                 animation={`${spin} 1s linear infinite`}
                 border="3px solid"
-                borderColor={{ _dark: "gray.600", _light: "brand.100" }}
+                borderColor={{ _dark: "none.600", _light: "brand.100" }}
                 borderRadius="50%"
                 borderTopColor="brand.500"
                 height="24px"
