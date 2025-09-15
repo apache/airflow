@@ -113,6 +113,7 @@ def create_trigger_in_db(session, trigger, operator=None):
         dag_id="test_dag",
         bundle_name=bundle_name,
         version_number=1,
+        session=session,
     )
     dag_model.dag_versions.append(dag_version)
     session.add(dag_model)
