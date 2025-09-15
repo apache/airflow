@@ -1716,12 +1716,7 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            #
-            # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-            # from a subprocess we know that the timezone of the log message is the same, so having some
-            # messages include tz (from subprocess) but others not (ones from supervisor process) is
-            # confusing.
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
+            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace

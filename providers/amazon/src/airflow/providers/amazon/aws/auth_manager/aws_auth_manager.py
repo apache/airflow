@@ -344,6 +344,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         dag_ids: set[str],
         user: AwsAuthManagerUser,
         method: ResourceMethod = "GET",
+        team_name: str | None = None,
     ):
         requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
         requests_list: list[IsAuthorizedRequest] = []
