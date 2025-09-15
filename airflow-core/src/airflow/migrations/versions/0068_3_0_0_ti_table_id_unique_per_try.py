@@ -57,6 +57,7 @@ def upgrade():
             new_column_name="task_instance_id_backup",
             existing_type=_get_uuid_type(dialect_name),
             existing_nullable=False,
+            nullable=True,
         )
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
@@ -125,10 +126,21 @@ def downgrade():
 
     # This has to be in a separate batch, else on sqlite it throws `sqlalchemy.exc.CircularDependencyError`
     # (and on non sqlite batching isn't "a thing", it issue alter tables fine)
+
+    task_instance_history = sa.table(
+        "task_instance_history",
+        sa.column("task_instance_id_backup", _get_uuid_type(dialect_name)),
+    )
+    op.execute(
+        task_instance_history.delete().where(
+            task_instance_history.c.task_instance_id_backup.is_(None)
+        )
+    )
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.alter_column(
             "task_instance_id_backup",
             new_column_name="task_instance_id",
             existing_type=_get_uuid_type(dialect_name),
-            existing_nullable=False,
+            existing_nullable=True,
+            nullable=False,
         )
