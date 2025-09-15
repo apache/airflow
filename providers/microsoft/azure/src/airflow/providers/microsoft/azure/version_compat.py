@@ -40,10 +40,13 @@ if AIRFLOW_V_3_0_PLUS:
         BaseOperator,
         BaseOperatorLink,
         BaseSensorOperator,
+        Connection,
+        Context,
     )
 else:
-    from airflow.models import BaseOperator, BaseOperatorLink
+    from airflow.models import BaseOperator, BaseOperatorLink, Connection  # type: ignore[assignment]
     from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+    from airflow.utils.context import Context  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.bases.xcom import BaseXCom
@@ -61,5 +64,7 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "Connection",
+    "Context",
     "XCOM_RETURN_KEY",
 ]
