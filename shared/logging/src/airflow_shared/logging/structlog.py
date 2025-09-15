@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import codecs
 import io
+import itertools
 import logging
 import os
 import re
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
@@ -31,7 +32,7 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 import pygtrie
 import structlog
 import structlog.processors
-from structlog.processors import NAME_TO_LEVEL
+from structlog.processors import NAME_TO_LEVEL, CallsiteParameter
 
 from ._noncaching import make_file_io_non_caching
 from .percent_formatter import PercentFormatRender
@@ -225,6 +226,7 @@ def structlog_processors(
     json_output: bool,
     log_format: str = "",
     colors: bool = True,
+    callsite_parameters: tuple[CallsiteParameter, ...] = (),
 ):
     """
     Create the correct list of structlog processors for the given config.
@@ -233,6 +235,10 @@ def structlog_processors(
 
     1. A list of processors shared for structlgo and stblib
     2. The final processor/renderer (one that outputs a string) for use with structlog.stdlib.ProcessorFormatter
+
+
+    ``callsite_parameters`` specifies the keys to add to the log event dict. If ``log_format`` is specified
+    then anything callsite related will be added to this list
 
     :meta private:
     """
@@ -249,6 +255,23 @@ def structlog_processors(
         redact_jwt,
         structlog.processors.StackInfoRenderer(),
     ]
+
+    if log_format:
+        # Maintain the order if any params that are given explicitly, then add on anything needed for the
+        # format string (so use a dict with None as the values as set doesn't preserve order)
+        params = {
+            param: None
+            for param in itertools.chain(
+                callsite_parameters or [], PercentFormatRender.callsite_params_from_fmt_string(log_format)
+            )
+        }
+        shared_processors.append(
+            structlog.processors.CallsiteParameterAdder(list(params.keys()), additional_ignores=[__name__])
+        )
+    elif callsite_parameters:
+        shared_processors.append(
+            structlog.processors.CallsiteParameterAdder(callsite_parameters, additional_ignores=[__name__])
+        )
 
     # Imports to suppress showing code from these modules. We need the import to get the filepath for
     # structlog to ignore.
@@ -332,6 +355,18 @@ def structlog_processors(
             colors=colors,
         )
     else:
+        if callsite_parameters == (CallsiteParameter.FILENAME, CallsiteParameter.LINENO):
+            # Nicer formatting of the default callsite config
+            def log_loc(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
+                if (
+                    event_dict.get("logger") != "py.warnings"
+                    and "filename" in event_dict
+                    and "lineno" in event_dict
+                ):
+                    event_dict["loc"] = f"{event_dict.pop('filename')}:{event_dict.pop('lineno')}"
+                return event_dict
+
+            shared_processors.append(log_loc)
         console = structlog.dev.ConsoleRenderer(
             exception_formatter=exc_formatter,
             level_styles=my_styles,
@@ -345,9 +380,10 @@ def configure_logging(
     *,
     json_output: bool = False,
     log_level: str = "DEBUG",
-    log_format: str | None = None,
+    log_format: str = "",
     stdlib_config: dict | None = None,
     extra_processors: Sequence[Processor] | None = None,
+    callsite_parameters: Iterable[CallsiteParameter] | None = None,
     colors: bool | None = None,
     output: LogOutputType | None = None,
     log_levels: str | dict[str, str] | None = None,
@@ -372,7 +408,11 @@ def configure_logging(
         * ``FORCE_COLOR`` activates colors, regardless of where output is going.
         * ``NO_COLOR`` disables colors, regardless of where the output is going and regardless the value of
           ``FORCE_COLOR``. Please note that ``NO_COLOR`` disables all styling, including bold and italics.
+    :param callsite_parameters: A list parameters about the callsite (line number, function name etc) to
+        include in the logs.
 
+        If ``log_format`` is specified, then anything required to populate that (such as ``%(lineno)d``) will
+        be automatically included.
     :param log_levels: Levels of extra loggers to configure.
 
         To make this easier to use, this can be a string consisting of pairs of ``<logger>=<level>`` (either
@@ -413,6 +453,7 @@ def configure_logging(
         json_output,
         log_format=log_format,
         colors=colors,
+        callsite_parameters=tuple(callsite_parameters or ()),
     )
     shared_pre_chain += list(extra_processors)
     pre_chain: list[structlog.typing.Processor] = [structlog.stdlib.add_logger_name] + shared_pre_chain
@@ -560,6 +601,17 @@ def init_log_file(
         log.warning("OSError while changing ownership of the log file. %s", e)
 
     return full_path
+
+
+def logger_without_processor_of_type(logger: WrappedLogger, processor_type: type):
+    procs = getattr(logger, "_processors", None)
+    if procs is None:
+        procs = structlog.get_config()["processors"]
+    procs = [proc for proc in procs if not isinstance(proc, processor_type)]
+
+    return structlog.wrap_logger(
+        getattr(logger, "_logger", None), processors=procs, **getattr(logger, "_context", {})
+    )
 
 
 if __name__ == "__main__":
