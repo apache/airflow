@@ -83,9 +83,9 @@ For ``airflowctl`` to be able to communicate with the Airflow API, it needs to a
 This is done using either a token or a username and password.
 The token can be acquired from the Airflow API or generated using a username and password.
 
-.. image:: ../images/diagrams/airflowctl_api_network_diagram.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/diagrams/airflowctl_api_network_diagram.svg
-  :width: 60%
+.. image:: ../images/diagrams/airflowctl_api_network_architecture_diagram.png
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/diagrams/airflowctl_api_network_architecture_diagram.png
+  :width: 100%
   :alt: airflowctl Auth Login Help
 
 Parameter Details for airflowctl auth login
