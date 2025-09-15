@@ -54,12 +54,6 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
     return null;
   }
 
-  // Only auto-confirm for failed tasks if we have fresh data (not loading)
-  //if (!isFetching && data && data.task_instances?.[0]?.state === "failed") {
-  //  handleConfirm();
-  //  return null;
-  //}
-
   // Dialog will only open if the task is in a 'running' state
   // Added up-for-retry and restarting
   const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.state
