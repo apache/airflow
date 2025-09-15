@@ -23,7 +23,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -122,9 +122,9 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails({
-    dagId,
-    dagRunId: runId,
+  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
+    dagId: dagId ?? "~",
+    dagRunId: runId ?? "~",
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
