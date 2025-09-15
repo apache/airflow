@@ -34,6 +34,7 @@ from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DagRun, TaskReschedule
+from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -53,7 +54,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.module_loading import import_string
 
 if AIRFLOW_V_3_0_PLUS:
@@ -65,6 +66,8 @@ if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 
@@ -79,6 +82,8 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
+
+    AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
 else:
     try:
         from airflow.sdk import DAG, BaseOperator
@@ -128,13 +133,13 @@ def try_import_from_string(string: str) -> Any:
         return import_string(string)
 
 
-def get_operator_class(task: BaseOperator) -> type:
+def get_operator_class(task: BaseOperator | MappedOperator) -> type:
     if task.__class__.__name__ in ("DecoratedMappedOperator", "MappedOperator"):
         return task.operator_class
     return task.__class__
 
 
-def get_operator_provider_version(operator: BaseOperator | MappedOperator) -> str | None:
+def get_operator_provider_version(operator: AnyOperator) -> str | None:
     """Get the provider package version for the given operator."""
     try:
         class_path = get_fully_qualified_class_name(operator)
@@ -214,7 +219,7 @@ def _truncate_string_to_byte_size(s: str, max_size: int = _MAX_DOC_BYTES) -> str
     return truncated.decode("utf-8", errors="ignore")
 
 
-def get_task_documentation(operator: BaseOperator | MappedOperator | None) -> tuple[str | None, str | None]:
+def get_task_documentation(operator: AnyOperator | None) -> tuple[str | None, str | None]:
     """Get task documentation and mime type, truncated to _MAX_DOC_BYTES bytes length, if present."""
     if not operator:
         return None, None
@@ -241,7 +246,7 @@ def get_task_documentation(operator: BaseOperator | MappedOperator | None) -> tu
     return None, None
 
 
-def get_dag_documentation(dag: DAG | None) -> tuple[str | None, str | None]:
+def get_dag_documentation(dag: DAG | SerializedDAG | None) -> tuple[str | None, str | None]:
     """Get dag documentation and mime type, truncated to _MAX_DOC_BYTES bytes length, if present."""
     if not dag:
         return None, None
@@ -312,23 +317,23 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
     return custom_facets
 
 
-def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
-    if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
+def get_fully_qualified_class_name(operator: AnyOperator) -> str:
+    if isinstance(operator, (SerializedMappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator.task_type
     op_class = get_operator_class(operator)
     return op_class.__module__ + "." + op_class.__name__
 
 
-def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
+def is_operator_disabled(operator: AnyOperator) -> bool:
     return get_fully_qualified_class_name(operator) in conf.disabled_operators()
 
 
-def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
+def is_selective_lineage_enabled(obj: DAG | SerializedDAG | AnyOperator) -> bool:
     """If selective enable is active check if DAG or Task is enabled to emit events."""
     if not conf.selective_enable():
         return True
-    if isinstance(obj, DAG):
+    if isinstance(obj, (DAG, SerializedDAG)):
         return is_dag_lineage_enabled(obj)
     if isinstance(obj, (BaseOperator, MappedOperator)):
         return is_task_lineage_enabled(obj)
@@ -749,7 +754,7 @@ def get_airflow_state_run_facet(
     }
 
 
-def _get_tasks_details(dag: DAG) -> dict:
+def _get_tasks_details(dag: DAG | SerializedDAG) -> dict:
     tasks = {
         single_task.task_id: {
             "operator": get_fully_qualified_class_name(single_task),
@@ -768,7 +773,7 @@ def _get_tasks_details(dag: DAG) -> dict:
     return tasks
 
 
-def _get_task_groups_details(dag: DAG) -> dict:
+def _get_task_groups_details(dag: DAG | SerializedDAG) -> dict:
     return {
         tg_id: {
             "parent_group": tg.parent_group.group_id,
@@ -780,7 +785,7 @@ def _get_task_groups_details(dag: DAG) -> dict:
     }
 
 
-def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
+def _emits_ol_events(task: AnyOperator) -> bool:
     config_selective_enabled = is_selective_lineage_enabled(task)
     config_disabled_for_operators = is_operator_disabled(task)
     # empty operators without callbacks/outlets are skipped for optimization by Airflow

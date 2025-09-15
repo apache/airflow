@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import inspect
 from collections import abc
-from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -151,9 +150,9 @@ class DAGDetailsResponse(DAGResponse):
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    params: abc.MutableMapping | None
+    params: abc.Mapping | None
     render_template_as_native_obj: bool
-    template_search_path: Iterable[str] | None
+    template_search_path: list[str] | None
     timezone: str | None
     last_parsed: datetime | None
     default_args: abc.Mapping | None
@@ -177,7 +176,7 @@ class DAGDetailsResponse(DAGResponse):
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: abc.MutableMapping | None) -> dict | None:
+    def get_params(cls, params: abc.Mapping | None) -> dict | None:
         """Convert params attribute to dict representation."""
         if params is None:
             return None

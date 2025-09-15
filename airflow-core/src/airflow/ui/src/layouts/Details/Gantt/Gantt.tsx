@@ -114,7 +114,7 @@ export const Gantt = ({ limit }: Props) => {
     },
     undefined,
     {
-      enabled: Boolean(dagId),
+      enabled: Boolean(dagId) && Boolean(runId),
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
