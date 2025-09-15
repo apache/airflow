@@ -332,7 +332,7 @@ class ElasticsearchHook(BaseHook):
         
         .. :no-index:
         """
-        return self.get_connection(self.conn_id)
+        return cast(AirflowConnection, self.get_connection(self.conn_id))
 
     @cached_property
     def client(self) -> Elasticsearch:
@@ -354,18 +354,22 @@ class ElasticsearchHook(BaseHook):
 
         # Configuration with fallback priority: connection -> env vars -> defaults
         host = conn.host or self.vars.get("host") or "localhost"
-        port = conn.port or (int(self.vars.get("port")) if self.vars.get("port") else None) or 9200
+        port_env = self.vars.get("port")
+        port = conn.port or (int(port_env) if port_env and isinstance(port_env, str) else None) or 9200
         schema = conn.schema or ("https" if self.vars.get("use_ssl") else None) or "http"
 
         # Build hosts list
         hosts = [f"{schema}://{host}:{port}"]
-        client_args: dict[str, str | int | bool | tuple[str, str] | list[str]] = {"hosts": hosts}
+        client_args: dict[str, Any] = {"hosts": hosts}
 
         # Authentication: prioritize Airflow connection
         if conn.login and conn.password:
             client_args["basic_auth"] = (conn.login, conn.password)
         elif self.vars.get("username") and self.vars.get("password"):
-            client_args["basic_auth"] = (self.vars.get("username"), self.vars.get("password"))
+            username = self.vars.get("username")
+            password = self.vars.get("password")
+            if username and password:
+                client_args["basic_auth"] = (str(username), str(password))
 
         # Handle extra configuration from connection
         extra = conn.extra_dejson or {}
@@ -374,14 +378,24 @@ class ElasticsearchHook(BaseHook):
         use_ssl = extra.get("use_ssl", self.vars.get("use_ssl"))
         if use_ssl:
             client_args["use_ssl"] = True
-            client_args["verify_certs"] = extra.get("verify_certs", self.vars.get("verify_certs"))
+            verify_certs_value = extra.get("verify_certs", self.vars.get("verify_certs"))
+            if verify_certs_value is not None:
+                client_args["verify_certs"] = bool(verify_certs_value)
 
         # Add timeout and retry configuration
-        if extra.get("timeout") or self.vars.get("timeout"):
-            client_args["timeout"] = extra.get("timeout") or int(self.vars.get("timeout"))
+        timeout_extra = extra.get("timeout")
+        timeout_env = self.vars.get("timeout")
+        if timeout_extra:
+            client_args["timeout"] = timeout_extra
+        elif timeout_env and isinstance(timeout_env, str):
+            client_args["timeout"] = int(timeout_env)
 
-        if extra.get("max_retries") or self.vars.get("max_retries"):
-            client_args["max_retries"] = extra.get("max_retries") or int(self.vars.get("max_retries"))
+        max_retries_extra = extra.get("max_retries")
+        max_retries_env = self.vars.get("max_retries")
+        if max_retries_extra:
+            client_args["max_retries"] = max_retries_extra
+        elif max_retries_env and isinstance(max_retries_env, str):
+            client_args["max_retries"] = int(max_retries_env)
 
         # Add other extra configuration, excluding already handled fields
         excluded_fields = ["use_ssl", "verify_certs", "timeout", "max_retries"]
@@ -458,9 +472,10 @@ class ElasticsearchHook(BaseHook):
         if self.log_query:
             self.log.info("Searching %s with Query: %s", index_name, query)
 
-        return self.client.search(index=index_name, body=query, **kwargs)
+        response = self.client.search(index=index_name, body=query, **kwargs)
+        return response.body if hasattr(response, 'body') else dict(response)
 
-    def bulk(self, actions: Iterable[Any], **kwargs: Any) -> tuple[int, list]:
+    def bulk(self, actions: Iterable[Any], **kwargs: Any) -> tuple[int, list[Any]]:
         """
         Execute bulk operations on Elasticsearch.
 
@@ -474,7 +489,8 @@ class ElasticsearchHook(BaseHook):
             "Executing bulk operation with %d actions",
             len(list(actions)) if hasattr(actions, "__len__") else "unknown number of",
         )
-        return bulk(self.client, actions, **kwargs)
+        result = bulk(self.client, actions, **kwargs)
+        return (result[0], list(result[1]) if isinstance(result[1], (list, tuple)) else [])
 
     def streaming_bulk(
         self, actions: Iterable[Any], **kwargs: Any
@@ -489,7 +505,8 @@ class ElasticsearchHook(BaseHook):
         .. :no-index:
         """
         self.log.info("Executing streaming bulk operation")
-        return streaming_bulk(self.client, actions, **kwargs)
+        for item in streaming_bulk(self.client, actions, **kwargs):
+            yield item
 
     def parallel_bulk(
         self, actions: Iterable[Any], **kwargs: Any
@@ -504,7 +521,8 @@ class ElasticsearchHook(BaseHook):
         .. :no-index:
         """
         self.log.info("Executing parallel bulk operation")
-        return parallel_bulk(self.client, actions, **kwargs)
+        for item in parallel_bulk(self.client, actions, **kwargs):
+            yield item
 
     def scan(
         self,
@@ -527,7 +545,8 @@ class ElasticsearchHook(BaseHook):
         if query:
             scan_kwargs["query"] = query
 
-        return scan(self.client, index=index, **scan_kwargs)
+        for item in scan(self.client, index=index, **scan_kwargs):
+            yield item
 
     def reindex(
         self,
@@ -535,7 +554,7 @@ class ElasticsearchHook(BaseHook):
         target_index: str,
         query: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> tuple[int, list]:
+    ) -> tuple[int, list[Any]]:
         """
         Reindex documents from source index(es) to a target index.
 
@@ -553,7 +572,8 @@ class ElasticsearchHook(BaseHook):
         if query:
             reindex_kwargs["query"] = query
 
-        return reindex(self.client, source_index=source_index, target_index=target_index, **reindex_kwargs)
+        result = reindex(self.client, source_index=source_index, target_index=target_index, **reindex_kwargs)
+        return (result[0], list(result[1]) if isinstance(result[1], (list, tuple)) else [])
 
     def search_to_pandas(self, index: str, query: dict[str, Any], **kwargs: Any) -> pd.DataFrame:
         """
@@ -684,7 +704,8 @@ class ElasticsearchHook(BaseHook):
                 body["settings"] = settings
 
             self.log.info("Creating index: %s", index_name)
-            return self.client.indices.create(index=index_name, body=body, **kwargs)
+            response = self.client.indices.create(index=index_name, body=body, **kwargs)
+            return response.body if hasattr(response, 'body') else dict(response)
 
         except Exception as e:
             if "already exists" in str(e).lower():
@@ -704,7 +725,8 @@ class ElasticsearchHook(BaseHook):
         .. :no-index:
         """
         self.log.info("Deleting index: %s", index_name)
-        return self.client.indices.delete(index=index_name, **kwargs)
+        response = self.client.indices.delete(index=index_name, **kwargs)
+        return response.body if hasattr(response, 'body') else dict(response)
 
     def index_exists(self, index_name: str) -> bool:
         """
@@ -715,7 +737,8 @@ class ElasticsearchHook(BaseHook):
         
         .. :no-index:
         """
-        return self.client.indices.exists(index=index_name)
+        response = self.client.indices.exists(index=index_name)
+        return bool(response)
 
     def close(self) -> None:
         """
