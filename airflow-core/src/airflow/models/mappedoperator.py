@@ -114,6 +114,10 @@ class MappedOperator(DAGNode):
     dag: SerializedDAG = attrs.field(init=False)  # type: ignore[assignment]
     task_group: SerializedTaskGroup = attrs.field(init=False)  # type: ignore[assignment]
 
+    doc: str | None = attrs.field(init=False)
+    doc_json: str | None = attrs.field(init=False)
+    doc_rst: str | None = attrs.field(init=False)
+    doc_yaml: str | None = attrs.field(init=False)
     start_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     end_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)

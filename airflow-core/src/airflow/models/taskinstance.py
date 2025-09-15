@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import attrs
@@ -237,8 +237,7 @@ def clear_task_instances(
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
-                # TODO (GH-52141): Make dag a db-backed object so it only returns db-backed tasks.
-                task = cast("Operator", ti_dag.get_task(task_id))
+                task = ti_dag.get_task(task_id)
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
@@ -1455,9 +1454,11 @@ class TaskInstance(Base, LoggingMixin):
             assert original_task is not None
             assert original_task.dag is not None
 
-        self.task = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag)).task_dict[
-            original_task.task_id
-        ]
+        # We don't set up all tests well...
+        if not isinstance(original_task.dag, SerializedDAG):
+            serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
+            self.task = serialized_dag.get_task(original_task.task_id)
+
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,

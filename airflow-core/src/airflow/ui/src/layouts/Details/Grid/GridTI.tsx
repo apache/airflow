@@ -77,7 +77,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "brand.muted" : undefined}
+      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"

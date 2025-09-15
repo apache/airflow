@@ -82,7 +82,7 @@ def _generate_temporary_run_id() -> str:
 
 def _get_dag_run(
     *,
-    dag: DAG,
+    dag: DAG | SerializedDAG,
     create_if_necessary: CreateIfNecessary,
     logical_date_or_run_id: str | None = None,
     session: Session | None = None,
@@ -274,9 +274,7 @@ def task_state(args) -> None:
     """
     if not (dag := SerializedDagModel.get_dag(args.dag_id)):
         raise SystemExit(f"Can not find dag {args.dag_id!r}")
-    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    task = cast("Operator", dag.get_task(task_id=args.task_id))
+    task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.state)
 
@@ -434,9 +432,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         dag = get_bagged_dag(args.bundle_name, args.dag_id)
     serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
     ti, _ = _get_ti(
-        # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-        # instead, but currently it inherits SDK's DAG.
-        cast("Operator", serialized_dag.get_task(task_id=args.task_id)),
+        serialized_dag.get_task(task_id=args.task_id),
         args.map_index,
         logical_date_or_run_id=args.logical_date_or_run_id,
         create_if_necessary="memory",
