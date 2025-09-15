@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
@@ -28,29 +29,36 @@ import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;
   readonly withText?: boolean;
-};
+} & ButtonProps;
 
-const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
+const DeleteRunButton = ({ dagRun, width, withText = true }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { t: translate } = useTranslation();
+
+  const isOnRunDetailPage = location.pathname.includes(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
 
   const { isPending, mutate: deleteDagRun } = useDeleteDagRun({
     dagId: dagRun.dag_id,
     dagRunId: dagRun.dag_run_id,
     onSuccessConfirm: () => {
       onClose();
+      if (isOnRunDetailPage) {
+        navigate(`/dags/${dagRun.dag_id}/runs`);
+      }
     },
   });
 
   return (
-    <>
+    <Box width={width}>
       <ActionButton
         actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        variant="solid"
+        width={width}
         withText={withText}
       />
 
@@ -73,7 +81,7 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
           type: translate("dagRun_one"),
         })}
       />
-    </>
+    </Box>
   );
 };
 
