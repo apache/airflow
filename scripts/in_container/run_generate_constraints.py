@@ -362,7 +362,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #
     # * no exclusions
     #
-    additional_constraints_for_highest_resolution: list[str] = []
+    additional_constraints_for_highest_resolution: list[str] = ["google-ads!=28.0.0.post2"]
 
     result = run_command(
         cmd=[
