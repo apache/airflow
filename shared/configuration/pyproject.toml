@@ -32,6 +32,7 @@ dependencies = [
     # Dependencies needed for testing with ProvidersManager
     "importlib-metadata>=7.0.0",
     "structlog>=25.4.0",
+    "jsonschema>=4.19.1",
 ]
 
 [dependency-groups]

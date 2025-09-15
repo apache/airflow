@@ -76,6 +76,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typing-extensions>=4.14.1",
     "importlib-metadata>=7.0.0",
+    "jsonschema>=4.19.1",
     # End of shared configuration dependencies
     # Start of shared logging dependencies
     "pygtrie>=2.5.0",
