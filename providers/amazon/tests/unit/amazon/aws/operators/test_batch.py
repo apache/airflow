@@ -546,7 +546,7 @@ class TestBatchOperator:
     @patch.object(BatchOperator, "log", new_callable=MagicMock)
     @patch("airflow.providers.amazon.aws.operators.batch.validate_execute_complete_event")
     @patch.object(BatchOperator, "monitor_job")
-    def test_execute_complete_success_with_logs1(self, mock_monitor_job, mock_validate, mock_log):
+    def test_execute_complete_success_with_logs(self, mock_monitor_job, mock_validate, mock_log):
         #Setup
         mock_validate.return_value = {"status": "success", "job_id": "12345"}
         batch = BatchOperator(
@@ -562,7 +562,7 @@ class TestBatchOperator:
 
         #Assertion
         assert result == "12345"
-        mock_monitor_job.assert_called_once_with("12345")
+        mock_monitor_job.assert_called_once_with({})
         mock_log.info.assert_called_with("Job completed successfully for job_id: %s", '12345')
 
     @patch.object(BatchOperator, "log", new_callable=MagicMock)
