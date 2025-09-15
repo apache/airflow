@@ -2,9 +2,9 @@
 Single Sign-On (SSO) Integration
 =============================
 
-Apache Airflow supports Single Sign-On (SSO) through **authentication managers**.
-By default, Airflow uses the ``SimpleAuthManager``.  
-To enable OAuth2-based SSO, you can configure the **Flask AppBuilder (FAB) Auth Manager**.
+The FAB Auth Manager supports Single Sign-On (SSO) through OAuth2 providers.
+This guide shows how to configure SSO with various OAuth2 providers such as
+Google, Okta, Azure Entra ID, and others.
 
 This guide shows how to configure SSO with the FAB Auth Manager using a
 generic OAuth2 provider. The process is similar for providers such as
@@ -16,7 +16,7 @@ Okta, Azure Entra ID, Google, or Auth0.
 
 Prerequisites
 -------------
-- Apache Airflow installed and running
+- Apache Airflow installed and running with FAB Auth Manager
 - Access to an OAuth2 SSO provider (e.g., Google, Okta, Auth0, Azure Entra ID)
 - Admin access to Airflow and your SSO provider
 
