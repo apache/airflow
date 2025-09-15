@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
@@ -41,6 +42,10 @@ log = structlog.get_logger(__name__)
 class BaseWorkload(BaseModel):
     token: str
     """The identity token for this workload"""
+
+    @staticmethod
+    def generate_token(sub_id: str, generator: JWTGenerator | None = None):
+        return generator.generate({"sub": sub_id}) if generator else ""
 
 
 class BundleInfo(BaseModel):
@@ -91,11 +96,9 @@ class Callback(BaseModel):
     data: dict
 
 
-class ExecuteTask(BaseWorkload):
-    """Execute the given Task."""
+class BaseDagBundleWorkload(BaseWorkload, ABC):
+    """Base class for Workloads that are associated with a DAG bundle."""
 
-    ti: TaskInstance
-    """The TaskInstance to execute"""
     dag_rel_path: os.PathLike[str]
     """The filepath where the DAG can be found (likely prefixed with `DAG_FOLDER/`)"""
 
@@ -103,6 +106,13 @@ class ExecuteTask(BaseWorkload):
 
     log_path: str | None
     """The rendered relative log filename template the task logs should be written to"""
+
+
+class ExecuteTask(BaseDagBundleWorkload):
+    """Execute the given Task."""
+
+    ti: TaskInstance
+    """The TaskInstance to execute"""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
@@ -126,32 +136,20 @@ class ExecuteTask(BaseWorkload):
                 version=ti.dag_run.bundle_version,
             )
         fname = log_filename_template_renderer()(ti=ti)
-        token = ""
 
-        if generator:
-            token = generator.generate({"sub": str(ti.id)})
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
-            token=token,
+            token=BaseWorkload.generate_token(str(ti.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
 
 
-# TODO: refactor to reduce code duplication
-class ExecuteCallback(BaseWorkload):
+class ExecuteCallback(BaseDagBundleWorkload):
     """Execute the given Callback."""
 
     callback: Callback
-
-    dag_rel_path: os.PathLike[str]
-    """The filepath where the DAG can be found (likely prefixed with `DAG_FOLDER/`)"""
-
-    bundle_info: BundleInfo
-
-    log_path: str | None
-    """The rendered relative log filename template the task logs should be written to"""
 
     type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
 
@@ -172,14 +170,11 @@ class ExecuteCallback(BaseWorkload):
                 version=dag_run.bundle_version,
             )
         fname = f"executor_callbacks/{callback.id}"  # TODO: better log file template
-        token = ""
 
-        if generator:
-            token = generator.generate({"sub": str(callback.id)})
         return cls(
             callback=Callback.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc),
-            token=token,
+            token=BaseWorkload.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
