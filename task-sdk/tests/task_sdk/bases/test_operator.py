@@ -950,6 +950,7 @@ class TestExecutorSafeguard:
                 "level": "warning",
                 "timestamp": mock.ANY,
                 "logger": "tests.task_sdk.bases.test_operator",
+                "loc": mock.ANY,
             },
         ]
 
