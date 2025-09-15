@@ -5,7 +5,7 @@
     "affected_one": "مهمة واحدة ستُشغّل.",
     "affected_other": "{{count}} مهمة ستُشغل.",
     "affected_two": "مهمتان ستُشغّلان.",
-    "affected_zero": "لا توجد أي مهمة ستُشَّل.",
+    "affected_zero": "لا توجد أي مهمة ستُشغَّل.",
     "affectedNone": "لا توجد مهام تطابق المعايير المحددة.",
     "allRuns": "جميع التشغيلات",
     "backwards": "تشغيل رجعي",
