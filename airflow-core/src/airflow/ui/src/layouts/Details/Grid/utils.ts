@@ -73,3 +73,73 @@ export const flattenGraphNodes = (
 
   return { allGroupIds };
 };
+
+export type Edge = { source: string; target: string };
+
+export const buildEdges = (structureEdges: Array<{ source_id: string; target_id: string }>): Array<Edge> =>
+  structureEdges.map((edge) => ({ source: edge.source_id, target: edge.target_id }));
+
+export const buildAdjacencyMaps = (edges: Array<Edge>) => {
+  const upstreamMap = new Map<string, Array<string>>();
+  const downstreamMap = new Map<string, Array<string>>();
+
+  edges.forEach((edge) => {
+    const upstreamSources = upstreamMap.get(edge.target) ?? [];
+
+    upstreamSources.push(edge.source);
+    upstreamMap.set(edge.target, upstreamSources);
+
+    const downstreamTargets = downstreamMap.get(edge.source) ?? [];
+
+    downstreamTargets.push(edge.target);
+    downstreamMap.set(edge.source, downstreamTargets);
+  });
+
+  return { downstreamMap, upstreamMap };
+};
+
+export const collect = (startId: string, map: Map<string, Array<string>>): Set<string> => {
+  const seen = new Set<string>();
+  const stack = [startId];
+
+  while (stack.length) {
+    const id = stack.pop();
+
+    if (id !== undefined && !seen.has(id)) {
+      seen.add(id);
+
+      const next = map.get(id) ?? [];
+
+      next.filter((nextId) => !seen.has(nextId)).forEach((nextId) => stack.push(nextId));
+    }
+  }
+
+  return seen;
+};
+
+export const filterNodesByDirection = <T extends { id: string; isGroup?: boolean }>({
+  edges,
+  filter,
+  flatNodes,
+  taskId,
+}: {
+  edges: Array<Edge>;
+  filter: "all" | "both" | "downstream" | "upstream";
+  flatNodes: Array<T>;
+  taskId?: string;
+}): Array<T> => {
+  if (taskId === undefined || filter === "all") {
+    return flatNodes;
+  }
+
+  const { downstreamMap, upstreamMap } = buildAdjacencyMaps(edges);
+
+  const upstreamIds =
+    filter === "upstream" || filter === "both" ? collect(taskId, upstreamMap) : new Set<string>();
+  const downstreamIds =
+    filter === "downstream" || filter === "both" ? collect(taskId, downstreamMap) : new Set<string>();
+
+  const combined = new Set<string>([taskId, ...upstreamIds, ...downstreamIds]);
+
+  return flatNodes.filter((node) => (node.isGroup ?? false) || combined.has(node.id));
+};
