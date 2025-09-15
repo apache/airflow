@@ -114,7 +114,7 @@ class TestPowerBITrigger:
         )
 
         classpath, kwargs = powerbi_trigger.serialize()
-        assert classpath == f"{PowerBITrigger.__module__}.{PowerBITrigger.__class__.__name__}"
+        assert classpath == f"{PowerBITrigger.__module__}.PowerBITrigger"
         assert kwargs == {
             "conn_id": POWERBI_CONN_ID,
             "dataset_id": DATASET_ID,
