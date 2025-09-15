@@ -25,13 +25,10 @@ import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useDagServiceGetLatestRunInfo,
-  useHumanInTheLoopServiceGetHitlDetails,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -39,7 +36,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const Dag = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "" } = useParams();
 
   // Get external views with dag destination
@@ -73,30 +70,6 @@ export const Dag = () => {
   // pending state and new runs are initiated from other page
   useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
-  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagId,
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId),
-    },
-  );
-
-  const hasHitlTaskInstances = (hitlData?.total_entries ?? 0) > 0;
-
-  const displayTabs = tabs.filter((tab) => {
-    if (dag?.timetable_summary === null && tab.value === "backfills") {
-      return false;
-    }
-
-    if (tab.value === "required_actions" && !hasHitlTaskInstances) {
-      return false;
-    }
-
-    return true;
-  });
-
   const {
     data: latestRun,
     error: runsError,
@@ -117,6 +90,18 @@ export const Dag = () => {
       },
     },
   );
+
+  const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
+    refetchInterval: isStatePending(latestRun?.state) ? refetchInterval : false,
+  });
+
+  const displayTabs = processedTabs.filter((tab) => {
+    if (dag?.timetable_summary === null && tab.value === "backfills") {
+      return false;
+    }
+
+    return true;
+  });
 
   return (
     <ReactFlowProvider>

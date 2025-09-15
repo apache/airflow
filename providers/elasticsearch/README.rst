@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-elasticsearch``
 
 Release: ``6.3.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 

@@ -24,6 +24,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
+from airflow.models.team import Team
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -352,3 +353,17 @@ class Pool(Base):
         if self.slots == -1:
             return float("inf")
         return self.slots - self.occupied_slots(session)
+
+    @staticmethod
+    @provide_session
+    def get_team_name(pool_name: str, session=NEW_SESSION) -> str | None:
+        stmt = select(Team.name).join(Pool, Team.id == Pool.team_id).where(Pool.pool == pool_name)
+        return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_name_to_team_name_mapping(pool_names: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+        stmt = (
+            select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id).where(Pool.pool.in_(pool_names))
+        )
+        return {pool: team_name for pool, team_name in session.execute(stmt)}

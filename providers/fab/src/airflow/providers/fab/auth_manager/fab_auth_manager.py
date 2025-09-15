@@ -60,6 +60,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
+    PERMISSIONS_CLEANUP_COMMAND,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
@@ -211,6 +212,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 subcommands=ROLES_COMMANDS,
             ),
             SYNC_PERM_COMMAND,  # not in a command group
+            PERMISSIONS_CLEANUP_COMMAND,  # single command for permissions cleanup
         ]
         # If Airflow version is 3.0.0 or higher, add the fab-db command group
         if packaging.version.parse(

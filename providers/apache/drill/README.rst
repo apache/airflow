@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-drill``
 
 Release: ``3.1.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Drill <https://drill.apache.org/>`__.
 

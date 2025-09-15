@@ -81,8 +81,6 @@ apache-airflow-providers-redis package
 
 Release: 4.3.0
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

@@ -184,6 +184,15 @@ def _convert_access_control(access_control):
     return updated_access_control
 
 
+def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
+    """Convert deadline parameter to a list of DeadlineAlert objects."""
+    if deadline is None:
+        return None
+    if isinstance(deadline, DeadlineAlert):
+        return [deadline]
+    return list(deadline)
+
+
 def _convert_doc_md(doc_md: str | None) -> str | None:
     if doc_md is None:
         return doc_md
@@ -437,9 +446,15 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    deadline: DeadlineAlert | None = attrs.field(
+    deadline: list[DeadlineAlert] | DeadlineAlert | None = attrs.field(
         default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(DeadlineAlert)),
+        converter=_convert_deadline,
+        validator=attrs.validators.optional(
+            attrs.validators.deep_iterable(
+                member_validator=attrs.validators.instance_of(DeadlineAlert),
+                iterable_validator=attrs.validators.instance_of(list),
+            )
+        ),
     )
 
     catchup: bool = attrs.field(
@@ -1132,34 +1147,11 @@ class DAG:
         from airflow import settings
         from airflow.configuration import secrets_backend_list
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
-        from airflow.sdk import timezone
+        from airflow.sdk import DagRunState, TaskInstanceState, timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils.state import DagRunState, State, TaskInstanceState
+        from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
-
-        if TYPE_CHECKING:
-            from airflow.models.taskinstance import TaskInstance
-
-        def add_logger_if_needed(ti: TaskInstance):
-            """
-            Add a formatted logger to the task instance.
-
-            This allows all logs to surface to the command line, instead of into
-            a task file. Since this is a local test run, it is much better for
-            the user to see logs in the command line, rather than needing to
-            search for a log file.
-
-            :param ti: The task instance that will receive a logger.
-            """
-            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
-            handler = logging.StreamHandler(sys.stdout)
-            handler.level = logging.INFO
-            handler.setFormatter(format)
-            # only add log handler once
-            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
-                log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
-                ti.log.addHandler(handler)
 
         exit_stack = ExitStack()
 
@@ -1291,7 +1283,6 @@ class DAG:
                     else:
                         # Run the task locally
                         try:
-                            add_logger_if_needed(ti)
                             if mark_success:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
@@ -1334,17 +1325,18 @@ def _run_task(*, ti, task, run_triggerer=False):
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
             ti.set_state(State.QUEUED)
+            task_sdk_ti = TaskInstanceSDK(
+                id=ti.id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                dag_version_id=ti.dag_version_id,
+            )
 
             taskrun_result = run_task_in_process(
-                ti=TaskInstanceSDK(
-                    id=ti.id,
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                    try_number=ti.try_number,
-                    map_index=ti.map_index,
-                    dag_version_id=ti.dag_version_id,
-                ),
+                ti=task_sdk_ti,
                 task=task,
             )
 
@@ -1361,7 +1353,7 @@ def _run_task(*, ti, task, run_triggerer=False):
 
                 log.info("[DAG TEST] running trigger in line")
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
-                event = _run_inline_trigger(trigger)
+                event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
@@ -1382,13 +1374,10 @@ def _run_task(*, ti, task, run_triggerer=False):
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
 
 
-def _run_inline_trigger(trigger):
-    import asyncio
+def _run_inline_trigger(trigger, task_sdk_ti):
+    from airflow.sdk.execution_time.supervisor import InProcessTestSupervisor
 
-    async def _run_inline_trigger_main():
-        return await anext(trigger.run(), None)
-
-    return asyncio.run(_run_inline_trigger_main())
+    return InProcessTestSupervisor.run_trigger_in_process(trigger=trigger, ti=task_sdk_ti)
 
 
 # Since we define all the attributes of the class with attrs, we can compute this statically at parse time
@@ -1441,7 +1430,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-        deadline: DeadlineAlert | None = None,
+        deadline: list[DeadlineAlert] | DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,

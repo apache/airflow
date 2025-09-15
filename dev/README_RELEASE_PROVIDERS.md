@@ -766,19 +766,23 @@ The following files should be present (6 files):
 As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
 Or update it if you already checked it out:
 
 ```shell script
+cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+Set an environment variable: PATH_TO_SVN to the root of folder where you have providers
 
 ``` shell
-export PATH_TO_SVN=<set your path to svn here>
+cd asf-dist/dev/airflow
+export PATH_TO_SVN=${pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -844,7 +848,7 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 
 ```shell
 cd ${PATH_TO_SVN}
-cd airflow/providers
+cd providers
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -909,10 +913,34 @@ This can be done with the Apache RAT tool.
 * Enter the sources folder run the check
 
 ```shell script
-java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
+# Get rat if you do not have it
+wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Cleanup old folders (if needed)
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+cat /tmp/files.txt | xargs rm -rf
+# Unpack all providers
+for i in *.tar.gz
+do
+   tar -xvzf $i
+done
+# Generate list of unpacked providers
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+# Check licences
+for d in $(cat /tmp/files.txt)
+do
+  pushd $d
+  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
+  popd >/dev/null
+done
 ```
 
-where `.rat-excludes` is the file in the root of Airflow source code.
+You should see only '0 Unknown licences"
+
+Cleanup:
+
+```shell script
+cat /tmp/files.txt | xargs rm -rf
+```
 
 ### Signature check
 

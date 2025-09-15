@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-facebook``
 
 Release: ``3.8.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Facebook Ads <https://www.facebook.com/about/ads>`__
 
