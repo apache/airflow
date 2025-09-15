@@ -21,7 +21,7 @@
   "importErrors": {
     "dagImportError_one": "Error d'importació de Dag",
     "dagImportError_other": "Errors d'importació de Dag",
-    "searchByFile": "Cercare per fitxer",
+    "searchByFile": "Cerca per fitxer",
     "timestamp": "Segell de temps"
   },
   "managePools": "Gestionar Pools",
