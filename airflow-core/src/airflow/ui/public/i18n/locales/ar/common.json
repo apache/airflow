@@ -123,16 +123,12 @@
     "any": "أي",
     "or": "أو"
   },
+  "filter": "فلتر",
   "filters": {
-    "dagDisplayNamePlaceholder": "تصفية حسب الDag",
-    "keyPlaceholder": "تصفية حسب مفتاح XCom",
-    "logicalDateFromPlaceholder": "من التاريخ المنطقي",
-    "logicalDateToPlaceholder": "إلى التاريخ المنطقي",
-    "mapIndexPlaceholder": "تصفية حسب فهرس الخريطة",
-    "runAfterFromPlaceholder": "من تشغيل بعد",
-    "runAfterToPlaceholder": "إلى تشغيل بعد",
-    "runIdPlaceholder": "تصفية حسب معرف التشغيل",
-    "taskIdPlaceholder": "تصفية حسب معرف المهمة"
+    "logicalDateFrom": "من التاريخ المنطقي",
+    "logicalDateTo": "إلى التاريخ المنطقي",
+    "runAfterFrom": "من تشغيل بعد",
+    "runAfterTo": "إلى تشغيل بعد"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
@@ -178,6 +174,7 @@
     "running": "قيد التشغيل",
     "scheduled": "مجدول"
   },
+  "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
   "runTypes": {
     "asset_triggered": "مُشغل بواسطة الأصل",

@@ -521,13 +521,20 @@ class PodManager(LoggingMixin):
             # can safely resume from a few seconds later
             read_timeout = 60 * 5
             try:
+                since_seconds = None
+                if since_time:
+                    try:
+                        since_seconds = math.ceil((pendulum.now() - since_time).total_seconds())
+                    except TypeError:
+                        self.log.warning(
+                            "Error calculating since_seconds with since_time %s. Using None instead.",
+                            since_time,
+                        )
                 logs = self.read_pod_logs(
                     pod=pod,
                     container_name=container_name,
                     timestamps=True,
-                    since_seconds=(
-                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
-                    ),
+                    since_seconds=since_seconds,
                     follow=follow,
                     post_termination_timeout=post_termination_timeout,
                     _request_timeout=(connection_timeout, read_timeout),

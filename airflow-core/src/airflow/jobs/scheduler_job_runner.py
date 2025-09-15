@@ -30,7 +30,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
@@ -89,17 +89,16 @@ from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    import logging
     from types import FrameType
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
 
+    from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -189,7 +188,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        log: logging.Logger | None = None,
+        log: Logger | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
@@ -198,7 +197,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
         )
-        self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
 
@@ -917,9 +915,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     if TYPE_CHECKING:
                         assert dag
-                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-                    # instead, but currently it inherits SDK's DAG.
-                    task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
+                    task = dag.get_task(ti.task_id)
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)

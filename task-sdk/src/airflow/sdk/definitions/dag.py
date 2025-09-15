@@ -184,6 +184,15 @@ def _convert_access_control(access_control):
     return updated_access_control
 
 
+def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
+    """Convert deadline parameter to a list of DeadlineAlert objects."""
+    if deadline is None:
+        return None
+    if isinstance(deadline, DeadlineAlert):
+        return [deadline]
+    return list(deadline)
+
+
 def _convert_doc_md(doc_md: str | None) -> str | None:
     if doc_md is None:
         return doc_md
@@ -437,9 +446,15 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    deadline: DeadlineAlert | None = attrs.field(
+    deadline: list[DeadlineAlert] | DeadlineAlert | None = attrs.field(
         default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(DeadlineAlert)),
+        converter=_convert_deadline,
+        validator=attrs.validators.optional(
+            attrs.validators.deep_iterable(
+                member_validator=attrs.validators.instance_of(DeadlineAlert),
+                iterable_validator=attrs.validators.instance_of(list),
+            )
+        ),
     )
 
     catchup: bool = attrs.field(
@@ -1080,7 +1095,6 @@ class DAG:
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
-        # Note - older serialized Dags may not have edge_info being a dict at all
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
@@ -1146,29 +1160,6 @@ class DAG:
         from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-        if TYPE_CHECKING:
-            from airflow.models.taskinstance import TaskInstance
-
-        def add_logger_if_needed(ti: TaskInstance):
-            """
-            Add a formatted logger to the task instance.
-
-            This allows all logs to surface to the command line, instead of into
-            a task file. Since this is a local test run, it is much better for
-            the user to see logs in the command line, rather than needing to
-            search for a log file.
-
-            :param ti: The task instance that will receive a logger.
-            """
-            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
-            handler = logging.StreamHandler(sys.stdout)
-            handler.level = logging.INFO
-            handler.setFormatter(format)
-            # only add log handler once
-            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
-                log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
-                ti.log.addHandler(handler)
-
         exit_stack = ExitStack()
 
         if conn_file_path or variable_file_path:
@@ -1208,8 +1199,10 @@ class DAG:
             #   -- dep check, scheduling tis
             # and need real dag to get and run callbacks without having to load the dag model
 
-            scheduler_dag.on_success_callback = self.on_success_callback
-            scheduler_dag.on_failure_callback = self.on_failure_callback
+            # Scheduler DAG shouldn't have these attributes, but assigning them
+            # here is an easy hack to get this test() thing working.
+            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined]
+            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined]
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
@@ -1299,7 +1292,6 @@ class DAG:
                     else:
                         # Run the task locally
                         try:
-                            add_logger_if_needed(ti)
                             if mark_success:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
@@ -1447,7 +1439,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-        deadline: DeadlineAlert | None = None,
+        deadline: list[DeadlineAlert] | DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
