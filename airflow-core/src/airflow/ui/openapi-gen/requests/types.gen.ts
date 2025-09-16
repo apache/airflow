@@ -941,6 +941,7 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     assigned_users?: Array<HITLUser>;
+    created_at: string;
     responded_by_user?: HITLUser | null;
     responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
@@ -2857,6 +2858,10 @@ export type GetHitlDetailsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     bodySearch?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
     dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
