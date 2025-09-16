@@ -89,7 +89,7 @@
   },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",
-  "limitedList.clickToInteract": "Klik op een label om DAGs te filteren",
+  "limitedList.clickToInteract": "Klik op een label om Dags te filteren",
   "limitedList.clickToOpenFull": "Klik op \"+{{count}} meer\" om de volledige lijst te openen",
   "limitedList.copyPasteText": "Je kunt de bovenstaande tekst kopiëren en plakken",
   "limitedList.showingItems": "{{count}} items weergegeven",
