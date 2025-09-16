@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from datetime import timedelta
 
 import pendulum
@@ -175,8 +174,10 @@ def test_expand_invalid_xcomarg_return_value():
 
         tg.partial(a=1).expand(b=t()["values"])
 
-    expected_msg = "cannot map over XCom with custom key 'values' from <Task(_PythonDecoratedOperator): t>"
-    with pytest.raises(ValueError, match=re.escape(expected_msg)):
+    with pytest.raises(
+        ValueError,
+        match=r"cannot map over XCom with custom key 'values' from <Task\(_PythonDecoratedOperator\): t>",
+    ):
         pipeline()
 
 
@@ -232,8 +233,10 @@ def test_expand_kwargs_invalid_xcomarg_return_value():
 
         tg.partial(a=1).expand_kwargs(t()["values"])
 
-    expected_msg = "cannot map over XCom with custom key 'values' from <Task(_PythonDecoratedOperator): t>"
-    with pytest.raises(ValueError, match=re.escape(expected_msg)):
+    with pytest.raises(
+        ValueError,
+        match=r"cannot map over XCom with custom key 'values' from <Task\(_PythonDecoratedOperator\): t>",
+    ):
         pipeline()
 
 
