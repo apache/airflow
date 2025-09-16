@@ -24,6 +24,7 @@ import { MdDateRange, MdSearch } from "react-icons/md";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
+import { StateBadge } from "src/components/StateBadge";
 
 import { SearchParamsKeys } from "./searchParams";
 
@@ -95,8 +96,14 @@ export const useFilterConfigs = () => {
       label: translate("hitl:requiredActionState"),
       options: [
         { label: translate("hitl:filters.response.all"), value: "all" },
-        { label: translate("hitl:filters.response.pending"), value: "false" },
-        { label: translate("hitl:filters.response.received"), value: "true" },
+        {
+          label: <StateBadge state="deferred">{translate("hitl:filters.response.pending")}</StateBadge>,
+          value: "false",
+        },
+        {
+          label: <StateBadge state="success">{translate("hitl:filters.response.received")}</StateBadge>,
+          value: "true",
+        },
       ],
       type: FilterTypes.SELECT,
     },

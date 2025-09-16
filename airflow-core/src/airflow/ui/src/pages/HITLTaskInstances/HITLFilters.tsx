@@ -64,13 +64,13 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
       }
     });
 
-    values[SearchParamsKeys.RESPONSE_RECEIVED] = responseReceived ?? "all";
+    values[SearchParamsKeys.RESPONSE_RECEIVED] = responseReceived;
 
     return values;
   }, [filterConfigs, responseReceived, searchParams]);
 
   return (
-    <VStack align="start" py={2}>
+    <VStack align="start" pt={2}>
       <FilterBar
         configs={filterConfigs}
         initialValues={initialValues}

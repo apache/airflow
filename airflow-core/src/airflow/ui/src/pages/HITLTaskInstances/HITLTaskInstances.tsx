@@ -160,7 +160,7 @@ export const HITLTaskInstances = () => {
   }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
 
   return (
-    <VStack align="start" gap={4}>
+    <VStack align="start">
       {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
         <Heading size="md">
           {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}

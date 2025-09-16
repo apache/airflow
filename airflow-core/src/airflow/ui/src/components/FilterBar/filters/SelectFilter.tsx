@@ -68,7 +68,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
         display="flex"
         h="full"
         overflow="hidden"
-        width="300px"
+        width="330px"
       >
         <Text
           alignItems="center"
