@@ -43,6 +43,7 @@ from airflowctl.api.datamodels.generated import (
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
+    CreateAssetBody,
     CreateAssetEventsBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -237,6 +238,16 @@ class AssetsOperations(BaseOperations):
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
+
+    def create(self, asset_body: CreateAssetBody) -> AssetResponse | ServerResponseError:
+        """Create an asset."""
+        try:
+            self.response = self.client.post(
+                "assets", json=_date_safe_dict_from_pydantic(asset_body)
+            )
+            return AssetResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
     def create_event(
         self, asset_event_body: CreateAssetEventsBody

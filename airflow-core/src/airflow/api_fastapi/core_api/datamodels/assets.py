@@ -160,6 +160,20 @@ class QueuedEventCollectionResponse(BaseModel):
     total_entries: int
 
 
+class CreateAssetBody(StrictBaseModel):
+    """Create asset request."""
+
+    name: str = Field(..., min_length=1, max_length=1500)
+    uri: str = Field(..., min_length=1, max_length=1500)
+    group: str = Field(default="", max_length=1500)
+    extra: dict = Field(default_factory=dict)
+
+    class Config:
+        """Pydantic config."""
+
+        extra = "forbid"
+
+
 class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 

@@ -50,6 +50,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    CreateAssetBody,
     CreateAssetEventsBody,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
@@ -72,6 +73,7 @@ from airflow.models.asset import (
     AssetModel,
     TaskOutletAssetReference,
 )
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -203,6 +205,62 @@ def get_assets(
     return AssetCollectionResponse(
         assets=assets,
         total_entries=total_entries,
+    )
+
+
+@assets_router.post(
+    "/assets",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
+)
+def create_asset(
+    body: CreateAssetBody,
+    session: SessionDep,
+) -> AssetResponse:
+    """Create an asset."""
+    # Check if asset with same name and uri already exists
+    existing_asset = session.scalar(
+        select(AssetModel).where(
+            AssetModel.name == body.name,
+            AssetModel.uri == body.uri,
+        )
+    )
+    if existing_asset:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Asset with name '{body.name}' and URI '{body.uri}' already exists",
+        )
+    
+    # Create the asset
+    asset = Asset(
+        name=body.name,
+        uri=body.uri,
+        group=body.group,
+        extra=body.extra,
+    )
+    
+    # Use the asset manager to create the asset
+    asset_models = asset_manager.create_assets([asset], session=session)
+    session.commit()
+    
+    # Get the created asset with all relationships loaded
+    created_asset = session.scalar(
+        select(AssetModel)
+        .where(AssetModel.id == asset_models[0].id)
+        .options(
+            subqueryload(AssetModel.scheduled_dags),
+            subqueryload(AssetModel.producing_tasks),
+            subqueryload(AssetModel.consuming_tasks),
+            subqueryload(AssetModel.aliases),
+        )
+    )
+    
+    return AssetResponse.model_validate(
+        {
+            **created_asset.__dict__,
+            "aliases": created_asset.aliases,
+            "last_asset_event": None,
+        }
     )
 
 
