@@ -2798,6 +2798,10 @@ export class TaskInstanceService {
      * @param data.respondedByUserName
      * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.createdAtGte
+     * @param data.createdAtGt
+     * @param data.createdAtLte
+     * @param data.createdAtLt
      * @returns HITLDetailCollection Successful Response
      * @throws ApiError
      */
@@ -2821,7 +2825,11 @@ export class TaskInstanceService {
                 responded_by_user_id: data.respondedByUserId,
                 responded_by_user_name: data.respondedByUserName,
                 subject_search: data.subjectSearch,
-                body_search: data.bodySearch
+                body_search: data.bodySearch,
+                created_at_gte: data.createdAtGte,
+                created_at_gt: data.createdAtGt,
+                created_at_lte: data.createdAtLte,
+                created_at_lt: data.createdAtLt
             },
             errors: {
                 401: 'Unauthorized',
