@@ -43,13 +43,20 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
+import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  CONF_CONTAINS: CONF_CONTAINS_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
@@ -197,19 +204,32 @@ export const DagRuns = () => {
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const confContains = searchParams.get(CONF_CONTAINS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
+      confContains: confContains !== null && confContains !== "" ? confContains : undefined,      
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
+      dagVersion:
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
@@ -275,38 +295,6 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleTriggeringUserNamePatternChange = useCallback(
-    (value: string) => {
-      if (value === "") {
-        searchParams.delete(TRIGGERING_USER_NAME_PATTERN_PARAM);
-      } else {
-        searchParams.set(TRIGGERING_USER_NAME_PATTERN_PARAM, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleDagIdPatternChange = useCallback(
-    (value: string) => {
-      if (value === "") {
-        searchParams.delete(DAG_ID_PATTERN_PARAM);
-      } else {
-        searchParams.set(DAG_ID_PATTERN_PARAM, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
   return (
     <>
       <HStack paddingY="4px">
@@ -328,15 +316,6 @@ export const DagRuns = () => {
             hotkeyDisabled={false}
             onChange={handleRunIdPatternChange}
             placeHolder={translate("dags:filters.runIdPatternFilter")}
-          />
-        </Box>
-        <Box>
-          <SearchBar
-            defaultValue={filteredTriggeringUserNamePattern ?? ""}
-            hideAdvanced
-            hotkeyDisabled={true}
-            onChange={handleTriggeringUserNamePatternChange}
-            placeHolder={translate("dags:filters.triggeringUserNameFilter")}
           />
         </Box>
         <Select.Root
@@ -407,6 +386,7 @@ export const DagRuns = () => {
           </Select.Content>
         </Select.Root>
       </HStack>
+      <DagRunsFilters dagId={dagId} />
       <DataTable
         columns={runColumns(translate, dagId)}
         data={data?.dag_runs ?? []}
