@@ -1960,6 +1960,7 @@ class AirflowConfigParser(ConfigParser):
         """Checks if providers have been loaded."""
         return self._providers_configuration_loaded
 
+    # TODO: Move this out of shared, onto core configparser
     def load_providers_configuration(self):
         """
         Load configuration for providers.

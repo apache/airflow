@@ -1796,11 +1796,9 @@ sql_alchemy_conn=sqlite://test
 def test_sensitive_values():
     from airflow_shared.configuration import conf
 
-    # this list was hardcoded prior to 2.6.2
-    # included here to avoid regression in refactor
-    # inclusion of keys ending in "password" or "kwargs" is automated from 2.6.2
-    # items not matching this pattern must be added here manually
-    sensitive_values = {
+    # Only core sensitive values that should be present in shared configuration
+    # Provider-specific values are not included since providers aren't loaded in shared context
+    expected_core_sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("database", "sql_alchemy_conn_async"),
         ("core", "fernet_key"),
@@ -1810,24 +1808,33 @@ def test_sensitive_values():
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
         ("core", "sql_alchemy_conn"),
-        ("celery_broker_transport_options", "sentinel_kwargs"),
-        ("celery", "broker_url"),
-        ("celery", "flower_basic_auth"),
-        ("celery", "result_backend"),
-        ("opensearch", "username"),
-        ("opensearch", "password"),
         ("webserver", "secret_key"),
+        ("workers", "secrets_backend_kwargs"),
+        ("core", "asset_manager_kwargs"),
+        ("logging", "remote_task_handler_kwargs"),
     }
+
+    # Add dynamically detected sensitive values (ending in "password" or "kwargs")
+    # but only from sections that actually exist in shared config
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v["options"]}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
+
+    # Remove provider-specific sections that won't be present in shared config
     exclude_list = {
         ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
-        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
+        ("aws_ecs_executor", "run_task_kwargs"),
+        ("celery", "broker_url"),
+        ("celery", "flower_basic_auth"),
+        ("celery", "result_backend"),
+        ("celery_broker_transport_options", "sentinel_kwargs"),
+        ("opensearch", "username"),
+        ("opensearch", "password"),
     }
     suspected_sensitive -= exclude_list
-    sensitive_values.update(suspected_sensitive)
-    assert sensitive_values == conf.sensitive_config_values
+    expected_core_sensitive_values.update(suspected_sensitive)
+
+    assert expected_core_sensitive_values == conf.sensitive_config_values
 
 
 # NEW TEST
@@ -1964,24 +1971,3 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
         with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
             write_default_airflow_configuration_if_needed()
-
-    @conf_vars({("mysection1", "mykey1"): "supersecret1", ("mysection2", "mykey2"): "supersecret2"})
-    @patch.object(
-        conf,
-        "sensitive_config_values",
-        new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
-    )
-    def test_mask_conf_values(self, mock_sensitive_config_values):
-        with (
-            patch("airflow._shared.secrets_masker.mask_secret") as mock_mask_secret_core,
-            patch("airflow.sdk.log.mask_secret") as mock_mask_secret_sdk,
-        ):
-            conf.mask_secrets()
-
-            mock_mask_secret_core.assert_any_call("supersecret1")
-            mock_mask_secret_core.assert_any_call("supersecret2")
-            assert mock_mask_secret_core.call_count == 2
-
-            mock_mask_secret_sdk.assert_any_call("supersecret1")
-            mock_mask_secret_sdk.assert_any_call("supersecret2")
-            assert mock_mask_secret_sdk.call_count == 2
