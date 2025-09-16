@@ -35,7 +35,6 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
 
   const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
-  const importErrors = data?.import_errors ?? [];
 
   if (isLoading) {
     return <Skeleton height="9" width="225px" />;
@@ -70,7 +69,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           onClick={onOpen}
         />
       )}
-      <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
+      <DAGImportErrorsModal onClose={onClose} open={open} />
     </Box>
   );
 };
