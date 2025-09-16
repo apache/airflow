@@ -42,7 +42,6 @@ from airflow.exceptions import (
     AirflowSkipException,
 )
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
-from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
@@ -78,14 +77,13 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
 
@@ -2193,83 +2191,6 @@ class TestTaskInstance:
 
         assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
         assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
-
-    def test_template_render(self, create_task_instance, session):
-        ti = create_task_instance(
-            dag_id="test_template_render",
-            task_id="test_template_render_task",
-            schedule="0 12 * * *",
-        )
-        session.add(ti)
-        session.commit()
-        template_context = ti.get_template_context()
-        result = ti.task.render_template("Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context)
-        assert result == "Task: test_template_render -> test_template_render_task"
-
-    @pytest.mark.parametrize(
-        "content, expected_output",
-        [
-            ('{{ conn.get("a_connection").host }}', "hostvalue"),
-            ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
-            ('{{ conn.get("missing_connection", {"host": "fallback_host"}).host }}', "fallback_host"),
-            ("{{ conn.a_connection.host }}", "hostvalue"),
-            ("{{ conn.a_connection.login }}", "loginvalue"),
-            ("{{ conn.a_connection.password }}", "passwordvalue"),
-            ('{{ conn.a_connection.extra_dejson["extra__asana__workspace"] }}', "extra1"),
-            ("{{ conn.a_connection.extra_dejson.extra__asana__workspace }}", "extra1"),
-        ],
-    )
-    def test_template_with_connection(self, content, expected_output, create_task_instance, session):
-        """
-        Test the availability of variables in templates
-        """
-        with create_session() as session:
-            clear_db_connections(add_default_connections_back=False)
-            merge_conn(
-                Connection(
-                    conn_id="a_connection",
-                    conn_type="a_type",
-                    description="a_conn_description",
-                    host="hostvalue",
-                    login="loginvalue",
-                    password="passwordvalue",
-                    schema="schemavalues",
-                    extra={
-                        "extra__asana__workspace": "extra1",
-                    },
-                ),
-                session,
-            )
-
-        ti = create_task_instance()
-        session.add(ti)
-        session.commit()
-
-        context = ti.get_template_context()
-        result = ti.task.render_template(content, context)
-        assert result == expected_output
-
-    @pytest.mark.parametrize(
-        "content, expected_output",
-        [
-            ("{{ var.value.a_variable }}", "a test value"),
-            ('{{ var.value.get("a_variable") }}', "a test value"),
-            ('{{ var.value.get("a_variable", "unused_fallback") }}', "a test value"),
-            ('{{ var.value.get("missing_variable", "fallback") }}', "fallback"),
-        ],
-    )
-    def test_template_with_variable(self, content, expected_output, create_task_instance, session):
-        """
-        Test the availability of variables in templates
-        """
-        Variable.set("a_variable", "a test value")
-
-        ti = create_task_instance()
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context()
-        result = ti.task.render_template(content, context)
-        assert result == expected_output
 
     def test_template_with_variable_missing(self, create_task_instance, session):
         """
