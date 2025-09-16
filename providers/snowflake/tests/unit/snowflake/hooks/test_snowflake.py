@@ -666,6 +666,40 @@ class TestPytestSnowflakeHook:
         assert "region" in conn_params_extra_keys
         assert "account" in conn_params_extra_keys
 
+    def test_get_conn_params_should_support_oauth_with_azure_conn_id(
+        self, mocker
+    ):
+        azure_conn_id = "azure_test_conn"
+        token = "azure_test_token"
+        connection_kwargs = {
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "region": "af_region",
+                "warehouse": "af_wh",
+                "authenticator": "oauth",
+                "azure_conn_id": azure_conn_id,
+            },
+        }
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+        conn_params_keys = conn_params.keys()
+        conn_params_extra = conn_params.get("extra", {})
+        conn_params_extra_keys = conn_params_extra.keys()
+
+        assert "authenticator" in conn_params_extra_keys
+        assert conn_params_extra["authenticator"] == "oauth"
+        assert conn_params_extra["token"] == token
+
+        assert "user" not in conn_params_keys
+        assert "password" not in conn_params_keys
+        assert "refresh_token" not in conn_params_extra_keys
+        # Mandatory fields to generate account_identifier `https://<account>.<region>`
+        assert "region" in conn_params_extra_keys
+        assert "account" in conn_params_extra_keys
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",
