@@ -44,10 +44,6 @@ class AirflowSDKException(Exception):
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
-class AirflowNotFoundException(AirflowSDKException):
-    """Raise when the requested object/resource is not available in the system."""
-
-
 class AirflowDagCycleException(AirflowSDKException):
     """Raise when there is a cycle in Dag definition."""
 
