@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.docling.hooks.docling_hook import DoclingHook
+from airflow.models import BaseOperator
+from airflow.providers.docling.hooks.docling import DoclingHook
 
 
 class DoclingConvertSourceOperator(BaseOperator):
@@ -49,8 +49,5 @@ class DoclingConvertSourceOperator(BaseOperator):
         hook = DoclingHook(http_conn_id=self.docling_conn_id)
         self.log.info("Uploading source %s.", self.source)
 
-        result = hook.upload_source(
-            source=self.source,
-            data=self.parameters
-        )
+        result = hook.upload_source(source=self.source, data=self.parameters)
         return result

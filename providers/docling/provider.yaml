@@ -23,8 +23,23 @@ name: Docling
 description: |
   `Docling <https://docling-project.github.io/docling>`__
 
-state: not-ready
+state: ready
 source-date-epoch: 1758028066
 
 versions:
   - 0.1.0
+
+hooks:
+  - integration-name: Docling
+    python-modules:
+      - airflow.providers.docling.hooks.docling
+
+connection-types:
+  - hook-class-name: airflow.providers.docling.hooks.docling.DoclingHook
+    connection-type: docling
+
+operators:
+  - integration-name: Docling
+    python-modules:
+      - airflow.providers.docling.operators.docling_process
+      - airflow.providers.docling.operators.docling_upload_source

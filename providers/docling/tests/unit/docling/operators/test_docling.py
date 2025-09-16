@@ -26,7 +26,8 @@ TESTS_ROOT = Path(__file__).parent.parent.parent
 CONN_ID = "docling_test_conn"
 MOCK_HOOK_RESPONSE = {"status": "success", "content": "Text from operator test"}
 MOCK_PARAMETERS = {"output_format": "text"}
-MOCK_FILE_PATH = TESTS_ROOT / "fixtures" / "test_doc.pdf"
+MOCK_FILE_PATH = TESTS_ROOT / "unit" / "fixtures" / "test_doc.pdf"
+
 
 class TestDoclingConvertOperator:
     """Tests for DoclingConvertOperator."""
@@ -52,9 +53,7 @@ class TestDoclingConvertOperator:
 
         # Assert
         mock_docling_hook.assert_called_once_with(http_conn_id=CONN_ID)
-        mock_hook_instance.process_document.assert_called_once_with(
-            filename=file_path, data=MOCK_PARAMETERS
-        )
+        mock_hook_instance.process_document.assert_called_once_with(filename=file_path, data=MOCK_PARAMETERS)
         assert result == MOCK_HOOK_RESPONSE
 
 

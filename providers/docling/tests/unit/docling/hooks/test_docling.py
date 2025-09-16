@@ -28,7 +28,7 @@ from airflow.providers.docling.hooks.docling_hook import DoclingHook
 TESTS_ROOT = Path(__file__).parent.parent.parent
 
 MOCK_API_RESPONSE = {"status": "success", "content": "Processed text..."}
-MOCK_FILE_PATH = TESTS_ROOT / "fixtures" / "test_doc.pdf"
+MOCK_FILE_PATH = TESTS_ROOT / "unit" / "fixtures" / "test_doc.pdf"
 MOCK_SOURCE_URL = "https://arxiv.org/pdf/2206.01062"
 MOCK_PARAMETERS = {"output_format": "markdown"}
 

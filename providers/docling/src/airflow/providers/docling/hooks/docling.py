@@ -45,9 +45,8 @@ class DoclingHook(HttpHook):
         return {
             "content": content,
             "filename": p.name,
-            "format": file_format or 'application/octet-stream' # Fallback
+            "format": file_format or "application/octet-stream",  # Fallback
         }
-
 
     def process_document(self, filename: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
         """
@@ -69,11 +68,7 @@ class DoclingHook(HttpHook):
 
             # Pass the data argument directly.
             # If `data` is None, the requests library will simply ignore it.
-            response = self.run(
-                endpoint="/api/v1/convert/file",
-                files=files,
-                data=data
-            )
+            response = self.run(endpoint="/api/v1/convert/file", files=files, data=data)
             response.raise_for_status()
 
             self.log.info("Document '%s' processed successfully.", filename)
@@ -94,18 +89,13 @@ class DoclingHook(HttpHook):
         self.log.info("Converting source %s using Docling server...", source)
 
         try:
-            payload = {
-                "http_sources": [{"url": source}]
-            }
+            payload: dict[str, Any] = {"http_sources": [{"url": source}]}
 
             if data:
                 payload["options"] = data
                 self.log.info("Processing with parameters: %s", data)
 
-            response = self.run(
-                endpoint="/api/v1/convert/source",
-                json=payload
-            )
+            response = self.run(endpoint="/api/v1/convert/source", json=payload)
             response.raise_for_status()
 
             self.log.info("Source '%s' converted successfully.", source)
