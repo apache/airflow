@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-16T07:49:53.917827
+# This constraints file was automatically generated on 2025-09-16T19:48:30.780633
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ aiosignal==1.4.0
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.3
+alibabacloud-adb20211201==3.2.4
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -275,7 +275,7 @@ eventlet==0.40.3
 executing==2.2.1
 facebook_business==23.0.1
 fastapi-cli==0.0.11
-fastapi==0.116.1
+fastapi==0.116.2
 fastavro==1.12.0
 fastjsonschema==2.21.2
 fastuuid==0.12.0
@@ -298,7 +298,7 @@ google-api-python-client==2.181.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.113.0
+google-cloud-aiplatform==1.114.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -351,8 +351,8 @@ gremlinpython==3.7.4
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-status==1.74.0
-grpcio==1.74.0
+grpcio-status==1.75.0
+grpcio==1.75.0
 gssapi==1.10.0
 h11==0.16.0
 h2==4.3.0
@@ -365,7 +365,7 @@ httplib2==0.31.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.34.5
+huggingface-hub==0.35.0
 humanize==4.13.0
 hvac==2.3.0
 hyperframe==6.1.0
@@ -513,7 +513,7 @@ pydruid==0.6.9
 pyexasol==1.1.1
 pygtrie==2.5.0
 pykerberos==1.2.4
-pymongo==4.15.0
+pymongo==4.15.1
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.4.1
@@ -587,7 +587,7 @@ sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
-starlette==0.47.3
+starlette==0.48.0
 statsd==4.0.1
 std-uritemplate==2.0.5
 structlog==25.4.0
