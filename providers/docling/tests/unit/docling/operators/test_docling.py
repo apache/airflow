@@ -19,8 +19,10 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from airflow.providers.docling.operators.docling_process import DoclingConvertOperator
-from airflow.providers.docling.operators.docling_source import DoclingConvertSourceOperator
+from airflow.providers.docling.operators.docling_convert import (
+    DoclingConvertOperator,
+    DoclingConvertSourceOperator,
+)
 
 TESTS_ROOT = Path(__file__).parent.parent.parent
 CONN_ID = "docling_test_conn"

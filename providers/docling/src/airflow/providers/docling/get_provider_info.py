@@ -38,10 +38,7 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Docling",
-                "python-modules": [
-                    "airflow.providers.docling.operators.docling_process",
-                    "airflow.providers.docling.operators.docling_upload_source",
-                ],
+                "python-modules": ["airflow.providers.docling.operators.docling_convert"],
             }
         ],
     }
