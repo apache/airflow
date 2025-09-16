@@ -51,6 +51,8 @@ type DagRunRow = { row: { original: DAGRunResponse } };
 const {
   DAG_ID: DAG_ID_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
   RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
   RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
@@ -193,6 +195,8 @@ export const DagRuns = () => {
   const endDate = searchParams.get(END_DATE_PARAM);
   const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
   const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
@@ -201,6 +205,8 @@ export const DagRuns = () => {
       dagId: filteredDagId ?? dagId ?? "~",
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
