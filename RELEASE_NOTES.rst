@@ -85,9 +85,14 @@ Example use cases:
 - Notify stakeholders 30 minutes before a critical deadline
 - Escalate when resource-constrained DAGs remain queued too long
 
+**Current Limitations**: Deadline Alerts currently support only asynchronous callbacks (``AsyncCallback``).
+Support for synchronous callbacks (``SyncCallback``) is planned for a future release.
+
 For configuration details and examples, see :doc:`/howto/deadline-alerts`.
 
-**Warning**: Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
+.. warning::
+
+  Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
 
 UI Internationalization
 """""""""""""""""""""""
@@ -145,9 +150,20 @@ For more details and examples, see :doc:`/howto/custom-view-plugin`.
 Enhanced UI Views and Filtering
 """"""""""""""""""""""""""""""""
 
-Airflow 3.1 brings Calendar and Gantt chart views to the modern React UI, along with comprehensive filtering
-capabilities. The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI,
-along with enhanced filtering capabilities across all views.
+Airflow 3.1 brings significant UI improvements including rebuilt Calendar and Gantt chart views for the modern React UI,
+comprehensive filtering capabilities, and a refreshed visual design system.
+
+**Visual Design Improvements**
+
+The UI now features an updated color palette leveraging Chakra UI semantic tokens, providing better consistency,
+accessibility, and theme support across the interface. This modernization improves readability and creates
+a more cohesive visual experience throughout Airflow.
+
+**Rebuilt Views and Enhanced Filtering**
+
+The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI, along with enhanced
+filtering capabilities across all views. These improvements provide better performance and a more consistent
+user experience with the rest of the modern Airflow interface.
 
 Inference Execution (Synchronous DAGs)
 """"""""""""""""""""""""""""""""""""""
@@ -190,6 +206,112 @@ Python 3.13 support added & 3.9 support removed
 Support for Python 3.9 has been removed, as it has reached end-of-life.
 Airflow 3.1.0 requires Python 3.10, 3.11, 3.12 or 3.13.
 
+Configuration Changes and Cleanup
+""""""""""""""""""""""""""""""""""
+
+**Webserver Configuration Reorganization**
+
+Several webserver configuration options have been moved to the ``api`` section for better organization:
+
+- ``[webserver] log_fetch_timeout_sec`` → ``[api] log_fetch_timeout_sec``
+- ``[webserver] hide_paused_dags_by_default`` → ``[api] hide_paused_dags_by_default``
+- ``[webserver] page_size`` → ``[api] page_size``
+- ``[webserver] default_wrap`` → ``[api] default_wrap``
+- ``[webserver] require_confirmation_dag_change`` → ``[api] require_confirmation_dag_change``
+- ``[webserver] auto_refresh_interval`` → ``[api] auto_refresh_interval``
+
+Unused configuration options have been removed:
+
+- ``[webserver] instance_name_has_markup``
+- ``[webserver] warn_deployment_exposure``
+
+**API Server Logging Configuration**
+
+The API server configuration option ``[api] access_logfile`` has been replaced with ``[api] log_config`` to align with uvicorn's logging configuration. The new option accepts a path to a logging configuration file compatible with ``logging.config.fileConfig``, providing more flexible logging configuration.
+
+**Security Improvement: XCom Deserialization**
+
+The ``enable_xcom_deserialize_support`` configuration option has been removed as a security improvement. This option previously allowed deserializing unknown objects in the API, which posed a security risk due to potential remote code execution vulnerabilities when deserializing arbitrary Python objects.
+
+The XCom display improvements now handle showing non-native XComs (like custom objects, Assets, datetime objects) in a human-readable way through safer methods that don't require deserializing unknown objects in the API server. This provides better user experience when viewing XCom data in the Airflow UI while eliminating the security risk.
+
+API Changes
+"""""""""""
+
+**Asset API Key Rename**
+
+The ``consuming_dags`` key in asset API responses has been renamed to ``scheduled_dags`` to better reflect its purpose. This key contains only DAGs that use the asset in their ``schedule`` argument, not all DAGs that technically use the asset.
+
+Task SDK Interface Changes
+""""""""""""""""""""""""""
+
+**Removed Functions**
+
+The following functions have been removed from the task-sdk (``airflow.sdk.definitions.taskgroup``) and moved to server-side API services:
+
+- ``get_task_group_children_getter``
+- ``task_group_to_dict``
+
+These functions are now internal to Airflow's API layer and should not be imported directly by users.
+
+Reduce default API server workers to 1
+""""""""""""""""""""""""""""""""""""""
+
+The default number of API server workers (``[api] workers``) has been reduced from ``4`` to ``1``.
+
+With FastAPI, sync code runs in external thread pools, making multiple workers within a single
+process less necessary. Additionally, with uvicorn's spawn behavior instead of fork, there is
+no shared copy-on-write memory between workers, so horizontal scaling with multiple API server
+instances is now the recommended approach for better resource utilization and fault isolation.
+
+A good starting point for the number of workers is to set it to the number of CPU cores available.
+If you do have multiple CPU cores available for the API server, consider deploying multiple API
+server instances instead of increasing the number of workers.
+
+Airflow now uses `structlog <https://www.structlog.org/en/stable/>`_ everywhere
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Most users should not notice the difference, but it is now possible to emit structured log key/value pairs from tasks.
+
+If your class subclasses ``LoggingMixin`` (which all ``BaseHook`` and ``BaseOperator`` do -- i.e. all hooks and
+operators) then ``self.log`` is now a `<structlog logger>`_.
+
+The advantage of using structured logging is that it is much easier to find specific information about log
+message, especially when using a central store such as ``OpenSearch``/``Elastic``/``Splunk`` etc.
+You don't have to make any changes, but you can now take advantage of this.
+
+.. code-block:: python
+
+    # Inside a Task/Hook etc.
+
+    # Before:
+    # self.log.info("Registering adapter %r", item.name)
+    # Now:
+    self.log.info("Registering adapter", name=item.name)
+
+This will produce a log that (in the UI) will look something like this::
+
+    [2025-09-16 10:36:13] INFO - Registering adapter  name="adapter1"
+
+or in JSON (i.e. the log files on disk)::
+
+    {"timestamp": "2025-09-16T10:36:13Z", "log_level": "info", "event": "Registering adapter", "name": "adapter1"}
+
+You can also use ``structlog`` loggers at the top level of modules etc, and ``stdlib`` both continue to work:
+
+.. code-block:: python
+
+    import logging
+    import structlog
+
+    log1 = logging.getLogger(__name__)
+    log2 = strcutlog.get_logger(__name__)
+
+    log1.info("Loading something from %s", __name__)
+    log2.info("Loading something", source=__name__)
+
+(You can't add arbitrary key/value pairs to ``stdlib``, but the normal ``percent-formatter`` approaches still work fine.)
+
 New Features
 ^^^^^^^^^^^^
 
@@ -226,7 +348,7 @@ New Features
 - Implement deadline alert system for proactive DAG monitoring (AIP-86) (#53951, #53903, #53201, #55086)
 - Add configurable reference points and notification callbacks (#50677, #50093)
 - Add deadline calculation and tracking in DAG execution lifecycle (#51638, #50925)
-- Add comprehensive UI translation support for 14 languages (#51266, #51038, #51219, #50929, #50981, #51793)
+- Add comprehensive UI translation support for 16 languages (#51266, #51038, #51219, #50929, #50981, #51793 and more)
 - Add right-to-left (RTL) layout support for Arabic and Hebrew (#51376)
 - Add language selection interface and browser preference detection (#51369)
 - Add translation completeness validation and automated checks (#51166, #51131)
@@ -287,6 +409,7 @@ New Features
 - Switch all airflow logging to structlog (#52651, #55434, #55431, #55638)
 - Add Filter Bar to Audit Log (#55487)
 - Add Filters UI for Asset View (#54640)
+- Update color palette and leverage Chakra semantic tokens (#53981, #55739)
 
 Bug Fixes
 ^^^^^^^^^
@@ -342,7 +465,9 @@ Bug Fixes
 - Fix incorrect log timestamps in UI when ``default_timezone`` is not UTC (#54431)
 - Fix handling of priority_weight for DAG processor callbacks (#55436)
 - Fix pointless requests from Gantt view when there is no Run ID (#55668)
-- Ensure filename and lineno of logger calls are present in Task Logs (#55581)
+- Ensure filename and ``lineno`` of logger calls are present in Task Logs (#55581)
+- Fix DAG disappearing after callback execution in stale detection (#55698)
+- Fix DB downgrade to Airflow 2 when fab tables exists (#55738)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -366,13 +491,13 @@ Miscellaneous
 - Add guards for registering middlewares from plugins (#55399)
 - Optimize Gantt group expansion with de-bouncing and deferred rendering (#55334)
 - Differentiate between triggers and watchers currently running for better visibility (#55376)
-- Update color palette and leverage Chakra semantic tokens (#53981)
 - Removed unused config: ``dag_stale_not_seen_duration`` (#55601, #55684)
 - Update UI's query client strategy for improved performance (#55528)
 - Unify datetime format across the UI for consistency (#55572)
 - Mark React Apps as Experimental for Airflow 3.1 release (#55478)
 - Improve OOM error messaging for clearer task failure diagnosis (#55602)
 - Display responder username for better audit trail in HITL workflows (#55509)
+- The constraint file do not contain developer dependencies anymore (#53631)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -382,7 +507,7 @@ Doc Only Changes
 - Make term Dag consistent in docs task-sdk (#55100)
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
-- Remove ``--preview `` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
+- Remove ``--preview`` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
 - Add documentation for context parameter (#55377)
 
 Airflow 3.0.6 (2025-08-29)
