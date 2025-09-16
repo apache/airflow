@@ -18,6 +18,7 @@
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
+import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CalendarCellData, CalendarColorMode } from "./types";
@@ -26,44 +27,47 @@ const SQUARE_SIZE = "12px";
 const SQUARE_BORDER_RADIUS = "2px";
 
 type Props = {
-  readonly cellData: CalendarCellData | null;
+  readonly cellData: CalendarCellData | undefined;
+  readonly triggerRef: RefObject<HTMLElement>;
   readonly viewMode?: CalendarColorMode;
 };
 
 const stateColorMap = {
   failed: "failed.solid",
-  planned: "stone.600",
+  planned: "stone.solid",
+  running: "running.solid",
   success: "success.solid",
 };
 
-export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
+export const CalendarTooltip = ({ cellData, triggerRef, viewMode = "total" }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
 
-  const tooltipStyle = useMemo(
-    () => ({
-      backgroundColor: "var(--chakra-colors-gray-800)",
+  const tooltipStyle = useMemo(() => {
+    if (!triggerRef.current) {
+      return { display: "none" };
+    }
+
+    const rect = triggerRef.current.getBoundingClientRect();
+
+    return {
+      backgroundColor: "var(--chakra-colors-bg-inverted)",
       borderRadius: "4px",
-      color: "var(--chakra-colors-gray-contrast)",
+      color: "var(--chakra-colors-fg-inverted)",
       fontSize: "14px",
-      left: "50%",
+      left: `${rect.left + globalThis.scrollX + rect.width / 2}px`,
       minWidth: "200px",
-      opacity: 0,
       padding: "8px",
-      pointerEvents: "none" as const,
       position: "absolute" as const,
-      top: "22px",
+      top: `${rect.bottom + globalThis.scrollY + 8}px`,
       transform: "translateX(-50%)",
-      transition: "opacity 0.2s, visibility 0.2s",
-      visibility: "hidden" as const,
       whiteSpace: "nowrap" as const,
       zIndex: 1000,
-    }),
-    [],
-  );
+    };
+  }, [triggerRef]);
 
   const arrowStyle = useMemo(
     () => ({
-      borderBottom: "4px solid var(--chakra-colors-gray-800)",
+      borderBottom: "4px solid var(--chakra-colors-bg-inverted)",
       borderLeft: "4px solid transparent",
       borderRight: "4px solid transparent",
       content: '""',
@@ -78,11 +82,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
   );
 
   if (!cellData) {
-    return (
-      <div data-tooltip style={tooltipStyle}>
-        <div style={arrowStyle} />
-      </div>
-    );
+    return undefined;
   }
 
   const { counts, date } = cellData;
@@ -112,7 +112,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
     }));
 
   return (
-    <div data-tooltip style={tooltipStyle}>
+    <div style={tooltipStyle}>
       <div style={arrowStyle} />
       {hasRuns ? (
         <VStack align="start" gap={2}>

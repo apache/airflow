@@ -17,18 +17,26 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import type React from "react";
+
+import { HoverTooltip } from "src/components/HoverTooltip";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import type { CalendarCellData, CalendarColorMode } from "./types";
-import { useDelayedTooltip } from "./useDelayedTooltip";
 
 type Props = {
   readonly backgroundColor: Record<string, string> | string;
-  readonly cellData: CalendarCellData | null;
+  readonly cellData: CalendarCellData | undefined;
   readonly index?: number;
   readonly marginRight?: string;
   readonly viewMode?: CalendarColorMode;
 };
+
+const renderTooltip =
+  (cellData: CalendarCellData | undefined, viewMode: CalendarColorMode) =>
+  (triggerRef: React.RefObject<HTMLElement>) => (
+    <CalendarTooltip cellData={cellData} triggerRef={triggerRef} viewMode={viewMode} />
+  );
 
 export const CalendarCell = ({
   backgroundColor,
@@ -37,31 +45,28 @@ export const CalendarCell = ({
   marginRight,
   viewMode = "total",
 }: Props) => {
-  const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
-
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
 
   const relevantCount =
     viewMode === "failed" ? (cellData?.counts.failed ?? 0) : (cellData?.counts.total ?? 0);
   const hasData = Boolean(cellData && relevantCount > 0);
-  const hasTooltip = Boolean(cellData); // Show tooltip if we have cell data (even if no runs)
+  const hasTooltip = Boolean(cellData);
 
-  return (
+  const cellBox = (
     <Box
-      onMouseEnter={hasTooltip ? handleMouseEnter : undefined}
-      onMouseLeave={hasTooltip ? handleMouseLeave : undefined}
-      position="relative"
-    >
-      <Box
-        _hover={hasData ? { transform: "scale(1.1)" } : {}}
-        bg={backgroundColor}
-        borderRadius="2px"
-        cursor={hasData ? "pointer" : "default"}
-        height="14px"
-        marginRight={computedMarginRight}
-        width="14px"
-      />
-      <CalendarTooltip cellData={cellData} viewMode={viewMode} />
-    </Box>
+      _hover={hasData ? { transform: "scale(1.1)" } : {}}
+      bg={backgroundColor}
+      borderRadius="2px"
+      cursor={hasData ? "pointer" : "default"}
+      height="14px"
+      marginRight={computedMarginRight}
+      width="14px"
+    />
   );
+
+  if (!hasTooltip) {
+    return cellBox;
+  }
+
+  return <HoverTooltip tooltip={renderTooltip(cellData, viewMode)}>{cellBox}</HoverTooltip>;
 };

@@ -111,7 +111,7 @@ export const DailyCalendarView = ({ data, scale, selectedYear, viewMode = "total
                   return (
                     <CalendarCell
                       backgroundColor="transparent"
-                      cellData={null}
+                      cellData={undefined}
                       key={day.date}
                       viewMode={viewMode}
                     />
