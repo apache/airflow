@@ -22,8 +22,12 @@ import pendulum
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import chain, dag, task
-from airflow.sdk.exceptions import AirflowSkipException
 
+try:
+    from airflow.sdk.exceptions import AirflowSkipException
+except ImportError:
+    # back compat for Airflow < 3.1
+    from airflow.exceptions import AirflowSkipException  # type: ignore[no-redef,attr-defined]
 try:
     from airflow.sdk import TriggerRule
 except ImportError:

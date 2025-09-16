@@ -26,7 +26,12 @@ import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, BaseOperator, TriggerRule
-from airflow.sdk.exceptions import AirflowSkipException
+
+try:
+    from airflow.sdk.exceptions import AirflowSkipException
+except ImportError:
+    # back compat for Airflow < 3.1
+    from airflow.exceptions import AirflowSkipException  # type: ignore[no-redef,attr-defined]
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
