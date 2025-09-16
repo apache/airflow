@@ -209,7 +209,8 @@ class TestPythonPackages:
                 image=default_docker_image,
             )
             if python_version.startswith("Python 3.13"):
-                import_names.remove("airflow.providers.fab")
+                if "airflow.providers.fab" in import_names:
+                    import_names.remove("airflow.providers.fab")
         run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 
     def test_there_is_no_opt_airflow_airflow_folder(self, default_docker_image):
