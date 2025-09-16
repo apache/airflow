@@ -119,10 +119,10 @@ These visual references show the full command syntax, options, and parameters fo
   :width: 60%
   :alt: airflowctl Auth Command
 
-**Backfills**
+**Backfill**
 '''''''''''''
-.. image:: ../images/output_backfills.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_backfills.svg
+.. image:: ../images/output_backfill.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_backfill.svg
   :width: 60%
   :alt: airflowctl Backfills Command
 
@@ -142,8 +142,8 @@ These visual references show the full command syntax, options, and parameters fo
 
 **Dags**
 ''''''''
-.. image:: ../images/output_dag.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dag.svg
+.. image:: ../images/output_dags.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dags.svg
   :width: 60%
   :alt: airflowctl Dag Command
 

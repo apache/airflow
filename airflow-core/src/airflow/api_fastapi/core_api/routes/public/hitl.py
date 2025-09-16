@@ -28,9 +28,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
-    QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
-    QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailRespondedUserIdFilter,
     QueryHITLDetailRespondedUserNameFilter,
     QueryHITLDetailResponseReceivedFilter,
@@ -56,7 +54,11 @@ from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
+task_instances_hitl_router = AirflowRouter(
+    tags=["Task Instance"],
+    prefix="/dags/{dag_id}/dagRuns/{dag_run_id}",
+)
+task_instance_hitl_path = "/taskInstances/{task_id}/{map_index}/hitlDetails"
 
 log = structlog.get_logger(__name__)
 
@@ -100,8 +102,8 @@ def _get_task_instance_with_hitl_detail(
     return task_instance
 
 
-@hitl_router.patch(
-    "/{dag_id}/{dag_run_id}/{task_id}",
+@task_instances_hitl_router.patch(
+    task_instance_hitl_path,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_403_FORBIDDEN,
@@ -165,8 +167,8 @@ def update_hitl_detail(
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 
-@hitl_router.get(
-    "/{dag_id}/{dag_run_id}/{task_id}",
+@task_instances_hitl_router.get(
+    task_instance_hitl_path,
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
@@ -189,12 +191,14 @@ def get_hitl_detail(
     return task_instance.hitl_detail
 
 
-@hitl_router.get(
-    "/",
+@task_instances_hitl_router.get(
+    "/hitlDetails",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
+    dag_id: str,
+    dag_run_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -220,9 +224,7 @@ def get_hitl_details(
     session: SessionDep,
     # ti related filter
     readable_ti_filter: ReadableTIFilterDep,
-    dag_id: QueryHITLDetailDagIdFilter,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
-    dag_run_id: QueryHITLDetailDagRunIdFilter,
     task_id: QueryHITLDetailTaskIdFilter,
     task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
@@ -244,14 +246,16 @@ def get_hitl_details(
             )
         )
     )
+    if dag_id != "~":
+        query = query.where(TI.dag_id == dag_id)
+    if dag_run_id != "~":
+        query = query.where(TI.run_id == dag_run_id)
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[
             # ti related filter
             readable_ti_filter,
-            dag_id,
             dag_id_pattern,
-            dag_run_id,
             task_id,
             task_id_pattern,
             ti_state,

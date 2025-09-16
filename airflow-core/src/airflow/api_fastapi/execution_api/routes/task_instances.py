@@ -254,14 +254,7 @@ def ti_run(
 
         if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
             upstream_map_indexes = dict(
-                _get_upstream_map_indexes(
-                    # TODO (GH-52141): This get_task should return scheduler
-                    # types instead, but currently it inherits SDK's DAG.
-                    cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id)),
-                    ti.map_index,
-                    ti.run_id,
-                    session=session,
-                )
+                _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session=session)
             )
         else:
             upstream_map_indexes = None

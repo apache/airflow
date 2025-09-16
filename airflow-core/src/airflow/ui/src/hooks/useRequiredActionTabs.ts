@@ -20,7 +20,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 
 export type HITLQueryParams = {
   dagId: string;
@@ -70,10 +70,10 @@ export const useRequiredActionTabs = (
     return location.pathname.replace("/required_actions", "");
   })();
 
-  const { data: hitlData, isLoading: isLoadingHitl } = useHumanInTheLoopServiceGetHitlDetails(
+  const { data: hitlData, isLoading: isLoadingHitl } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: hitlParams.dagId,
-      dagRunId: hitlParams.dagRunId,
+      dagRunId: hitlParams.dagRunId ?? "~",
       taskId: hitlParams.taskId,
       taskIdPattern: hitlParams.taskIdPattern,
     },

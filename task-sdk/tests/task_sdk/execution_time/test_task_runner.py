@@ -2691,6 +2691,31 @@ class TestTaskRunnerCallsCallbacks:
         assert state == expected_state
         assert collected_results == expected_results
 
+    @pytest.mark.parametrize(
+        ["base_url", "expected_url"],
+        [
+            ("http://localhost:8080/", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
+            ("http://localhost:8080", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
+            (
+                "https://airflow.example.com/",
+                "https://airflow.example.com/dags/test_dag/runs/test_run/tasks/test_task",
+            ),
+            (
+                "https://airflow.example.com",
+                "https://airflow.example.com/dags/test_dag/runs/test_run/tasks/test_task",
+            ),
+        ],
+        ids=["localhost_with_slash", "localhost_no_slash", "domain_with_slash", "domain_no_slash"],
+    )
+    def test_runtime_task_instance_log_url_property(self, create_runtime_ti, base_url, expected_url):
+        """Test that RuntimeTaskInstance.log_url property correctly handles various base_url formats."""
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run", try_number=0)
+
+        with patch("airflow.configuration.conf.get", return_value=base_url):
+            log_url = runtime_ti.log_url
+            assert log_url == expected_url
+
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
         from airflow.exceptions import AirflowException

@@ -392,6 +392,29 @@ These are all available flags of ``start-airflow`` command:
   :width: 100%
   :alt: Breeze start-airflow
 
+Running External System Integrations with Breeze
+------------------------------------------------
+
+You can run Airflow alongside external systems in Breeze, such as Kafka, Cassandra, MongoDB, and more.
+
+To start Airflow with an integration, use the following command:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration <integration_name>
+
+For example, to run Airflow with Kafka:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration kafka
+
+Check the available integrations by running:
+
+.. code-block:: bash
+
+    breeze --integration --help
+
 Launching multiple terminals in the same environment
 ----------------------------------------------------
 

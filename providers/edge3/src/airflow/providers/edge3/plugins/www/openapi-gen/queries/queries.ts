@@ -62,6 +62,13 @@ export const useUiServiceRequestWorkerShutdown = <TData = Common.UiServiceReques
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   workerName: string;
 }, TContext>({ mutationFn: ({ workerName }) => UiService.requestWorkerShutdown({ workerName }) as unknown as Promise<TData>, ...options });
+export const useUiServiceAddWorkerQueue = <TData = Common.UiServiceAddWorkerQueueMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  queueName: string;
+  workerName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  queueName: string;
+  workerName: string;
+}, TContext>({ mutationFn: ({ queueName, workerName }) => UiService.addWorkerQueue({ queueName, workerName }) as unknown as Promise<TData>, ...options });
 export const useJobsServiceState = <TData = Common.JobsServiceStateMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   authorization: string;
   dagId: string;
@@ -97,6 +104,13 @@ export const useWorkerServiceUpdateQueues = <TData = Common.WorkerServiceUpdateQ
   requestBody: WorkerQueueUpdateBody;
   workerName: string;
 }, TContext>({ mutationFn: ({ authorization, requestBody, workerName }) => WorkerService.updateQueues({ authorization, requestBody, workerName }) as unknown as Promise<TData>, ...options });
+export const useUiServiceUpdateWorkerMaintenance = <TData = Common.UiServiceUpdateWorkerMaintenanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: MaintenanceRequest;
+  workerName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: MaintenanceRequest;
+  workerName: string;
+}, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.updateWorkerMaintenance({ requestBody, workerName }) as unknown as Promise<TData>, ...options });
 export const useUiServiceExitWorkerMaintenance = <TData = Common.UiServiceExitWorkerMaintenanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   workerName: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
@@ -107,3 +121,10 @@ export const useUiServiceDeleteWorker = <TData = Common.UiServiceDeleteWorkerMut
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   workerName: string;
 }, TContext>({ mutationFn: ({ workerName }) => UiService.deleteWorker({ workerName }) as unknown as Promise<TData>, ...options });
+export const useUiServiceRemoveWorkerQueue = <TData = Common.UiServiceRemoveWorkerQueueMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  queueName: string;
+  workerName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  queueName: string;
+  workerName: string;
+}, TContext>({ mutationFn: ({ queueName, workerName }) => UiService.removeWorkerQueue({ queueName, workerName }) as unknown as Promise<TData>, ...options });

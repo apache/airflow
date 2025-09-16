@@ -451,7 +451,9 @@ class DagFileProcessorManager(LoggingMixin):
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
             query = select(DbCallbackRequest)
-            query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(self.max_callbacks_per_loop)
+            query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
+                self.max_callbacks_per_loop
+            )
             query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
