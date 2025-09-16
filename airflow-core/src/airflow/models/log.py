@@ -61,7 +61,7 @@ class Log(Base):
         viewonly=True,
         foreign_keys=[task_id],
         primaryjoin="Log.task_id == TaskInstance.task_id",
-        lazy="selectin",
+        lazy="noload",
     )
 
     __table_args__ = (
