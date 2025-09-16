@@ -180,5 +180,17 @@ go.mod
 go.sum
 mocks/*
 
+# Personal shell configs
+.zshrc
+
+# Local test infrastructure files
+task-sdk-tests/pyproject.toml
+task-sdk-tests/docker/
+
+# Any other local or non-distributable files you don't want RAT to check
+.idea/
+.vscode/
+*.iml
+
 # Kubernetes env
 .env
