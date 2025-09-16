@@ -46,7 +46,9 @@ except ImportError:
     # Compat for Airflow < 3.1
     from airflow.exceptions import AirflowConfigException  # type: ignore[no-redef, attr-defined]
 
-from tests_common.test_utils.config import env_vars, task_sdk_conf_vars as conf_vars
+from tests_common.test_utils.config import env_vars, get_appropriate_conf_vars_context
+
+conf_vars = get_appropriate_conf_vars_context()
 
 _CONFIG_SECTION = "openlineage"
 _VAR_CONFIG_PATH = "OPENLINEAGE_CONFIG"
