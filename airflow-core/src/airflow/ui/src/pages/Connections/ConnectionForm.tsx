@@ -74,21 +74,14 @@ const ConnectionForm = ({
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
 
   const [formErrors, setFormErrors] = useState(false);
-  const [isExtraFieldsDirty, setIsExtraFieldsDirty] = useState(false);
-  const [initialExtra, setInitialExtra] = useState("");
 
   useEffect(() => {
-    const parsedInitialExtra = JSON.parse(initialConnection.extra) as Record<string, unknown>;
-    const formattedInitialExtra = JSON.stringify(parsedInitialExtra, undefined, 2);
-
     reset((prevValues) => ({
       ...initialConnection,
       conn_type: selectedConnType,
       connection_id: prevValues.connection_id,
     }));
-    setConf(formattedInitialExtra);
-    setInitialExtra(formattedInitialExtra);
-    setIsExtraFieldsDirty(false);
+    setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
   }, [selectedConnType, reset, initialConnection, setConf]);
 
   // Automatically reset form when conf is fetched
@@ -97,18 +90,24 @@ const ConnectionForm = ({
       ...prevValues, // Retain existing form values
       extra,
     }));
-    // Mark as dirty when extra fields are updated - compare parsed JSON objects
-    try {
-      const initialParsed = JSON.parse(initialExtra) as Record<string, unknown>;
-      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
-      const hasChanged = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+  }, [extra, reset, setConf]);
 
-      setIsExtraFieldsDirty(hasChanged);
+  const onSubmit = (data: ConnectionBody) => {
+    mutateConnection(data);
+  };
+
+  // Check if extra fields have changed by comparing with initial connection
+  const isExtraFieldsDirty = (() => {
+    try {
+      const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+
+      return JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
     } catch {
       // If parsing fails, fall back to string comparison
-      setIsExtraFieldsDirty(extra !== initialExtra);
+      return extra !== initialConnection.extra;
     }
-  }, [extra, reset, setConf, initialExtra]);
+  })();
 
   const validateAndPrettifyJson = (value: string) => {
     try {
@@ -268,17 +267,7 @@ const ConnectionForm = ({
             disabled={
               Boolean(errors.conf) || formErrors || isPending || !isValid || (!isDirty && !isExtraFieldsDirty)
             }
-            onClick={() => {
-              // Update the form's extra field with the latest conf value before submitting
-              void handleSubmit((data) => {
-                const updatedData = {
-                  ...data,
-                  extra,
-                };
-
-                mutateConnection(updatedData);
-              })();
-            }}
+            onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}
           </Button>
