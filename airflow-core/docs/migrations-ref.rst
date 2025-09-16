@@ -39,7 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``28abf6d28d2f`` (head) | ``2f49f2dae90c`` | ``3.2.0``         | Add stored procedures for task selection                     |
+| ``28abf6d28d2f`` (head) | ``2f49f2dae90c`` | ``3.2.0``         | Add stored procedures for task selection.                    |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``2f49f2dae90c``        | ``eaf332f43c7c`` | ``3.2.0``         | Add TI.max_active_tis_per_dag and                            |
 |                         |                  |                   | TI.max_active_tis_per_dagrun.                                |
