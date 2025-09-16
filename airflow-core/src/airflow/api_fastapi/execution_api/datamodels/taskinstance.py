@@ -41,7 +41,7 @@ from airflow.utils.state import (
     TaskInstanceState as TIState,
     TerminalTIState,
 )
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -300,6 +300,8 @@ class DagRun(StrictBaseModel):
     state: DagRunState
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
     consumed_asset_events: list[AssetEventDagRunReference]
+    triggered_by: DagRunTriggeredByType | None = None
+    triggering_user_name: str | None = None
 
 
 class TIRunContext(BaseModel):

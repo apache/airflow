@@ -143,6 +143,21 @@ class DagRunStateResponse(BaseModel):
     state: DagRunState
 
 
+class DagRunTriggeredByType(str, Enum):
+    """
+    Class with DagRun triggered by types.
+    """
+
+    ASSET = "asset"
+    BACKFILL = "backfill"
+    CLI = "cli"
+    OPERATOR = "operator"
+    REST_API = "rest_api"
+    TEST = "test"
+    TIMETABLE = "timetable"
+    UI = "ui"
+
+
 class DagRunType(str, Enum):
     """
     Class with DagRun types.
@@ -540,6 +555,8 @@ class DagRun(BaseModel):
     state: DagRunState
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
+    triggered_by: Annotated[DagRunTriggeredByType | None, Field(title="Triggered By")] = None
+    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
 
 
 class HITLDetailRequest(BaseModel):
@@ -583,9 +600,9 @@ class TIRunContext(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
-    upstream_map_indexes: Annotated[
-        dict[str, int | list[int] | None] | None, Field(title="Upstream Map Indexes")
-    ] = None
+    upstream_map_indexes: Annotated[dict[str, int | list[int] | None] | None, Field(title="Upstream Map Indexes")] = (
+        None
+    )
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
