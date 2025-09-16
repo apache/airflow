@@ -16,11 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.docling.hooks.docling_hook import DoclingHook
+from airflow.models import BaseOperator
+from airflow.providers.docling.hooks.docling import DoclingHook
 
 
 class DoclingConvertOperator(BaseOperator):
@@ -31,8 +30,6 @@ class DoclingConvertOperator(BaseOperator):
     :param filename: The name of the file being converted.
     :param parameters: Optional dictionary of processing parameters (options).
     """
-
-    template_fields: Sequence[str] = ("filename",)
 
     def __init__(
         self,
@@ -52,8 +49,5 @@ class DoclingConvertOperator(BaseOperator):
         hook = DoclingHook(http_conn_id=self.docling_conn_id)
         self.log.info("Sending document %s for processing.", self.filename)
 
-        result = hook.process_document(
-            filename=self.filename,
-            data=self.parameters
-        )
+        result = hook.process_document(filename=self.filename, data=self.parameters)
         return result
