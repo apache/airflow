@@ -1,0 +1,23 @@
+Reduce default API server workers to 1
+
+The default number of API server workers (``[api] workers``) has been reduced from 4 to 1.
+
+With FastAPI, sync code runs in external thread pools, making multiple workers within a single
+process less necessary. Additionally, with uvicorn's spawn behavior instead of fork, there is
+no shared copy-on-write memory between workers, so horizontal scaling with multiple API server
+instances is now the recommended approach for better resource utilization and fault isolation.
+
+A good starting point for the number of workers is to set it to the number of CPU cores available.
+If you do have multiple CPU cores available for the API server, consider deploying multiple API
+server instances instead of increasing the number of workers.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

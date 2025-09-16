@@ -27,6 +27,7 @@ import { Menu } from "src/components/ui";
 import { getDefaultFilterIcon } from "./defaultIcons";
 import { DateFilter } from "./filters/DateFilter";
 import { NumberFilter } from "./filters/NumberFilter";
+import { SelectFilter } from "./filters/SelectFilter";
 import { TextSearchFilter } from "./filters/TextSearchFilter";
 import type { FilterBarProps, FilterConfig, FilterState, FilterValue } from "./types";
 
@@ -126,6 +127,8 @@ export const FilterBar = ({
         return <DateFilter key={filter.id} {...props} />;
       case "number":
         return <NumberFilter key={filter.id} {...props} />;
+      case "select":
+        return <SelectFilter key={filter.id} {...props} />;
       case "text":
         return <TextSearchFilter key={filter.id} {...props} />;
       default:
