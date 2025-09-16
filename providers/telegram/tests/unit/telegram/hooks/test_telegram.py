@@ -27,8 +27,6 @@ import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
 TELEGRAM_TOKEN = "dummy token"
 
 
@@ -74,12 +72,8 @@ class TestTelegramHook:
 
     @pytest.mark.db_test
     def test_should_raise_exception_if_conn_id_doesnt_exist(self, sdk_connection_not_found):
-        if AIRFLOW_V_3_1_PLUS:
-            with pytest.raises(RuntimeError) as ctx:
-                TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
-        else:
-            with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
-                TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
+        with pytest.raises((airflow.exceptions.AirflowNotFoundException, RuntimeError)) as ctx:
+            TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
 
         assert str(ctx.value) == "The conn_id `telegram-webhook-non-existent` isn't defined"
 

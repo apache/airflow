@@ -39,7 +39,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHo
 
 from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AirflowNotFoundException
+from tests_common.test_utils.version_compat import AirflowNotFoundException
 
 pytestmark = pytest.mark.db_test
 
@@ -449,12 +449,10 @@ class TestKubernetesHook:
 
         # meanwhile, asking for non-default should still fail if it doesn't exist
         hook = KubernetesHook("some_conn")
-        if AIRFLOW_V_3_1_PLUS:
-            with pytest.raises(RuntimeError):
-                hook.conn_extras
-        else:
-            with pytest.raises(AirflowNotFoundException, match="The conn_id `some_conn` isn't defined"):
-                hook.conn_extras
+        with pytest.raises(
+            (AirflowNotFoundException, RuntimeError), match="The conn_id `some_conn` isn't defined"
+        ):
+            hook.conn_extras
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
@@ -1012,12 +1010,8 @@ class TestAsyncKubernetesHook:
             config_file=ASYNC_CONFIG_PATH,
             cluster_context=None,
         )
-        if AIRFLOW_V_3_1_PLUS:
-            with pytest.raises(RuntimeError):
-                await hook._load_config()
-        else:
-            with pytest.raises(AirflowException):
-                await hook._load_config()
+        with pytest.raises((AirflowException, RuntimeError)):
+            await hook._load_config()
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod"))

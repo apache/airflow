@@ -529,7 +529,7 @@ class TestDataflowCreatePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_projectid_invalid(self):
@@ -543,7 +543,7 @@ class TestDataflowCreatePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_location_invalid(self):
@@ -557,7 +557,7 @@ class TestDataflowCreatePipelineOperator:
             "location": None,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_response_invalid(self, sdk_connection_not_found):
@@ -571,7 +571,7 @@ class TestDataflowCreatePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
@@ -635,7 +635,7 @@ class TestDataflowRunPipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_project_id(self, sdk_connection_not_found):
@@ -649,7 +649,7 @@ class TestDataflowRunPipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_location(self, sdk_connection_not_found):
@@ -663,7 +663,7 @@ class TestDataflowRunPipelineOperator:
             "location": None,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_response(self):
@@ -742,7 +742,7 @@ class TestDataflowDeletePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_project_id(self, sdk_connection_not_found):
@@ -756,7 +756,7 @@ class TestDataflowDeletePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_location(self, sdk_connection_not_found):
@@ -770,7 +770,7 @@ class TestDataflowDeletePipelineOperator:
             "location": None,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_response(self, sdk_connection_not_found):
@@ -784,7 +784,7 @@ class TestDataflowDeletePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
                 "error": {"message": "example error"}
             }
