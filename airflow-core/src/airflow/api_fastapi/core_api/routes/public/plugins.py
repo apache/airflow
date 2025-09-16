@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 
+import structlog
 from fastapi import Depends
 from pydantic import ValidationError
 
