@@ -48,6 +48,26 @@ def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
         session.close()
 
 
+@contextlib.contextmanager
+def create_readonly_session(scoped: bool = True) -> Generator[SASession, None, None]:
+    """Contextmanager that will create and teardown a read-only session."""
+    if scoped:
+        ReadOnlySession = getattr(settings, "ReadOnlySession", None)
+    else:
+        ReadOnlySession = getattr(settings, "NonScopedReadOnlySession", None)
+    if ReadOnlySession is None:
+        raise RuntimeError("ReadOnlySession must be set before!")
+    session = ReadOnlySession()
+    try:
+        yield session
+        # Note: No commit() for read-only sessions
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 @contextlib.asynccontextmanager
 async def create_session_async():
     """
@@ -61,6 +81,24 @@ async def create_session_async():
         try:
             yield session
             await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+@contextlib.asynccontextmanager
+async def create_readonly_session_async():
+    """
+    Context manager to create async read-only session.
+
+    :meta private:
+    """
+    from airflow.settings import ReadOnlyAsyncSession
+
+    async with ReadOnlyAsyncSession() as session:
+        try:
+            yield session
+            # Note: No commit() for read-only sessions
         except Exception:
             await session.rollback()
             raise
@@ -102,8 +140,36 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     return wrapper
 
 
+def provide_readonly_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
+    """
+    Provide a read-only session if it isn't provided.
+
+    This decorator is intended for read-only operations that can benefit from
+    using a read-only database replica to offload traffic from the master database.
+    If you want to reuse a session or run the function as part of a transaction,
+    you pass it to the function, if not this wrapper will create a read-only
+    session and close it for you.
+    """
+    session_args_idx = find_session_idx(func)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> RT:
+        if "session" in kwargs or session_args_idx < len(args):
+            return func(*args, **kwargs)
+        with create_readonly_session() as session:
+            return func(*args, session=session, **kwargs)
+
+    return wrapper
+
+
 # A fake session to use in functions decorated by provide_session. This allows
 # the 'session' argument to be of type Session instead of Session | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
 NEW_SESSION: SASession = cast("SASession", None)
+
+# A fake read-only session to use in functions decorated by provide_readonly_session.
+# This allows the 'session' argument to be of type Session instead of Session | None,
+# making it easier to type hint the function body without dealing with the None
+# case that can never happen at runtime.
+NEW_READONLY_SESSION: SASession = cast("SASession", None)
