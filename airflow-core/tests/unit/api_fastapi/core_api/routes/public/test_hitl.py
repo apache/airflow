@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -28,11 +28,13 @@ import time_machine
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from airflow._shared.timezones.timezone import utcnow
+from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
@@ -47,6 +49,10 @@ pytestmark = pytest.mark.db_test
 DAG_ID = "test_hitl_dag"
 ANOTHER_DAG_ID = "another_hitl_dag"
 TASK_ID = "sample_task_hitl"
+
+
+DEFAULT_CREATED_AT = datetime(2025, 9, 15, 13, 0, 0, tzinfo=utc)
+ANOTHER_CREATED_AT = datetime(2025, 9, 16, 12, 0, 0, tzinfo=utc)
 
 
 @pytest.fixture
@@ -158,6 +164,7 @@ def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> lis
             defaults=["Approve"],
             multiple=False,
             params={"input_1": 1},
+            created_at=DEFAULT_CREATED_AT,
         )
         for i, ti in enumerate(sample_tis[:5])
     ]
@@ -175,6 +182,7 @@ def sample_hitl_details(sample_tis: list[TaskInstance], session: Session) -> lis
                 chosen_options=[str(i)],
                 params_input={"input": i},
                 responded_by={"id": "test", "name": "test"},
+                created_at=ANOTHER_CREATED_AT,
             )
             for i, ti in enumerate(sample_tis[5:])
         ]
@@ -209,6 +217,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "options": ["Approve", "Reject"],
         "params": {"input_1": 1},
         "assigned_users": [],
+        "created_at": mock.ANY,
         "params_input": {},
         "responded_at": None,
         "chosen_options": None,
@@ -542,6 +551,21 @@ class TestGetHITLDetailsEndpoint:
             ({"response_received": True}, 3),
             ({"responded_by_user_id": ["test"]}, 3),
             ({"responded_by_user_name": ["test"]}, 3),
+            (
+                {"created_at_gte": from_datetime_to_zulu_without_ms(DEFAULT_CREATED_AT + timedelta(days=1))},
+                0,
+            ),
+            (
+                {"created_at_lte": from_datetime_to_zulu_without_ms(DEFAULT_CREATED_AT - timedelta(days=1))},
+                0,
+            ),
+            (
+                {
+                    "created_at_gte": from_datetime_to_zulu_without_ms(DEFAULT_CREATED_AT),
+                    "created_at_lte": from_datetime_to_zulu_without_ms(DEFAULT_CREATED_AT),
+                },
+                5,
+            ),
         ],
         ids=[
             "dag_id_pattern_hitl_dag",
@@ -556,6 +580,9 @@ class TestGetHITLDetailsEndpoint:
             "response_received",
             "responded_user_id",
             "responded_user_name",
+            "created_at_gte",
+            "created_at_lte",
+            "created_at",
         ],
     )
     def test_should_respond_200_with_existing_response_and_query(
@@ -587,6 +614,7 @@ class TestGetHITLDetailsEndpoint:
                     "multiple": False,
                     "params": {"input_1": 1},
                     "assigned_users": [],
+                    "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
                     "responded_by_user": None,
                     "responded_at": None,
                     "chosen_options": None,
@@ -612,6 +640,7 @@ class TestGetHITLDetailsEndpoint:
             # htil key
             ("subject", itemgetter("subject")),
             ("responded_at", itemgetter("responded_at")),
+            ("created_at", itemgetter("created_at")),
         ],
         ids=[
             "ti_id",
@@ -622,6 +651,7 @@ class TestGetHITLDetailsEndpoint:
             "task_instance_operator",
             "subject",
             "responded_at",
+            "created_at",
         ],
     )
     def test_should_respond_200_with_existing_response_and_order_by(
