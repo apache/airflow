@@ -164,6 +164,12 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
      - ``airflow.sdk.TaskGroup``
    * - ``airflow.datasets.Dataset``
      - ``airflow.sdk.Asset``
+   * - ``airflow.datasets.DatasetAlias``
+     - ``airflow.sdk.AssetAlias``
+   * - ``airflow.datasets.DatasetAll``
+     - ``airflow.sdk.AssetAll``
+   * - ``airflow.datasets.DatasetAny``
+     - ``airflow.sdk.AssetAny``
    * - ``airflow.models.connection.Connection``
      - ``airflow.sdk.Connection``
    * - ``airflow.models.context.Context``
