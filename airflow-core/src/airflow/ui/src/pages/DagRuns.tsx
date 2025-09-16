@@ -50,6 +50,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
   DAG_ID: DAG_ID_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
   END_DATE: END_DATE_PARAM,
   RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
   RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
@@ -187,6 +188,7 @@ export const DagRuns = () => {
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagId = searchParams.get(DAG_ID_PARAM);
+  const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
@@ -197,6 +199,8 @@ export const DagRuns = () => {
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: filteredDagId ?? dagId ?? "~",
+      dagVersion:
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,

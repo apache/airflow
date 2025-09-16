@@ -22,6 +22,7 @@ export enum SearchParamsKeys {
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
   DAG_ID = "dag_id",
   DAG_ID_PATTERN = "dag_id_pattern",
+  DAG_VERSION = "dag_version",
   DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
   EVENT_TYPE = "event_type",

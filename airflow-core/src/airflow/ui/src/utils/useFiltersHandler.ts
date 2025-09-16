@@ -29,6 +29,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.BEFORE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
+  | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.END_DATE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
