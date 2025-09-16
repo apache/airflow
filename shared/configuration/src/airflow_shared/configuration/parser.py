@@ -2301,6 +2301,16 @@ def find_config_templates_dir() -> str:
         if (candidate / "config.yml").exists():
             return str(candidate)
 
+    try:
+        import airflow
+
+        airflow_dir = os.path.dirname(airflow.__file__)
+        templates_dir = os.path.join(airflow_dir, "config_templates")
+        if os.path.exists(os.path.join(templates_dir, "config.yml")):
+            return templates_dir
+    except ImportError:
+        pass
+
     return ""
 
 
