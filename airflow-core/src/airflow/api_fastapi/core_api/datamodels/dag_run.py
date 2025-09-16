@@ -180,3 +180,8 @@ class DAGRunsBatchBody(StrictBaseModel):
     end_date_gt: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
     end_date_lt: AwareDatetime | None = None
+
+    duration_gte: float | None = None
+    duration_gt: float | None = None
+    duration_lte: float | None = None
+    duration_lt: float | None = None

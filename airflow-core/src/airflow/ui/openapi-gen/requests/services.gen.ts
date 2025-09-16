@@ -996,6 +996,10 @@ export class DagRunService {
      * @param data.updatedAtGt
      * @param data.updatedAtLte
      * @param data.updatedAtLt
+     * @param data.durationGte
+     * @param data.durationGt
+     * @param data.durationLte
+     * @param data.durationLt
      * @param data.runType
      * @param data.state
      * @param data.dagVersion
@@ -1035,6 +1039,10 @@ export class DagRunService {
                 updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
                 updated_at_lt: data.updatedAtLt,
+                duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
+                duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 run_type: data.runType,
                 state: data.state,
                 dag_version: data.dagVersion,
