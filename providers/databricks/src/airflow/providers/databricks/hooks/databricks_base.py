@@ -246,16 +246,14 @@ class BaseDatabricksHook(BaseHook):
             return sp_token["access_token"]
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
-
         try:
-            if self.databricks_conn.login is None or self.databricks_conn.password is None:
-                raise AirflowException("Service Principal credentials aren't provided (login/password).")
-
             for attempt in self._get_retry_object():
                 with attempt:
                     resp = requests.post(
                         resource,
-                        auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        auth=HTTPBasicAuth(
+                            self.databricks_conn.login or "", self.databricks_conn.password or ""
+                        ),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -288,14 +286,11 @@ class BaseDatabricksHook(BaseHook):
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
         try:
             conn = await self.adatabricks_conn()
-            if conn.login is None or conn.password is None:
-                raise AirflowException("Service Principal credentials aren't provided (login/password).")
-
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     async with self._session.post(
                         resource,
-                        auth=aiohttp.BasicAuth(conn.login, conn.password),
+                        auth=aiohttp.BasicAuth(conn.login or "", conn.password or ""),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
