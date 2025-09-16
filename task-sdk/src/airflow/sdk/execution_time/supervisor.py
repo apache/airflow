@@ -538,7 +538,13 @@ class WatchedSubprocess:
             )
         )
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
+
+        std_handle_log = logger_without_processor_of_type(
+            self.process_log, structlog.processors.CallsiteParameterAdder
+        )
+        target_loggers: tuple[FilteringBoundLogger, ...] = (std_handle_log,)
+
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
         self.selector.register(
@@ -1368,7 +1374,12 @@ class ActivitySubprocess(WatchedSubprocess):
             raise RuntimeError("send_fds is not available on this platform")
         child_logs, read_logs = socketpair()
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
+
+        std_handle_log = logger_without_processor_of_type(
+            self.process_log, structlog.processors.CallsiteParameterAdder
+        )
+        target_loggers: tuple[FilteringBoundLogger, ...] = (std_handle_log,)
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
 
