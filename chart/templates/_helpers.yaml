@@ -473,7 +473,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "kerberos_keytab_secret" -}}
-  {{- default (printf "%s-kerberos-keytab" (include "airflow.fullname" .)) .Values.kerberos.keytabBase64Content }}
+  {{- printf "%s-kerberos-keytab" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "kerberos_ccache_path" -}}
