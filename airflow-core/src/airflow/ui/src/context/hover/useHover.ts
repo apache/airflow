@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown } from "react-icons/md";
+import { useContext } from "react";
 
-import type { FilterConfig } from "./types";
+import { HoverContext } from "./Context";
 
-export const defaultFilterIcons = {
-  date: <MdCalendarToday />,
-  number: <MdNumbers />,
-  select: <MdArrowDropDown />,
-  text: <MdTextFields />,
-} as const;
+export const useHover = () => {
+  const context = useContext(HoverContext);
 
-export const getDefaultFilterIcon = (type: FilterConfig["type"]) => defaultFilterIcons[type];
+  if (context === undefined) {
+    throw new Error("useHover must be used within a HoverProvider");
+  }
+
+  return context;
+};

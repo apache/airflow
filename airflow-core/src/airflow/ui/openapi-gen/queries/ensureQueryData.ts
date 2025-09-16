@@ -1134,14 +1134,16 @@ export const ensureUseImportErrorServiceGetImportErrorData = (queryClient: Query
 * @param data.limit
 * @param data.offset
 * @param data.orderBy
+* @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseImportErrorServiceGetImportErrorsData = (queryClient: QueryClient, { limit, offset, orderBy }: {
+export const ensureUseImportErrorServiceGetImportErrorsData = (queryClient: QueryClient, { filenamePattern, limit, offset, orderBy }: {
+  filenamePattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filenamePattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ filenamePattern, limit, offset, orderBy }) });
 /**
 * Get Jobs
 * Get all jobs.
