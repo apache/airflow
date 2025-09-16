@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import Depends
+from pydantic import ValidationError
 
 from airflow import plugins_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
@@ -52,7 +53,7 @@ def get_plugins(
             # Validate each plugin individually
             plugin = PluginResponse.model_validate(plugin_dict)
             valid_plugins.append(plugin)
-        except Exception as e:
+        except ValidationError as e:
             logger.warning(
                 "Skipping invalid plugin %s due to error: %s",
                 plugin_dict.get("name", "<unknown>"),

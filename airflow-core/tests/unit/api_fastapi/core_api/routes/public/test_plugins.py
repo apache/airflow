@@ -33,7 +33,7 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                13,
+                14,
                 [
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
@@ -52,10 +52,10 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 2},
-                13,
+                14,
                 ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
             ),
-            ({"limit": 1}, 13, ["MetadataCollectionPlugin"]),
+            ({"limit": 1}, 14, ["MetadataCollectionPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -118,6 +118,26 @@ class TestGetPlugins:
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/plugins")
         assert response.status_code == 403
+
+    def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
+        caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")
+
+        response = test_client.get("/plugins")
+        assert response.status_code == 200
+
+        body = response.json()
+        plugin_names = [plugin["name"] for plugin in body["plugins"]]
+
+        # Ensure our invalid plugin is skipped from the valid list
+        assert "test_plugin_invalid" not in plugin_names
+
+        # Verify warning was logged
+        assert any(
+            "Skipping invalid plugin test_plugin_invalid due to error:" in rec.message
+            for rec in caplog.records
+        )
 
 
 @skip_if_force_lowest_dependencies_marker
