@@ -293,11 +293,6 @@ export const $TaskInstance = {
             format: 'uuid',
             title: 'Id'
         },
-        dag_version_id: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Dag Version Id'
-        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -354,10 +349,22 @@ export const $TaskInstance = {
                 }
             ],
             title: 'Context Carrier'
+        },
+        dag_version_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Id'
         }
     },
     type: 'object',
-    required: ['id', 'dag_version_id', 'task_id', 'dag_id', 'run_id', 'try_number', 'pool_slots', 'queue', 'priority_weight'],
+    required: ['id', 'task_id', 'dag_id', 'run_id', 'try_number', 'pool_slots', 'queue', 'priority_weight'],
     title: 'TaskInstance',
     description: 'Schema for TaskInstance with minimal required fields needed for Executors and Task SDK.'
 } as const;

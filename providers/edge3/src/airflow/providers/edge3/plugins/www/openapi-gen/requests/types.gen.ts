@@ -155,7 +155,6 @@ export type PushLogsBody = {
  */
 export type TaskInstance = {
     id: string;
-    dag_version_id: string;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -170,6 +169,7 @@ export type TaskInstance = {
     context_carrier?: {
     [key: string]: unknown;
 } | null;
+    dag_version_id?: string | null;
 };
 
 /**
