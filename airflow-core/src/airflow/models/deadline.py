@@ -395,7 +395,8 @@ class ReferenceModels:
             if dialect == "postgresql":
                 duration_expr = func.extract("epoch", DagRun.end_date - DagRun.start_date)
             elif dialect == "mysql":
-                duration_expr = func.unix_timestamp(DagRun.end_date) - func.unix_timestamp(DagRun.start_date)
+                # Use TIMESTAMPDIFF to get exact seconds like PostgreSQL EXTRACT(epoch FROM ...)
+                duration_expr = func.timestampdiff("SECOND", DagRun.start_date, DagRun.end_date)
             elif dialect == "sqlite":
                 duration_expr = (func.julianday(DagRun.end_date) - func.julianday(DagRun.start_date)) * 86400
             else:
@@ -423,7 +424,12 @@ class ReferenceModels:
                     self.min_runs,
                 )
                 return None
-            avg_seconds = sum(durations) / len(durations)
+            # Convert to float to handle Decimal types from MySQL while preserving precision
+            # Use Decimal arithmetic for higher precision, then convert to float
+            from decimal import Decimal
+
+            decimal_durations = [Decimal(str(d)) for d in durations]
+            avg_seconds = float(sum(decimal_durations) / len(decimal_durations))
             logger.info(
                 "Average runtime for dag_id %s (from %d runs): %.2f seconds",
                 dag_id,
