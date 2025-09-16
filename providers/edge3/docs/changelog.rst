@@ -63,8 +63,10 @@ Misc
 * ``Adjust Edge color scheme after merge of PR 53981 (#55485)``
 * ``Bump vite from 5.4.19 to 5.4.20 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55449)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
+Doc-only
+~~~~~~~~
+
+* ``Update docs for new Airflow 3.1 UI Plugins (#55654)``
 
 1.2.0
 .....

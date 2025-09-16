@@ -50,6 +50,7 @@ Misc
 * ``List only connections, pools and variables the user has access to (#55298)``
 * ``Switch all airflow logging to structlog (#52651)``
 * ``AIP-67 - Multi-team: Per team executor config (env var only) (#55003)``
+* ``Allow SSM operators and sensors to run in deferrable mode (#55649)``
 
 Doc-only
 ~~~~~~~~
