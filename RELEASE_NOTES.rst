@@ -124,6 +124,7 @@ Example use cases:
 - Escalate when resource-constrained DAGs remain queued too long
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 **Current Limitations**: Deadline Alerts currently support only asynchronous callbacks (``AsyncCallback``).
 Support for synchronous callbacks (``SyncCallback``) is planned for a future release.
 
@@ -137,6 +138,16 @@ For configuration details and examples, see :doc:`/howto/deadline-alerts`.
 
 **Warning**: Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+**Current Limitations**: Deadline Alerts currently support only asynchronous callbacks (``AsyncCallback``).
+Support for synchronous callbacks (``SyncCallback``) is planned for a future release.
+
+For configuration details and examples, see :doc:`/howto/deadline-alerts`.
+
+.. warning::
+
+  Deadline Alerts are experimental in 3.1 and may change in future versions based on user feedback.
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 
 UI Internationalization
 """""""""""""""""""""""
@@ -238,6 +249,9 @@ Enhanced UI Views and Filtering
 """"""""""""""""""""""""""""""""
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 Airflow 3.1 brings significant UI improvements including rebuilt Calendar and Gantt chart views for the modern React UI,
 comprehensive filtering capabilities, and a refreshed visual design system.
 
@@ -252,6 +266,7 @@ a more cohesive visual experience throughout Airflow.
 The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI, along with enhanced
 filtering capabilities across all views. These improvements provide better performance and a more consistent
 user experience with the rest of the modern Airflow interface.
+<<<<<<< HEAD
 
 **DAG Dashboard Organization**
 
@@ -263,6 +278,8 @@ Airflow 3.1 brings Calendar and Gantt chart views to the modern React UI, along 
 capabilities. The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI,
 along with enhanced filtering capabilities across all views.
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Inference Execution (Synchronous DAGs)
 """"""""""""""""""""""""""""""""""""""
@@ -306,6 +323,9 @@ Support for Python 3.9 has been removed, as it has reached end-of-life.
 Airflow 3.1.0 requires Python 3.10, 3.11, 3.12 or 3.13.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 Configuration Changes and Cleanup
 """"""""""""""""""""""""""""""""""
 
@@ -412,6 +432,7 @@ You can also use ``structlog`` loggers at the top level of modules etc, and ``st
 
 (You can't add arbitrary key/value pairs to ``stdlib``, but the normal ``percent-formatter`` approaches still work fine.)
 
+<<<<<<< HEAD
 Serialization Interface Changes
 """""""""""""""""""""""""""""""
 
@@ -430,6 +451,8 @@ This update avoids the use of ``import_string`` in the deserializer, making dese
 
 =======
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 New Features
 ^^^^^^^^^^^^
 
@@ -482,10 +505,14 @@ New Features
 - Add configurable reference points and notification callbacks (#50677, #50093)
 - Add deadline calculation and tracking in DAG execution lifecycle (#51638, #50925)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Add comprehensive UI translation support for 16 languages (#51266, #51038, #51219, #50929, #50981, #51793 and more)
 =======
 - Add comprehensive UI translation support for 14 languages (#51266, #51038, #51219, #50929, #50981, #51793)
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
+=======
+- Add comprehensive UI translation support for 16 languages (#51266, #51038, #51219, #50929, #50981, #51793 and more)
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 - Add right-to-left (RTL) layout support for Arabic and Hebrew (#51376)
 - Add language selection interface and browser preference detection (#51369)
 - Add translation completeness validation and automated checks (#51166, #51131)
@@ -562,6 +589,7 @@ New Features
 - Add Filter Bar to Audit Log (#55487)
 - Add Filters UI for Asset View (#54640)
 - Update color palette and leverage Chakra semantic tokens (#53981, #55739)
+<<<<<<< HEAD
 - Improve calendar view UI with enhanced tooltips and visual fixes (#55476)
 =======
 - Switch all airflow logging to structlog (#52651, #55434, #55431)
@@ -571,6 +599,8 @@ New Features
 - Add Filter Bar to Audit Log (#55487)
 - Add Filters UI for Asset View (#54640)
 >>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Bug Fixes
 ^^^^^^^^^
@@ -667,8 +697,14 @@ Bug Fixes
 - Fix incorrect log timestamps in UI when ``default_timezone`` is not UTC (#54431)
 - Fix handling of priority_weight for DAG processor callbacks (#55436)
 - Fix pointless requests from Gantt view when there is no Run ID (#55668)
+<<<<<<< HEAD
 - Ensure filename and lineno of logger calls are present in Task Logs (#55581)
 >>>>>>> 922f344af6 (Update release notes for 3.1.0b2)
+=======
+- Ensure filename and ``lineno`` of logger calls are present in Task Logs (#55581)
+- Fix DAG disappearing after callback execution in stale detection (#55698)
+- Fix DB downgrade to Airflow 2 when fab tables exists (#55738)
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -701,6 +737,7 @@ Miscellaneous
 - Improve OOM error messaging for clearer task failure diagnosis (#55602)
 - Display responder username for better audit trail in HITL workflows (#55509)
 - The constraint file do not contain developer dependencies anymore (#53631)
+<<<<<<< HEAD
 - Add hyperlinks to ``dag_id`` column in DAG Runs and Task Instances pages for better navigation (#55648)
 - Add responsive web design (RWD) support to Grid view (#55745)
 =======
@@ -725,6 +762,8 @@ Miscellaneous
 =======
 - Display responder username for better audit trail in HITL workflows (#55509)
 >>>>>>> 922f344af6 (Update release notes for 3.1.0b2)
+=======
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -737,6 +776,7 @@ Doc Only Changes
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Remove ``--preview`` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
 - Add documentation for context parameter (#55377)
 =======
@@ -745,6 +785,9 @@ Doc Only Changes
 >>>>>>> 578d190f76 (Add release notes for 3.1.0b1)
 =======
 - Remove ``--preview `` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
+=======
+- Remove ``--preview`` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
+>>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
 - Add documentation for context parameter (#55377)
 >>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 
