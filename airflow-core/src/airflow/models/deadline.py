@@ -388,10 +388,23 @@ class ReferenceModels:
 
             dag_id = kwargs["dag_id"]
 
+            # Get database dialect to use appropriate time difference calculation
+            dialect = session.bind.dialect.name
+
+            # Create database-specific expression for calculating duration in seconds
+            if dialect == "postgresql":
+                duration_expr = func.extract("epoch", DagRun.end_date - DagRun.start_date)
+            elif dialect == "mysql":
+                duration_expr = func.unix_timestamp(DagRun.end_date) - func.unix_timestamp(DagRun.start_date)
+            elif dialect == "sqlite":
+                duration_expr = (func.julianday(DagRun.end_date) - func.julianday(DagRun.start_date)) * 86400
+            else:
+                raise ValueError(f"Unsupported database dialect: {dialect}")
+
             # Query for completed DAG runs with both start and end dates
             # Order by logical_date descending to get most recent runs first
             query = (
-                select(func.extract("epoch", DagRun.end_date - DagRun.start_date))
+                select(duration_expr)
                 .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
                 .order_by(DagRun.logical_date.desc())
             )
