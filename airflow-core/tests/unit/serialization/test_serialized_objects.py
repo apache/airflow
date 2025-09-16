@@ -33,6 +33,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowRescheduleException,
     SerializationError,
     TaskDeferred,
@@ -415,7 +416,7 @@ class MockLazySelectSequence(LazySelectSequence):
             equal_exception,
         ),
         (
-            AirflowException("uuups, failed :-("),
+            AirflowFailException("uuups, failed :-("),
             DAT.AIRFLOW_EXC_SER,
             equal_exception,
         ),
