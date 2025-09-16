@@ -2,7 +2,7 @@ Airflow now uses `https://www.structlog.org/en/stable/ <structlog>`_ everywhere.
 
 Most users should not notice the difference, but it is now possible to emit structured log key/value pairs from tasks.
 
-If your class subclasses LoggingMixin (which all BaseHook and BaseOperator do -- i.e. all hooks and operators) then ``self.log`` is not a ` <structlog logger>`_.
+If your class subclasses LoggingMixin (which all BaseHook and BaseOperator do -- i.e. all hooks and operators) then ``self.log`` is now a ` <structlog logger>`_.
 
 The advantage of using structured logging is that it is much easier to find specific information about log message, especially when using a central store such as OpenSearch/Elastic/Splunk etc. You don't have to make any changes, but you can now take advantage of this.
 
