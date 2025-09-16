@@ -154,6 +154,10 @@ class TestFastApiSecurity:
             ("/some_other_page/", False),
             # traversal, escaping the `prefix` folder
             ("/../../../../some_page?with_param=3", False),
+            # encoded url
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", True),
+            ("https%3A%2F%2Fsome_netlock.com%2Fprefix%2Fsome_page%3Fwith_param%3D3", False),
         ],
     )
     @conf_vars({("api", "base_url"): "https://server_base_url.com/prefix"})
