@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
 import { FiTag } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -30,17 +31,21 @@ type Props = {
   readonly tags: Array<DagTagResponse>;
 };
 
-export const DagTags = ({ hideIcon = false, tags }: Props) => (
-  <LimitedItemsList
-    icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
-    interactive
-    items={tags.map(({ name }) => (
-      <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${name}`}>
-        {name}
-      </RouterLink>
-    ))}
-    maxItems={MAX_TAGS}
-    modalTitle={`All Tags (${tags.length})`}
-    showModal={true}
-  />
-);
+export const DagTags = ({ hideIcon = false, tags }: Props) => {
+  const { t: translate } = useTranslation("components");
+
+  return (
+    <LimitedItemsList
+      icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
+      interactive
+      items={tags.map(({ name }) => (
+        <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${name}`}>
+          {name}
+        </RouterLink>
+      ))}
+      maxItems={MAX_TAGS}
+      modalTitle={translate("limitedList.allTags", { count: tags.length })}
+      showModal={true}
+    />
+  );
+};

@@ -53,8 +53,7 @@ export const LimitedItemsList = ({
       </Text>
       <Stack gap={1}>
         {items.map((item, index) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <Box fontSize="sm" key={index}>
+          <Box fontSize="sm" key={typeof item === "string" ? item : index}>
             {item}
           </Box>
         ))}
@@ -70,9 +69,8 @@ export const LimitedItemsList = ({
       </Text>
       <Stack gap={1}>
         {items.map((item, index) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <Text fontSize="sm" key={index}>
-            {typeof item === "string" ? item : "item"}
+          <Text fontSize="sm" key={typeof item === "string" ? item : index}>
+            {item}
           </Text>
         ))}
       </Stack>
@@ -151,9 +149,9 @@ export const LimitedItemsList = ({
                 </Text>
 
                 <Box
-                  bg="gray.50"
+                  bg="bg.subtle"
                   border="1px solid"
-                  borderColor="gray.200"
+                  borderColor="border.subtle"
                   borderRadius="md"
                   maxH="400px"
                   overflowY="auto"
@@ -162,16 +160,14 @@ export const LimitedItemsList = ({
                   {interactive ? (
                     <HStack flexWrap="wrap" gap={2}>
                       {items.map((item, index) => (
-                        // eslint-disable-next-line react/no-array-index-key
-                        <Box key={index}>{item}</Box>
+                        <Box key={typeof item === "string" ? item : index}>{item}</Box>
                       ))}
                     </HStack>
                   ) : (
                     <Stack gap={2}>
                       {items.map((item, index) => (
-                        // eslint-disable-next-line react/no-array-index-key
-                        <Text fontSize="sm" key={index} userSelect="text">
-                          {typeof item === "string" ? item : "item"}
+                        <Text fontSize="sm" key={typeof item === "string" ? item : index} userSelect="text">
+                          {item}
                         </Text>
                       ))}
                     </Stack>
