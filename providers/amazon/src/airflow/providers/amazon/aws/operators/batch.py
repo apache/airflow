@@ -250,9 +250,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         return self.job_id
 
-    def execute_complete(
-        self, context: Context, event: dict[str, Any] | None = None
-    ) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
 
         if validated_event["status"] != "success":

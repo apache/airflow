@@ -1,0 +1,1 @@
+eval "$(COMPLETE=zsh prek)"`
