@@ -1,0 +1,53 @@
+Airflow now uses `https://www.structlog.org/en/stable/ <structlog>`_ everywhere.
+
+Most users should not notice the difference, but it is now possible to emit structured log key/value pairs from tasks.
+
+If your class subclasses LoggingMixin (which all BaseHook and BaseOperator do -- i.e. all hooks and operators) then ``self.log`` is now a ` <structlog logger>`_.
+
+The advantage of using structured logging is that it is much easier to find specific information about log message, especially when using a central store such as OpenSearch/Elastic/Splunk etc. You don't have to make any changes, but you can now take advantage of this.
+
+.. code-block:: python
+
+    # Inside a Task/Hook etc.
+
+    # Before:
+    # self.log.info("Registering adapter %r", item.name)
+    # Now:
+    self.log.info("Registering adapter", name=item.name)
+
+This will produce a log that (in the UI) will look something like this::
+
+    [2025-09-16 10:36:13] INFO - Registering adapter  name="adapter1"
+
+
+or in JSON (i.e. the log files on disk)::
+
+    {"timestamp": "2025-09-16T10:36:13Z", "log_level": "info", "event": "Registering adapter", "name": "adapter1"}
+
+
+You can also use structlog loggers at the top level of modules etc, and stdlib both continue to work:
+
+.. code-block:: python
+
+    import logging
+    import structlog
+
+    log1 = logging.getLogger(__name__)
+    log2 = strcutlog.get_logger(__name__)
+
+    log1.info("Loading something from %s", __name__)
+    log2.info("Loading something", source=__name__)
+
+(You can't add arbitrary key/value pairs to stdlib, but the normal percent-formatter approaches still work fine.)
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

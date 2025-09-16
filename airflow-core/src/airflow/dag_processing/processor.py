@@ -438,6 +438,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
+    had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client
     """The HTTP client to use for communication with the API server."""
@@ -458,6 +459,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(target=target, client=client, **kwargs)
+        proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path)
         return proc
 

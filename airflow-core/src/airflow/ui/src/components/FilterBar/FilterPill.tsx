@@ -26,7 +26,7 @@ import type { FilterState, FilterValue } from "./types";
 
 type FilterPillProps = {
   readonly children: React.ReactNode;
-  readonly displayValue: string;
+  readonly displayValue: React.ReactNode | string;
   readonly filter: FilterState;
   readonly hasValue: boolean;
   readonly onChange: (value: FilterValue) => void;
@@ -127,7 +127,7 @@ export const FilterPill = ({
     >
       <HStack align="center" gap={1}>
         {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
-        <Box flex="1" px={2} py={2}>
+        <Box alignItems="center" display="flex" flex="1" gap={2} px={2}>
           {filter.config.label}: {displayValue}
         </Box>
 
