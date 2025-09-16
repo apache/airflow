@@ -769,6 +769,7 @@ DAG authors should now import core constructs from ``airflow.sdk`` rather than i
   - ``BaseNotifier``
   - ``BaseOperator``
   - ``BaseOperatorLink``
+  - ``BaseHook``
   - ``BaseSensorOperator``
   - ``Connection``
   - ``Context``
