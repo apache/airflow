@@ -55,9 +55,9 @@ def get_plugins(
             valid_plugins.append(plugin)
         except ValidationError as e:
             logger.warning(
-                "Skipping invalid plugin %s due to error: %s",
-                plugin_dict.get("name", "<unknown>"),
-                e,
+                "Skipping invalid plugin due to error",
+                plugin_name=plugin_dict.get("name", "<unknown>"),
+                error=str(e),
             )
             continue
 
