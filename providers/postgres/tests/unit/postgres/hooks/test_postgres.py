@@ -458,7 +458,7 @@ class TestPostgresHookConn:
 
         # Check AzureBaseHook initialization and get_token call args
         mock_connection_class.get.assert_called_once_with(mock_azure_conn_id)
-        mock_azure_base_hook.get_token.assert_called_once_with(PostgresHook.azure_oauth_scope)
+        mock_azure_base_hook.get_token.assert_called_once_with(PostgresHook.default_azure_oauth_scope)
 
         # Check expected psycopg2 connection call args
         mock_connect.assert_called_once_with(

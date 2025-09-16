@@ -30,6 +30,7 @@ from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 from sqlalchemy.engine import URL
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
@@ -158,7 +159,7 @@ class PostgresHook(DbApiHook):
         "sqlalchemy_query",
         "azure_conn_id",
     }
-    azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
+    default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
@@ -519,7 +520,8 @@ class PostgresHook(DbApiHook):
         azure_conn_id = conn.extra_dejson.get("azure_conn_id", "azure_default")
         azure_conn = Connection.get(azure_conn_id)
         azure_base_hook = azure_conn.get_hook()
-        token = azure_base_hook.get_token(self.azure_oauth_scope).token
+        scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        token = azure_base_hook.get_token(scope).token
         return cast("str", conn.login or azure_conn.login), cast("str", token), conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
