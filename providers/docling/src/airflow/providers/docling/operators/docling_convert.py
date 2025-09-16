@@ -51,3 +51,34 @@ class DoclingConvertOperator(BaseOperator):
 
         result = hook.process_document(filename=self.filename, data=self.parameters)
         return result
+
+
+class DoclingConvertSourceOperator(BaseOperator):
+    """
+    Convert a document from a source URL using the Docling webserver.
+
+    :param docling_conn_id: The connection ID to use to connect to the Docling server.
+    :param source: The URL of the source file.
+    :param parameters: Optional dictionary of processing parameters (options).
+    """
+
+    def __init__(
+        self,
+        *,
+        docling_conn_id: str = "docling_default",
+        source: str,
+        parameters: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.docling_conn_id = docling_conn_id
+        self.source = source
+        self.parameters = parameters
+
+    def execute(self, context: Any) -> dict[str, Any]:
+        """Execute the operator: instantiate the hook and calls the source upload method."""
+        hook = DoclingHook(http_conn_id=self.docling_conn_id)
+        self.log.info("Uploading source %s.", self.source)
+
+        result = hook.upload_source(source=self.source, data=self.parameters)
+        return result

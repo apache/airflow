@@ -23,7 +23,7 @@ import pytest
 from requests.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.docling.hooks.docling_hook import DoclingHook
+from airflow.providers.docling.hooks.docling import DoclingHook
 
 TESTS_ROOT = Path(__file__).parent.parent.parent
 
