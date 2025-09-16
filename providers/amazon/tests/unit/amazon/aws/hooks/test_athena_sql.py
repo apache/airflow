@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.util
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
@@ -25,6 +27,14 @@ from airflow.providers.amazon.aws.hooks.athena_sql import AthenaSQLHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+
+try:
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 REGION_NAME = "us-east-1"
 WORK_GROUP = "test-work-group"
@@ -214,11 +224,10 @@ class TestAthenaSQLHookConn:
         assert call_args["work_group"] == "test-workgroup"
 
     def test_sql_value_check_operator_compatibility(self):
-        """Test that AthenaSQLHook works with SQLValueCheckOperator (reproduces issue #55678)."""
+        """Test that AthenaSQLHook works with SQLValueCheckOperator."""
         from airflow.providers.common.sql.operators.sql import SQLValueCheckOperator
-        from unittest.mock import patch
         
-        # Mock Athena connection with s3_staging_dir in extra (as described in the issue)
+        # Mock Athena connection with s3_staging_dir in extra
         athena_conn = Connection(
             conn_id="athena_conn",
             conn_type="athena",
@@ -227,7 +236,7 @@ class TestAthenaSQLHookConn:
             extra={"s3_staging_dir": "s3://mybucket/athena/", "region_name": "eu-west-1"},
         )
 
-        with patch("airflow.hooks.base.BaseHook.get_connection", return_value=athena_conn):
+        with patch(f"{BASEHOOK_PATCH_PATH}.get_connection", return_value=athena_conn):
             # This should NOT raise TypeError: AwsGenericHook.__init__() got an unexpected keyword argument 's3_staging_dir'
             operator = SQLValueCheckOperator(
                 task_id="value_check", 
@@ -241,3 +250,39 @@ class TestAthenaSQLHookConn:
             assert operator.sql == "SELECT TRUE"
             assert operator.pass_value == "True"
             assert operator.conn_id == "athena_conn"
+
+    @patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
+    def test_hook_params_override_extras(self, connect_mock):
+        """
+        When both connection extras and hook_params provide values, hook_params should win.
+        """
+        # Arrange: simulate extras on the connection
+        extras = {
+            "s3_staging_dir": "s3://from-extra/",
+            "work_group": "wg-extra",
+            "aws_domain": "amazonaws.com",
+            "driver": "rest",
+        }
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="athena",
+            extra={**extras, "region_name": "us-east-1"},
+        )
+        hook = AthenaSQLHook(
+            aws_conn_id="test_conn",
+            s3_staging_dir="s3://from-params/",
+            work_group="wg-params",
+            aws_domain="amazonaws.com.cn",
+            driver="rest",
+        )
+        hook.get_connection = mock.Mock(return_value=conn)
+
+        # Act
+        hook.get_conn()
+
+        # Assert: pyathena.connect received values from hook_params (not extras)
+        sent = connect_mock.call_args.kwargs
+        assert sent["s3_staging_dir"] == "s3://from-params/"
+        assert sent["work_group"] == "wg-params"
+        assert sent["aws_domain"] == "amazonaws.com.cn"
+        assert sent["driver"] == "rest"

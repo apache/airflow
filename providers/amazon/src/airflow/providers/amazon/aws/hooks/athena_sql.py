@@ -211,4 +211,10 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         if self.endpoint_url is not None:
             conn_kwargs["endpoint_url"] = self.endpoint_url
 
+        # Keep overrides consistent with _get_conn_params/get_uri
+        if getattr(self, "driver", None) is not None:
+            conn_kwargs["driver"] = self.driver
+        if getattr(self, "aws_domain", None) is not None:
+            conn_kwargs["aws_domain"] = self.aws_domain
+
         return pyathena.connect(**conn_kwargs)
