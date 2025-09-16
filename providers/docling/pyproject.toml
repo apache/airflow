@@ -1,0 +1,7 @@
+[project]
+name = "apache-airflow-providers-docling"
+version = "0.1.0"
+description = "A Docling provider for Apache Airflow."
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow.providers.docling:get_provider_info"
