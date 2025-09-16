@@ -145,6 +145,12 @@ from airflow_breeze.utils.packages import (
     get_provider_distributions_metadata,
     make_sure_remote_apache_exists_and_fetch,
 )
+from airflow_breeze.utils.ci_fixes import (
+    ensure_required_tools,
+    setup_git_for_ci,
+    safe_git_log,
+    validate_git_revision,
+)
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
@@ -881,6 +887,9 @@ def prepare_provider_documentation(
         update_min_airflow_version_and_build_files,
         update_release_notes,
     )
+    
+    # Ensure required tools are available
+    ensure_required_tools(["git"])
 
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -2686,16 +2695,24 @@ def get_changes(
     is_helm_chart: bool = False,
 ) -> list[Change]:
     print(MY_DIR_PATH, SOURCE_DIR_PATH)
-    change_strings = subprocess.check_output(
-        get_git_log_command(
-            verbose,
-            from_commit=previous_release,
-            to_commit=current_release,
-            is_helm_chart=is_helm_chart,
-        ),
-        cwd=SOURCE_DIR_PATH,
-        text=True,
+    
+    # Use safe_git_log to handle missing tags gracefully
+    path = "chart/" if is_helm_chart else "."
+    change_strings = safe_git_log(
+        from_commit=previous_release,
+        to_commit=current_release,
+        path=path,
+        format_string="%H %h %cd %s",
+        fallback_on_error=True,
     )
+    
+    if change_strings is None:
+        get_console().print(
+            f"[warning]Could not get changes between {previous_release} and {current_release}. "
+            f"Tags might be missing.[/]"
+        )
+        return []
+    
     return [get_change_from_line(line) for line in change_strings.splitlines()]
 
 
