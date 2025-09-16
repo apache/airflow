@@ -614,7 +614,7 @@ class TestGetHITLDetailsEndpoint:
                     "multiple": False,
                     "params": {"input_1": 1},
                     "assigned_users": [],
-                    "created_at": DEFAULT_CREATED_AT,
+                    "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
                     "responded_by_user": None,
                     "responded_at": None,
                     "chosen_options": None,
