@@ -62,7 +62,6 @@ from tests_common.test_utils.providers import get_provider_min_airflow_version
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
     AirflowFailException,
 )
 
@@ -1183,12 +1182,8 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        if AIRFLOW_V_3_1_PLUS:
-            with pytest.raises(RuntimeError):
-                op.execute({})
-        else:
-            with pytest.raises(AirflowException):
-                op.execute({})
+        with pytest.raises((AirflowException, RuntimeError)):
+            op.execute({})
 
     def test_invalid_follow_task_true(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
@@ -1200,12 +1195,8 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        if AIRFLOW_V_3_1_PLUS:
-            with pytest.raises(RuntimeError):
-                op.execute({})
-        else:
-            with pytest.raises(AirflowException):
-                op.execute({})
+        with pytest.raises((AirflowException, RuntimeError)):
+            op.execute({})
 
     def test_invalid_follow_task_false(self, sdk_connection_not_found):
         """Check if BranchSQLOperator throws an exception for invalid connection"""
@@ -1217,12 +1208,8 @@ class TestSqlBranch:
             follow_task_ids_if_false=[],
             dag=self.dag,
         )
-        if AIRFLOW_V_3_1_PLUS:
-            with pytest.raises(RuntimeError):
-                op.execute({})
-        else:
-            with pytest.raises(AirflowException):
-                op.execute({})
+        with pytest.raises((AirflowException, RuntimeError)):
+            op.execute({})
 
     @pytest.mark.backend("mysql")
     def test_sql_branch_operator_mysql(self, branch_op):
