@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
+import { type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -51,7 +51,7 @@ const DeleteRunButton = ({ dagRun, width, withText = true }: DeleteRunButtonProp
   });
 
   return (
-    <Box width={width}>
+    <>
       <ActionButton
         actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         colorPalette="danger"
@@ -81,7 +81,7 @@ const DeleteRunButton = ({ dagRun, width, withText = true }: DeleteRunButtonProp
           type: translate("dagRun_one"),
         })}
       />
-    </Box>
+    </>
   );
 };
 

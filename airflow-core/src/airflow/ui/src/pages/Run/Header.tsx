@@ -102,7 +102,9 @@ export const Header = ({
                 <Menu.Positioner>
                   <Menu.Content>
                     <Menu.Item closeOnSelect={false} value="delete">
-                      <DeleteRunButton dagRun={dagRun} width="100%" withText={true} />
+                      <Box width="100%">
+                        <DeleteRunButton dagRun={dagRun} width="100%" withText={true} />
+                      </Box>
                     </Menu.Item>
                   </Menu.Content>
                 </Menu.Positioner>
