@@ -109,7 +109,6 @@ Extra (optional)
     * ``azure_conn_id`` - Azure Connection ID to be used for authentication via Azure Entra ID. Azure Oauth token
       is retrieved from the azure connection which is used as password for PostgreSQL connection.
 
-
     Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
 
     .. code-block:: json
