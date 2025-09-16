@@ -71,7 +71,7 @@ def get_provider_info():
                 "options": {
                     "azure_oauth_scope": {
                         "description": "The scope to use while retrieving Oauth token for Postgres Flexible Server from Azure Entra authentication.\n",
-                        "version_added": "6.3.1",
+                        "version_added": "6.4.0",
                         "type": "string",
                         "example": None,
                         "default": "https://ossrdbms-aad.database.windows.net/.default",
