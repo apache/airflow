@@ -46,6 +46,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.START_DATE
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
 

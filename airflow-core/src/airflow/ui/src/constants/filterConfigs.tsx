@@ -153,6 +153,12 @@ export const useFilterConfigs = () => {
       label: translate("common:taskId"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <FiUser />,
+      label: translate("common:filters.triggeringUser", "Triggering User"), // To do: add translation key and remove default value
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.TRY_NUMBER]: {
       label: translate("common:tryNumber"),
       min: 1,

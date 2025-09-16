@@ -281,22 +281,6 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleTriggeringUserNamePatternChange = useCallback(
-    (value: string) => {
-      if (value === "") {
-        searchParams.delete(TRIGGERING_USER_NAME_PATTERN_PARAM);
-      } else {
-        searchParams.set(TRIGGERING_USER_NAME_PATTERN_PARAM, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
   return (
     <>
       <HStack paddingY="4px">
@@ -307,15 +291,6 @@ export const DagRuns = () => {
             hotkeyDisabled={false}
             onChange={handleRunIdPatternChange}
             placeHolder={translate("dags:filters.runIdPatternFilter")}
-          />
-        </Box>
-        <Box>
-          <SearchBar
-            defaultValue={filteredTriggeringUserNamePattern ?? ""}
-            hideAdvanced
-            hotkeyDisabled={true}
-            onChange={handleTriggeringUserNamePatternChange}
-            placeHolder={translate("dags:filters.triggeringUserNameFilter")}
           />
         </Box>
         <Select.Root
