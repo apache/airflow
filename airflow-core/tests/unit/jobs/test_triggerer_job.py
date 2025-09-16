@@ -142,7 +142,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
-    return dag_model, run, trigger_orm, task_instance
+    return dag_model, dag_version, run, trigger_orm, task_instance
 
 
 def test_is_needed(session):
@@ -231,7 +231,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     # Use a trigger that will not fire for the lifetime of the test
     # (we want to avoid it firing and deleting itself)
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
-    dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    dag_model, dag_version, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
 
@@ -260,7 +260,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
-                dag=dag_model.dag_versions[0].serialized_dag.data,
+                dag=dag_version.serialized_dag.data,
             )
         )
         # OK, now remove it from the DB
@@ -1074,7 +1074,7 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
     if they are already queued for creation.
     """
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
-    dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    dag_model, dag_version, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
 
     supervisor = supervisor_builder()
 
@@ -1107,7 +1107,7 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     trigger1 = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger2 = TimeDeltaTrigger(datetime.timedelta(days=14))
 
-    dag_model1, run1, trigger_orm1, task_instance1 = create_trigger_in_db(session, trigger1)
+    dag_model1, dag_version1, run1, trigger_orm1, task_instance1 = create_trigger_in_db(session, trigger1)
 
     with dag_maker("test_dag_2"):
         EmptyOperator(task_id="test_ti_2")
