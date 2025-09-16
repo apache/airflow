@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-16T02:20:10.747199
+# This constraints file was automatically generated on 2025-09-16T07:49:53.917827
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -342,7 +342,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.36.0
+google-genai==1.37.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.21
