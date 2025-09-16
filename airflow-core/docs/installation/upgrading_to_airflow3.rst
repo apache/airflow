@@ -122,6 +122,44 @@ To trigger these fixes, run the following command:
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
+Key Import Updates
+^^^^^^^^^^^^^^^^^^
+
+While ruff can automatically fix many import issues, here are the key import changes you'll need to make to ensure your DAGs and other
+code import Airflow components correctly in Airflow 3. The older paths are deprecated and will be removed in a future Airflow version.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50, 50
+
+   * - **Old Import Path (Deprecated)**
+     - **New Import Path (airflow.sdk)**
+   * - ``airflow.decorators.dag``
+     - ``airflow.sdk.dag``
+   * - ``airflow.decorators.task``
+     - ``airflow.sdk.task``
+   * - ``airflow.decorators.task_group``
+     - ``airflow.sdk.task_group``
+   * - ``airflow.decorators.setup``
+     - ``airflow.sdk.setup``
+   * - ``airflow.decorators.teardown``
+     - ``airflow.sdk.teardown``
+   * - ``airflow.models.baseoperator.BaseOperator``
+     - ``airflow.sdk.BaseOperator``
+   * - ``airflow.sensors.base.BaseSensorOperator``
+     - ``airflow.sdk.BaseSensorOperator``
+   * - ``airflow.hooks.base.BaseHook``
+     - ``airflow.sdk.BaseHook``
+   * - ``airflow.utils.task_group.TaskGroup``
+     - ``airflow.sdk.TaskGroup``
+   * - ``airflow.io.*``
+     - ``airflow.sdk.io.*``
+
+**Migration Timeline**
+
+- **Airflow 3.1**: Legacy imports show deprecation warnings but continue to work
+- **Future Airflow version**: Legacy imports will be **removed**
+
 Step 4: Install the Standard Provider
 --------------------------------------
 
