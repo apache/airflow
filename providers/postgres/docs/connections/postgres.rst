@@ -130,6 +130,15 @@ Extra (optional)
           "cluster-identifier": "awesome-redshift-identifier"
        }
 
+    Example "extras" field (to use Azure Entra Authentication for Postgres Flexible Server):
+
+    .. code-block:: json
+
+       {
+          "iam": true,
+          "azure_conn_id": "azure_default_conn"
+       }
+
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
