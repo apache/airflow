@@ -42,6 +42,10 @@ class AirflowException(Exception):  # type: ignore[no-redef]
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
+class AirflowFailException(AirflowException):
+    """Raise when the task should be failed without retrying."""
+
+
 class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
@@ -314,7 +318,6 @@ _DEPRECATED_EXCEPTIONS = {
     "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
     "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
     "AirflowDagCycleException": "airflow.sdk.exceptions.AirflowDagCycleException",
-    "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
     # TODO: Verifying with Wei if we need to verify if Asset is inactive or not on both server & client
     #   It is used on server side before marking a task state in API-server
     "AirflowInactiveAssetInInletOrOutletException": "airflow.sdk.exceptions.AirflowInactiveAssetInInletOrOutletException",
