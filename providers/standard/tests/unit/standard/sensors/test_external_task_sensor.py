@@ -27,7 +27,7 @@ import pytest
 
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
@@ -67,9 +67,11 @@ else:
     from airflow.models import BaseOperator  # type: ignore[assignment,no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
+    from airflow.dag_processing.dagbag import DagBag
     from airflow.sdk import TaskGroup
     from airflow.sdk.timezone import coerce_datetime, datetime
 else:
+    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
     from airflow.utils.timezone import coerce_datetime, datetime  # type: ignore[attr-defined,no-redef]
 

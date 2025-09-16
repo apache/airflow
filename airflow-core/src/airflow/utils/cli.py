@@ -231,7 +231,8 @@ def process_subdir(subdir: str | None):
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
-    from airflow.models import DagBag, DagModel
+    from airflow.dag_processing.dagbag import DagBag
+    from airflow.models import DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
     dag_model = DagModel.get_current(dag_id)
@@ -316,7 +317,7 @@ def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
-    from airflow.models import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     bundle_names = bundle_names or []
 
