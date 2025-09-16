@@ -43,12 +43,16 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
+import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  DAG_ID: DAG_ID_PARAM,
   END_DATE: END_DATE_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
@@ -182,18 +186,23 @@ export const DagRuns = () => {
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
+  const filteredDagId = searchParams.get(DAG_ID_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
-      dagId: dagId ?? "~",
+      dagId: filteredDagId ?? dagId ?? "~",
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
@@ -364,6 +373,7 @@ export const DagRuns = () => {
           </Select.Content>
         </Select.Root>
       </HStack>
+      <DagRunsFilters dagId={dagId} />
       <DataTable
         columns={runColumns(translate, dagId)}
         data={data?.dag_runs ?? []}
