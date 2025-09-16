@@ -1922,15 +1922,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 @conf_vars({("core", "unit_test_mode"): "False"})
 def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
     import airflow._shared.configuration
+    import airflow.configuration
 
-    cfgpath = tmp_path / "airflow-gneerated.cfg"
-    # Patch these globals so it gets reverted by monkeypath after this test is over.
+    cfgpath = tmp_path / "airflow-generated.cfg"
+
+    # Patch these globals so it gets reverted by monkeypatch after this test is over.
     monkeypatch.setattr(airflow._shared.configuration.parser, "FERNET_KEY", "")
     monkeypatch.setattr(airflow._shared.configuration.parser, "JWT_SECRET_KEY", "")
     monkeypatch.setattr(airflow._shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
     localconf: AirflowConfigParser = airflow._shared.configuration.initialize_config()
+
+    monkeypatch.setattr(airflow._shared.configuration.parser, "conf", localconf)
     monkeypatch.setattr(airflow.configuration, "conf", localconf)
 
     airflow._shared.configuration.write_default_airflow_configuration_if_needed()
@@ -1939,11 +1943,11 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     lines = cfgpath.read_text().splitlines()
 
-    assert airflow._shared.configuration.FERNET_KEY
-    assert airflow._shared.configuration.JWT_SECRET_KEY
+    assert airflow._shared.configuration.parser.FERNET_KEY
+    assert airflow._shared.configuration.parser.JWT_SECRET_KEY
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
     jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
 
-    assert fernet_line == f"fernet_key = {airflow._shared.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow._shared.configuration.JWT_SECRET_KEY}"
+    assert fernet_line == f"fernet_key = {airflow._shared.configuration.parser.FERNET_KEY}"
+    assert jwt_secret_line == f"jwt_secret = {airflow._shared.configuration.parser.JWT_SECRET_KEY}"
