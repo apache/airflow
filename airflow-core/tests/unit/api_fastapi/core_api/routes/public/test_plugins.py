@@ -134,10 +134,7 @@ class TestGetPlugins:
         assert "test_plugin_invalid" not in plugin_names
 
         # Verify warning was logged
-        assert any(
-            "Skipping invalid plugin test_plugin_invalid due to error:" in rec.message
-            for rec in caplog.records
-        )
+        assert any("Skipping invalid plugin due to error" in rec.message for rec in caplog.records)
 
 
 @skip_if_force_lowest_dependencies_marker
