@@ -639,12 +639,12 @@ def __getattr__(name: str):
         import warnings
 
         warnings.warn(
-            "settings.MASK_SECRETS_IN_LOGS has been removed. "
+            "settings.MASK_SECRETS_IN_LOGS has been removed. This shim returns default value of False. "
             "Use SecretsMasker.enable_log_masking(), disable_log_masking(), or is_log_masking_enabled() instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        return
+        return False
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
