@@ -543,7 +543,7 @@ class BaseDatabricksHook(BaseHook):
                     self._metadata_expiry = time.time() + self._metadata_ttl
                     break
         except RetryError:
-            raise RuntimeError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
+            raise ConnectionError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
         except (requests_exceptions.RequestException, ValueError) as e:
             raise ConnectionError(f"Can't reach Azure Metadata Service: {e}")
 
@@ -567,7 +567,7 @@ class BaseDatabricksHook(BaseHook):
                     self._metadata_expiry = time.time() + self._metadata_ttl
                     break
         except RetryError:
-            raise RuntimeError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
+            raise ConnectionError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
         except (aiohttp.ClientError, ValueError) as e:
             raise ConnectionError(f"Can't reach Azure Metadata Service: {e}")
 

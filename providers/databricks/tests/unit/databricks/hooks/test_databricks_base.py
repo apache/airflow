@@ -814,7 +814,7 @@ class TestBaseDatabricksHook:
         http_error = requests_exceptions.HTTPError(response=resp_429)
         mock_get.side_effect = http_error
 
-        with pytest.raises(RuntimeError, match="Failed to reach Azure Metadata Service after 3 retries."):
+        with pytest.raises(ConnectionError, match="Failed to reach Azure Metadata Service after 3 retries."):
             hook._check_azure_metadata_service()
         assert mock_get.call_count == 3
 
@@ -905,6 +905,8 @@ class TestBaseDatabricksHook:
 
             hook._validate_azure_metadata_service = mock.Mock()
 
-            with pytest.raises(RuntimeError, match="Failed to reach Azure Metadata Service after 3 retries."):
+            with pytest.raises(
+                ConnectionError, match="Failed to reach Azure Metadata Service after 3 retries."
+            ):
                 await hook._a_check_azure_metadata_service()
             assert mock_get.call_count == 3
