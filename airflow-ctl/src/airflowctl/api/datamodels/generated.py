@@ -49,6 +49,20 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class CreateAssetBody(BaseModel):
+    """
+    Create asset request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(min_length=1, max_length=1500, title="Name")]
+    uri: Annotated[str, Field(min_length=1, max_length=1500, title="Uri")]
+    group: Annotated[str, Field(max_length=1500, title="Group")] = ""
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = {}
+
+
 class BaseInfoResponse(BaseModel):
     """
     Base info serializer for responses.
