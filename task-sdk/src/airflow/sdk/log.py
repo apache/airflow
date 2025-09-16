@@ -171,6 +171,8 @@ def load_remote_log_handler() -> RemoteLogIO | None:
 
 def load_remote_conn_id() -> str | None:
     import airflow.logging_config
+
+    # SDK conf is the right one to use here, as it is used by the logging code from task
     from airflow.sdk.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
