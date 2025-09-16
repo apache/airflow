@@ -16,15 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown } from "react-icons/md";
+import { createContext } from "react";
 
-import type { FilterConfig } from "./types";
+export type HoverContextType = {
+  hoveredTaskId: string | undefined;
+  setHoveredTaskId: (taskId: string | undefined) => void;
+};
 
-export const defaultFilterIcons = {
-  date: <MdCalendarToday />,
-  number: <MdNumbers />,
-  select: <MdArrowDropDown />,
-  text: <MdTextFields />,
-} as const;
-
-export const getDefaultFilterIcon = (type: FilterConfig["type"]) => defaultFilterIcons[type];
+export const HoverContext = createContext<HoverContextType | undefined>(undefined);

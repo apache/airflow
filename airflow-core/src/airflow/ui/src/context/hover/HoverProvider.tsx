@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown } from "react-icons/md";
+import type { PropsWithChildren } from "react";
+import { useState, useMemo } from "react";
 
-import type { FilterConfig } from "./types";
+import { HoverContext } from "./Context";
 
-export const defaultFilterIcons = {
-  date: <MdCalendarToday />,
-  number: <MdNumbers />,
-  select: <MdArrowDropDown />,
-  text: <MdTextFields />,
-} as const;
+export const HoverProvider = ({ children }: PropsWithChildren) => {
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | undefined>(undefined);
 
-export const getDefaultFilterIcon = (type: FilterConfig["type"]) => defaultFilterIcons[type];
+  const value = useMemo(
+    () => ({
+      hoveredTaskId,
+      setHoveredTaskId,
+    }),
+    [hoveredTaskId],
+  );
+
+  return <HoverContext.Provider value={value}>{children}</HoverContext.Provider>;
+};
