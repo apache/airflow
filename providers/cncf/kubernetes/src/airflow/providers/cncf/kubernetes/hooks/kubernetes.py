@@ -35,7 +35,7 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
@@ -44,7 +44,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AirflowNotFoundException, BaseHook
+from airflow.providers.cncf.kubernetes.version_compat import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
