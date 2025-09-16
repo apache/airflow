@@ -23,7 +23,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -107,8 +107,8 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_at",
-    cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
   },
 ];
@@ -122,9 +122,9 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails({
-    dagId,
-    dagRunId: runId,
+  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
+    dagId: dagId ?? "~",
+    dagRunId: runId ?? "~",
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
@@ -174,6 +174,7 @@ export const HITLTaskInstances = () => {
           onValueChange={handleResponseChange}
           value={[responseReceived ?? "all"]}
         >
+          <Select.Label fontSize="xs">{translate("requiredActionState")}</Select.Label>
           <Select.Trigger isActive={Boolean(responseReceived)}>
             <Select.ValueText />
           </Select.Trigger>

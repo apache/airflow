@@ -44,6 +44,7 @@
     "fileLocation": "Ubicación del Archivo",
     "hasTaskConcurrencyLimits": "Tiene límites de concurrencia de áreas",
     "lastExpired": "Último Expirado",
+    "lastParseDuration": "Duración del último parseo",
     "lastParsed": "Último Parseado",
     "latestDagVersion": "Última Versión del Dag",
     "latestRun": "Última Ejecución",

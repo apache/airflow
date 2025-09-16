@@ -23,9 +23,9 @@ import { useTranslation } from "react-i18next";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
-  useHumanInTheLoopServiceGetHitlDetailsKey,
-  useHumanInTheLoopServiceGetHitlDetailKey,
-  useHumanInTheLoopServiceUpdateHitlDetail,
+  useTaskInstanceServiceGetHitlDetailsKey,
+  useTaskInstanceServiceGetHitlDetailKey,
+  useTaskInstanceServiceUpdateHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
@@ -52,8 +52,8 @@ export const useUpdateHITLDetail = ({
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
-      [useHumanInTheLoopServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
-      [useHumanInTheLoopServiceGetHitlDetailKey, { dagId, dagRunId }],
+      [useTaskInstanceServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
+      [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
@@ -72,7 +72,7 @@ export const useUpdateHITLDetail = ({
     });
   };
 
-  const { isPending, mutate } = useHumanInTheLoopServiceUpdateHitlDetail({
+  const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
     onError,
     onSuccess,
   });
@@ -82,7 +82,7 @@ export const useUpdateHITLDetail = ({
       mutate({
         dagId,
         dagRunId,
-        mapIndex,
+        mapIndex: mapIndex ?? -1,
         requestBody: {
           chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
           params_input: updateHITLResponseRequestBody.params_input ?? {},

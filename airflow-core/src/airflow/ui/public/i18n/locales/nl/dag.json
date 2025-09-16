@@ -35,7 +35,8 @@
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
-    "parsedAt": "Parsed at:"
+    "parseDuration": "Parse duur:",
+    "parsedAt": "Geparsed op:"
   },
   "extraLinks": "Extra Links",
   "grid": {

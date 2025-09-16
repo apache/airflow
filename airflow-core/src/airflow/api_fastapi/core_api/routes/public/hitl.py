@@ -28,9 +28,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
-    QueryHITLDetailDagIdFilter,
     QueryHITLDetailDagIdPatternSearch,
-    QueryHITLDetailDagRunIdFilter,
     QueryHITLDetailRespondedUserIdFilter,
     QueryHITLDetailRespondedUserNameFilter,
     QueryHITLDetailResponseReceivedFilter,
@@ -53,10 +51,14 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.dagrun import DagRun
-from airflow.models.hitl import HITLDetail as HITLDetailModel
+from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
 
-hitl_router = AirflowRouter(tags=["HumanInTheLoop"], prefix="/hitlDetails")
+task_instances_hitl_router = AirflowRouter(
+    tags=["Task Instance"],
+    prefix="/dags/{dag_id}/dagRuns/{dag_run_id}",
+)
+task_instance_hitl_path = "/taskInstances/{task_id}/{map_index}/hitlDetails"
 
 log = structlog.get_logger(__name__)
 
@@ -100,8 +102,8 @@ def _get_task_instance_with_hitl_detail(
     return task_instance
 
 
-@hitl_router.patch(
-    "/{dag_id}/{dag_run_id}/{task_id}",
+@task_instances_hitl_router.patch(
+    task_instance_hitl_path,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_403_FORBIDDEN,
@@ -144,20 +146,20 @@ def update_hitl_detail(
 
     user_id = user.get_id()
     user_name = user.get_name()
-    if hitl_detail_model.respondents:
-        if isinstance(user_id, int):
-            # FabAuthManager (ab_user) store user id as integer, but common interface is string type
-            user_id = str(user_id)
-        if user_id not in hitl_detail_model.respondents:
+    if isinstance(user_id, int):
+        # FabAuthManager (ab_user) store user id as integer, but common interface is string type
+        user_id = str(user_id)
+    hitl_user = HITLUser(id=user_id, name=user_name)
+    if hitl_detail_model.assigned_users:
+        if hitl_user not in hitl_detail_model.assigned_users:
             log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 f"User={user_name} (id={user_id}) is not a respondent for the task.",
             )
 
-    hitl_detail_model.responded_user_id = user_id
-    hitl_detail_model.responded_user_name = user_name
-    hitl_detail_model.response_at = timezone.utcnow()
+    hitl_detail_model.responded_by = hitl_user
+    hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = update_hitl_detail_payload.params_input
     session.add(hitl_detail_model)
@@ -165,8 +167,8 @@ def update_hitl_detail(
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 
-@hitl_router.get(
-    "/{dag_id}/{dag_run_id}/{task_id}",
+@task_instances_hitl_router.get(
+    task_instance_hitl_path,
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
@@ -189,12 +191,14 @@ def get_hitl_detail(
     return task_instance.hitl_detail
 
 
-@hitl_router.get(
-    "/",
+@task_instances_hitl_router.get(
+    "/hitlDetails",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
+    dag_id: str,
+    dag_run_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -204,7 +208,7 @@ def get_hitl_details(
                 allowed_attrs=[
                     "ti_id",
                     "subject",
-                    "response_at",
+                    "responded_at",
                 ],
                 model=HITLDetailModel,
                 to_replace={
@@ -220,9 +224,7 @@ def get_hitl_details(
     session: SessionDep,
     # ti related filter
     readable_ti_filter: ReadableTIFilterDep,
-    dag_id: QueryHITLDetailDagIdFilter,
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
-    dag_run_id: QueryHITLDetailDagRunIdFilter,
     task_id: QueryHITLDetailTaskIdFilter,
     task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
     ti_state: QueryTIStateFilter,
@@ -244,14 +246,16 @@ def get_hitl_details(
             )
         )
     )
+    if dag_id != "~":
+        query = query.where(TI.dag_id == dag_id)
+    if dag_run_id != "~":
+        query = query.where(TI.run_id == dag_run_id)
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[
             # ti related filter
             readable_ti_filter,
-            dag_id,
             dag_id_pattern,
-            dag_run_id,
             task_id,
             task_id_pattern,
             ti_state,

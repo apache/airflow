@@ -718,7 +718,10 @@ class _PendingActionsFilter(BaseParam[bool]):
         pending_actions_count_subquery = (
             sql_select(func.count(HITLDetail.ti_id))
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(HITLDetail.response_at.is_(None))
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
         )
@@ -898,6 +901,15 @@ QueryTIOperatorFilter = Annotated[
     ),
 ]
 
+QueryTIMapIndexFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
 # XCom
 QueryXComKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
@@ -984,14 +996,14 @@ QueryHITLDetailTaskIdPatternSearch = Annotated[
         )
     ),
 ]
-QueryHITLDetailDagRunIdFilter = Annotated[
-    FilterParam[str],
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
     Depends(
         filter_param_factory(
-            TaskInstance.run_id,
-            str,
-            filter_name="dag_run_id",
-        ),
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
+        )
     ),
 ]
 QueryHITLDetailSubjectSearch = Annotated[
@@ -1026,11 +1038,11 @@ QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_user_id,
+            HITLDetail.responded_by_user_id,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="responded_user_id",
+            filter_name="responded_by_user_id",
         )
     ),
 ]
@@ -1038,31 +1050,11 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_user_name,
+            HITLDetail.responded_by_user_name,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="responded_user_name",
-        )
-    ),
-]
-QueryHITLDetailDagIdFilter = Annotated[
-    FilterParam[str | None],
-    Depends(
-        filter_param_factory(
-            TaskInstance.dag_id,
-            str | None,
-            filter_name="dag_id",
-        )
-    ),
-]
-QueryHITLDetailTaskIdFilter = Annotated[
-    FilterParam[str | None],
-    Depends(
-        filter_param_factory(
-            TaskInstance.task_id,
-            str | None,
-            filter_name="task_id",
+            filter_name="responded_by_user_name",
         )
     ),
 ]
