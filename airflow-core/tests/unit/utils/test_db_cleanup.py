@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.serialized_dag import LazyDeserializedDAG, SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -684,7 +684,7 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
         dag = DAG(dag_id=dag_id)
         dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
         session.add(dm)
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for num in range(num_tis):
             start_date = base_date.add(days=num)

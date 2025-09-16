@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
+    "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
   },
   "extraLinks": "Extra Links",
@@ -84,6 +85,8 @@
       "assetEvent_other": "Created Asset Events"
     },
     "failedLogs": {
+      "hideLogs": "Hide Logs",
+      "showLogs": "Show Logs",
       "title": "Recent Failed Task Logs",
       "viewFullLogs": "View full logs"
     }
@@ -92,8 +95,8 @@
     "buttons": {
       "options": "Options",
       "showGantt": "Show Gantt",
-      "showGraph": "Show Graph",
-      "showGrid": "Show Grid"
+      "showGraphShortcut": "Show Graph (Press g)",
+      "showGridShortcut": "Show Grid (Press g)"
     },
     "dagRuns": {
       "label": "Number of Dag Runs"

@@ -27,9 +27,32 @@ import type {
   HourlyCalendarData,
   CalendarCellData,
   CalendarColorMode,
+  CalendarGranularity,
+  CalendarScale,
+  LegendItem,
 } from "./types";
 
 dayjs.extend(isSameOrBefore);
+
+// Calendar color constants
+const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
+const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
+
+const TOTAL_COLOR_INTENSITIES = [
+  EMPTY_COLOR, // 0
+  { _dark: "green.300", _light: "green.200" },
+  { _dark: "green.500", _light: "green.400" },
+  { _dark: "green.700", _light: "green.600" },
+  { _dark: "green.900", _light: "green.800" },
+];
+
+const FAILURE_COLOR_INTENSITIES = [
+  EMPTY_COLOR, // 0
+  { _dark: "red.300", _light: "red.200" },
+  { _dark: "red.500", _light: "red.400" },
+  { _dark: "red.700", _light: "red.600" },
+  { _dark: "red.900", _light: "red.800" },
+];
 
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
@@ -85,78 +108,6 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
   });
 
   return counts as RunCounts;
-};
-
-const TOTAL_COLOR_INTENSITIES = [
-  { _dark: "gray.700", _light: "gray.100" }, // 0 runs
-  { _dark: "green.300", _light: "green.200" }, // 1-5 runs
-  { _dark: "green.500", _light: "green.400" }, // 6-15 runs
-  { _dark: "green.700", _light: "green.600" }, // 16-25 runs
-  { _dark: "green.900", _light: "green.800" }, // 26+ runs
-] as const;
-
-const FAILURE_COLOR_INTENSITIES = [
-  { _dark: "gray.700", _light: "gray.100" }, // 0 failures
-  { _dark: "red.300", _light: "red.200" }, // 1-2 failures
-  { _dark: "red.500", _light: "red.400" }, // 3-5 failures
-  { _dark: "red.700", _light: "red.600" }, // 6-10 failures
-  { _dark: "red.900", _light: "red.800" }, // 11+ failures
-] as const;
-
-const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
-
-const getIntensityLevel = (count: number, mode: CalendarColorMode): number => {
-  if (count === 0) {
-    return 0;
-  }
-
-  if (mode === "total") {
-    if (count <= 5) {
-      return 1;
-    }
-    if (count <= 15) {
-      return 2;
-    }
-    if (count <= 25) {
-      return 3;
-    }
-
-    return 4;
-  } else {
-    // failed runs mode
-    if (count <= 2) {
-      return 1;
-    }
-    if (count <= 5) {
-      return 2;
-    }
-    if (count <= 10) {
-      return 3;
-    }
-
-    return 4;
-  }
-};
-
-export const getCalendarCellColor = (
-  runs: Array<CalendarTimeRangeResponse>,
-  colorMode: CalendarColorMode = "total",
-): string | { _dark: string; _light: string } => {
-  if (runs.length === 0) {
-    return { _dark: "gray.700", _light: "gray.100" };
-  }
-
-  const counts = calculateRunCounts(runs);
-
-  if (counts.planned > 0) {
-    return PLANNED_COLOR;
-  }
-
-  const targetCount = colorMode === "total" ? counts.total : counts.failed;
-  const intensityLevel = getIntensityLevel(targetCount, colorMode);
-  const colorScheme = colorMode === "total" ? TOTAL_COLOR_INTENSITIES : FAILURE_COLOR_INTENSITIES;
-
-  return colorScheme[intensityLevel] ?? { _dark: "gray.700", _light: "gray.100" };
 };
 
 export const generateDailyCalendarData = (
@@ -217,6 +168,145 @@ export const generateHourlyCalendarData = (
   }
 
   return { days: monthData, month: monthStart.format("MMM YYYY") };
+};
+
+export const calculateDataBounds = (
+  data: Array<CalendarTimeRangeResponse>,
+  viewMode: CalendarColorMode,
+  granularity: CalendarGranularity,
+): { maxCount: number; minCount: number } => {
+  if (data.length === 0) {
+    return { maxCount: 0, minCount: 0 };
+  }
+
+  const counts: Array<number> = [];
+  const mapCreator = granularity === "daily" ? createDailyDataMap : createHourlyDataMap;
+  const dataMap = mapCreator(data);
+
+  dataMap.forEach((runs) => {
+    const runCounts = calculateRunCounts(runs);
+    const targetCount = viewMode === "total" ? runCounts.total : runCounts.failed;
+
+    if (targetCount > 0) {
+      counts.push(targetCount);
+    }
+  });
+
+  if (counts.length === 0) {
+    return { maxCount: 0, minCount: 0 };
+  }
+
+  return {
+    maxCount: Math.max(...counts),
+    minCount: Math.min(...counts),
+  };
+};
+
+export const createCalendarScale = (
+  data: Array<CalendarTimeRangeResponse>,
+  viewMode: CalendarColorMode,
+  granularity: CalendarGranularity,
+): CalendarScale => {
+  const { maxCount, minCount } = calculateDataBounds(data, viewMode, granularity);
+
+  // Handle empty data case
+  if (maxCount === 0) {
+    return {
+      getColor: () => EMPTY_COLOR,
+      legendItems: [{ color: EMPTY_COLOR, label: "0" }],
+      type: "empty",
+    };
+  }
+
+  // Handle single value case
+  if (minCount === maxCount) {
+    const singleColor = viewMode === "total" ? TOTAL_COLOR_INTENSITIES[2]! : FAILURE_COLOR_INTENSITIES[2]!;
+
+    return {
+      getColor: (counts: RunCounts) => {
+        if (counts.planned > 0) {
+          return PLANNED_COLOR;
+        }
+        const targetCount = viewMode === "total" ? counts.total : counts.failed;
+
+        return targetCount === 0 ? EMPTY_COLOR : singleColor;
+      },
+      legendItems: [
+        { color: EMPTY_COLOR, label: "0" },
+        { color: singleColor, label: maxCount.toString() },
+      ],
+      type: "single_value",
+    };
+  }
+
+  // Handle gradient case - create dynamic thresholds
+  const range = maxCount - minCount;
+  const colorScheme = viewMode === "total" ? TOTAL_COLOR_INTENSITIES : FAILURE_COLOR_INTENSITIES;
+
+  const thresholds = [
+    0,
+    Math.max(1, Math.ceil(minCount + range * 0.25)),
+    Math.max(2, Math.ceil(minCount + range * 0.5)),
+    Math.max(3, Math.ceil(minCount + range * 0.75)),
+    maxCount,
+  ];
+
+  const uniqueThresholds = [...new Set(thresholds)].sort((first, second) => first - second);
+
+  const getColor = (counts: RunCounts): string | { _dark: string; _light: string } => {
+    if (counts.planned > 0) {
+      return PLANNED_COLOR;
+    }
+
+    const targetCount = viewMode === "total" ? counts.total : counts.failed;
+
+    if (targetCount === 0) {
+      return colorScheme[0] ?? EMPTY_COLOR;
+    }
+
+    for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
+      const threshold = uniqueThresholds[index];
+
+      if (threshold !== undefined && targetCount >= threshold) {
+        return colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
+      }
+    }
+
+    return colorScheme[1] ?? EMPTY_COLOR;
+  };
+
+  const legendItems: Array<LegendItem> = [];
+
+  uniqueThresholds.forEach((threshold, index, thresholdsArray) => {
+    const nextThreshold = thresholdsArray[index + 1];
+
+    let label: string;
+
+    if (index === 0) {
+      label = "0";
+    } else if (index === thresholdsArray.length - 1) {
+      label = `${threshold}+`;
+    } else if (nextThreshold !== undefined && threshold + 1 === nextThreshold) {
+      label = threshold.toString();
+    } else if (nextThreshold === undefined) {
+      label = `${threshold}+`;
+    } else {
+      label = `${threshold}-${nextThreshold - 1}`;
+    }
+
+    const color = colorScheme[Math.min(index, colorScheme.length - 1)]!;
+
+    legendItems.push({
+      color,
+      label,
+    });
+  });
+
+  return {
+    getColor,
+    legendItems,
+    type: "gradient",
+  };
 };
 
 export const createTooltipContent = (cellData: CalendarCellData): string => {

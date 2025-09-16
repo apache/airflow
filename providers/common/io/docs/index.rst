@@ -58,7 +58,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/providers/common/io/tests/system/common/io>
+    Example Dags <https://github.com/apache/airflow/tree/providers-common-io/|version|/providers/common/io/tests/system/common/io>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-io/>
     Installing from sources <installing-providers-from-sources>
 
@@ -92,7 +92,7 @@ All classes for this package are included in the ``airflow.providers.common.io``
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-common-io``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

@@ -246,7 +246,7 @@ Airflow Operators might have some fields added to the list of ``template_fields`
 set in the constructor (``__init__`` method) of the operator and usually their values should
 come from the ``__init__`` method arguments. The reason for that is that the templated fields
 are evaluated at the time of the operator execution and when you pass arguments to the operator
-in the DAG, the fields that are set on the class just before the ``execute`` method is called
+in the Dag, the fields that are set on the class just before the ``execute`` method is called
 are processed through templating engine and the fields values are set to the result of applying the
 templating engine to the fields (in case the field is a structure such as dict or list, the templating
 engine is applied to all the values of the structure).
@@ -274,6 +274,32 @@ The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`__
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
+
+Don't raise AirflowException directly
+..............................................
+
+Our community has decided to stop adding new ``raise AirflowException`` and to adopt the following practices when an exception is necessary. For details check the relevant `mailing list thread <https://lists.apache.org/thread/t8bnhyqy77kq4fk7fj3fmjd5wo9kv6w0>`_.
+
+1. In most cases, we should prioritize using Python's standard exceptions (e.g., ``ValueError``, ``TypeError``, ``OSError``)
+   instead of wrapping everything in ``AirflowException``.
+2. Within ``airflow-core``, we should define and utilize more specific exception classes under ``airflow-core/src/airflow/exceptions.py``.
+3. For provider-specific implementations, exceptions should be defined within ``providers/<provider>/src/airflow/providers/<provider>/exceptions.py``.
+
+The use of points 2 and 3 should only be considered when point 1 is inappropriate, which should be a rare occurrence.
+
+In other words instead of doing:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise AirflowException(f"Required key {key} is missing")
+
+you should do:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise ValueError(f"Required key {key} is missing")
 
 -----------
 

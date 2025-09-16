@@ -28,7 +28,7 @@ from botocore.exceptions import ClientError, ConnectionClosedError
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 if TYPE_CHECKING:
-    from logging import Logger
+    from airflow.sdk.types import Logger
 
 
 class AwsTaskLogFetcher(Thread):

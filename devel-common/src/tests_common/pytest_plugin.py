@@ -18,19 +18,20 @@
 from __future__ import annotations
 
 import importlib
-import itertools
 import json
+import logging
 import os
 import platform
 import re
 import subprocess
 import sys
+import uuid
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 from unittest import mock
 
 import pytest
@@ -42,17 +43,16 @@ if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import Context, TriggerRule
+    from airflow.sdk import DAG, BaseOperator, Context, TriggerRule
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
-    from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+    from airflow.sdk.definitions.dag import ScheduleArg
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.sdk.types import DagRunProtocol
+    from airflow.sdk.types import DagRunProtocol, Operator
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -60,7 +60,8 @@ if TYPE_CHECKING:
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
 
-    Op = TypeVar("Op", bound=BaseOperator)
+Dag = TypeVar("Dag", "DAG", "SerializedDAG", covariant=True)
+Op = TypeVar("Op", bound="BaseOperator")
 
 # NOTE: DO NOT IMPORT AIRFLOW THINGS HERE!
 #
@@ -776,7 +777,7 @@ def frozen_sleep(monkeypatch):
         traveller.stop()
 
 
-class DagMaker(Protocol):
+class DagMaker(Generic[Dag], Protocol):
     """
     Interface definition for dag_maker return value.
 
@@ -785,8 +786,9 @@ class DagMaker(Protocol):
     """
 
     session: Session
+    dag: DAG
 
-    def __enter__(self) -> DAG: ...
+    def __enter__(self) -> Dag: ...
 
     def __exit__(self, type, value, traceback) -> None: ...
 
@@ -890,10 +892,17 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag.__enter__()
             if self.want_serialized:
+                factory = self
 
                 class DAGProxy(lazy_object_proxy.Proxy):
-                    # Make `@dag.task` decorator work when need_serialized_dag marker is set
-                    task = self.dag.task
+                    """Wrapper to make test patterns work with serialized dag."""
+
+                    task = factory.dag.task  # Expose the @dag.task decorator.
+
+                    # When adding a task to the dag, automatically re-serialize.
+                    def add_task(self, task):
+                        factory.dag.add_task(task)
+                        factory._make_serdag(factory.dag)
 
                 return DAGProxy(self._serialized_dag)
             return self.dag
@@ -949,44 +958,56 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if type is not None:
                 return
 
-            dag.clear(session=self.session)
-            if AIRFLOW_V_3_0_PLUS:
-                dag.bulk_write_to_db(self.bundle_name, self.bundle_version, [dag], session=self.session)
-            else:
-                dag.sync_to_db(session=self.session)
-
             if dag.access_control and "FabAuthManager" in conf.get("core", "auth_manager"):
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
-                    from airflow.www.security_appless import ApplessAirflowSecurityManager
+                    from airflow.www.security_appless import ApplessAirflowSecurityManager  # type: ignore
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
-            self.dag_model = self.session.get(DagModel, dag.dag_id)
-
             self._make_serdag(dag)
-            self._bag_dag_compat(self.dag)
+            self.dag_model = self.session.get(DagModel, dag.dag_id)
+            self.session.commit()
 
-        def _make_serdag(self, dag):
+        def _make_serdag(self, dag: DAG):
             from sqlalchemy import select
 
             from airflow.models.serialized_dag import SerializedDagModel
 
-            self.serialized_model = SerializedDagModel(dag)
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+                self.serialized_model = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+            else:
+                self.serialized_model = SerializedDagModel(dag)  # type: ignore[arg-type]
+
             sdm = self.session.scalar(
                 select(SerializedDagModel).where(
                     SerializedDagModel.dag_id == dag.dag_id,
                     SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
                 )
             )
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.serialization.serialized_objects import SerializedDAG
+
+                SerializedDAG.bulk_write_to_db(
+                    self.bundle_name,
+                    self.bundle_version,
+                    [dag],
+                    session=self.session,
+                )
+            else:
+                dag.sync_to_db(session=self.session)  # type: ignore[attr-defined]
+
             if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
                 from airflow.models.dag_version import DagVersion
                 from airflow.models.dagcode import DagCode
 
                 dagv = DagVersion.write_dag(
                     dag_id=dag.dag_id,
-                    bundle_name=self.dag_model.bundle_name,
-                    bundle_version=self.dag_model.bundle_version,
+                    bundle_name=self.bundle_name,
+                    bundle_version=self.bundle_version,
                     session=self.session,
                 )
                 self.session.add(dagv)
@@ -1001,9 +1022,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 sdm._data = self.serialized_model._data
                 self.serialized_model = sdm
             else:
-                self.session.merge(self.serialized_model)
-            serialized_dag = self._serialized_dag()
-            self._bag_dag_compat(serialized_dag)
+                sdm = self.session.merge(self.serialized_model)
+            self._bag_dag_compat(dag)
             self.session.flush()
 
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
@@ -1026,7 +1046,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 )
                 logical_date = kwargs.pop("execution_date")
 
-            dag = self.dag
+            dag = self._serialized_dag()
             kwargs = {
                 "state": DagRunState.RUNNING,
                 "start_date": self.start_date,
@@ -1055,6 +1075,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if logical_date is not None:
                     if run_type == DagRunType.MANUAL:
                         data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                    elif AIRFLOW_V_3_1_PLUS:
+                        from airflow.models.dag import infer_automated_data_interval
+
+                        data_interval = infer_automated_data_interval(dag.timetable, logical_date)
                     else:
                         data_interval = dag.infer_automated_data_interval(logical_date)
             kwargs["data_interval"] = data_interval
@@ -1085,18 +1109,21 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
-            if self.want_serialized:
-                dag = self.serialized_model.dag
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 # This need to always operate on the _real_ dag
                 ti.refresh_from_task(self.dag.get_task(ti.task_id))
-            if self.want_serialized:
-                self.session.commit()
+            self.session.commit()
             return self.dag_run
 
         def create_dagrun_after(self, dagrun, **kwargs):
-            next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
+            sdag = self._serialized_dag()
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.models.dag import get_run_data_interval
+
+                next_info = sdag.next_dagrun_info(get_run_data_interval(sdag.timetable, dagrun))
+            else:
+                next_info = sdag.next_dagrun_info(sdag.get_run_data_interval(dagrun))
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
             return self.create_dagrun(
@@ -1170,7 +1197,14 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             **kwargs,
         ):
             from airflow import settings
-            from airflow.models.dag import DAG
+
+            # Don't change this to AIRFLOW_V_3_0_PLUS. Although SDK DAG exists
+            # before 3.1, things in dag maker setup can't handle it in compat
+            # tests. They are probably fixable, but it's not worthwhile to.
+            if AIRFLOW_V_3_1_PLUS:
+                from airflow.sdk import DAG
+            else:
+                from airflow import DAG
 
             timezone = _import_timezone()
 
@@ -1618,13 +1652,18 @@ def get_test_dag():
             return
 
         if AIRFLOW_V_3_0_PLUS:
-            session = settings.Session()
-            from airflow.models.dagbundle import DagBundleModel
+            from sqlalchemy import func, select
 
-            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            from airflow.models.dagbundle import DagBundleModel
+            from airflow.serialization.serialized_objects import SerializedDAG
+
+            session = settings.Session()
+            if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))
-                session.commit()
-            dag.bulk_write_to_db("testing", None, [dag])
+                session.flush()
+            SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
+            session.commit()
+            session.close()
         else:
             dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="testing")
@@ -1661,13 +1700,9 @@ def create_log_template(request):
 
 @pytest.fixture
 def reset_logging_config():
-    import logging.config
+    from airflow.logging_config import configure_logging
 
-    from airflow import settings
-    from airflow.utils.module_loading import import_string
-
-    logging_config = import_string(settings.LOGGING_CLASS_PATH)
-    logging.config.dictConfig(logging_config)
+    configure_logging()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1756,6 +1791,7 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(autouse=True, scope="session")
+@pytest.mark.usefixture("_ensure_configured_logging")
 def initialize_providers_manager():
     if importlib.util.find_spec("airflow") is None:
         # If airflow is not installed, we should not initialize providers manager
@@ -1986,7 +2022,7 @@ def add_expected_folders_to_pythonpath():
 
 
 @pytest.fixture
-def cap_structlog():
+def cap_structlog(monkeypatch, request):
     """
     Test that structlog messages are logged.
 
@@ -2001,60 +2037,94 @@ def cap_structlog():
     ...
     ...     assert "not logged" not in cap_structlog  # not in works too
     """
-    import structlog.testing
-    from structlog import configure, get_config
+    import structlog.stdlib
+    from structlog import DropEvent, configure, get_config
 
-    class LogCapture(structlog.testing.LogCapture):
-        # Partial comparison -- only check keys passed in, or the "event"/message if a single value is given
-        def __contains__(self, target):
-            if not isinstance(target, dict):
-                target = {"event": target}
+    from tests_common.test_utils.logs import StructlogCapture
 
-            def predicate(e):
-                def check_one(key, want):
-                    try:
-                        val = e.get(key)
-                        if isinstance(want, re.Pattern):
-                            return want.match(val)
-                        return val == want
-                    except Exception:
-                        return False
-
-                return all(itertools.starmap(check_one, target.items()))
-
-            return any(predicate(e) for e in self.entries)
-
-        def __getitem__(self, i):
-            return self.entries[i]
-
-        def __iter__(self):
-            return iter(self.entries)
-
-        def __repr__(self):
-            return repr(self.entries)
-
-        @property
-        def text(self):
-            """All the event text as a single multi-line string."""
-            return "\n".join(e["event"] for e in self.entries)
-
-    cap = LogCapture()
+    cap = StructlogCapture()
     # Modify `_Configuration.default_processors` set via `configure` but always
     # keep the list instance intact to not break references held by bound
     # loggers.
     processors = get_config()["processors"]
     old_processors = processors.copy()
+
+    # And modify the stdlib logging to capture too
+    handler = logging.root.handlers[0]
+    if not isinstance(handler.formatter, structlog.stdlib.ProcessorFormatter):
+        raise AssertionError(
+            f"{type(handler.formatter)} is not an instance of structlog.stblid.ProcessorFormatter"
+        )
+
+    std_formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=handler.formatter.foreign_pre_chain,
+        pass_foreign_args=True,
+        use_get_message=False,
+        processor=cap,
+    )
+
+    def stdlib_filter(record):
+        with suppress(DropEvent):
+            std_formatter.format(record)
+        return False
+
+    dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
+        use_rich=False,
+        show_locals=False,
+    )
+
+    dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+    timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+
+    level = logging.INFO
+    for setting_name in ("log_cli_level", "log_level"):
+        log_level = request.config.getoption(setting_name)
+        if log_level is None:
+            log_level = request.config.getini(setting_name)
+        if log_level:
+            level = structlog.processors.NAME_TO_LEVEL[log_level.lower()]
+            break
+
+    monkeypatch.setattr(logging.root, "level", level)
+    # Ensure the handler doesn't filter anything itself (in stblib both loggers and handlers have their own
+    # independent level!)
+    monkeypatch.setattr(handler, "level", 0)
+    monkeypatch.setattr(handler, "filters", [stdlib_filter])
+
     try:
         # clear processors list and use LogCapture for testing
         processors.clear()
+        processors.append(timestamper)
+        processors.append(dict_tracebacks)
         processors.append(cap)
         configure(processors=processors)
         yield cap
     finally:
+        cap._finalize()
         # remove LogCapture and restore original processors
         processors.clear()
         processors.extend(old_processors)
         configure(processors=processors)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_configured_logging(request):
+    try:
+        from airflow.sdk._shared.logging import configure_logging
+    except ModuleNotFoundError:
+        try:
+            from airflow.sdk._shared.logging import configure_logging
+        except ModuleNotFoundError:
+            return
+
+    log_level = logging.INFO
+    for setting_name in ("log_cli_level", "log_level"):
+        log_level = request.config.getoption(setting_name)
+        if log_level is None:
+            log_level = request.config.getini(setting_name)
+        if log_level:
+            break
+    configure_logging(log_level=log_level)
 
 
 @pytest.fixture(name="caplog")
@@ -2065,15 +2135,28 @@ def override_caplog(request):
     This is in an effort to reduce flakiness from caplog related tests where one test file can change log
     behaviour and bleed in to affecting other test files
     """
-    # We need this `_ispytest` so it doesn't warn about using private
-    fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
-    yield fixture
-    fixture._finalize()
 
-    if "airflow.logging_config" in sys.modules:
-        import airflow.logging_config
+    try:
+        import airflow.sdk._shared.logging
+    except ModuleNotFoundError:
+        try:
+            import airflow.sdk._shared.logging
+        except ModuleNotFoundError:
+            # No structlog available, fallback to the stock one. Compat for pre-3.1
 
-        airflow.logging_config.configure_logging()
+            # We need this `_ispytest` so it doesn't warn about using private
+            fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
+            yield fixture
+            fixture._finalize()
+
+            if "airflow.logging_config" in sys.modules:
+                import airflow.logging_config
+
+                airflow.logging_config.configure_logging()
+            return
+
+    yield request.getfixturevalue("cap_structlog")
+    return
 
 
 @pytest.fixture
@@ -2160,8 +2243,8 @@ def mocked_parse(spy_agency):
             )
     """
 
-    def set_dag(what: StartupDetails, dag_id: str, task: TaskSDKBaseOperator) -> RuntimeTaskInstance:
-        from airflow.sdk.definitions.dag import DAG
+    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
+        from airflow.sdk import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
 
         timezone = _import_timezone()
@@ -2239,7 +2322,7 @@ class RunTaskCallable(Protocol):
 
     def __call__(
         self,
-        task: TaskSDKBaseOperator,
+        task: BaseOperator,
         dag_id: str = ...,
         run_id: str = ...,
         logical_date: datetime | None = None,
@@ -2275,18 +2358,18 @@ def create_runtime_ti(mocked_parse):
     """
     from uuid6 import uuid7
 
+    from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
     from airflow.timetables.base import TimeRestriction
 
     timezone = _import_timezone()
 
     def _create_task_instance(
-        task: BaseOperator,
+        task: Operator,
         dag_id: str = "test_dag",
         run_id: str = "test_run",
-        logical_date: str | datetime = "2024-12-01T01:00:00Z",
+        logical_date: str | datetime | None = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         try_number: int = 1,
@@ -2301,23 +2384,39 @@ def create_runtime_ti(mocked_parse):
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
 
+        if isinstance(logical_date, str):
+            logical_date = timezone.parse(logical_date)
+        else:
+            logical_date = timezone.coerce_datetime(logical_date)
+        if isinstance(start_date, str):
+            start_date = timezone.parse(start_date)
+        else:
+            start_date = timezone.coerce_datetime(start_date)
+
+        if TYPE_CHECKING:
+            from pendulum import DateTime
+
+            assert logical_date is None or isinstance(logical_date, DateTime)
+            assert isinstance(start_date, DateTime)
+
         if not ti_id:
             ti_id = uuid7()
 
         if not task.has_dag():
-            dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
-            # Fixture only helps in regular base operator tasks, so mypy is wrong here
-            task.dag = dag
-            task = dag.task_dict[task.task_id]
+            task.dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+
+        if TYPE_CHECKING:
+            assert task.dag is not None
 
         data_interval_start = None
         data_interval_end = None
 
         if task.dag.timetable:
             if run_type == DagRunType.MANUAL:
-                data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                    run_after=logical_date
-                )
+                if logical_date is not None:
+                    data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
+                        run_after=logical_date,
+                    )
             else:
                 drinfo = task.dag.timetable.next_dagrun_info(
                     last_automated_data_interval=None,
@@ -2544,7 +2643,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
         def __call__(
             self,
-            task: TaskSDKBaseOperator,
+            task: BaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,
@@ -2619,6 +2718,23 @@ def testing_dag_bundle():
 
 
 @pytest.fixture
+def testing_team():
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.team import Team
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            team = session.query(Team).filter_by(name="testing").one_or_none()
+            if not team:
+                team = Team(id=uuid.uuid4(), name="testing")
+                session.add(team)
+                session.flush()
+            yield team
+
+
+@pytest.fixture
 def create_connection_without_db(monkeypatch):
     """
     Fixture to create connections for tests without using the database.
@@ -2637,11 +2753,11 @@ def create_connection_without_db(monkeypatch):
 
 def _import_timezone():
     try:
-        from airflow.sdk._shared.timezones import timezone
-    except ModuleNotFoundError:
+        from airflow.sdk import timezone
+    except ImportError:
         try:
             from airflow._shared.timezones import timezone
-        except ModuleNotFoundError:
+        except ImportError:
             from airflow.utils import timezone
     return timezone
 
@@ -2649,7 +2765,12 @@ def _import_timezone():
 @pytest.fixture
 def create_dag_without_db():
     def create_dag(dag_id: str):
-        from airflow.models.dag import DAG
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk import DAG
+        else:
+            from airflow import DAG
 
         return DAG(dag_id=dag_id, schedule=None, render_template_as_native_obj=True)
 

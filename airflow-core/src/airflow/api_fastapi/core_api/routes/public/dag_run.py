@@ -43,6 +43,7 @@ from airflow.api_fastapi.common.parameters import (
     OffsetFilter,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryDagRunVersionFilter,
     QueryLimit,
     QueryOffset,
     Range,
@@ -80,6 +81,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
+from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -318,6 +320,7 @@ def get_dag_runs(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
+    dag_version: QueryDagRunVersionFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -360,6 +363,10 @@ def get_dag_runs(
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
+    # Add join with DagVersion if dag_version filter is active
+    if dag_version.value:
+        query = query.join(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
+
     dag_run_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -370,6 +377,7 @@ def get_dag_runs(
             update_at_range,
             state,
             run_type,
+            dag_version,
             readable_dag_runs_filter,
             run_id_pattern,
             triggering_user_name_pattern,
@@ -451,7 +459,7 @@ def trigger_dag_run(
     "/{dag_run_id}/wait",
     tags=["experimental"],
     summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
-    description="🚧 This is an experimental endpoint and may change or be removed without notice.",
+    description="🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.",
     responses={
         **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {
@@ -494,6 +502,7 @@ def wait_dag_run_until_finished(
         run_id=dag_run_id,
         interval=interval,
         result_task_ids=result_task_ids,
+        session=session,
     )
     return StreamingResponse(waiter.wait())
 

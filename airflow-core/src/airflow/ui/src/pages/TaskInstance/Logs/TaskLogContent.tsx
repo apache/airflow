@@ -116,7 +116,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       <Code
         css={{
           "& *::selection": {
-            bg: "blue.subtle",
+            bg: "brand.subtle",
           },
         }}
         data-testid="virtualized-list"
@@ -141,7 +141,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
                 right: 0,
               }}
               bgColor={
-                Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "blue.emphasized" : "transparent"
+                Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
               }
               data-index={virtualRow.index}
               data-testid={`virtualized-item-${virtualRow.index}`}

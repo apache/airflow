@@ -5,9 +5,37 @@
     "reason": "Raison",
     "title": "Dépendances bloquant la planification de la tâche"
   },
+  "calendar": {
+    "daily": "Quotidien",
+    "hourly": "Toutes les heures",
+    "legend": {
+      "less": "Moins",
+      "more": "Plus"
+    },
+    "navigation": {
+      "nextMonth": "Mois suivant",
+      "nextYear": "Année suivante",
+      "previousMonth": "Mois précédent",
+      "previousYear": "Année précédente"
+    },
+    "noData": "Aucune donnée disponible",
+    "noRuns": "Aucun Run",
+    "totalRuns": "Total des Runs",
+    "week": "Semaine {{weekNumber}}",
+    "weekdays": {
+      "friday": "Ven",
+      "monday": "Lun",
+      "saturday": "Sam",
+      "sunday": "Dim",
+      "thursday": "Jeu",
+      "tuesday": "Mar",
+      "wednesday": "Mer"
+    }
+  },
   "code": {
     "bundleUrl": "URL du bundle",
     "noCode": "Aucun code trouvé",
+    "parseDuration": "Durée d'analyse :",
     "parsedAt": "Analysé le :"
   },
   "extraLinks": "Liens supplémentaires",
@@ -40,24 +68,29 @@
     "warning": "AVERTISSEMENT"
   },
   "navigation": {
-    "jump": "Sauter : Maj+{{arrow}}",
     "navigation": "Navigation : {{arrow}}",
     "toggleGroup": "Basculer le groupe : Espace"
   },
   "overview": {
     "buttons": {
+      "failedRun_many": "Runs échoués",
       "failedRun_one": "Run échoué",
       "failedRun_other": "Runs échoués",
+      "failedTask_many": "Tâches échouées",
       "failedTask_one": "Tâche échouée",
       "failedTask_other": "Tâches échouées",
+      "failedTaskInstance_many": "Task Instances échouées",
       "failedTaskInstance_one": "Task Instance échouée",
       "failedTaskInstance_other": "Task Instances échouées"
     },
     "charts": {
+      "assetEvent_many": "Événements d'actif créés",
       "assetEvent_one": "Événement d'actif créé",
       "assetEvent_other": "Événements d'actif créés"
     },
     "failedLogs": {
+      "hideLogs": "Masquer les journaux",
+      "showLogs": "Afficher les journaux",
       "title": "Journaux des tâches échouées récemment",
       "viewFullLogs": "Voir les journaux complets"
     }
@@ -66,8 +99,8 @@
     "buttons": {
       "options": "Options",
       "showGantt": "Afficher le Gantt",
-      "showGraph": "Afficher le graphe",
-      "showGrid": "Afficher la grille"
+      "showGraphShortcut": "Afficher le graphe (Appuyez sur g)",
+      "showGridShortcut": "Afficher la grille (Appuyez sur g)"
     },
     "dagRuns": {
       "label": "Nombre de Runs du Dag"
@@ -102,9 +135,11 @@
     "assetEvents": "Événements d'actifs",
     "auditLog": "Journal d'audit",
     "backfills": "Rattrappages",
+    "calendar": "Calendrier",
     "code": "Code",
     "details": "Détails",
     "logs": "Journaux",
+    "mappedTaskInstances_many": "Task Instances [{{count}}]",
     "mappedTaskInstances_one": "Task Instance [{{count}}]",
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "Aperçu",

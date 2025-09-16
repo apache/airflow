@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-salesforce/|version|/providers/salesforce/tests/system/salesforce>
+    Example Dags <https://github.com/apache/airflow/tree/providers-salesforce/|version|/providers/salesforce/tests/system/salesforce>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,9 +77,7 @@ apache-airflow-providers-salesforce package
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.11.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 5.11.3
 
 Provider package
 ----------------
@@ -90,7 +88,7 @@ All classes for this package are included in the ``airflow.providers.salesforce`
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-salesforce``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

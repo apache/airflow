@@ -226,11 +226,11 @@ class PlainXComArg(XComArg):
         The default ``__iter__`` implementation in Python calls ``__getitem__``
         with 0, 1, 2, etc. until it hits an ``IndexError``. This does not work
         well with our custom ``__getitem__`` implementation, and results in poor
-        DAG-writing experience since a misplaced ``*`` expansion would create an
-        infinite loop consuming the entire DAG parser.
+        Dag-writing experience since a misplaced ``*`` expansion would create an
+        infinite loop consuming the entire Dag parser.
 
         This override catches the error eagerly, so an incorrectly implemented
-        DAG fails fast and avoids wasting resources on nonsensical iterating.
+        Dag fails fast and avoids wasting resources on nonsensical iterating.
         """
         raise TypeError("'XComArg' object is not iterable")
 
@@ -566,7 +566,7 @@ _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
 
 
 def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
-    """DAG serialization interface."""
+    """Dag serialization interface."""
     key = next(k for k, v in _XCOM_ARG_TYPES.items() if isinstance(value, v))
     if key:
         return {"type": key, **value._serialize()}

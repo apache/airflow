@@ -1,0 +1,31 @@
+{
+  "filters": {
+    "response": {
+      "all": "Összes",
+      "pending": "Függőben",
+      "received": "Fogadva"
+    }
+  },
+  "requiredAction_one": "Szükséges művelet",
+  "requiredAction_other": "Szükséges műveletek",
+  "requiredActionState": "Szükséges művelet állapota",
+  "response": {
+    "error": "Válasz sikertelen",
+    "optionsDescription": "Válassza ki a lehetőségeket ehhez a feladatpéldányhoz",
+    "optionsLabel": "Lehetőségek",
+    "received": "Válasz beérkezett: ",
+    "respond": "Válaszadás",
+    "success": "A(z) {{taskId}} feladatpéldányhoz tartozó válasz sikeres",
+    "title": "Emberi feladat példány - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Jóváhagyás megérkezett",
+    "approvalRequired": "Jóváhagyás szükséges",
+    "choiceReceived": "Választás megérkezett",
+    "choiceRequired": "Választás szükséges",
+    "rejectionReceived": "Elutasítás megérkezett",
+    "responseReceived": "Válasz megérkezett",
+    "responseRequired": "Válasz szükséges"
+  },
+  "subject": "Tárgy"
+}

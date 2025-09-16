@@ -24,8 +24,7 @@ from functools import cache
 from operator import methodcaller
 
 from airflow.configuration import conf
-from airflow.models.mappedoperator import MappedOperator
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.models.mappedoperator import MappedOperator, is_mapped
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
@@ -51,14 +50,14 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
             node_operator["setup_teardown_type"] = "setup"
         elif task.is_teardown:
             node_operator["setup_teardown_type"] = "teardown"
-        if isinstance(task, MappedOperator) or parent_group_is_mapped:
+        if is_mapped(task) or parent_group_is_mapped:
             node_operator["is_mapped"] = True
         return node_operator
 
     task_group = task_item_or_group
-    is_mapped = isinstance(task_group, MappedTaskGroup)
+    mapped = is_mapped(task_group)
     children = [
-        task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or is_mapped)
+        task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or mapped)
         for child in get_task_group_children_getter()(task_group)
     ]
 
@@ -74,7 +73,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "id": task_group.group_id,
         "label": task_group.label,
         "tooltip": task_group.tooltip,
-        "is_mapped": is_mapped,
+        "is_mapped": mapped,
         "children": children,
         "type": "task",
     }
@@ -83,9 +82,9 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
 def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Grid."""
     if isinstance(task := task_item_or_group, (MappedOperator, SerializedBaseOperator)):
-        is_mapped = None
-        if task.is_mapped or parent_group_is_mapped:
-            is_mapped = True
+        mapped = None
+        if parent_group_is_mapped or is_mapped(task):
+            mapped = True
         setup_teardown_type = None
         if task.is_setup is True:
             setup_teardown_type = "setup"
@@ -94,22 +93,22 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
         return {
             "id": task.task_id,
             "label": task.label,
-            "is_mapped": is_mapped,
+            "is_mapped": mapped,
             "children": None,
             "setup_teardown_type": setup_teardown_type,
         }
 
     task_group = task_item_or_group
     task_group_sort = get_task_group_children_getter()
-    is_mapped_group = isinstance(task_group, MappedTaskGroup)
+    mapped = is_mapped(task_group)
     children = [
-        task_group_to_dict_grid(x, parent_group_is_mapped=parent_group_is_mapped or is_mapped_group)
+        task_group_to_dict_grid(x, parent_group_is_mapped=parent_group_is_mapped or mapped)
         for x in task_group_sort(task_group)
     ]
 
     return {
         "id": task_group.group_id,
         "label": task_group.label,
-        "is_mapped": is_mapped_group or None,
+        "is_mapped": mapped or None,
         "children": children or None,
     }

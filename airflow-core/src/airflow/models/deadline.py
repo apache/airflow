@@ -164,9 +164,10 @@ class Deadline(Base):
 
         try:
             # Get deadlines which match the provided conditions and their associated DagRuns.
-            deadline_dagrun_pairs = (
-                session.query(Deadline, DagRun).join(DagRun).filter(and_(*filter_conditions)).all()
-            )
+            deadline_dagrun_pairs = session.execute(
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+            ).all()
+
         except AttributeError as e:
             logger.exception("Error resolving deadlines: %s", e)
             raise
@@ -201,10 +202,20 @@ class Deadline(Base):
         """Handle a missed deadline by running the callback in the appropriate host and updating the `callback_state`."""
         from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
 
+        def get_simple_context():
+            from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+
+            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
+            #  from the scheduler
+            return {
+                "dag_run": DAGRunResponse.model_validate(self.dagrun).model_dump(mode="json"),
+                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
+            }
+
         if isinstance(self.callback, AsyncCallback):
             callback_trigger = DeadlineCallbackTrigger(
                 callback_path=self.callback.path,
-                callback_kwargs=self.callback.kwargs,
+                callback_kwargs=(self.callback.kwargs or {}) | {"context": get_simple_context()},
             )
             trigger_orm = Trigger.from_object(callback_trigger)
             session.add(trigger_orm)
