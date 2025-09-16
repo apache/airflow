@@ -622,7 +622,7 @@ class TaskInstance(Base, LoggingMixin):
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
         map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
 
         return _log_uri
 

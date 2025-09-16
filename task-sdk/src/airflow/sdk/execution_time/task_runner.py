@@ -562,7 +562,7 @@ class RuntimeTaskInstance(TaskInstance):
         try_number = (
             f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
         )
-        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
         return _log_uri
 
     @property
@@ -597,23 +597,6 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
         run_id=ti.run_id,
         map_index=ti.map_index,
     )
-
-
-def get_log_url_from_ti(ti: RuntimeTaskInstance) -> str:
-    from urllib.parse import quote
-
-    from airflow.configuration import conf
-
-    run_id = quote(ti.run_id)
-    base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-    map_index_value = getattr(ti, "map_index", -1)
-    map_index = f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
-    try_number_value = getattr(ti, "try_number", 0)
-    try_number = (
-        f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-    )
-    _log_uri = f"{base_url}dags/{ti.dag_id}/runs/{run_id}/tasks/{ti.task_id}{map_index}{try_number}"
-    return _log_uri
 
 
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:

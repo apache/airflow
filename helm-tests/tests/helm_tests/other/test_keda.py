@@ -108,6 +108,8 @@ class TestKeda:
             query += f" AND queue != '{queue_value}'"
         elif "KubernetesExecutor" in executor:
             query += " AND executor IS DISTINCT FROM 'KubernetesExecutor'"
+        elif "airflow.providers.edge3.executors.EdgeExecutor" in executor:
+            query += " AND executor IS DISTINCT FROM 'EdgeExecutor'"
         return query
 
     @pytest.mark.parametrize(
@@ -119,6 +121,8 @@ class TestKeda:
             ("CeleryKubernetesExecutor", 16),
             ("CeleryExecutor,KubernetesExecutor", 8),
             ("CeleryExecutor,KubernetesExecutor", 16),
+            ("CeleryExecutor,airflow.providers.edge3.executors.EdgeExecutor", 8),
+            ("CeleryExecutor,airflow.providers.edge3.executors.EdgeExecutor", 16),
         ],
     )
     def test_keda_concurrency(self, executor, concurrency):
