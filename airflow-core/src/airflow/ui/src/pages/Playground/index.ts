@@ -17,26 +17,13 @@
  * under the License.
  */
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
-export * from "./Switch";
-export * from "./Tooltip";
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Button";
-export * from "./Toaster";
-export * from "./Breadcrumb";
-export * from "./Clipboard";
-export * from "./Popover";
-export * from "./Checkbox";
-export * from "./ResetButton";
-export * from "./InputWithAddon";
-export * from "./NumberInput";
-export * from "./RadioCard";
-export * from "./Tag";
-export { default as SegmentedControl } from "./SegmentedControl";
+export { Playground } from "./Playground";
+export { ColorPaletteSection } from "./ColorPaletteSection";
+export { ButtonsCodeSection } from "./ButtonsCodeSection";
+export { BadgesAvatarsSection } from "./BadgesAvatarsSection";
+export { FormsInputsSection } from "./FormsInputsSection";
+export { ProgressTaskStatesSection } from "./ProgressTaskStatesSection";
+export { GraphSection } from "./GraphSection";
+export { ChartsGanttSection } from "./ChartsGanttSection";
+export { TableOfContents } from "./TableOfContents";
+export { ModalDialog } from "./ModalDialog";
