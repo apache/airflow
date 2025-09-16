@@ -55,6 +55,8 @@ from airflow.providers.databricks.hooks.databricks_base import (
 )
 from airflow.providers.databricks.utils import databricks as utils
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
 NOTEBOOK_TASK = {"notebook_path": "/test"}
@@ -2226,7 +2228,14 @@ class TestDatabricksHookAsyncSpToken:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.post")
-    async def test_get_run_state(self, mock_post, mock_get):
+    async def test_get_run_state(self, mock_post, mock_get, mock_supervisor_comms):
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            from airflow.sdk.execution_time.comms import ConnectionResult
+            mock_supervisor_comms.asend.return_value = ConnectionResult(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+            )
+
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=create_sp_token_for_resource()
         )
