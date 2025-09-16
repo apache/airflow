@@ -3512,12 +3512,6 @@ class SerializedDAG(BaseSerialization):
 
         return tis
 
-    def get_task(self, task_id: str) -> SerializedOperator:  # type: ignore[override,return -value]
-        # TODO: Fix this after PR:55538
-        if task_id in self.task_dict:
-            return self.task_dict[task_id]
-        raise TaskNotFound(f"Task {task_id} not found")
-
     @overload
     def clear(
         self,
