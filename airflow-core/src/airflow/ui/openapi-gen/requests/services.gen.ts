@@ -1000,6 +1000,7 @@ export class DagRunService {
      * @param data.durationGt
      * @param data.durationLte
      * @param data.durationLt
+     * @param data.confContains
      * @param data.runType
      * @param data.state
      * @param data.dagVersion
@@ -1043,6 +1044,7 @@ export class DagRunService {
                 duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
+                conf_contains: data.confContains,
                 run_type: data.runType,
                 state: data.state,
                 dag_version: data.dagVersion,

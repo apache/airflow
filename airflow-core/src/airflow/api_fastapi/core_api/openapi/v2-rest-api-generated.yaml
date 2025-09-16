@@ -2219,6 +2219,12 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lt
+      - name: conf_contains
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Conf Contains
       - name: run_type
         in: query
         required: false
@@ -10317,6 +10323,11 @@ components:
           - type: number
           - type: 'null'
           title: Duration Lt
+        conf_contains:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Conf Contains
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody

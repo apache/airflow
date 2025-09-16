@@ -1384,6 +1384,7 @@ class DAGRunsBatchBody(BaseModel):
     duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
     duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
     duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
+    conf_contains: Annotated[str | None, Field(title="Conf Contains")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):

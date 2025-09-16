@@ -19,6 +19,7 @@
 export enum SearchParamsKeys {
   AFTER = "after",
   BEFORE = "before",
+  CONF_CONTAINS = "conf_contains",
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
   DAG_ID = "dag_id",
   DAG_ID_PATTERN = "dag_id_pattern",

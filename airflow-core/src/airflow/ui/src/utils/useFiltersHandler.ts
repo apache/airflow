@@ -27,6 +27,7 @@ import type { SearchParamsKeys } from "src/constants/searchParams";
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
   | SearchParamsKeys.BEFORE
+  | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_VERSION

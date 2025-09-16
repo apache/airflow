@@ -36,6 +36,7 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
       SearchParamsKeys.RUN_AFTER_LTE,
       SearchParamsKeys.DURATION_GTE,
       SearchParamsKeys.DURATION_LTE,
+      SearchParamsKeys.CONF_CONTAINS,
       SearchParamsKeys.DAG_VERSION,
     ];
 

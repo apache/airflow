@@ -306,6 +306,7 @@ class FilterOptionEnum(Enum):
     ANY_EQUAL = "any_eq"
     ALL_EQUAL = "all_eq"
     IS_NONE = "is_none"
+    CONTAINS = "contains"
 
 
 class FilterParam(BaseParam[T]):
@@ -363,6 +364,13 @@ class FilterParam(BaseParam[T]):
                 return select.where(self.attribute.is_not(None))
             if self.value is True:
                 return select.where(self.attribute.is_(None))
+        if self.filter_option == FilterOptionEnum.CONTAINS:
+            # For JSON/JSONB columns, convert to text before applying LIKE
+            from sqlalchemy import JSON, Text, cast
+
+            if isinstance(self.attribute.type, JSON) or str(self.attribute.type).upper() in ("JSON", "JSONB"):
+                return select.where(cast(self.attribute, Text).contains(self.value))
+            return select.where(self.attribute.contains(self.value))
         raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
 
     @classmethod

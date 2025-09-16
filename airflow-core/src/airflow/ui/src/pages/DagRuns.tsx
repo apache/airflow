@@ -49,6 +49,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  CONF_CONTAINS: CONF_CONTAINS_PARAM,
   DAG_ID: DAG_ID_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
@@ -197,11 +198,13 @@ export const DagRuns = () => {
   const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const confContains = searchParams.get(CONF_CONTAINS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
+      confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       dagId: filteredDagId ?? dagId ?? "~",
       dagVersion:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,

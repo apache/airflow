@@ -685,6 +685,7 @@ export type DAGRunsBatchBody = {
     duration_gt?: number | null;
     duration_lte?: number | null;
     duration_lt?: number | null;
+    conf_contains?: string | null;
 };
 
 /**
@@ -2246,6 +2247,7 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
+    confContains?: string;
     dagId: string;
     dagVersion?: Array<(number)>;
     durationGt?: number | null;

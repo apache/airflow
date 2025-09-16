@@ -19,7 +19,7 @@
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
-import { MdDateRange, MdSearch, MdHistory, MdHourglassEmpty } from "react-icons/md";
+import { MdDateRange, MdSearch, MdHistory, MdHourglassEmpty, MdCode } from "react-icons/md";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -46,6 +46,12 @@ export const useFilterConfigs = () => {
       icon: <MdDateRange />,
       label: translate("common:table.to"),
       type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.CONF_CONTAINS]: {
+      hotkeyDisabled: true,
+      icon: <MdCode />,
+      label: translate("common:dagRun.conf"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,

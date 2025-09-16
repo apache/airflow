@@ -185,3 +185,5 @@ class DAGRunsBatchBody(StrictBaseModel):
     duration_gt: float | None = None
     duration_lte: float | None = None
     duration_lt: float | None = None
+
+    conf_contains: str | None = None
