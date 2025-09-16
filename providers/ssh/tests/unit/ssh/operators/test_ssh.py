@@ -308,3 +308,13 @@ class TestSSHOperator:
             time.sleep(1)
 
             mock_on_kill.assert_called_once()
+
+    def test_remote_host_passed_at_hook_init(self):
+        remote_host = "test_host.internal"
+        task = SSHOperator(
+            task_id="test_remote_host_passed",
+            ssh_conn_id="ssh_default",
+            remote_host=remote_host,
+            command=COMMAND,
+        )
+        assert task.hook.remote_host == remote_host
