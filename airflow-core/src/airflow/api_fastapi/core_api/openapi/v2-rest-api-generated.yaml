@@ -7984,10 +7984,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Update Hitl Detail
       description: Update a Human-in-the-loop detail.
       operationId: update_hitl_detail
@@ -8014,11 +8014,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       requestBody:
         required: true
@@ -8065,7 +8064,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
       operationId: get_hitl_detail
@@ -8092,11 +8091,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       responses:
         '200':
@@ -8129,10 +8127,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails:
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Details
       description: Get Human-in-the-loop details.
       operationId: get_hitl_details
@@ -8140,6 +8138,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -8166,14 +8176,6 @@ paths:
           default:
           - ti_id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: dag_id_pattern
         in: query
         required: false
@@ -8186,12 +8188,6 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: dag_run_id
-        in: query
-        required: false
-        schema:
-          type: string
-          title: Dag Run Id
       - name: task_id
         in: query
         required: false
