@@ -181,7 +181,7 @@ class TestAthenaSQLHookConn:
             aws_session_token="test-token",
             endpoint_url="https://athena.us-east-1.amazonaws.com",
         )
-        
+
         # Verify that the parameters were extracted correctly
         assert hook.s3_staging_dir == "s3://test-bucket/staging/"
         assert hook.work_group == "test-workgroup"
@@ -205,7 +205,7 @@ class TestAthenaSQLHookConn:
             s3_staging_dir="s3://test-bucket/staging/",
             work_group="test-workgroup",
         )
-        
+
         # Mock the connection
         conn = Connection(
             conn_type="athena",
@@ -213,10 +213,10 @@ class TestAthenaSQLHookConn:
             extra={"region_name": "us-east-1"},
         )
         hook.get_connection = mock.Mock(return_value=conn)
-        
+
         # Call get_conn
         hook.get_conn()
-        
+
         # Verify that pyathena.connect was called with hook_params
         mock_connect.assert_called_once()
         call_args = mock_connect.call_args[1]  # Get keyword arguments
@@ -226,7 +226,7 @@ class TestAthenaSQLHookConn:
     def test_sql_value_check_operator_compatibility(self):
         """Test that AthenaSQLHook works with SQLValueCheckOperator."""
         from airflow.providers.common.sql.operators.sql import SQLValueCheckOperator
-        
+
         # Mock Athena connection with s3_staging_dir in extra
         athena_conn = Connection(
             conn_id="athena_conn",
@@ -239,12 +239,9 @@ class TestAthenaSQLHookConn:
         with patch(f"{BASEHOOK_PATCH_PATH}.get_connection", return_value=athena_conn):
             # This should NOT raise TypeError: AwsGenericHook.__init__() got an unexpected keyword argument 's3_staging_dir'
             operator = SQLValueCheckOperator(
-                task_id="value_check", 
-                sql="SELECT TRUE", 
-                pass_value=True, 
-                conn_id="athena_conn"
+                task_id="value_check", sql="SELECT TRUE", pass_value=True, conn_id="athena_conn"
             )
-            
+
             # The operator should be created successfully
             assert operator.task_id == "value_check"
             assert operator.sql == "SELECT TRUE"

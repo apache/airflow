@@ -65,22 +65,41 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
     hook_name = "Amazon Athena"
     supports_autocommit = True
 
-    def __init__(self, athena_conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        # Extract Athena-specific parameters from kwargs to avoid passing them to AwsBaseHook
-        # These parameters come from connection extra_dejson and hook_params
-        self.s3_staging_dir = kwargs.pop("s3_staging_dir", None)
-        self.work_group = kwargs.pop("work_group", None)
-        self.driver = kwargs.pop("driver", None)
-        self.aws_domain = kwargs.pop("aws_domain", None)
-        self.session_kwargs = kwargs.pop("session_kwargs", None)
-        self.config_kwargs = kwargs.pop("config_kwargs", None)
-        self.role_arn = kwargs.pop("role_arn", None)
-        self.assume_role_method = kwargs.pop("assume_role_method", None)
-        self.assume_role_kwargs = kwargs.pop("assume_role_kwargs", None)
-        self.aws_session_token = kwargs.pop("aws_session_token", None)
-        self.endpoint_url = kwargs.pop("endpoint_url", None)
-        
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        athena_conn_id: str | None = None,  # keep positional compatibility
+        *,
+        s3_staging_dir: str | None = None,
+        work_group: str | None = None,
+        driver: str | None = None,
+        aws_domain: str | None = None,
+        session_kwargs: dict | None = None,
+        config_kwargs: dict | None = None,
+        role_arn: str | None = None,
+        assume_role_method: str | None = None,
+        assume_role_kwargs: dict | None = None,
+        aws_session_token: str | None = None,
+        endpoint_url: str | None = None,
+        **kwargs,
+    ) -> None:
+        # prefer explicit arg; fall back to kwargs; finally default
+        if athena_conn_id is None:
+            athena_conn_id = kwargs.pop("athena_conn_id", self.default_conn_name)
+        else:
+            kwargs.pop("athena_conn_id", None)  # avoid conflicts
+        super().__init__(**kwargs)
+        # Store explicit params on self
+        self.s3_staging_dir = s3_staging_dir
+        self.work_group = work_group
+        self.driver = driver
+        self.aws_domain = aws_domain
+        self.session_kwargs = session_kwargs
+        self.config_kwargs = config_kwargs
+        self.role_arn = role_arn
+        self.assume_role_method = assume_role_method
+        self.assume_role_kwargs = assume_role_kwargs
+        self.aws_session_token = aws_session_token
+        self.endpoint_url = endpoint_url
         self.athena_conn_id = athena_conn_id
 
     @classmethod
@@ -190,7 +209,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             "session": self.get_session(region_name=conn_params["region_name"]),
             **self.conn.extra_dejson,
         }
-        
+
         # Override with hook parameters if they were provided
         if self.s3_staging_dir is not None:
             conn_kwargs["s3_staging_dir"] = self.s3_staging_dir
