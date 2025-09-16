@@ -26,8 +26,29 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { useHover } from "src/context/hover";
+import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
+
+const handleMouseEnter =
+  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    });
+
+    setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
+  };
+
+const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
+
+  tasks.forEach((task) => {
+    task.style.backgroundColor = "";
+  });
+
+  setHoveredTaskId(undefined);
+};
 
 type Props = {
   readonly dagId: string;
@@ -47,25 +68,8 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
   const { t: translate } = useTranslation();
   const location = useLocation();
 
-  const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-    });
-
-    setHoveredTaskId(taskId);
-  };
-
-  const onMouseLeave = () => {
-    const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
-
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "";
-    });
-
-    setHoveredTaskId(undefined);
-  };
+  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
+  const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
 
   const getTaskUrl = useCallback(
     () =>

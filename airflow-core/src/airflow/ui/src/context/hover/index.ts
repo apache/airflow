@@ -18,3 +18,4 @@
  */
 export { HoverProvider } from "./HoverProvider";
 export { useHover } from "./useHover";
+export type { HoverContextType } from "./Context";
