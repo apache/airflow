@@ -127,7 +127,20 @@ def dag_stats(
         .subquery()
     )
 
-    latest_runs = (
+    # Active DAGs need another query from DagModel, as a DAG may not have any runs but still be active
+    dags_cte = (
+        select(DagModel.dag_id, DagModel.is_paused)
+        .where(DagModel.is_stale == false())
+        .where(DagModel.dag_id.in_(permitted_dag_ids))
+        .cte()
+    )
+    active_count_query = select(
+        func.coalesce(func.sum(case((dags_cte.c.is_paused == false(), 1))), 0).label("active")
+    ).select_from(dags_cte)
+    active_count = session.execute(active_count_query).first().active
+
+    # Other metrics are based on latest DagRun states
+    latest_runs_cte = (
         select(
             DagModel.dag_id,
             DagModel.is_paused,
@@ -139,21 +152,22 @@ def dag_stats(
             (DagRun.dag_id == latest_dates_subq.c.dag_id)
             & (DagRun.logical_date == latest_dates_subq.c.max_logical_date),
         )
+        .where(DagModel.is_stale == false())
         .where(DagRun.dag_id.in_(permitted_dag_ids))
         .cte()
     )
+    combined_runs_query = select(
+        func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.FAILED, 1))), 0).label("failed"),
+        func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.RUNNING, 1))), 0).label(
+            "running"
+        ),
+        func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
+    ).select_from(latest_runs_cte)
 
-    combined_query = select(
-        func.coalesce(func.sum(case((latest_runs.c.is_paused == false(), 1))), 0).label("active"),
-        func.coalesce(func.sum(case((latest_runs.c.state == DagRunState.FAILED, 1))), 0).label("failed"),
-        func.coalesce(func.sum(case((latest_runs.c.state == DagRunState.RUNNING, 1))), 0).label("running"),
-        func.coalesce(func.sum(case((latest_runs.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
-    ).select_from(latest_runs)
-
-    counts = session.execute(combined_query).first()
+    counts = session.execute(combined_runs_query).first()
 
     return DashboardDagStatsResponse(
-        active_dag_count=counts.active,
+        active_dag_count=active_count,
         failed_dag_count=counts.failed,
         running_dag_count=counts.running,
         queued_dag_count=counts.queued,
