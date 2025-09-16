@@ -33,7 +33,7 @@ from airflow.api_fastapi.core_api.datamodels.plugins import (
 )
 from airflow.api_fastapi.core_api.security import requires_access_view
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
