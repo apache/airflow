@@ -166,6 +166,21 @@ class TestFastApiSecurity:
         request.base_url = "https://requesting_server_base_url.com/prefix2"
         assert is_safe_url(url, request=request) == expected_is_safe
 
+    @pytest.mark.parametrize(
+        "url, expected_is_safe",
+        [
+            ("https://server_base_url.com/prefix", False),
+            ("https://requesting_server_base_url.com/prefix2", True),
+            ("prefix/some_other", False),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+        ],
+    )
+    def test_is_safe_url_with_base_url_unset(self, url, expected_is_safe):
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/prefix2"
+        assert is_safe_url(url, request=request) == expected_is_safe
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "team_name",
