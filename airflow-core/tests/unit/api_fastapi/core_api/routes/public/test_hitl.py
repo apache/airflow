@@ -614,6 +614,7 @@ class TestGetHITLDetailsEndpoint:
                     "multiple": False,
                     "params": {"input_1": 1},
                     "assigned_users": [],
+                    "created_at": DEFAULT_CREATED_AT,
                     "responded_by_user": None,
                     "responded_at": None,
                     "chosen_options": None,
@@ -639,7 +640,7 @@ class TestGetHITLDetailsEndpoint:
             # htil key
             ("subject", itemgetter("subject")),
             ("responded_at", itemgetter("responded_at")),
-            ("created_at", itemgetter("response_at")),
+            ("created_at", itemgetter("created_at")),
         ],
         ids=[
             "ti_id",
