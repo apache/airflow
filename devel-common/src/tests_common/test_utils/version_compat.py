@@ -43,11 +43,14 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import PokeReturnValue, timezone
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.definitions._internal.decorators import remove_task_decorator
-    from airflow.sdk.exceptions import AirflowFailException
+    from airflow.sdk.exceptions import AirflowFailException, AirflowSensorTimeout
 
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
-    from airflow.exceptions import AirflowFailException  # type: ignore[no-redef, attr-defined, assignment]
+    from airflow.exceptions import (  # type: ignore[no-redef, attr-defined, assignment]
+        AirflowFailException,
+        AirflowSensorTimeout,
+    )
     from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.decorators import remove_task_decorator  # type: ignore[no-redef]
@@ -78,4 +81,5 @@ __all__ = [
     "remove_task_decorator",
     "timezone",
     "AirflowFailException",
+    "AirflowSensorTimeout",
 ]
