@@ -144,12 +144,22 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
      - ``airflow.sdk.setup``
    * - ``airflow.decorators.teardown``
      - ``airflow.sdk.teardown``
+   * - ``airflow.models.dag.DAG``
+     - ``airflow.sdk.DAG``
    * - ``airflow.models.baseoperator.BaseOperator``
      - ``airflow.sdk.BaseOperator``
+   * - ``airflow.models.param.Param``
+     - ``airflow.sdk.Param``
+   * - ``airflow.models.param.ParamsDict``
+     - ``airflow.sdk.ParamsDict``
+   * - ``airflow.models.baseoperatorlink.BaseOperatorLink``
+     - ``airflow.sdk.BaseOperatorLink``
    * - ``airflow.sensors.base.BaseSensorOperator``
      - ``airflow.sdk.BaseSensorOperator``
    * - ``airflow.hooks.base.BaseHook``
      - ``airflow.sdk.BaseHook``
+   * - ``airflow.notifications.basenotifier.BaseNotifier``
+     - ``airflow.sdk.BaseNotifier``
    * - ``airflow.utils.task_group.TaskGroup``
      - ``airflow.sdk.TaskGroup``
    * - ``airflow.io.*``
