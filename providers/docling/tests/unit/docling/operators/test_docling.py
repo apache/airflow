@@ -28,13 +28,13 @@ TESTS_ROOT = Path(__file__).parent.parent.parent
 CONN_ID = "docling_test_conn"
 MOCK_HOOK_RESPONSE = {"status": "success", "content": "Text from operator test"}
 MOCK_PARAMETERS = {"output_format": "text"}
-MOCK_FILE_PATH = TESTS_ROOT / "unit" / "fixtures" / "test_doc.pdf"
+MOCK_FILE_PATH = TESTS_ROOT / "docling" / "fixtures" / "test_doc.pdf"
 
 
 class TestDoclingConvertOperator:
     """Tests for DoclingConvertOperator."""
 
-    @patch("airflow.providers.docling.operators.docling_process.DoclingHook")
+    @patch("airflow.providers.docling.operators.docling_convert.DoclingHook")
     def test_execute(self, mock_docling_hook):
         """Tests the successful execution of the operator."""
         # Arrange
@@ -62,14 +62,14 @@ class TestDoclingConvertOperator:
 class TestDoclingConvertSourceOperator:
     """Tests for DoclingConvertSourceOperator."""
 
-    @patch("airflow.providers.docling.operators.docling_source.DoclingHook")
+    @patch("airflow.providers.docling.operators.docling_convert.DoclingHook")
     def test_execute(self, mock_docling_hook):
         """Tests the successful execution of the source operator."""
         # Arrange
         mock_hook_instance = MagicMock()
         mock_hook_instance.upload_source.return_value = MOCK_HOOK_RESPONSE
         mock_docling_hook.return_value = mock_hook_instance
-        source_url = "http://example.com/file.pdf"
+        source_url = "https://arxiv.org/pdf/2206.01062"
 
         operator = DoclingConvertSourceOperator(
             task_id="test_docling_source_task",

@@ -42,7 +42,7 @@ class TestDoclingHook:
         self.mock_response.json.return_value = MOCK_API_RESPONSE
         self.mock_response.raise_for_status.return_value = None
 
-    @patch("airflow.providers.docling.hooks.docling_hook.DoclingHook._read_file_content")
+    @patch("airflow.providers.docling.hooks.docling.DoclingHook._read_file_content")
     @patch("airflow.providers.http.hooks.http.HttpHook.run")
     def test_process_document_success(self, mock_run, mock_read_file):
         """Tests the successful processing of a local document."""
@@ -85,7 +85,7 @@ class TestDoclingHook:
         mock_run.assert_called_once_with(endpoint="/api/v1/convert/source", json=expected_payload)
         assert result == MOCK_API_RESPONSE
 
-    @patch("airflow.providers.docling.hooks.docling_hook.DoclingHook._read_file_content")
+    @patch("airflow.providers.docling.hooks.docling.DoclingHook._read_file_content")
     @patch("airflow.providers.http.hooks.http.HttpHook.run")
     def test_process_document_api_error(self, mock_run, mock_read_file):
         """Tests API error handling for process_document."""
