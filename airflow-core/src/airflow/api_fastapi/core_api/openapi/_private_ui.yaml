@@ -1994,29 +1994,25 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        respondents:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
           anyOf:
-          - items:
-              type: string
-            type: array
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: Respondents
-        responded_user_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Id
-        responded_user_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Name
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -2037,8 +2033,23 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:

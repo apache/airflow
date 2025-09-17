@@ -8,8 +8,6 @@
     "allRuns": "Todas as Execuções",
     "backwards": "Executar para trás",
     "dateRange": "Intervalo de Data",
-    "dateRangeFrom": "De",
-    "dateRangeTo": "Para",
     "errorStartDateBeforeEndDate": "A Data Inicial deve ser antes da Data Final",
     "maxRuns": "Máximo de Execuções Ativas",
     "missingAndErroredRuns": "Execuções Faltando e com Erro",

@@ -623,7 +623,7 @@ class TestStringifiedDAGs:
             if v is None:
                 break
             dag = SerializedDAG.from_json(v)
-            assert isinstance(dag, DAG)
+            assert isinstance(dag, SerializedDAG)
             stringified_dags[dag.dag_id] = dag
 
         dags, _ = collect_dags("airflow/example_dags")
@@ -1097,8 +1097,8 @@ class TestStringifiedDAGs:
         """
         Test to make sure that only native Param objects are being passed as dag or task params
         """
-        dag = DAG(dag_id="simple_dag", schedule=None, params={"my_param": param})
-        serialized_json = SerializedDAG.to_json(dag)
+        sdk_dag = DAG(dag_id="simple_dag", schedule=None, params={"my_param": param})
+        serialized_json = SerializedDAG.to_json(sdk_dag)
         serialized = json.loads(serialized_json)
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)

@@ -28,7 +28,7 @@ from airflow.models.mappedoperator import MappedOperator as SerializedMappedOper
 from airflow.sdk import DAG, BaseOperator, TaskGroup
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 
@@ -194,7 +194,7 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
     return dot
 
 
-def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
+def render_dag(dag: DAG | SerializedDAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
     Render the DAG object to the DOT object.
 

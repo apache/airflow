@@ -59,6 +59,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-compat>=1.6.1",
+    "aiosmtplib>=0.1.6",
 ]
 
 [dependency-groups]

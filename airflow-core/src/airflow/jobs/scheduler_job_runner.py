@@ -30,7 +30,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
@@ -48,6 +48,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
@@ -97,9 +98,8 @@ if TYPE_CHECKING:
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -198,7 +198,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
         )
-        self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
 
@@ -910,16 +909,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Get task from the Serialized DAG
                 try:
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                    cls.logger().error(
-                        "DAG '%s' for task instance %s not found in serialized_dag table",
-                        ti.dag_id,
-                        ti,
-                    )
-                    if TYPE_CHECKING:
-                        assert dag
-                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-                    # instead, but currently it inherits SDK's DAG.
-                    task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
+                    if not dag:
+                        cls.logger().error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            ti.dag_id,
+                            ti,
+                        )
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+
+                    task = dag.get_task(ti.task_id)
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)

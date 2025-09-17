@@ -3571,43 +3571,29 @@ export const $HITLDetail = {
             type: 'object',
             title: 'Params'
         },
-        respondents: {
+        assigned_users: {
+            items: {
+                '$ref': '#/components/schemas/HITLUser'
+            },
+            type: 'array',
+            title: 'Assigned Users'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        responded_by_user: {
             anyOf: [
                 {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
+                    '$ref': '#/components/schemas/HITLUser'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Respondents'
+            ]
         },
-        responded_user_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Responded User Id'
-        },
-        responded_user_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Responded User Name'
-        },
-        response_at: {
+        responded_at: {
             anyOf: [
                 {
                     type: 'string',
@@ -3617,7 +3603,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'Response At'
+            title: 'Responded At'
         },
         chosen_options: {
             anyOf: [
@@ -3645,7 +3631,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject', 'created_at'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;
@@ -3672,18 +3658,13 @@ export const $HITLDetailCollection = {
 
 export const $HITLDetailResponse = {
     properties: {
-        responded_user_id: {
-            type: 'string',
-            title: 'Responded User Id'
+        responded_by: {
+            '$ref': '#/components/schemas/HITLUser'
         },
-        responded_user_name: {
-            type: 'string',
-            title: 'Responded User Name'
-        },
-        response_at: {
+        responded_at: {
             type: 'string',
             format: 'date-time',
-            title: 'Response At'
+            title: 'Responded At'
         },
         chosen_options: {
             items: {
@@ -3700,9 +3681,26 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['responded_user_id', 'responded_user_name', 'response_at', 'chosen_options'],
+    required: ['responded_by', 'responded_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
+} as const;
+
+export const $HITLUser = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name'],
+    title: 'HITLUser',
+    description: 'Schema for a Human-in-the-loop users.'
 } as const;
 
 export const $HTTPExceptionResponse = {
