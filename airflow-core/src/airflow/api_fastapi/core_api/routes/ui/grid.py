@@ -222,6 +222,54 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
+    ti_version_cte = (
+        select(
+            TaskInstance.run_id,
+            func.max(DagVersion.version_number).label("max_version_number"),
+            func.count(func.distinct(TaskInstance.dag_version_id)).label("version_count"),
+        )
+        .select_from(TaskInstance)
+        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+        .where(TaskInstance.dag_id == dag_id)
+        .group_by(TaskInstance.run_id)
+        .cte("ti_version_info")
+    )
+
+    created_version_cte = (
+        select(DagRun.run_id, DagVersion.version_number.label("created_version_number"))
+        .select_from(DagRun)
+        .outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
+        .where(DagRun.dag_id == dag_id)
+        .cte("created_version_info")
+    )
+
+    base_query = (
+        select(
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.queued_at,
+            DagRun.start_date,
+            DagRun.end_date,
+            DagRun.run_after,
+            DagRun.state,
+            DagRun.run_type,
+            DagRun.bundle_version,
+            case(
+                (DagRun.bundle_version.is_not(None), created_version_cte.c.created_version_number),
+                else_=ti_version_cte.c.max_version_number,
+            ).label("dag_version_number"),
+            case(
+                (DagRun.bundle_version.is_not(None), False), else_=(ti_version_cte.c.version_count > 1)
+            ).label("has_mixed_versions"),
+        )
+        .select_from(
+            DagRun.__table__.outerjoin(ti_version_cte, DagRun.run_id == ti_version_cte.c.run_id).outerjoin(
+                created_version_cte, DagRun.run_id == created_version_cte.c.run_id
+            )
+        )
+        .where(DagRun.dag_id == dag_id)
+    )
+
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
@@ -231,58 +279,6 @@ def get_grid_runs(
             allowed_attrs=ordering,
             model=DagRun,
         ).set_value(ordering)
-
-    # Select necessary columns including computed version fields
-    # Replicate DagRun.version_number property logic in SQL
-    latest_version_subquery = (
-        select(func.max(DagVersion.version_number))
-        .select_from(TaskInstance)
-        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-        .where(TaskInstance.dag_id == DagRun.dag_id, TaskInstance.run_id == DagRun.run_id)
-        .scalar_subquery()
-    )
-
-    # When bundle_version exists, use created_dag_version.version_number, otherwise use latest from TIs
-    computed_version_number = case(
-        (
-            DagRun.bundle_version.is_not(None),
-            select(DagVersion.version_number)
-            .select_from(DagVersion)
-            .where(DagVersion.id == DagRun.created_dag_version_id)
-            .scalar_subquery(),
-        ),
-        else_=latest_version_subquery,
-    )
-
-    # Compute has_mixed_versions: count distinct versions > 1
-    # When bundle_version exists, always 1 version (not mixed)
-    # When bundle_version is null, count distinct versions from TIs
-    version_count_subquery = (
-        select(func.count(func.distinct(DagVersion.id)))
-        .select_from(TaskInstance)
-        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-        .where(TaskInstance.dag_id == DagRun.dag_id, TaskInstance.run_id == DagRun.run_id)
-        .scalar_subquery()
-    )
-
-    computed_has_mixed_versions = case(
-        (DagRun.bundle_version.is_not(None), False), else_=version_count_subquery > 1
-    )
-
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-        DagRun.bundle_version,
-        computed_version_number.label("dag_version_number"),
-        computed_has_mixed_versions.label("has_mixed_versions"),
-    ).where(DagRun.dag_id == dag_id)
-
     dag_runs_select_filter, _ = paginated_select(
         statement=base_query,
         order_by=order_by,
@@ -290,23 +286,7 @@ def get_grid_runs(
         filters=[run_after, run_type, triggering_user],
         limit=limit,
     )
-
-    return [
-        GridRunsResponse(
-            dag_id=row.dag_id,
-            run_id=row.run_id,
-            queued_at=row.queued_at,
-            start_date=row.start_date,
-            end_date=row.end_date,
-            run_after=row.run_after,
-            state=row.state,
-            run_type=row.run_type,
-            dag_version_number=row.dag_version_number,
-            bundle_version=row.bundle_version,
-            has_mixed_versions=row.has_mixed_versions,
-        )
-        for row in session.execute(dag_runs_select_filter)
-    ]
+    return session.execute(dag_runs_select_filter)
 
 
 @grid_router.get(
