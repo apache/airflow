@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -52,6 +52,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
+from airflow.models import DagRun
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -72,6 +73,7 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
     from socket import socket
@@ -337,6 +339,8 @@ class DagFileProcessorManager(LoggingMixin):
             loop_start_time = time.monotonic()
 
             self.heartbeat()
+
+            self._emit_running_dags_metric()
 
             self._kill_timed_out_processors()
 
@@ -1019,6 +1023,22 @@ class DagFileProcessorManager(LoggingMixin):
             )
         self._add_files_to_queue(to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
+
+    def _is_metrics_enabled(self):
+        return (
+            conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False)
+            or conf.getboolean("metrics", "statsd_on", fallback=False)
+            or conf.getboolean("metrics", "otel_on", fallback=False)
+        )
+
+    def _emit_running_dags_metric(self):
+        """Emit executor.running_dags gauge."""
+        if not self._is_metrics_enabled():
+            return
+        with create_session() as session:
+            stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
+            running_dags = session.scalar(stmt)
+            Stats.gauge("executor.running_dags", running_dags)
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
