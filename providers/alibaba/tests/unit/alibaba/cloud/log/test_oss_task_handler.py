@@ -24,14 +24,12 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler
-from airflow.providers.alibaba.version_compat import BaseOperator
+from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import CreateTaskInstance, DagMaker
@@ -45,22 +43,6 @@ MOCK_KEY = "mock_key"
 MOCK_KEYS = ["mock_key1", "mock_key2", "mock_key3"]
 MOCK_CONTENT = "mock_content"
 MOCK_FILE_PATH = "mock_file_path"
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
-class TestOSSRemoteLogIO:
-    @pytest.fixture(autouse=True)
-    def setup_tests(self, create_runtime_ti):
-        # setup remote IO
-        self.base_log_folder = "local/airflow/logs"
-        self.oss_log_folder = f"oss://{MOCK_BUCKET_NAME}/airflow/logs"
-        self.oss_remote_log_io = OSSRemoteLogIO(
-            remote_base=self.oss_log_folder,
-            base_log_folder=self.base_log_folder,
-            delete_local_copy=True,
-        )
-        # setup task instance
-        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
 
 
 class TestOSSTaskHandler:
