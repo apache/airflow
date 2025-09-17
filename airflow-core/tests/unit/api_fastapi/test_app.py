@@ -95,19 +95,27 @@ def test_catch_all_route_last(client):
     test_app = client(apps="all").app
     assert test_app.routes[-1].path == "/{rest_of_path:path}"
 
-def test_plugin_with_empty_url_prefix(caplog):
+
+@pytest.mark.parametrize(
+    "fastapi_apps, expected_message, invalid_path",
+    [
+        (
+            [{"name": "test", "app": FastAPI(), "url_prefix": ""}],
+            "'url_prefix' key is empty string for the fastapi app: test",
+            "",
+        ),
+        (
+            [{"name": "test", "app": FastAPI(), "url_prefix": next(
+                iter(app_module.RESERVED_URL_PREFIXES))}],
+            "attempted to use reserved url_prefix",
+            next(iter(app_module.RESERVED_URL_PREFIXES)),
+        ),
+    ],
+)
+def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, invalid_path):
     app = FastAPI()
-    with mock.patch.object(plugins_manager, "fastapi_apps", [{"name": "test", "app": FastAPI(), "url_prefix": ""}]):
+    with mock.patch.object(plugins_manager, "fastapi_apps", fastapi_apps):
         app_module.init_plugins(app)
 
-    assert any("'url_prefix' key is empty string" in rec.message for rec in caplog.records)
-    assert not any(r.path == "" for r in app.routes)
-
-def test_plugin_with_reserved_url_prefix(caplog):
-    app = FastAPI()
-    reserved = next(iter(app_module.RESERVED_URL_PREFIXES))
-    with mock.patch.object(plugins_manager, "fastapi_apps", [{"name": "test", "app": FastAPI(), "url_prefix": reserved}]):
-        app_module.init_plugins(app)
-
-    assert any("attempted to use reserved url_prefix" in rec.message for rec in caplog.records)
-    assert not any(r.path == reserved for r in app.routes)
+    assert any(expected_message in rec.message for rec in caplog.records)
+    assert not any(r.path == invalid_path for r in app.routes)
