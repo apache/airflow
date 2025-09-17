@@ -95,17 +95,6 @@ class TestExecutorLoader:
                 id="one_executor",
             ),
             pytest.param(
-                "team_a=CeleryExecutor",
-                [
-                    ExecutorName(
-                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        alias="CeleryExecutor",
-                        team_name="team_a",
-                    ),
-                ],
-                id="one_executor_one_team",
-            ),
-            pytest.param(
                 "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
                 [
                     ExecutorName(
@@ -560,3 +549,22 @@ class TestExecutorLoader:
         with conf_vars({("core", "executor"): executor_config}):
             configs = executor_loader.ExecutorLoader._get_team_executor_configs()
             assert configs == expected_configs
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "team1=CeleryExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor;team3=KubernetesExecutor",
+            "team_a=CeleryExecutor,LocalExecutor;team_b=KubernetesExecutor",
+        ],
+    )
+    def test_team_only_configurations_should_fail(self, executor_config):
+        """Test that configurations with only team-based executors fail validation."""
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+            conf_vars({("core", "executor"): executor_config}),
+        ):
+            with pytest.raises(AirflowConfigException):
+                executor_loader.ExecutorLoader._get_team_executor_configs()
