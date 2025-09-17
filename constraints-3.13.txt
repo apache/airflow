@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-17T02:20:30.813837
+# This constraints file was automatically generated on 2025-09-17T07:49:46.409633
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -516,7 +516,7 @@ pykerberos==1.2.4
 pymongo==4.15.1
 pymssql==2.3.7
 pyodbc==5.2.0
-pyodps==0.12.4.1
+pyodps==0.12.5
 pyparsing==3.2.4
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
@@ -639,7 +639,7 @@ websocket-client==1.8.0
 websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.3
-xmltodict==1.0.0
+xmltodict==1.0.1
 yarl==1.20.1
 zeep==4.3.2
 zenpy==2.0.56
