@@ -42,10 +42,6 @@ class AirflowException(Exception):  # type: ignore[no-redef]
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
-class AirflowFailException(AirflowException):
-    """Raise when the task should be failed without retrying."""
-
-
 class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
