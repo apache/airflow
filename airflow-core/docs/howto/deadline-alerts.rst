@@ -147,7 +147,7 @@ The timeline for this example would look like this:
     |------|----------|---------|------------|--------|
          Queued     Start    Expected    Deadline
          09:00      09:05     09:35       10:05
-                              (avg+30min)
+                          (avg + 30 min)
 
 Here's an example using a fixed datetime:
 
