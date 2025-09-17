@@ -70,7 +70,7 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from sqlalchemy.orm.query import Query
+    from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm.session import Session
 
     from airflow.models.mappedoperator import MappedOperator
@@ -572,7 +572,7 @@ class DagModel(Base):
                 dm.is_stale = True
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[ScalarResult[Any], dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
