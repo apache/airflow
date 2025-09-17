@@ -346,7 +346,6 @@ class OptimisticTaskSelector(TaskSelectorStrategy, LoggingMixin):
         # Many dags don't have a task_concurrency, so where we can avoid loading the full
         # If the dag is missing, fail the task and continue to the next task.
         serialized_dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
-        serialized_dag = session.execute(serialized_dag).all()
         if not serialized_dag:
             self.log.error(
                 "DAG '%s' for task instance %s not found in serialized_dag table",
