@@ -62,7 +62,7 @@ class TestDoclingHook:
         mock_read_file.assert_called_once_with(MOCK_FILE_PATH)
         mock_run.assert_called_once()
         _, kwargs = mock_run.call_args
-        assert kwargs["endpoint"] == "/api/v1/convert/file"
+        assert kwargs["endpoint"] == "/v1/convert/file"
         assert kwargs["data"] == MOCK_PARAMETERS
         assert "files" in kwargs
         assert result == MOCK_API_RESPONSE
@@ -82,7 +82,7 @@ class TestDoclingHook:
         result = hook.upload_source(source=MOCK_SOURCE_URL, data=MOCK_PARAMETERS)
 
         # Assert
-        mock_run.assert_called_once_with(endpoint="/api/v1/convert/source", json=expected_payload)
+        mock_run.assert_called_once_with(endpoint="/v1/convert/source", json=expected_payload)
         assert result == MOCK_API_RESPONSE
 
     @patch("airflow.providers.docling.hooks.docling.DoclingHook._read_file_content")

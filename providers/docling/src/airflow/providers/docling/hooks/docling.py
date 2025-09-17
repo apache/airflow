@@ -28,10 +28,15 @@ class DoclingHook(HttpHook):
     """
     Interacts with the Docling Webserver API.
 
-    :param http_conn_id: The HTTP Connection ID to use for connecting to the Docling server.
+    :param conn_id: The HTTP Connection ID to use for connecting to the Docling server.
     """
 
-    def __init__(self, http_conn_id: str = "docling_default", **kwargs) -> None:
+    conn_name_attr = "docling_conn_id"
+    default_conn_name = "docling_default"
+    conn_type = "doclingai"
+    hook_name = "Docling"
+
+    def __init__(self, http_conn_id: str = default_conn_name, **kwargs) -> None:
         super().__init__(http_conn_id=http_conn_id, method="POST", **kwargs)
 
     def _read_file_content(self, file_path: str) -> dict:
@@ -64,11 +69,13 @@ class DoclingHook(HttpHook):
             self.log.info("Processing with parameters: %s", data)
 
         try:
-            files = {"file": (_file["filename"], _file["content"], _file["format"])}
+            files = {"files": (_file["filename"], _file["content"], _file["format"])}
 
             # Pass the data argument directly.
             # If `data` is None, the requests library will simply ignore it.
-            response = self.run(endpoint="/api/v1/convert/file", files=files, data=data)
+            response = self.run(
+                endpoint="/v1/convert/file", files=files, data=data, extra_options={"timeout": 500}
+            )
             response.raise_for_status()
 
             self.log.info("Document '%s' processed successfully.", filename)
@@ -89,13 +96,20 @@ class DoclingHook(HttpHook):
         self.log.info("Converting source %s using Docling server...", source)
 
         try:
-            payload: dict[str, Any] = {"http_sources": [{"url": source}]}
+            payload: dict[str, Any] = {
+                "sources": [
+                    {
+                        "kind": "http",
+                        "url": source,
+                    }
+                ]
+            }
 
             if data:
                 payload["options"] = data
                 self.log.info("Processing with parameters: %s", data)
 
-            response = self.run(endpoint="/api/v1/convert/source", json=payload)
+            response = self.run(endpoint="/v1/convert/source", json=payload, extra_options={"timeout": 500})
             response.raise_for_status()
 
             self.log.info("Source '%s' converted successfully.", source)
