@@ -1485,7 +1485,6 @@ redelivery
 Redhat
 redis
 rediss
-reindex
 redoc
 redownloading
 redshift
@@ -1495,6 +1494,7 @@ regexes
 reidentify
 ReidentifyContentResponse
 reimagined
+reindex
 reinit
 Reinitialising
 reinitialization
