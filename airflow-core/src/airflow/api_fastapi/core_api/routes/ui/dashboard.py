@@ -127,17 +127,15 @@ def dag_stats(
         .subquery()
     )
 
-    # Active DAGs need another query from DagModel, as a DAG may not have any runs but still be active
-    dags_cte = (
-        select(DagModel.dag_id, DagModel.is_paused)
+    # Active Dags need another query from DagModel, as a Dag may not have any runs but still be active
+    active_count_query = (
+        select(func.count())
+        .select_from(DagModel)
         .where(DagModel.is_stale == false())
+        .where(DagModel.is_paused == false())
         .where(DagModel.dag_id.in_(permitted_dag_ids))
-        .cte()
     )
-    active_count_query = select(
-        func.coalesce(func.sum(case((dags_cte.c.is_paused == false(), 1))), 0).label("active")
-    ).select_from(dags_cte)
-    active_count = session.execute(active_count_query).first().active
+    active_count = session.execute(active_count_query).scalar_one()
 
     # Other metrics are based on latest DagRun states
     latest_runs_cte = (
