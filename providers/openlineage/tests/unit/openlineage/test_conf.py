@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
 from airflow.providers.openlineage.conf import (
     _is_true,
     config_path,
@@ -41,7 +40,15 @@ from airflow.providers.openlineage.conf import (
     transport,
 )
 
-from tests_common.test_utils.config import conf_vars, env_vars
+try:
+    from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
+except ImportError:
+    # Compat for Airflow < 3.1
+    from airflow.exceptions import AirflowConfigException  # type: ignore[no-redef, attr-defined]
+
+from tests_common.test_utils.config import env_vars, get_appropriate_conf_vars_context
+
+conf_vars = get_appropriate_conf_vars_context()
 
 _CONFIG_SECTION = "openlineage"
 _VAR_CONFIG_PATH = "OPENLINEAGE_CONFIG"

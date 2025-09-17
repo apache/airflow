@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 from itsdangerous import URLSafeSerializer
 from sqlalchemy import delete
 
+from airflow._shared.configuration.exceptions import AirflowConfigException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
