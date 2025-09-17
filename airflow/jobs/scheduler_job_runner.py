@@ -940,7 +940,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     executor.send_callback(request)
                 else:
-                    ti.handle_failure(error=msg, session=session)
+                    try:
+                        ti.handle_failure(error=msg, session=session)
+                    except RecursionError as error:
+                        self.log.error(
+                            "Impossible to handle failure for a task instance %s due to %s.",
+                            ti,
+                            error,
+                        )
+                        session.rollback()
+                        continue
 
         return len(event_buffer)
 
