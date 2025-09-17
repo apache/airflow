@@ -135,7 +135,13 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.helpers import at_most_one, exactly_one, validate_instance_args, validate_key
+from airflow.utils.helpers import (
+    at_most_one,
+    dry_render_datetime_template,
+    exactly_one,
+    validate_instance_args,
+    validate_key,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import (
@@ -844,6 +850,63 @@ class DAG(LoggingMixin):
         self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
+
+        for task in self.tasks:
+            tsd = getattr(task, "start_date", None)
+            ted = getattr(task, "end_date", None)
+            from airflow.utils import timezone as _tz
+
+            if tsd is not None:
+                _ = _tz.convert_to_utc(tsd)
+            if ted is not None:
+                _ = _tz.convert_to_utc(ted)
+
+        for task in self.tasks:
+            args = getattr(task, "args", None)
+            if args is None:
+                continue
+
+            def _contains_jinja(x: str) -> bool:
+                return isinstance(x, str) and ("{{" in x or "{%" in x)
+
+            has_templated_in_args = False
+            if isinstance(args, (list, tuple)):
+                for a in args:
+                    if isinstance(a, str) and _contains_jinja(a):
+                        has_templated_in_args = True
+                        break
+            elif isinstance(args, dict):
+                for v in args.values():
+                    if isinstance(v, str) and _contains_jinja(v):
+                        has_templated_in_args = True
+                        break
+
+            if has_templated_in_args:
+                tf = getattr(task, "template_fields", ())
+                if isinstance(tf, str) or (isinstance(tf, (list, tuple)) and "args" not in tf):
+                    from airflow.exceptions import SerializationError
+
+                    raise SerializationError(
+                        f"Task {task.task_id!r} uses templated values in args but template_fields is misconfigured "
+                        f"(got {type(tf).__name__}) or does not include 'args'."
+                    )
+            if isinstance(args, (list, tuple)):
+                from argparse import ArgumentParser
+
+                parser = ArgumentParser(add_help=False)
+                parser.add_argument("--start_date")
+                parser.add_argument("--end_date")
+                s_args = [a for a in args if isinstance(a, str)]
+                ns, _ = parser.parse_known_args(s_args)
+                if ns.start_date is not None:
+                    dry_render_datetime_template(ns.start_date, "start_date", self, task.task_id)
+                if ns.end_date is not None:
+                    dry_render_datetime_template(ns.end_date, "end_date", self, task.task_id)
+            elif isinstance(args, dict):
+                if "start_date" in args:
+                    dry_render_datetime_template(args["start_date"], "start_date", self, task.task_id)
+                if "end_date" in args:
+                    dry_render_datetime_template(args["end_date"], "end_date", self, task.task_id)
 
     def validate_executor_field(self):
         for task in self.tasks:
