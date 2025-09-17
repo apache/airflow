@@ -53,7 +53,7 @@ class _InternalBundleConfig(BaseModel):
     """
     Schema used internally (in this file) to define the configuration for a DAG bundle.
 
-    Configuration defined by users is read must match ``_ExternalBundleConfig``.
+    Configuration defined by users when read must match ``_ExternalBundleConfig``.
     This configuration is then parsed and converted to ``_InternalBundleConfig`` to be used across this file.
     """
 
