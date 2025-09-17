@@ -25,34 +25,16 @@ from unittest.mock import PropertyMock
 import pytest
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
-from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO, HdfsTaskHandler
-from airflow.providers.apache.hdfs.version_compat import BaseOperator
+from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2020, 8, 10)
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
-class TestHdfsRemoteLogIO:
-    @pytest.fixture(autouse=True)
-    def setup_tests(self, create_runtime_ti):
-        # setup remote IO
-        self.base_log_folder = "local/airflow/logs"
-        self.remote_base = "/remote/log/location"
-        self.hdfs_remote_log_io = HdfsRemoteLogIO(
-            remote_base=self.remote_base,
-            base_log_folder=self.base_log_folder,
-            delete_local_copy=True,
-        )
-        # setup task instance
-        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
 
 
 class TestHdfsTaskHandler:
