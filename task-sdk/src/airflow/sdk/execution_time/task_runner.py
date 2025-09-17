@@ -633,7 +633,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
-        exit(1)
+        sys.exit(1)
 
     # install_loader()
 
@@ -647,7 +647,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
