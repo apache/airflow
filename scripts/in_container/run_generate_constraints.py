@@ -362,7 +362,11 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #
     # * no exclusions
     #
-    additional_constraints_for_highest_resolution: list[str] = ["google-ads!=28.0.0.post2"]
+    # https://github.com/alisaifee/flask-limiter/issues/479
+    additional_constraints_for_highest_resolution: list[str] = [
+        "google-ads!=28.0.0.post2",
+        "Flask-Limiter!=3.13",
+    ]
 
     result = run_command(
         cmd=[
