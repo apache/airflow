@@ -26,6 +26,10 @@ if TYPE_CHECKING:
 def sanitize_uri(uri: SplitResult) -> SplitResult:
     if not uri.netloc:
         raise ValueError("URI format trino:// must contain a host")
+    try:
+        _ = uri.port
+    except ValueError:
+        raise ValueError("URI format trino:// must contain a valid port")
     if uri.port is None:
         host = uri.netloc.rstrip(":")
         uri = uri._replace(netloc=f"{host}:8080")

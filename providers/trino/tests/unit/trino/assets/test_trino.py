@@ -57,5 +57,5 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
 )
 def test_sanitize_uri_fail(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="URI format trino:// must contain"):
         sanitize_uri(uri_i)
