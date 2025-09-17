@@ -191,9 +191,10 @@ def init_plugins(app: FastAPI) -> None:
         if url_prefix == "":
             log.error("'url_prefix' key is empty string for the fastapi app: %s", name)
             continue
-        if url_prefix in RESERVED_URL_PREFIXES:
-            log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
-            continue
+        for prefix in RESERVED_URL_PREFIXES:
+            if url_prefix.startswith(prefix):
+                log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
+                continue
 
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
