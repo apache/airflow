@@ -65,6 +65,7 @@ dependencies = [
     "pyhive[hive_pure_sasl]>=0.7.0",
     "thrift>=0.11.0",
     "jmespath>=0.7.0",
+    "pykerberos>=1.1.13",
 ]
 
 # The optional dependencies should be modified in place in the generated file
