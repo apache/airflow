@@ -23,15 +23,16 @@ import pendulum
 import pytest
 from sqlalchemy import insert, select
 
+from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_connections,
     clear_db_dags,
     clear_db_runs,
@@ -51,6 +52,9 @@ DAG4_ID = "test_dag4"
 DAG4_DISPLAY_NAME = "display4"
 DAG5_ID = "test_dag5"
 DAG5_DISPLAY_NAME = "display5"
+ASSET_SCHEDULED_DAG_ID = "test_asset_scheduled_dag"
+ASSET_DEP_DAG_ID = "test_asset_dep_dag"
+ASSET_DEP_DAG2_ID = "test_asset_dep_dag2"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 API_PREFIX = "/dags"
@@ -66,6 +70,7 @@ class TestDagEndpoint:
         clear_db_connections()
         clear_db_runs()
         clear_db_dags()
+        clear_db_assets()
         clear_db_serialized_dags()
 
     def _create_deactivated_paused_dag(self, session=None):
@@ -110,9 +115,83 @@ class TestDagEndpoint:
         session.add(DagTag(dag_id=DAG2_ID, name="tag_1"))
         session.add(DagTag(dag_id=DAG3_ID, name="tag_1"))
 
+    def _create_asset_test_data(self, session=None):
+        """Create test assets and asset-scheduled DAGs."""
+        # Create assets
+        asset1 = AssetModel(uri="test://asset1", name="test_asset_1", group="test-group")
+        asset2 = AssetModel(uri="s3://bucket/dataset", name="dataset_asset", group="test-group")
+        asset3 = AssetModel(uri="test://scheduled_asset", name="scheduled_asset", group="test-group")
+        session.add_all([asset1, asset2, asset3])
+        session.commit()
+
+        # Create a DAG with asset-based scheduling
+        asset_scheduled_dag = DagModel(
+            dag_id=ASSET_SCHEDULED_DAG_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="asset_scheduled_dag.py",
+            fileloc="/tmp/asset_scheduled_dag.py",
+            timetable_summary="Asset",
+            timetable_description="Triggered by assets",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        # Create DAGs with asset dependencies
+        asset_dep_dag = DagModel(
+            dag_id=ASSET_DEP_DAG_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="asset_dep_dag.py",
+            fileloc="/tmp/asset_dep_dag.py",
+            timetable_summary="Asset",
+            timetable_description="Triggered by assets",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression={"any": [{"uri": "test://asset1"}]},
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        asset_dep_dag2 = DagModel(
+            dag_id=ASSET_DEP_DAG2_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="asset_dep_dag2.py",
+            fileloc="/tmp/asset_dep_dag2.py",
+            timetable_summary="Asset",
+            timetable_description="Triggered by assets",
+            is_stale=False,
+            is_paused=False,
+            owners="airflow",
+            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=False,
+        )
+
+        session.add_all([asset_scheduled_dag, asset_dep_dag, asset_dep_dag2])
+        session.commit()
+
+        # Create asset dependencies
+        asset_ref1 = DagScheduleAssetReference(dag_id=ASSET_DEP_DAG_ID, asset_id=asset1.id)
+        asset_ref2 = DagScheduleAssetReference(dag_id=ASSET_DEP_DAG2_ID, asset_id=asset2.id)
+        asset_ref3 = DagScheduleAssetReference(dag_id=ASSET_SCHEDULED_DAG_ID, asset_id=asset3.id)
+        session.add_all([asset_ref1, asset_ref2, asset_ref3])
+        session.commit()
+
     @pytest.fixture(autouse=True)
-    @provide_session
-    def setup(self, dag_maker, session=None) -> None:
+    def setup(self, dag_maker, session) -> None:
         self._clear_db()
 
         with dag_maker(
@@ -151,8 +230,8 @@ class TestDagEndpoint:
 
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
-
         dag_maker.sync_dagbag_to_db()
+        dag_maker.dag_model.last_parse_duration = 0.24
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
         session.commit()
@@ -172,10 +251,22 @@ class TestGetDags(TestDagEndpoint):
             ({"limit": 1}, 2, [DAG1_ID]),
             ({"offset": 1}, 2, [DAG2_ID]),
             ({"tags": ["example"]}, 1, [DAG1_ID]),
-            ({"exclude_stale": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+            (
+                {"exclude_stale": False},
+                3,
+                [DAG1_ID, DAG2_ID, DAG3_ID],
+            ),
             ({"paused": True, "exclude_stale": False}, 1, [DAG3_ID]),
-            ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
-            ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
+            (
+                {"paused": False},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"owners": ["airflow"]},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
             ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
@@ -276,12 +367,36 @@ class TestGetDags(TestDagEndpoint):
                 [],
             ),
             # Sort
-            ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
-            ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
-            ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
-            ({"order_by": "next_dagrun", "exclude_stale": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
-            ({"order_by": "last_run_state", "exclude_stale": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
-            ({"order_by": "-last_run_state", "exclude_stale": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            (
+                {"order_by": "-dag_id"},
+                2,
+                [DAG2_ID, DAG1_ID],
+            ),
+            (
+                {"order_by": "-dag_display_name"},
+                2,
+                [DAG2_ID, DAG1_ID],
+            ),
+            (
+                {"order_by": "dag_display_name"},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "next_dagrun", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "last_run_state", "exclude_stale": False},
+                3,
+                [DAG1_ID, DAG3_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "-last_run_state", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
             (
                 {"order_by": "last_run_start_date", "exclude_stale": False},
                 3,
@@ -301,21 +416,41 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
-            ({"bundle_name": "dag_maker"}, 2, [DAG1_ID, DAG2_ID]),
+            (
+                {"bundle_name": "dag_maker"},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
+            # Asset filters
+            ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
+            ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"asset_dependency": "test_asset"}, 1, [ASSET_DEP_DAG_ID]),
+            ({"asset_dependency": "dataset"}, 1, [ASSET_DEP_DAG2_ID]),
+            ({"asset_dependency": "bucket"}, 1, [ASSET_DEP_DAG2_ID]),
+            ({"asset_dependency": "s3://"}, 1, [ASSET_DEP_DAG2_ID]),
+            ({"asset_dependency": "nonexistent"}, 0, []),
+            ({"has_asset_schedule": True, "asset_dependency": "test_asset"}, 1, [ASSET_DEP_DAG_ID]),
+            ({"has_asset_schedule": False, "asset_dependency": "test_asset"}, 0, []),
         ],
     )
-    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
+    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids, session):
+        # Only create asset test data for asset-related tests to avoid affecting other tests
+        if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
+            self._create_asset_test_data(session)
+
         response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
 
         assert body["total_entries"] == expected_total_entries
-        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+        actual_ids = [dag["dag_id"] for dag in body["dags"]]
+
+        assert actual_ids == expected_ids
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
-    def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
+    def test_get_dags_should_call_get_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.get("/dags")
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
@@ -355,6 +490,24 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "filter_value, expected_ids",
+        [
+            (True, [DAG1_ID]),
+            (False, [DAG2_ID]),
+        ],
+    )
+    def test_get_dags_filter_has_import_errors(self, session, test_client, filter_value, expected_ids):
+        dag = session.get(DagModel, DAG1_ID)
+        dag.has_import_errors = True
+        session.commit()
+
+        response = test_client.get("/dags", params={"has_import_errors": filter_value})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -430,6 +583,21 @@ class TestPatchDag(TestDagEndpoint):
     def test_patch_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "is_paused_value",
+        [True, False],
+    )
+    def test_patch_dag_audit_log_payload(self, test_client, is_paused_value, session):
+        """Test that audit log payload correctly reflects the is_paused value."""
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": is_paused_value})
+        assert response.status_code == 200
+
+        # Check that the audit log has the correct is_paused value
+        expected_extra = {"is_paused": is_paused_value, "method": "PATCH"}
+        check_last_log(
+            session, dag_id=DAG1_ID, event="patch_dag", logical_date=None, expected_extra=expected_extra
+        )
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -600,10 +768,10 @@ class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links",
+        "query_params, dag_id, expected_status_code, dag_display_name, start_date, owner_links, last_parse_duration",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}, None),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}, 0.24),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -618,6 +786,7 @@ class TestDagDetails(TestDagEndpoint):
         dag_display_name,
         start_date,
         owner_links,
+        last_parse_duration,
     ):
         mock_hasattr.return_value = False
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
@@ -667,6 +836,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -722,6 +892,7 @@ class TestDagDetails(TestDagEndpoint):
         res_json = response.json()
         last_parsed = res_json["last_parsed"]
         last_parsed_time = res_json["last_parsed_time"]
+        last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         expected = {
             "bundle_name": "dag_maker",
@@ -760,6 +931,7 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -818,6 +990,7 @@ class TestGetDag(TestDagEndpoint):
         # Match expected and actual responses below.
         res_json = response.json()
         last_parsed_time = res_json["last_parsed_time"]
+        last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         tags = res_json.get("tags", [])
 
@@ -849,6 +1022,7 @@ class TestGetDag(TestDagEndpoint):
             "last_expired": None,
             "max_active_tasks": 16,
             "last_parsed_time": last_parsed_time,
+            "last_parse_duration": last_parse_duration,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "bundle_name": "dag_maker",

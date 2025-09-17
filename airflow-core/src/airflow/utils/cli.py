@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
-from airflow._shared.secrets_masker import should_hide_value_for_key
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
@@ -46,7 +45,8 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +138,8 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
+    from airflow._shared.secrets_masker import _secrets_masker
+
     sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
     sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
@@ -146,7 +148,7 @@ def _build_metrics(func_name, namespace):
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
         key = full_command[-2] if len(full_command) > 3 else None
-        if key and should_hide_value_for_key(key):
+        if key and _secrets_masker().should_hide_value_for_key(key):
             # Mask the sensitive value since key contain sensitive keyword
             full_command[-1] = "*" * 8
     elif sub_command in sub_commands_to_check_for_sensitive_fields:
@@ -167,7 +169,7 @@ def _build_metrics(func_name, namespace):
         json_index = full_command.index("--conn-json") + 1
         conn_json = json.loads(full_command[json_index])
         for k in conn_json:
-            if k and should_hide_value_for_key(k):
+            if k and _secrets_masker().should_hide_value_for_key(k):
                 conn_json[k] = "*" * 8
         full_command[json_index] = json.dumps(conn_json)
 
@@ -261,9 +263,7 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_dag(
-    bundle_names: list | None, dag_id: str, from_db: bool = False, dagfile_path: str | None = None
-) -> DAG:
+def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> DAG:
     """
     Return DAG of a given dag_id.
 
@@ -272,44 +272,45 @@ def get_dag(
     dags folder.
     """
     from airflow.models.dagbag import DagBag, sync_bag_to_db
+
+    manager = DagBundlesManager()
+    for bundle_name in bundle_names or ():
+        bundle = manager.get_bundle(bundle_name)
+        with _airflow_parsing_context_manager(dag_id=dag_id):
+            dagbag = DagBag(
+                dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
+            )
+        if dag := dagbag.dags.get(dag_id):
+            return dag
+
+    manager.sync_bundles_to_db()
+    for bundle in manager.get_all_dag_bundles():
+        bundle.initialize()
+        with _airflow_parsing_context_manager(dag_id=dag_id):
+            dagbag = DagBag(
+                dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
+            )
+            sync_bag_to_db(dagbag, bundle.name, bundle.version)
+        if dag := dagbag.dags.get(dag_id):
+            return dag
+        if dag:
+            break
+    raise AirflowException(
+        f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
+    )
+
+
+def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
+    """
+    Return DAG of a given dag_id.
+
+    This gets a serialized dag from the database.
+    """
     from airflow.models.serialized_dag import SerializedDagModel
 
-    bundle_names = bundle_names or []
-    dag: DAG | None = None
-    if from_db:
-        dag = SerializedDagModel.get_dag(dag_id)
-    elif bundle_names:
-        manager = DagBundlesManager()
-        for bundle_name in bundle_names:
-            bundle = manager.get_bundle(bundle_name)
-            with _airflow_parsing_context_manager(dag_id=dag_id):
-                dagbag = DagBag(
-                    dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
-                )
-            if dag := dagbag.dags.get(dag_id):
-                break
-    if not dag:
-        if from_db:
-            raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
-        manager = DagBundlesManager()
-        manager.sync_bundles_to_db()
-        all_bundles = list(manager.get_all_dag_bundles())
-        for bundle in all_bundles:
-            bundle.initialize()
-
-            with _airflow_parsing_context_manager(dag_id=dag_id):
-                dagbag = DagBag(
-                    dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
-                )
-                sync_bag_to_db(dagbag, bundle.name, bundle.version)
-            dag = dagbag.dags.get(dag_id)
-            if dag:
-                break
-        if not dag:
-            raise AirflowException(
-                f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
-            )
-    return dag
+    if dag := SerializedDagModel.get_dag(dag_id):
+        return dag
+    raise AirflowException(f"Dag {dag_id!r} could not be found in the database.")
 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
@@ -319,7 +320,9 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
     bundle_names = bundle_names or []
 
     if not use_regex:
-        return [get_dag(bundle_names=bundle_names, dag_id=dag_id, from_db=from_db)]
+        if from_db:
+            return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
+        return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
         dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
@@ -430,15 +433,26 @@ def suppress_logs_and_warning(f: T) -> T:
         if args[0].verbose:
             f(*args, **kwargs)
         else:
+            from airflow._shared.logging.structlog import respect_stdlib_disable
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 logging.disable(logging.CRITICAL)
+
+                def drop(*_, **__):
+                    from structlog import DropEvent
+
+                    raise DropEvent()
+
+                old_fn = respect_stdlib_disable.__code__
+                respect_stdlib_disable.__code__ = drop.__code__
                 try:
                     f(*args, **kwargs)
                 finally:
                     # logging output again depends on the effective
                     # levels of individual loggers
                     logging.disable(logging.NOTSET)
+                    respect_stdlib_disable.__code__ = old_fn
 
     return cast("T", _wrapper)
 

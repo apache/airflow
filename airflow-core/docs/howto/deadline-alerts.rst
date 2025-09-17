@@ -19,6 +19,12 @@
 Deadline Alerts
 ===============
 
+.. warning::
+  Deadline Alerts are new in Airflow 3.1 and should be considered experimental. The feature may be
+  subject to changes in 3.2 without warning based on user feedback.
+
+|experimental|
+
 Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
 thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
 an interval, and defining a response using either Airflow's Notifiers or a custom callback function.
@@ -59,10 +65,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
             callback=AsyncCallback(
                 SlackWebhookNotifier,
                 kwargs={
-                    "slack_conn_id": "slack_default",
-                    "channel": "#alerts",
-                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
-                    "username": "Airflow Alerts",
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
                 },
             ),
         ),
@@ -108,10 +111,7 @@ Here's an example using a fixed datetime:
             callback=AsyncCallback(
                 SlackWebhookNotifier,
                 kwargs={
-                    "slack_conn_id": "slack_default",
-                    "channel": "#alerts",
-                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
-                    "username": "Airflow Alerts",
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
                 },
             ),
         ),
@@ -132,9 +132,10 @@ The timeline for this example would look like this:
 Using Callbacks
 ---------------
 
-When a deadline is exceeded, the callback is executed. You can use an existing :doc:`Notifier </howto/notifications>`
-or create a custom callback function.  A callback must be either an :class:`~airflow.sdk.definitions.deadline.AsyncCallback`
-or a :class:`~airflow.sdk.definitions.deadline.SyncCallback`.
+When a deadline is exceeded, the callback's callable is executed with the specified kwargs. You can use an
+existing :doc:`Notifier </howto/notifications>` or create a custom callable.  A callback must be an
+:class:`~airflow.sdk.definitions.deadline.AsyncCallback`, with support coming soon for
+:class:`~airflow.sdk.definitions.deadline.SyncCallback`.
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -151,10 +152,7 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
             callback=AsyncCallback(
                 SlackWebhookNotifier,
                 kwargs={
-                    "slack_conn_id": "slack_default",
-                    "channel": "#alerts",
-                    "text": "Dag 'slack_deadline_alert' still running after 30 minutes.",
-                    "username": "Airflow Alerts",
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
                 },
             ),
         ),
@@ -164,63 +162,35 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can create custom callbacks for more complex handling. The ``kwargs`` specified in the ``Callback``
-are passed to the callback function, if any are provided. **Synchronous callbacks** (standard python
-methods) can be defined in the dag bundle and are run in the Executor. **Asynchronous callbacks** must
-be defined somewhere in the Triggerer's system path.
+You can create custom callables for more complex handling. If ``kwargs`` are specified in the ``Callback``,
+they are passed to the callback function. **Asynchronous callbacks** must be defined somewhere in the
+Triggerer's system path.
 
 .. note::
     Regarding Async Custom Deadline callbacks:
 
     * Async callbacks are executed by the Triggerer, so users must ensure they are importable by the Triggerer.
-    * One easy way to do this is to place the callback as a top-level method in a new file in the plugins folder.
+    * One easy way to do this is to place the callable as a top-level method in a new file in the plugins folder.
+      Nested callables are not currently supported.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
-A **custom synchronous callback** might look like this:
 
-.. code-block:: python
+A **custom asynchronous callback** might look like this:
 
-    from datetime import timedelta
-
-    from airflow import DAG
-    from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, SyncCallback
-
-
-    def custom_synchronous_callback(**kwargs):
-        """Handle deadline violation with custom logic."""
-        print(f"Deadline exceeded for Dag {kwargs.get("dag_id")}!")
-        print(f"Alert type: {kwargs.get("alert_type")}")
-        # Additional custom handling here
-
-
-    with DAG(
-        dag_id="custom_deadline_alert",
-        deadline=DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=timedelta(minutes=15),
-            callback=SyncCallback(
-                custom_synchronous_callback,
-                kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
-            ),
-        ),
-    ):
-        EmptyOperator(task_id="example_task")
-
-A **custom asynchronous callback** is only slightly more work.  Note in the following example that
-the custom callback code is placed in a separate file, and must be imported in the Dag file.
-
-Place this method in ``/files/plugins/deadline_callbacks.py``:
+1. Place this method in ``/files/plugins/deadline_callbacks.py``:
 
 .. code-block:: python
 
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
-        print(f"Deadline exceeded for Dag {kwargs.get("dag_id")}!")
+        context = kwargs.get("context", {})
+        print(f"Deadline exceeded for Dag {context.get("dag_run", {}).get("dag_id")}!")
+        print(f"Context: {context}")
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
-Place this in a Dag file:
+2. Restart your Triggerer.
+3. Place this in a Dag file:
 
 .. code-block:: python
 
@@ -239,12 +209,21 @@ Place this in a Dag file:
             interval=timedelta(minutes=15),
             callback=AsyncCallback(
                 custom_async_callback,
-                kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+                kwargs={"alert_type": "time_exceeded"},
             ),
         ),
     ):
         EmptyOperator(task_id="example_task")
 
+Templating and Context
+^^^^^^^^^^^^^^^^^^^^^^
+
+Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
+:ref:`concepts:jinja-templating` on the kwargs. However, ``Notifier``s already run templating with the
+provided context as part of their execution. This means that templating can be used when using a ``Notifier``
+as long as the variables being templated are included in the simplified context. This currently includes the
+ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
+response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
@@ -288,9 +267,9 @@ you to create deadlines that suit a wide variety of operational requirements.
 Custom References
 ^^^^^^^^^^^^^^^^^
 
-While the built-in references should cover most use cases, and more will be released over time,
-you can create custom references by implementing a class that inherits from DeadlineReference.
-This may be useful if you have calendar integrations or other sources that you want to use as a reference.
+While the built-in references should cover most use cases, and more will be released over time, you
+can create custom references by implementing a class that inherits from DeadlineReference.  This may
+be useful if you have calendar integrations or other sources that you want to use as a reference.
 
 .. code-block:: python
 

@@ -56,6 +56,7 @@ if TYPE_CHECKING:
         ConnectionResult,
         OKResponse,
         PrevSuccessfulDagRunResponse,
+        ReceiveMsgType,
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -101,8 +102,15 @@ log = structlog.get_logger(logger_name="task")
 T = TypeVar("T")
 
 
-def _convert_connection_result_conn(conn_result: ConnectionResult) -> Connection:
+def _process_connection_result_conn(conn_result: ReceiveMsgType | None) -> Connection:
     from airflow.sdk.definitions.connection import Connection
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    if isinstance(conn_result, ErrorResponse):
+        raise AirflowRuntimeError(conn_result)
+
+    if TYPE_CHECKING:
+        assert isinstance(conn_result, ConnectionResult)
 
     # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
     return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
@@ -121,7 +129,7 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-    # TODO: check cache first
+    # TODO: check cache first (also in _async_get_connection)
     # enabled only if SecretCache.init() has been called first
 
     # iterate over configured backends if not in cache (or expired)
@@ -154,17 +162,24 @@ def _get_connection(conn_id: str) -> Connection:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
+    #   Also applies to _async_get_connection.
+    from airflow.sdk.execution_time.comms import GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
 
-    if isinstance(msg, ErrorResponse):
-        raise AirflowRuntimeError(msg)
+    return _process_connection_result_conn(msg)
 
-    if TYPE_CHECKING:
-        assert isinstance(msg, ConnectionResult)
-    return _convert_connection_result_conn(msg)
+
+async def _async_get_connection(conn_id: str) -> Connection:
+    # TODO: add async support for secrets backends
+
+    from airflow.sdk.execution_time.comms import GetConnection
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+
+    return _process_connection_result_conn(msg)
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:

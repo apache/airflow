@@ -18,9 +18,9 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "rich>=12.4.4",
 #   "pyyaml>=6.0.2",
-#   "tomli>=2.0.1; python_version < '3.11'"
+#   "rich>=13.6.0",
+#   "tomli>=2.0.1",
 # ]
 # ///
 from __future__ import annotations

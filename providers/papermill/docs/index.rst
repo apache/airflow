@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/|version|/providers/papermill/tests/system/papermill>
+    Example Dags <https://github.com/apache/airflow/tree/providers-papermill/|version|/providers/papermill/tests/system/papermill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-papermill/>
     Installing from sources <installing-providers-from-sources>
 
@@ -90,7 +90,7 @@ All classes for this package are included in the ``airflow.providers.papermill``
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-papermill``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

@@ -27,6 +27,103 @@
 Changelog
 ---------
 
+18.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove GoogleDisplayVideo360CreateQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DeleteReportOperator. Reports were replaced with SDF export task in v4 of API``
+  * ``Remove GoogleDisplayVideo360DownloadReportV2Operator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+  * ``Remove GoogleDisplayVideo360RunQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DownloadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360UploadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+
+* Hooks
+
+  * ``Remove GoogleDisplayVideo360Hook.get_conn use airflow.providers.google.marketing_platform.hooks.display_video.get_conn_to_display_video instead``
+  * ``Remove GoogleDisplayVideo360Hook.create_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.delete_query``
+  * ``Remove GoogleDisplayVideo360Hook.get_query use airflow.providers.google.marketing_platform.hooks.display_video.get_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.list_queries``
+  * ``Remove GoogleDisplayVideo360Hook.run_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.get_report``
+  * ``Remove GoogleDisplayVideo360Hook.upload_line_items use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.download_line_items use airflow.providers.google.marketing_platform.hooks.display_video.download_media instead``
+  * ``Remove AutoMLHook.create_auto_ml_text_training_job. AutoMLText API was deprecated.``
+
+* Sensors
+
+  * ``Remove GoogleDisplayVideo360RunQuerySensor. Reports were replaced with SDF export task in v4 of API.``
+
+17.2.0
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Added handler for cli command exit code in CloudComposerRunAirflowCLICommandOperator. (#54497)``
+* ``Add 'create_intermediate_dirs' option to 'GCSToSFTPOperator' (#54916)``
+* ``feature: Add OpenLineage support for PubSubPullOperator (#54821)``
+* ``feature: Add OpenLineage support for pubsub create subscription operator - include inputs into OL (#54785)``
+* ``feature: Add OpenLineage support for PubSubPublishMessageOperator (#54764)``
+* ``feature: Add OpenLineage support for pubsub create subscription operator (#54707)``
+* ``feature: Add OpenLineage support for OracleToGCSOperator (#54953)``
+* ``feature: Add OpenLineage support for BigQueryToMsSqlOperator (#55168)``
+* ``Add GSheetsHook API endpoint support (Part 1) (#54560)``
+* ``Add cluster_tier flag support to Dataproc ClusterGenerator (#54105)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''BigQueryInsertJobOperator'' failure with asset-triggered DAGs (#55092)``
+* ``Fix serialization in google provider (#55014)``
+* ``Fix CloudComposerDAGRunSensor functionality (#54351)``
+* ``Skip provider_session usage in AF3 for BigQuery and Dataproc triggers (#54405)``
+* ``update logic of BQ to be able to use WRITE_TRUNCATE_DATA' (#54417)``
+* ``Remove MappedOperator inheritance (#53696)``
+* ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+* ``Validate Dataproc batch labels max 63 characters (#55196)``
+
+Misc
+~~~~
+
+* ``Add rudimentary support for psycopg3 (#52976)``
+* ``Add get_secret function to the common/utils (#54213)``
+* ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+* ``Add return row count to SpannerQueryDatabaseInstanceOperator (#55127)``
+* ``Add composer_dag_run_id as optional parameter to CloudComposerDAGRunSensor (#54977)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unneeded isort skip comments (#54979)``
+   * ``Improve google provider example_http_to_gcs system test (#54647)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove unused test file (#54408)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+   * ``Add missing schedule parameter for the system tests of Google provider (#54270)``
+   * ``Update Vertex AI dataset system test (#54220)``
+   * ``Bump pytest-asyncio to 1.1.0 (#54123)``
+   * ``Update google-provider system tests beam sdk to the latest version (#55210)``
+
 17.1.0
 ......
 

@@ -1,0 +1,114 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_setup_teardown_dag",
+            "facets": {
+                "airflow": {
+                    "taskGroups": {},
+                    "taskTree": {},
+                    "tasks": {
+                        "create_cluster": {
+                            "downstream_task_ids": [
+                                "delete_cluster",
+                                "run_query"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": true,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "create_cluster"
+                        },
+                        "delete_cluster": {
+                            "downstream_task_ids": [
+                                "check_events"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": true,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "delete_cluster"
+                        },
+                        "run_query": {
+                            "downstream_task_ids": [
+                                "run_query2"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "run_query"
+                        },
+                        "run_query2": {
+                            "downstream_task_ids": [
+                                "delete_cluster"
+                            ],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_color": "#ffefeb",
+                            "ui_fgcolor": "#000",
+                            "ui_label": "run_query2"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.create_cluster"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.create_cluster"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.run_query"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.run_query"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.run_query2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.run_query2"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.delete_cluster"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_setup_teardown_dag.delete_cluster"
+        }
+    }
+]

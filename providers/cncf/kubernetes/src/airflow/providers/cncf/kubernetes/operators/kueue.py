@@ -65,12 +65,27 @@ class KubernetesInstallKueueOperator(BaseOperator):
         try:
             self.hook.apply_from_yaml_file(yaml_objects=yaml_objects)
         except FailToCreateError as ex:
-            error_bodies = [json.loads(e.body) for e in ex.api_exceptions]
+            error_bodies = []
+            for e in ex.api_exceptions:
+                try:
+                    if e.body:
+                        error_bodies.append(json.loads(e.body))
+                    else:
+                        # If no body content, use reason as the message
+                        reason = getattr(e, "reason", "Unknown")
+                        error_bodies.append({"message": reason, "reason": reason})
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    # If the body is a string (e.g., in a 429 error), it can't be parsed as JSON.
+                    # Use the body directly as the message instead.
+                    error_bodies.append({"message": e.body, "reason": getattr(e, "reason", "Unknown")})
             if next((e for e in error_bodies if e.get("reason") == "AlreadyExists"), None):
                 self.log.info("Kueue is already enabled for the cluster")
 
             if errors := [e for e in error_bodies if e.get("reason") != "AlreadyExists"]:
-                error_message = "\n".join(e.get("body") for e in errors)
+                error_message = "\n".join(
+                    e.get("message") or e.get("body") or f"Unknown error: {e.get('reason', 'Unknown')}"
+                    for e in errors
+                )
                 raise AirflowException(error_message)
             return
 

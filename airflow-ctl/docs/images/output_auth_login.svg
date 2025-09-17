@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 994 416.0" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 811 440.4" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -19,95 +19,103 @@
         font-weight: 700;
     }
 
-    .terminal-452800165-matrix {
+    .terminal-2480777825-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-452800165-title {
+    .terminal-2480777825-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-452800165-r1 { fill: #c5c8c6 }
+    .terminal-2480777825-r1 { fill: #ff8700 }
+.terminal-2480777825-r2 { fill: #c5c8c6 }
+.terminal-2480777825-r3 { fill: #808080 }
+.terminal-2480777825-r4 { fill: #68a0b3 }
+.terminal-2480777825-r5 { fill: #00af87 }
     </style>
 
     <defs>
-    <clipPath id="terminal-452800165-clip-terminal">
-      <rect x="0" y="0" width="975.0" height="365.0" />
+    <clipPath id="terminal-2480777825-clip-terminal">
+      <rect x="0" y="0" width="792.0" height="389.4" />
     </clipPath>
-    <clipPath id="terminal-452800165-line-0">
-    <rect x="0" y="1.5" width="976" height="24.65"/>
+    <clipPath id="terminal-2480777825-line-0">
+    <rect x="0" y="1.5" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-1">
-    <rect x="0" y="25.9" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-1">
+    <rect x="0" y="25.9" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-2">
-    <rect x="0" y="50.3" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-2">
+    <rect x="0" y="50.3" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-3">
-    <rect x="0" y="74.7" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-3">
+    <rect x="0" y="74.7" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-4">
-    <rect x="0" y="99.1" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-4">
+    <rect x="0" y="99.1" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-5">
-    <rect x="0" y="123.5" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-5">
+    <rect x="0" y="123.5" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-6">
-    <rect x="0" y="147.9" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-6">
+    <rect x="0" y="147.9" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-7">
-    <rect x="0" y="172.3" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-7">
+    <rect x="0" y="172.3" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-8">
-    <rect x="0" y="196.7" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-8">
+    <rect x="0" y="196.7" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-9">
-    <rect x="0" y="221.1" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-9">
+    <rect x="0" y="221.1" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-10">
-    <rect x="0" y="245.5" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-10">
+    <rect x="0" y="245.5" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-11">
-    <rect x="0" y="269.9" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-11">
+    <rect x="0" y="269.9" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-12">
-    <rect x="0" y="294.3" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-12">
+    <rect x="0" y="294.3" width="793" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-452800165-line-13">
-    <rect x="0" y="318.7" width="976" height="24.65"/>
+<clipPath id="terminal-2480777825-line-13">
+    <rect x="0" y="318.7" width="793" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2480777825-line-14">
+    <rect x="0" y="343.1" width="793" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="992" height="414" rx="8"/><text class="terminal-452800165-title" fill="#c5c8c6" text-anchor="middle" x="496" y="27">Command:&#160;auth&#160;login</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="809" height="438.4" rx="8"/>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-452800165-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-2480777825-clip-terminal)">
     
-    <g class="terminal-452800165-matrix">
-    <text class="terminal-452800165-r1" x="0" y="20" textLength="939.4" clip-path="url(#terminal-452800165-line-0)">Usage:&#160;airflowctl&#160;auth&#160;login&#160;[-h]&#160;[--api-token&#160;API_TOKEN]&#160;[--api-url&#160;API_URL]</text><text class="terminal-452800165-r1" x="976" y="20" textLength="12.2" clip-path="url(#terminal-452800165-line-0)">
-</text><text class="terminal-452800165-r1" x="0" y="44.4" textLength="744.2" clip-path="url(#terminal-452800165-line-1)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;[-e&#160;ENV]&#160;[--password&#160;[PASSWORD]]</text><text class="terminal-452800165-r1" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-452800165-line-1)">
-</text><text class="terminal-452800165-r1" x="0" y="68.8" textLength="610" clip-path="url(#terminal-452800165-line-2)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;[--username&#160;USERNAME]</text><text class="terminal-452800165-r1" x="976" y="68.8" textLength="12.2" clip-path="url(#terminal-452800165-line-2)">
-</text><text class="terminal-452800165-r1" x="976" y="93.2" textLength="12.2" clip-path="url(#terminal-452800165-line-3)">
-</text><text class="terminal-452800165-r1" x="0" y="117.6" textLength="366" clip-path="url(#terminal-452800165-line-4)">Login&#160;to&#160;the&#160;metadata&#160;database</text><text class="terminal-452800165-r1" x="976" y="117.6" textLength="12.2" clip-path="url(#terminal-452800165-line-4)">
-</text><text class="terminal-452800165-r1" x="976" y="142" textLength="12.2" clip-path="url(#terminal-452800165-line-5)">
-</text><text class="terminal-452800165-r1" x="0" y="166.4" textLength="97.6" clip-path="url(#terminal-452800165-line-6)">Options:</text><text class="terminal-452800165-r1" x="976" y="166.4" textLength="12.2" clip-path="url(#terminal-452800165-line-6)">
-</text><text class="terminal-452800165-r1" x="0" y="190.8" textLength="671" clip-path="url(#terminal-452800165-line-7)">&#160;&#160;-h,&#160;--help&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;show&#160;this&#160;help&#160;message&#160;and&#160;exit</text><text class="terminal-452800165-r1" x="976" y="190.8" textLength="12.2" clip-path="url(#terminal-452800165-line-7)">
-</text><text class="terminal-452800165-r1" x="0" y="215.2" textLength="280.6" clip-path="url(#terminal-452800165-line-8)">&#160;&#160;--api-token&#160;API_TOKEN</text><text class="terminal-452800165-r1" x="976" y="215.2" textLength="12.2" clip-path="url(#terminal-452800165-line-8)">
-</text><text class="terminal-452800165-r1" x="0" y="239.6" textLength="719.8" clip-path="url(#terminal-452800165-line-9)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The&#160;token&#160;to&#160;use&#160;for&#160;authentication</text><text class="terminal-452800165-r1" x="976" y="239.6" textLength="12.2" clip-path="url(#terminal-452800165-line-9)">
-</text><text class="terminal-452800165-r1" x="0" y="264" textLength="732" clip-path="url(#terminal-452800165-line-10)">&#160;&#160;--api-url&#160;API_URL&#160;&#160;&#160;&#160;&#160;The&#160;URL&#160;of&#160;the&#160;metadata&#160;database&#160;API</text><text class="terminal-452800165-r1" x="976" y="264" textLength="12.2" clip-path="url(#terminal-452800165-line-10)">
-</text><text class="terminal-452800165-r1" x="0" y="288.4" textLength="744.2" clip-path="url(#terminal-452800165-line-11)">&#160;&#160;-e,&#160;--env&#160;ENV&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The&#160;environment&#160;to&#160;run&#160;the&#160;command&#160;in</text><text class="terminal-452800165-r1" x="976" y="288.4" textLength="12.2" clip-path="url(#terminal-452800165-line-11)">
-</text><text class="terminal-452800165-r1" x="0" y="312.8" textLength="280.6" clip-path="url(#terminal-452800165-line-12)">&#160;&#160;--password&#160;[PASSWORD]</text><text class="terminal-452800165-r1" x="976" y="312.8" textLength="12.2" clip-path="url(#terminal-452800165-line-12)">
-</text><text class="terminal-452800165-r1" x="0" y="337.2" textLength="756.4" clip-path="url(#terminal-452800165-line-13)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;The&#160;password&#160;to&#160;use&#160;for&#160;authentication</text><text class="terminal-452800165-r1" x="976" y="337.2" textLength="12.2" clip-path="url(#terminal-452800165-line-13)">
-</text><text class="terminal-452800165-r1" x="0" y="361.6" textLength="756.4" clip-path="url(#terminal-452800165-line-14)">&#160;&#160;--username&#160;USERNAME&#160;&#160;&#160;The&#160;username&#160;to&#160;use&#160;for&#160;authentication</text><text class="terminal-452800165-r1" x="976" y="361.6" textLength="12.2" clip-path="url(#terminal-452800165-line-14)">
+    <g class="terminal-2480777825-matrix">
+    <text class="terminal-2480777825-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-2480777825-line-0)">Usage:</text><text class="terminal-2480777825-r3" x="85.4" y="20" textLength="256.2" clip-path="url(#terminal-2480777825-line-0)">airflowctl&#160;auth&#160;login</text><text class="terminal-2480777825-r2" x="341.6" y="20" textLength="24.4" clip-path="url(#terminal-2480777825-line-0)">&#160;[</text><text class="terminal-2480777825-r4" x="366" y="20" textLength="24.4" clip-path="url(#terminal-2480777825-line-0)">-h</text><text class="terminal-2480777825-r2" x="390.4" y="20" textLength="36.6" clip-path="url(#terminal-2480777825-line-0)">]&#160;[</text><text class="terminal-2480777825-r4" x="427" y="20" textLength="134.2" clip-path="url(#terminal-2480777825-line-0)">--api-token</text><text class="terminal-2480777825-r5" x="573.4" y="20" textLength="109.8" clip-path="url(#terminal-2480777825-line-0)">API_TOKEN</text><text class="terminal-2480777825-r2" x="683.2" y="20" textLength="12.2" clip-path="url(#terminal-2480777825-line-0)">]</text><text class="terminal-2480777825-r2" x="793" y="20" textLength="12.2" clip-path="url(#terminal-2480777825-line-0)">
+</text><text class="terminal-2480777825-r2" x="0" y="44.4" textLength="366" clip-path="url(#terminal-2480777825-line-1)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;[</text><text class="terminal-2480777825-r4" x="366" y="44.4" textLength="109.8" clip-path="url(#terminal-2480777825-line-1)">--api-url</text><text class="terminal-2480777825-r5" x="488" y="44.4" textLength="85.4" clip-path="url(#terminal-2480777825-line-1)">API_URL</text><text class="terminal-2480777825-r2" x="573.4" y="44.4" textLength="36.6" clip-path="url(#terminal-2480777825-line-1)">]&#160;[</text><text class="terminal-2480777825-r4" x="610" y="44.4" textLength="24.4" clip-path="url(#terminal-2480777825-line-1)">-e</text><text class="terminal-2480777825-r5" x="646.6" y="44.4" textLength="36.6" clip-path="url(#terminal-2480777825-line-1)">ENV</text><text class="terminal-2480777825-r2" x="683.2" y="44.4" textLength="12.2" clip-path="url(#terminal-2480777825-line-1)">]</text><text class="terminal-2480777825-r2" x="793" y="44.4" textLength="12.2" clip-path="url(#terminal-2480777825-line-1)">
+</text><text class="terminal-2480777825-r2" x="0" y="68.8" textLength="366" clip-path="url(#terminal-2480777825-line-2)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;[</text><text class="terminal-2480777825-r4" x="366" y="68.8" textLength="122" clip-path="url(#terminal-2480777825-line-2)">--password</text><text class="terminal-2480777825-r2" x="488" y="68.8" textLength="24.4" clip-path="url(#terminal-2480777825-line-2)">&#160;[</text><text class="terminal-2480777825-r5" x="512.4" y="68.8" textLength="97.6" clip-path="url(#terminal-2480777825-line-2)">PASSWORD</text><text class="terminal-2480777825-r2" x="610" y="68.8" textLength="24.4" clip-path="url(#terminal-2480777825-line-2)">]]</text><text class="terminal-2480777825-r2" x="793" y="68.8" textLength="12.2" clip-path="url(#terminal-2480777825-line-2)">
+</text><text class="terminal-2480777825-r2" x="0" y="93.2" textLength="366" clip-path="url(#terminal-2480777825-line-3)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;[</text><text class="terminal-2480777825-r4" x="366" y="93.2" textLength="122" clip-path="url(#terminal-2480777825-line-3)">--username</text><text class="terminal-2480777825-r5" x="500.2" y="93.2" textLength="97.6" clip-path="url(#terminal-2480777825-line-3)">USERNAME</text><text class="terminal-2480777825-r2" x="597.8" y="93.2" textLength="12.2" clip-path="url(#terminal-2480777825-line-3)">]</text><text class="terminal-2480777825-r2" x="793" y="93.2" textLength="12.2" clip-path="url(#terminal-2480777825-line-3)">
+</text><text class="terminal-2480777825-r2" x="793" y="117.6" textLength="12.2" clip-path="url(#terminal-2480777825-line-4)">
+</text><text class="terminal-2480777825-r2" x="0" y="142" textLength="366" clip-path="url(#terminal-2480777825-line-5)">Login&#160;to&#160;the&#160;metadata&#160;database</text><text class="terminal-2480777825-r2" x="793" y="142" textLength="12.2" clip-path="url(#terminal-2480777825-line-5)">
+</text><text class="terminal-2480777825-r2" x="793" y="166.4" textLength="12.2" clip-path="url(#terminal-2480777825-line-6)">
+</text><text class="terminal-2480777825-r1" x="0" y="190.8" textLength="97.6" clip-path="url(#terminal-2480777825-line-7)">Options:</text><text class="terminal-2480777825-r2" x="793" y="190.8" textLength="12.2" clip-path="url(#terminal-2480777825-line-7)">
+</text><text class="terminal-2480777825-r4" x="24.4" y="215.2" textLength="24.4" clip-path="url(#terminal-2480777825-line-8)">-h</text><text class="terminal-2480777825-r2" x="48.8" y="215.2" textLength="24.4" clip-path="url(#terminal-2480777825-line-8)">,&#160;</text><text class="terminal-2480777825-r4" x="73.2" y="215.2" textLength="73.2" clip-path="url(#terminal-2480777825-line-8)">--help</text><text class="terminal-2480777825-r2" x="292.8" y="215.2" textLength="378.2" clip-path="url(#terminal-2480777825-line-8)">show&#160;this&#160;help&#160;message&#160;and&#160;exit</text><text class="terminal-2480777825-r2" x="793" y="215.2" textLength="12.2" clip-path="url(#terminal-2480777825-line-8)">
+</text><text class="terminal-2480777825-r4" x="24.4" y="239.6" textLength="134.2" clip-path="url(#terminal-2480777825-line-9)">--api-token</text><text class="terminal-2480777825-r5" x="170.8" y="239.6" textLength="109.8" clip-path="url(#terminal-2480777825-line-9)">API_TOKEN</text><text class="terminal-2480777825-r2" x="793" y="239.6" textLength="12.2" clip-path="url(#terminal-2480777825-line-9)">
+</text><text class="terminal-2480777825-r2" x="292.8" y="264" textLength="427" clip-path="url(#terminal-2480777825-line-10)">The&#160;token&#160;to&#160;use&#160;for&#160;authentication</text><text class="terminal-2480777825-r2" x="793" y="264" textLength="12.2" clip-path="url(#terminal-2480777825-line-10)">
+</text><text class="terminal-2480777825-r4" x="24.4" y="288.4" textLength="109.8" clip-path="url(#terminal-2480777825-line-11)">--api-url</text><text class="terminal-2480777825-r5" x="146.4" y="288.4" textLength="85.4" clip-path="url(#terminal-2480777825-line-11)">API_URL</text><text class="terminal-2480777825-r2" x="292.8" y="288.4" textLength="439.2" clip-path="url(#terminal-2480777825-line-11)">The&#160;URL&#160;of&#160;the&#160;metadata&#160;database&#160;API</text><text class="terminal-2480777825-r2" x="793" y="288.4" textLength="12.2" clip-path="url(#terminal-2480777825-line-11)">
+</text><text class="terminal-2480777825-r4" x="24.4" y="312.8" textLength="24.4" clip-path="url(#terminal-2480777825-line-12)">-e</text><text class="terminal-2480777825-r2" x="48.8" y="312.8" textLength="24.4" clip-path="url(#terminal-2480777825-line-12)">,&#160;</text><text class="terminal-2480777825-r4" x="73.2" y="312.8" textLength="61" clip-path="url(#terminal-2480777825-line-12)">--env</text><text class="terminal-2480777825-r5" x="146.4" y="312.8" textLength="36.6" clip-path="url(#terminal-2480777825-line-12)">ENV</text><text class="terminal-2480777825-r2" x="292.8" y="312.8" textLength="451.4" clip-path="url(#terminal-2480777825-line-12)">The&#160;environment&#160;to&#160;run&#160;the&#160;command&#160;in</text><text class="terminal-2480777825-r2" x="793" y="312.8" textLength="12.2" clip-path="url(#terminal-2480777825-line-12)">
+</text><text class="terminal-2480777825-r4" x="24.4" y="337.2" textLength="122" clip-path="url(#terminal-2480777825-line-13)">--password</text><text class="terminal-2480777825-r2" x="146.4" y="337.2" textLength="24.4" clip-path="url(#terminal-2480777825-line-13)">&#160;[</text><text class="terminal-2480777825-r5" x="170.8" y="337.2" textLength="97.6" clip-path="url(#terminal-2480777825-line-13)">PASSWORD</text><text class="terminal-2480777825-r2" x="268.4" y="337.2" textLength="12.2" clip-path="url(#terminal-2480777825-line-13)">]</text><text class="terminal-2480777825-r2" x="793" y="337.2" textLength="12.2" clip-path="url(#terminal-2480777825-line-13)">
+</text><text class="terminal-2480777825-r2" x="292.8" y="361.6" textLength="463.6" clip-path="url(#terminal-2480777825-line-14)">The&#160;password&#160;to&#160;use&#160;for&#160;authentication</text><text class="terminal-2480777825-r2" x="793" y="361.6" textLength="12.2" clip-path="url(#terminal-2480777825-line-14)">
+</text><text class="terminal-2480777825-r4" x="24.4" y="386" textLength="122" clip-path="url(#terminal-2480777825-line-15)">--username</text><text class="terminal-2480777825-r5" x="158.6" y="386" textLength="97.6" clip-path="url(#terminal-2480777825-line-15)">USERNAME</text><text class="terminal-2480777825-r2" x="292.8" y="386" textLength="463.6" clip-path="url(#terminal-2480777825-line-15)">The&#160;username&#160;to&#160;use&#160;for&#160;authentication</text><text class="terminal-2480777825-r2" x="793" y="386" textLength="12.2" clip-path="url(#terminal-2480777825-line-15)">
 </text>
     </g>
     </g>

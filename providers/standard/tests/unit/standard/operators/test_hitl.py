@@ -26,12 +26,13 @@ if not AIRFLOW_V_3_1_PLUS:
 import datetime
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from sqlalchemy import select
 
-from airflow.exceptions import DownstreamTasksSkipped
-from airflow.models import Trigger
+from airflow.exceptions import AirflowException, DownstreamTasksSkipped
+from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
@@ -42,6 +43,9 @@ from airflow.providers.standard.operators.hitl import (
 )
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.execution_time.hitl import HITLUser
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -52,6 +56,23 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
+
+
+@pytest.fixture
+def hitl_task_and_ti_for_generating_link(dag_maker: DagMaker) -> tuple[HITLOperator, TaskInstance]:
+    with dag_maker("test_dag"):
+        task = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2", "3", "4", "5"],
+            body="This is body",
+            defaults=["1"],
+            assigned_users=HITLUser(id="test", name="test"),
+            multiple=True,
+            params=ParamsDict({"input_1": 1, "input_2": 2, "input_3": 3}),
+        )
+    dr = dag_maker.create_dagrun()
+    return task, dag_maker.run_ti(task.task_id, dr)
 
 
 class TestHITLOperator:
@@ -65,9 +86,10 @@ class TestHITLOperator:
             multiple=False,
             params=ParamsDict({"input_1": 1}),
         )
-        hitl_op.validate_defaults()
+        hitl_op.validate_options()
 
     def test_validate_options_with_empty_options(self) -> None:
+        # validate_options is called during initialization
         with pytest.raises(ValueError, match='"options" cannot be empty.'):
             HITLOperator(
                 task_id="hitl_test",
@@ -77,6 +99,19 @@ class TestHITLOperator:
                 defaults=["1"],
                 multiple=False,
                 params=ParamsDict({"input_1": 1}),
+            )
+
+    def test_validate_params_with__options(self) -> None:
+        # validate_params is called during initialization
+        with pytest.raises(ValueError, match='"_options" is not allowed in params'):
+            HITLOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                options=["1", "2"],
+                body="This is body",
+                defaults=["1"],
+                multiple=False,
+                params=ParamsDict({"_options": 1}),
             )
 
     def test_validate_defaults(self) -> None:
@@ -110,6 +145,7 @@ class TestHITLOperator:
         extra_kwargs: dict[str, Any],
         expected_error_msg: str,
     ) -> None:
+        # validate_default is called during initialization
         with pytest.raises(ValueError, match=expected_error_msg):
             HITLOperator(
                 task_id="hitl_test",
@@ -130,7 +166,7 @@ class TestHITLOperator:
                 options=["1", "2", "3", "4", "5"],
                 body="This is body",
                 defaults=["1"],
-                respondents="test",
+                assigned_users=HITLUser(id="test", name="test"),
                 multiple=False,
                 params=ParamsDict({"input_1": 1}),
                 notifiers=[notifier],
@@ -146,9 +182,9 @@ class TestHITLOperator:
         assert hitl_detail_model.defaults == ["1"]
         assert hitl_detail_model.multiple is False
         assert hitl_detail_model.params == {"input_1": 1}
-        assert hitl_detail_model.respondents == ["test"]
-        assert hitl_detail_model.response_at is None
-        assert hitl_detail_model.user_id is None
+        assert hitl_detail_model.assignees == [{"id": "test", "name": "test"}]
+        assert hitl_detail_model.responded_at is None
+        assert hitl_detail_model.responded_by is None
         assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
 
@@ -194,13 +230,24 @@ class TestHITLOperator:
             params={"input": 1},
         )
 
+        responded_at_dt = timezone.utcnow()
+
         ret = hitl_op.execute_complete(
             context={},
-            event={"chosen_options": ["1"], "params_input": {"input": 2}},
+            event={
+                "chosen_options": ["1"],
+                "params_input": {"input": 2},
+                "responded_at": responded_at_dt,
+                "responded_by_user": {"id": "test", "name": "test"},
+            },
         )
 
-        assert ret["chosen_options"] == ["1"]
-        assert ret["params_input"] == {"input": 2}
+        assert ret == {
+            "chosen_options": ["1"],
+            "params_input": {"input": 2},
+            "responded_at": responded_at_dt,
+            "responded_by_user": {"id": "test", "name": "test"},
+        }
 
     def test_validate_chosen_options_with_invalid_content(self) -> None:
         hitl_op = HITLOperator(
@@ -217,6 +264,7 @@ class TestHITLOperator:
                 event={
                     "chosen_options": ["not exists"],
                     "params_input": {"input": 2},
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
 
@@ -235,8 +283,103 @@ class TestHITLOperator:
                 event={
                     "chosen_options": ["1"],
                     "params_input": {"no such key": 2, "input": 333},
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
+
+    @pytest.mark.parametrize(
+        "options, params_input, expected_parsed_query",
+        [
+            (None, None, {"map_index": ["-1"]}),
+            ("1", None, {"_options": ["['1']"], "map_index": ["-1"]}),
+            (["1", "2"], None, {"_options": ["['1', '2']"], "map_index": ["-1"]}),
+            (None, {"input_1": "123"}, {"input_1": ["123"], "map_index": ["-1"]}),
+            (
+                ["3", "4", "5"],
+                {"input_1": "123123", "input_2": "345345"},
+                {
+                    "_options": ["['3', '4', '5']"],
+                    "input_1": ["123123"],
+                    "input_2": ["345345"],
+                    "map_index": ["-1"],
+                },
+            ),
+        ],
+        ids=[
+            "empty",
+            "single-option",
+            "multiple-options",
+            "single-param-input",
+            "multiple-options-and-param-inputs",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "conf_base_url",
+        [None, "http://localhost:8080/"],
+        ids=["no_conf_url", "with_conf_url"],
+    )
+    @pytest.mark.parametrize(
+        "base_url",
+        ["http://test", "http://test_2:8080"],
+        ids=["url_1", "url_2"],
+    )
+    def test_generate_link_to_ui(
+        self,
+        base_url: str,
+        conf_base_url: str,
+        options: list[str] | None,
+        params_input: dict[str, Any] | None,
+        expected_parsed_query: dict[str, list[str]],
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        with conf_vars({("api", "base_url"): conf_base_url}):
+            if conf_base_url:
+                base_url = conf_base_url
+            task, ti = hitl_task_and_ti_for_generating_link
+            url = task.generate_link_to_ui(
+                task_instance=ti,
+                base_url=base_url,
+                options=options,
+                params_input=params_input,
+            )
+
+            base_url_parsed_result = urlparse(base_url)
+            parse_result = urlparse(url)
+            assert parse_result.scheme == base_url_parsed_result.scheme
+            assert parse_result.netloc == base_url_parsed_result.netloc
+            assert parse_result.path == "/dags/test_dag/runs/test/tasks/hitl_test/required_actions"
+            assert parse_result.params == ""
+            assert parse_qs(parse_result.query) == expected_parsed_query
+
+    @pytest.mark.parametrize(
+        "options, params_input, expected_err_msg",
+        [
+            ([100, "2", 30000], None, "options {.*} are not valid options"),
+            (
+                None,
+                {"input_not_exist": 123, "no_such_key": 123},
+                "params {.*} are not valid params",
+            ),
+        ],
+    )
+    def test_generate_link_to_ui_with_invalid_input(
+        self,
+        options: list[str] | None,
+        params_input: dict[str, Any] | None,
+        expected_err_msg: str,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        task, ti = hitl_task_and_ti_for_generating_link
+        with pytest.raises(ValueError, match=expected_err_msg):
+            task.generate_link_to_ui(task_instance=ti, options=options, params_input=params_input)
+
+    def test_generate_link_to_ui_without_base_url(
+        self,
+        hitl_task_and_ti_for_generating_link: tuple[HITLOperator, TaskInstance],
+    ) -> None:
+        task, ti = hitl_task_and_ti_for_generating_link
+        with pytest.raises(ValueError, match="Not able to retrieve base_url"):
+            task.generate_link_to_ui(task_instance=ti)
 
 
 class TestApprovalOperator:
@@ -265,14 +408,23 @@ class TestApprovalOperator:
             subject="This is subject",
         )
 
+        responded_at_dt = timezone.utcnow()
+
         ret = hitl_op.execute_complete(
             context={},
-            event={"chosen_options": ["Approve"], "params_input": {}},
+            event={
+                "chosen_options": ["Approve"],
+                "params_input": {},
+                "responded_at": responded_at_dt,
+                "responded_by_user": {"id": "test", "name": "test"},
+            },
         )
 
         assert ret == {
             "chosen_options": ["Approve"],
             "params_input": {},
+            "responded_at": responded_at_dt,
+            "responded_by_user": {"id": "test", "name": "test"},
         }
 
     def test_execute_complete_with_downstream_tasks(self, dag_maker) -> None:
@@ -289,7 +441,12 @@ class TestApprovalOperator:
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
             hitl_op.execute_complete(
                 context={"ti": ti, "task": ti.task},
-                event={"chosen_options": ["Reject"], "params_input": {}},
+                event={
+                    "chosen_options": ["Reject"],
+                    "params_input": {},
+                    "responded_at": timezone.utcnow(),
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
             )
         assert set(exc_info.value.tasks) == {"op1"}
 
@@ -350,6 +507,8 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": ["branch_1"],
                     "params_input": {},
+                    "responded_at": timezone.utcnow(),
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(2, 6))
@@ -365,6 +524,8 @@ class TestHITLBranchOperator:
 
             branch_op >> [EmptyOperator(task_id=f"branch_{i}") for i in range(1, 6)]
 
+        responded_at_dt = timezone.utcnow()
+
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("make_choice")
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -373,6 +534,136 @@ class TestHITLBranchOperator:
                 event={
                     "chosen_options": [f"branch_{i}" for i in range(1, 4)],
                     "params_input": {},
+                    "responded_at": responded_at_dt,
+                    "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
         assert set(exc_info.value.tasks) == set((f"branch_{i}", -1) for i in range(4, 6))
+
+    def test_mapping_applies_for_single_choice(self, dag_maker):
+        # ["Approve"]; map -> "publish"
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve", "Reject"],
+                options_mapping={"Approve": "publish"},
+            )
+            op >> [EmptyOperator(task_id="publish"), EmptyOperator(task_id="archive")]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc:
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={
+                    "chosen_options": ["Approve"],
+                    "params_input": {},
+                    "responded_at": timezone.utcnow(),
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
+            )
+        # checks to see that the "archive" task was skipped
+        assert set(exc.value.tasks) == {("archive", -1)}
+
+    def test_mapping_with_multiple_choices(self, dag_maker):
+        # multiple=True; mapping applied per option; no dedup implied
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                multiple=True,
+                options=["Approve", "KeepAsIs"],
+                options_mapping={"Approve": "publish", "KeepAsIs": "keep"},
+            )
+            op >> [
+                EmptyOperator(task_id="publish"),
+                EmptyOperator(task_id="keep"),
+                EmptyOperator(task_id="other"),
+            ]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc:
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={
+                    "chosen_options": ["Approve", "KeepAsIs"],
+                    "params_input": {},
+                    "responded_at": timezone.utcnow(),
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
+            )
+        # publish + keep chosen → only "other" skipped
+        assert set(exc.value.tasks) == {("other", -1)}
+
+    def test_fallback_to_option_when_not_mapped(self, dag_maker):
+        # No mapping: option must match downstream task_id
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["branch_1", "branch_2"],  # no mapping for branch_2
+            )
+            op >> [EmptyOperator(task_id="branch_1"), EmptyOperator(task_id="branch_2")]
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(DownstreamTasksSkipped) as exc:
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={
+                    "chosen_options": ["branch_2"],
+                    "params_input": {},
+                    "responded_at": timezone.utcnow(),
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
+            )
+        assert set(exc.value.tasks) == {("branch_1", -1)}
+
+    def test_error_if_mapped_branch_not_direct_downstream(self, dag_maker):
+        # Don't add the mapped task downstream → expect a clean error
+        with dag_maker("hitl_map_dag", serialized=True):
+            op = HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve"],
+                options_mapping={"Approve": "not_a_downstream"},
+            )
+            # Intentionally no downstream "not_a_downstream"
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("choose")
+
+        with pytest.raises(AirflowException, match="downstream|not found"):
+            op.execute_complete(
+                context={"ti": ti, "task": ti.task},
+                event={
+                    "chosen_options": ["Approve"],
+                    "params_input": {},
+                    "responded_at": timezone.utcnow(),
+                    "responded_by_user": {"id": "test", "name": "test"},
+                },
+            )
+
+    @pytest.mark.parametrize("bad", [123, ["publish"], {"x": "y"}, b"publish"])
+    def test_options_mapping_non_string_value_raises(self, bad):
+        with pytest.raises(ValueError, match=r"values must be strings \(task_ids\)"):
+            HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve"],
+                options_mapping={"Approve": bad},
+            )
+
+    def test_options_mapping_key_not_in_options_raises(self):
+        with pytest.raises(ValueError, match="contains keys that are not in `options`"):
+            HITLBranchOperator(
+                task_id="choose",
+                subject="S",
+                options=["Approve", "Reject"],
+                options_mapping={"NotAnOption": "publish"},
+            )

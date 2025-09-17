@@ -38,6 +38,9 @@ dependencies = [
     "structlog>=25.2.0",
     "uuid6>=2024.7.10",
     "tabulate>=0.9.0",
+    # Start of shared timezones dependencies
+    "pendulum>=3.1.0",
+    # End of shared timezones dependencies
 ]
 
 classifiers = [
@@ -61,6 +64,9 @@ path = "src/airflowctl/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflowctl"]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
 [tool.ruff]
 extend = "../pyproject.toml"
@@ -191,3 +197,8 @@ required-version = ">=0.6.3"
 
 [tool.uv.sources]
 apache-airflow-devel-common = { workspace = true }
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-timezones",
+]

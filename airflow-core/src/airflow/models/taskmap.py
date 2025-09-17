@@ -35,7 +35,6 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -176,7 +175,7 @@ class TaskMap(TaskInstanceDependencies):
 
         if unmapped_ti:
             if TYPE_CHECKING:
-                assert task.dag is None or isinstance(task.dag, SchedulerDAG)
+                assert task.dag is None
 
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.

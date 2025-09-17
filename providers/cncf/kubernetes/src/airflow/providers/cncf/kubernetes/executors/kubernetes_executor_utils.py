@@ -35,6 +35,9 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     POD_EXECUTOR_DONE_KEY,
     POD_REVOKED_KEY,
     FailureDetails,
+    KubernetesJob,
+    KubernetesResults,
+    KubernetesWatch,
 )
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
@@ -50,12 +53,6 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
 
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
-        KubernetesJobType,
-        KubernetesResultsType,
-        KubernetesWatchType,
-    )
-
 
 class ResourceVersion(metaclass=Singleton):
     """Singleton for tracking resourceVersion from Kubernetes."""
@@ -69,7 +66,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def __init__(
         self,
         namespace: str,
-        watcher_queue: Queue[KubernetesWatchType],
+        watcher_queue: Queue[KubernetesWatch],
         resource_version: str | None,
         scheduler_job_id: str,
         kube_config: Configuration,
@@ -217,7 +214,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # So, there is no change in the pod state.
             # However, need to free the executor slot from the current executor.
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version, None))
+            self.watcher_queue.put(
+                KubernetesWatch(pod_name, namespace, ADOPTED, annotations, resource_version, None)
+            )
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
             key = annotations_to_key(annotations=annotations)
@@ -229,7 +228,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 annotations_string,
             )
             self.watcher_queue.put(
-                (
+                KubernetesWatch(
                     pod_name,
                     namespace,
                     TaskInstanceState.FAILED,
@@ -277,7 +276,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 task_key_str,
                             )
                             self.watcher_queue.put(
-                                (
+                                KubernetesWatch(
                                     pod_name,
                                     namespace,
                                     TaskInstanceState.FAILED,
@@ -306,7 +305,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 "Event: %s Failed, task: %s, annotations: %s", pod_name, task_key_str, annotations_string
             )
             self.watcher_queue.put(
-                (
+                KubernetesWatch(
                     pod_name,
                     namespace,
                     TaskInstanceState.FAILED,
@@ -317,7 +316,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             )
         elif status == "Succeeded":
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version, None))
+            self.watcher_queue.put(
+                KubernetesWatch(pod_name, namespace, None, annotations, resource_version, None)
+            )
         elif status == "Running":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
@@ -328,7 +329,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     annotations_string,
                 )
                 self.watcher_queue.put(
-                    (
+                    KubernetesWatch(
                         pod_name,
                         namespace,
                         TaskInstanceState.FAILED,
@@ -466,7 +467,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def __init__(
         self,
         kube_config: Any,
-        result_queue: Queue[KubernetesResultsType],
+        result_queue: Queue[KubernetesResults],
         kube_client: client.CoreV1Api,
         scheduler_job_id: str,
     ):
@@ -540,9 +541,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 ResourceVersion().resource_version[namespace] = "0"
                 self.kube_watchers[namespace] = self._make_kube_watcher(namespace)
 
-    def run_next(self, next_job: KubernetesJobType) -> None:
+    def run_next(self, next_job: KubernetesJob) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
-        key, command, kube_executor_config, pod_template_file = next_job
+        key = next_job.key
+        command = next_job.command
+        kube_executor_config = next_job.kube_executor_config
+        pod_template_file = next_job.pod_template_file
 
         dag_id, task_id, run_id, try_number, map_index = key
         if len(command) == 1:
@@ -660,19 +664,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 finally:
                     self.watcher_queue.task_done()
 
-    def process_watcher_task(self, task: KubernetesWatchType) -> None:
+    def process_watcher_task(self, task: KubernetesWatch) -> None:
         """Process the task by watcher."""
-        pod_name, namespace, state, annotations, resource_version, failure_details = task
         self.log.debug(
             "Attempting to finish pod; pod_name: %s; state: %s; annotations: %s",
-            pod_name,
-            state,
-            annotations_for_logging_task_metadata(annotations),
+            task.pod_name,
+            task.state,
+            annotations_for_logging_task_metadata(task.annotations),
         )
-        key = annotations_to_key(annotations=annotations)
+        key = annotations_to_key(annotations=task.annotations)
         if key:
-            self.log.debug("finishing job %s - %s (%s)", key, state, pod_name)
-            self.result_queue.put((key, state, pod_name, namespace, resource_version, failure_details))
+            self.log.debug("finishing job %s - %s (%s)", key, task.state, task.pod_name)
+            self.result_queue.put(
+                KubernetesResults(
+                    key,
+                    task.state,
+                    task.pod_name,
+                    task.namespace,
+                    task.resource_version,
+                    task.failure_details,
+                )
+            )
 
     def _flush_watcher_queue(self) -> None:
         self.log.debug("Executor shutting down, watcher_queue approx. size=%d", self.watcher_queue.qsize())

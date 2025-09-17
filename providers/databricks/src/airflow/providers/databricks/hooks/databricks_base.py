@@ -121,6 +121,9 @@ class BaseDatabricksHook(BaseHook):
         self.oauth_tokens: dict[str, dict] = {}
         self.token_timeout_seconds = 10
         self.caller = caller
+        self._metadata_cache: dict[str, Any] = {}
+        self._metadata_expiry: float = 0
+        self._metadata_ttl: int = 300
 
         def my_after_func(retry_state):
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
@@ -515,43 +518,64 @@ class BaseDatabricksHook(BaseHook):
 
         return int(token[time_key]) > (int(time.time()) + TOKEN_REFRESH_LEAD_TIME)
 
-    @staticmethod
-    def _check_azure_metadata_service() -> None:
+    def _check_azure_metadata_service(self) -> None:
         """
-        Check for Azure Metadata Service.
+        Check for Azure Metadata Service (with caching).
 
         https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
         """
+        if self._metadata_cache and time.time() < self._metadata_expiry:
+            return
         try:
-            jsn = requests.get(
-                AZURE_METADATA_SERVICE_INSTANCE_URL,
-                params={"api-version": "2021-02-01"},
-                headers={"Metadata": "true"},
-                timeout=2,
-            ).json()
-            if "compute" not in jsn or "azEnvironment" not in jsn["compute"]:
-                raise AirflowException(
-                    f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
-                )
+            for attempt in self._get_retry_object():
+                with attempt:
+                    response = requests.get(
+                        AZURE_METADATA_SERVICE_INSTANCE_URL,
+                        params={"api-version": "2021-02-01"},
+                        headers={"Metadata": "true"},
+                        timeout=2,
+                    )
+                    response.raise_for_status()
+                    response_json = response.json()
+
+                    self._validate_azure_metadata_service(response_json)
+                    self._metadata_cache = response_json
+                    self._metadata_expiry = time.time() + self._metadata_ttl
+                    break
+        except RetryError:
+            raise ConnectionError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
         except (requests_exceptions.RequestException, ValueError) as e:
-            raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
+            raise ConnectionError(f"Can't reach Azure Metadata Service: {e}")
 
     async def _a_check_azure_metadata_service(self):
         """Async version of `_check_azure_metadata_service()`."""
+        if self._metadata_cache and time.time() < self._metadata_expiry:
+            return
         try:
-            async with self._session.get(
-                url=AZURE_METADATA_SERVICE_INSTANCE_URL,
-                params={"api-version": "2021-02-01"},
-                headers={"Metadata": "true"},
-                timeout=2,
-            ) as resp:
-                jsn = await resp.json()
-            if "compute" not in jsn or "azEnvironment" not in jsn["compute"]:
-                raise AirflowException(
-                    f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
-                )
-        except (requests_exceptions.RequestException, ValueError) as e:
-            raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
+            async for attempt in self._a_get_retry_object():
+                with attempt:
+                    async with self._session.get(
+                        url=AZURE_METADATA_SERVICE_INSTANCE_URL,
+                        params={"api-version": "2021-02-01"},
+                        headers={"Metadata": "true"},
+                        timeout=2,
+                    ) as resp:
+                        resp.raise_for_status()
+                        response_json = await resp.json()
+                    self._validate_azure_metadata_service(response_json)
+                    self._metadata_cache = response_json
+                    self._metadata_expiry = time.time() + self._metadata_ttl
+                    break
+        except RetryError:
+            raise ConnectionError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
+        except (aiohttp.ClientError, ValueError) as e:
+            raise ConnectionError(f"Can't reach Azure Metadata Service: {e}")
+
+    def _validate_azure_metadata_service(self, response_json: dict) -> None:
+        if "compute" not in response_json or "azEnvironment" not in response_json["compute"]:
+            raise ValueError(
+                f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {response_json}"
+            )
 
     def _get_token(self, raise_error: bool = False) -> str | None:
         if "token" in self.databricks_conn.extra_dejson:
