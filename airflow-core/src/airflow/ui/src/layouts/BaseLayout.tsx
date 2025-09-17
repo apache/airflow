@@ -35,9 +35,12 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     const html = document.documentElement;
-    const updateHtml = (lng: string) => {
-      html.setAttribute("dir", i18n.dir(lng));
-      html.setAttribute("lang", lng);
+
+    const updateHtml = (language: string) => {
+      if (language) {
+        html.setAttribute("dir", i18n.dir(language));
+        html.setAttribute("lang", language);
+      }
     };
 
     i18n.on("languageChanged", updateHtml);
