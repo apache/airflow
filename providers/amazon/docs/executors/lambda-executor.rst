@@ -65,14 +65,14 @@ also poll this DLQ for messages and update the internal state with the results i
 
 .. image:: ../img/lambda_executor.png
 
-.. _lambda_config-options:
-
 Quotas
---------------
+------
 
-When working with the Lambda Executor, it is important to be familiar with the AWS Lambda quotas,
+When working with the Lambda Executor it is important to be familiar with the AWS Lambda quotas
 as they may affect performance and scalability. For more information,
 please refer to the `official AWS Lambda documentation on quotas <http://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html>`__.
+
+.. _lambda_config-options:
 
 Config Options
 --------------
