@@ -23,6 +23,8 @@ import (
 	"log/slog"
 	"reflect"
 	"runtime"
+
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 type taskFunction struct {
@@ -51,6 +53,8 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 			reflectArgs[i] = reflect.ValueOf(ctx)
 		case isLogger(in):
 			reflectArgs[i] = reflect.ValueOf(logger)
+		case isClient(in):
+			reflectArgs[i] = reflect.ValueOf(sdk.NewClient())
 		default:
 			// TODO: deal with other value types. For now they will all be Zero values unless it's a context
 			reflectArgs[i] = reflect.Zero(in)
@@ -121,9 +125,13 @@ func isValidResultType(inType reflect.Type) bool {
 }
 
 var (
-	errorType      = reflect.TypeOf((*error)(nil)).Elem()
-	contextType    = reflect.TypeOf((*context.Context)(nil)).Elem()
-	slogLoggerType = reflect.TypeOf((*slog.Logger)(nil))
+	errorType      = reflect.TypeFor[error]()
+	contextType    = reflect.TypeFor[context.Context]()
+	slogLoggerType = reflect.TypeFor[*slog.Logger]()
+
+	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
+	varClientType  = reflect.TypeFor[sdk.VariableClient]()
+	clientType     = reflect.TypeFor[sdk.Client]()
 )
 
 func isError(inType reflect.Type) bool {
@@ -136,4 +144,10 @@ func isContext(inType reflect.Type) bool {
 
 func isLogger(inType reflect.Type) bool {
 	return inType != nil && inType.AssignableTo(slogLoggerType)
+}
+
+func isClient(inType reflect.Type) bool {
+	return inType != nil && (inType.AssignableTo(clientType) ||
+		inType.AssignableTo(connClientType) ||
+		inType.AssignableTo(varClientType))
 }

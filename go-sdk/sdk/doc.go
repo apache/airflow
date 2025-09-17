@@ -16,6 +16,6 @@
 // under the License.
 
 /*
-sdk implements the interface for Go Tasks to access the Airflow state
+Package sdk provides access to the Airflow objects (Variables, Connection, XCom etc) during run time for tasks.
 */
 package sdk
