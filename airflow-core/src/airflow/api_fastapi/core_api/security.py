@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
-from urllib.parse import ParseResult, quote, unquote, urljoin, urlparse
+from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
@@ -618,16 +618,12 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
     if base_url := conf.get("api", "base_url", fallback=None):
         parsed_bases += ((base_url, urlparse(base_url)),)
 
-    # Check if the target URL is encoded, and unquote it when it is the same as the known base URL
-    if any(quote(base, safe="") == target_url for base, _ in parsed_bases if base is not None):
-        target_url = unquote(target_url)
-
     if not parsed_bases:
         # Can't enforce any security check.
         return True
 
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 
         target_path = Path(parsed_target.path).resolve()
 
