@@ -41,7 +41,10 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_variable,
     requires_access_variable_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService,update_orm_from_pydantic
+from airflow.api_fastapi.core_api.services.public.variables import (
+    BulkVariableService,
+    update_orm_from_pydantic,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
