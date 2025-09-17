@@ -2021,6 +2021,8 @@ class TestRuntimeTaskInstance:
         mock_send_email.assert_called_once()
         args, kwargs = mock_send_email.call_args
         assert args[0] == ["test@example.com"]
+        assert args[1]
+        assert args[2]
 
 
 class TestXComAfterTaskExecution:
