@@ -89,11 +89,6 @@ def deadline_orm(dagrun, session):
     return deadline
 
 
-@pytest.fixture
-def freeze_time(time_machine):
-    time_machine.move_to(DEFAULT_DATE, tick=False)
-
-
 @pytest.mark.db_test
 class TestDeadline:
     @staticmethod
@@ -365,7 +360,6 @@ class TestCalculatedDeadlineDatabaseCalls:
             pytest.param(DeadlineReference.AVERAGE_RUNTIME(), None, id="average_runtime"),
         ],
     )
-    @pytest.mark.usefixtures("freeze_time")
     def test_deadline_database_integration(self, reference, expected_column, session):
         """
         Test database integration for all deadline types.
@@ -396,7 +390,6 @@ class TestCalculatedDeadlineDatabaseCalls:
                 mock_fetch.assert_not_called()
                 assert result == DEFAULT_DATE + interval
 
-    @pytest.mark.usefixtures("freeze_time")
     def test_average_runtime_with_sufficient_history(self, session, dag_maker):
         """Test AverageRuntimeDeadline when enough historical data exists."""
         with dag_maker(DAG_ID):
@@ -435,7 +428,6 @@ class TestCalculatedDeadlineDatabaseCalls:
             # Compare only up to minutes to avoid sub-second timing issues in CI
             assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
 
-    @pytest.mark.usefixtures("freeze_time")
     def test_average_runtime_with_insufficient_history(self, session, dag_maker):
         """Test AverageRuntimeDeadline when insufficient historical data exists."""
         with dag_maker(DAG_ID):
@@ -469,7 +461,6 @@ class TestCalculatedDeadlineDatabaseCalls:
             # Should return None since insufficient runs
             assert result is None
 
-    @pytest.mark.usefixtures("freeze_time")
     def test_average_runtime_with_min_runs(self, session, dag_maker):
         """Test AverageRuntimeDeadline with min_runs parameter allowing calculation with fewer runs."""
         with dag_maker(DAG_ID):
