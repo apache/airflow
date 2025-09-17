@@ -2276,6 +2276,23 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    enable_stall_monitor:
+      description: |
+        When enabled, the triggerer will monitor for stalls in trigger processing.
+        If the triggerer detects that no triggers have been processed for a duration
+        longer than ``[triggerer] stall_monitor_threshold``, it will log an error message.
+      version_added: 3.1.0
+      type: boolean
+      example: ~
+      default: "True"
+    stall_monitor_threshold:
+      description: |
+        The duration in seconds that the triggerer will wait before reporting stalls,
+        if stall monitoring is enabled.
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "0.3"
 kerberos:
   description: ~
   options:
