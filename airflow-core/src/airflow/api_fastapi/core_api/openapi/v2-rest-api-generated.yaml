@@ -8220,6 +8220,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
       - name: state
         in: query
         required: false

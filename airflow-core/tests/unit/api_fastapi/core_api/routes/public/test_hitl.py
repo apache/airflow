@@ -135,7 +135,7 @@ def sample_tis(create_task_instance: CreateTaskInstance) -> list[TaskInstance]:
             dag_id=f"hitl_dag_{i}",
             run_id=f"hitl_run_{i}",
             task_id=f"hitl_task_{i}",
-            state=TaskInstanceState.RUNNING,
+            state=TaskInstanceState.DEFERRED,
         )
         for i in range(5)
     ]
@@ -542,7 +542,9 @@ class TestGetHITLDetailsEndpoint:
             ({"dag_id_pattern": "other_Dag_"}, 3),
             ({"task_id": "hitl_task_0"}, 1),
             ({"task_id_pattern": "another_hitl"}, 3),
-            ({"state": "running"}, 5),
+            ({"map_index": -1}, 8),
+            ({"map_index": 1}, 0),
+            ({"state": "deferred"}, 5),
             ({"state": "success"}, 3),
             # hitl detail related filter
             ({"subject_search": "This is subject"}, 5),
@@ -570,9 +572,11 @@ class TestGetHITLDetailsEndpoint:
         ids=[
             "dag_id_pattern_hitl_dag",
             "dag_id_pattern_other_dag",
-            "task_id_pattern",
             "task_id",
-            "ti_state_running",
+            "task_id_pattern",
+            "map_index_none",
+            "map_index_1",
+            "ti_state_deferred",
             "ti_state_success",
             "subject",
             "body",
