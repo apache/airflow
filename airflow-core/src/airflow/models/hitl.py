@@ -26,6 +26,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.functions import FunctionElement
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -97,6 +98,7 @@ class HITLDetail(Base):
     multiple = Column(Boolean, unique=False, default=False)
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
     responded_at = Column(UtcDateTime, nullable=True)

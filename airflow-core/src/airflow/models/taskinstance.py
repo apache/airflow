@@ -1075,8 +1075,6 @@ class TaskInstance(Base, LoggingMixin):
 
         ti: TaskInstance = task_instance
         task = task_instance.task
-        if TYPE_CHECKING:
-            assert isinstance(task, Operator)  # TODO (GH-52141): This shouldn't be needed.
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -1276,9 +1274,16 @@ class TaskInstance(Base, LoggingMixin):
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self, task=self.task)
-        if taskrun_result is not None and taskrun_result.error:
+        # TODO (TaskSDK): This is the old ti execution path. The only usage is
+        # in TI.run(...), someone needs to analyse if it's still actually used
+        # somewhere and fix it, likely by rewriting TI.run(...) to use the same
+        # mechanism as Operator.test().
+        taskrun_result = _run_task(ti=self, task=self.task)  # type: ignore[arg-type]
+        if taskrun_result is None:
+            return None
+        if taskrun_result.error:
             raise taskrun_result.error
+        self.task = taskrun_result.ti.task  # type: ignore[assignment]
         return None
 
     @staticmethod

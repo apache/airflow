@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link, createListCollection } from "@chakra-ui/react";
+import { Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useCallback } from "react";
@@ -31,15 +31,20 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import { HITLFilters } from "./HITLFilters";
+
 type TaskInstanceRow = { row: { original: HITLDetail } };
 
-const { OFFSET: OFFSET_PARAM, RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM }: SearchParamsKeysType =
-  SearchParamsKeys;
+const {
+  DAG_DISPLAY_NAME_PATTERN,
+  OFFSET: OFFSET_PARAM,
+  RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM,
+  TASK_ID_PATTERN,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
   dagId,
@@ -122,71 +127,46 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
+  const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
+  const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
+  const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
+
+  // Use the filter value if available, otherwise fall back to the old responseReceived param
+  const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
+
   const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
     dagId: dagId ?? "~",
+    dagIdPattern,
     dagRunId: runId ?? "~",
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
-    responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
-    state: responseReceived === "false" ? ["deferred"] : undefined,
+    responseReceived:
+      Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
+        ? effectiveResponseReceived === "true"
+        : undefined,
+    state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
     taskId,
+    taskIdPattern,
   });
 
-  const enabledOptions = createListCollection({
-    items: [
-      { label: translate("filters.response.all"), value: "all" },
-      { label: translate("filters.response.pending"), value: "false" },
-      { label: translate("filters.response.received"), value: "true" },
-    ],
-  });
-
-  const handleResponseChange = useCallback(
-    ({ value }: { value: Array<string> }) => {
-      const [val] = value;
-
-      if (val === undefined || val === "all") {
-        searchParams.delete(RESPONSE_RECEIVED_PARAM);
-      } else {
-        searchParams.set(RESPONSE_RECEIVED_PARAM, val);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      searchParams.delete(OFFSET_PARAM);
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams, pagination, sorting, setTableURLState],
-  );
+  const handleResponseChange = useCallback(() => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
 
   return (
-    <Box>
+    <VStack align="start">
       {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
         <Heading size="md">
           {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
         </Heading>
       ) : undefined}
-      <Box mt={3}>
-        <Select.Root
-          collection={enabledOptions}
-          maxW="250px"
-          onValueChange={handleResponseChange}
-          value={[responseReceived ?? "all"]}
-        >
-          <Select.Label fontSize="xs">{translate("requiredActionState")}</Select.Label>
-          <Select.Trigger isActive={Boolean(responseReceived)}>
-            <Select.ValueText />
-          </Select.Trigger>
-          <Select.Content>
-            {enabledOptions.items.map((option) => (
-              <Select.Item item={option} key={option.label}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-      </Box>
+      <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
         columns={taskInstanceColumns({
           dagId,
@@ -202,6 +182,6 @@ export const HITLTaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-    </Box>
+    </VStack>
   );
 };

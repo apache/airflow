@@ -1389,11 +1389,13 @@ api:
       default: "8080"
     workers:
       description: |
-        Number of workers to run on the API server
+        Number of workers to run on the API server. Should be roughly equal to the number of
+        cpu cores available. If you need to scale the API server, consider deploying multiple API
+        servers instead of increasing the number of workers.
       version_added: ~
       type: integer
       example: ~
-      default: "4"
+      default: "1"
     worker_timeout:
       description: |
         Number of seconds the API server waits before timing out on a worker

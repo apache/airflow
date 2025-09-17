@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from pydantic import AwareDatetime
 
     from airflow.sdk._shared.logging.types import Logger as Logger
+    from airflow.sdk.api.datamodels._generated import TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
@@ -68,6 +69,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     hostname: str | None = None
     start_date: AwareDatetime
     end_date: AwareDatetime | None = None
+    state: TaskInstanceState | None = None
 
     def xcom_pull(
         self,

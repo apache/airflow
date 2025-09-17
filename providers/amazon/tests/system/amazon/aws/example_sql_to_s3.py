@@ -124,7 +124,7 @@ with DAG(
         vpc_security_group_ids=[security_group_id],
         cluster_subnet_group_name=cluster_subnet_group_name,
         cluster_type="single-node",
-        node_type="dc2.large",
+        node_type="ra3.large",
         master_username=DB_LOGIN,
         master_user_password=DB_PASS,
     )

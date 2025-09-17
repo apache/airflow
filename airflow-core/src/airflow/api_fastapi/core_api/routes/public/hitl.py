@@ -38,7 +38,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     QueryTIStateFilter,
+    RangeFilter,
     SortParam,
+    datetime_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
@@ -209,6 +211,7 @@ def get_hitl_details(
                     "ti_id",
                     "subject",
                     "responded_at",
+                    "created_at",
                 ],
                 model=HITLDetailModel,
                 to_replace={
@@ -234,6 +237,7 @@ def get_hitl_details(
     responded_user_name: QueryHITLDetailRespondedUserNameFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
+    created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", HITLDetailModel))],
 ) -> HITLDetailCollection:
     """Get Human-in-the-loop details."""
     query = (
@@ -265,6 +269,7 @@ def get_hitl_details(
             responded_user_name,
             subject_patten,
             body_patten,
+            created_at,
         ],
         offset=offset,
         limit=limit,

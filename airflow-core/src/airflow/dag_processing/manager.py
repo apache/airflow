@@ -817,6 +817,12 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
             finished.append(file)
 
+            # Detect if this was callback-only processing
+            # For such-cases, we don't serialize the dags and hence send parsing_result as None.
+            is_callback_only = proc.had_callbacks and proc.parsing_result is None
+            if is_callback_only:
+                self.log.debug("Detected callback-only processing for %s", file)
+
             # Collect the DAGS and import errors into the DB, emit metrics etc.
             self._file_stats[file] = process_parse_results(
                 run_duration=time.monotonic() - proc.start_time,
@@ -826,6 +832,7 @@ class DagFileProcessorManager(LoggingMixin):
                 bundle_version=self._bundle_versions[file.bundle_name],
                 parsing_result=proc.parsing_result,
                 session=session,
+                is_callback_only=is_callback_only,
             )
 
         for file in finished:
@@ -1109,13 +1116,24 @@ def process_parse_results(
     bundle_version: str | None,
     parsing_result: DagFileParsingResult | None,
     session: Session,
+    *,
+    is_callback_only: bool = False,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
-    stat = DagFileStat(
-        last_finish_time=finish_time,
-        last_duration=run_duration,
-        run_count=run_count + 1,
-    )
+    if is_callback_only:
+        # Callback-only processing - don't update timestamps to avoid stale DAG detection issues
+        stat = DagFileStat(
+            last_duration=run_duration,
+            run_count=run_count,  # Don't increment for callback-only processing
+        )
+        Stats.incr("dag_processing.callback_only_count")
+    else:
+        # Actual DAG parsing or import error
+        stat = DagFileStat(
+            last_finish_time=finish_time,
+            last_duration=run_duration,
+            run_count=run_count + 1,
+        )
 
     # TODO: AIP-66 emit metrics
     # file_name = Path(dag_file.path).stem
@@ -1123,7 +1141,10 @@ def process_parse_results(
     # Stats.timing("dag_processing.last_duration", stat.last_duration, tags={"file_name": file_name})
 
     if parsing_result is None:
-        stat.import_errors = 1
+        # No DAGs were parsed - this happens for callback-only processing
+        # Don't treat this as an import error when it's callback-only
+        if not is_callback_only:
+            stat.import_errors = 1
     else:
         # record DAGs and import errors to database
         import_errors = {}
