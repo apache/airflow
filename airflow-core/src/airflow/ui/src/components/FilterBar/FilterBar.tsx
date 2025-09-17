@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, HStack } from "@chakra-ui/react";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
@@ -42,18 +42,19 @@ export const FilterBar = ({
   onFiltersChange,
 }: FilterBarProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
     Object.entries(initialValues)
       .filter(([, value]) => value !== null && value !== undefined && value !== "")
       .map(([key, value]) => {
-        const config = configs.find((con) => con.key === key);
+        const configForKey = configs.find((configItem) => configItem.key === key);
 
-        if (!config) {
+        if (!configForKey) {
           throw new Error(`Filter config not found for key: ${key}`);
         }
 
         return {
-          config,
+          config: configForKey,
           id: `${key}-${Date.now()}`,
           value,
         };
@@ -66,9 +67,9 @@ export const FilterBar = ({
 
   const updateFiltersRecord = useCallback(
     (updatedFilters: Array<FilterState>) => {
-      const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
-        if (filter.value !== null && filter.value !== undefined && filter.value !== "") {
-          accumulator[filter.config.key] = filter.value;
+      const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filterState) => {
+        if (filterState.value !== null && filterState.value !== undefined && filterState.value !== "") {
+          accumulator[filterState.config.key] = filterState.value;
         }
 
         return accumulator;
@@ -85,25 +86,26 @@ export const FilterBar = ({
       id: `${config.key}-${Date.now()}`,
       value: config.defaultValue ?? "",
     };
+    const updated = [...filters, newFilter];
 
-    const updatedFilters = [...filters, newFilter];
-
-    setFilters(updatedFilters);
-    updateFiltersRecord(updatedFilters);
+    setFilters(updated);
+    updateFiltersRecord(updated);
   };
 
   const updateFilter = (id: string, value: FilterValue) => {
-    const updatedFilters = filters.map((filter) => (filter.id === id ? { ...filter, value } : filter));
+    const updated = filters.map((filterState) =>
+      filterState.id === id ? { ...filterState, value } : filterState,
+    );
 
-    setFilters(updatedFilters);
-    updateFiltersRecord(updatedFilters);
+    setFilters(updated);
+    updateFiltersRecord(updated);
   };
 
   const removeFilter = (id: string) => {
-    const updatedFilters = filters.filter((filter) => filter.id !== id);
+    const updated = filters.filter((filterState) => filterState.id !== id);
 
-    setFilters(updatedFilters);
-    updateFiltersRecord(updatedFilters);
+    setFilters(updated);
+    updateFiltersRecord(updated);
   };
 
   const resetFilters = () => {
@@ -112,11 +114,11 @@ export const FilterBar = ({
   };
 
   const availableConfigs = configs.filter(
-    (config) => !filters.some((filter) => filter.config.key === config.key),
+    (configItem) => !filters.some((filterState) => filterState.config.key === configItem.key),
   );
 
   const renderFilter = (filter: FilterState) => {
-    const props = {
+    const commonProps = {
       filter,
       onChange: (value: FilterValue) => updateFilter(filter.id, value),
       onRemove: () => removeFilter(filter.id),
@@ -124,13 +126,13 @@ export const FilterBar = ({
 
     switch (filter.config.type) {
       case "date":
-        return <DateFilter key={filter.id} {...props} />;
+        return <DateFilter key={filter.id} {...commonProps} />;
       case "number":
-        return <NumberFilter key={filter.id} {...props} />;
+        return <NumberFilter key={filter.id} {...commonProps} />;
       case "select":
-        return <SelectFilter key={filter.id} {...props} />;
+        return <SelectFilter key={filter.id} {...commonProps} />;
       case "text":
-        return <TextSearchFilter key={filter.id} {...props} />;
+        return <TextSearchFilter key={filter.id} {...commonProps} />;
       default:
         return undefined;
     }
@@ -139,6 +141,7 @@ export const FilterBar = ({
   return (
     <HStack gap={2} wrap="wrap">
       {filters.slice(0, maxVisibleFilters).map(renderFilter)}
+
       {availableConfigs.length > 0 && (
         <Menu.Root>
           <Menu.Trigger asChild>
@@ -153,17 +156,18 @@ export const FilterBar = ({
             </Button>
           </Menu.Trigger>
           <Menu.Content>
-            {availableConfigs.map((config) => (
-              <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
+            {availableConfigs.map((configItem) => (
+              <Menu.Item key={configItem.key} onClick={() => addFilter(configItem)} value={configItem.key}>
                 <HStack gap={2}>
-                  {getFilterIcon(config)}
-                  {config.label}
+                  {getFilterIcon(configItem)}
+                  {configItem.label}
                 </HStack>
               </Menu.Item>
             ))}
           </Menu.Content>
         </Menu.Root>
       )}
+
       {filters.length > 0 && (
         <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
           <MdClear />

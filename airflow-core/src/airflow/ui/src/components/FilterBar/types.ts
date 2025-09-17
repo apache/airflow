@@ -18,35 +18,67 @@
  */
 import type React from "react";
 
-export type FilterValue = Date | number | string | null | undefined;
+/**
+ * Value carried by a filter. For multi-select filters, this is a string array.
+ * `null` is not emitted by the FilterBar; `undefined` means "no value".
+ */
+export type FilterValue = Date | number | ReadonlyArray<string> | string | null | undefined;
 
-export type FilterConfig = {
+/** Option for a select-style filter. */
+export type SelectOption = {
+  readonly disabled?: boolean;
+  readonly label: string;
+  readonly value: string;
+};
+
+/** Base properties shared by all filter configs. */
+type BaseFilterConfig = {
   readonly defaultValue?: FilterValue;
+  /** Disable Cmd/Ctrl+K hotkey when applicable (text filters). */
   readonly hotkeyDisabled?: boolean;
   readonly icon?: React.ReactNode;
   readonly key: string;
   readonly label: string;
-  readonly max?: number;
-  readonly min?: number;
-  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly required?: boolean;
-  readonly type: "date" | "number" | "select" | "text";
 };
 
+/** Discriminated union describing each filter "plugin" configuration. */
+export type FilterConfig =
+  | ({
+      /** Default true. When false, behaves like a radio/single select. */
+      readonly multiple?: boolean;
+      readonly options: ReadonlyArray<SelectOption>;
+      readonly type: "select";
+    } & BaseFilterConfig)
+  | ({
+      readonly max?: number;
+      readonly min?: number;
+      readonly type: "number";
+    } & BaseFilterConfig)
+  | ({
+      readonly type: "date";
+    } & BaseFilterConfig)
+  | ({
+      readonly type: "text";
+    } & BaseFilterConfig);
+
+/** Runtime state per active filter in the bar. */
 export type FilterState = {
   readonly config: FilterConfig;
   readonly id: string;
   readonly value: FilterValue;
 };
 
+/** Props for the FilterBar host. */
 export type FilterBarProps = {
-  readonly configs: Array<FilterConfig>;
-  readonly initialValues?: Record<string, FilterValue>;
+  readonly configs: ReadonlyArray<FilterConfig>;
+  readonly initialValues?: Readonly<Record<string, FilterValue>>;
   readonly maxVisibleFilters?: number;
   readonly onFiltersChange: (filters: Record<string, FilterValue>) => void;
 };
 
+/** Props injected into individual filter plugins. */
 export type FilterPluginProps = {
   readonly filter: FilterState;
   readonly onChange: (value: FilterValue) => void;
