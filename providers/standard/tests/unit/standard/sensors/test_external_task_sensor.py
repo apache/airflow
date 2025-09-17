@@ -304,7 +304,7 @@ class TestExternalTaskSensorV2:
             )
 
     def test_external_task_sensor_wrong_failed_states(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="invalid_state"):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
@@ -666,7 +666,7 @@ exit 0
     def test_external_task_sensor_error_delta_and_fn(self):
         self.add_time_sensor()
         # Test that providing execution_delta and a function raises an error
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="execution_delta and execution_date_fn"):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check_delta",
                 external_dag_id=TEST_DAG_ID,
@@ -680,7 +680,7 @@ exit 0
     def test_external_task_sensor_error_task_id_and_task_ids(self):
         self.add_time_sensor()
         # Test that providing execution_delta and a function raises an error
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="external_task_id and external_task_ids"):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_task_id_and_task_ids",
                 external_dag_id=TEST_DAG_ID,
@@ -711,7 +711,7 @@ exit 0
             allowed_states=["success"],
             dag=self.dag,
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Duplicate task_ids"):
             op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_catch_duplicate_task_ids_with_xcom_arg(self):
@@ -731,7 +731,7 @@ exit 0
             dag=self.dag,
         )
         op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Duplicate task_ids"):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_catch_duplicate_task_ids_with_multiple_xcom_args(self):
@@ -752,11 +752,11 @@ exit 0
             dag=self.dag,
         )
         op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Duplicate task_ids"):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_catch_invalid_allowed_states(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="invalid_state"):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check_1",
                 external_dag_id=TEST_DAG_ID,
@@ -765,7 +765,7 @@ exit 0
                 dag=self.dag,
             )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="invalid_state"):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check_2",
                 external_dag_id=TEST_DAG_ID,
@@ -1185,7 +1185,10 @@ class TestExternalTaskSensorV3:
 
     def test_external_task_sensor_invalid_combination(self, dag_maker):
         """Test that the sensor raises an error with invalid parameter combinations."""
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="Only one of `external_task_id` or `external_task_ids` may be provided to ExternalTaskSensor; use external_task_id or external_task_ids or external_task_group_id.",
+        ):
             with dag_maker("test_external_task_sensor_invalid_combination"):
                 ExternalTaskSensor(
                     task_id="test_external_task_sensor_check",
@@ -1195,7 +1198,10 @@ class TestExternalTaskSensorV3:
                 )
 
     def test_external_task_sensor_invalid_state(self, dag_maker):
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="Valid values for `allowed_states`, `skipped_states` and `failed_states` when `external_task_id` or `external_task_ids` or `external_task_group_id` is not `None",
+        ):
             with dag_maker("test_external_task_sensor_invalid_state"):
                 ExternalTaskSensor(
                     task_id="test_external_task_sensor_check",
