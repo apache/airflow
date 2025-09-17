@@ -214,7 +214,7 @@ class Connection:
                     "You should not use sync calls here -- use `await Conn.async_get` instead", stacklevel=2
                 )
 
-                return greenback.with_portal_run(cls.async_get, conn_id)
+                return greenback.await_(cls.async_get(conn_id))
 
             log.exception("async_to_sync failed")
             raise
