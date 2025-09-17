@@ -290,13 +290,13 @@ BEGIN
     -- Fire base query
     FOR rec IN
         SELECT ti.{TI.id.name}, ti.{TI.dag_id.name}, ti.{TI.task_id.name}, ti.{TI.run_id.name}, ti.{TI.pool.name},
-               ti.{TI.max_active_tis_per_dag.name}, ti.{TI.max_active_tis_per_dagrun.name}, dag.{DAG.max_active_tasks.name},
-               ti.{TI.pool_slots.name}, pool.{Pool.slots.name}
+           ti.{TI.max_active_tis_per_dag.name}, ti.{TI.max_active_tis_per_dagrun.name}, dag.{DAG.max_active_tasks.name},
+           ti.{TI.pool_slots.name}, pool.{Pool.slots.name}
         FROM {TI_TABLE} ti
         JOIN {DAG_TABLE} dag ON ti.{TI.dag_id.name} = dag.{DAG.dag_id.name}
         JOIN {DR_TABLE} dr ON dr.{DR.dag_id.name} = ti.{TI.dag_id.name} AND dr.{DR.run_id.name} = ti.{TI.run_id.name}
         JOIN {POOL_TABLE} pool ON ti.{TI.pool.name} = pool.{Pool.pool.name}
-        WHERE {DR_TABLE}.{DR.state.name} = 'running'
+        WHERE dr.{DR.state.name} = 'running'
           AND NOT dag.{DAG.is_paused.name}
           AND ti.{TI.state.name} = 'scheduled'
           AND dag.{DAG.bundle_name.name} IS NOT NULL
