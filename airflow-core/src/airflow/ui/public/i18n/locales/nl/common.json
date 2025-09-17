@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "Variabelen"
   },
+  "allOperators": "Alle Operators",
+  "appearance": {
+    "appearance": "Uiterlijk",
+    "darkMode": "Donkere modus",
+    "lightMode": "Lichte modus",
+    "systemMode": "Volg systeeminstellingen"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -32,6 +39,7 @@
     "fileLocation": "Bestandslocatie",
     "hasTaskConcurrencyLimits": "Heeft Task Concurrency limieten",
     "lastExpired": "Laatst verlopen",
+    "lastParseDuration": "Laatste parse duur",
     "lastParsed": "Laatst geparsed",
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",
@@ -91,16 +99,12 @@
     "any": "Elk",
     "or": "Of"
   },
+  "filter": "Filter",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filter op Dag",
-    "keyPlaceholder": "Filter op XCom sleutel",
-    "logicalDateFromPlaceholder": "Van logische datum",
-    "logicalDateToPlaceholder": "Tot logische datum",
-    "mapIndexPlaceholder": "Filter op Map Index",
-    "runAfterFromPlaceholder": "Van Run na",
-    "runAfterToPlaceholder": "Tot Run na",
-    "runIdPlaceholder": "Filter op Run ID",
-    "taskIdPlaceholder": "Filter op Task ID"
+    "logicalDateFrom": "Van logische datum",
+    "logicalDateTo": "Tot logische datum",
+    "runAfterFrom": "Van Run na",
+    "runAfterTo": "Tot Run na"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
@@ -142,6 +146,7 @@
     "running": "Lopend",
     "scheduled": "Gepland"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
@@ -180,6 +185,7 @@
     "failed": "Mislukt",
     "no_status": "Geen status",
     "none": "Geen status",
+    "planned": "Gepland",
     "queued": "Wachtend",
     "removed": "Verwijderd",
     "restarting": "Herstartend",
@@ -191,8 +197,6 @@
     "up_for_retry": "Wachtend op een nieuwe poging",
     "upstream_failed": "Upstream mislukt"
   },
-  "switchToDarkMode": "Schakel over naar donkere modus",
-  "switchToLightMode": "Schakel over naar lichte modus",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

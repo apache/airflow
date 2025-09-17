@@ -21,6 +21,7 @@ import re
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
+from time import sleep
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
@@ -629,9 +630,21 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.log.info("ECS Task started: %s", response)
 
         self.arn = response["tasks"][0]["taskArn"]
-        if not self.container_name:
-            self.container_name = response["tasks"][0]["containers"][0]["name"]
         self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
+
+        if not self.container_name and (self.awslogs_group and self.awslogs_stream_prefix):
+            backoff_schedule = [10, 30]
+            for delay in backoff_schedule:
+                sleep(delay)
+                response = self.client.describe_tasks(cluster=self.cluster, tasks=[self.arn])
+                containers = response["tasks"][0].get("containers", [])
+                if containers:
+                    self.container_name = containers[0]["name"]
+                if self.container_name:
+                    break
+
+            if not self.container_name:
+                self.log.info("Could not find container name, required for the log stream after 2 tries")
 
     def _try_reattach_task(self, started_by: str):
         if not started_by:
@@ -666,7 +679,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _get_logs_stream_name(self) -> str:
-        if (
+        if not self.container_name and self.awslogs_stream_prefix and "/" not in self.awslogs_stream_prefix:
+            self.log.warning(
+                "Container name could not be inferred and awslogs_stream_prefix '%s' does not contain '/'. "
+                "This may cause issues when extracting logs from Cloudwatch.",
+                self.awslogs_stream_prefix,
+            )
+        elif (
             self.awslogs_stream_prefix
             and self.container_name
             and not self.awslogs_stream_prefix.endswith(f"/{self.container_name}")

@@ -21,7 +21,7 @@ import shlex
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
 from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
@@ -798,3 +798,86 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
         """Merge output to one string."""
         result_str = "\n".join(line_dict["content"] for line_dict in result["output"])
         return result_str
+
+
+class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
+    """
+    Trigger DAG run for provided Composer environment.
+
+    :param project_id: The ID of the Google Cloud project that the service belongs to.
+    :param region: The ID of the Google Cloud region that the service belongs to.
+    :param environment_id: The ID of the Google Cloud environment that the service belongs to.
+    :param composer_dag_id: The ID of DAG which will be triggered.
+    :param composer_dag_conf: Configuration parameters for the DAG run.
+    :param timeout: The timeout for this request.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "project_id",
+        "region",
+        "environment_id",
+        "composer_dag_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        region: str,
+        environment_id: str,
+        composer_dag_id: str,
+        composer_dag_conf: dict | None = None,
+        timeout: float | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.environment_id = environment_id
+        self.composer_dag_id = composer_dag_id
+        self.composer_dag_conf = composer_dag_conf or {}
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = CloudComposerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            environment = hook.get_environment(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                timeout=self.timeout,
+            )
+        except NotFound as not_found_err:
+            self.log.info("The Composer environment %s does not exist.", self.environment_id)
+            raise AirflowException(not_found_err)
+        composer_airflow_uri = environment.config.airflow_uri
+
+        self.log.info(
+            "Triggering the DAG %s on the %s environment...", self.composer_dag_id, self.environment_id
+        )
+        dag_run = hook.trigger_dag_run(
+            composer_airflow_uri=composer_airflow_uri,
+            composer_dag_id=self.composer_dag_id,
+            composer_dag_conf=self.composer_dag_conf,
+            timeout=self.timeout,
+        )
+        self.log.info("The DAG %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
+
+        return dag_run

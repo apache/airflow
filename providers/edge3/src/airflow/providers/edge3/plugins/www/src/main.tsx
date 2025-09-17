@@ -23,7 +23,7 @@ import { FC } from "react";
 
 import { ColorModeProvider } from "src/context/colorMode";
 import { EdgeLayout } from "src/layouts/EdgeLayout";
-import { tokenHandler } from "src/utils/tokenHandler";
+import { tokenHandler } from "src/utils";
 
 import { system } from "./theme";
 

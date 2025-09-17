@@ -162,13 +162,19 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         index_patterns: str = conf.get("elasticsearch", "index_patterns"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         es_kwargs = es_kwargs or {}
         if es_kwargs == "default_es_kwargs":
             es_kwargs = get_es_kwargs_from_config()
         self.host = self.format_url(host)
-        super().__init__(base_log_folder)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.closed = False
 
         self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)

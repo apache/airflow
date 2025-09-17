@@ -31,6 +31,7 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration, useContainerWidth } from "src/utils";
 
@@ -123,7 +124,7 @@ export const Header = ({
                   value: (
                     <Link asChild color="fg.info">
                       <RouterLink
-                        to={`/dag_runs?triggering_user_name_pattern=${encodeURIComponent(dagRun.triggering_user_name)}`}
+                        to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
                       >
                         <Text>{dagRun.triggering_user_name}</Text>
                       </RouterLink>

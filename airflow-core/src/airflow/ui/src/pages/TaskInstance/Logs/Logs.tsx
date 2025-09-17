@@ -148,7 +148,7 @@ export const Logs = () => {
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <VStack gap={2}>
+            <VStack alignItems="flex-start" gap={2}>
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
                 expanded={expanded}

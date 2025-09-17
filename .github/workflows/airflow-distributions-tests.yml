@@ -98,11 +98,8 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
         if: ${{ inputs.use-local-venv != 'true' }}
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
-        shell: bash
-        if: ${{ inputs.use-local-venv == 'true' }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: ${{ inputs.use-local-venv == 'true' }}

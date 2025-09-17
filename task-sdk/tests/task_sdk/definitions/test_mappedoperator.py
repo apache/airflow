@@ -25,7 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk.api.datamodels._generated import TaskInstanceState, TriggerRule
+from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG

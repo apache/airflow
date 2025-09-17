@@ -76,7 +76,7 @@ def test_docs_inventory_matches_public_api(tmp_path):
     public = set(getattr(sdk, "__all__", [])) - {"__version__"}
 
     extras = {"AirflowParsingContext"}
-    excluded_from_docs = {"WeightRule"}
+    excluded_from_docs = set()
     missing = (public - documented) - excluded_from_docs
     assert not missing, f"Public API items missing in docs: {missing}"
     unexpected = (documented - public) - extras

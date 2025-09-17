@@ -42,7 +42,7 @@ CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
             "VariantName": "AllTraffic",
             "ModelName": "model_name",
             "InitialInstanceCount": "1",
-            "InstanceType": "ml.c4.xlarge",
+            "InstanceType": "ml.c6g.xlarge",
         }
     ],
 }

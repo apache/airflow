@@ -40,6 +40,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
+    QueryHasImportErrorsFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -66,6 +67,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.models import DagModel, DagRun
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -92,6 +94,7 @@ def get_dags(
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
@@ -127,6 +130,7 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            has_import_errors,
             dag_id_pattern,
             dag_ids,
             dag_display_name_pattern,
@@ -198,7 +202,10 @@ def get_dags(
                 HITLDetail,
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(HITLDetail.response_at.is_(None))
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
             .order_by(TaskInstance.dag_id)
         )

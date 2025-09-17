@@ -1917,7 +1917,8 @@ def dag_bag_cyclic():
 
         for dag in dags:
             if AIRFLOW_V_3_0_PLUS:
-                dag_bag.bag_dag(dag=sync_dag_to_db(dag))
+                sync_dag_to_db(dag)
+                dag_bag.bag_dag(dag=dag)
             else:
                 dag_bag.bag_dag(dag=dag, root_dag=dag)  # type: ignore[call-arg]
 
