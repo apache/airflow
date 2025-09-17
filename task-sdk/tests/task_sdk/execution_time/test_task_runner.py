@@ -1986,6 +1986,42 @@ class TestRuntimeTaskInstance:
 
             mock_delete.assert_not_called()
 
+    def test_send_email_on_failure(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that _send_email is called when task fails with email_on_failure=True."""
+
+        class FailingOperator(BaseOperator):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.email_on_failure = True
+                self.email = ["test@example.com"]
+                self.max_retries = 0  # No retries, fail immediately
+
+            def execute(self, context):
+                raise AirflowException("Task failed")
+
+        task = FailingOperator(task_id="failing_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_email_dag")
+        runtime_ti._ti_context_from_server = TIRunContext(
+            dag_run=runtime_ti._ti_context_from_server.dag_run,
+            task_reschedule_count=0,
+            max_tries=1,
+            should_retry=False,
+        )
+
+        with mock.patch("airflow.sdk.execution_time.task_runner._send_email") as mock_send_email:
+            state, error, _ = run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+            finalize(
+                runtime_ti,
+                state,
+                context=runtime_ti.get_template_context(),
+                log=mock.MagicMock(),
+                error=error,
+            )
+
+        mock_send_email.assert_called_once()
+        args, kwargs = mock_send_email.call_args
+        assert args[0] == ["test@example.com"]
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
