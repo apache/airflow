@@ -385,7 +385,7 @@ from airflow.plugins_manager import AirflowPlugin
 
 class FirstPlugin(AirflowPlugin):
     name = "test_duplicate_plugin"
-    
+
 class SecondPlugin(AirflowPlugin):
     name = "test_duplicate_plugin"
 """
@@ -401,11 +401,10 @@ class SecondPlugin(AirflowPlugin):
             assert "Duplicate plugin name found in" in received_logs
             assert str(plugin_file) in received_logs
             assert "test_duplicate_plugin" in received_logs
-                
             # Verify the error was added to import_errors
             assert any("Duplicate plugin name" in str(e) for e in plugins_manager.import_errors.values())
-                
-                          
+
+
 class TestPluginsDirectorySource:
     def test_should_return_correct_path_name(self):
         from airflow import plugins_manager

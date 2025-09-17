@@ -300,7 +300,7 @@ def load_plugins_from_plugin_directory():
 
                 # First pass: collect all plugin classes in this file
                 plugin_classes = [m for m in mod.__dict__.values() if is_valid_plugin(m)]
-                
+
                 # Check for duplicate plugin names within the same file
                 plugin_names = {}
                 for plugin_class in plugin_classes:
@@ -314,7 +314,7 @@ def load_plugins_from_plugin_directory():
                     if plugin_name in plugin_names:
                         raise AirflowPluginException(f"Duplicate plugin name found in {file_path}. ")
                     plugin_names[plugin_name] = plugin_class
-                
+
                 # Second pass: register all plugins
                 for plugin_class in plugin_classes:
                     try:
