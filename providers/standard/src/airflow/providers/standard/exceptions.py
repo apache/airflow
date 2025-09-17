@@ -57,7 +57,7 @@ class DuplicateStateError(AirflowExternalTaskSensorException):
     """Raised when duplicate states are provided across allowed, skipped and failed states."""
 
 
-class HITLTriggerEventError(AirflowException):
+class HITLTriggerEventError(Exception):
     """Raised when TriggerEvent contains error."""
 
 
