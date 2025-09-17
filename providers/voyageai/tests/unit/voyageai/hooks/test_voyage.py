@@ -18,7 +18,6 @@
 # Unit tests for the VoyageAIHook.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.models.connection import Connection
@@ -27,7 +26,7 @@ from airflow.providers.voyageai.hooks.voyage import VoyageAIHook
 AIRFLOW_CONNECTION_PATCH = "airflow.providers.voyageai.hooks.voyage.VoyageAIHook.get_connection"
 
 
-class TestVoyageAIHook(unittest.TestCase):
+class TestVoyageAIHook:
     """
     Unit tests for the VoyageAIHook.
 
@@ -69,7 +68,8 @@ class TestVoyageAIHook(unittest.TestCase):
 
         mock_get_connection.assert_called_once_with(self.conn_id)
         mock_voyage_client.assert_called_once_with(api_key=self.api_key)
-        self.assertEqual(client, mock_voyage_client.return_value)
+
+        assert client == mock_voyage_client.return_value
 
     @mock.patch(AIRFLOW_CONNECTION_PATCH)
     def test_embed_calls_client_method(self, mock_get_connection):

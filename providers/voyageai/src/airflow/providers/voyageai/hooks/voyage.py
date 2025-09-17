@@ -20,7 +20,10 @@ from __future__ import annotations
 import voyageai
 from voyageai import Client
 
-from airflow.hooks.base import BaseHook
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 
 class VoyageAIHook(BaseHook):
@@ -61,13 +64,13 @@ class VoyageAIHook(BaseHook):
         api_key = conn.password
 
         if not api_key:
-            raise ValueError(f"API Key not found in connection '{self.conn_id}' (password field).")
+            raise ValueError("API Key not found in connection '%s' (password field).", self.conn_id)
 
         self.log.info("Authenticating and creating Voyage AI client.")
         self.client = voyageai.Client(api_key=api_key)
         return self.client
 
-    def embed(self, texts: list[str], model: str) -> list[list[float]]:
+    def embed(self, texts: list[str], model: str) -> list[list[float]] | list[list[int]]:
         """
         Generate embeddings for a list of documents.
 
@@ -76,6 +79,6 @@ class VoyageAIHook(BaseHook):
         :return: A list of embedding vectors, where each vector is a list of floats.
         """
         client = self.get_conn()
-        self.log.info(f"Generating embeddings for {len(texts)} documents with model '{model}'.")
+        self.log.info("Generating embeddings for %d documents with model '%s'.", len(texts), model)
         result = client.embed(texts, model=model, input_type="document")
         return result.embeddings
