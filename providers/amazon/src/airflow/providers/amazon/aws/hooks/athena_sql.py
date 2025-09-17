@@ -67,7 +67,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
 
     def __init__(
         self,
-        athena_conn_id: str | None = None,  # keep positional compatibility
+        athena_conn_id: str = default_conn_name,
         *,
         s3_staging_dir: str | None = None,
         work_group: str | None = None,
@@ -82,11 +82,6 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         endpoint_url: str | None = None,
         **kwargs,
     ) -> None:
-        # prefer explicit arg; fall back to kwargs; finally default
-        if athena_conn_id is None:
-            athena_conn_id = kwargs.pop("athena_conn_id", self.default_conn_name)
-        else:
-            kwargs.pop("athena_conn_id", None)  # avoid conflicts
         super().__init__(**kwargs)
         # Store explicit params on self
         self.s3_staging_dir = s3_staging_dir
