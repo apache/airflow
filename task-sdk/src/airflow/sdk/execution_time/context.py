@@ -172,13 +172,33 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
-    # TODO: add async support for secrets backends
+    from asgiref.sync import sync_to_async
 
     from airflow.sdk.execution_time.comms import GetConnection
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+    # TODO: check cache first
+    # enabled only if SecretCache.init() has been called first
 
+    # Try secrets backends first using async wrapper
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
+        try:
+            conn = await sync_to_async(secrets_backend.get_connection)(conn_id)
+            if conn:
+                # TODO: this should probably be in get conn
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
+                return conn
+        except Exception:
+            # If one backend fails, try the next one
+            continue
+
+    # If no secrets backend has the connection, fall back to API server
+    msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
     return _process_connection_result_conn(msg)
 
 
