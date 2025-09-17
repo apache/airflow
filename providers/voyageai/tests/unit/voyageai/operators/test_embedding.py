@@ -18,13 +18,12 @@
 # Unit tests for the VoyageEmbeddingOperator.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.voyageai.operators.embedding import VoyageEmbeddingOperator
 
 
-class TestVoyageEmbeddingOperator(unittest.TestCase):
+class TestVoyageEmbeddingOperator:
     """
     Unit tests for the VoyageEmbeddingOperator.
 
@@ -78,4 +77,4 @@ class TestVoyageEmbeddingOperator(unittest.TestCase):
         )
 
         # 6. Assert that the operator returns the expected value from the hook.
-        self.assertEqual(result, mock_embeddings)
+        assert result == mock_embeddings

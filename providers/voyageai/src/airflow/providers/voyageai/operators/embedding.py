@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.voyageai.hooks.voyage import VoyageAIHook
 
 if TYPE_CHECKING:
@@ -57,9 +57,9 @@ class VoyageEmbeddingOperator(BaseOperator):
         self.input_texts = input_texts
         self.model = model
 
-    def execute(self, context: Context) -> list[list[float]]:
+    def execute(self, context: Context) -> list[list[float]] | list[list[int]]:
         """Instantiate the hook, call the embed method, and return the result."""
-        self.log.info(f"Executing VoyageEmbeddingOperator for {len(self.input_texts)} texts.")
+        self.log.info("Executing VoyageEmbeddingOperator for %d texts.", len(self.input_texts))
         hook = VoyageAIHook(conn_id=self.conn_id)
 
         embeddings = hook.embed(
@@ -67,6 +67,6 @@ class VoyageEmbeddingOperator(BaseOperator):
             model=self.model,
         )
 
-        self.log.info(f"Successfully retrieved {len(embeddings)} embedding vectors.")
+        self.log.info("Successfully retrieved %d embedding vectors.", len(embeddings))
 
         return embeddings

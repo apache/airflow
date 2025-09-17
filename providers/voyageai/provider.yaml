@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+---
 package-name: apache-airflow-providers-voyageai
 
 name: Voyage AI
 
 description: |
-  `Apache Airflow provider to interact with the Voyage AI embeddings API. <https://docs.voyageai.com/docs/introduction>`__
+  `Apache Airflow provider to interact with the Voyage AI embeddings API.`
+  `<https://docs.voyageai.com/docs/introduction>`__
 
 versions:
   - 0.1.0

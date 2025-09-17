@@ -15,37 +15,40 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _apache-airflow-providers-voyageai:
+``apache-airflow-providers-voyageai``
+======================================
 
-==================================================
-Apache Airflow Provider for Voyage AI (`voyageai`)
-==================================================
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+    :maxdepth: 1
+    :hidden:
 
-   self
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+    Installing from sources <installing-providers-from-sources>
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Guides
-
-   operators/embedding
 
 .. toctree::
-   :maxdepth: 1
-   :caption: References
+    :maxdepth: 1
+    :caption: Guides
 
-   _api/airflow/providers/voyageai/index
+    operators/embedding
+
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Provider Details
+    :maxdepth: 1
+    :caption: References
 
-   changelog
-   commits
-```
+    _api/airflow/providers/voyageai/index
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/voyageai/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

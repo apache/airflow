@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-voyageai",
         "name": "Voyage AI",
-        "description": "`Apache Airflow provider to interact with the Voyage AI embeddings API. <https://docs.voyageai.com/docs/introduction>`__\n",
+        "description": "`Apache Airflow provider to interact with the Voyage AI embeddings API.`\n`<https://docs.voyageai.com/docs/introduction>`__\n",
         "hooks": [
             {"integration-name": "Voyage AI", "python-modules": ["airflow.providers.voyageai.hooks.voyage"]}
         ],
