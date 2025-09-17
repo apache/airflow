@@ -29,6 +29,11 @@ Deadline Alerts allow you to set time thresholds for your Dag runs and automatic
 thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
 an interval, and defining a response using either Airflow's Notifiers or a custom callback function.
 
+Migrating from SLA
+------------------
+
+For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/sla-to-deadlines>`
+
 Creating a Deadline Alert
 -------------------------
 
@@ -79,6 +84,8 @@ The timeline for this example would look like this:
     |------|-----------|---------|-----------|--------|
         Scheduled    Queued    Started    Deadline
          00:00       00:03      00:05      00:18
+
+.. _built-in-deadline-references:
 
 Using Built-in References
 -------------------------
