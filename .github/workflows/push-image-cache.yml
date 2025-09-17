@@ -116,6 +116,10 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: Install gh and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh jq
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Login to ghcr.io
@@ -206,7 +210,6 @@ jobs:
         run: >
           breeze prod-image build
           --builder airflow_cache
-          --rebuild-base-image
           --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
@@ -219,7 +222,6 @@ jobs:
           breeze prod-image build
           --builder airflow_cache
           --prepare-buildx-cache
-          --rebuild-base-image
           --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
