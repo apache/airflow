@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, func, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -396,7 +396,7 @@ class ReferenceModels:
                 duration_expr = func.extract("epoch", DagRun.end_date - DagRun.start_date)
             elif dialect == "mysql":
                 # Use TIMESTAMPDIFF to get exact seconds like PostgreSQL EXTRACT(epoch FROM ...)
-                duration_expr = func.timestampdiff("SECOND", DagRun.start_date, DagRun.end_date)
+                duration_expr = func.timestampdiff(text("SECOND"), DagRun.start_date, DagRun.end_date)
             elif dialect == "sqlite":
                 duration_expr = (func.julianday(DagRun.end_date) - func.julianday(DagRun.start_date)) * 86400
             else:
