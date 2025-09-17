@@ -184,7 +184,7 @@ class HITLOperator(BaseOperator):
         )
 
     def process_trigger_event_error(self, event: dict[str, Any]) -> None:
-        if "error_type" == "timeout":
+        if event["error_type"] == "timeout":
             raise HITLTimeoutError(event)
 
         raise HITLTriggerEventError(event)
