@@ -59,6 +59,7 @@ from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
+from tests_common.test_utils.taskinstances import run_ti
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -1226,7 +1227,7 @@ class TestSqlBranch:
         )
         if AIRFLOW_V_3_0_PLUS:
             self.scheduler_dag = sync_dag_to_db(self.dag)
-        self.get_ti(branch_op.task_id).run()
+        run_ti(self.get_ti(branch_op.task_id), branch_op)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook, branch_op):
@@ -1263,7 +1264,7 @@ class TestSqlBranch:
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            self.get_ti(branch_op.task_id, dr).run()
+            run_ti(self.get_ti(branch_op.task_id, dr), branch_op)
             tis = dr.get_task_instances()
 
             for ti in tis:
@@ -1312,7 +1313,7 @@ class TestSqlBranch:
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            self.get_ti(branch_op.task_id, dr).run()
+            run_ti(self.get_ti(branch_op.task_id, dr), branch_op)
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1359,7 +1360,7 @@ class TestSqlBranch:
                 branch_op.execute({})
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            self.get_ti(branch_op.task_id, dr).run()
+            run_ti(self.get_ti(branch_op.task_id, dr), branch_op)
             tis = dr.get_task_instances()
 
             for ti in tis:
@@ -1418,7 +1419,7 @@ class TestSqlBranch:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_3", -1)]
         else:
-            self.get_ti(branch_op.task_id, dr).run()
+            run_ti(self.get_ti(branch_op.task_id, dr), branch_op)
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
@@ -1490,7 +1491,7 @@ class TestSqlBranch:
         for true_value in SUPPORTED_TRUE_VALUES:
             mock_get_records.return_value = [true_value]
 
-            self.get_ti(branch_op.task_id, dr).run()
+            run_ti(self.get_ti(branch_op.task_id, dr), branch_op)
 
             tis = dr.get_task_instances()
             for ti in tis:
@@ -1536,7 +1537,7 @@ class TestSqlBranch:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            self.get_ti(branch_op.task_id, dr).run()
+            run_ti(self.get_ti(branch_op.task_id, dr), branch_op)
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":

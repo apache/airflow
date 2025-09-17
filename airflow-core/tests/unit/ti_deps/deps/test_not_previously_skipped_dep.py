@@ -28,6 +28,8 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.taskinstances import run_ti
+
 pytestmark = pytest.mark.db_test
 
 
@@ -101,7 +103,7 @@ def test_parent_follow_branch(session, dag_maker):
 
     dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
     ti, ti2 = dagrun.task_instances
-    ti.run()
+    run_ti(ti, op1)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
@@ -129,7 +131,7 @@ def test_parent_skip_branch(session, dag_maker):
         ti.task_id: ti
         for ti in dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
     }
-    tis["op1"].run()
+    run_ti(tis["op1"], op1)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1

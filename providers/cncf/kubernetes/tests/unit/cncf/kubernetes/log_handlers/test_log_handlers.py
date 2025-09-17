@@ -42,6 +42,7 @@ from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstances import run_ti
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -157,7 +158,7 @@ class TestFileTaskLogHandler:
 
         file_handler = TaskLogReader().log_handler
         set_context(logger, ti)
-        ti.run(ignore_ti_state=True)
+        run_ti(ti, task)
         ti.state = TaskInstanceState.RUNNING
         # clear executor_instances cache
         file_handler.executor_instances = {}
