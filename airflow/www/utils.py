@@ -33,7 +33,7 @@ from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_valu
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from markdown_it import MarkdownIt
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
@@ -458,17 +458,15 @@ def task_instance_link(attr):
         execution_date=execution_date,
         tab="graph",
     )
-    return Markup(
-        """
+    return f"""
         <span style="white-space: nowrap;">
-        <a href="{url}">{task_id}</a>
+        <a href="{url}">{escape(task_id)}</a>
         <a href="{url_root}" title="Filter on this task">
         <span class="material-icons" style="margin-left:0;"
             aria-hidden="true">filter_alt</span>
         </a>
         </span>
         """
-    ).format(url=url, task_id=task_id, url_root=url_root)
 
 
 def state_token(state):
@@ -539,7 +537,7 @@ def dag_link(attr):
     if not dag_id:
         return Markup("None")
     url = url_for("Airflow.grid", dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id)
+    return f'<a href="{url}">{escape(dag_id)}</a>'
 
 
 def dag_run_link(attr):
@@ -558,7 +556,7 @@ def dag_run_link(attr):
         dag_run_id=run_id,
         tab="graph",
     )
-    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
+    return f'<a href="{url}">{escape(run_id)}</a>'
 
 
 def _get_run_ordering_expr(name: str) -> ColumnOperators:
