@@ -230,7 +230,7 @@ def create_asset(
             status.HTTP_409_CONFLICT,
             f"Asset with name '{body.name}' and URI '{body.uri}' already exists",
         )
-    
+
     # Create the asset
     asset = Asset(
         name=body.name,
@@ -238,11 +238,11 @@ def create_asset(
         group=body.group,
         extra=body.extra,
     )
-    
+
     # Use the asset manager to create the asset
     asset_models = asset_manager.create_assets([asset], session=session)
     session.commit()
-    
+
     # Get the created asset with all relationships loaded
     created_asset = session.scalar(
         select(AssetModel)
@@ -254,7 +254,7 @@ def create_asset(
             subqueryload(AssetModel.aliases),
         )
     )
-    
+
     return AssetResponse.model_validate(
         {
             **created_asset.__dict__,

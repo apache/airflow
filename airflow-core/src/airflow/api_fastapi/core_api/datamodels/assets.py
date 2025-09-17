@@ -163,9 +163,9 @@ class QueuedEventCollectionResponse(BaseModel):
 class CreateAssetBody(StrictBaseModel):
     """Create asset request."""
 
-    name: str = Field(..., min_length=1, max_length=1500)
-    uri: str = Field(..., min_length=1, max_length=1500)
-    group: str = Field(default="", max_length=1500)
+    name: str
+    uri: str
+    group: str
     extra: dict = Field(default_factory=dict)
 
     class Config:
