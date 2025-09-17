@@ -53,7 +53,7 @@ Out of memory error (OOM)
 """""""""""""""""""""""""
 
 When a task process consumes too much memory for a worker, the best case scenario is it is killed
-with SIGTERM (exit code -9). Depending on configuration and infrastructure, it is also
+with SIGKILL (exit code -9). Depending on configuration and infrastructure, it is also
 possible that the whole worker will be killed due to OOM and then the tasks would be marked as
 failed after failing to heartbeat.
 

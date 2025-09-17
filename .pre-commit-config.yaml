@@ -519,7 +519,8 @@ repos:
         files: >
           (?x)
           ^airflow-core/docs/.*/diagram_[^/]*\.py$|
-          ^docs/images/.*\.py$
+          ^docs/images/.*\.py$|
+          ^airflow-ctl/docs/images/diagrams/.*\.py$
         pass_filenames: true
       - id: generate-volumes-for-sources
         name: Generate volumes for docker compose

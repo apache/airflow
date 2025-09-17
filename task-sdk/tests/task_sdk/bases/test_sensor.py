@@ -133,7 +133,7 @@ class TestBaseSensor:
     def test_soft_fail_with_exception(self, make_sensor, exception_cls):
         sensor = make_sensor(False, soft_fail=True)
         sensor.poke = Mock(side_effect=[exception_cls(None)])
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="None"):
             self._run(sensor)
 
     @pytest.mark.parametrize(
