@@ -62,9 +62,9 @@ def _serve_logs(skip_serve_logs: bool = False):
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
-    executor_class, _ = ExecutorLoader.import_default_executor_cls()
-    if executor_class.serve_logs:
-        if skip_serve_logs is False:
+    if skip_serve_logs is False:
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
+        if executor_class.serve_logs:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
     try:

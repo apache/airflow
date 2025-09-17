@@ -188,6 +188,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                         "params_input": {},
                         "response_received": False,
                         "assigned_users": [],
+                        "created_at": mock.ANY,
                     }
                     for i in range(3)
                 ],

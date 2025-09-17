@@ -47,6 +47,7 @@ from airflow.callbacks.callback_requests import (
     EmailNotificationRequest,
     TaskCallbackRequest,
 )
+from airflow.dag_processing.manager import process_parse_results
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
@@ -579,6 +580,63 @@ def test_parse_file_with_task_callbacks(spy_agency):
     )
 
     assert called is True
+
+
+def test_callback_processing_does_not_update_timestamps(session):
+    """Callback processing should not update last_finish_time to prevent stale DAG detection."""
+    stat = process_parse_results(
+        run_duration=1.0,
+        finish_time=timezone.utcnow(),
+        run_count=5,
+        bundle_name="test",
+        bundle_version=None,
+        parsing_result=None,
+        session=session,
+        is_callback_only=True,
+    )
+
+    assert stat.last_finish_time is None
+    assert stat.run_count == 5
+
+
+def test_normal_parsing_updates_timestamps(session):
+    """last_finish_time should be updated when parsing a dag file."""
+    finish_time = timezone.utcnow()
+
+    stat = process_parse_results(
+        run_duration=2.0,
+        finish_time=finish_time,
+        run_count=3,
+        bundle_name="test-bundle",
+        bundle_version="v1",
+        parsing_result=DagFileParsingResult(fileloc="test.py", serialized_dags=[]),
+        session=session,
+        is_callback_only=False,
+    )
+
+    assert stat.last_finish_time == finish_time
+    assert stat.run_count == 4
+    assert stat.import_errors == 0
+
+
+def test_import_error_updates_timestamps(session):
+    """last_finish_time should be updated when parsing a dag file results in import errors."""
+    finish_time = timezone.utcnow()
+
+    stat = process_parse_results(
+        run_duration=1.5,
+        finish_time=finish_time,
+        run_count=2,
+        bundle_name="test-bundle",
+        bundle_version="v1",
+        parsing_result=None,
+        session=session,
+        is_callback_only=False,
+    )
+
+    assert stat.last_finish_time == finish_time
+    assert stat.run_count == 3
+    assert stat.import_errors == 1
 
 
 class TestExecuteDagCallbacks:

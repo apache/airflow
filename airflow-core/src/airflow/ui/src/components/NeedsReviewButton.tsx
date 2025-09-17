@@ -20,7 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
@@ -37,10 +37,10 @@ export const NeedsReviewButton = ({
   readonly taskId?: string;
 }) => {
   const hookAutoRefresh = useAutoRefresh({ dagId });
-  const { data: hitlStatsData, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
+  const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
-      dagId,
-      dagRunId: runId,
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
       responseReceived: false,
       state: ["deferred"],
       taskId,

@@ -1148,10 +1148,6 @@ class DependencyDetector:
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
-        # TODO (GH-52141): Separate MappedOperator implementation to get rid of this.
-        if TYPE_CHECKING:
-            assert isinstance(task.operator_class, type)
-
         deps = []
         if isinstance(task, TriggerDagRunOperator):
             deps.append(
@@ -1409,7 +1405,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives SerializedBaseOperator
+        # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives SerializedBaseOperator.
+        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type]
 
     @property
     def operator_name(self) -> str:

@@ -244,7 +244,7 @@ class TestWatchedSubprocess:
 
             logging.getLogger("airflow.foobar").error("An error message")
 
-            warnings.warn("Warning should be captured too", stacklevel=1)
+            warnings.warn("Warning should be appear from the correct callsite", stacklevel=1)
 
         line = lineno() - 2  # Line the error should be on
 
@@ -293,16 +293,17 @@ class TestWatchedSubprocess:
                     "event": "An error message",
                     "level": "error",
                     "logger": "airflow.foobar",
-                    "timestamp": instant.replace(tzinfo=None),
+                    "timestamp": instant,
+                    "loc": mock.ANY,
                 },
                 {
                     "category": "UserWarning",
-                    "event": "Warning should be captured too",
+                    "event": "Warning should be appear from the correct callsite",
                     "filename": __file__,
                     "level": "warning",
                     "lineno": line,
                     "logger": "py.warnings",
-                    "timestamp": instant.replace(tzinfo=None),
+                    "timestamp": instant,
                 },
             ]
         )
@@ -320,6 +321,8 @@ class TestWatchedSubprocess:
             fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
             json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+
+        line = lineno() - 3  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -341,8 +344,20 @@ class TestWatchedSubprocess:
         assert rc == 0
         assert captured_logs == unordered(
             [
-                {"event": "Log on new socket", "level": "info", "logger": "task", "timestamp": mock.ANY},
-                {"event": "Log on old socket", "level": "info", "logger": "root", "timestamp": mock.ANY},
+                {
+                    "event": "Log on new socket",
+                    "level": "info",
+                    "logger": "task",
+                    "timestamp": mock.ANY,
+                    # Since this is set as json, without filename or linno, we _should_ not add any.
+                },
+                {
+                    "event": "Log on old socket",
+                    "level": "info",
+                    "logger": "root",
+                    "timestamp": mock.ANY,
+                    "loc": f"{os.path.basename(__file__)}:{line}",
+                },
             ]
         )
 
@@ -649,6 +664,7 @@ class TestWatchedSubprocess:
             "timestamp": mocker.ANY,
             "level": "info",
             "logger": "supervisor",
+            "loc": mocker.ANY,
         } in captured_logs
 
     def test_supervisor_handles_already_running_task(self):
@@ -762,6 +778,7 @@ class TestWatchedSubprocess:
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
                 "ti_id": ti_id,
+                "loc": mocker.ANY,
             },
             {
                 "detail": {
@@ -773,12 +790,14 @@ class TestWatchedSubprocess:
                 "level": "error",
                 "logger": "task",
                 "timestamp": mocker.ANY,
+                "loc": mocker.ANY,
             },
             {
                 "event": "Task killed!",
                 "level": "error",
                 "logger": "task",
                 "timestamp": mocker.ANY,
+                "loc": mocker.ANY,
             },
         ]
 
@@ -836,6 +855,7 @@ class TestWatchedSubprocess:
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
                 "exception": mocker.ANY,
+                "loc": mocker.ANY,
             }
 
             assert expected_log in captured_logs
@@ -855,6 +875,7 @@ class TestWatchedSubprocess:
             "failed_heartbeats": max_failed_heartbeats,
             "logger": "supervisor",
             "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
         } in captured_logs
 
     @pytest.mark.parametrize(
