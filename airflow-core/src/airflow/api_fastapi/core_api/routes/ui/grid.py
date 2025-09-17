@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -222,17 +222,53 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    # Retrieve, sort the previous DAG Runs
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-    ).where(DagRun.dag_id == dag_id)
+    ti_version_cte = (
+        select(
+            TaskInstance.run_id,
+            func.max(DagVersion.version_number).label("max_version_number"),
+            func.count(func.distinct(TaskInstance.dag_version_id)).label("version_count"),
+        )
+        .select_from(TaskInstance)
+        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+        .where(TaskInstance.dag_id == dag_id)
+        .group_by(TaskInstance.run_id)
+        .cte("ti_version_info")
+    )
+
+    created_version_cte = (
+        select(DagRun.run_id, DagVersion.version_number.label("created_version_number"))
+        .select_from(DagRun)
+        .outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
+        .where(DagRun.dag_id == dag_id)
+        .cte("created_version_info")
+    )
+
+    base_query = (
+        select(
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.queued_at,
+            DagRun.start_date,
+            DagRun.end_date,
+            DagRun.run_after,
+            DagRun.state,
+            DagRun.run_type,
+            DagRun.bundle_version,
+            case(
+                (DagRun.bundle_version.is_not(None), created_version_cte.c.created_version_number),
+                else_=ti_version_cte.c.max_version_number,
+            ).label("dag_version_number"),
+            case(
+                (DagRun.bundle_version.is_not(None), False), else_=(ti_version_cte.c.version_count > 1)
+            ).label("has_mixed_versions"),
+        )
+        .select_from(
+            DagRun.__table__.outerjoin(ti_version_cte, DagRun.run_id == ti_version_cte.c.run_id).outerjoin(
+                created_version_cte, DagRun.run_id == created_version_cte.c.run_id
+            )
+        )
+        .where(DagRun.dag_id == dag_id)
+    )
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
@@ -303,7 +339,9 @@ def get_grid_ti_summaries(
                 TaskInstance.dag_version_id,
                 TaskInstance.start_date,
                 TaskInstance.end_date,
+                DagVersion.version_number,
             )
+            .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
             .where(TaskInstance.dag_id == dag_id)
             .where(
                 TaskInstance.run_id == run_id,
@@ -326,6 +364,8 @@ def get_grid_ti_summaries(
                 "state": ti.state,
                 "start_date": ti.start_date,
                 "end_date": ti.end_date,
+                "dag_version_id": str(ti.dag_version_id) if ti.dag_version_id else None,
+                "dag_version_number": ti.version_number,
             }
         )
     serdag = _get_serdag(
