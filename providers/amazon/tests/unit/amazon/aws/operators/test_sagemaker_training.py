@@ -44,7 +44,7 @@ CREATE_TRAINING_PARAMS = {
     "AlgorithmSpecification": {"TrainingImage": "image_name", "TrainingInputMode": "File"},
     "RoleArn": "arn:aws:iam:role/test-role",
     "OutputDataConfig": {"S3OutputPath": "output_path"},
-    "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": "50"},
+    "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c6g.8xlarge", "VolumeSizeInGB": "50"},
     "TrainingJobName": "job_name",
     "HyperParameters": {"k": "10", "feature_dim": "784", "mini_batch_size": "500", "force_dense": "True"},
     "StoppingCondition": {"MaxRuntimeInSeconds": "3600"},

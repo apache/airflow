@@ -156,7 +156,13 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     },
     {
         "name": "Other Tests",
-        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
+        "commands": [
+            "system-tests",
+            "helm-tests",
+            "docker-compose-tests",
+            "python-api-client-tests",
+            "airflow-e2e-tests",
+        ],
     },
 ]
 
@@ -265,5 +271,17 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
+    ],
+    "breeze testing airflow-e2e-tests": [
+        {
+            "name": "Airflow E2E tests flags",
+            "options": [
+                "--image-name",
+                "--python",
+                "--skip-docker-compose-deletion",
+                "--include-success-outputs",
+                "--github-repository",
+            ],
+        }
     ],
 }

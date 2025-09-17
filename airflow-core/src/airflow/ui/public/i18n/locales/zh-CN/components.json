@@ -6,8 +6,6 @@
     "allRuns": "所有执行",
     "backwards": "反向执行",
     "dateRange": "日期范围",
-    "dateRangeFrom": "从",
-    "dateRangeTo": "到",
     "errorStartDateBeforeEndDate": "开始日期必须早于结束日期。",
     "maxRuns": "活跃执行数上限",
     "missingAndErroredRuns": "遗漏和错误的执行",

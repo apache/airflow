@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link, Table } from "@chakra-ui/react";
+import { Box, Link, Table, Text } from "@chakra-ui/react";
 import { useUiServiceJobs } from "openapi/queries";
 import { Link as RouterLink } from "react-router-dom";
 import TimeAgo from "react-timeago";
@@ -36,7 +36,7 @@ export const JobsPage = () => {
   // Add sorting
   // Add filtering
   // Translation?
-  if (data)
+  if (data?.jobs && data.jobs.length > 0)
     return (
       <Box p={2}>
         <Table.Root size="sm" interactive stickyHeader striped>
@@ -102,13 +102,24 @@ export const JobsPage = () => {
         </Table.Root>
       </Box>
     );
-  if (error) {
+  if (data) {
     return (
-      <Box p={2}>
-        <p>Unable to load data:</p>
-        <ErrorAlert error={error} />
-      </Box>
+      <Text as="div" pl={4} pt={1}>
+        Currently no jobs running. Start a Dag and then all active jobs should show up here. Note that after
+        some (configurable) time, jobs are purged from the list.
+      </Text>
     );
   }
-  return <Box p={2}>Loading...</Box>;
+  if (error) {
+    return (
+      <Text as="div" pl={4} pt={1}>
+        <ErrorAlert error={error} />
+      </Text>
+    );
+  }
+  return (
+    <Text as="div" pl={4} pt={1}>
+      Loading...
+    </Text>
+  );
 };

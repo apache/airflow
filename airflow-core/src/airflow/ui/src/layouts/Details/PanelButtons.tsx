@@ -377,7 +377,7 @@ export const PanelButtons = ({
                             hideAdvanced
                             hotkeyDisabled
                             onChange={handleTriggeringUserChange}
-                            placeHolder={translate("common:filters.triggeringUserPlaceholder")}
+                            placeHolder={translate("common:dagRun.triggeringUser")}
                           />
                         </VStack>
                         {shouldShowToggleButtons ? (

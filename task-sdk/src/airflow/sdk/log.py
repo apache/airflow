@@ -17,25 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
-import logging.config
-import re
-import sys
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar
+from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
 
 import structlog
+import structlog.processors
 
 # We have to import this here, as it is used in the type annotations at runtime even if it seems it is
 # not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
 from pydantic import JsonValue  # noqa: TC002
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
+    from structlog.typing import EventDict, FilteringBoundLogger, Processor
 
     from airflow.logging_config import RemoteLogIO
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
@@ -44,99 +39,11 @@ if TYPE_CHECKING:
 __all__ = ["configure_logging", "reset_logging", "mask_secret"]
 
 
-JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
-
-
-def exception_group_tracebacks(
-    format_exception: Callable[[ExcInfo], list[dict[str, Any]]],
-) -> Processor:
-    # Make mypy happy
-    if not hasattr(__builtins__, "BaseExceptionGroup"):
-        T = TypeVar("T")
-
-        class BaseExceptionGroup(Generic[T]):
-            exceptions: list[T]
-
-    def _exception_group_tracebacks(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
-        if exc_info := event_dict.get("exc_info", None):
-            group: BaseExceptionGroup[Exception] | None = None
-            if exc_info is True:
-                # `log.exception('mesg")` case
-                exc_info = sys.exc_info()
-                if exc_info[0] is None:
-                    exc_info = None
-
-            if (
-                isinstance(exc_info, tuple)
-                and len(exc_info) == 3
-                and isinstance(exc_info[1], BaseExceptionGroup)
-            ):
-                group = exc_info[1]
-            elif isinstance(exc_info, BaseExceptionGroup):
-                group = exc_info
-
-            if group:
-                # Only remove it from event_dict if we handle it
-                del event_dict["exc_info"]
-                event_dict["exception"] = list(
-                    itertools.chain.from_iterable(
-                        format_exception((type(exc), exc, exc.__traceback__))  # type: ignore[attr-defined,arg-type]
-                        for exc in (*group.exceptions, group)
-                    )
-                )
-
-        return event_dict
-
-    return _exception_group_tracebacks
-
-
-def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
-    if logger_name := event_dict.pop("logger_name", None):
-        event_dict.setdefault("logger", logger_name)
-    return event_dict
-
-
-def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
-    for k, v in event_dict.items():
-        if isinstance(v, str):
-            event_dict[k] = re.sub(JWT_PATTERN, "eyJ***", v)
-    return event_dict
-
-
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     from airflow.sdk._shared.secrets_masker import redact
 
     event_dict = redact(event_dict)  # type: ignore[assignment]
     return event_dict
-
-
-def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
-    event_dict.pop("positional_args", None)
-    return event_dict
-
-
-class StdBinaryStreamHandler(logging.StreamHandler):
-    """A logging.StreamHandler that sends logs as binary JSON over the given stream."""
-
-    stream: BinaryIO
-
-    def __init__(self, stream: BinaryIO):
-        super().__init__(stream)
-
-    def emit(self, record: logging.LogRecord):
-        try:
-            msg = self.format(record)
-            buffer = bytearray(msg, "utf-8", "backslashreplace")
-
-            buffer += b"\n"
-
-            stream = self.stream
-            stream.write(buffer)
-            self.flush()
-        except RecursionError:  # See issue 36272
-            raise
-        except Exception:
-            self.handleError(record)
 
 
 @cache
@@ -173,19 +80,23 @@ def configure_logging(
     colored_console_log: bool | None = None,
 ):
     """Set up struct logging and stdlib logging config."""
+    from airflow.configuration import conf
+
     if log_level == "DEFAULT":
         log_level = "INFO"
-        from airflow.configuration import conf
 
         log_level = conf.get("logging", "logging_level", fallback="INFO")
 
     # If colored_console_log is not explicitly set, read from configuration
     if colored_console_log is None:
-        from airflow.configuration import conf
-
         colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
-    from airflow.sdk._shared.logging.structlog import configure_logging
+    from airflow.sdk._shared.logging import configure_logging, translate_config_values
+
+    log_fmt, callsite_params = translate_config_values(
+        log_format=conf.get("logging", "log_format"),
+        callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
+    )
 
     mask_secrets = not sending_to_supervisor
     extra_processors: tuple[Processor, ...] = ()
@@ -199,10 +110,12 @@ def configure_logging(
     configure_logging(
         json_output=json_output,
         log_level=log_level,
+        log_format=log_fmt,
         output=output,
         cache_logger_on_first_use=cache_logger_on_first_use,
         colors=colored_console_log,
         extra_processors=extra_processors,
+        callsite_parameters=callsite_params,
     )
 
     global _warnings_showwarning
@@ -365,5 +278,10 @@ def _showwarning(
         if _warnings_showwarning is not None:
             _warnings_showwarning(message, category, filename, lineno, file, line)
     else:
-        log = structlog.get_logger("py.warnings")
+        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
+
+        log = logger_without_processor_of_type(
+            structlog.get_logger("py.warnings").bind(), structlog.processors.CallsiteParameterAdder
+        )
+
         log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
