@@ -42,7 +42,10 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql import Select
+<<<<<<< HEAD
     from sqlalchemy.sql.elements import ColumnElement
+=======
+>>>>>>> bebf06f88e (Remove Query class)
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
