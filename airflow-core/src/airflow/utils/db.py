@@ -1255,6 +1255,14 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             fab_version,
         )
         return
+    connection = settings.engine.connect()
+    insp = inspect(connection)
+    if not fab_version and insp.has_table("ab_user"):
+        log.info(
+            "FAB migration version not found, but FAB tables exist. "
+            "FAB provider is not required for downgrade.",
+        )
+        return
 
     # FAB db version is different or not found - require the FAB provider
     try:
