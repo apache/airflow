@@ -488,12 +488,12 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
+            orig_task, ti.task = ti.task, task
             with contextlib.suppress(AirflowException):
                 ti.run()
+            ti.task = orig_task
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
-
         with create_session() as session:
             session.get(TaskInstance, ti.id).try_number += 1
 
@@ -539,13 +539,13 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
+            orig_task, ti.task = ti.task, task
             with contextlib.suppress(AirflowException):
                 ti.run()
+            ti.task = orig_task
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
         assert ti.try_number == 0
-
         session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 

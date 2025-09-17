@@ -2873,6 +2873,7 @@ export class ImportErrorService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
+     * @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns ImportErrorCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2883,7 +2884,8 @@ export class ImportErrorService {
             query: {
                 limit: data.limit,
                 offset: data.offset,
-                order_by: data.orderBy
+                order_by: data.orderBy,
+                filename_pattern: data.filenamePattern
             },
             errors: {
                 401: 'Unauthorized',

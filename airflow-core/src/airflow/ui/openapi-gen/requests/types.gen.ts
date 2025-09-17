@@ -2895,6 +2895,10 @@ export type GetImportErrorData = {
 export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    filenamePattern?: string | null;
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;

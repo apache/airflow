@@ -16,35 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import dayjs from "dayjs";
+import { useContext } from "react";
 
-import type { CalendarCellData } from "./types";
+import { HoverContext } from "./Context";
 
-export const createRichTooltipContent = (cellData: CalendarCellData) => {
-  const { counts, date } = cellData;
-  const hasRuns = counts.total > 0;
+export const useHover = () => {
+  const context = useContext(HoverContext);
 
-  if (!hasRuns) {
-    return {
-      date: dayjs(date).format("MMM DD, YYYY"),
-      hasRuns: false,
-      states: [],
-      total: 0,
-    };
+  if (context === undefined) {
+    throw new Error("useHover must be used within a HoverProvider");
   }
 
-  const states = Object.entries(counts)
-    .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => ({
-      color: `var(--chakra-colors-${state}-solid)`,
-      count,
-      state,
-    }));
-
-  return {
-    date: dayjs(date).format("MMM DD, YYYY"),
-    hasRuns: true,
-    states,
-    total: counts.total,
-  };
+  return context;
 };

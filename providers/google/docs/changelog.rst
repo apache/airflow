@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+18.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove GoogleDisplayVideo360CreateQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DeleteReportOperator. Reports were replaced with SDF export task in v4 of API``
+  * ``Remove GoogleDisplayVideo360DownloadReportV2Operator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+  * ``Remove GoogleDisplayVideo360RunQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DownloadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360UploadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+
+* Hooks
+
+  * ``Remove GoogleDisplayVideo360Hook.get_conn use airflow.providers.google.marketing_platform.hooks.display_video.get_conn_to_display_video instead``
+  * ``Remove GoogleDisplayVideo360Hook.create_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.delete_query``
+  * ``Remove GoogleDisplayVideo360Hook.get_query use airflow.providers.google.marketing_platform.hooks.display_video.get_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.list_queries``
+  * ``Remove GoogleDisplayVideo360Hook.run_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.get_report``
+  * ``Remove GoogleDisplayVideo360Hook.upload_line_items use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.download_line_items use airflow.providers.google.marketing_platform.hooks.display_video.download_media instead``
+  * ``Remove AutoMLHook.create_auto_ml_text_training_job. AutoMLText API was deprecated.``
+
+* Sensors
+
+  * ``Remove GoogleDisplayVideo360RunQuerySensor. Reports were replaced with SDF export task in v4 of API.``
+
 17.2.0
 ......
 
