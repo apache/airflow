@@ -777,7 +777,7 @@ exit 0
 
         with pytest.raises(
             ValueError,
-            match="Valid values for `allowed_states`, `skipped_states` and `failed_states` when `external_task_id` or `external_task_ids` or `external_task_group_id` is `None`",
+            match="Valid values for `allowed_states`, `skipped_states` and `failed_states` when `external_task_id` and `external_task_group_id` is `None`",
         ):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check_2",
