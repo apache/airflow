@@ -206,6 +206,7 @@ jobs:
         run: >
           breeze prod-image build
           --builder airflow_cache
+          --rebuild-base-image
           --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
@@ -218,6 +219,7 @@ jobs:
           breeze prod-image build
           --builder airflow_cache
           --prepare-buildx-cache
+          --rebuild-base-image
           --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
