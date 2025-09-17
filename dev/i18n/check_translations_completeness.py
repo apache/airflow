@@ -463,11 +463,13 @@ def cli(language: str | None = None, add_missing: bool = False):
     found_difference = print_file_set_differences(locale_files, console, language)
     summary, missing_counts = compare_keys(locale_files, console)
     console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
-    if add_missing:
+    if add_missing and language != "en":
         # Loop through all languages except 'en' and add missing translations
-        for lf in locale_files:
-            if lf.locale == "en":
-                continue
+        if language:
+            language_files = [lf for lf in locale_files if lf.locale == language]
+        else:
+            language_files = [lf for lf in locale_files if lf.locale != "en"]
+        for lf in language_files:
             filtered_summary = {}
             for filename, diff in summary.items():
                 filtered_summary[filename] = LocaleSummary(
