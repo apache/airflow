@@ -306,10 +306,15 @@ def create_xcom_entry(
     ],
 )
 def update_xcom_entry(
-    dag_id: str, task_id: str, dag_run_id: str, xcom_key: str, patch_body: XComUpdateBody, session: SessionDep
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    xcom_key: str,
+    patch_body: XComUpdateBody,
+    session: SessionDep,
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
-    # Find the XCom entry
+    # Check if XCom entry exists
     xcom_new_value = XComModel.serialize_value(patch_body.value)
     xcom_entry = session.scalar(
         select(XComModel)
@@ -330,6 +335,7 @@ def update_xcom_entry(
             f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
         )
 
+    # Update XCom entry
     xcom_entry.value = XComModel.serialize_value(xcom_new_value)
 
     return XComResponseNative.model_validate(xcom_entry)
