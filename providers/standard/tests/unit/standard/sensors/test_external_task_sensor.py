@@ -203,19 +203,16 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_raise_with_external_task_sensor_task_id_and_task_ids(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError):
             ExternalTaskSensor(
-                task_id="test_external_task_sensor_task_id_with_task_ids_failed_status",
+                task_id="Only one of `external_task_id` or `external_task_ids` may "
+                "be provided to ExternalTaskSensor; "
+                "use external_task_id or external_task_ids or external_task_group_id.",
                 external_dag_id=TEST_DAG_ID,
                 external_task_id=TEST_TASK_ID,
                 external_task_ids=TEST_TASK_ID,
                 dag=self.dag,
             )
-        assert (
-            str(ctx.value) == "Only one of `external_task_id` or `external_task_ids` may "
-            "be provided to ExternalTaskSensor; "
-            "use external_task_id or external_task_ids or external_task_group_id."
-        )
 
     def test_raise_with_external_task_sensor_task_group_and_task_id(self):
         with pytest.raises(ValueError) as ctx:
@@ -304,7 +301,10 @@ class TestExternalTaskSensorV2:
             )
 
     def test_external_task_sensor_wrong_failed_states(self):
-        with pytest.raises(ValueError, match="invalid_state"):
+        with pytest.raises(
+            ValueError,
+            match="Valid values for `allowed_states`, `skipped_states` and `failed_states` when `external_task_id` or `external_task_ids` or `external_task_group_id` is not `None`",
+        ):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
@@ -666,7 +666,10 @@ exit 0
     def test_external_task_sensor_error_delta_and_fn(self):
         self.add_time_sensor()
         # Test that providing execution_delta and a function raises an error
-        with pytest.raises(ValueError, match="execution_delta and execution_date_fn"):
+        with pytest.raises(
+            ValueError,
+            match="Only one of `execution_delta` or `execution_date_fn` may be provided to ExternalTaskSensor; not both.",
+        ):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check_delta",
                 external_dag_id=TEST_DAG_ID,
@@ -680,7 +683,10 @@ exit 0
     def test_external_task_sensor_error_task_id_and_task_ids(self):
         self.add_time_sensor()
         # Test that providing execution_delta and a function raises an error
-        with pytest.raises(ValueError, match="external_task_id and external_task_ids"):
+        with pytest.raises(
+            ValueError,
+            match="Only one of `external_task_id` or `external_task_ids` may be provided to ExternalTaskSensor; use external_task_id or external_task_ids or external_task_group_id.",
+        ):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_task_id_and_task_ids",
                 external_dag_id=TEST_DAG_ID,
@@ -758,7 +764,7 @@ exit 0
     def test_catch_invalid_allowed_states(self):
         with pytest.raises(ValueError, match="invalid_state"):
             ExternalTaskSensor(
-                task_id="test_external_task_sensor_check_1",
+                task_id="Valid values for `allowed_states`, `skipped_states` and `failed_states` when `external_task_id` or `external_task_ids` or `external_task_group_id` is not `None`",
                 external_dag_id=TEST_DAG_ID,
                 external_task_id=TEST_TASK_ID,
                 allowed_states=["invalid_state"],
