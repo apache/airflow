@@ -32,6 +32,7 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
+import { useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGrid } from "react-icons/fi";
@@ -48,6 +49,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { dagRunTypeOptions } from "src/constants/stateOptions";
+import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
@@ -75,16 +77,25 @@ const getOptions = (translate: (key: string) => string) =>
     ],
   });
 
-const displayRunOptions = createListCollection({
-  items: [
-    { label: "5", value: "5" },
-    { label: "10", value: "10" },
-    { label: "25", value: "25" },
-    { label: "50", value: "50" },
-    { label: "100", value: "100" },
-    { label: "365", value: "365" },
-  ],
-});
+const getWidthBasedConfig = (width: number, showGantt: boolean) => {
+  const breakpoints = showGantt
+    ? [
+        { limit: 100, min: 1600, options: ["5", "10", "25", "50"] }, // xl: extra large screens
+        { limit: 25, min: 1024, options: ["5", "10", "25"] }, // lg: large screens
+        { limit: 10, min: 768, options: ["5", "10"] }, // md: medium screens
+        { limit: 5, min: 0, options: ["5"] }, // sm: small screens and below
+      ]
+    : [{ limit: 5, min: 0, options: ["5", "10", "25", "50"] }];
+
+  const config = breakpoints.find(({ min }) => width >= min) ?? breakpoints[breakpoints.length - 1];
+
+  return {
+    displayRunOptions: createListCollection({
+      items: config?.options.map((value) => ({ label: value, value })) ?? [],
+    }),
+    limit: config?.limit ?? 5,
+  };
+};
 
 const deps = ["all", "immediate", "tasks"];
 
@@ -112,11 +123,21 @@ export const PanelButtons = ({
     "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
     setLimit(runLimit);
   };
+
+  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(containerWidth, showGantt);
+
+  useEffect(() => {
+    if (showGantt && limit > defaultLimit) {
+      setLimit(defaultLimit);
+    }
+  }, [showGantt, defaultLimit, setLimit, limit]);
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
@@ -182,7 +203,7 @@ export const PanelButtons = ({
   );
 
   return (
-    <Box position="absolute" top={1} width="100%" zIndex={1}>
+    <Box position="absolute" ref={containerRef} top={1} width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
@@ -334,16 +355,16 @@ export const PanelButtons = ({
                           <Select.Control>
                             <Select.Trigger>
                               <Select.ValueText>
-                                {(runTypeFilter ?? "all") === "all" ? (
-                                  translate("dags:filters.allRunTypes")
-                                ) : (
+                                {runTypeFilter ? (
                                   <Flex gap={1}>
-                                    <RunTypeIcon runType={runTypeFilter!} />
+                                    <RunTypeIcon runType={runTypeFilter} />
                                     {translate(
                                       dagRunTypeOptions.items.find((item) => item.value === runTypeFilter)
                                         ?.label ?? "",
                                     )}
                                   </Flex>
+                                ) : (
+                                  translate("dags:filters.allRunTypes")
                                 )}
                               </Select.ValueText>
                             </Select.Trigger>
