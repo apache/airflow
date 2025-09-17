@@ -506,8 +506,7 @@ class ElasticsearchHook(BaseHook):
         .. :no-index:
         """
         self.log.info("Executing streaming bulk operation")
-        for item in streaming_bulk(self.client, actions, **kwargs):
-            yield item
+        yield from streaming_bulk(self.client, actions, **kwargs)
 
     def parallel_bulk(
         self, actions: Iterable[Any], **kwargs: Any
@@ -522,8 +521,7 @@ class ElasticsearchHook(BaseHook):
         .. :no-index:
         """
         self.log.info("Executing parallel bulk operation")
-        for item in parallel_bulk(self.client, actions, **kwargs):
-            yield item
+        yield from parallel_bulk(self.client, actions, **kwargs)
 
     def scan(
         self,
@@ -546,8 +544,7 @@ class ElasticsearchHook(BaseHook):
         if query:
             scan_kwargs["query"] = query
 
-        for item in scan(self.client, index=index, **scan_kwargs):
-            yield item
+        yield from scan(self.client, index=index, **scan_kwargs)
 
     def reindex(
         self,
