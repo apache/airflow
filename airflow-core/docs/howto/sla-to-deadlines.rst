@@ -18,12 +18,11 @@
 Migrating from SLA to Deadline Alerts
 =====================================
 
-Two different paradigms
+Two Different Paradigms
 -----------------------
 
-While the goal of the **SLA** and **Deadlines** features are very similar, they use two very different approaches
-which makes it difficult to present a universal migration guide. Instead, this guide will lay out the major
-differences and help you decide on the best approach for your use case.
+While the goal of the **SLA** and **Deadline Alerts** features are very similar, they use two very different approaches.
+This guide will lay out the major differences and help you decide on the best approach for your use case.
 
 To begin with, we'll start by explaining the two approaches then go into how to find the right Deadline for your use case.
 
@@ -33,16 +32,16 @@ SLA
 When the dag run **finishes**, check the current time.  If the time is greater than (logical_date + sla) then
 execute ``sla_miss_callback``.  If the Dag run never finishes, the SLA is never checked.
 
-Deadlines
-^^^^^^^^^
+Deadline Alerts
+^^^^^^^^^^^^^^^
 
 When a Dag run **starts**, calculate and store (:ref:`DeadlineReference <built-in-deadline-references>` + interval).
-Every pass of the scheduler loop (default 5 seconds, set by ``scheduler_heartbeat_sec``) if any of those times have
-passed then execute ``callback(**kwargs)``.
+The scheduler loop then checks periodically (default 5 seconds, set by ``scheduler_heartbeat_sec``) if any of those
+times have passed then execute ``callback(**kwargs)``.
 
 The most direct migration path would be to use the ``DeadlineReference.DAGRUN_LOGICAL_DATE`` reference, but note that
 the major change is that the Deadline's callback will execute "immediately" (within ``scheduler_heartbeat_sec`` of the
-calculated expiation time) and not wait until the Dag finishes first.
+calculated expiration time) and not wait until the Dag finishes first.
 
 Equivalent Example Dags
 -----------------------
@@ -58,13 +57,13 @@ SLA Example
       "minimal_sla_example",
       default_args={"sla": timedelta(hours=1)},
       sla_miss_callback=SlackWebhookNotifier(
-          text="SLA missed for {{ dag.dag_id }}",
+          text="SLA missed for {{ dag_run.dag_id }}",
       ),
   ):
       BashOperator(task_id="long_task", bash_command="sleep 3600")
 
-Deadlines Example
-^^^^^^^^^^^^^^^^^
+Deadline Alerts Example
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -76,7 +75,7 @@ Deadlines Example
           callback=AsyncCallback(
               SlackWebhookNotifier,
               kwargs={
-                  text: "Deadline missed for {{ dag.dag_id }}",
+                  text: "Deadline missed for {{ dag_run.dag_id }}",
               },
           ),
       ),
@@ -84,6 +83,7 @@ Deadlines Example
       BashOperator(task_id="long_task", bash_command="sleep 3600")
 
 
-## Further Reading
+Further Reading
+---------------
 
 For more details on the Deadline Alerts feature, see the :doc:`how-to guide </howto/deadline-alerts>`.
