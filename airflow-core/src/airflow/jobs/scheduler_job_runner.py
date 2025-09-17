@@ -191,7 +191,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
-        task_selector_type = conf.get("scheduler", "task_selector_strategy")
+        task_selector_type = conf.get("scheduler.internal", "task_selector_strategy")
 
         if self._log:
             self._log.info("Using %s task selector", task_selector_type)
