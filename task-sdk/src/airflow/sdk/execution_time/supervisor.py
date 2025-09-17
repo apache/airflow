@@ -538,7 +538,13 @@ class WatchedSubprocess:
             )
         )
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
+
+        std_handle_log = logger_without_processor_of_type(
+            self.process_log, structlog.processors.CallsiteParameterAdder
+        )
+        target_loggers: tuple[FilteringBoundLogger, ...] = (std_handle_log,)
+
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
         self.selector.register(
@@ -1368,7 +1374,12 @@ class ActivitySubprocess(WatchedSubprocess):
             raise RuntimeError("send_fds is not available on this platform")
         child_logs, read_logs = socketpair()
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
+
+        std_handle_log = logger_without_processor_of_type(
+            self.process_log, structlog.processors.CallsiteParameterAdder
+        )
+        target_loggers: tuple[FilteringBoundLogger, ...] = (std_handle_log,)
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
 
@@ -1716,12 +1727,7 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            #
-            # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-            # from a subprocess we know that the timezone of the log message is the same, so having some
-            # messages include tz (from subprocess) but others not (ones from supervisor process) is
-            # confusing.
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
+            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace

@@ -19,19 +19,18 @@ from __future__ import annotations
 
 import collections.abc
 import datetime
-import os
+import operator
+import re
 import sys
 from io import StringIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import structlog.dev
 from structlog.dev import ConsoleRenderer, Styles
+from structlog.processors import CallsiteParameter
 
 if TYPE_CHECKING:
-    from structlog.typing import (
-        EventDict,
-        WrappedLogger,
-    )
+    from structlog.typing import EventDict, WrappedLogger
 
 
 class _LazyLogRecordDict(collections.abc.Mapping):
@@ -47,20 +46,13 @@ class _LazyLogRecordDict(collections.abc.Mapping):
     def __getitem__(self, key):
         # Roughly compatible with names from https://github.com/python/cpython/blob/v3.13.7/Lib/logging/__init__.py#L571
         # Plus with ColoredLog added in
+
+        if key in PercentFormatRender.callsite_parameters:
+            return self.event.get(PercentFormatRender.callsite_parameters[key].value)
         if key == "name":
             return self.event.get("logger") or self.event.get("logger_name")
         if key == "levelname":
             return self.event.get("level", self.method_name).upper()
-        if key == "pathname":
-            return self.event.get("pathname", "?")
-        if key == "filename":
-            path = self.event.get("pathname", "?")
-            return os.path.basename(path)
-        if key == "module":
-            path = self.event.get("pathname", "?")
-            return os.path.splitext(os.path.basename(path))[0]
-        if key == "lineno":
-            return self.event.get("lineno", 0)
         if key == "asctime" or key == "created":
             return (
                 self.event.get("timestamp", None)
@@ -68,8 +60,6 @@ class _LazyLogRecordDict(collections.abc.Mapping):
             )
         if key == "message":
             return self.event["event"]
-        if key == "process":
-            return os.getpid()
 
         if key in ("red", "green", "yellow", "blue", "purple", "cyan"):
             if self.no_colors:
@@ -96,17 +86,48 @@ class PercentFormatRender(ConsoleRenderer):
 
     _fmt: str
 
+    # From https://github.com/python/cpython/blob/v3.12.11/Lib/logging/__init__.py#L563-L587
+    callsite_parameters: ClassVar[dict[str, CallsiteParameter]] = {
+        "pathname": CallsiteParameter.PATHNAME,
+        "filename": CallsiteParameter.FILENAME,
+        "module": CallsiteParameter.MODULE,
+        "lineno": CallsiteParameter.LINENO,
+        "funcName": CallsiteParameter.FUNC_NAME,
+        "thread": CallsiteParameter.THREAD,
+        "threadName": CallsiteParameter.THREAD_NAME,
+        "process": CallsiteParameter.PROCESS,
+        # This one isn't listed in the docs until 3.14, but it's worked for a long time
+        "processName": CallsiteParameter.PROCESS_NAME,
+    }
+
     special_keys = {
-        "pathname",
-        "lineno",
-        "func_name",
         "event",
         "name",
         "logger",
         "logger_name",
         "timestamp",
         "level",
-    }
+    } | set(map(operator.attrgetter("value"), callsite_parameters.values()))
+
+    @classmethod
+    def callsite_params_from_fmt_string(cls, fmt: str) -> collections.abc.Iterable[CallsiteParameter]:
+        # Pattern based on https://github.com/python/cpython/blob/v3.12.11/Lib/logging/__init__.py#L441, but
+        # with added grouping, and comments to aid clarity, even if we don't care about anything beyond the
+        # mapping key
+        pattern = re.compile(
+            r"""
+                 %\( (?P<key> \w+ ) \) # The mapping key (in parenthesis. The bit we care about)
+                 [#0+ -]* # Conversion flags
+                 (?: \*|\d+ )? # Minimum field width
+                 (?: \. (?: \* | \d+ ) )? # Precision (floating point)
+                 [diouxefgcrsa%]  # Conversion type
+            """,
+            re.I | re.X,
+        )
+
+        for match in pattern.finditer(fmt):
+            if param := cls.callsite_parameters.get(match["key"]):
+                yield param
 
     def __init__(self, fmt: str, **kwargs):
         super().__init__(**kwargs)
