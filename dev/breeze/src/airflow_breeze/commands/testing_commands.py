@@ -1294,7 +1294,7 @@ def airflow_e2e_tests(
 
     perform_environment_checks()
     image_name = image_name or os.environ.get("DOCKER_IMAGE")
-    if image_name is None:
+    if image_name is None or image_name.strip() == "":
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
