@@ -180,20 +180,20 @@ BEGIN
     ), 0);
 
     -- Apply concurrency limits
-    IF mapped_running + 1 > COALESCE(rec_{TI.max_active_tis_per_dagrun.name}, max_tis) THEN
-      ITERATE read_loop;
+    IF rec_{TI.max_active_tis_per_dagrun.name} IS NOT NULL AND
+    mapped_running + 1 > rec_{TI.max_active_tis_per_dagrun.name}
+      THEN ITERATE read_loop;
     END IF;
-
-    IF dagrun_running + 1 > COALESCE(rec_{DAG.max_active_tasks.name}, max_tis) THEN
-      ITERATE read_loop;
+    IF rec_{DAG.max_active_tasks.name} IS NOT NULL AND
+    dagrun_running + 1 > rec_{DAG.max_active_tasks.name}
+      THEN ITERATE read_loop;
     END IF;
-
-    IF dag_running + 1 > COALESCE(rec_{TI.max_active_tis_per_dag.name}, max_tis) THEN
-      ITERATE read_loop;
+    IF rec_{TI.max_active_tis_per_dag.name} IS NOT NULL AND
+    dag_running + 1 > rec_{TI.max_active_tis_per_dag.name}
+      THEN ITERATE read_loop;
     END IF;
-
-    IF pool_running + rec_{TI.pool_slots.name} > rec_{Pool.slots.name} THEN
-      ITERATE read_loop;
+    IF pool_running + rec_{TI.pool_slots.name} > rec_{Pool.slots.name}
+      THEN ITERATE read_loop;
     END IF;
 
     -- Insert the scheduled task id into scheduled_tasks
@@ -316,14 +316,17 @@ BEGIN
         pool_running := COALESCE((pool_counts -> rec.{TI.pool.name}::text)::int, 0);
 
         -- Compare limits including newly scheduling tasks (hstores maintain increments)
-        IF (mapped_running + 1) > COALESCE(rec.{TI.max_active_tis_per_dagrun.name}, max_tis) THEN
-            CONTINUE;
-        ELSIF (dag_running + 1) > COALESCE(rec.{TI.max_active_tis_per_dag.name}, max_tis) THEN
-            CONTINUE;
-        ELSIF (dagrun_running + 1) > COALESCE(rec.{DAG.max_active_tasks.name}, max_tis) THEN
-            CONTINUE;
-        ELSIF (pool_running + rec.{TI.pool_slots.name}) > rec.{Pool.slots.name} THEN
-            CONTINUE;
+        IF rec.{TI.max_active_tis_per_dagrun.name} IS NOT NULL AND
+        (mapped_running + 1) > rec.{TI.max_active_tis_per_dagrun.name}
+            THEN CONTINUE;
+        ELSIF rec.{TI.max_active_tis_per_dag.name} IS NOT NULL AND
+        (dag_running + 1) > rec.{TI.max_active_tis_per_dag.name}
+            THEN CONTINUE;
+        ELSIF rec.{DAG.max_active_tasks.name} IS NOT NULL AND
+        (dagrun_running + 1) > rec.{DAG.max_active_tasks.name}
+            THEN CONTINUE;
+        ELSIF (pool_running + rec.{TI.pool_slots.name}) > rec.{Pool.slots.name}
+            THEN CONTINUE;
         END IF;
 
         tasks_for_scheduling := array_append(tasks_for_scheduling, rec.id);
