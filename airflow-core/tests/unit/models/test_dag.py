@@ -91,6 +91,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.taskinstances import run_ti
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
@@ -2014,9 +2015,7 @@ class TestDagModel:
         assert query.all() == []
 
         # Upstream triggered, now we need a run.
-        ti = dr.get_task_instance("op")
-        ti.refresh_from_task(op)
-        ti.run()
+        run_ti(dr.get_task_instance("op"), op)
 
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
         query, _ = DagModel.dags_needing_dagruns(session)

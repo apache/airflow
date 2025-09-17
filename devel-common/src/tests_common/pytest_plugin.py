@@ -1132,7 +1132,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
-        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
+        def run_ti(self, task_id_or_ti, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
             """
             Create a dagrun and run a specific task instance with proper task refresh.
 
@@ -1144,20 +1144,32 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             Returns the created TaskInstance.
             """
-            if dag_run is None:
-                if dag_run_kwargs is None:
-                    dag_run_kwargs = {}
-                dag_run = self.create_dagrun(**dag_run_kwargs)
-            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index)
-            if ti is None:
-                available_task_ids = [task.task_id for task in self.dag.tasks]
-                raise ValueError(
-                    f"Task instance with task_id '{task_id}' not found in dag run. "
-                    f"Available task_ids: {available_task_ids}"
-                )
-            task = self.dag.get_task(ti.task_id)
+            from airflow.models.taskinstance import TaskInstance
 
-            if not AIRFLOW_V_3_1_PLUS:
+            if isinstance(task_id_or_ti, TaskInstance):
+                ti = task_id_or_ti
+                task_id = ti.task_id
+            else:
+                task_id = task_id_or_ti
+                if dag_run is None:
+                    if dag_run_kwargs is None:
+                        dag_run_kwargs = {}
+                    dag_run = self.create_dagrun(**dag_run_kwargs)
+                ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index)
+                if ti is None:
+                    available_task_ids = [task.task_id for task in self.dag.tasks]
+                    raise ValueError(
+                        f"Task instance with task_id '{task_id}' not found in dag run. "
+                        f"Available task_ids: {available_task_ids}"
+                    )
+            task = self.dag.get_task(task_id)
+
+            if AIRFLOW_V_3_1_PLUS:
+                from tests_common.test_utils.taskinstances import run_ti
+
+                # TODO: Support dep context kwargs...?
+                run_ti(ti, task)
+            else:
                 # Airflow <3.1 has a bug for DecoratedOperator has an unused signature for
                 # `DecoratedOperator._handle_output` for xcom_push
                 # This worked for `models.BaseOperator` since it had xcom_push method but for
@@ -1169,8 +1181,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 #                                                                                      ^^^^^^^^^^^^^^
                 # E   AttributeError: '_PythonDecoratedOperator' object has no attribute 'xcom_push'
                 task.xcom_push = lambda *args, **kwargs: None
-            ti.refresh_from_task(task)
-            ti.run(**kwargs)
+                ti.refresh_from_task(task)
+                ti.run(**kwargs)
+
             return ti
 
         def sync_dagbag_to_db(self):
