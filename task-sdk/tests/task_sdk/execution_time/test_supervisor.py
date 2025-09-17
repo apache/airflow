@@ -2425,3 +2425,74 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 f"Connection {expected_env} was not available during upload_to_remote call"
             )
             assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+class TestSignalRetryLogic:
+    """Test signal based retry logic in ActivitySubprocess."""
+
+    @pytest.mark.parametrize(
+        "signal, expected_state",
+        [
+            (signal.SIGKILL, TaskInstanceState.UP_FOR_RETRY),
+            (signal.SIGTERM, TaskInstanceState.UP_FOR_RETRY),
+            # SIGABRT and SIGSEGV should not retry
+            (signal.SIGABRT, TaskInstanceState.FAILED),
+            (signal.SIGSEGV, TaskInstanceState.FAILED),
+        ],
+    )
+    def test_signals_with_retry(self, mocker, signal, expected_state):
+        """Test that signals with task retries."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        mock_watched_subprocess._exit_code = -signal
+        mock_watched_subprocess._should_retry = True
+
+        result = mock_watched_subprocess.final_state
+        assert result == expected_state
+
+    @pytest.mark.parametrize(
+        "signal",
+        [
+            signal.SIGKILL,
+            signal.SIGTERM,
+            signal.SIGABRT,
+            signal.SIGSEGV,
+        ],
+    )
+    def test_signals_without_retry_always_fail(self, mocker, signal):
+        """Test that signals without task retries enabled always fail."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._should_retry = False
+        mock_watched_subprocess._exit_code = -signal
+
+        result = mock_watched_subprocess.final_state
+        assert result == TaskInstanceState.FAILED
+
+    def test_non_signal_exit_code_goes_to_failed(self, mocker):
+        """Test that non signal exit codes go to failed regardless of task retries."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = True
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
