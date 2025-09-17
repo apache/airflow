@@ -26,7 +26,29 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
+import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
+
+const handleMouseEnter =
+  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    });
+
+    setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
+  };
+
+const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
+
+  tasks.forEach((task) => {
+    task.style.backgroundColor = "";
+  });
+
+  setHoveredTaskId(undefined);
+};
 
 type Props = {
   readonly dagId: string;
@@ -40,26 +62,14 @@ type Props = {
   readonly taskId: string;
 };
 
-const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-brand-subtle)";
-  });
-};
-
-const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-};
-
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
+  const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
+
+  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
+  const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
 
   const getTaskUrl = useCallback(
     () =>

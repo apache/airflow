@@ -63,6 +63,7 @@ class HITLDetail(BaseModel):
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
+    created_at: datetime
 
     # Response Content Detail
     responded_by_user: HITLUser | None = None

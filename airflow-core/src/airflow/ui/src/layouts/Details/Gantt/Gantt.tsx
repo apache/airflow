@@ -34,13 +34,14 @@ import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
-import { useMemo, useRef, useDeferredValue } from "react";
+import { useMemo, useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
+import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
@@ -51,7 +52,7 @@ import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
-import { createHandleBarClick, createChartOptions } from "./utils";
+import { createHandleBarClick, createHandleBarHover, createChartOptions } from "./utils";
 
 ChartJS.register(
   CategoryScale,
@@ -82,18 +83,21 @@ export const Gantt = ({ limit }: Props) => {
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
   const { colorMode } = useColorMode();
+  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const navigate = useNavigate();
   const location = useLocation();
-  const ref = useRef();
 
-  const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
-    "gray.200",
-    "gray.800",
-    "blue.200",
-    "blue.800",
-  ]);
+  const [
+    lightGridColor,
+    darkGridColor,
+    lightSelectedColor,
+    darkSelectedColor,
+    lightHoverColor,
+    darkHoverColor,
+  ] = useToken("colors", ["gray.200", "gray.800", "blue.200", "blue.800", "blue.100", "blue.900"]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
+  const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({ limit });
@@ -219,12 +223,20 @@ export const Gantt = ({ limit }: Props) => {
     [data, dagId, runId, navigate, location],
   );
 
+  const handleBarHover = useMemo(
+    () => createHandleBarHover(data, setHoveredTaskId),
+    [data, setHoveredTaskId],
+  );
+
   const chartOptions = useMemo(
     () =>
       createChartOptions({
         data,
         gridColor,
         handleBarClick,
+        handleBarHover,
+        hoveredId: hoveredTaskId,
+        hoveredItemColor,
         selectedId,
         selectedItemColor,
         selectedRun,
@@ -233,6 +245,8 @@ export const Gantt = ({ limit }: Props) => {
       }),
     [
       data,
+      hoveredTaskId,
+      hoveredItemColor,
       selectedId,
       selectedItemColor,
       gridColor,
@@ -240,6 +254,7 @@ export const Gantt = ({ limit }: Props) => {
       selectedTimezone,
       translate,
       handleBarClick,
+      handleBarHover,
     ],
   );
 
@@ -247,12 +262,29 @@ export const Gantt = ({ limit }: Props) => {
     return undefined;
   }
 
+  const handleChartMouseLeave = () => {
+    setHoveredTaskId(undefined);
+
+    // Clear all hover styles when mouse leaves the chart area
+    const allTasks = document.querySelectorAll<HTMLDivElement>('[id*="-"]');
+
+    allTasks.forEach((task) => {
+      task.style.backgroundColor = "";
+    });
+  };
+
   return (
-    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} mt={36} w="100%">
+    <Box
+      height={`${fixedHeight}px`}
+      minW="250px"
+      ml={-2}
+      mt={36}
+      onMouseLeave={handleChartMouseLeave}
+      w="100%"
+    >
       <Bar
         data={chartData}
         options={chartOptions}
-        ref={ref}
         style={{
           paddingTop: flatNodes.length === 1 ? 15 : 1.5,
         }}
