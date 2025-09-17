@@ -48,6 +48,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
@@ -908,13 +909,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Get task from the Serialized DAG
                 try:
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                    cls.logger().error(
-                        "DAG '%s' for task instance %s not found in serialized_dag table",
-                        ti.dag_id,
-                        ti,
-                    )
-                    if TYPE_CHECKING:
-                        assert dag
+                    if not dag:
+                        cls.logger().error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            ti.dag_id,
+                            ti,
+                        )
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+
                     task = dag.get_task(ti.task_id)
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)

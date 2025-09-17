@@ -36,9 +36,9 @@ OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-triggerer"),
     ("ServiceAccount", "test-basic-airflow-worker"),
     ("Secret", "test-basic-airflow-metadata"),
-    ("Secret", "test-basic-broker-url"),
-    ("Secret", "test-basic-fernet-key"),
-    ("Secret", "test-basic-redis-password"),
+    ("Secret", "test-basic-airflow-broker-url"),
+    ("Secret", "test-basic-airflow-fernet-key"),
+    ("Secret", "test-basic-airflow-redis-password"),
     ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
     ("ConfigMap", "test-basic-airflow-statsd"),
@@ -71,7 +71,7 @@ DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
         ("ServiceAccount", "test-basic-airflow-api-server"),
         ("ServiceAccount", "test-basic-airflow-dag-processor"),
         ("Secret", "test-basic-airflow-api-secret-key"),
-        ("Secret", "test-basic-jwt-secret"),
+        ("Secret", "test-basic-airflow-jwt-secret"),
     }
 )
 
