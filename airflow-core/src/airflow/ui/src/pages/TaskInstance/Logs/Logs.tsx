@@ -41,17 +41,24 @@ export const Logs = () => {
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const {
     data: taskInstance,
     error,
     isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex: parseInt(mapIndex, 10),
-    taskId,
-  });
+  } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parsedMapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      enabled: !isNaN(parsedMapIndex),
+    },
+  );
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {

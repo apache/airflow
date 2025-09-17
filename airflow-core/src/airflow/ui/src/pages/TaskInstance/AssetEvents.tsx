@@ -35,12 +35,20 @@ export const AssetEvents = () => {
     searchParams.get(SearchParamsKeys.NAME_PATTERN) ?? "",
   );
 
-  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex: parseInt(mapIndex, 10),
-    taskId,
-  });
+  const parsedMapIndex = parseInt(mapIndex, 10);
+
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parsedMapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      enabled: !isNaN(parsedMapIndex),
+    },
+  );
 
   const refetchInterval = useAutoRefresh({ dagId });
 
