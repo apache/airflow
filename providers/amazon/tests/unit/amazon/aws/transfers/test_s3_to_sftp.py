@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import boto3
 import pytest
 from moto import mock_aws
@@ -142,25 +140,34 @@ class TestS3ToSFTPOperator:
         remove_file_task.execute(None)
 
     @mock_aws
-    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
-    def test_s3_to_sftp_operation_confirm_true_default(self, mock_ssh_conn):
-        """Test that S3ToSFTPOperator calls sftp_client.put with confirm=True by default"""
-        # Mock setup
-        mock_sftp_client = MagicMock()
-        mock_ssh_connection = MagicMock()
-        mock_ssh_connection.open_sftp.return_value = mock_sftp_client
-        mock_ssh_conn.return_value = mock_ssh_connection
-
-        # S3 setup
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_s3_to_sftp_operation_confirm_true_default(self):
+        """Test that S3ToSFTPOperator works with confirm=True by default (real SSH connection)"""
         s3_hook = S3Hook(aws_conn_id=None)
+        # Setting
+        test_remote_file_content = (
+            "This is remote file content for confirm=True test \n which is also multiline "
+            "another line here \n this is last line. EOF"
+        )
+
+        # Test for creation of s3 bucket
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
 
         with open(LOCAL_FILE_PATH, "w") as file:
-            file.write("test content for confirm=True test")
+            file.write(test_remote_file_content)
         s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
-        # Test with default confirm=True
+        # Check if object was created in s3
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
+        # there should be object found, and there should only be one object found
+        assert len(objects_in_dest_bucket["Contents"]) == 1
+
+        # the object found should be consistent with dest_key specified earlier
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.s3_key
+
+        # get remote file to local - Test with default confirm=True
         run_task = S3ToSFTPOperator(
             s3_bucket=BUCKET,
             s3_key=S3_KEY,
@@ -169,39 +176,56 @@ class TestS3ToSFTPOperator:
             task_id=TASK_ID + "_confirm_true",
             dag=self.dag,
         )
+        assert run_task is not None
 
         run_task.execute(None)
 
-        # Verify confirm=True was used
-        mock_sftp_client.put.assert_called_once()
-        call_args = mock_sftp_client.put.call_args
-        assert "confirm" in call_args.kwargs
-        assert call_args.kwargs["confirm"] is True
+        # Check that the file is created remotely with correct content
+        check_file_task = SSHOperator(
+            task_id="test_check_file_confirm_true",
+            ssh_hook=self.hook,
+            command=f"cat {self.sftp_path}",
+            do_xcom_push=True,
+            dag=self.dag,
+        )
+        assert check_file_task is not None
+        result = check_file_task.execute(None)
+        assert result.strip() == test_remote_file_content.encode("utf-8")
 
-        # Cleanup
+        # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)
 
     @mock_aws
-    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
-    def test_s3_to_sftp_operation_confirm_false(self, mock_ssh_conn):
-        """Test that S3ToSFTPOperator calls sftp_client.put with confirm=False when specified"""
-        # Mock setup
-        mock_sftp_client = MagicMock()
-        mock_ssh_connection = MagicMock()
-        mock_ssh_connection.open_sftp.return_value = mock_sftp_client
-        mock_ssh_conn.return_value = mock_ssh_connection
-
-        # S3 setup
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_s3_to_sftp_operation_confirm_false(self):
+        """Test that S3ToSFTPOperator works with confirm=False when specified (real SSH connection)"""
         s3_hook = S3Hook(aws_conn_id=None)
+        # Setting
+        test_remote_file_content = (
+            "This is remote file content for confirm=False test \n which is also multiline "
+            "another line here \n this is last line. EOF"
+        )
+
+        # Test for creation of s3 bucket
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
 
         with open(LOCAL_FILE_PATH, "w") as file:
-            file.write("test content for confirm=False test")
+            file.write(test_remote_file_content)
         s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
-        # Test with explicit confirm=False
+        # Check if object was created in s3
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
+        # there should be object found, and there should only be one object found
+        assert len(objects_in_dest_bucket["Contents"]) == 1
+
+        # the object found should be consistent with dest_key specified earlier
+        assert objects_in_dest_bucket["Contents"][0]["Key"] == self.s3_key
+
+        # get remote file to local - Test with explicit confirm=False
         run_task = S3ToSFTPOperator(
             s3_bucket=BUCKET,
             s3_key=S3_KEY,
@@ -211,18 +235,26 @@ class TestS3ToSFTPOperator:
             confirm=False,  # Explicitly set to False
             dag=self.dag,
         )
+        assert run_task is not None
 
         run_task.execute(None)
 
-        # Verify confirm=False was used
-        mock_sftp_client.put.assert_called_once()
-        call_args = mock_sftp_client.put.call_args
-        assert "confirm" in call_args.kwargs
-        assert call_args.kwargs["confirm"] is False
+        # Check that the file is created remotely with correct content
+        check_file_task = SSHOperator(
+            task_id="test_check_file_confirm_false",
+            ssh_hook=self.hook,
+            command=f"cat {self.sftp_path}",
+            do_xcom_push=True,
+            dag=self.dag,
+        )
+        assert check_file_task is not None
+        result = check_file_task.execute(None)
+        assert result.strip() == test_remote_file_content.encode("utf-8")
 
-        # Cleanup
+        # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)
 
     def teardown_method(self):
         self.delete_remote_resource()
