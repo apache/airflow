@@ -329,11 +329,12 @@ class ElasticsearchHook(BaseHook):
 
     @cached_property
     def conn(self) -> AirflowConnection:
-        """Get the Airflow connection object for Elasticsearch.
-        
+        """
+        Get the Airflow connection object for Elasticsearch.
+
         .. :no-index:
         """
-        return cast(AirflowConnection, self.get_connection(self.conn_id))
+        return cast("AirflowConnection", self.get_connection(self.conn_id))
 
     @cached_property
     def client(self) -> Elasticsearch:
@@ -432,7 +433,7 @@ class ElasticsearchHook(BaseHook):
         Get the Elasticsearch client connection.
 
         :return: Configured Elasticsearch client instance.
-        
+
         .. :no-index:
         """
         return self.client
@@ -443,7 +444,7 @@ class ElasticsearchHook(BaseHook):
 
         :return: *True* if connection is successful, *False* otherwise.
         :raises AirflowException: If connection fails due to configuration issues.
-        
+
         .. :no-index:
         """
         try:
@@ -466,14 +467,14 @@ class ElasticsearchHook(BaseHook):
         :param index_name: The name of the index to search against.
         :param kwargs: Additional search parameters to pass to the Elasticsearch client.
         :return: Dictionary containing the search results from Elasticsearch.
-        
+
         .. :no-index:
         """
         if self.log_query:
             self.log.info("Searching %s with Query: %s", index_name, query)
 
         response = self.client.search(index=index_name, body=query, **kwargs)
-        return response.body if hasattr(response, 'body') else dict(response)
+        return response.body if hasattr(response, "body") else dict(response)
 
     def bulk(self, actions: Iterable[Any], **kwargs: Any) -> tuple[int, list[Any]]:
         """
@@ -482,7 +483,7 @@ class ElasticsearchHook(BaseHook):
         :param actions: An iterable of actions to execute in the bulk operation.
         :param kwargs: Additional bulk parameters to pass to the Elasticsearch client.
         :return: A tuple containing (success_count, failed_operations).
-        
+
         .. :no-index:
         """
         self.log.info(
@@ -501,7 +502,7 @@ class ElasticsearchHook(BaseHook):
         :param actions: An iterable of actions to execute in the streaming bulk operation.
         :param kwargs: Additional streaming bulk parameters to pass to the Elasticsearch client.
         :return: Generator yielding results of individual operations.
-        
+
         .. :no-index:
         """
         self.log.info("Executing streaming bulk operation")
@@ -517,7 +518,7 @@ class ElasticsearchHook(BaseHook):
         :param actions: An iterable of actions to execute in the parallel bulk operation.
         :param kwargs: Additional parallel bulk parameters to pass to the Elasticsearch client.
         :return: Generator yielding results of individual operations.
-        
+
         .. :no-index:
         """
         self.log.info("Executing parallel bulk operation")
@@ -537,7 +538,7 @@ class ElasticsearchHook(BaseHook):
         :param query: Optional query dictionary to filter documents during the scan.
         :param kwargs: Additional scan parameters to pass to the Elasticsearch client.
         :return: Generator of all matching documents from the scan operation.
-        
+
         .. :no-index:
         """
         self.log.info("Scanning index: %s", index)
@@ -564,7 +565,7 @@ class ElasticsearchHook(BaseHook):
         :param query: Optional query dictionary to filter which documents to reindex.
         :param kwargs: Additional reindex parameters to pass to the Elasticsearch client.
         :return: A tuple containing (success_count, failed_operations).
-        
+
         .. :no-index:
         """
         self.log.info("Reindexing from %s to %s", source_index, target_index)
@@ -583,7 +584,7 @@ class ElasticsearchHook(BaseHook):
         :param query: The Elasticsearch query dictionary containing the search criteria.
         :param kwargs: Additional search parameters to pass to the Elasticsearch client.
         :return: A pandas DataFrame containing the search results with _source data normalized.
-        
+
         .. :no-index:
         """
         try:
@@ -629,7 +630,7 @@ class ElasticsearchHook(BaseHook):
         .. note::
             This method loads all documents into memory. For very large datasets,
             consider using the scan() method directly and processing in chunks.
-            
+
         .. :no-index:
         """
         try:
@@ -693,7 +694,7 @@ class ElasticsearchHook(BaseHook):
             index already exists.
         :raises AirflowException: If index creation fails due to critical errors
             other than "already exists".
-            
+
         .. :no-index:
         """
         try:
@@ -705,7 +706,7 @@ class ElasticsearchHook(BaseHook):
 
             self.log.info("Creating index: %s", index_name)
             response = self.client.indices.create(index=index_name, body=body, **kwargs)
-            return response.body if hasattr(response, 'body') else dict(response)
+            return response.body if hasattr(response, "body") else dict(response)
 
         except Exception as e:
             if "already exists" in str(e).lower():
@@ -721,12 +722,12 @@ class ElasticsearchHook(BaseHook):
         :param index_name: The name of the index to delete.
         :param kwargs: Additional deletion parameters to pass to the Elasticsearch client.
         :return: Response dictionary from the index deletion operation.
-        
+
         .. :no-index:
         """
         self.log.info("Deleting index: %s", index_name)
         response = self.client.indices.delete(index=index_name, **kwargs)
-        return response.body if hasattr(response, 'body') else dict(response)
+        return response.body if hasattr(response, "body") else dict(response)
 
     def index_exists(self, index_name: str) -> bool:
         """
@@ -734,7 +735,7 @@ class ElasticsearchHook(BaseHook):
 
         :param index_name: The name of the index to check for existence.
         :return: *True* if the index exists, *False* otherwise.
-        
+
         .. :no-index:
         """
         response = self.client.indices.exists(index=index_name)
@@ -746,7 +747,7 @@ class ElasticsearchHook(BaseHook):
 
         This method safely closes the transport connection and removes the cached
         client instance to ensure proper cleanup and prevent connection leaks.
-        
+
         .. :no-index:
         """
         if hasattr(self, "client") and self.client is not None:
