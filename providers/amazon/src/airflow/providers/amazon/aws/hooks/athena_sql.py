@@ -83,7 +83,6 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        # Store explicit params on self
         self.s3_staging_dir = s3_staging_dir
         self.work_group = work_group
         self.driver = driver

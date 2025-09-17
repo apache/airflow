@@ -166,7 +166,6 @@ class TestAthenaSQLHookConn:
 
     def test_hook_params_handling(self):
         """Test that hook_params are properly handled and don't cause TypeError."""
-        # Test that hook_params with Athena-specific parameters don't cause errors
         hook = AthenaSQLHook(
             athena_conn_id="test_conn",
             s3_staging_dir="s3://test-bucket/staging/",
@@ -214,7 +213,6 @@ class TestAthenaSQLHookConn:
         )
         hook.get_connection = mock.Mock(return_value=conn)
 
-        # Call get_conn
         hook.get_conn()
 
         # Verify that pyathena.connect was called with hook_params
