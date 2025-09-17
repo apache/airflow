@@ -477,11 +477,44 @@ export type RequestWorkerMaintenanceData = {
 
 export type RequestWorkerMaintenanceResponse = null;
 
+export type UpdateWorkerMaintenanceData = {
+    requestBody: MaintenanceRequest;
+    workerName: string;
+};
+
+export type UpdateWorkerMaintenanceResponse = null;
+
 export type ExitWorkerMaintenanceData = {
     workerName: string;
 };
 
 export type ExitWorkerMaintenanceResponse = null;
+
+export type RequestWorkerShutdownData = {
+    workerName: string;
+};
+
+export type RequestWorkerShutdownResponse = null;
+
+export type DeleteWorkerData = {
+    workerName: string;
+};
+
+export type DeleteWorkerResponse = null;
+
+export type AddWorkerQueueData = {
+    queueName: string;
+    workerName: string;
+};
+
+export type AddWorkerQueueResponse = null;
+
+export type RemoveWorkerQueueData = {
+    queueName: string;
+    workerName: string;
+};
+
+export type RemoveWorkerQueueResponse = null;
 
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
@@ -689,8 +722,79 @@ export type $OpenApiTs = {
                 422: HTTPValidationError;
             };
         };
+        patch: {
+            req: UpdateWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
         delete: {
             req: ExitWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/shutdown': {
+        post: {
+            req: RequestWorkerShutdownData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}': {
+        delete: {
+            req: DeleteWorkerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/queues/{queue_name}': {
+        put: {
+            req: AddWorkerQueueData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: null;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: RemoveWorkerQueueData;
             res: {
                 /**
                  * Successful Response

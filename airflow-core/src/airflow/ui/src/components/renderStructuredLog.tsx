@@ -92,6 +92,8 @@ const addLinks = (line: string) => {
   return elements;
 };
 
+const sourceFields = ["logger", "chan", "lineno", "filename", "loc"];
+
 export const renderStructuredLog = ({
   index,
   logLevelFilters,
@@ -182,16 +184,35 @@ export const renderStructuredLog = ({
     </chakra.span>,
   );
 
-  if (showSource) {
-    for (const key in reStructured) {
-      if (Object.hasOwn(reStructured, key)) {
-        elements.push(
-          ": ",
-          <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
-            {key === "logger" ? "source" : key}={JSON.stringify(reStructured[key])}
-          </chakra.span>,
-        );
+  if (Object.hasOwn(reStructured, "filename") && Object.hasOwn(reStructured, "lineno")) {
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    reStructured.loc = `${reStructured.filename}:${reStructured.lineno}`;
+    delete reStructured.filename;
+    delete reStructured.lineno;
+  }
+
+  for (const key in reStructured) {
+    if (Object.hasOwn(reStructured, key)) {
+      if (!showSource && sourceFields.includes(key)) {
+        continue; // eslint-disable-line no-continue
       }
+      const val = reStructured[key] as boolean | number | object | string | null;
+
+      elements.push(
+        " ",
+        <span data-key={key}>
+          <chakra.span color="fg.info" key={`prop_${key}`}>
+            {key === "logger" ? "source" : key}
+          </chakra.span>
+          =
+          <span data-value>
+            {
+              // Let strings, ints, etc through as is, but JSON stringify anything more complex
+              val instanceof Object ? JSON.stringify(val) : val
+            }
+          </span>
+        </span>,
+      );
     }
   }
 

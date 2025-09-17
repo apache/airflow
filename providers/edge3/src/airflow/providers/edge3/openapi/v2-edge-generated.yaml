@@ -623,6 +623,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - UI
+      summary: Update Worker Maintenance
+      description: Update maintenance comments for a worker.
+      operationId: update_worker_maintenance
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Update Worker Maintenance
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
       - UI
@@ -647,6 +683,141 @@ paths:
               schema:
                 type: 'null'
                 title: Response Exit Worker Maintenance
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /edge_worker/ui/worker/{worker_name}/shutdown:
+    post:
+      tags:
+      - UI
+      summary: Request Worker Shutdown
+      description: Request shutdown of a worker.
+      operationId: request_worker_shutdown
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Request Worker Shutdown
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /edge_worker/ui/worker/{worker_name}:
+    delete:
+      tags:
+      - UI
+      summary: Delete Worker
+      description: Delete a worker record from the system.
+      operationId: delete_worker
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Delete Worker
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /edge_worker/ui/worker/{worker_name}/queues/{queue_name}:
+    put:
+      tags:
+      - UI
+      summary: Add Worker Queue
+      description: Add a queue to a worker.
+      operationId: add_worker_queue
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      - name: queue_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Queue Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Add Worker Queue
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - UI
+      summary: Remove Worker Queue
+      description: Remove a queue from a worker.
+      operationId: remove_worker_queue
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Worker Name
+      - name: queue_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Queue Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Remove Worker Queue
         '422':
           description: Validation Error
           content:

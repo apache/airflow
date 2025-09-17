@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -311,6 +311,30 @@ export class UiService {
     }
     
     /**
+     * Update Worker Maintenance
+     * Update maintenance comments for a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.requestBody
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static updateWorkerMaintenance(data: UpdateWorkerMaintenanceData): CancelablePromise<UpdateWorkerMaintenanceResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/edge_worker/ui/worker/{worker_name}/maintenance',
+            path: {
+                worker_name: data.workerName
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
      * Exit Worker Maintenance
      * Exit a worker from maintenance mode.
      * @param data The data for the request.
@@ -324,6 +348,94 @@ export class UiService {
             url: '/edge_worker/ui/worker/{worker_name}/maintenance',
             path: {
                 worker_name: data.workerName
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Request Worker Shutdown
+     * Request shutdown of a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static requestWorkerShutdown(data: RequestWorkerShutdownData): CancelablePromise<RequestWorkerShutdownResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/edge_worker/ui/worker/{worker_name}/shutdown',
+            path: {
+                worker_name: data.workerName
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Worker
+     * Delete a worker record from the system.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static deleteWorker(data: DeleteWorkerData): CancelablePromise<DeleteWorkerResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/edge_worker/ui/worker/{worker_name}',
+            path: {
+                worker_name: data.workerName
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Add Worker Queue
+     * Add a queue to a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.queueName
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static addWorkerQueue(data: AddWorkerQueueData): CancelablePromise<AddWorkerQueueResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/edge_worker/ui/worker/{worker_name}/queues/{queue_name}',
+            path: {
+                worker_name: data.workerName,
+                queue_name: data.queueName
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Remove Worker Queue
+     * Remove a queue from a worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.queueName
+     * @returns null Successful Response
+     * @throws ApiError
+     */
+    public static removeWorkerQueue(data: RemoveWorkerQueueData): CancelablePromise<RemoveWorkerQueueResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/edge_worker/ui/worker/{worker_name}/queues/{queue_name}',
+            path: {
+                worker_name: data.workerName,
+                queue_name: data.queueName
             },
             errors: {
                 422: 'Validation Error'

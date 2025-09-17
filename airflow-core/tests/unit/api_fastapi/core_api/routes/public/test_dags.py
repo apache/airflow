@@ -450,7 +450,7 @@ class TestGetDags(TestDagEndpoint):
         assert actual_ids == expected_ids
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
-    def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
+    def test_get_dags_should_call_get_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.get("/dags")
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")

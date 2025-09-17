@@ -75,7 +75,6 @@
     "tooltip": "מחק חיבורים נבחרים"
   },
   "formActions": {
-    "reset": "אתחל",
     "save": "שמור"
   },
   "plugins": {
@@ -147,7 +146,7 @@
     "import": {
       "button": "ייבא",
       "conflictResolution": "בחר מנגנון ליישוב קונפליקט משתנים",
-      "errorParsingJsonFile": "שגיאה בפירסור קובץ JSON: העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...}).",
+      "errorParsingJsonFile": "שגיאה בניתוח קובץ JSON: העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "הכשלת הייבוא אם מזוהים משתנים קיימים.",

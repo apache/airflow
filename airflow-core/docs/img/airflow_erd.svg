@@ -1437,71 +1437,72 @@
 <!-- hitl_detail -->
 <g id="node43" class="node">
 <title>hitl_detail</title>
-<polygon fill="none" stroke="black" points="2170,-2328 2170,-2356 2463,-2356 2463,-2328 2170,-2328"/>
-<text text-anchor="start" x="2272.5" y="-2339.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">hitl_detail</text>
-<polygon fill="none" stroke="black" points="2170,-2303 2170,-2328 2463,-2328 2463,-2303 2170,-2303"/>
-<text text-anchor="start" x="2175" y="-2312.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">ti_id</text>
-<text text-anchor="start" x="2204" y="-2312.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2209" y="-2312.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="2261" y="-2312.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="2170,-2278 2170,-2303 2463,-2303 2463,-2278 2170,-2278"/>
-<text text-anchor="start" x="2175" y="-2287.8" font-family="Helvetica,sans-Serif" font-size="14.00">body</text>
-<text text-anchor="start" x="2210" y="-2287.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2215" y="-2287.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
-<polygon fill="none" stroke="black" points="2170,-2253 2170,-2278 2463,-2278 2463,-2253 2170,-2253"/>
-<text text-anchor="start" x="2175" y="-2262.8" font-family="Helvetica,sans-Serif" font-size="14.00">chosen_options</text>
-<text text-anchor="start" x="2283" y="-2262.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2288" y="-2262.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="2170,-2228 2170,-2253 2463,-2253 2463,-2228 2170,-2228"/>
-<text text-anchor="start" x="2175" y="-2237.8" font-family="Helvetica,sans-Serif" font-size="14.00">defaults</text>
-<text text-anchor="start" x="2232" y="-2237.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2237" y="-2237.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="2170,-2203 2170,-2228 2463,-2228 2463,-2203 2170,-2203"/>
-<text text-anchor="start" x="2175" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00">multiple</text>
-<text text-anchor="start" x="2232" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2237" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
-<polygon fill="none" stroke="black" points="2170,-2178 2170,-2203 2463,-2203 2463,-2178 2170,-2178"/>
-<text text-anchor="start" x="2175" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00">options</text>
-<text text-anchor="start" x="2227" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2232" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<text text-anchor="start" x="2283" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="2170,-2153 2170,-2178 2463,-2178 2463,-2153 2170,-2153"/>
-<text text-anchor="start" x="2175" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00">params</text>
-<text text-anchor="start" x="2228" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2233" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<text text-anchor="start" x="2284" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="2170,-2128 2170,-2153 2463,-2153 2463,-2128 2170,-2128"/>
-<text text-anchor="start" x="2175" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00">params_input</text>
-<text text-anchor="start" x="2271" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2276" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<text text-anchor="start" x="2327" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="2170,-2103 2170,-2128 2463,-2128 2463,-2103 2170,-2103"/>
-<text text-anchor="start" x="2175" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_user_id</text>
-<text text-anchor="start" x="2306" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2311" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(128)]</text>
-<polygon fill="none" stroke="black" points="2170,-2078 2170,-2103 2463,-2103 2463,-2078 2170,-2078"/>
-<text text-anchor="start" x="2175" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_user_name</text>
-<text text-anchor="start" x="2332" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2337" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(128)]</text>
-<polygon fill="none" stroke="black" points="2170,-2053 2170,-2078 2463,-2078 2463,-2053 2170,-2053"/>
-<text text-anchor="start" x="2175" y="-2062.8" font-family="Helvetica,sans-Serif" font-size="14.00">respondents</text>
-<text text-anchor="start" x="2262" y="-2062.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2267" y="-2062.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="2170,-2028 2170,-2053 2463,-2053 2463,-2028 2170,-2028"/>
-<text text-anchor="start" x="2175" y="-2037.8" font-family="Helvetica,sans-Serif" font-size="14.00">response_at</text>
-<text text-anchor="start" x="2259" y="-2037.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2264" y="-2037.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<polygon fill="none" stroke="black" points="2170,-2003 2170,-2028 2463,-2028 2463,-2003 2170,-2003"/>
-<text text-anchor="start" x="2175" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00">subject</text>
-<text text-anchor="start" x="2226" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="2231" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
-<text text-anchor="start" x="2281" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="2186,-2328 2186,-2356 2446,-2356 2446,-2328 2186,-2328"/>
+<text text-anchor="start" x="2272" y="-2339.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">hitl_detail</text>
+<polygon fill="none" stroke="black" points="2186,-2303 2186,-2328 2446,-2328 2446,-2303 2186,-2303"/>
+<text text-anchor="start" x="2191" y="-2312.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">ti_id</text>
+<text text-anchor="start" x="2220" y="-2312.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2225" y="-2312.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="2277" y="-2312.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="2186,-2278 2186,-2303 2446,-2303 2446,-2278 2186,-2278"/>
+<text text-anchor="start" x="2191" y="-2287.8" font-family="Helvetica,sans-Serif" font-size="14.00">assignees</text>
+<text text-anchor="start" x="2261" y="-2287.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2266" y="-2287.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="2186,-2253 2186,-2278 2446,-2278 2446,-2253 2186,-2253"/>
+<text text-anchor="start" x="2191" y="-2262.8" font-family="Helvetica,sans-Serif" font-size="14.00">body</text>
+<text text-anchor="start" x="2226" y="-2262.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2231" y="-2262.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
+<polygon fill="none" stroke="black" points="2186,-2228 2186,-2253 2446,-2253 2446,-2228 2186,-2228"/>
+<text text-anchor="start" x="2191" y="-2237.8" font-family="Helvetica,sans-Serif" font-size="14.00">chosen_options</text>
+<text text-anchor="start" x="2299" y="-2237.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2304" y="-2237.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="2186,-2203 2186,-2228 2446,-2228 2446,-2203 2186,-2203"/>
+<text text-anchor="start" x="2191" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
+<text text-anchor="start" x="2264" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2269" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="2365" y="-2212.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="2186,-2178 2186,-2203 2446,-2203 2446,-2178 2186,-2178"/>
+<text text-anchor="start" x="2191" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00">defaults</text>
+<text text-anchor="start" x="2248" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2253" y="-2187.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="2186,-2153 2186,-2178 2446,-2178 2446,-2153 2186,-2153"/>
+<text text-anchor="start" x="2191" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00">multiple</text>
+<text text-anchor="start" x="2248" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2253" y="-2162.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<polygon fill="none" stroke="black" points="2186,-2128 2186,-2153 2446,-2153 2446,-2128 2186,-2128"/>
+<text text-anchor="start" x="2191" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00">options</text>
+<text text-anchor="start" x="2243" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2248" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<text text-anchor="start" x="2299" y="-2137.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="2186,-2103 2186,-2128 2446,-2128 2446,-2103 2186,-2103"/>
+<text text-anchor="start" x="2191" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00">params</text>
+<text text-anchor="start" x="2244" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2249" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<text text-anchor="start" x="2300" y="-2112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="2186,-2078 2186,-2103 2446,-2103 2446,-2078 2186,-2078"/>
+<text text-anchor="start" x="2191" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00">params_input</text>
+<text text-anchor="start" x="2287" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2292" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<text text-anchor="start" x="2343" y="-2087.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="2186,-2053 2186,-2078 2446,-2078 2446,-2053 2186,-2053"/>
+<text text-anchor="start" x="2191" y="-2062.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_at</text>
+<text text-anchor="start" x="2285" y="-2062.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2290" y="-2062.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<polygon fill="none" stroke="black" points="2186,-2028 2186,-2053 2446,-2053 2446,-2028 2186,-2028"/>
+<text text-anchor="start" x="2191" y="-2037.8" font-family="Helvetica,sans-Serif" font-size="14.00">responded_by</text>
+<text text-anchor="start" x="2289" y="-2037.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2294" y="-2037.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="2186,-2003 2186,-2028 2446,-2028 2446,-2003 2186,-2003"/>
+<text text-anchor="start" x="2191" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00">subject</text>
+<text text-anchor="start" x="2242" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="2247" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
+<text text-anchor="start" x="2297" y="-2012.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- task_instance&#45;&#45;hitl_detail -->
 <g id="edge48" class="edge">
 <title>task_instance&#45;&#45;hitl_detail</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2081.12,-1859.57C2103.71,-1904.92 2128.13,-1949.64 2154,-1991 2156.4,-1994.84 2158.87,-1998.68 2161.41,-2002.51"/>
-<text text-anchor="start" x="2151.41" y="-1991.31" font-family="Times,serif" font-size="14.00">1</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M2081.12,-1859.57C2103.71,-1904.92 2128.13,-1949.64 2154,-1991 2161.37,-2002.79 2169.44,-2014.6 2177.92,-2026.25"/>
+<text text-anchor="start" x="2167.92" y="-2015.05" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="2081.12" y="-1848.37" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_map -->

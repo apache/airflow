@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "حزمة URL",
     "noCode": "'لا توجد 'كود",
+    "parseDuration": "مدة التحليل:",
     "parsedAt": "تم تحليلها في:"
   },
   "extraLinks": "روابط إضافية",

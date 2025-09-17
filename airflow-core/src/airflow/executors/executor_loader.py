@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowConfigException, UnknownExecutorException
@@ -41,11 +42,11 @@ if TYPE_CHECKING:
 
 # Used to lookup an ExecutorName via a string alias or module path. An
 # executor may have both so we need two lookup dicts.
-_alias_to_executors: dict[str, ExecutorName] = {}
-_module_to_executors: dict[str, ExecutorName] = {}
+_alias_to_executors_per_team: dict[str | None, dict[str, ExecutorName]] = defaultdict(dict)
+_module_to_executors_per_team: dict[str | None, dict[str, ExecutorName]] = defaultdict(dict)
+_classname_to_executors_per_team: dict[str | None, dict[str, ExecutorName]] = defaultdict(dict)
 # Used to lookup an ExecutorName via the team id.
-_team_name_to_executors: dict[str | None, ExecutorName] = {}
-_classname_to_executors: dict[str, ExecutorName] = {}
+_team_name_to_executors: dict[str | None, list[ExecutorName]] = defaultdict(list)
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
 
@@ -125,13 +126,14 @@ class ExecutorLoader:
         for executor_name in executor_names:
             # Executors will not always have aliases
             if executor_name.alias:
-                _alias_to_executors[executor_name.alias] = executor_name
-            # All executors will have a team id. It _may_ be None, for now that means it is a system
-            # level executor
-            _team_name_to_executors[executor_name.team_name] = executor_name
+                _alias_to_executors_per_team[executor_name.team_name][executor_name.alias] = executor_name
+            # All executors will have a team name. It _may_ be None, for now that means it is a system level executor
+            _team_name_to_executors[executor_name.team_name].append(executor_name)
             # All executors will have a module path
-            _module_to_executors[executor_name.module_path] = executor_name
-            _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
+            _module_to_executors_per_team[executor_name.team_name][executor_name.module_path] = executor_name
+            _classname_to_executors_per_team[executor_name.team_name][
+                executor_name.module_path.split(".")[-1]
+            ] = executor_name
             # Cache the executor names, so the logic of this method only runs once
             _executor_names.append(executor_name)
 
@@ -167,6 +169,8 @@ class ExecutorLoader:
                 "The 'executor' key in the 'core' section of the configuration is mandatory and cannot be empty"
             )
         configs: list[tuple[str | None, list[str]]] = []
+        seen_teams: set[str | None] = set()
+
         # The executor_config can look like a few things. One is just a single executor name, such as
         # "CeleryExecutor". Or a list of executors, such as "CeleryExecutor,KubernetesExecutor,module.path.to.executor".
         # In these cases these are all executors that are available to all teams, with the first one being the
@@ -178,13 +182,23 @@ class ExecutorLoader:
             # The first item in the list may not have a team id (either empty string before the equal
             # sign or no equal sign at all), which means it is a global executor config.
             if "=" not in team_executor_config or team_executor_config.startswith("="):
-                team_executor_config = team_executor_config.strip("=")
-                # Split by comma to get the individual executor names and strip spaces off of them
-                configs.append((None, [name.strip() for name in team_executor_config.split(",")]))
+                team_name = None
+                executor_names = team_executor_config.strip("=")
             else:
                 cls.block_use_of_multi_team()
                 team_name, executor_names = team_executor_config.split("=")
-                configs.append((team_name, [name.strip() for name in executor_names.split(",")]))
+
+            # Check for duplicate team names
+            if team_name in seen_teams:
+                raise AirflowConfigException(
+                    f"Team '{team_name}' appears more than once in executor configuration. "
+                    f"Each team can only be specified once in the executor config."
+                )
+            seen_teams.add(team_name)
+
+            # Split by comma to get the individual executor names and strip spaces off of them
+            configs.append((team_name, [name.strip() for name in executor_names.split(",")]))
+
         return configs
 
     @classmethod
@@ -197,14 +211,15 @@ class ExecutorLoader:
         return cls._get_executor_names()
 
     @classmethod
-    def get_default_executor_name(cls) -> ExecutorName:
+    def get_default_executor_name(cls, team_name: str | None = None) -> ExecutorName:
         """
         Return the default executor name from Airflow configuration.
 
         :return: executor name from Airflow configuration
         """
+        cls._get_executor_names()
         # The default executor is the first configured executor in the list
-        return cls._get_executor_names()[0]
+        return _team_name_to_executors[team_name][0]
 
     @classmethod
     def get_default_executor(cls) -> BaseExecutor:
@@ -230,17 +245,23 @@ class ExecutorLoader:
         return loaded_executors
 
     @classmethod
-    def lookup_executor_name_by_str(cls, executor_name_str: str) -> ExecutorName:
+    def lookup_executor_name_by_str(
+        cls, executor_name_str: str, team_name: str | None = None
+    ) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
-        if not _classname_to_executors or not _module_to_executors or not _alias_to_executors:
+        if (
+            not _classname_to_executors_per_team
+            or not _module_to_executors_per_team
+            or not _alias_to_executors_per_team
+        ):
             # if we haven't loaded the executors yet, such as directly calling load_executor
             cls._get_executor_names()
 
-        if executor_name := _alias_to_executors.get(executor_name_str):
+        if executor_name := _alias_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name
-        if executor_name := _module_to_executors.get(executor_name_str):
+        if executor_name := _module_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name
-        if executor_name := _classname_to_executors.get(executor_name_str):
+        if executor_name := _classname_to_executors_per_team.get(team_name, {}).get(executor_name_str):
             return executor_name
         raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
 

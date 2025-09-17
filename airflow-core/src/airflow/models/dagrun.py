@@ -1173,7 +1173,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="task_failure")
 
             if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=dag, success=False, reason="task_failure")
+                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1206,7 +1206,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="success")
 
             if execute_callbacks and dag.has_on_success_callback:
-                self.handle_dag_callback(dag=dag, success=True, reason="success")
+                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=True, reason="success")
             elif dag.has_on_success_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1222,9 +1222,13 @@ class DagRun(Base, LoggingMixin):
                     msg="success",
                 )
 
-            if (deadline := dag.deadline) and isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                # The dagrun has succeeded.  If there wre any Deadlines for it which were not breached, they are no longer needed.
-                Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
+            if dag.deadline:
+                # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
+                if any(
+                    isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
+                    for d in cast("list", dag.deadline)
+                ):
+                    Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
@@ -1233,7 +1237,11 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=dag, success=False, reason="all_tasks_deadlocked")
+                self.handle_dag_callback(
+                    dag=cast("SDKDAG", dag),
+                    success=False,
+                    reason="all_tasks_deadlocked",
+                )
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1302,9 +1310,7 @@ class DagRun(Base, LoggingMixin):
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
             for ti in tis:
                 try:
-                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-                    # instead, but currently it inherits SDK's DAG.
-                    ti.task = cast("Operator", dag.get_task(ti.task_id))
+                    ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
                     if ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)

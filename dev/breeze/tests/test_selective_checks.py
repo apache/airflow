@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from rich.console import Console
@@ -170,9 +169,6 @@ All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
-
-# Use me if you are adding test for the changed files that includes caplog
-LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 
 
 def escape_ansi_colors(line):
@@ -1170,7 +1166,7 @@ def test_expected_output_pull_request_main(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
+        pr_labels=tuple(),
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -1548,10 +1544,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         (
             pytest.param(
                 ("INTHEWILD.md", "providers/asana/tests/asana.py"),
-                (
-                    "full tests needed",
-                    LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,
-                ),
+                ("full tests needed",),
                 "v2-7-stable",
                 {
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1706,7 +1699,7 @@ def test_expected_output_pull_request_v2_7(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
+        pr_labels=(),
         default_branch="v2-7-stable",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -1984,7 +1977,7 @@ def test_expected_output_pull_request_target(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST_TARGET,
-        pr_labels=(LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
+        pr_labels=(),
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -2445,231 +2438,6 @@ def test_mypy_matches(
         pr_labels=pr_labels,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_fail(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-        + #Test Change
-        + def test_selective_checks_caplop(self, caplog)
-        +   caplog.set_level(logging.INFO)
-        +   "test log" in caplog.text
-    """
-    mock_run_command.return_value = mock_run_command_result
-    with pytest.raises(SystemExit):
-        assert (
-            "[error]please ask maintainer to include as an exception using "
-            f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label."
-            in escape_ansi_colors(
-                str(
-                    SelectiveChecks(
-                        files=files,
-                        commit_ref=NEUTRAL_COMMIT,
-                        pr_labels=pr_labels,
-                        github_event=GithubEvents.PULL_REQUEST,
-                        default_branch="main",
-                    )
-                )
-            )
-        )
-
-
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_fail_formatted(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-        + #Test Change
-        + def test_selective_checks(
-        +     self,
-        +     caplog
-        + )
-        +   caplog.set_level(logging.INFO)
-        +   "test log" in caplog.text
-    """
-    mock_run_command.return_value = mock_run_command_result
-    with pytest.raises(SystemExit):
-        assert (
-            "[error]please ask maintainer to include as an exception using "
-            f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label."
-            in escape_ansi_colors(
-                str(
-                    SelectiveChecks(
-                        files=files,
-                        commit_ref=NEUTRAL_COMMIT,
-                        pr_labels=pr_labels,
-                        github_event=GithubEvents.PULL_REQUEST,
-                        default_branch="main",
-                    )
-                )
-            )
-        )
-
-
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_not_fail(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-         + #Test Change
-         + def test_selective_checks(self)
-         +   assert "I am just a test" == "I am just a test"
-     """
-    mock_run_command.return_value = mock_run_command_result
-    selective_checks = SelectiveChecks(
-        files=files,
-        commit_ref=NEUTRAL_COMMIT,
-        pr_labels=pr_labels,
-        github_event=GithubEvents.PULL_REQUEST,
-        default_branch="main",
-    )
-    assert selective_checks.is_log_mocked_in_the_tests
-
-
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_not_fail_with_label(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-        + #Test Change
-        + def test_selective_checks_caplop(self, caplog)
-        +   caplog.set_level(logging.INFO)
-        +   "test log" in caplog.text
-    """
-    mock_run_command.return_value = mock_run_command_result
-    selective_checks = SelectiveChecks(
-        files=files,
-        commit_ref=NEUTRAL_COMMIT,
-        pr_labels=pr_labels,
-        github_event=GithubEvents.PULL_REQUEST,
-        default_branch="main",
-    )
-    assert selective_checks.is_log_mocked_in_the_tests
-
-
-def test_ui_english_translation_changed_false():
-    selective_checks = SelectiveChecks(
-        files=("README.md",),
-        commit_ref=NEUTRAL_COMMIT,
-        pr_labels=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        default_branch="main",
-    )
-    assert selective_checks.ui_english_translation_changed is False
 
 
 def test_ui_english_translation_changed_fail_on_change():

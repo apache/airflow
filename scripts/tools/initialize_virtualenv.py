@@ -45,14 +45,14 @@ def check_if_in_virtualenv() -> bool:
 def check_for_package_extras() -> str:
     """
     check if the user provided any extra packages to install.
-    defaults to package 'devel'.
+    defaults to package 'dev'.
     """
     if len(sys.argv) > 1:
         if len(sys.argv) > 2:
-            print('Provide extras as 1 argument like: "devel,google,snowflake"')
+            print('Provide extras as 1 argument like: "dev,google,snowflake"')
             sys.exit(1)
         return sys.argv[1]
-    return "devel"
+    return "dev"
 
 
 def uv_install_requirements() -> int:
@@ -74,13 +74,12 @@ IMPORTANT NOTE ABOUT EXTRAS !!!
 
 You can specify extras as single coma-separated parameter to install. For example
 
-* devel - to have all development dependencies required to test core.
-* devel-* - to selectively install tools that we use to run scripts, tests, static checks etc.
-* google,amazon,microsoft_azure - to install dependencies needed at runtime by specified providers
-* devel-all-dbs - to have all development dependencies required for all DB providers
-* devel-all - to have all development dependencies required for all providers
+* dev - to have all development dependencies required to test core.
+* docs - to install dependencies required for documentation building
+* google,amazon,microsoft.azure - to install dependencies needed at runtime by specified providers
+* all - to have all provider dependencies
 
-Note that "devel-all" installs all possible dependencies and we have > 600 of them,
+Note that "all" installs all possible dependencies and we have > 600 of them,
 which might not be possible to install cleanly on your host because of lack of
 system packages. It's easier to install extras one-by-one as needed.
 
@@ -88,7 +87,7 @@ system packages. It's easier to install extras one-by-one as needed.
 
 """
     )
-    extra_param = [x for extra in extras.split(",") for x in ("--extra", extra)]
+    extra_param = [x for extra in extras.split(",") for x in ("--group", extra)]
     uv_install_command = ["uv", "sync"] + extra_param
     quoted_command = " ".join([shlex.quote(parameter) for parameter in uv_install_command])
     print()
@@ -151,13 +150,13 @@ def main():
 
         os_type = sys.platform
         if os_type == "darwin":
-            print("brew install sqlite mysql postgresql openssl")
+            print("brew install sqlite mysql postgresql openssl pkg-config")
             print('export LDFLAGS="-L/usr/local/opt/openssl/lib"')
             print('export CPPFLAGS="-I/usr/local/opt/openssl/include"')
         else:
             print(
                 "sudo apt install build-essential python3-dev libsqlite3-dev openssl "
-                "sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql"
+                "sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql pkg-config"
             )
         sys.exit(4)
 

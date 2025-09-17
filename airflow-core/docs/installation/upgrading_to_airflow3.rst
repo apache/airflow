@@ -89,24 +89,24 @@ Step 3: Dag authors - Check your Airflow Dags for compatibility
 To minimize friction for users upgrading from prior versions of Airflow, we have created a Dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
 The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
 
-The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.11.13``. The below example demonstrates how to check
+The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.13.0``. The below example demonstrates how to check
 for Dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301 --preview
+    ruff check dags/ --select AIR301
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301 --show-fixes --preview
+    ruff check dags/ --select AIR301 --show-fixes
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301 --fix --preview
+    ruff check dags/ --select AIR301 --fix
 
 
 Some of the fixes are marked as unsafe. Unsafe fixes usually do not break Dag code. They're marked as unsafe as they may change some runtime behavior. For more information, see `Fix Safety <https://docs.astral.sh/ruff/linter/#fix-safety>`_.
@@ -114,18 +114,75 @@ To trigger these fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301 --fix --unsafe-fixes --preview
-
-.. note::
-  Ruff has strict policy about when a rule becomes stable. Till it does you must use --preview flag.
-  The progress of Airflow Ruff rule become stable can be tracked in https://github.com/astral-sh/ruff/issues/17749
-  That said, from Airflow side the rules are perfectly fine to be used.
+    ruff check dags/ --select AIR301 --fix --unsafe-fixes
 
 .. note::
 
     In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to `from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
+
+Key Import Updates
+^^^^^^^^^^^^^^^^^^
+
+While ruff can automatically fix many import issues, here are the key import changes you'll need to make to ensure your DAGs and other
+code import Airflow components correctly in Airflow 3. The older paths are deprecated and will be removed in a future Airflow version.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50, 50
+
+   * - **Old Import Path (Deprecated)**
+     - **New Import Path (airflow.sdk)**
+   * - ``airflow.decorators.dag``
+     - ``airflow.sdk.dag``
+   * - ``airflow.decorators.task``
+     - ``airflow.sdk.task``
+   * - ``airflow.decorators.task_group``
+     - ``airflow.sdk.task_group``
+   * - ``airflow.decorators.setup``
+     - ``airflow.sdk.setup``
+   * - ``airflow.decorators.teardown``
+     - ``airflow.sdk.teardown``
+   * - ``airflow.models.dag.DAG``
+     - ``airflow.sdk.DAG``
+   * - ``airflow.models.baseoperator.BaseOperator``
+     - ``airflow.sdk.BaseOperator``
+   * - ``airflow.models.param.Param``
+     - ``airflow.sdk.Param``
+   * - ``airflow.models.param.ParamsDict``
+     - ``airflow.sdk.ParamsDict``
+   * - ``airflow.models.baseoperatorlink.BaseOperatorLink``
+     - ``airflow.sdk.BaseOperatorLink``
+   * - ``airflow.sensors.base.BaseSensorOperator``
+     - ``airflow.sdk.BaseSensorOperator``
+   * - ``airflow.hooks.base.BaseHook``
+     - ``airflow.sdk.BaseHook``
+   * - ``airflow.notifications.basenotifier.BaseNotifier``
+     - ``airflow.sdk.BaseNotifier``
+   * - ``airflow.utils.task_group.TaskGroup``
+     - ``airflow.sdk.TaskGroup``
+   * - ``airflow.datasets.Dataset``
+     - ``airflow.sdk.Asset``
+   * - ``airflow.datasets.DatasetAlias``
+     - ``airflow.sdk.AssetAlias``
+   * - ``airflow.datasets.DatasetAll``
+     - ``airflow.sdk.AssetAll``
+   * - ``airflow.datasets.DatasetAny``
+     - ``airflow.sdk.AssetAny``
+   * - ``airflow.models.connection.Connection``
+     - ``airflow.sdk.Connection``
+   * - ``airflow.models.context.Context``
+     - ``airflow.sdk.Context``
+   * - ``airflow.models.variable.Variable``
+     - ``airflow.sdk.Variable``
+   * - ``airflow.io.*``
+     - ``airflow.sdk.io.*``
+
+**Migration Timeline**
+
+- **Airflow 3.1**: Legacy imports show deprecation warnings but continue to work
+- **Future Airflow version**: Legacy imports will be **removed**
 
 Step 4: Install the Standard Provider
 --------------------------------------

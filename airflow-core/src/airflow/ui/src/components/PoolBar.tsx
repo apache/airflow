@@ -54,7 +54,8 @@ export const PoolBar = ({
             <Flex
               alignItems="center"
               bg={`${color}.solid`}
-              color="white"
+              color={`${color}.contrast`}
+              flex={flexValue}
               gap={1}
               h="100%"
               justifyContent="center"

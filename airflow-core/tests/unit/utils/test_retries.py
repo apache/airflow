@@ -64,7 +64,7 @@ class TestRetries:
             mock_obj(2)
             raise db_error
 
-        caplog.set_level(logging.DEBUG, logger=self.__module__)
+        caplog.set_level(logging.DEBUG)
         caplog.clear()
         with pytest.raises(excection_type):
             test_function(session=mock_session)

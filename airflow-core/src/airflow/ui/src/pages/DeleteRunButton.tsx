@@ -46,7 +46,7 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
     <>
       <ActionButton
         actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        colorPalette="red"
+        colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}

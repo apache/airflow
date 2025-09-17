@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
+    QueryParseImportErrorFilenamePatternSearch,
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -126,12 +127,14 @@ def get_import_errors(
             ).dynamic_depends()
         ),
     ],
+    filename_pattern: QueryParseImportErrorFilenamePatternSearch,
     session: SessionDep,
     user: GetUserDep,
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
         statement=select(ParseImportError),
+        filters=[filename_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -174,24 +177,27 @@ def get_import_errors(
     # Paginate the import errors query
     import_errors_select, total_entries = paginated_select(
         statement=import_errors_stmt,
+        filters=[filename_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    import_errors_result: Iterable[tuple[ParseImportError, Iterable[str]]] = groupby(
+    import_errors_result: Iterable[tuple[ParseImportError, Iterable]] = groupby(
         session.execute(import_errors_select), itemgetter(0)
     )
 
     import_errors = []
     for import_error, file_dag_ids in import_errors_result:
+        dag_ids = [dag_id for _, dag_id in file_dag_ids]
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         # Check if user has read access to all the DAGs defined in the file
         requests: Sequence[IsAuthorizedDagRequest] = [
             {
                 "method": "GET",
-                "details": DagDetails(id=dag_id),
+                "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id)),
             }
-            for dag_id in file_dag_ids
+            for dag_id in dag_ids
         ]
         if not auth_manager.batch_is_authorized_dag(requests, user=user):
             session.expunge(import_error)

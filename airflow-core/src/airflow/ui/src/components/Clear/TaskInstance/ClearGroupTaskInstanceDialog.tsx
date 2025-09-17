@@ -166,7 +166,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
               loading={isPending}
               onClick={() => {

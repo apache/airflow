@@ -28,7 +28,6 @@ import textwrap
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from logging.config import dictConfig
 from pathlib import Path
 from socket import socket, socketpair
 from unittest import mock
@@ -42,7 +41,6 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.manager import (
     DagFileInfo,
@@ -116,7 +114,6 @@ class TestDagFileProcessorManager:
             yield
 
     def setup_method(self):
-        dictConfig(DEFAULT_LOGGING_CONFIG)
         clear_db_assets()
         clear_db_runs()
         clear_db_serialized_dags()
@@ -743,6 +740,8 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
+        """Test _fetch_callbacks returns callbacks ordered by priority_weight desc."""
+
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
         callback1 = DagCallbackRequest(
@@ -770,7 +769,12 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
-                manager.run()
+                callbacks = manager._fetch_callbacks(session=session)
+
+                # Should return callbacks ordered by priority_weight desc (highest first)
+                assert callbacks[0].run_id == "123"
+                assert callbacks[1].run_id == "456"
+
                 assert session.query(DbCallbackRequest).count() == 0
 
     @conf_vars(

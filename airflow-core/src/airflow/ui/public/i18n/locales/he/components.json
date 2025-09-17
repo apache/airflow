@@ -7,8 +7,6 @@
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
-    "dateRangeFrom": "מתאריך",
-    "dateRangeTo": "עד תאריך",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",

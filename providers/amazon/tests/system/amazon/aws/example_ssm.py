@@ -161,7 +161,7 @@ with DAG(
     instance_profile_name = f"{env_id}-ssm-instance-profile"
 
     config = {
-        "InstanceType": "t2.micro",
+        "InstanceType": "t4g.micro",
         "IamInstanceProfile": {"Name": instance_profile_name},
         # Optional: Tags for identifying test resources in the AWS console
         "TagSpecifications": [
@@ -203,7 +203,7 @@ with DAG(
 
     # [START howto_sensor_run_command]
     await_run_command = SsmRunCommandCompletedSensor(
-        task_id="await_run_command", command_id=run_command.output
+        task_id="await_run_command", command_id="{{ ti.xcom_pull(task_ids='run_command') }}"
     )
     # [END howto_sensor_run_command]
 
