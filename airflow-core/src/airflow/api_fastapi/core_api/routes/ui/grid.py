@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -81,16 +82,23 @@ def _get_latest_serdag(dag_id, session):
 
 def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
     # this is a simplification - we account for structure based on the first task
-    version = session.scalar(select(DagVersion).where(DagVersion.id == dag_version_id))
+    version = session.scalar(
+        select(DagVersion)
+        .where(DagVersion.id == dag_version_id)
+        .options(joinedload(DagVersion.serialized_dag))
+    )
     if not version:
         version = session.scalar(
             select(DagVersion)
             .where(
                 DagVersion.dag_id == dag_id,
             )
+            .options(joinedload(DagVersion.serialized_dag))
             .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
             .limit(1)
         )
+    if not version:
+        return None
     if not (serdag := version.serialized_dag):
         log.error(
             "No serialized dag found",
