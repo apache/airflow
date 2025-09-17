@@ -36,7 +36,7 @@ export enum FilterTypes {
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
+  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl", "dagRun"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.AFTER]: {
@@ -174,7 +174,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiUser />,
-      label: translate("common:filters.triggeringUser", "Triggering User"), // To do: add translation key and remove default value
+      label: translate("dagRun.triggeringUser"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TRY_NUMBER]: {
