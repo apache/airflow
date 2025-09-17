@@ -312,7 +312,7 @@ def load_plugins_from_plugin_directory():
                             f"Please set the 'name' attribute for the plugin class."
                         )
                     if plugin_name in plugin_names:
-                        raise AirflowPluginException("Duplicate plugin name found in {file_path}. ")
+                        raise AirflowPluginException(f"Duplicate plugin name found in {file_path}. ")
                     plugin_names[plugin_name] = plugin_class
                 
                 # Second pass: register all plugins
