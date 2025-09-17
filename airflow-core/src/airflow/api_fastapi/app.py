@@ -50,7 +50,7 @@ API_ROOT_PATH = urlsplit(API_BASE_URL).path
 AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
 
 # Fast API apps mounted under these prefixes are not allowed
-RESERVED_URL_PREFIXES = {"/api/v2", "/ui", "/execution"}
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
 
 log = logging.getLogger(__name__)
 
