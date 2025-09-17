@@ -40,7 +40,7 @@ def clean_listener_manager():
 
 @pytest.mark.db_test
 @provide_session
-def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
+def test_asset_listener_on_asset_changed_gets_calls(dag_maker, create_task_instance_of_operator, session):
     asset_uri = "test://asset/"
     asset_name = "test_asset_uri"
     asset_group = "test-group"
@@ -57,7 +57,7 @@ def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_oper
         session=session,
         outlets=[asset],
     )
-    ti.run()
+    dag_maker.run_ti(ti)
 
     assert len(asset_listener.changed) == 1
     assert asset_listener.changed[0].uri == asset_uri

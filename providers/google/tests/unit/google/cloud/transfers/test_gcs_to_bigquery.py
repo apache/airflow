@@ -43,7 +43,13 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
 TASK_ID = "test-gcs-to-bq-operator"
 TEST_EXPLICIT_DEST = "test-project.dataset.table"
@@ -1654,7 +1660,7 @@ class TestAsyncGCSToBigQueryOperator:
     @pytest.mark.db_test
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_async_should_execute_successfully(
-        self, hook, create_task_instance, session
+        self, hook, dag_maker, create_task_instance, session
     ):
         """
         Asserts that a task is deferred and a BigQueryInsertJobTrigger will be fired
@@ -1677,7 +1683,7 @@ class TestAsyncGCSToBigQueryOperator:
             deferrable=True,
             project_id=JOB_PROJECT_ID,
         )
-        ti.run(session=session)
+        dag_maker.run_ti(ti)
 
         assert ti.state == TaskInstanceState.DEFERRED
         trigger_cls = session.scalar(select(Trigger.classpath).where(Trigger.id == ti.trigger_id))
@@ -1685,7 +1691,7 @@ class TestAsyncGCSToBigQueryOperator:
 
     @pytest.mark.db_test
     def test_execute_without_external_table_async_should_throw_ex_when_event_status_error(
-        self, create_task_instance, session
+        self, dag_maker, create_task_instance, session
     ):
         """
         Tests that an AirflowException is raised in case of error event.
@@ -1705,11 +1711,11 @@ class TestAsyncGCSToBigQueryOperator:
         self._set_execute_complete(session, ti, event={"status": "error", "message": "test failure message"})
 
         with pytest.raises(AirflowException):
-            ti.run()
+            dag_maker.run_ti(ti)
 
     @pytest.mark.db_test
     def test_execute_logging_without_external_table_async_should_execute_successfully(
-        self, caplog, create_task_instance, session
+        self, dag_maker, create_task_instance, session
     ):
         """
         Asserts that logging occurs as expected.
@@ -1731,7 +1737,7 @@ class TestAsyncGCSToBigQueryOperator:
         )
 
         with mock.patch.object(ti.task.log, "info") as mock_log_info:
-            ti.run()
+            dag_maker.run_ti(ti)
         mock_log_info.assert_called_with(
             "%s completed with response %s ", "test-gcs-to-bq-operator", "Job completed"
         )
@@ -1739,7 +1745,7 @@ class TestAsyncGCSToBigQueryOperator:
     @pytest.mark.db_test
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_generate_job_id_async_should_execute_successfully(
-        self, hook, create_task_instance, session
+        self, hook, dag_maker, create_task_instance
     ):
         hook.return_value.insert_job.side_effect = Conflict("any")
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
@@ -1764,8 +1770,8 @@ class TestAsyncGCSToBigQueryOperator:
             deferrable=True,
             project_id=JOB_PROJECT_ID,
         )
+        dag_maker.run_ti(ti)
 
-        ti.run(session=session)
         assert ti.state == TaskInstanceState.DEFERRED
         hook.return_value.generate_job_id.assert_called_once_with(
             job_id=None,
@@ -1779,7 +1785,7 @@ class TestAsyncGCSToBigQueryOperator:
     @pytest.mark.db_test
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_reattach_async_should_execute_successfully(
-        self, hook, create_task_instance, session
+        self, hook, dag_maker, create_task_instance
     ):
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
 
@@ -1807,8 +1813,8 @@ class TestAsyncGCSToBigQueryOperator:
             deferrable=True,
             project_id=JOB_PROJECT_ID,
         )
+        dag_maker.run_ti(ti)
 
-        ti.run(session=session)
         assert ti.state == TaskInstanceState.DEFERRED
         hook.return_value.get_job.assert_called_once_with(
             location=TEST_DATASET_LOCATION,
@@ -1819,7 +1825,7 @@ class TestAsyncGCSToBigQueryOperator:
     @pytest.mark.db_test
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_force_rerun_async_should_execute_successfully(
-        self, hook, create_task_instance
+        self, hook, dag_maker, create_task_instance
     ):
         hook.return_value.generate_job_id.return_value = f"{job_id}_{hash_}"
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
@@ -1847,9 +1853,8 @@ class TestAsyncGCSToBigQueryOperator:
             deferrable=True,
             project_id=JOB_PROJECT_ID,
         )
-
         with pytest.raises(AirflowException) as exc:
-            ti.run()
+            dag_maker.run_ti(ti)
 
         expected_exception_msg = (
             f"Job with id: {REAL_JOB_ID} already exists and is in {job.state} state. "
@@ -1869,7 +1874,7 @@ class TestAsyncGCSToBigQueryOperator:
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_schema_fields_without_external_table_async_should_execute_successfully(
-        self, bq_hook, gcs_hook, create_task_instance
+        self, bq_hook, gcs_hook, dag_maker, create_task_instance
     ):
         bq_hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
         bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
@@ -1890,7 +1895,7 @@ class TestAsyncGCSToBigQueryOperator:
             deferrable=True,
             project_id=JOB_PROJECT_ID,
         )
-        ti.run()
+        dag_maker.run_ti(ti)
         assert ti.state == TaskInstanceState.DEFERRED
 
         calls = [
@@ -1931,7 +1936,7 @@ class TestAsyncGCSToBigQueryOperator:
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_schema_fields_int_without_external_table_async_should_execute_successfully(
-        self, bq_hook, gcs_hook, create_task_instance
+        self, bq_hook, gcs_hook, dag_maker, create_task_instance
     ):
         bq_hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
         bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
@@ -1952,7 +1957,7 @@ class TestAsyncGCSToBigQueryOperator:
             deferrable=True,
             project_id=JOB_PROJECT_ID,
         )
-        ti.run()
+        dag_maker.run_ti(ti)
         assert ti.state == TaskInstanceState.DEFERRED
 
         calls = [
@@ -1996,7 +2001,7 @@ class TestAsyncGCSToBigQueryOperator:
 
     @pytest.mark.db_test
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_execute_complete_reassigns_job_id(self, bq_hook, create_task_instance, session):
+    def test_execute_complete_reassigns_job_id(self, bq_hook, dag_maker, create_task_instance, session):
         """Assert that we use job_id from event after deferral."""
         bq_hook.return_value.split_tablename.return_value = "", "", ""
         ti = create_task_instance(
@@ -2006,6 +2011,7 @@ class TestAsyncGCSToBigQueryOperator:
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             deferrable=True,
             job_id=None,
+            session=session,
         )
 
         generated_job_id = "123456"
@@ -2015,9 +2021,18 @@ class TestAsyncGCSToBigQueryOperator:
         }
         session.flush()
 
-        assert ti.task.job_id is None
-        ti.run(session=session)
-        assert ti.task.job_id == generated_job_id
+        orig_task = dag_maker.dag.get_task(ti.task_id)
+        assert orig_task.job_id is None
+
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.sdk.definitions.dag import _run_task
+
+            result_task = _run_task(ti=ti, task=orig_task).ti.task
+        else:
+            ti.run(session=session)
+            result_task = ti.task
+        assert orig_task.job_id is None
+        assert result_task.job_id == generated_job_id
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_force_delete_should_execute_successfully(self, hook):

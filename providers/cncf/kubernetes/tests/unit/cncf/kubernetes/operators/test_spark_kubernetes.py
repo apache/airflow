@@ -982,7 +982,7 @@ class TestSparkKubernetesOperator:
 
 
 @pytest.mark.db_test
-def test_template_body_templating(create_task_instance_of_operator, session):
+def test_template_body_templating(dag_maker, create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,
         template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
@@ -993,8 +993,7 @@ def test_template_body_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = dag_maker.render_templates(ti)
     assert task.template_body == {"spark": {"foo": "2016-01-01", "bar": "test_template_body_templating_dag"}}
 
 
@@ -1017,8 +1016,7 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
     ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = dag_maker.render_templates(ti)
     assert task.template_body == {
         "spark": {
             "foo": date(2024, 2, 1),
@@ -1057,8 +1055,7 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
     ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = dag_maker.render_templates(ti)
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
 
@@ -1068,7 +1065,7 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
     "use_literal_value", [pytest.param(True, id="literal-value"), pytest.param(False, id="whitespace-compat")]
 )
 def test_resolve_application_file_real_file(
-    create_task_instance_of_operator, tmp_path, use_literal_value, session
+    dag_maker, create_task_instance_of_operator, tmp_path, use_literal_value, session
 ):
     application_file = tmp_path / "test-application-file.yml"
     application_file.write_text("foo: bar\nspam: egg")
@@ -1096,14 +1093,14 @@ def test_resolve_application_file_real_file(
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
-
+    task = dag_maker.render_templates(ti)
     assert task.template_body == {"spark": {"foo": "bar", "spam": "egg"}}
 
 
 @pytest.mark.db_test
-def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path, session):
+def test_resolve_application_file_real_file_not_exists(
+    dag_maker, create_task_instance_of_operator, tmp_path, session
+):
     application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
     try:
         from airflow.template.templater import LiteralValue
@@ -1121,8 +1118,7 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = dag_maker.render_templates(ti)
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
 

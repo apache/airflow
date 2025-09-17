@@ -559,7 +559,7 @@ class TestLivyOperator:
 
 
 @pytest.mark.db_test
-def test_spark_params_templating(create_task_instance_of_operator, session):
+def test_spark_params_templating(dag_maker, create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         LivyOperator,
         # Templated fields
@@ -585,8 +585,7 @@ def test_spark_params_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: LivyOperator = ti.task
+    task = dag_maker.render_templates(ti)
     assert task.spark_params == {
         "archives": "literal-archives",
         "args": "literal-args",

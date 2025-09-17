@@ -422,7 +422,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
         tis = self.create_task_instances(session)
         session.query()
-        rendered_fields = RTIF(tis[0], render_templates=False)
+        rendered_fields = RTIF(tis[0])
         session.add(rendered_fields)
         session.commit()
         response = test_client.get(

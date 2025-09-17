@@ -354,10 +354,9 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-        dr = self.dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
+        ti = self.dag_maker.create_dagrun().task_instances[0]
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {cwd_path}"):
-            ti.run()
+            self.dag_maker.run_ti(ti)
         assert ti.task.bash_command == "echo"
 
     def test_cwd_is_file(self, tmp_path):
@@ -375,10 +374,9 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-        dr = self.dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
+        ti = self.dag_maker.create_dagrun().task_instances[0]
         with pytest.raises(AirflowException, match=f"The cwd {cwd_file} must be a directory"):
-            ti.run()
+            self.dag_maker.run_ti(ti)
         assert ti.task.bash_command == "echo"
 
     def test_command_not_found(self):
@@ -393,12 +391,12 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-        dr = self.dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
+        ti = self.dag_maker.create_dagrun().task_instances[0]
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
+            AirflowException,
+            match="Bash command failed\\. The command returned a non-zero exit code 127\\.",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
         assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
     def test_multiple_outputs_true(self):
@@ -491,10 +489,9 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-        dr = self.dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
+        ti = self.dag_maker.create_dagrun().task_instances[0]
         with pytest.raises(AirflowException):
-            ti.run()
+            self.dag_maker.run_ti(ti)
         assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
 
     @pytest.mark.db_test

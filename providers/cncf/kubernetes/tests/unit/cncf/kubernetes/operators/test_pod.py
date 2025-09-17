@@ -184,7 +184,7 @@ class TestKubernetesPodOperator:
 
         patch.stopall()
 
-    def test_templates(self, create_task_instance_of_operator, session):
+    def test_templates(self, dag_maker, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"
         ti = create_task_instance_of_operator(
             KubernetesPodOperator,
@@ -227,7 +227,7 @@ class TestKubernetesPodOperator:
 
         session.add(ti)
         session.commit()
-        rendered = ti.render_templates()
+        rendered = dag_maker.render_templates(ti)
 
         assert dag_id == rendered.container_resources.limits["memory"]
         assert dag_id == rendered.container_resources.limits["cpu"]
@@ -235,19 +235,19 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
-        assert dag_id == ti.task.image
-        assert dag_id == ti.task.cmds
-        assert dag_id == ti.task.name
-        assert dag_id == ti.task.hostname
-        assert dag_id == ti.task.base_container_name
-        assert dag_id == ti.task.namespace
-        assert dag_id == ti.task.config_file
-        assert dag_id == ti.task.labels
-        assert dag_id == ti.task.pod_template_file
-        assert dag_id == ti.task.arguments
-        assert dag_id == ti.task.env_vars[0]
+        assert dag_id == rendered.image
+        assert dag_id == rendered.cmds
+        assert dag_id == rendered.name
+        assert dag_id == rendered.hostname
+        assert dag_id == rendered.base_container_name
+        assert dag_id == rendered.namespace
+        assert dag_id == rendered.config_file
+        assert dag_id == rendered.labels
+        assert dag_id == rendered.pod_template_file
+        assert dag_id == rendered.arguments
+        assert dag_id == rendered.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
-        assert dag_id == ti.task.env_from[0].config_map_ref.name
+        assert dag_id == rendered.env_from[0].config_map_ref.name
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 

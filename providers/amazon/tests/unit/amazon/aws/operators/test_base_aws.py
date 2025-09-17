@@ -24,11 +24,6 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.version_compat import BaseHook
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
 TEST_CONN = "aws_test_conn"
 
 
@@ -119,10 +114,7 @@ class TestAwsBaseOperator:
     def test_execute(self, op_kwargs, dag_maker):
         with dag_maker("test_aws_base_operator", serialized=True):
             FakeS3Operator(task_id="fake-task-id", **op_kwargs)
-
-        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["fake-task-id"].run()
+        dag_maker.run_ti("fake-task-id")
 
     def test_no_aws_hook_class_attr(self):
         class NoAwsHookClassOperator(AwsBaseOperator): ...

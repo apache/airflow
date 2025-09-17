@@ -91,10 +91,8 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True):
             f()
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -117,9 +115,8 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True):
             f()
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -135,11 +132,10 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True):
             f()
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-
+        ti = dag_maker.create_dagrun().get_task_instances()[0]
         with pytest.raises(CalledProcessError):
-            ti.run()
+            dag_maker.run_ti(ti)
+        assert ti.state == "failed"
 
     def test_exception_raises_error(self, dag_maker, venv_python):
         @task.external_python(python=venv_python)
@@ -152,7 +148,8 @@ class TestExternalPythonDecorator:
         ti = dr.get_task_instances()[0]
 
         with pytest.raises(CalledProcessError):
-            ti.run()
+            dag_maker.run_ti(ti)
+        assert ti.state == "failed"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -172,9 +169,9 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True):
             f(0, 1, c=True)
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -193,9 +190,8 @@ class TestExternalPythonDecorator:
         with dag_maker(serialized=True):
             f()
 
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -214,9 +210,8 @@ class TestExternalPythonDecorator:
         with dag_maker(serialized=True):
             f(datetime.datetime.now(tz=datetime.timezone.utc))
 
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -237,13 +232,12 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True) as dag:
             f()
-        dr = dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
         assert setup_task.is_setup
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -264,13 +258,12 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True) as dag:
             f()
-        dr = dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
         assert teardown_task.is_teardown
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"
 
     @pytest.mark.parametrize(
         "serializer",
@@ -292,11 +285,10 @@ class TestExternalPythonDecorator:
 
         with dag_maker(serialized=True) as dag:
             f()
-        dr = dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
+        assert ti.state == "success"

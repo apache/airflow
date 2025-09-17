@@ -801,7 +801,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
     ti = dec.schedulable_tis[0]
-    dag_maker.run_ti(task_id=ti.task_id, dag_run=run, session=session)
+    dag_maker.run_ti(ti.task_id, dag_run=run, session=session)
 
     # Expand task2.
     dec = run.task_instance_scheduling_decisions(session=session)

@@ -31,25 +31,6 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
-    calculate_next_attempt_delay,
-    exponential_backoff_retry,
-)
-from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-from airflow.utils.helpers import merge_dicts
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.executors import workloads
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch.boto_schema import (
     BatchDescribeJobsResponseSchema,
     BatchSubmitJobResponseSchema,
@@ -62,7 +43,26 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     BatchJobCollection,
     BatchQueuedJob,
 )
+from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
+    calculate_next_attempt_delay,
+    exponential_backoff_retry,
+)
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.stats import Stats
+from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.executors import workloads
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
 CommandType = Sequence[str]
 ExecutorConfigType = dict[str, Any]

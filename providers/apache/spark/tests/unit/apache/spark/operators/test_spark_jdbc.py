@@ -132,7 +132,7 @@ class TestSparkJDBCOperator:
 
     @pytest.mark.db_test
     def test_templating_with_create_task_instance_of_operator(
-        self, create_task_instance_of_operator, session
+        self, dag_maker, create_task_instance_of_operator, session
     ):
         ti = create_task_instance_of_operator(
             SparkJDBCOperator,
@@ -158,8 +158,7 @@ class TestSparkJDBCOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkJDBCOperator = ti.task
+        task = dag_maker.render_templates(ti)
         assert task.application == "application"
         assert task.conf == "conf"
         assert task.files == "files"

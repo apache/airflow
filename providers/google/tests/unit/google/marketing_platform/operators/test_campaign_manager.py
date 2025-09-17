@@ -170,10 +170,7 @@ class TestGoogleCampaignManagerDownloadReportOperator:
         test_bucket_name,
         dag_maker,
     ):
-        http_mock.MediaIoBaseDownload.return_value.next_chunk.return_value = (
-            None,
-            True,
-        )
+        http_mock.MediaIoBaseDownload.return_value.next_chunk.return_value = (None, True)
         tempfile_mock.NamedTemporaryFile.return_value.__enter__.return_value.name = TEMP_FILE_NAME
 
         with dag_maker(dag_id="test_set_bucket_name", start_date=DEFAULT_DATE) as dag:
@@ -195,10 +192,8 @@ class TestGoogleCampaignManagerDownloadReportOperator:
                 task_id="test_task",
             )
 
-        dr = dag_maker.create_dagrun()
-
-        for ti in dr.get_task_instances():
-            ti.run()
+        for ti in dag_maker.create_dagrun().get_task_instances():
+            dag_maker.run_ti(ti)
 
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET_NAME,

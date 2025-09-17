@@ -47,11 +47,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
-def get_serialized_template_fields(task: SerializedBaseOperator):
+def get_serialized_template_fields(task: MappedOperator | SerializedBaseOperator):
     """
     Get and serialize the template fields for a task.
 
@@ -115,17 +116,12 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     logical_date = association_proxy("dag_run", "logical_date")
 
-    def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
+    def __init__(self, ti: TaskInstance, rendered_fields=None):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id
         self.map_index = ti.map_index
         self.ti = ti
-        if render_templates:
-            ti.render_templates()
-
-        if TYPE_CHECKING:
-            assert isinstance(ti.task, SerializedBaseOperator)
 
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
@@ -134,7 +130,13 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
+
+        if rendered_fields:
+            self.rendered_fields = rendered_fields
+        elif ti.task is None:
+            raise ValueError("either rendered_fields or ti.task is required")
+        else:
+            self.rendered_fields = get_serialized_template_fields(task=ti.task)
 
         self._redact()
 
