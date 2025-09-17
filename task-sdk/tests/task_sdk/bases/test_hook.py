@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
 from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
 
@@ -86,7 +85,7 @@ class TestBaseHook:
         hook = BaseHook()
         sdk_connection_not_found
 
-        with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
+        with pytest.raises(RuntimeError, match="The conn_id `test_conn` isn't defined"):
             hook.get_connection(conn_id=conn_id)
 
     @pytest.mark.asyncio
@@ -96,7 +95,7 @@ class TestBaseHook:
         hook = BaseHook()
         sdk_connection_not_found
 
-        with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
+        with pytest.raises(RuntimeError, match="The conn_id `test_conn` isn't defined"):
             await hook.aget_connection(conn_id=conn_id)
 
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):

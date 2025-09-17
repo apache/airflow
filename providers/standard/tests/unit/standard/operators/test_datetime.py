@@ -112,7 +112,7 @@ class TestBranchDateTimeOperator:
         """Check if BranchDateTimeOperator raises exception on missing target"""
         with pytest.raises(AirflowException):
             BranchDateTimeOperator(
-                task_id="datetime_branch",
+                task_id="datetime_branch_2",
                 follow_task_ids_if_true="branch_1",
                 follow_task_ids_if_false="branch_2",
                 target_upper=None,

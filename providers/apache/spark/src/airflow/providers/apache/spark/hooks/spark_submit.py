@@ -279,14 +279,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if not self.spark_binary:
                 self.spark_binary = extra.get("spark-binary", DEFAULT_SPARK_BINARY)
                 if self.spark_binary is not None and self.spark_binary not in ALLOWED_SPARK_BINARIES:
-                    raise RuntimeError(
+                    raise ValueError(
                         f"The spark-binary extra can be on of {ALLOWED_SPARK_BINARIES} and it"
                         f" was `{self.spark_binary}`. Please make sure your spark binary is one of the"
                         f" allowed ones and that it is available on the PATH"
                     )
             conn_spark_home = extra.get("spark-home")
             if conn_spark_home:
-                raise RuntimeError(
+                raise ValueError(
                     "The `spark-home` extra is not allowed any more. Please make sure one of"
                     f" {ALLOWED_SPARK_BINARIES} is available on the PATH, and set `spark-binary`"
                     " if needed."
@@ -301,7 +301,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
                         base64_keytab, conn_data["principal"]
                     )
-        except AirflowException:
+        except (AirflowException, RuntimeError):
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
             )
