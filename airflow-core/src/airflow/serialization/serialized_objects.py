@@ -3788,6 +3788,9 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "owner",
         "owner_links",
         "dag_display_name",
+        "has_on_success_callback",
+        "has_on_failure_callback",
+        
         # Attr properties that are nullable, or have a default that loads from config
         "description",
         "start_date",
@@ -3801,8 +3804,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "dagrun_timeout",
         "deadline",
         "catchup",
-        "on_success_callback",
-        "on_failure_callback",
         "doc_md",
         "access_control",
         "is_paused_upon_creation",
