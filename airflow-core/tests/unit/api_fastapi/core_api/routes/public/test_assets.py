@@ -1364,56 +1364,181 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
 
 
 class TestPostAssets:
-    """Test POST /assets endpoint."""
+    """Test POST /assets endpoint with comprehensive parametrized tests."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        clear_db_assets()
+        yield
+        clear_db_assets()
 
     @pytest.mark.parametrize(
-        "payload",
+        "payload,expected_status,expected_fields",
         [
-            {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
-            {"name": "only_required", "uri": "s3://b/k"},
+            # Happy path cases
+            (
+                {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
+                201,
+                {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
+            ),
+            (
+                {"name": "only_required", "uri": "s3://b/k"},
+                201,
+                {"name": "only_required", "uri": "s3://b/k", "group": None, "extra": None},
+            ),
+            (
+                {"name": "gcs_asset", "uri": "gs://my-bucket/data", "group": "processed"},
+                201,
+                {"name": "gcs_asset", "uri": "gs://my-bucket/data", "group": "processed"},
+            ),
+            (
+                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path"},
+                201,
+                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path"},
+            ),
         ],
-        ids=["with_optional_fields", "only_required_fields"],
+        ids=["with_all_fields", "only_required_fields", "gcs_uri", "azure_uri"],
     )
-    def test_assets_create_happy_path(self, test_client, payload):
+    def test_assets_create_success_cases(self, test_client, payload, expected_status, expected_fields):
+        """Test successful asset creation with various payloads."""
         resp = test_client.post("/assets", json=payload)
-        assert resp.status_code in (200, 201)
+        assert resp.status_code == expected_status
         body = resp.json()
+        
+        # Check response structure
         assert isinstance(body, dict)
-        assert body["name"] == payload["name"]
-        assert body["uri"] == payload["uri"]
+        assert "id" in body
+        assert "created_at" in body
+        assert "updated_at" in body
+        
+        # Check expected fields
+        for field, expected_value in expected_fields.items():
+            assert body[field] == expected_value
+
+    @pytest.mark.parametrize(
+        "payload,expected_status,expected_error_pattern",
+        [
+            # 400 Bad Request cases
+            ({"name": "", "uri": "s3://bucket/key"}, 400, "name"),
+            ({"name": "valid_name", "uri": ""}, 400, "uri"),
+            ({"name": "x" * 1501, "uri": "s3://bucket/key"}, 400, "name"),
+            ({"name": "valid_name", "uri": "x" * 1501}, 400, "uri"),
+            
+            # 422 Unprocessable Entity cases
+            ({"name": 123, "uri": "s3://bucket/key"}, 422, "name"),
+            ({"name": "valid_name", "uri": ["not-a-string"]}, 422, "uri"),
+            ({"name": None, "uri": "s3://bucket/key"}, 422, "name"),
+            ({"name": "valid_name", "uri": None}, 422, "uri"),
+            ({"extra": "not-a-dict", "name": "valid_name", "uri": "s3://bucket/key"}, 422, "extra"),
+            ({"group": 123, "name": "valid_name", "uri": "s3://bucket/key"}, 422, "group"),
+            
+            # Missing required fields
+            ({"uri": "s3://bucket/key"}, 422, "name"),
+            ({"name": "valid_name"}, 422, "uri"),
+            ({}, 422, "name"),
+        ],
+        ids=[
+            "empty_name", "empty_uri", "name_too_long", "uri_too_long",
+            "name_not_string", "uri_not_string", "name_none", "uri_none",
+            "extra_not_dict", "group_not_string", "missing_name", "missing_uri", "missing_both"
+        ],
+    )
+    def test_assets_create_validation_errors(self, test_client, payload, expected_status, expected_error_pattern):
+        """Test validation error cases with various invalid payloads."""
+        resp = test_client.post("/assets", json=payload)
+        assert resp.status_code == expected_status
+        
+        if resp.headers.get("content-type", "").startswith("application/json"):
+            error_body = resp.json()
+            assert isinstance(error_body, dict)
+            # Check that error message contains expected pattern
+            error_detail = error_body.get("detail", "")
+            assert expected_error_pattern in str(error_detail).lower()
 
     def test_assets_create_conflict_returns_409(self, test_client):
+        """Test that creating duplicate assets returns 409 Conflict."""
         from uuid import uuid4
         uniq = uuid4().hex[:8]
         payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
+        
+        # First creation should succeed
         r1 = test_client.post("/assets", json=payload)
-        assert r1.status_code in (200, 201)
+        assert r1.status_code == 201
+        
+        # Second creation with same name+uri should fail
         r2 = test_client.post("/assets", json=payload)
         assert r2.status_code == 409
-        # Optional: minimal error-shape check if API returns JSON on conflict
+        
+        # Check error response structure
         if r2.headers.get("content-type", "").startswith("application/json"):
-            assert isinstance(r2.json(), dict)
+            error_body = r2.json()
+            assert isinstance(error_body, dict)
+            assert "detail" in error_body
+            assert "already exists" in error_body["detail"].lower() or "conflict" in error_body["detail"].lower()
 
     @pytest.mark.parametrize(
-        "payload",
+        "client_fixture,expected_status",
         [
-            {"name": "", "uri": ""},
-            {"name": 123, "uri": ["not-a-string"]},
+            ("unauthenticated_test_client", 401),
+            ("unauthorized_test_client", 403),
         ],
-        ids=["empty_strings", "invalid_types"],
+        ids=["unauthenticated_401", "unauthorized_403"],
     )
-    def test_assets_create_validation_error_returns_4xx(self, test_client, payload):
-        resp = test_client.post("/assets", json=payload)
-        assert resp.status_code in (400, 422)
+    def test_assets_create_auth_errors(self, request, client_fixture, expected_status):
+        """Test authentication and authorization error cases."""
+        client = request.getfixturevalue(client_fixture)
+        payload = {"name": "test_asset", "uri": "s3://bucket/test"}
+        
+        resp = client.post("/assets", json=payload)
+        assert resp.status_code == expected_status
+        
         if resp.headers.get("content-type", "").startswith("application/json"):
-            assert isinstance(resp.json(), dict)
+            error_body = resp.json()
+            assert isinstance(error_body, dict)
+            assert "detail" in error_body
 
-    def test_assets_create_requires_auth_401_or_403_when_unauth(self, unauthenticated_test_client):
-        payload = {"name": "no_auth", "uri": "s3://bucket/no-auth"}
-        resp = unauthenticated_test_client.post("/assets", json=payload)
-        assert resp.status_code in (401, 403)
+    def test_assets_create_with_special_characters(self, test_client):
+        """Test asset creation with special characters in name and URI."""
+        payload = {
+            "name": "asset-with-dashes_and_underscores.and.dots",
+            "uri": "s3://bucket-name/path/with/special-chars_123",
+            "group": "test-group",
+            "extra": {"special": "chars", "unicode": "测试", "numbers": 123}
+        }
+        
+        resp = test_client.post("/assets", json=payload)
+        assert resp.status_code == 201
+        
+        body = resp.json()
+        assert body["name"] == payload["name"]
+        assert body["uri"] == payload["uri"]
+        assert body["group"] == payload["group"]
+        assert body["extra"] == payload["extra"]
 
-    def test_assets_create_forbidden_when_unauthorized(self, unauthorized_test_client):
-        payload = {"name": "forbidden", "uri": "s3://bucket/forbidden"}
-        resp = unauthorized_test_client.post("/assets", json=payload)
-        assert resp.status_code == 403
+    def test_assets_create_response_structure(self, test_client):
+        """Test that the response has the correct structure and all required fields."""
+        payload = {"name": "structure_test", "uri": "s3://bucket/structure"}
+        
+        resp = test_client.post("/assets", json=payload)
+        assert resp.status_code == 201
+        
+        body = resp.json()
+        
+        # Required fields
+        required_fields = ["id", "name", "uri", "group", "extra", "created_at", "updated_at"]
+        for field in required_fields:
+            assert field in body, f"Missing required field: {field}"
+        
+        # Check field types
+        assert isinstance(body["id"], int)
+        assert isinstance(body["name"], str)
+        assert isinstance(body["uri"], str)
+        assert body["group"] is None or isinstance(body["group"], str)
+        assert body["extra"] is None or isinstance(body["extra"], dict)
+        assert isinstance(body["created_at"], str)
+        assert isinstance(body["updated_at"], str)
+        
+        # Check timestamps are valid ISO format
+        from datetime import datetime
+        datetime.fromisoformat(body["created_at"].replace("Z", "+00:00"))
+        datetime.fromisoformat(body["updated_at"].replace("Z", "+00:00"))

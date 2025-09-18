@@ -380,6 +380,342 @@ class TestAssetsOperations:
         response = client.assets.get_dag_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
         assert response == self.asset_queued_event_response
 
+    @pytest.mark.parametrize(
+        "payload,expected_status,expected_response_fields",
+        [
+            # Success cases
+            (
+                {"name": "test_asset", "uri": "s3://bucket/test"},
+                201,
+                {"name": "test_asset", "uri": "s3://bucket/test", "group": None, "extra": None},
+            ),
+            (
+                {"name": "full_asset", "uri": "gs://bucket/data", "group": "raw", "extra": {"owner": "data-team"}},
+                201,
+                {"name": "full_asset", "uri": "gs://bucket/data", "group": "raw", "extra": {"owner": "data-team"}},
+            ),
+            (
+                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path"},
+                201,
+                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path"},
+            ),
+        ],
+        ids=["minimal_payload", "full_payload", "azure_uri"],
+    )
+    def test_create_asset_success_cases(self, payload, expected_status, expected_response_fields):
+        """Test successful asset creation with various payloads."""
+        # Create a mock response based on the payload
+        mock_response = AssetResponse(
+            id=1,
+            name=payload["name"],
+            uri=payload["uri"],
+            group=payload.get("group"),
+            extra=payload.get("extra"),
+            created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            scheduled_dags=[],
+            producing_tasks=[],
+            consuming_tasks=[],
+            aliases=[],
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            
+            # Verify request payload
+            request_data = json.loads(request.content)
+            for key, value in payload.items():
+                assert request_data[key] == value
+            
+            return httpx.Response(expected_status, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create(asset_body=payload)
+        
+        # Verify response structure
+        assert isinstance(response, AssetResponse)
+        assert response.id == 1
+        assert response.name == expected_response_fields["name"]
+        assert response.uri == expected_response_fields["uri"]
+        assert response.group == expected_response_fields.get("group")
+        assert response.extra == expected_response_fields.get("extra")
+
+    @pytest.mark.parametrize(
+        "payload,expected_status,expected_error_pattern",
+        [
+            # 400 Bad Request cases
+            ({"name": "", "uri": "s3://bucket/key"}, 400, "name"),
+            ({"name": "valid_name", "uri": ""}, 400, "uri"),
+            ({"name": "x" * 1501, "uri": "s3://bucket/key"}, 400, "name"),
+            ({"name": "valid_name", "uri": "x" * 1501}, 400, "uri"),
+            
+            # 422 Unprocessable Entity cases
+            ({"name": 123, "uri": "s3://bucket/key"}, 422, "name"),
+            ({"name": "valid_name", "uri": ["not-a-string"]}, 422, "uri"),
+            ({"name": None, "uri": "s3://bucket/key"}, 422, "name"),
+            ({"name": "valid_name", "uri": None}, 422, "uri"),
+            ({"extra": "not-a-dict", "name": "valid_name", "uri": "s3://bucket/key"}, 422, "extra"),
+            ({"group": 123, "name": "valid_name", "uri": "s3://bucket/key"}, 422, "group"),
+            
+            # Missing required fields
+            ({"uri": "s3://bucket/key"}, 422, "name"),
+            ({"name": "valid_name"}, 422, "uri"),
+            ({}, 422, "name"),
+        ],
+        ids=[
+            "empty_name", "empty_uri", "name_too_long", "uri_too_long",
+            "name_not_string", "uri_not_string", "name_none", "uri_none",
+            "extra_not_dict", "group_not_string", "missing_name", "missing_uri", "missing_both"
+        ],
+    )
+    def test_create_asset_validation_errors(self, payload, expected_status, expected_error_pattern):
+        """Test validation error cases with various invalid payloads."""
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            
+            # Return error response
+            error_detail = f"Validation error: {expected_error_pattern} is invalid"
+            return httpx.Response(
+                expected_status, 
+                json={"detail": error_detail}
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            client.assets.create(asset_body=payload)
+        
+        assert exc_info.value.response.status_code == expected_status
+        error_response = exc_info.value.response.json()
+        assert expected_error_pattern in error_response["detail"].lower()
+
+    def test_create_asset_conflict_409(self):
+        """Test that creating duplicate assets returns 409 Conflict."""
+        payload = {"name": "duplicate_asset", "uri": "s3://bucket/duplicate"}
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            
+            # First call succeeds, second call returns 409
+            if not hasattr(handle_request, 'call_count'):
+                handle_request.call_count = 0
+            handle_request.call_count += 1
+            
+            if handle_request.call_count == 1:
+                # First call - success
+                mock_response = AssetResponse(
+                    id=1,
+                    name=payload["name"],
+                    uri=payload["uri"],
+                    group=None,
+                    extra=None,
+                    created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                    updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                    scheduled_dags=[],
+                    producing_tasks=[],
+                    consuming_tasks=[],
+                    aliases=[],
+                )
+                return httpx.Response(201, json=json.loads(mock_response.model_dump_json()))
+            else:
+                # Second call - conflict
+                return httpx.Response(409, json={"detail": "Asset with this name and URI already exists"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        
+        # First creation should succeed
+        response1 = client.assets.create(asset_body=payload)
+        assert isinstance(response1, AssetResponse)
+        assert response1.name == payload["name"]
+        
+        # Second creation should fail with 409
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            client.assets.create(asset_body=payload)
+        
+        assert exc_info.value.response.status_code == 409
+        error_response = exc_info.value.response.json()
+        assert "already exists" in error_response["detail"].lower()
+
+    @pytest.mark.parametrize(
+        "expected_status,expected_error_type",
+        [
+            (401, "Unauthorized"),
+            (403, "Forbidden"),
+        ],
+        ids=["unauthorized_401", "forbidden_403"],
+    )
+    def test_create_asset_auth_errors(self, expected_status, expected_error_type):
+        """Test authentication and authorization error cases."""
+        payload = {"name": "test_asset", "uri": "s3://bucket/test"}
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            
+            return httpx.Response(
+                expected_status, 
+                json={"detail": f"{expected_error_type}: Access denied"}
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            client.assets.create(asset_body=payload)
+        
+        assert exc_info.value.response.status_code == expected_status
+        error_response = exc_info.value.response.json()
+        assert expected_error_type.lower() in error_response["detail"].lower()
+
+    def test_create_asset_request_payload_validation(self):
+        """Test that the request payload is properly formatted and sent."""
+        payload = {
+            "name": "payload_test",
+            "uri": "s3://bucket/payload-test",
+            "group": "test-group",
+            "extra": {"test": "data", "number": 42}
+        }
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            assert request.headers["content-type"] == "application/json"
+            
+            # Verify request payload structure
+            request_data = json.loads(request.content)
+            assert request_data == payload
+            
+            # Verify all fields are present
+            assert "name" in request_data
+            assert "uri" in request_data
+            assert "group" in request_data
+            assert "extra" in request_data
+            
+            # Verify field types
+            assert isinstance(request_data["name"], str)
+            assert isinstance(request_data["uri"], str)
+            assert isinstance(request_data["group"], str)
+            assert isinstance(request_data["extra"], dict)
+            
+            mock_response = AssetResponse(
+                id=1,
+                name=payload["name"],
+                uri=payload["uri"],
+                group=payload["group"],
+                extra=payload["extra"],
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                scheduled_dags=[],
+                producing_tasks=[],
+                consuming_tasks=[],
+                aliases=[],
+            )
+            return httpx.Response(201, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create(asset_body=payload)
+        
+        assert isinstance(response, AssetResponse)
+        assert response.name == payload["name"]
+        assert response.uri == payload["uri"]
+        assert response.group == payload["group"]
+        assert response.extra == payload["extra"]
+
+    def test_create_asset_response_structure(self):
+        """Test that the response has the correct structure and all required fields."""
+        payload = {"name": "structure_test", "uri": "s3://bucket/structure"}
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            
+            mock_response = AssetResponse(
+                id=42,
+                name=payload["name"],
+                uri=payload["uri"],
+                group=None,
+                extra=None,
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                scheduled_dags=[],
+                producing_tasks=[],
+                consuming_tasks=[],
+                aliases=[],
+            )
+            return httpx.Response(201, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create(asset_body=payload)
+        
+        # Verify response is AssetResponse instance
+        assert isinstance(response, AssetResponse)
+        
+        # Verify all required fields are present and have correct types
+        assert isinstance(response.id, int)
+        assert isinstance(response.name, str)
+        assert isinstance(response.uri, str)
+        assert response.group is None or isinstance(response.group, str)
+        assert response.extra is None or isinstance(response.extra, dict)
+        assert isinstance(response.created_at, datetime.datetime)
+        assert isinstance(response.updated_at, datetime.datetime)
+        assert isinstance(response.scheduled_dags, list)
+        assert isinstance(response.producing_tasks, list)
+        assert isinstance(response.consuming_tasks, list)
+        assert isinstance(response.aliases, list)
+        
+        # Verify specific values
+        assert response.id == 42
+        assert response.name == payload["name"]
+        assert response.uri == payload["uri"]
+        assert response.group is None
+        assert response.extra is None
+
+    def test_create_asset_with_special_characters(self):
+        """Test asset creation with special characters in name and URI."""
+        payload = {
+            "name": "asset-with-dashes_and_underscores.and.dots",
+            "uri": "s3://bucket-name/path/with/special-chars_123",
+            "group": "test-group",
+            "extra": {"special": "chars", "unicode": "测试", "numbers": 123}
+        }
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            assert request.method == "POST"
+            
+            # Verify special characters are preserved
+            request_data = json.loads(request.content)
+            assert request_data["name"] == payload["name"]
+            assert request_data["uri"] == payload["uri"]
+            assert request_data["group"] == payload["group"]
+            assert request_data["extra"] == payload["extra"]
+            
+            mock_response = AssetResponse(
+                id=1,
+                name=payload["name"],
+                uri=payload["uri"],
+                group=payload["group"],
+                extra=payload["extra"],
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                scheduled_dags=[],
+                producing_tasks=[],
+                consuming_tasks=[],
+                aliases=[],
+            )
+            return httpx.Response(201, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create(asset_body=payload)
+        
+        assert isinstance(response, AssetResponse)
+        assert response.name == payload["name"]
+        assert response.uri == payload["uri"]
+        assert response.group == payload["group"]
+        assert response.extra == payload["extra"]
+
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1

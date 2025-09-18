@@ -277,3 +277,4 @@ _api/
 go-sdk/**/*.log
 
 _e2e_test_report.json
+.breeze310/
