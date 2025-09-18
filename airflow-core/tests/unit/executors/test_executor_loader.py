@@ -475,10 +475,8 @@ class TestExecutorLoader:
     @pytest.mark.parametrize(
         "executor_config",
         [
-            "team1=CeleryExecutor;team1=LocalExecutor",
-            "team1=CeleryExecutor;team2=LocalExecutor;team1=KubernetesExecutor",
             "CeleryExecutor;team1=LocalExecutor;team1=KubernetesExecutor",
-            "team_a=CeleryExecutor;team_b=LocalExecutor;team_a=KubernetesExecutor",
+            "CeleryExecutor;team_a=LocalExecutor;team_b=KubernetesExecutor;team_a=CeleryExecutor",
         ],
     )
     def test_duplicate_team_names_should_fail(self, executor_config):
@@ -563,8 +561,9 @@ class TestExecutorLoader:
         """Test that configurations with only team-based executors fail validation."""
         with (
             mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
-            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
             conf_vars({("core", "executor"): executor_config}),
         ):
-            with pytest.raises(AirflowConfigException):
+            with pytest.raises(
+                AirflowConfigException, match=r"At least one global executor must be configured"
+            ):
                 executor_loader.ExecutorLoader._get_team_executor_configs()
