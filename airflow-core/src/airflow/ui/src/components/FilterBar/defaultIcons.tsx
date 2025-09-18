@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdFilterList, MdNumbers, MdTextFields } from "react-icons/md";
+import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown } from "react-icons/md";
 
 import type { FilterConfig } from "./types";
 
 export const defaultFilterIcons = {
   date: <MdCalendarToday />,
   number: <MdNumbers />,
-  select: <MdFilterList />,
+  select: <MdArrowDropDown />,
   text: <MdTextFields />,
 } as const;
 

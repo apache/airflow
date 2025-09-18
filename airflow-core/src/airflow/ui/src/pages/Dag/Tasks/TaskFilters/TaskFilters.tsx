@@ -17,211 +17,139 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
-import type { TaskResponse } from "openapi/requests/types.gen";
+import type { TaskCollectionResponse } from "openapi/requests";
 import { FilterBar } from "src/components/FilterBar/FilterBar";
 import type { FilterConfig } from "src/components/FilterBar/types";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams.ts";
 
-type Props = {
-  readonly tasksData:
-    | {
-        readonly tasks: ReadonlyArray<TaskResponse>;
-        readonly total_entries?: number;
-      }
-    | undefined;
-};
-
-const uniqueNonEmpty = (items: ReadonlyArray<string>): Array<string> =>
-  [...new Set(items)].filter((valueItem) => valueItem !== "");
-
-const isEmpty = (value: unknown): boolean =>
-  value === null ||
-  value === undefined ||
-  (typeof value === "string" && value.trim() === "") ||
-  (Array.isArray(value) && value.length === 0);
-
-const arrayOrUndefined = (list: ReadonlyArray<string>): Array<string> | undefined =>
-  list.length > 0 ? [...list] : undefined;
-
-const hasOptions = (opts?: ReadonlyArray<unknown>): boolean => Array.isArray(opts) && opts.length > 0;
-
-export const TaskFilters = ({ tasksData }: Props): JSX.Element => {
-  const { t: translate } = useTranslation(["common", "dag"]);
+export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
+  const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
+  const { t: translate } = useTranslation("tasks");
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
+  // Keep previous local names derived from URL (for minimal churn)
+  const selectedOperators = searchParams.getAll(OPERATOR);
+  const selectedTriggerRules = searchParams.getAll(TRIGGER_RULE);
+  const selectedRetries = searchParams.getAll(RETRIES);
+  const selectedMapped = searchParams.get(MAPPED) ?? undefined;
+  const taskNamePattern = searchParams.get(NAME_PATTERN) ?? "";
 
-  // Clear any existing filters on first mount (fresh view after reload).
-  // Add ?keep_filters=1 to the URL to preserve filters across reload.
-  const clearedOnceRef = useRef(false);
+  // Build options from payload using the same intermediate names
+  const allOperatorNames: Array<string> = [
+    ...new Set(tasksData?.tasks.map((task) => task.operator_name).filter((item) => item !== null) ?? []),
+  ];
+  const allTriggerRules: Array<string> = [
+    ...new Set(tasksData?.tasks.map((task) => task.trigger_rule).filter((item) => item !== null) ?? []),
+  ];
+  const allRetryValues: Array<string> = [
+    ...new Set(
+      tasksData?.tasks.map((task) => task.retries?.toString()).filter((item) => item !== undefined) ?? [],
+    ),
+  ];
+  const allMappedValues = [
+    { key: "true", label: translate("mapped") },
+    { key: "false", label: translate("notMapped") },
+  ];
 
-  useEffect(() => {
-    if (clearedOnceRef.current) {return;}
-    clearedOnceRef.current = true;
+  // Convert to FilterBar select option shape (label/value)
+  const operatorOptions = allOperatorNames
+    .map((value) => ({ label: value, value }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+  const triggerRuleOptions = allTriggerRules
+    .map((value) => ({ label: value, value }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+  const retryValueOptions = allRetryValues
+    .map((value) => ({ label: value, value }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+  const mappedOptions = allMappedValues.map(({ key, label }) => ({ label, value: key }));
 
-    const preserve = searchParams.get("keep_filters");
+  // FilterBar configs (keys unchanged; labels stick to prior wording)
+  const configsUnfiltered: Array<FilterConfig | false> = [
+    {
+      hotkeyDisabled: true,
+      key: NAME_PATTERN,
+      label: translate("searchTasks"),
+      placeholder: translate("searchTasks"),
+      type: "text",
+    },
+    operatorOptions.length > 0 && {
+      key: OPERATOR,
+      label: translate("selectOperator", { defaultValue: "Operators" }),
+      multiple: true,
+      options: operatorOptions,
+      type: "select",
+    },
+    triggerRuleOptions.length > 0 && {
+      key: TRIGGER_RULE,
+      label: translate("selectTriggerRules", { defaultValue: "Trigger rules" }),
+      multiple: true,
+      options: triggerRuleOptions,
+      type: "select",
+    },
+    retryValueOptions.length > 0 && {
+      key: RETRIES,
+      label: translate("retries", { defaultValue: "Retry values" }),
+      multiple: true,
+      options: retryValueOptions,
+      type: "select",
+    },
+    {
+      key: MAPPED,
+      label: translate("mapped", { defaultValue: "Mapped" }),
+      multiple: false,
+      options: mappedOptions,
+      type: "select",
+    },
+  ];
 
-    if (preserve === "1") {return;}
+  const configs: Array<FilterConfig> = configsUnfiltered.filter(Boolean) as Array<FilterConfig>;
 
-    const FILTER_PARAM_KEYS = [NAME_PATTERN, OPERATOR, TRIGGER_RULE, RETRIES, MAPPED, "page"] as const;
-    const hasAny = FILTER_PARAM_KEYS.some((key) => searchParams.has(key));
+  // Initial values mirror previous local names
+  const initialValues = {
+    [MAPPED]: selectedMapped,
+    [NAME_PATTERN]: taskNamePattern || undefined,
+    [OPERATOR]: selectedOperators.length ? selectedOperators : undefined,
+    [RETRIES]: selectedRetries.length ? selectedRetries : undefined,
+    [TRIGGER_RULE]: selectedTriggerRules.length ? selectedTriggerRules : undefined,
+  };
 
-    if (!hasAny) {return;}
-
-    const next = new URLSearchParams(searchParams);
-
-    FILTER_PARAM_KEYS.forEach((key) => next.delete(key));
-    setSearchParams(next, { replace: true });
-  }, [MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE, searchParams, setSearchParams]);
-
-  const allTasks: ReadonlyArray<TaskResponse> = useMemo(() => tasksData?.tasks ?? [], [tasksData]);
-
-  const operatorOptions = useMemo(
-    () =>
-      uniqueNonEmpty(
-        allTasks
-          .map((task) => task.operator_name)
-          .filter((name): name is string => typeof name === "string" && name.trim() !== ""),
-      )
-        .map((value) => ({ label: value, value }))
-        .sort((left, right) => left.label.localeCompare(right.label)),
-    [allTasks],
-  );
-
-  const triggerRuleOptions = useMemo(
-    () =>
-      uniqueNonEmpty(
-        allTasks
-          .map((task) => task.trigger_rule)
-          .filter((rule): rule is string => typeof rule === "string" && rule.trim() !== ""),
-      )
-        .map((value) => ({ label: value, value }))
-        .sort((left, right) => left.label.localeCompare(right.label)),
-    [allTasks],
-  );
-
-  const retryValueOptions = useMemo(
-    () =>
-      uniqueNonEmpty(
-        allTasks
-          .map((task) => (typeof task.retries === "number" ? String(task.retries) : ""))
-          .filter((value) => value !== ""),
-      )
-        .map((value) => ({ label: value, value }))
-        .sort((left, right) => left.label.localeCompare(right.label)),
-    [allTasks],
-  );
-
-  const mappedOptions = useMemo(
-    () => [
-      { label: translate("common:mapped", { defaultValue: "Mapped" }), value: "true" },
-      { label: translate("common:unmapped", { defaultValue: "Unmapped" }), value: "false" },
-    ],
-    [translate],
-  );
-
-  const configs: ReadonlyArray<FilterConfig> = useMemo(() => {
-    const list: Array<FilterConfig | false> = [
-      {
-        hotkeyDisabled: true,
-        key: NAME_PATTERN,
-        label: translate("dag:tasks.searchLabel", { defaultValue: "Search tasks" }),
-        placeholder: translate("dag:tasks.searchPlaceholder", { defaultValue: "Name contains…" }),
-        type: "text",
-      },
-      hasOptions(operatorOptions) && {
-        key: OPERATOR,
-        label: translate("dag:tasks.operators", { defaultValue: "Operators" }),
-        multiple: true,
-        options: operatorOptions,
-        type: "select",
-      },
-      hasOptions(triggerRuleOptions) && {
-        key: TRIGGER_RULE,
-        label: translate("dag:tasks.triggerRules", { defaultValue: "Trigger rules" }),
-        multiple: true,
-        options: triggerRuleOptions,
-        type: "select",
-      },
-      hasOptions(retryValueOptions) && {
-        key: RETRIES,
-        label: translate("dag:tasks.retryValues", { defaultValue: "Retry values" }),
-        multiple: true,
-        options: retryValueOptions,
-        type: "select",
-      },
-      {
-        key: MAPPED,
-        label: translate("dag:tasks.mapped", { defaultValue: "Mapped" }),
-        multiple: false,
-        options: mappedOptions,
-        type: "select",
-      },
-    ];
-
-    return list.filter(Boolean) as ReadonlyArray<FilterConfig>;
-  }, [
-    NAME_PATTERN,
-    OPERATOR,
-    TRIGGER_RULE,
-    RETRIES,
-    MAPPED,
-    operatorOptions,
-    triggerRuleOptions,
-    retryValueOptions,
-    mappedOptions,
-    translate,
-  ]);
-
-  const initialValues = useMemo(
-    () => ({
-      [MAPPED]: (() => {
-        const param = searchParams.get(MAPPED);
-
-        return isEmpty(param) ? undefined : (param as string);
-      })(),
-      [NAME_PATTERN]: (() => {
-        const param = searchParams.get(NAME_PATTERN);
-
-        return isEmpty(param) ? undefined : (param as string);
-      })(),
-      [OPERATOR]: arrayOrUndefined(searchParams.getAll(OPERATOR)),
-      [RETRIES]: arrayOrUndefined(searchParams.getAll(RETRIES)),
-      [TRIGGER_RULE]: arrayOrUndefined(searchParams.getAll(TRIGGER_RULE)),
-    }),
-    [MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE, searchParams],
-  );
-
+  // Single place to write the URL params (replaces the old individual handlers)
   const onFiltersChange = (record: Record<string, unknown>): void => {
     const next = new URLSearchParams(searchParams);
 
+    // clear the filter-related keys before writing
     [NAME_PATTERN, OPERATOR, TRIGGER_RULE, RETRIES, MAPPED, "page"].forEach((key) => next.delete(key));
 
-    const namePattern = typeof record[NAME_PATTERN] === "string" ? record[NAME_PATTERN] : "";
+    const name = typeof record[NAME_PATTERN] === "string" ? record[NAME_PATTERN] : "";
 
-    if (!isEmpty(namePattern)) {next.set(NAME_PATTERN, String(namePattern));}
+    if (name && String(name).trim() !== "") {
+      next.set(NAME_PATTERN, String(name));
+    }
 
-    const operatorValues = Array.isArray(record[OPERATOR]) ? (record[OPERATOR] as Array<string>) : [];
+    const operators = Array.isArray(record[OPERATOR]) ? (record[OPERATOR] as Array<string>) : [];
 
-    operatorValues.forEach((value) => next.append(OPERATOR, value));
+    operators.forEach((val) => next.append(OPERATOR, val));
 
-    const triggerValues = Array.isArray(record[TRIGGER_RULE]) ? (record[TRIGGER_RULE] as Array<string>) : [];
+    const triggers = Array.isArray(record[TRIGGER_RULE]) ? (record[TRIGGER_RULE] as Array<string>) : [];
 
-    triggerValues.forEach((value) => next.append(TRIGGER_RULE, value));
+    triggers.forEach((val) => next.append(TRIGGER_RULE, val));
 
-    const retryValues = Array.isArray(record[RETRIES]) ? (record[RETRIES] as Array<string>) : [];
+    const retries = Array.isArray(record[RETRIES]) ? (record[RETRIES] as Array<string>) : [];
 
-    retryValues.forEach((value) => next.append(RETRIES, value));
+    retries.forEach((val) => next.append(RETRIES, val));
 
-    const mappedValue = typeof record[MAPPED] === "string" ? record[MAPPED] : "";
+    const mapped = typeof record[MAPPED] === "string" ? record[MAPPED] : "";
 
-    if (!isEmpty(mappedValue)) {next.set(MAPPED, String(mappedValue));}
+    if (mapped && String(mapped).trim() !== "") {
+      next.set(MAPPED, String(mapped));
+    }
 
+    // keep the existing behavior used by tests: reset to page 1 on any filter change
     next.set("page", "1");
+
     setSearchParams(next);
   };
 

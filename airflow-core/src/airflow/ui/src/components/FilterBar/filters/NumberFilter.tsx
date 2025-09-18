@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useState, forwardRef } from "react";
-import type React from "react";
+import { useState, useEffect, forwardRef } from "react";
 
 import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 
 import { FilterPill } from "../FilterPill";
-import type { FilterConfig, FilterPluginProps } from "../types";
+import type { FilterPluginProps } from "../types";
 
 const NumberInputWithRef = forwardRef<
   HTMLInputElement,
@@ -63,15 +62,10 @@ const NumberInputWithRef = forwardRef<
 
 NumberInputWithRef.displayName = "NumberInputWithRef";
 
-type NumberConfig = Extract<FilterConfig, { type: "number" }>;
+export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
+  const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
 
-export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps): JSX.Element => {
-  const numberConfig = filter.config as NumberConfig;
-  const { max, min, placeholder } = numberConfig;
-
-  const hasValue = filter.value !== undefined && filter.value !== "";
-
-  const [inputValue, setInputValue] = useState<string>(filter.value?.toString() ?? "");
+  const [inputValue, setInputValue] = useState(filter.value?.toString() ?? "");
 
   useEffect(() => {
     setInputValue(filter.value?.toString() ?? "");
@@ -86,14 +80,14 @@ export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps):
       return;
     }
 
-    // Allows users to input negative sign for negative number
+    // Allow user to input negative sign for negative number
     if (value === "-") {
       return;
     }
 
     const parsedValue = Number(value);
 
-    if (!Number.isNaN(parsedValue)) {
+    if (!isNaN(parsedValue)) {
       onChange(parsedValue);
     }
   };
@@ -107,10 +101,10 @@ export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps):
       onRemove={onRemove}
     >
       <NumberInputWithRef
-        max={max}
-        min={min}
+        max={filter.config.max}
+        min={filter.config.min}
         onValueChange={handleValueChange}
-        placeholder={placeholder}
+        placeholder={filter.config.placeholder}
         value={inputValue}
       />
     </FilterPill>
