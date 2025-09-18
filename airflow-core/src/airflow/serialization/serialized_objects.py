@@ -3790,7 +3790,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "dag_display_name",
         "has_on_success_callback",
         "has_on_failure_callback",
-        
         # Attr properties that are nullable, or have a default that loads from config
         "description",
         "start_date",
