@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-18T12:58:29.571318
+# This constraints file was automatically generated on 2025-09-18T16:18:24.282369
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -315,7 +315,7 @@ gcsfs==2025.9.0
 geomet==0.2.1.post1
 gevent==25.9.1
 gitdb==4.0.12
-google-ads==28.0.0.post1
+google-ads==28.0.0
 google-analytics-admin==0.25.0
 google-api-core==2.25.1
 google-api-python-client==2.182.0
