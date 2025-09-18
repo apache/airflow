@@ -21,6 +21,8 @@ import pickle
 
 import pytest
 
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -128,3 +130,31 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
         # Second container is xcom image
         assert containers[1].image == XCOM_IMAGE
         assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
+
+    def test_template_fields_order(self):
+        """Test that template_fields includes deterministic order."""
+        with self.dag:
+
+            @task.kubernetes(image="python:3.10-slim-buster")
+            def f():
+                return "test"
+
+            task_instance = f()
+
+        # Get the actual operator instance
+        operator = task_instance.operator
+
+        # Get all fields from KubernetesPodOperator except cmds and arguments
+        expected_pod_fields = {
+            field for field in KubernetesPodOperator.template_fields if field not in {"cmds", "arguments"}
+        }
+
+        # Add the decorator-specific fields
+        expected_fields = sorted({"op_args", "op_kwargs"} | expected_pod_fields)
+
+        # Verify exact match of fields and their order
+        assert list(operator.template_fields) == expected_fields
+
+        # Additional verification of excluded fields
+        assert "cmds" not in operator.template_fields
+        assert "arguments" not in operator.template_fields
