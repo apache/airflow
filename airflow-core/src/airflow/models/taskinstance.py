@@ -121,7 +121,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+    from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -1329,13 +1329,15 @@ class TaskInstance(Base, LoggingMixin):
             if "source_alias_name" not in event
         }
 
-        bad_asset_keys: set[AssetUniqueKey | AssetNameRef | AssetUriRef] = set()
-
         for key in asset_keys:
             try:
                 am = asset_models[key]
             except KeyError:
-                bad_asset_keys.add(key)
+                ti.log.warning(
+                    'Task has inactive assets "Asset(name=%s, uri=%s)" in inlets or outlets',
+                    key.name,
+                    key.uri,
+                )
                 continue
             ti.log.debug("register event for asset %s", am)
             asset_manager.register_asset_change(
@@ -1352,7 +1354,9 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     am = asset_models_by_name[nref.name]
                 except KeyError:
-                    bad_asset_keys.add(nref)
+                    ti.log.warning(
+                        'Task has inactive assets "Asset.ref(name=%s)" in inlets or outlets', nref.name
+                    )
                     continue
                 ti.log.debug("register event for asset name ref %s", am)
                 asset_manager.register_asset_change(
@@ -1368,7 +1372,9 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     am = asset_models_by_uri[uref.uri]
                 except KeyError:
-                    bad_asset_keys.add(uref)
+                    ti.log.warning(
+                        'Task has inactive assets "Asset.ref(uri=%s)" in inlets or outlets', uref.uri
+                    )
                     continue
                 ti.log.debug("register event for asset uri ref %s", am)
                 asset_manager.register_asset_change(
@@ -1414,9 +1420,6 @@ class TaskInstance(Base, LoggingMixin):
                         extra=dict(extra_key),
                         session=session,
                     )
-
-        if bad_asset_keys:
-            raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)
 
     @provide_session
     def update_rtif(self, rendered_fields, session: Session = NEW_SESSION):
