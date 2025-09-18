@@ -35,7 +35,7 @@ type Connection struct {
 	Host string
 	Port int
 
-	// Login/username of the connection. Optional, can be nil (and nil/not set is distinct from an empty login)
+	// Login/username of the connection. Optional, can be nil (nil is an indication of no login which is distinct from an empty login)
 	Login *string
 	// Password of the connection. Optional, can be nil.
 	Password *string
