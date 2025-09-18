@@ -2082,6 +2082,94 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
+    def test_adopt_sets_last_heartbeat_on_adopt(self, dag_maker, session, mock_executor):
+        with dag_maker("test_adopt_sets_last_heartbeat_on_adopt", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = old_scheduler_job.id
+        ti.last_heartbeat_at = None
+        session.commit()
+
+        # Executor adopts all TIs (returns empty list to reset), so TI is adopted
+        mock_executor.try_adopt_task_instances.return_value = []
+
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        ti.refresh_from_db(session=session)
+        assert ti.state == State.QUEUED
+        assert ti.queued_by_job_id == new_scheduler_job.id
+        assert ti.last_heartbeat_at is not None
+
+    def test_adopt_sets_dagrun_conf_when_none(self, dag_maker, session, mock_executor):
+        with dag_maker("test_adopt_sets_dagrun_conf_when_none", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        # Ensure conf starts as None
+        dr.conf = None
+        session.merge(dr)
+        session.flush()
+        dr = session.scalar(select(DagRun).where(DagRun.id == dr.id))
+        assert dr.conf is None
+
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = old_scheduler_job.id
+        session.commit()
+
+        # Executor adopts all TIs (returns empty list to reset), so TI is adopted
+        mock_executor.try_adopt_task_instances.return_value = []
+
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        # DagRun.conf should be set to {} on adoption when it was None
+        session.refresh(dr)
+        assert dr.conf == {}
+
+    def test_purge_without_heartbeat_skips_when_missing_dag_version(self, dag_maker, session, caplog):
+        with dag_maker("test_purge_without_heartbeat_skips_when_missing_dag_version", session=session):
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        # Simulate missing dag_version
+        ti.dag_version_id = None
+        session.merge(ti)
+        session.commit()
+
+        with caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"):
+            self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        # Should log a warning and skip processing
+        assert any("DAG Version not found for TaskInstance" in rec.message for rec in caplog.records)
+        mock_executor.send_callback.assert_not_called()
+        # State should be unchanged (not failed)
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.RUNNING
+
     @staticmethod
     def mock_failure_callback(context):
         pass
