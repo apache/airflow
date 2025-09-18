@@ -413,7 +413,7 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         session.commit()
 
-        # Test with default limit (10)
+        # Test with default max_runs (10)
         reference = DeadlineReference.AVERAGE_RUNTIME()
         interval = timedelta(hours=1)
 
@@ -433,7 +433,7 @@ class TestCalculatedDeadlineDatabaseCalls:
         with dag_maker(DAG_ID):
             EmptyOperator(task_id="test_task")
 
-        # Create only 5 completed DAG runs (less than default limit of 10)
+        # Create only 5 completed DAG runs (less than default max_runs of 10)
         base_time = DEFAULT_DATE
         durations = [3600, 7200, 1800, 5400, 2700]
 
@@ -485,7 +485,7 @@ class TestCalculatedDeadlineDatabaseCalls:
         session.commit()
 
         # Test with min_runs=2, should work with 3 runs
-        reference = DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=2)
+        reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=2)
         interval = timedelta(hours=1)
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
@@ -499,7 +499,7 @@ class TestCalculatedDeadlineDatabaseCalls:
             assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
 
         # Test with min_runs=5, should return None with only 3 runs
-        reference = DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=5)
+        reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=5)
 
         with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
             mock_utcnow.return_value = DEFAULT_DATE
@@ -509,10 +509,10 @@ class TestCalculatedDeadlineDatabaseCalls:
     def test_average_runtime_min_runs_validation(self):
         """Test that min_runs must be at least 1."""
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
-            DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=0)
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=0)
 
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
-            DeadlineReference.AVERAGE_RUNTIME(limit=10, min_runs=-1)
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
 
 
 class TestDeadlineReference:
@@ -576,10 +576,10 @@ class TestDeadlineReference:
 
         average_runtime_reference = DeadlineReference.AVERAGE_RUNTIME()
         assert isinstance(average_runtime_reference, ReferenceModels.AverageRuntimeDeadline)
-        assert average_runtime_reference.limit == 10
+        assert average_runtime_reference.max_runs == 10
         assert average_runtime_reference.min_runs == 10
 
         # Test with custom parameters
-        custom_reference = DeadlineReference.AVERAGE_RUNTIME(limit=5, min_runs=3)
-        assert custom_reference.limit == 5
+        custom_reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=3)
+        assert custom_reference.max_runs == 5
         assert custom_reference.min_runs == 3

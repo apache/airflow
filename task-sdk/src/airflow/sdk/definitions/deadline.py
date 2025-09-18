@@ -301,12 +301,12 @@ class DeadlineReference:
     DAGRUN_QUEUED_AT: DeadlineReferenceType = ReferenceModels.DagRunQueuedAtDeadline()
 
     @classmethod
-    def AVERAGE_RUNTIME(cls, limit: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
-        if limit == 0:
-            limit = cls.ReferenceModels.AverageRuntimeDeadline.DEFAULT_LIMIT
+    def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
+        if max_runs == 0:
+            max_runs = cls.ReferenceModels.AverageRuntimeDeadline.DEFAULT_LIMIT
         if min_runs is None:
-            min_runs = limit
-        return cls.ReferenceModels.AverageRuntimeDeadline(limit, min_runs)
+            min_runs = max_runs
+        return cls.ReferenceModels.AverageRuntimeDeadline(max_runs, min_runs)
 
     @classmethod
     def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:

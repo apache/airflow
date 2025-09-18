@@ -96,8 +96,8 @@ Airflow provides several built-in reference points that you can use with Deadlin
     If insufficient historical data exists, no deadline is created.
 
     Parameters:
-        * ``limit`` (int, optional): Maximum number of recent DAG runs to analyze. Defaults to 10.
-        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``limit``.
+        * ``max_runs`` (int, optional): Maximum number of recent DAG runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
 
     Example usage:
 
@@ -107,10 +107,10 @@ Airflow provides several built-in reference points that you can use with Deadlin
         DeadlineReference.AVERAGE_RUNTIME()
 
         # Analyze up to 20 runs but calculate with minimum 5 runs
-        DeadlineReference.AVERAGE_RUNTIME(limit=20, min_runs=5)
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=20, min_runs=5)
 
         # Strict: require exactly 15 runs to calculate
-        DeadlineReference.AVERAGE_RUNTIME(limit=15, min_runs=15)
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=15)
 
 Here's an example using average runtime:
 
@@ -119,7 +119,7 @@ Here's an example using average runtime:
     with DAG(
         dag_id="average_runtime_deadline",
         deadline=DeadlineAlert(
-            reference=DeadlineReference.AVERAGE_RUNTIME(limit=15, min_runs=5),
+            reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=5),
             interval=timedelta(minutes=30),  # Alert if 30 minutes past expected completion
             callback=AsyncCallback(
                 SlackWebhookNotifier,

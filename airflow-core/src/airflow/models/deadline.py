@@ -372,13 +372,13 @@ class ReferenceModels:
         """A deadline that calculates the average runtime from past DAG runs."""
 
         DEFAULT_LIMIT = 10
-        limit: int
+        max_runs: int
         min_runs: int | None = None
         required_kwargs = {"dag_id"}
 
         def __post_init__(self):
             if self.min_runs is None:
-                self.min_runs = self.limit
+                self.min_runs = self.max_runs
             if self.min_runs < 1:
                 raise ValueError("min_runs must be at least 1")
 
@@ -410,8 +410,8 @@ class ReferenceModels:
                 .order_by(DagRun.logical_date.desc())
             )
 
-            # Apply limit
-            query = query.limit(self.limit)
+            # Apply max_runs
+            query = query.limit(self.max_runs)
 
             # Get all durations and calculate average
             durations = session.execute(query).scalars().all()
@@ -441,18 +441,18 @@ class ReferenceModels:
         def serialize_reference(self) -> dict:
             return {
                 ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
-                "limit": self.limit,
+                "max_runs": self.max_runs,
                 "min_runs": self.min_runs,
             }
 
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
-            limit = reference_data.get("limit", cls.DEFAULT_LIMIT)
-            min_runs = reference_data.get("min_runs", limit)
+            max_runs = reference_data.get("max_runs", cls.DEFAULT_LIMIT)
+            min_runs = reference_data.get("min_runs", max_runs)
             if min_runs < 1:
                 raise ValueError("min_runs must be at least 1")
             return cls(
-                limit=limit,
+                max_runs=max_runs,
                 min_runs=min_runs,
             )
 
