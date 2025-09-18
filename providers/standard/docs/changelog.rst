@@ -45,6 +45,7 @@ Features
 ~~~~~~~~
 
 * ``feat(hitl): get rid off "Fallback to defaults" in HITL (#55536)``
+* ``feat(hitl): add fail_on_reject to ApprovalOperator (#55255)``
 
 Bug Fixes
 ~~~~~~~~~
