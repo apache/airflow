@@ -3792,16 +3792,32 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     last_loaded: datetime.datetime | None = None
 
     NULLABLE_PROPERTIES: ClassVar[set[str]] = {
-        "is_paused_upon_creation",
+        # Non attr fields that should be nullable, or attrs with a different default
         "owner",
+        "owner_links",
         "dag_display_name",
+        "has_on_success_callback",
+        "has_on_failure_callback",
+        # Attr properties that are nullable, or have a default that loads from config
         "description",
-        "relative_fileloc",
+        "start_date",
+        "end_date",
+        "template_searchpath",
+        "user_defined_macros",
+        "user_defined_filters",
         "max_active_tasks",
         "max_active_runs",
         "max_consecutive_failed_dag_runs",
-        "owner_links",
+        "dagrun_timeout",
+        "deadline",
+        "catchup",
+        "doc_md",
         "access_control",
+        "is_paused_upon_creation",
+        "jinja_environment_kwargs",
+        "relative_fileloc",
+        "disable_bundle_versioning",
+        "last_loaded",
     }
 
     @classmethod
