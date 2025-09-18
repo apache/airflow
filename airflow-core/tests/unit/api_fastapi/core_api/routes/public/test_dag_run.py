@@ -595,8 +595,8 @@ class TestGetDagRuns:
             ("~", {"dag_id_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
             ("~", {"dag_id_pattern": "test_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
             ("~", {"dag_id_pattern": "test_%"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
-            ("~", {"dag_id_pattern": "%dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("~", {"dag_id_pattern": "%dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "%_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"dag_id_pattern": "%_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
             ("~", {"dag_id_pattern": "test_dag_"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
             ("~", {"dag_id_pattern": "nonexistent"}, []),
             (
