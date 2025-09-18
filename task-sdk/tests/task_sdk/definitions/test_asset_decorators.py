@@ -124,7 +124,7 @@ class TestAssetDecorator:
         def example_asset_func():
             pass
 
-        with pytest.raises(ValueError, match="prohibited name for asset"):
+        with pytest.raises(ValueError, match=f"prohibited name for asset: {func_fixer.fixed_name}"):
             asset(schedule=None)(example_asset_func)
 
     def test_with_star(self, func_fixer):
