@@ -114,6 +114,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Asset
+      summary: Create Asset
+      description: Create an asset.
+      operationId: create_asset
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssetBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/assets/aliases:
     get:
       tags:
@@ -9563,6 +9615,29 @@ components:
       - message
       title: ConnectionTestResponse
       description: Connection Test serializer for responses.
+    CreateAssetBody:
+      properties:
+        name:
+          type: string
+          title: Name
+        uri:
+          type: string
+          title: Uri
+        group:
+          type: string
+          title: Group
+        extra:
+          additionalProperties: true
+          type: object
+          title: Extra
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - uri
+      - group
+      title: CreateAssetBody
+      description: Create asset request.
     CreateAssetEventsBody:
       properties:
         asset_id:
