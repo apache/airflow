@@ -120,7 +120,7 @@ Here's an example using average runtime:
         dag_id="average_runtime_deadline",
         deadline=DeadlineAlert(
             reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=5),
-            interval=timedelta(minutes=30),  # Alert if 30 minutes past expected completion
+            interval=timedelta(minutes=30),  # Alert if 30 minutes past average runtime
             callback=AsyncCallback(
                 SlackWebhookNotifier,
                 kwargs={"text": "🚨 DAG {{ dag_run.dag_id }} is running longer than expected!"},
