@@ -800,6 +800,7 @@ gzipped
 hadoop
 hadoopcmd
 hardcoded
+hardcoding
 Harenslak
 Hashable
 Hashicorp
