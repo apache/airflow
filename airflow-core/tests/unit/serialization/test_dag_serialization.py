@@ -152,13 +152,8 @@ serialized_simple_dag_ground_truth = {
             "downstream_task_ids": [],
         },
         "is_paused_upon_creation": False,
-        "max_active_runs": 16,
-        "max_active_tasks": 16,
-        "max_consecutive_failed_dag_runs": 0,
         "dag_id": "simple_dag",
         "deadline": None,
-        "catchup": False,
-        "disable_bundle_versioning": False,
         "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "_processor_dags_folder": (
@@ -269,7 +264,6 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "params": [],
-        "tags": [],
     },
 }
 
@@ -2177,7 +2171,8 @@ class TestStringifiedDAGs:
         """
         with conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
             kwargs = {}
-            kwargs["disable_bundle_versioning"] = dag_arg
+            if dag_arg is not None:
+                kwargs["disable_bundle_versioning"] = dag_arg
             dag = DAG(
                 dag_id="test_dag_disable_bundle_versioning_roundtrip",
                 schedule=None,
@@ -3299,17 +3294,34 @@ def test_handle_v1_serdag():
     SerializedDAG.conversion_v1_to_v2(v1)
     SerializedDAG.conversion_v2_to_v3(v1)
 
-    # Update a few subtle differences
-    v1["dag"]["tags"] = []
-    v1["dag"]["catchup"] = False
-    v1["dag"]["disable_bundle_versioning"] = False
+    dag = SerializedDAG.from_dict(v1)
 
-    expected = copy.deepcopy(serialized_simple_dag_ground_truth)
-    expected["dag"]["dag_dependencies"] = expected_dag_dependencies
-    del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]
+    expected_sdag = copy.deepcopy(serialized_simple_dag_ground_truth)
+    expected = SerializedDAG.from_dict(expected_sdag)
 
-    del expected["client_defaults"]
-    assert v1 == expected
+    fields_to_verify = set(vars(expected).keys()) - {
+        "task_group",  # Tested separately
+        "dag_dependencies",  # Tested separately
+        "last_loaded",  # Dynamically set to utcnow
+    }
+
+    for f in fields_to_verify:
+        dag_value = getattr(dag, f)
+        expected_value = getattr(expected, f)
+
+        assert dag_value == expected_value, (
+            f"V2 DAG field '{f}' differs from V3: V2={dag_value!r} != V3={expected_value!r}"
+        )
+
+    for f in set(vars(expected.task_group).keys()) - {"dag"}:
+        dag_tg_value = getattr(dag.task_group, f)
+        expected_tg_value = getattr(expected.task_group, f)
+
+        assert dag_tg_value == expected_tg_value, (
+            f"V2 task_group field '{f}' differs: V2={dag_tg_value!r} != V3={expected_tg_value!r}"
+        )
+
+    assert getattr(dag, "dag_dependencies") == expected_dag_dependencies
 
 
 def test_handle_v2_serdag():
@@ -3512,6 +3524,72 @@ def test_handle_v2_serdag():
         assert dag_tg_value == expected_tg_value, (
             f"V2 task_group field '{f}' differs: V2={dag_tg_value!r} != V3={expected_tg_value!r}"
         )
+
+
+def test_dag_schema_defaults_optimization():
+    """Test that DAG fields matching schema defaults are excluded from serialization."""
+
+    # Create DAG with all schema default values
+    dag_with_defaults = DAG(
+        dag_id="test_defaults_dag",
+        start_date=datetime(2023, 1, 1),
+        # These should match schema defaults and be excluded
+        catchup=False,
+        fail_fast=False,
+        max_active_runs=16,
+        max_active_tasks=16,
+        max_consecutive_failed_dag_runs=0,
+        render_template_as_native_obj=False,
+        disable_bundle_versioning=False,
+        # These should be excluded as None
+        description=None,
+        doc_md=None,
+    )
+
+    # Serialize and check exclusions
+    serialized = SerializedDAG.to_dict(dag_with_defaults)
+    dag_data = serialized["dag"]
+
+    # Schema default fields should be excluded
+    for field in SerializedDAG.get_schema_defaults("dag").keys():
+        assert field not in dag_data, f"Schema default field '{field}' should be excluded"
+
+    # None fields should also be excluded
+    none_fields = ["description", "doc_md"]
+    for field in none_fields:
+        assert field not in dag_data, f"None field '{field}' should be excluded"
+
+    # Test deserialization restores defaults correctly
+    deserialized_dag = SerializedDAG.from_dict(serialized)
+
+    # Verify schema defaults are restored
+    assert deserialized_dag.catchup is False
+    assert deserialized_dag.fail_fast is False
+    assert deserialized_dag.max_active_runs == 16
+    assert deserialized_dag.max_active_tasks == 16
+    assert deserialized_dag.max_consecutive_failed_dag_runs == 0
+    assert deserialized_dag.render_template_as_native_obj is False
+    assert deserialized_dag.disable_bundle_versioning is False
+
+    # Test with non-default values (should be included)
+    dag_non_defaults = DAG(
+        dag_id="test_non_defaults_dag",
+        start_date=datetime(2023, 1, 1),
+        catchup=True,  # Non-default
+        max_active_runs=32,  # Non-default
+        description="Test description",  # Non-None
+    )
+
+    serialized_non_defaults = SerializedDAG.to_dict(dag_non_defaults)
+    dag_non_defaults_data = serialized_non_defaults["dag"]
+
+    # Non-default values should be included
+    assert "catchup" in dag_non_defaults_data
+    assert dag_non_defaults_data["catchup"] is True
+    assert "max_active_runs" in dag_non_defaults_data
+    assert dag_non_defaults_data["max_active_runs"] == 32
+    assert "description" in dag_non_defaults_data
+    assert dag_non_defaults_data["description"] == "Test description"
 
 
 def test_email_optimization_removes_email_attrs_when_email_empty():
