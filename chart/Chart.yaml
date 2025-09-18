@@ -32,11 +32,6 @@ keywords:
   - airflow
   - workflow
   - scheduler
-dependencies:
-  - name: postgresql
-    version: 13.2.24
-    repository: https://charts.bitnami.com/bitnami
-    condition: postgresql.enabled
 maintainers:
   - email: dev@airflow.apache.org
     name: Apache Airflow PMC
