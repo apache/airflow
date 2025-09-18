@@ -24,12 +24,13 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.exceptions import DownstreamTasksSkipped
+from airflow.models.dag import DAG
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import GetXCom, SetXCom, XComResult
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.mapping import expand_mapped_task  # noqa: F401
@@ -535,7 +536,7 @@ def test_find_mapped_dependants_in_another_group():
 
 
 @pytest.mark.parametrize(
-    "partial_params, mapped_params, expected",
+    ("partial_params", "mapped_params", "expected"),
     [
         pytest.param(None, [{"a": 1}], [{"a": 1}], id="simple"),
         pytest.param({"b": 2}, [{"a": 1}], [{"a": 1, "b": 2}], id="merge"),
@@ -669,14 +670,45 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
 
         group.expand(x=[0, 1])
 
+    # Track the task instances for assertions
+    task_instances = []
+    expected_skip_seen = False
+
+    # Execute tasks and handle DownstreamTasksSkipped exception
     for task in dag.tasks:
         for map_index in range(2):
             ti = create_runtime_ti(task=task.prepare_for_execution(), map_index=map_index)
             context = ti.get_template_context()
             ti.task.render_template_fields(context)
-            ti.task.execute(context)
 
-    assert ti
+            # For the empty_task with map_index=1, we expect a DownstreamTasksSkipped
+            if task.task_id == "group.push_xcom_from_shortcircuit" and map_index == 1:
+                # The ShortCircuitOperator will raise DownstreamTasksSkipped
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    ti.task.execute(context)
+                # Verify the exception contains the correct task ID
+                task_ids = [t[0] if isinstance(t, tuple) else t for t in exc_info.value.tasks]
+                assert "group.empty_task" in task_ids
+                expected_skip_seen = True
+                # Don't add to task_instances since it didn't complete successfully
+                continue
+
+            try:
+                ti.task.execute(context)
+                task_instances.append(ti)
+            except Exception:
+                # If any other task fails, let the test fail
+                raise
+
+    # Verify we saw the expected skip
+    assert expected_skip_seen, "Did not see expected DownstreamTasksSkipped exception"
+
+    # Get the task instance for assertions (should be the first map_index=0)
+    ti = next(
+        ti for ti in task_instances if ti.task_id == "group.push_xcom_from_shortcircuit" and ti.map_index == 0
+    )
+
+    # Verify XCom was set correctly for the skipped task
     mock_supervisor_comms.send.assert_has_calls(
         [
             mock.call(
