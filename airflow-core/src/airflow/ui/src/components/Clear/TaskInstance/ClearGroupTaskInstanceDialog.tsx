@@ -160,7 +160,9 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
             {shouldShowBundleVersionOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
-                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                onCheckedChange={(checked: boolean | "indeterminate") =>
+                  setRunOnLatestVersion(checked === true)
+                }
               >
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>

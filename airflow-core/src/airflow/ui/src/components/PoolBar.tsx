@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+// airflow/ui/src/components/PoolBar.tsx
 import { Flex, Link, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -36,29 +37,69 @@ export const PoolBar = ({
 }) => {
   const { t: translate } = useTranslation("common");
 
+  // Build segments first so the last one can absorb rounding
+  const segments = slotConfigs
+    .map(({ color, icon, key }) => {
+      const slotValue = pool[key];
+      const flexValue = slotValue / totalSlots || 0;
+
+      if (flexValue === 0) {
+        return undefined;
+      }
+
+      // Hide 'deferred' when the pool is configured NOT to include deferred slots
+      const isDeferredKey = key === "deferred_slots";
+
+      if (isDeferredKey && "include_deferred" in pool && !pool.include_deferred) {
+        return undefined;
+      }
+
+      const slotType = key.replace("_slots", "");
+      const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
+
+      return { color, flexValue, icon, key, poolCount, slotType, slotValue };
+    })
+    .filter(Boolean) as Array<{
+    color: string;
+    flexValue: number;
+    icon: React.ReactNode;
+    key: keyof Slots;
+    poolCount: number;
+    slotType: string;
+    slotValue: number;
+  }>;
+
+  // Seamless widths: last segment gets the remainder to hit 100%
+  let usedFlex = 0;
+  const corrected = segments.map((seg, idx) => {
+    const isLast = idx === segments.length - 1;
+
+    if (isLast) {
+      const remaining = Math.max(1 - usedFlex, 0);
+
+      return { ...seg, correctedFlex: remaining || seg.flexValue };
+    }
+    usedFlex += seg.flexValue;
+
+    return { ...seg, correctedFlex: seg.flexValue };
+  });
+
   return (
     <>
-      {slotConfigs.map(({ color, icon, key }) => {
-        const slotValue = pool[key];
-        const flexValue = slotValue / totalSlots || 0;
-
-        if (flexValue === 0) {
-          return undefined;
-        }
-
-        const slotType = key.replace("_slots", "");
-        const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
+      {corrected.map(({ color, correctedFlex, icon, key, poolCount, slotType, slotValue }) => {
         const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
-        const poolContent = (
-          <Tooltip content={tooltipContent} key={key}>
+
+        const inner = (
+          <Tooltip content={tooltipContent} key={String(key)}>
             <Flex
               alignItems="center"
               bg={`${color}.solid`}
               color={`${color}.contrast`}
-              flex={flexValue}
+              // No flex here — wrapper owns the width
               gap={1}
               h="100%"
               justifyContent="center"
+              minW={0}
               px={1}
               textAlign="center"
               w="100%"
@@ -69,17 +110,18 @@ export const PoolBar = ({
           </Tooltip>
         );
 
+        // Wrapper owns the proportional width, so segments butt together with no gaps
         return color !== "success" && "name" in pool ? (
-          <Link asChild display="flex" flex={flexValue} key={key}>
+          <Link asChild display="flex" flex={correctedFlex} key={String(key)}>
             <RouterLink
               to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
             >
-              {poolContent}
+              {inner}
             </RouterLink>
           </Link>
         ) : (
-          <Box display="flex" flex={flexValue} key={key}>
-            {poolContent}
+          <Box display="flex" flex={correctedFlex} key={String(key)}>
+            {inner}
           </Box>
         );
       })}
