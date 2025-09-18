@@ -1094,6 +1094,7 @@ class BaseSerialization:
         return ParamsDict(op_params)
 
     @classmethod
+    @lru_cache(maxsize=4)  # Cache for "operator", "dag", and a few others
     def get_schema_defaults(cls, object_type: str) -> dict[str, Any]:
         """
         Extract default values from JSON schema for any object type.
@@ -1699,6 +1700,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
+    @lru_cache(maxsize=1)  # Only one type: "operator"
     def get_operator_optional_fields_from_schema(cls) -> set[str]:
         schema_loader = cls._json_schema
 
@@ -2638,6 +2640,7 @@ class SerializedDAG(BaseSerialization):
         return super()._is_excluded(var, attrname, op)
 
     @classmethod
+    @lru_cache(maxsize=1)  # Only one type: "dag"
     def get_dag_optional_fields_from_schema(cls) -> set[str]:
         schema_loader = cls._json_schema
 

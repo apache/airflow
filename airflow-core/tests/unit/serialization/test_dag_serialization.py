@@ -2157,7 +2157,7 @@ class TestStringifiedDAGs:
             (True, "False", True),
             (False, "True", False),
             (False, "False", False),
-            (None, "True", False),
+            (None, "True", True),
             (None, "False", False),
         ],
     )
@@ -2171,7 +2171,8 @@ class TestStringifiedDAGs:
         """
         with conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
             kwargs = {}
-            kwargs["disable_bundle_versioning"] = dag_arg
+            if dag_arg is not None:
+                kwargs["disable_bundle_versioning"] = dag_arg
             dag = DAG(
                 dag_id="test_dag_disable_bundle_versioning_roundtrip",
                 schedule=None,
