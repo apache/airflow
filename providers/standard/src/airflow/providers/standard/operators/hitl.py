@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
 from airflow.configuration import conf
-from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -303,12 +303,42 @@ class ApprovalOperator(HITLOperator, SkipMixin):
     APPROVE = "Approve"
     REJECT = "Reject"
 
-    def __init__(self, ignore_downstream_trigger_rules: bool = False, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        ignore_downstream_trigger_rules: bool = False,
+        fail_on_reject: bool = False,
+        **kwargs,
+    ) -> None:
+        """
+        Human-in-the-loop Operator for simple approval workflows.
+
+        This operator presents the user with two fixed options: "Approve" and "Reject".
+
+        Behavior:
+        - "Approve": Downstream tasks execute as normal.
+        - "Reject":
+            - Downstream tasks are skipped according to the `ignore_downstream_trigger_rules` setting.
+            - If `fail_on_reject=True`, the task fails instead of only skipping downstream tasks.
+
+        Warning:
+            Using `fail_on_reject=True` is generally discouraged. A HITLOperator's role is to collect
+            human input, and receiving any response—including "Reject"—indicates the task succeeded.
+            Treating "Reject" as a task failure mixes human decision outcomes with Airflow task
+            success/failure states.
+            Only use this option if you explicitly intend for a "Reject" response to fail the task.
+
+        Args:
+            ignore_downstream_trigger_rules: If True, skips all downstream tasks regardless of trigger rules.
+            fail_on_reject: If True, the task fails when "Reject" is selected. Generally discouraged.
+                Read the warning carefully before using.
+        """
         for arg in self.FIXED_ARGS:
             if arg in kwargs:
                 raise ValueError(f"Passing {arg} to ApprovalOperator is not allowed.")
 
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
+        self.fail_on_reject = fail_on_reject
 
         super().__init__(
             options=[self.APPROVE, self.REJECT],
@@ -323,6 +353,9 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
+
+        if self.fail_on_reject and chosen_option == self.REJECT:
+            raise HITLRejectException('Receive "Reject"')
 
         if not self.downstream_task_ids:
             self.log.info("No downstream tasks; nothing to do.")

@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
     QueryHITLDetailDagIdPatternSearch,
+    QueryHITLDetailMapIndexFilter,
     QueryHITLDetailRespondedUserIdFilter,
     QueryHITLDetailRespondedUserNameFilter,
     QueryHITLDetailResponseReceivedFilter,
@@ -212,6 +213,8 @@ def get_hitl_details(
                     "subject",
                     "responded_at",
                     "created_at",
+                    "responded_by_user_id",
+                    "responded_by_user_name",
                 ],
                 model=HITLDetailModel,
                 to_replace={
@@ -226,16 +229,18 @@ def get_hitl_details(
         ),
     ],
     session: SessionDep,
-    # ti related filter
+    # permission filter
     readable_ti_filter: ReadableTIFilterDep,
+    # ti related filter
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     task_id: QueryHITLDetailTaskIdFilter,
     task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
+    map_index: QueryHITLDetailMapIndexFilter,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
-    responded_user_id: QueryHITLDetailRespondedUserIdFilter,
-    responded_user_name: QueryHITLDetailRespondedUserNameFilter,
+    responded_by_user_id: QueryHITLDetailRespondedUserIdFilter,
+    responded_by_user_name: QueryHITLDetailRespondedUserNameFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
     created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", HITLDetailModel))],
@@ -258,16 +263,18 @@ def get_hitl_details(
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[
-            # ti related filter
+            # permission filter
             readable_ti_filter,
+            # ti related filter
             dag_id_pattern,
             task_id,
             task_id_pattern,
+            map_index,
             ti_state,
             # hitl detail related filter
             response_received,
-            responded_user_id,
-            responded_user_name,
+            responded_by_user_id,
+            responded_by_user_name,
             subject_patten,
             body_patten,
             created_at,
