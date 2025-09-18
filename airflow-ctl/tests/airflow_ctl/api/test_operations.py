@@ -1566,3 +1566,308 @@ class TestAuthOperations:
             )
         )
         assert response.access_token == "NO_TOKEN"
+
+
+class TestAssetsOperationsCreateEvent:
+    """Comprehensive tests for AssetsOperations.create_event() method."""
+
+    @pytest.mark.parametrize(
+        "payload,expected_response_fields",
+        [
+            # Success cases
+            (
+                {"asset_id": 1, "extra": {"test": "data"}},
+                {"asset_id": 1, "extra": {"test": "data", "from_rest_api": True}},
+            ),
+            (
+                {"asset_id": 42, "extra": {"complex": {"nested": True, "count": 123}}},
+                {"asset_id": 42, "extra": {"complex": {"nested": True, "count": 123}, "from_rest_api": True}},
+            ),
+            (
+                {"asset_id": 1},  # No extra field
+                {"asset_id": 1, "extra": {"from_rest_api": True}},
+            ),
+            (
+                {"asset_id": 1, "extra": {}},  # Empty extra
+                {"asset_id": 1, "extra": {"from_rest_api": True}},
+            ),
+        ],
+        ids=["basic_payload", "complex_payload", "no_extra", "empty_extra"],
+    )
+    def test_create_asset_event_success_cases(self, payload, expected_response_fields):
+        """Test successful asset event creation with various payloads."""
+        # Create a mock response based on the payload
+        mock_response = AssetEventResponse(
+            id=1,
+            asset_id=payload["asset_id"],
+            uri="s3://bucket/test",
+            name="test_asset",
+            group="test_group",
+            extra=expected_response_fields["extra"],
+            source_task_id=None,
+            source_dag_id=None,
+            source_run_id=None,
+            source_map_index=-1,
+            created_dagruns=[],
+            timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            assert request.headers["content-type"] == "application/json"
+            
+            # Verify request payload
+            request_data = json.loads(request.content)
+            assert request_data["asset_id"] == payload["asset_id"]
+            if "extra" in payload:
+                assert request_data["extra"] == payload["extra"]
+            
+            return httpx.Response(200, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=payload)
+        
+        # Verify response structure
+        assert isinstance(response, AssetEventResponse)
+        assert response.id == 1
+        assert response.asset_id == expected_response_fields["asset_id"]
+        assert response.extra == expected_response_fields["extra"]
+        assert response.source_map_index == -1
+
+    @pytest.mark.parametrize(
+        "payload,expected_status,expected_error_pattern",
+        [
+            # 422 Unprocessable Entity cases
+            ({"asset_id": "not-an-int"}, 422, "asset_id"),
+            ({"asset_id": None}, 422, "asset_id"),
+            ({"asset_id": 0}, 422, "asset_id"),  # Invalid asset_id
+            ({"asset_id": 1, "extra": "not-a-dict"}, 422, "extra"),
+            ({"asset_id": 1, "extra": ["not-a-dict"]}, 422, "extra"),
+            ({"extra": {"foo": "bar"}}, 422, "asset_id"),  # Missing asset_id
+            ({}, 422, "asset_id"),  # Missing asset_id
+            ({"asset_id": 1, "invalid_field": "value"}, 422, "forbidden"),  # Extra fields not allowed
+        ],
+        ids=[
+            "asset_id_not_int", "asset_id_none", "asset_id_zero", "extra_not_dict", 
+            "extra_not_dict_list", "missing_asset_id", "empty_payload", "extra_fields_forbidden"
+        ],
+    )
+    def test_create_asset_event_validation_errors(self, payload, expected_status, expected_error_pattern):
+        """Test validation error cases with various invalid payloads."""
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            # Return error response
+            error_detail = f"Validation error: {expected_error_pattern} is invalid"
+            return httpx.Response(
+                expected_status, 
+                json={"detail": error_detail}
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            client.assets.create_event(asset_event_body=payload)
+        
+        assert exc_info.value.response.status_code == expected_status
+        error_response = exc_info.value.response.json()
+        assert expected_error_pattern.lower() in error_response["detail"].lower()
+
+    def test_create_asset_event_nonexistent_asset_404(self):
+        """Test that creating an event for non-existent asset returns 404."""
+        payload = {"asset_id": 9999, "extra": {"test": "data"}}
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            return httpx.Response(
+                404, 
+                json={"detail": "Asset with ID: `9999` was not found"}
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            client.assets.create_event(asset_event_body=payload)
+        
+        assert exc_info.value.response.status_code == 404
+        error_response = exc_info.value.response.json()
+        assert "Asset with ID: `9999` was not found" in error_response["detail"]
+
+    @pytest.mark.parametrize(
+        "expected_status,expected_error_type",
+        [
+            (401, "Unauthorized"),
+            (403, "Forbidden"),
+        ],
+        ids=["unauthorized_401", "forbidden_403"],
+    )
+    def test_create_asset_event_auth_errors(self, expected_status, expected_error_type):
+        """Test authentication and authorization error cases."""
+        payload = {"asset_id": 1, "extra": {"test": "data"}}
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            return httpx.Response(
+                expected_status, 
+                json={"detail": f"{expected_error_type}: Access denied"}
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            client.assets.create_event(asset_event_body=payload)
+        
+        assert exc_info.value.response.status_code == expected_status
+        error_response = exc_info.value.response.json()
+        assert expected_error_type.lower() in error_response["detail"].lower()
+
+    def test_create_asset_event_request_payload_validation(self):
+        """Test that the request payload is properly formatted and sent."""
+        payload = {
+            "asset_id": 1,
+            "extra": {"test": "data", "number": 42, "nested": {"key": "value"}}
+        }
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            assert request.headers["content-type"] == "application/json"
+            
+            # Verify request payload structure
+            request_data = json.loads(request.content)
+            assert request_data == payload
+            
+            # Verify all fields are present
+            assert "asset_id" in request_data
+            assert "extra" in request_data
+            
+            # Verify field types
+            assert isinstance(request_data["asset_id"], int)
+            assert isinstance(request_data["extra"], dict)
+            
+            mock_response = AssetEventResponse(
+                id=1,
+                asset_id=payload["asset_id"],
+                uri="s3://bucket/test",
+                name="test_asset",
+                group="test_group",
+                extra={**payload["extra"], "from_rest_api": True},
+                source_task_id=None,
+                source_dag_id=None,
+                source_run_id=None,
+                source_map_index=-1,
+                created_dagruns=[],
+                timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            )
+            return httpx.Response(200, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=payload)
+        
+        assert isinstance(response, AssetEventResponse)
+        assert response.asset_id == payload["asset_id"]
+        expected_extra = payload["extra"].copy()
+        expected_extra["from_rest_api"] = True
+        assert response.extra == expected_extra
+
+    def test_create_asset_event_response_structure(self):
+        """Test that the response has the correct structure and all required fields."""
+        payload = {"asset_id": 1, "extra": {"test": "structure"}}
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            mock_response = AssetEventResponse(
+                id=42,
+                asset_id=payload["asset_id"],
+                uri="s3://bucket/structure",
+                name="structure_test",
+                group="test_group",
+                extra={**payload["extra"], "from_rest_api": True},
+                source_task_id=None,
+                source_dag_id=None,
+                source_run_id=None,
+                source_map_index=-1,
+                created_dagruns=[],
+                timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            )
+            return httpx.Response(200, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=payload)
+        
+        # Verify response is AssetEventResponse instance
+        assert isinstance(response, AssetEventResponse)
+        
+        # Verify all required fields are present and have correct types
+        assert isinstance(response.id, int)
+        assert isinstance(response.asset_id, int)
+        assert isinstance(response.uri, str)
+        assert isinstance(response.name, str)
+        assert isinstance(response.group, str)
+        assert isinstance(response.extra, dict)
+        assert response.source_task_id is None
+        assert response.source_dag_id is None
+        assert response.source_run_id is None
+        assert isinstance(response.source_map_index, int)
+        assert isinstance(response.created_dagruns, list)
+        assert isinstance(response.timestamp, datetime.datetime)
+        
+        # Verify specific values
+        assert response.id == 42
+        assert response.asset_id == payload["asset_id"]
+        assert response.source_map_index == -1
+        assert response.extra["from_rest_api"] is True
+
+    def test_create_asset_event_with_special_characters(self):
+        """Test asset event creation with special characters and unicode in extra."""
+        payload = {
+            "asset_id": 1,
+            "extra": {
+                "special-chars": "test_value-123",
+                "unicode": "测试数据",
+                "symbols": "!@#$%^&*()",
+                "nested": {"unicode_key": "αβγδε", "number": 42}
+            }
+        }
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            # Verify special characters are preserved
+            request_data = json.loads(request.content)
+            assert request_data["asset_id"] == payload["asset_id"]
+            assert request_data["extra"] == payload["extra"]
+            
+            mock_response = AssetEventResponse(
+                id=1,
+                asset_id=payload["asset_id"],
+                uri="s3://bucket/special",
+                name="special_test",
+                group="test_group",
+                extra={**payload["extra"], "from_rest_api": True},
+                source_task_id=None,
+                source_dag_id=None,
+                source_run_id=None,
+                source_map_index=-1,
+                created_dagruns=[],
+                timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            )
+            return httpx.Response(200, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=payload)
+        
+        assert isinstance(response, AssetEventResponse)
+        assert response.asset_id == payload["asset_id"]
+        expected_extra = payload["extra"].copy()
+        expected_extra["from_rest_api"] = True
+        assert response.extra == expected_extra

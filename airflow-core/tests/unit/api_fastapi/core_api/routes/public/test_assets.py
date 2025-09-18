@@ -1372,17 +1372,17 @@ class TestPostAssets:
         yield
         clear_db_assets()
 
-    @pytest.mark.parametrize(
+@pytest.mark.parametrize(
         "payload,expected_status,expected_fields",
-        [
+    [
             # Happy path cases
             (
-                {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
+        {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
                 201,
                 {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
             ),
             (
-                {"name": "only_required", "uri": "s3://b/k"},
+        {"name": "only_required", "uri": "s3://b/k"},
                 201,
                 {"name": "only_required", "uri": "s3://b/k", "group": None, "extra": None},
             ),
@@ -1403,10 +1403,10 @@ class TestPostAssets:
         """Test successful asset creation with various payloads."""
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == expected_status
-        body = resp.json()
+    body = resp.json()
 
         # Check response structure
-        assert isinstance(body, dict)
+    assert isinstance(body, dict)
         assert "id" in body
         assert "created_at" in body
         assert "updated_at" in body
@@ -1458,8 +1458,8 @@ class TestPostAssets:
     def test_assets_create_conflict_returns_409(self, test_client):
         """Test that creating duplicate assets returns 409 Conflict."""
         from uuid import uuid4
-        uniq = uuid4().hex[:8]
-        payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
+    uniq = uuid4().hex[:8]
+    payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
 
         # First creation should succeed
         r1 = test_client.post("/assets", json=payload)
@@ -1467,16 +1467,16 @@ class TestPostAssets:
 
         # Second creation with same name+uri should fail
         r2 = test_client.post("/assets", json=payload)
-        assert r2.status_code == 409
+    assert r2.status_code == 409
 
         # Check error response structure
-        if r2.headers.get("content-type", "").startswith("application/json"):
+    if r2.headers.get("content-type", "").startswith("application/json"):
             error_body = r2.json()
             assert isinstance(error_body, dict)
             assert "detail" in error_body
             assert "already exists" in error_body["detail"].lower() or "conflict" in error_body["detail"].lower()
 
-    @pytest.mark.parametrize(
+@pytest.mark.parametrize(
         "client_fixture,expected_status",
         [
             ("unauthenticated_test_client", 401),
@@ -1492,7 +1492,7 @@ class TestPostAssets:
         resp = client.post("/assets", json=payload)
         assert resp.status_code == expected_status
 
-        if resp.headers.get("content-type", "").startswith("application/json"):
+    if resp.headers.get("content-type", "").startswith("application/json"):
             error_body = resp.json()
             assert isinstance(error_body, dict)
             assert "detail" in error_body
@@ -1542,3 +1542,361 @@ class TestPostAssets:
         from datetime import datetime
         datetime.fromisoformat(body["created_at"].replace("Z", "+00:00"))
         datetime.fromisoformat(body["updated_at"].replace("Z", "+00:00"))
+
+
+class TestPostAssetEventsComprehensive:
+    """Comprehensive tests for POST /assets/events endpoint covering all status codes."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        clear_db_assets()
+        yield
+        clear_db_assets()
+
+    @pytest.fixture
+    def sample_asset(self, test_client):
+        """Create a sample asset for testing events."""
+        payload = {"name": "test_asset", "uri": "s3://bucket/test"}
+        resp = test_client.post("/assets", json=payload)
+        assert resp.status_code == 201
+        return resp.json()
+
+    @pytest.mark.parametrize(
+        "extra,expected_status",
+        [
+            # Happy path cases
+            ({"test": "data"}, 201),
+            ({"complex": {"nested": True, "count": 123}}, 201),
+            ({"unicode": "测试", "special": "chars"}, 201),
+            (None, 201),  # No extra data
+            ({}, 201),  # Empty extra
+        ],
+        ids=["simple_extra", "complex_extra", "unicode_extra", "no_extra", "empty_extra"],
+    )
+    def test_asset_events_create_success_cases(self, test_client, sample_asset, extra, expected_status):
+        """Test successful asset event creation with various payloads."""
+        payload = {"asset_id": sample_asset["id"]}
+        if extra is not None:
+            payload["extra"] = extra
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == expected_status
+        
+        body = resp.json()
+        assert isinstance(body, dict)
+        assert "asset_id" in body
+        assert body["asset_id"] == sample_asset["id"]
+        
+        # Check extra field is preserved
+        if extra:
+            expected_extra = dict(extra)
+            expected_extra["from_rest_api"] = True
+            assert body["extra"] == expected_extra
+        else:
+            assert body["extra"] == {"from_rest_api": True}
+
+    @pytest.mark.parametrize(
+        "payload,expected_status,expected_error_pattern",
+        [
+            # 400 Bad Request cases
+            ({"asset_id": 999999}, 400, "asset"),  # Non-existent asset
+            
+            # 422 Unprocessable Entity cases
+            ({"asset_id": "not-an-int"}, 422, "asset_id"),
+            ({"asset_id": None}, 422, "asset_id"),
+            ({"extra": "not-a-dict"}, 422, "extra"),
+            ({"asset_id": 1, "extra": "not-a-dict"}, 422, "extra"),
+            
+            # Missing required fields
+            ({}, 422, "asset_id"),
+            ({"extra": {"test": "data"}}, 422, "asset_id"),
+        ],
+        ids=[
+            "nonexistent_asset", "asset_id_not_int", "asset_id_none", 
+            "extra_not_dict_no_asset", "extra_not_dict_with_asset",
+            "missing_asset_id", "missing_asset_id_with_extra"
+        ],
+    )
+    def test_asset_events_create_validation_errors(self, test_client, sample_asset, payload, expected_status, expected_error_pattern):
+        """Test validation error cases with various invalid payloads."""
+        # Replace placeholder asset_id with real one if it's valid
+        if "asset_id" in payload and payload["asset_id"] == 1:
+            payload["asset_id"] = sample_asset["id"]
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == expected_status
+        
+        if resp.headers.get("content-type", "").startswith("application/json"):
+            error_body = resp.json()
+            assert isinstance(error_body, dict)
+            assert "detail" in error_body
+            error_detail = str(error_body["detail"]).lower()
+            assert expected_error_pattern in error_detail
+
+    @pytest.mark.parametrize(
+        "client_fixture,expected_status",
+        [
+            ("unauthenticated_test_client", 401),
+            ("unauthorized_test_client", 403),
+        ],
+        ids=["unauthenticated_401", "unauthorized_403"],
+    )
+    def test_asset_events_create_auth_errors(self, request, sample_asset, client_fixture, expected_status):
+        """Test authentication and authorization error cases."""
+        client = request.getfixturevalue(client_fixture)
+        payload = {"asset_id": sample_asset["id"], "extra": {"test": "data"}}
+        
+        resp = client.post("/assets/events", json=payload)
+        assert resp.status_code == expected_status
+        
+        if resp.headers.get("content-type", "").startswith("application/json"):
+            error_body = resp.json()
+            assert isinstance(error_body, dict)
+            assert "detail" in error_body
+
+    def test_asset_events_create_response_structure(self, test_client, sample_asset):
+        """Test that the response has the correct structure and all required fields."""
+        payload = {"asset_id": sample_asset["id"], "extra": {"test": "structure"}}
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == 201
+        
+        body = resp.json()
+        
+        # Required fields for asset events
+        required_fields = ["asset_id", "extra", "timestamp"]
+        for field in required_fields:
+            assert field in body, f"Missing required field: {field}"
+        
+        # Check field types
+        assert isinstance(body["asset_id"], int)
+        assert isinstance(body["extra"], dict)
+        assert isinstance(body["timestamp"], str)
+        
+        # Check that from_rest_api is added to extra
+        assert body["extra"]["from_rest_api"] is True
+        assert body["extra"]["test"] == "structure"
+        
+        # Check timestamp is valid ISO format
+        from datetime import datetime
+        datetime.fromisoformat(body["timestamp"].replace("Z", "+00:00"))
+
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        clear_db_assets()
+        yield
+        clear_db_assets()
+
+    @pytest.mark.parametrize(
+        "asset_id,extra,expected_status",
+        [
+            # Success cases
+            (1, {"foo": "bar"}, 200),
+            (1, {"complex": {"nested": True, "count": 42}}, 200),
+            (1, None, 200),
+            (1, {}, 200),
+        ],
+        ids=["basic_success", "complex_extra", "none_extra", "empty_extra"],
+    )
+    @pytest.mark.usefixtures("time_freezer")
+    def test_create_asset_event_success_cases(self, test_client, asset_id, extra, expected_status):
+        """Test successful asset event creation cases."""
+        # Create an asset first
+        self.create_assets(num=1)
+        
+        payload = {"asset_id": asset_id}
+        if extra is not None:
+            payload["extra"] = extra
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == expected_status
+        
+        body = resp.json()
+        assert isinstance(body, dict)
+        assert "id" in body
+        assert body["asset_id"] == asset_id
+        assert "timestamp" in body
+        
+        # Check extra field - should include from_rest_api
+        if extra:
+            expected_extra = extra.copy()
+            expected_extra["from_rest_api"] = True
+            assert body["extra"] == expected_extra
+        else:
+            assert body["extra"] == {"from_rest_api": True}
+
+    @pytest.mark.parametrize(
+        "payload,expected_status,expected_error_pattern",
+        [
+            # 400 Bad Request cases
+            ({"asset_id": 0}, 422, "asset_id"),  # Invalid asset_id (should be positive)
+            
+            # 422 Unprocessable Entity cases
+            ({"asset_id": "not-an-int"}, 422, "asset_id"),
+            ({"asset_id": None}, 422, "asset_id"),
+            ({"asset_id": 1, "extra": "not-a-dict"}, 422, "extra"),
+            ({"asset_id": 1, "extra": ["not-a-dict"]}, 422, "extra"),
+            ({"extra": {"foo": "bar"}}, 422, "asset_id"),  # Missing asset_id
+            ({}, 422, "asset_id"),  # Missing asset_id
+            ({"asset_id": 1, "invalid_field": "value"}, 422, "extra is not allowed"),  # Extra fields not allowed
+        ],
+        ids=[
+            "zero_asset_id", "asset_id_not_int", "asset_id_none", "extra_not_dict", 
+            "extra_not_dict_list", "missing_asset_id", "empty_payload", "extra_fields_forbidden"
+        ],
+    )
+    def test_create_asset_event_validation_errors(self, test_client, payload, expected_status, expected_error_pattern):
+        """Test validation error cases with various invalid payloads."""
+        # Create an asset first for valid asset_id tests
+        self.create_assets(num=1)
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == expected_status
+        
+        if resp.headers.get("content-type", "").startswith("application/json"):
+            error_body = resp.json()
+            assert isinstance(error_body, dict)
+            error_detail = str(error_body.get("detail", "")).lower()
+            assert expected_error_pattern.lower() in error_detail
+
+    def test_create_asset_event_nonexistent_asset_404(self, test_client):
+        """Test that creating an event for non-existent asset returns 404."""
+        payload = {"asset_id": 9999, "extra": {"test": "data"}}
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == 404
+        
+        error_body = resp.json()
+        assert "Asset with ID: `9999` was not found" in error_body["detail"]
+
+    @pytest.mark.parametrize(
+        "client_fixture,expected_status",
+        [
+            ("unauthenticated_test_client", 401),
+            ("unauthorized_test_client", 403),
+        ],
+        ids=["unauthenticated_401", "unauthorized_403"],
+    )
+    def test_create_asset_event_auth_errors(self, request, client_fixture, expected_status):
+        """Test authentication and authorization error cases."""
+        client = request.getfixturevalue(client_fixture)
+        payload = {"asset_id": 1, "extra": {"test": "data"}}
+        
+        resp = client.post("/assets/events", json=payload)
+        assert resp.status_code == expected_status
+        
+        if resp.headers.get("content-type", "").startswith("application/json"):
+            error_body = resp.json()
+            assert isinstance(error_body, dict)
+            assert "detail" in error_body
+
+    @pytest.mark.usefixtures("time_freezer")
+    def test_create_asset_event_request_payload_validation(self, test_client):
+        """Test that the request payload is properly validated and processed."""
+        # Create an asset first
+        self.create_assets(num=1)
+        
+        payload = {
+            "asset_id": 1,
+            "extra": {"test": "data", "number": 42, "nested": {"key": "value"}}
+        }
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == 200
+        
+        body = resp.json()
+        
+        # Verify the request was processed correctly
+        assert body["asset_id"] == payload["asset_id"]
+        expected_extra = payload["extra"].copy()
+        expected_extra["from_rest_api"] = True
+        assert body["extra"] == expected_extra
+        assert body["timestamp"] == from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+
+    @pytest.mark.usefixtures("time_freezer")
+    def test_create_asset_event_response_structure(self, test_client):
+        """Test that the response has the correct structure and all required fields."""
+        # Create an asset first
+        self.create_assets(num=1)
+        
+        payload = {"asset_id": 1, "extra": {"test": "structure"}}
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == 200
+        
+        body = resp.json()
+        
+        # Required fields
+        required_fields = [
+            "id", "asset_id", "uri", "name", "group", "extra", 
+            "source_task_id", "source_dag_id", "source_run_id", 
+            "source_map_index", "created_dagruns", "timestamp"
+        ]
+        for field in required_fields:
+            assert field in body, f"Missing required field: {field}"
+        
+        # Check field types
+        assert isinstance(body["id"], int)
+        assert isinstance(body["asset_id"], int)
+        assert isinstance(body["uri"], str)
+        assert isinstance(body["name"], str)
+        assert isinstance(body["group"], str)
+        assert isinstance(body["extra"], dict)
+        assert body["source_task_id"] is None
+        assert body["source_dag_id"] is None
+        assert body["source_run_id"] is None
+        assert isinstance(body["source_map_index"], int)
+        assert isinstance(body["created_dagruns"], list)
+        assert isinstance(body["timestamp"], str)
+        
+        # Verify specific values for REST API created event
+        assert body["asset_id"] == 1
+        assert body["source_map_index"] == -1
+        assert body["extra"]["from_rest_api"] is True
+
+    @pytest.mark.usefixtures("time_freezer")
+    def test_create_asset_event_with_special_characters(self, test_client):
+        """Test asset event creation with special characters and unicode in extra."""
+        # Create an asset first
+        self.create_assets(num=1)
+        
+        payload = {
+            "asset_id": 1,
+            "extra": {
+                "special-chars": "test_value-123",
+                "unicode": "测试数据",
+                "symbols": "!@#$%^&*()",
+                "nested": {"unicode_key": "αβγδε", "number": 42}
+            }
+        }
+        
+        resp = test_client.post("/assets/events", json=payload)
+        assert resp.status_code == 200
+        
+        body = resp.json()
+        expected_extra = payload["extra"].copy()
+        expected_extra["from_rest_api"] = True
+        assert body["extra"] == expected_extra
+
+    @pytest.mark.usefixtures("time_freezer")
+    def test_create_asset_event_updates_last_event(self, test_client, session):
+        """Test that creating an asset event updates the asset's last_asset_event."""
+        # Create an asset first
+        assets = self.create_assets(num=1)
+        asset = assets[0]
+        
+        payload = {"asset_id": asset.id, "extra": {"test": "update"}}
+        
+        # Create asset event
+        event_resp = test_client.post("/assets/events", json=payload)
+        assert event_resp.status_code == 200
+        event_data = event_resp.json()
+        
+        # Get the asset and verify last_asset_event is updated
+        asset_resp = test_client.get(f"/assets/{asset.id}")
+        assert asset_resp.status_code == 200
+        asset_data = asset_resp.json()
+        
+        assert asset_data["last_asset_event"]["id"] == event_data["id"]
+        assert asset_data["last_asset_event"]["timestamp"] == event_data["timestamp"]
