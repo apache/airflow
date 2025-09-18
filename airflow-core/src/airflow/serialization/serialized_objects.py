@@ -616,7 +616,7 @@ class BaseSerialization:
 
     _CONSTRUCTOR_PARAMS: dict[str, Parameter] = {}
 
-    SERIALIZER_VERSION = 2
+    SERIALIZER_VERSION = 3
 
     @classmethod
     def to_json(cls, var: Any) -> str:
@@ -2776,14 +2776,22 @@ class SerializedDAG(BaseSerialization):
         # Set on the root TG
         dag_dict["task_group"]["group_display_name"] = ""
 
+    @staticmethod
+    def conversion_v2_to_v3(ser_obj: dict):
+        # V2 to V3 changes are minimal - mainly client_defaults optimization and
+        # field presence differences. Only version bump needed.
+        ser_obj["__version"] = 3
+
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
         """Deserializes a python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get("__version", "<not present>")
-        if ver not in (1, 2):
+        if ver not in (1, 2, 3):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
         if ver == 1:
             cls.conversion_v1_to_v2(serialized_obj)
+        if ver == 2:
+            cls.conversion_v2_to_v3(serialized_obj)
 
         # Extract client_defaults for hierarchical defaults resolution
         client_defaults = serialized_obj.get("client_defaults", {})
