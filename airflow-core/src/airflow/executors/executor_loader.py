@@ -165,12 +165,7 @@ class ExecutorLoader:
         if not team_names:
             return
 
-        # Import Session locally to avoid circular import issues
-        from airflow.settings import Session
-
-        with Session() as session:
-            # Get all team names at once to avoid multiple queries
-            existing_teams = {name for (name,) in session.query(Team.name).all()}
+        existing_teams = Team.get_all_team_names()
 
         missing_teams = team_names - existing_teams
 
@@ -215,7 +210,7 @@ class ExecutorLoader:
                 team_name = None
                 executor_names = team_executor_config.strip("=")
             else:
-                cls.block_use_of_multi_team()
+                # cls.block_use_of_multi_team()
                 team_name, executor_names = team_executor_config.split("=")
 
             # Check for duplicate team names

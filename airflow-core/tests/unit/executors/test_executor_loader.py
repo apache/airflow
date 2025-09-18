@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -572,17 +572,12 @@ class TestExecutorLoader:
 
     def test_team_validation_with_valid_teams_in_config(self):
         """Test that executor config with valid teams loads successfully."""
-        mock_session = MagicMock()
-        mock_query_result = [("team_a",), ("team_b",)]
-        mock_session.query.return_value.all.return_value = mock_query_result
+        mock_team_names = {"team_a", "team_b"}
 
         with (
-            patch("airflow.settings.Session", return_value=mock_session) as mock_session_class,
+            patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names),
             mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
         ):
-            mock_session_class.return_value.__enter__.return_value = mock_session
-            mock_session_class.return_value.__exit__.return_value = None
-
             with conf_vars(
                 {("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor"}
             ):
@@ -593,21 +588,14 @@ class TestExecutorLoader:
                 assert configs[1] == ("team_a", ["CeleryExecutor"])
                 assert configs[2] == ("team_b", ["LocalExecutor"])
 
-                mock_session.query.assert_called_once()
-
     def test_team_validation_with_invalid_teams_in_config(self):
         """Test that executor config with invalid teams fails with clear error."""
-        mock_session = MagicMock()
-        mock_query_result = [("team_a",)]  # team_b and team_c are missing
-        mock_session.query.return_value.all.return_value = mock_query_result
+        mock_team_names = {"team_a"}  # team_b and team_c are missing
 
         with (
-            patch("airflow.settings.Session", return_value=mock_session) as mock_session_class,
+            patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names),
             mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
         ):
-            mock_session_class.return_value.__enter__.return_value = mock_session
-            mock_session_class.return_value.__exit__.return_value = None
-
             with conf_vars(
                 {
                     (
@@ -621,17 +609,12 @@ class TestExecutorLoader:
 
     def test_team_validation_skips_global_teams(self):
         """Test that team validation does not validate global teams."""
-        mock_session = MagicMock()
-
-        with patch("airflow.settings.Session", return_value=mock_session) as mock_session_class:
-            mock_session_class.return_value.__enter__.return_value = mock_session
-            mock_session_class.return_value.__exit__.return_value = None
-
+        with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
             with conf_vars({("core", "executor"): "CeleryExecutor,LocalExecutor"}):
                 configs = executor_loader.ExecutorLoader._get_team_executor_configs()
 
                 assert len(configs) == 1
                 assert configs[0] == (None, ["CeleryExecutor", "LocalExecutor"])
 
-                # No query since no teams needed validation
-                mock_session.query.assert_not_called()
+                # No team validation should occur since only global teams are configured
+                mock_get_team_names.assert_not_called()

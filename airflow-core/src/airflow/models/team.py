@@ -17,12 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, String, Table
+from sqlalchemy import Column, ForeignKey, Index, String, Table, select
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base
+from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 dag_bundle_team_association_table = Table(
     "dag_bundle_team",
@@ -51,3 +57,32 @@ class Team(Base):
 
     def __repr__(self):
         return f"Team(id={self.id},name={self.name})"
+
+    @classmethod
+    @provide_session
+    def get_all_teams_id_to_name_mapping(cls, session: Session = NEW_SESSION) -> dict[str, str]:
+        """
+        Return a mapping of all team IDs to team names from the database.
+
+        This method provides a reusable way to get team information that can be used
+        across the codebase for validation and lookups.
+
+        :param session: Database session
+        :return: Dictionary mapping team UUIDs to team names
+        """
+        stmt = select(cls.id, cls.name)
+        teams = session.execute(stmt).all()
+        return {str(team_id): team_name for team_id, team_name in teams}
+
+    @classmethod
+    def get_all_team_names(cls) -> set[str]:
+        """
+        Return a set of all team names from the database.
+
+        This method provides a convenient way to get just the team names for validation
+        purposes, such as verifying team names in executor configurations.
+
+        :return: Set of all team names
+        """
+        team_mapping = cls.get_all_teams_id_to_name_mapping()
+        return set(team_mapping.values())
