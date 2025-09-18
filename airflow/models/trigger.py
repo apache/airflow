@@ -198,18 +198,6 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
-        """Take an event from an instance of itself, and trigger all dependent tasks to resume."""
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
-            event.handle_submit(task_instance=task_instance)
-
-    @classmethod
-    @internal_api_call
-    @provide_session
     def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
@@ -318,21 +306,22 @@ class Trigger(Base):
             select(DagRun.dag_id, DagRun.run_id).where(DagRun.state == DagRunState.RUNNING).subquery()
         )
 
+        # Build the query to get triggers that need to be assigned
         query = with_row_locks(
             select(cls.id)
-            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
+            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .join(
                 active_dag_runs,
                 and_(
                     TaskInstance.dag_id == active_dag_runs.c.dag_id,
                     TaskInstance.run_id == active_dag_runs.c.run_id,
                 ),
-                isouter=False,
+                isouter=True,
             )
             .join(
                 active_dags,
                 TaskInstance.dag_id == active_dags.c.dag_id,
-                isouter=False,
+                isouter=True,
             )
             .where(
                 or_(
@@ -345,4 +334,25 @@ class Trigger(Base):
             session,
             skip_locked=True,
         )
+
         return session.execute(query).all()
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
+        """Take an event from an instance of itself, and trigger all dependent tasks to resume."""
+        from airflow.utils.state import TaskInstanceState
+
+        # Get all task instances waiting on this trigger
+        task_instances = session.scalars(
+            select(TaskInstance)
+            .where(TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED)
+            .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), TaskInstance.start_date)
+        )
+
+        # Process each task instance
+        for task_instance in task_instances:
+            task_instance.trigger = None
+            event.handle_submit(task_instance=task_instance)
+            session.merge(task_instance)
