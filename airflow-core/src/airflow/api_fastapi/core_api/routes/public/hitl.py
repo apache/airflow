@@ -213,6 +213,8 @@ def get_hitl_details(
                     "subject",
                     "responded_at",
                     "created_at",
+                    "responded_by_user_id",
+                    "responded_by_user_name",
                 ],
                 model=HITLDetailModel,
                 to_replace={
@@ -237,8 +239,8 @@ def get_hitl_details(
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
-    responded_user_id: QueryHITLDetailRespondedUserIdFilter,
-    responded_user_name: QueryHITLDetailRespondedUserNameFilter,
+    responded_by_user_id: QueryHITLDetailRespondedUserIdFilter,
+    responded_by_user_name: QueryHITLDetailRespondedUserNameFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
     created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", HITLDetailModel))],
@@ -271,8 +273,8 @@ def get_hitl_details(
             ti_state,
             # hitl detail related filter
             response_received,
-            responded_user_id,
-            responded_user_name,
+            responded_by_user_id,
+            responded_by_user_name,
             subject_patten,
             body_patten,
             created_at,
