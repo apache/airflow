@@ -72,17 +72,6 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
     ):
         EmptyOperator(task_id="example_task")
 
-If the calculated historical average was 30 minutes, the timeline for this example would look like this:
-
-::
-
-    |------|----------|--------------|--------------|--------|
-         Queued     Start            |           Deadline
-         09:00      09:05          09:35          10:05
-                      |              |              |
-                      |--- Average --|-- Interval --|
-                           (30 min)      (30 min)
-
 Using Built-in References
 -------------------------
 
@@ -142,12 +131,17 @@ Here's an example using average runtime:
 
 The timeline for this example would look like this:
 
+If the calculated historical average was 30 minutes, the timeline for this example would look like this:
+
 ::
 
-    |------|----------|---------|------------|--------|
-         Queued     Start    Expected    Deadline
-         09:00      09:05     09:35       10:05
-                              (avg+30min)
+    |------|----------|--------------|--------------|--------|
+         Queued     Start            |           Deadline
+         09:00      09:05          09:35          10:05
+                      |              |              |
+                      |--- Average --|-- Interval --|
+                           (30 min)      (30 min)
+
 
 Here's an example using a fixed datetime:
 
