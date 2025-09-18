@@ -2291,6 +2291,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
+                        # If old ti from Airflow 2 and last_heartbeat_at is None, set last_heartbeat_at to now
+                        if ti.last_heartbeat_at is None:
+                            ti.last_heartbeat_at = timezone.utcnow()
+                        # If old ti from Airflow 2 and dag_run.conf is None, set dag_run.conf to {}
+                        if ti.dag_run.conf is None:
+                            ti.dag_run.conf = {}
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
@@ -2387,6 +2393,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
+            if not ti.dag_version:
+                # If old ti from Airflow 2 and dag_version is None, skip heartbeat timeout handling.
+                self.log.warning(
+                    "DAG Version not found for TaskInstance %s. Skipping heartbeat timeout handling.",
+                    ti,
+                )
+                continue
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc,
                 bundle_name=ti.dag_version.bundle_name,
