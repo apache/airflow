@@ -877,6 +877,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
