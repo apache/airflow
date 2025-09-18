@@ -1871,3 +1871,67 @@ class TestAssetsOperationsCreateEvent:
         expected_extra = payload["extra"].copy()
         expected_extra["from_rest_api"] = True
         assert response.extra == expected_extra
+
+    def test_create_event_uses_correct_endpoint_and_defaults_extra(self):
+        """Test that create_event posts to /assets/events and defaults extra to {}."""
+        # Test with no extra provided
+        payload_no_extra = {"asset_id": 1}
+        
+        def handle_request_no_extra(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            # Verify the payload structure
+            request_data = json.loads(request.content)
+            assert request_data == {"asset_id": 1, "extra": {}}
+            
+            mock_response = AssetEventResponse(
+                asset_id=1,
+                extra={"from_rest_api": True},
+                timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                source_task_id=None,
+                source_dag_id=None,
+                source_run_id=None,
+                source_map_index=-1,
+                created_dagruns=[],
+            )
+            return httpx.Response(201, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request_no_extra))
+        response = client.assets.create_event(asset_event_body=payload_no_extra)
+        
+        assert isinstance(response, AssetEventResponse)
+        assert response.asset_id == 1
+        assert response.extra == {"from_rest_api": True}
+
+    def test_create_event_with_extra_preserves_structure(self):
+        """Test that create_event preserves extra structure when provided."""
+        payload_with_extra = {"asset_id": 42, "extra": {"test": "data", "nested": {"key": "value"}}}
+        
+        def handle_request_with_extra(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            assert request.method == "POST"
+            
+            # Verify the payload structure
+            request_data = json.loads(request.content)
+            assert request_data == {"asset_id": 42, "extra": {"test": "data", "nested": {"key": "value"}}}
+            
+            mock_response = AssetEventResponse(
+                asset_id=42,
+                extra={"test": "data", "nested": {"key": "value"}, "from_rest_api": True},
+                timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                source_task_id=None,
+                source_dag_id=None,
+                source_run_id=None,
+                source_map_index=-1,
+                created_dagruns=[],
+            )
+            return httpx.Response(201, json=json.loads(mock_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request_with_extra))
+        response = client.assets.create_event(asset_event_body=payload_with_extra)
+        
+        assert isinstance(response, AssetEventResponse)
+        assert response.asset_id == 42
+        expected_extra = {"test": "data", "nested": {"key": "value"}, "from_rest_api": True}
+        assert response.extra == expected_extra

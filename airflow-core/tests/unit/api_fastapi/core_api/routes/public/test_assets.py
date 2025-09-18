@@ -1372,17 +1372,17 @@ class TestPostAssets:
         yield
         clear_db_assets()
 
-@pytest.mark.parametrize(
+    @pytest.mark.parametrize(
         "payload,expected_status,expected_fields",
-    [
+        [
             # Happy path cases
             (
-        {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
+                {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
                 201,
                 {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
             ),
             (
-        {"name": "only_required", "uri": "s3://b/k"},
+                {"name": "only_required", "uri": "s3://b/k"},
                 201,
                 {"name": "only_required", "uri": "s3://b/k", "group": None, "extra": None},
             ),
@@ -1403,10 +1403,10 @@ class TestPostAssets:
         """Test successful asset creation with various payloads."""
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == expected_status
-    body = resp.json()
+        body = resp.json()
 
         # Check response structure
-    assert isinstance(body, dict)
+        assert isinstance(body, dict)
         assert "id" in body
         assert "created_at" in body
         assert "updated_at" in body
@@ -1458,8 +1458,8 @@ class TestPostAssets:
     def test_assets_create_conflict_returns_409(self, test_client):
         """Test that creating duplicate assets returns 409 Conflict."""
         from uuid import uuid4
-    uniq = uuid4().hex[:8]
-    payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
+        uniq = uuid4().hex[:8]
+        payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
 
         # First creation should succeed
         r1 = test_client.post("/assets", json=payload)
@@ -1467,16 +1467,16 @@ class TestPostAssets:
 
         # Second creation with same name+uri should fail
         r2 = test_client.post("/assets", json=payload)
-    assert r2.status_code == 409
+        assert r2.status_code == 409
 
         # Check error response structure
-    if r2.headers.get("content-type", "").startswith("application/json"):
+        if r2.headers.get("content-type", "").startswith("application/json"):
             error_body = r2.json()
             assert isinstance(error_body, dict)
             assert "detail" in error_body
             assert "already exists" in error_body["detail"].lower() or "conflict" in error_body["detail"].lower()
 
-@pytest.mark.parametrize(
+    @pytest.mark.parametrize(
         "client_fixture,expected_status",
         [
             ("unauthenticated_test_client", 401),
