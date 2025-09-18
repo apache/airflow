@@ -468,6 +468,18 @@ export type ConnectionTestResponse = {
 };
 
 /**
+ * Create asset request.
+ */
+export type CreateAssetBody = {
+    name: string;
+    uri: string;
+    group: string;
+    extra?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * Create asset events request.
  */
 export type CreateAssetEventsBody = {
@@ -1987,6 +1999,12 @@ export type GetAssetsData = {
 
 export type GetAssetsResponse = AssetCollectionResponse;
 
+export type CreateAssetData = {
+    requestBody: CreateAssetBody;
+};
+
+export type CreateAssetResponse = AssetResponse;
+
 export type GetAssetAliasesData = {
     limit?: number;
     /**
@@ -3265,6 +3283,35 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        post: {
+            req: CreateAssetData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

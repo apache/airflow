@@ -1548,6 +1548,33 @@ export const $ConnectionTestResponse = {
     description: 'Connection Test serializer for responses.'
 } as const;
 
+export const $CreateAssetBody = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        uri: {
+            type: 'string',
+            title: 'Uri'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        },
+        extra: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Extra'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['name', 'uri', 'group'],
+    title: 'CreateAssetBody',
+    description: 'Create asset request.'
+} as const;
+
 export const $CreateAssetEventsBody = {
     properties: {
         asset_id: {

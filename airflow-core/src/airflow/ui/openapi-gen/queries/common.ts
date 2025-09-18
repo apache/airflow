@@ -848,6 +848,7 @@ export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logical
   logicalDateLt?: string;
   logicalDateLte?: string;
 }, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }])];
+export type AssetServiceCreateAssetMutationResult = Awaited<ReturnType<typeof AssetService.createAsset>>;
 export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<typeof AssetService.createAssetEvent>>;
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;
