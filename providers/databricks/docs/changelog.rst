@@ -32,6 +32,11 @@ Changelog
 
 Release Date: ``|PypiReleaseDate|``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix metadata service check handle 429 (#55462)``
+
 Misc
 ~~~~
 

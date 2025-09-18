@@ -27,8 +27,12 @@
 Changelog
 ---------
 
-main
+18.0.0
 ......
+
+
+Release Date: ``|PypiReleaseDate|``
+
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -63,11 +67,11 @@ Breaking changes
 
   * ``Remove GoogleDisplayVideo360RunQuerySensor. Reports were replaced with SDF export task in v4 of API.``
 
-17.3.0
-......
+
+* ``Remove deprecated from google provider scheduled for September 2025 except 30 September 2025. (#55683)``
 
 
-Release Date: ``|PypiReleaseDate|``
+
 
 Features
 ~~~~~~~~

@@ -32,6 +32,11 @@ Changelog
 
 Release Date: ``|PypiReleaseDate|``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: prevent user facets from overriding OL facets (#55765)``
+
 Misc
 ~~~~
 

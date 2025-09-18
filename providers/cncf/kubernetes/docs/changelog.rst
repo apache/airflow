@@ -40,6 +40,7 @@ Bug Fixes
 * ``Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#50803)``
 * ``Add more error handling in pod_manager consume_logs (#55479)``
 * ``Add more robust check of the container statuses (#55371)``
+* ``Fix circular import in version_compat (#55809)``
 
 Misc
 ~~~~
