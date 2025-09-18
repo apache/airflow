@@ -1353,6 +1353,41 @@ class TestRuntimeTaskInstance:
         assert result == expected_output
 
     @pytest.mark.parametrize(
+        ["content", "expected_output"],
+        [
+            ("{{ var.value.a_variable }}", "a test value"),
+            ('{{ var.value.get("a_variable") }}', "a test value"),
+            ('{{ var.value.get("a_variable", "unused_fallback") }}', "a test value"),
+        ],
+    )
+    def test_template_with_variable(self, content, expected_output, create_runtime_ti, mock_supervisor_comms):
+        """Test the availability of variables in templates."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_template_with_connection")
+
+        var = VariableResult(key="a_variable", value="a test value")
+
+        mock_supervisor_comms.send.return_value = var
+
+        context = runtime_ti.get_template_context()
+        result = runtime_ti.task.render_template(content, context)
+        assert result == expected_output
+
+    def test_template_with_variable_not_found(self, create_runtime_ti, mock_supervisor_comms):
+        """Test the availability of variables in templates when a variable not found."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_template_with_connection")
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": "a_variable"}
+        )
+
+        context = runtime_ti.get_template_context()
+        content = '{{ var.value.get("missing_variable", "fallback") }}'
+        result = runtime_ti.task.render_template(content, context)
+        assert result == "fallback"
+
+    @pytest.mark.parametrize(
         ["accessor_type", "var_value", "expected_value"],
         [
             pytest.param("value", "test_value", "test_value"),
