@@ -24,8 +24,6 @@ import dataclasses
 import importlib
 import importlib.util
 import json
-import logging
-import logging.config
 import multiprocessing
 import os
 import pickle
@@ -48,7 +46,6 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow._shared.timezones import timezone
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -447,9 +444,6 @@ def timetable_plugin(monkeypatch):
 class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
 
-    def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
-
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
         with mock.patch.object(BaseHook, "get_connection") as m:
@@ -629,7 +623,7 @@ class TestStringifiedDAGs:
             if v is None:
                 break
             dag = SerializedDAG.from_json(v)
-            assert isinstance(dag, DAG)
+            assert isinstance(dag, SerializedDAG)
             stringified_dags[dag.dag_id] = dag
 
         dags, _ = collect_dags("airflow/example_dags")
@@ -1103,8 +1097,8 @@ class TestStringifiedDAGs:
         """
         Test to make sure that only native Param objects are being passed as dag or task params
         """
-        dag = DAG(dag_id="simple_dag", schedule=None, params={"my_param": param})
-        serialized_json = SerializedDAG.to_json(dag)
+        sdk_dag = DAG(dag_id="simple_dag", schedule=None, params={"my_param": param})
+        serialized_json = SerializedDAG.to_json(sdk_dag)
         serialized = json.loads(serialized_json)
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
@@ -3002,6 +2996,27 @@ def test_mapped_task_with_operator_extra_links_property():
     }
     assert mapped_task.global_operator_extra_link_dict == {"airflow": AirflowLink(), "github": GithubLink()}
     assert mapped_task.extra_links == sorted({"airflow", "github"})
+
+
+def empty_function(*args, **kwargs):
+    """Empty function for testing."""
+
+
+def test_python_callable_in_partial_kwargs():
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    operator = PythonOperator.partial(
+        task_id="task",
+        python_callable=empty_function,
+    ).expand(op_kwargs=[{"x": 1}])
+
+    serialized = SerializedBaseOperator.serialize_mapped_operator(operator)
+    assert "python_callable" not in serialized["partial_kwargs"]
+    assert serialized["partial_kwargs"]["python_callable_name"] == qualname(empty_function)
+
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    assert "python_callable" not in deserialized.partial_kwargs
+    assert deserialized.partial_kwargs["python_callable_name"] == qualname(empty_function)
 
 
 def test_handle_v1_serdag():

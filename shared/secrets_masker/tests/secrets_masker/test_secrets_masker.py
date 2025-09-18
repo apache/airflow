@@ -30,20 +30,30 @@ from unittest.mock import patch
 import pytest
 
 from airflow_shared.secrets_masker.secrets_masker import (
+    DEFAULT_SENSITIVE_FIELDS,
     RedactedIO,
     SecretsMasker,
-    get_sensitive_variables_fields,
     mask_secret,
     merge,
     redact,
     reset_secrets_masker,
-    should_hide_value_for_key,
 )
 
 from tests_common.test_utils.config import env_vars
 
 pytestmark = pytest.mark.enable_redact
 p = "password"
+
+
+def configure_secrets_masker_for_test(
+    masker: SecretsMasker, min_length: int = 5, sensitive_fields: list[str] = None
+):
+    """Helper function to configure a SecretsMasker instance for testing."""
+    masker.min_length_to_mask = min_length
+    if sensitive_fields is None:
+        masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+    else:
+        masker.sensitive_variables_fields = sensitive_fields
 
 
 def lineno():
@@ -84,6 +94,7 @@ def logger(caplog):
     caplog.handler.setFormatter(formatter)
     logger.handlers = [caplog.handler]
     filt = SecretsMasker()
+    configure_secrets_masker_for_test(filt)
     SecretsMasker.enable_log_masking()
     logger.addFilter(filt)
 
@@ -244,8 +255,9 @@ class TestSecretsMasker:
     )
     def test_mask_secret(self, name, value, expected_mask):
         filt = SecretsMasker()
-        filt.add_mask(value, name)
+        configure_secrets_masker_for_test(filt)
 
+        filt.add_mask(value, name)
         assert filt.patterns == expected_mask
 
     @pytest.mark.parametrize(
@@ -281,6 +293,7 @@ class TestSecretsMasker:
     )
     def test_redact(self, patterns, name, value, expected):
         filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
         for val in patterns:
             filt.add_mask(val)
 
@@ -303,11 +316,13 @@ class TestSecretsMasker:
     )
     def test_redact_replacement(self, name, value, expected):
         filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
 
         assert filt.redact(value, name, replacement="*️⃣*️⃣*️⃣") == expected
 
     def test_redact_filehandles(self, caplog):
         filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
         with open("/dev/null", "w") as handle:
             assert filt.redact(handle, None) == handle
 
@@ -328,6 +343,7 @@ class TestSecretsMasker:
     )
     def test_redact_max_depth(self, val, expected, max_depth):
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
         secrets_masker.add_mask("abcdef")
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
@@ -368,6 +384,7 @@ class TestSecretsMasker:
         self,
     ):
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
         secrets_masker.add_mask("mask_this")
         secrets_masker.add_mask("and_this")
         secrets_masker.add_mask("maybe_this_too")
@@ -426,7 +443,9 @@ class TestShouldHideValueForKey:
         ],
     )
     def test_hiding_defaults(self, key, expected_result):
-        assert expected_result == should_hide_value_for_key(key)
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+        assert expected_result == masker.should_hide_value_for_key(key)
 
     @pytest.mark.parametrize(
         ("sensitive_variable_fields", "key", "expected_result"),
@@ -444,11 +463,16 @@ class TestShouldHideValueForKey:
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
         env_value = str(sensitive_variable_fields) if sensitive_variable_fields is not None else ""
         with env_vars({"AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES": env_value}):
-            get_sensitive_variables_fields.cache_clear()
-            try:
-                assert expected_result == should_hide_value_for_key(key)
-            finally:
-                get_sensitive_variables_fields.cache_clear()
+            masker = SecretsMasker()
+            sensitive_fields = list(DEFAULT_SENSITIVE_FIELDS)
+            if sensitive_variable_fields:
+                additional_fields = {
+                    field.strip() for field in sensitive_variable_fields.split(",") if field.strip()
+                }
+                sensitive_fields = list(DEFAULT_SENSITIVE_FIELDS | additional_fields)
+
+            configure_secrets_masker_for_test(masker, sensitive_fields=sensitive_fields)
+            assert expected_result == masker.should_hide_value_for_key(key)
 
 
 class ShortExcFormatter(logging.Formatter):
@@ -463,6 +487,7 @@ class TestRedactedIO:
     @pytest.fixture(scope="class", autouse=True)
     def reset_secrets_masker(self):
         self.secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(self.secrets_masker)
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker",
             return_value=self.secrets_masker,
@@ -503,6 +528,7 @@ class TestMaskSecretAdapter:
     @pytest.fixture(autouse=True)
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(self.secrets_masker)
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker",
             return_value=self.secrets_masker,
@@ -511,13 +537,21 @@ class TestMaskSecretAdapter:
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
+        import urllib.parse
+
         with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": "urllib.parse.quote"}):
+            # Manually configure the adapter since we don't read from config anymore
+            self.secrets_masker.secret_mask_adapter = urllib.parse.quote
             mask_secret("secret<>&", None)
 
         assert self.secrets_masker.patterns == {"secret%3C%3E%26", "secret<>&"}
 
     def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
+        import urllib.parse
+
         with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": "urllib.parse.urlparse"}):
+            # Manually configure the adapter since we don't read from config anymore
+            self.secrets_masker.secret_mask_adapter = urllib.parse.urlparse
             mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
 
         assert self.secrets_masker.patterns == {
@@ -529,6 +563,8 @@ class TestMaskSecretAdapter:
 
     def test_calling_mask_secret_not_set(self):
         with env_vars({"AIRFLOW__LOGGING__SECRET_MASK_ADAPTER": ""}):
+            # Ensure no adapter is set
+            self.secrets_masker.secret_mask_adapter = None
             mask_secret("a secret")
 
         assert self.secrets_masker.patterns == {"a secret"}
@@ -551,24 +587,24 @@ class TestMaskSecretAdapter:
             SecretsMasker._has_warned_short_secret = True
 
         filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt, min_length=5)
 
-        with patch("airflow_shared.secrets_masker.secrets_masker.get_min_secret_length", return_value=5):
-            caplog.clear()
+        caplog.clear()
 
-            filt.add_mask(secret)
+        filt.add_mask(secret)
 
-            if is_first_short:
-                assert "Skipping masking for a secret as it's too short" in caplog.text
-                assert len(caplog.records) == 1
-            else:
-                assert "Skipping masking for a secret as it's too short" not in caplog.text
+        if is_first_short:
+            assert "Skipping masking for a secret as it's too short" in caplog.text
+            assert len(caplog.records) == 1
+        else:
+            assert "Skipping masking for a secret as it's too short" not in caplog.text
 
-            if should_be_masked:
-                assert secret in filt.patterns
-            else:
-                assert secret not in filt.patterns
+        if should_be_masked:
+            assert secret in filt.patterns
+        else:
+            assert secret not in filt.patterns
 
-            caplog.clear()
+        caplog.clear()
 
         if should_be_masked:
             assert filt.replacer is not None
@@ -577,6 +613,7 @@ class TestMaskSecretAdapter:
 class TestStructuredVsUnstructuredMasking:
     def test_structured_sensitive_fields_always_masked(self):
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker, min_length=5)
 
         short_password = "pwd"
         short_token = "tk"
@@ -591,16 +628,16 @@ class TestStructuredVsUnstructuredMasking:
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
         ):
-            with patch("airflow_shared.secrets_masker.secrets_masker.get_min_secret_length", return_value=5):
-                redacted_data = redact(test_data)
+            redacted_data = redact(test_data)
 
-                assert redacted_data["password"] == "***"
-                assert redacted_data["api_key"] == "***"
-                assert redacted_data["connection"]["secret"] == "***"
+            assert redacted_data["password"] == "***"
+            assert redacted_data["api_key"] == "***"
+            assert redacted_data["connection"]["secret"] == "***"
 
     def test_unstructured_text_min_length_enforced(self):
         secrets_masker = SecretsMasker()
         min_length = 5
+        configure_secrets_masker_for_test(secrets_masker, min_length=min_length)
 
         short_secret = "abc"
         long_secret = "abcdef"
@@ -608,21 +645,18 @@ class TestStructuredVsUnstructuredMasking:
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
         ):
-            with patch(
-                "airflow_shared.secrets_masker.secrets_masker.get_min_secret_length", return_value=min_length
-            ):
-                secrets_masker.add_mask(short_secret)
-                secrets_masker.add_mask(long_secret)
+            secrets_masker.add_mask(short_secret)
+            secrets_masker.add_mask(long_secret)
 
-                assert short_secret not in secrets_masker.patterns
-                assert long_secret in secrets_masker.patterns
+            assert short_secret not in secrets_masker.patterns
+            assert long_secret in secrets_masker.patterns
 
-                test_data = f"Containing {short_secret} and {long_secret}"
-                redacted = secrets_masker.redact(test_data)
+            test_data = f"Containing {short_secret} and {long_secret}"
+            redacted = secrets_masker.redact(test_data)
 
-                assert short_secret in redacted
-                assert long_secret not in redacted
-                assert "***" in redacted
+            assert short_secret in redacted
+            assert long_secret not in redacted
+            assert "***" in redacted
 
 
 class TestContainerTypesRedaction:
@@ -639,6 +673,7 @@ class TestContainerTypesRedaction:
         normal_env_var = MockV1EnvVar("app_name", "my_app")
 
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
 
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
@@ -667,6 +702,7 @@ class TestContainerTypesRedaction:
         }
 
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
 
         secrets_masker.add_mask("secret_token")
         secrets_masker.add_mask("password=secret")
@@ -693,6 +729,7 @@ class TestEdgeCases:
         circular_dict["self_ref"] = circular_dict
 
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
 
         with patch(
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
@@ -708,6 +745,7 @@ class TestEdgeCases:
         regex_secrets = ["password+with*chars", "token.with[special]chars", "api_key^that$needs(escaping)"]
 
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
 
         for secret in regex_secrets:
             secrets_masker.add_mask(secret)
@@ -727,6 +765,7 @@ class TestEdgeCases:
 class TestDirectMethodCalls:
     def test_redact_all_directly(self):
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
 
         test_data = {
             "string": "should_be_masked",
@@ -752,6 +791,7 @@ class TestDirectMethodCalls:
 class TestMixedDataScenarios:
     def test_mixed_structured_unstructured_data(self):
         secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
 
         unstructured_secret = "this_is_a_secret_pattern"
         secrets_masker.add_mask(unstructured_secret)
@@ -779,6 +819,10 @@ class TestMixedDataScenarios:
 class TestSecretsMaskerMerge:
     """Test the merge functionality for restoring original values from redacted data."""
 
+    def setup_method(self):
+        self.masker = SecretsMasker()
+        configure_secrets_masker_for_test(self.masker)
+
     @pytest.mark.parametrize(
         ("new_value", "old_value", "name", "expected"),
         [
@@ -791,7 +835,7 @@ class TestSecretsMaskerMerge:
         ],
     )
     def test_merge_simple_strings(self, new_value, old_value, name, expected):
-        result = merge(new_value, old_value, name)
+        result = self.masker.merge(new_value, old_value, name)
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -843,7 +887,7 @@ class TestSecretsMaskerMerge:
         ],
     )
     def test_merge_dictionaries(self, old_data, new_data, expected):
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -927,7 +971,7 @@ class TestSecretsMaskerMerge:
         ],
     )
     def test_merge_collections(self, old_data, new_data, name, expected):
-        result = merge(new_data, old_data, name)
+        result = self.masker.merge(new_data, old_data, name)
         assert result == expected
 
     def test_merge_mismatched_types(self):
@@ -937,7 +981,7 @@ class TestSecretsMaskerMerge:
         # When types don't match, prefer the new item
         expected = "some_string"
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_with_missing_keys(self):
@@ -955,7 +999,7 @@ class TestSecretsMaskerMerge:
             "common_key": "new_common",
         }
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_complex_redacted_structures(self):
@@ -972,7 +1016,7 @@ class TestSecretsMaskerMerge:
             "normal_field": "new_normal_value",
         }
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         expected = {
             "some_config": {
                 "nested_password": "original_nested_password",
@@ -1013,7 +1057,7 @@ class TestSecretsMaskerMerge:
             }
         }
 
-        result = merge(new_data, old_data)
+        result = self.masker.merge(new_data, old_data)
         assert result == expected
 
     def test_merge_max_depth(self):
@@ -1023,14 +1067,14 @@ class TestSecretsMaskerMerge:
         result = merge(new_data, old_data, max_depth=1)
         assert result == new_data
 
-        result = merge(new_data, old_data, max_depth=10)
+        result = self.masker.merge(new_data, old_data, max_depth=10)
         assert result["level1"]["level2"]["level3"]["password"] == "original_password"
 
     def test_merge_enum_values(self):
         old_enum = MyEnum.testname
         new_enum = MyEnum.testname2
 
-        result = merge(new_enum, old_enum)
+        result = self.masker.merge(new_enum, old_enum)
         assert result == new_enum
         assert isinstance(result, MyEnum)
 
@@ -1043,7 +1087,7 @@ class TestSecretsMaskerMerge:
         }
 
         # Step 1: Redact the original data
-        redacted_dict = redact(original_config)
+        redacted_dict = self.masker.redact(original_config)
 
         # Verify sensitive fields are redacted
         assert redacted_dict["database"]["password"] == "***"
@@ -1058,7 +1102,7 @@ class TestSecretsMaskerMerge:
         # User left password as "***" (unchanged)
 
         # Step 3: Merge to restore unchanged sensitive values
-        final_dict = merge(updated_dict, original_config)
+        final_dict = self.masker.merge(updated_dict, original_config)
 
         # Verify the results
         assert final_dict["database"]["password"] == "super_secret_password"  # Restored

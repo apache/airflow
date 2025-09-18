@@ -25,6 +25,7 @@
     "approvalRequired": "Approval Required",
     "choiceReceived": "Choice Received",
     "choiceRequired": "Choice Required",
+    "noResponseReceived": "No Response Received",
     "rejectionReceived": "Rejection Received",
     "responseReceived": "Response Received",
     "responseRequired": "Response Required"

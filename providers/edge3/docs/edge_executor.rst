@@ -109,4 +109,4 @@ Current Limitations Edge Executor
     the logs will be scattered across the webserver instances.
   - Performance: No extensive performance assessment and scaling tests have been made. The edge executor package is
     optimized for stability. This will be incrementally improved in future releases. Setups have reported stable
-    operation with ~50 workers until now. Note that executed tasks require more webserver API capacity.
+    operation with ~80 workers until now. Note that executed tasks require more webserver API capacity.

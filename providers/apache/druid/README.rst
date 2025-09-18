@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-druid``
 
 Release: ``4.3.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Druid <https://druid.apache.org/>`__.
 

@@ -27,7 +27,6 @@ import time
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
-from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
@@ -697,7 +696,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         from airflow.sdk.log import logging_processors
 
-        processors, _ = logging_processors(enable_pretty_log=False)
+        processors = logging_processors(json_output=True)
 
         def get_logger(trigger_id: int) -> WrappedLogger:
             # TODO: Is a separate dict worth it, or should we make `self.running_triggers` a dict?
@@ -722,16 +721,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             else:
                 # Log message about the TriggerRunner itself -- just output it
                 log = fallback_log
-
-            if ts := event.get("timestamp"):
-                # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
-                # datetime.strptime
-                #
-                # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-                # from a subprocess we know that the timezone of the log message is the same, so having some
-                # messages include tz (from subprocess) but others not (ones from supervisor process) is
-                # confusing.
-                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
 
             if exc := event.pop("exception", None):
                 # TODO: convert the dict back to a pretty stack trace
@@ -774,7 +763,10 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         return async_to_sync(self.asend)(msg)
 
     async def _aread_frame(self):
-        len_bytes = await self._async_reader.readexactly(4)
+        try:
+            len_bytes = await self._async_reader.readexactly(4)
+        except ConnectionResetError:
+            asyncio.current_task().cancel("Supervisor closed")
         length = int.from_bytes(len_bytes, byteorder="big")
         if length >= 2**32:
             raise OverflowError(f"Refusing to receive messages larger than 4GiB {length=}")
@@ -878,8 +870,10 @@ class TriggerRunner:
                 await asyncio.sleep(1)
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
-                    count = len(self.triggers)
-                    self.log.info("%i triggers currently running", count)
+                    watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
+                    triggers = len(self.triggers) - watchers
+                    self.log.info("%i triggers currently running", triggers)
+                    self.log.info("%i watchers currently running", watchers)
                     last_status = now
 
         except Exception:
@@ -964,6 +958,7 @@ class TriggerRunner:
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance), name=trigger_name
                 ),
+                "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }

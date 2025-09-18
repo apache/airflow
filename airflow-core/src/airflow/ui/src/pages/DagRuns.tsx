@@ -62,6 +62,13 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     : [
         {
           accessorKey: "dag_display_name",
+          cell: ({ row: { original } }: DagRunRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.dag_id}`}>
+                <TruncatedText text={original.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("dagId"),
         },
@@ -302,7 +309,7 @@ export const DagRuns = () => {
           onValueChange={handleStateChange}
           value={[filteredState ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredState)} minW="max-content">
+          <Select.Trigger colorPalette="brand" isActive={Boolean(filteredState)} minW="max-content">
             <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
@@ -334,7 +341,7 @@ export const DagRuns = () => {
           onValueChange={handleTypeChange}
           value={[filteredType ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredType)} minW="max-content">
+          <Select.Trigger colorPalette="brand" isActive={Boolean(filteredType)} minW="max-content">
             <Select.ValueText width="auto">
               {() =>
                 filteredType === null ? (

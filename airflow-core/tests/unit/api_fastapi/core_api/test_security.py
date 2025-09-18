@@ -30,12 +30,19 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
+from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
     is_safe_url,
     requires_access_connection,
+    requires_access_connection_bulk,
     requires_access_dag,
     requires_access_pool,
+    requires_access_pool_bulk,
     requires_access_variable,
+    requires_access_variable_bulk,
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
@@ -99,7 +106,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_dag_authorized(self, mock_get_auth_manager):
+    def test_requires_access_dag_authorized(self, mock_get_auth_manager):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -112,7 +119,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
+    def test_requires_access_dag_unauthorized(self, mock_get_auth_manager):
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
@@ -147,10 +154,33 @@ class TestFastApiSecurity:
             ("/some_other_page/", False),
             # traversal, escaping the `prefix` folder
             ("/../../../../some_page?with_param=3", False),
+            # encoded url
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", True),
+            ("https%3A%2F%2Fsome_netlock.com%2Fprefix%2Fsome_page%3Fwith_param%3D3", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2%2Fsub_path", True),
+            ("%2F..%2F..%2F..%2F..%2Fsome_page%3Fwith_param%3D3", False),
         ],
     )
     @conf_vars({("api", "base_url"): "https://server_base_url.com/prefix"})
     def test_is_safe_url(self, url, expected_is_safe):
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/prefix2"
+        assert is_safe_url(url, request=request) == expected_is_safe
+
+    @pytest.mark.parametrize(
+        "url, expected_is_safe",
+        [
+            ("https://server_base_url.com/prefix", False),
+            ("https://requesting_server_base_url.com/prefix2", True),
+            ("prefix/some_other", False),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2%2Fsub_path", True),
+            ("%2F..%2F..%2F..%2F..%2Fsome_page%3Fwith_param%3D3", False),
+        ],
+    )
+    def test_is_safe_url_with_base_url_unset(self, url, expected_is_safe):
         request = Mock()
         request.base_url = "https://requesting_server_base_url.com/prefix2"
         assert is_safe_url(url, request=request) == expected_is_safe
@@ -162,7 +192,7 @@ class TestFastApiSecurity:
     )
     @patch.object(Connection, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection(self, mock_get_auth_manager, mock_get_team_name, team_name):
+    def test_requires_access_connection(self, mock_get_auth_manager, mock_get_team_name, team_name):
         auth_manager = Mock()
         auth_manager.is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -180,6 +210,54 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("conn_id")
 
+    @patch.object(Connection, "get_conn_id_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_connection_bulk(
+        self, mock_get_auth_manager, mock_get_conn_id_to_team_name_mapping
+    ):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_conn_id_to_team_name_mapping.return_value = {"test1": "team1"}
+
+        request = BulkBody[ConnectionBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"connection_id": "test1", "conn_type": "test1"},
+                            {"connection_id": "test2", "conn_type": "test2"},
+                        ],
+                    },
+                    {
+                        "action": "delete",
+                        "entities": ["test3"],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_connection_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_connection.assert_called_once_with(
+            requests=[
+                {
+                    "method": "POST",
+                    "details": ConnectionDetails(conn_id="test1", team_name="team1"),
+                },
+                {
+                    "method": "POST",
+                    "details": ConnectionDetails(conn_id="test2"),
+                },
+                {
+                    "method": "DELETE",
+                    "details": ConnectionDetails(conn_id="test3"),
+                },
+            ],
+            user=user,
+        )
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "team_name",
@@ -187,7 +265,7 @@ class TestFastApiSecurity:
     )
     @patch.object(Variable, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable(self, mock_get_auth_manager, mock_get_team_name, team_name):
+    def test_requires_access_variable(self, mock_get_auth_manager, mock_get_team_name, team_name):
         auth_manager = Mock()
         auth_manager.is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -205,6 +283,51 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_called_once_with("var_key")
 
+    @patch.object(Variable, "get_key_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_variable_bulk(self, mock_get_auth_manager, mock_get_key_to_team_name_mapping):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_variable.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_key_to_team_name_mapping.return_value = {"var1": "team1", "dummy": "team2"}
+        request = BulkBody[VariableBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"key": "var1", "value": "value1"},
+                            {"key": "var2", "value": "value2"},
+                        ],
+                    },
+                    {
+                        "action": "delete",
+                        "entities": ["var3"],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_variable_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_variable.assert_called_once_with(
+            requests=[
+                {
+                    "method": "POST",
+                    "details": VariableDetails(key="var1", team_name="team1"),
+                },
+                {
+                    "method": "POST",
+                    "details": VariableDetails(key="var2"),
+                },
+                {
+                    "method": "DELETE",
+                    "details": VariableDetails(key="var3"),
+                },
+            ],
+            user=user,
+        )
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "team_name",
@@ -212,7 +335,7 @@ class TestFastApiSecurity:
     )
     @patch.object(Pool, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool(self, mock_get_auth_manager, mock_get_team_name, team_name):
+    def test_requires_access_pool(self, mock_get_auth_manager, mock_get_team_name, team_name):
         auth_manager = Mock()
         auth_manager.is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -229,3 +352,48 @@ class TestFastApiSecurity:
             user=user,
         )
         mock_get_team_name.assert_called_once_with("pool")
+
+    @patch.object(Pool, "get_name_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_pool_bulk(self, mock_get_auth_manager, mock_get_name_to_team_name_mapping):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_pool.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team1"}
+        request = BulkBody[PoolBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"pool": "pool1", "slots": 1},
+                            {"pool": "pool2", "slots": 1},
+                        ],
+                    },
+                    {
+                        "action": "delete",
+                        "entities": ["pool3"],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_pool_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_pool.assert_called_once_with(
+            requests=[
+                {
+                    "method": "POST",
+                    "details": PoolDetails(name="pool1", team_name="team1"),
+                },
+                {
+                    "method": "POST",
+                    "details": PoolDetails(name="pool2"),
+                },
+                {
+                    "method": "DELETE",
+                    "details": PoolDetails(name="pool3"),
+                },
+            ],
+            user=user,
+        )

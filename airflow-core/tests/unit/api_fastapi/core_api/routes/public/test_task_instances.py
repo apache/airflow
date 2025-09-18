@@ -884,6 +884,8 @@ class TestGetMappedTaskInstances:
             ({"queue": "test_queue"}, 0, 0),
             ({"executor": "default"}, 3, 3),
             ({"executor": "no_exec"}, 0, 0),
+            ({"map_index": [0, 1]}, 2, 2),
+            ({"map_index": [5]}, 0, 0),
         ],
     )
     def test_mapped_task_instances_filters(
@@ -1224,6 +1226,23 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"operator": ["FirstOperator", "SecondOperator"]},
                 5,
                 id="test operator type filter filter",
+            ),
+            pytest.param(
+                [
+                    {"map_index": 0},
+                    {"map_index": 1},
+                    {"map_index": 2},
+                    {"map_index": 3},
+                    {"map_index": 4},
+                    {"map_index": 5},
+                    {"map_index": 6},
+                    {"map_index": 7},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"map_index": [0, 1]},
+                2,
+                id="test map_index filter",
             ),
         ],
     )

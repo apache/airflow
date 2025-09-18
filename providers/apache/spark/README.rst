@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-spark``
 
 Release: ``5.3.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Spark <https://spark.apache.org/>`__
 

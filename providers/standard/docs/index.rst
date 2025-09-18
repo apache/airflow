@@ -66,9 +66,7 @@ apache-airflow-providers-standard package
 Airflow Standard Provider
 
 
-Release: 1.6.0
-
-Release Date: ``|PypiReleaseDate|``
+Release: 1.8.0
 
 Provider package
 ----------------
