@@ -311,7 +311,7 @@ export const DagRuns = () => {
               hideAdvanced
               hotkeyDisabled={true}
               onChange={handleDagIdPatternChange}
-              placeHolder="Search by Dag ID"
+              placeHolder={translate("dags:search.dags")}
             />
           </Box>
         )}

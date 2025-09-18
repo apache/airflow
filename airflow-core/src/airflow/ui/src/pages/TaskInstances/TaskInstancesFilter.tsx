@@ -110,7 +110,7 @@ export const TaskInstancesFilter = ({
           hideAdvanced
           hotkeyDisabled={true}
           onChange={handleDagIdPatternChange}
-          placeHolder="Search by Dag ID"
+          placeHolder={translate("dags:search.dags")}
         />
       )}
       <SearchBar
