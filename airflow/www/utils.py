@@ -262,6 +262,7 @@ def generate_pages(
     window=7,
     sorting_key=None,
     sorting_direction=None,
+    lastrun=None,
 ):
     """
     Generate the HTML for a paging component.
@@ -329,6 +330,7 @@ def generate_pages(
         tags=tags,
         sorting_key=sorting_key,
         sorting_direction=sorting_direction,
+        lastrun=lastrun,
     )
     first_node_link = void_link if is_disabled else f"?{qs}"
     output.append(
@@ -347,6 +349,7 @@ def generate_pages(
             tags=tags,
             sorting_key=sorting_key,
             sorting_direction=sorting_direction,
+            lastrun=lastrun,
         )
         page_link = f"?{qs}"
 
@@ -373,6 +376,7 @@ def generate_pages(
             tags=tags,
             sorting_key=sorting_key,
             sorting_direction=sorting_direction,
+            lastrun=lastrun,
         )
         vals = {
             "is_active": "active" if is_current(current_page, page) else "",
@@ -390,6 +394,7 @@ def generate_pages(
         tags=tags,
         sorting_key=sorting_key,
         sorting_direction=sorting_direction,
+        lastrun=lastrun,
     )
     page_link = void_link if current_page >= num_of_pages - 1 else f"?{qs}"
 
@@ -402,6 +407,7 @@ def generate_pages(
         tags=tags,
         sorting_key=sorting_key,
         sorting_direction=sorting_direction,
+        lastrun=lastrun,
     )
     last_node_link = void_link if is_disabled else f"?{qs}"
     output.append(

@@ -1123,6 +1123,7 @@ class Airflow(AirflowBaseView):
                 tags=arg_tags_filter or None,
                 sorting_key=arg_sorting_key or None,
                 sorting_direction=arg_sorting_direction or None,
+                lastrun=arg_lastrun_filter or None,
             ),
             num_runs=num_runs,
             tags=tags,
