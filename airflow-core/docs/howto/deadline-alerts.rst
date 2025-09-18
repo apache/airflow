@@ -34,8 +34,6 @@ Migrating from SLA
 
 For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/sla-to-deadlines>`
 
-
-
 Creating a Deadline Alert
 -------------------------
 
