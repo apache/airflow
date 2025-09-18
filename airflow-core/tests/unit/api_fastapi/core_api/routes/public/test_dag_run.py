@@ -82,6 +82,8 @@ LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
+DAG1_RUN1_BUNDLE_VERSION = "abc123"
+DAG1_RUN2_BUNDLE_VERSION = "def456"
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 
@@ -110,6 +112,7 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
         logical_date=LOGICAL_DATE1,
     )
+    dag_run1.bundle_version = DAG1_RUN1_BUNDLE_VERSION
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
@@ -128,6 +131,7 @@ def setup(request, dag_maker, session=None):
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
         logical_date=LOGICAL_DATE2,
     )
+    dag_run2.bundle_version = DAG1_RUN2_BUNDLE_VERSION
     # Set triggering_user_name for testing
     dag_run2.triggering_user_name = "bob_service"
 
@@ -180,7 +184,8 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
 
 def get_dag_run_dict(run: DagRun):
     return {
-        "bundle_version": None,
+        "bundle_url": f"http://test_host.github.com/tree/{run.bundle_version}/dags",
+        "bundle_version": run.bundle_version,
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
@@ -207,7 +212,7 @@ def get_dag_run_dict(run: DagRun):
 
 class TestGetDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
+        "dag_id, run_id, state, run_type, triggered_by, dag_run_note, bundle_version",
         [
             (
                 DAG1_ID,
@@ -216,6 +221,7 @@ class TestGetDagRun:
                 DAG1_RUN1_RUN_TYPE,
                 DAG1_RUN1_TRIGGERED_BY,
                 DAG1_RUN1_NOTE,
+                DAG1_RUN1_BUNDLE_VERSION,
             ),
             (
                 DAG1_ID,
@@ -224,6 +230,7 @@ class TestGetDagRun:
                 DAG1_RUN2_RUN_TYPE,
                 DAG1_RUN2_TRIGGERED_BY,
                 None,
+                DAG1_RUN2_BUNDLE_VERSION,
             ),
             (
                 DAG2_ID,
@@ -231,6 +238,7 @@ class TestGetDagRun:
                 DAG2_RUN1_STATE,
                 DAG2_RUN1_RUN_TYPE,
                 DAG2_RUN1_TRIGGERED_BY,
+                None,
                 None,
             ),
             (
@@ -240,11 +248,14 @@ class TestGetDagRun:
                 DAG2_RUN2_RUN_TYPE,
                 DAG2_RUN2_TRIGGERED_BY,
                 None,
+                None,
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
+    def test_get_dag_run(
+        self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note, bundle_version
+    ):
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
         body = response.json()
@@ -254,6 +265,8 @@ class TestGetDagRun:
         assert body["run_type"] == run_type
         assert body["triggered_by"] == triggered_by.value
         assert body["note"] == dag_run_note
+        assert body["bundle_version"] == bundle_version
+        assert body["bundle_url"] == f"http://test_host.github.com/tree/{bundle_version}/dags"
 
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -1469,6 +1482,7 @@ class TestTriggerDagRun:
             session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
         )
         expected_response_json = {
+            "bundle_url": "http://test_host.github.com/tree/None/dags",
             "bundle_version": None,
             "conf": {},
             "dag_display_name": DAG1_DISPLAY_NAME,
@@ -1662,6 +1676,7 @@ class TestTriggerDagRun:
 
         assert response_1.status_code == 200
         assert response_1.json() == {
+            "bundle_url": "http://test_host.github.com/tree/None/dags",
             "bundle_version": None,
             "dag_display_name": DAG1_DISPLAY_NAME,
             "dag_run_id": RUN_ID_1,
@@ -1750,6 +1765,7 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
         assert response.json() == {
+            "bundle_url": "http://test_host.github.com/tree/None/dags",
             "bundle_version": None,
             "dag_display_name": DAG1_DISPLAY_NAME,
             "dag_run_id": mock.ANY,

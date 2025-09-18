@@ -1433,6 +1433,12 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          readOnly: true
       type: object
       required:
       - dag_run_id
@@ -1455,6 +1461,7 @@ components:
       - dag_versions
       - bundle_version
       - dag_display_name
+      - bundle_url
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunStates:

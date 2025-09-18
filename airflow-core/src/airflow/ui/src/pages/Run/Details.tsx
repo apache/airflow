@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
+import { Flex, Link, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -131,7 +131,15 @@ export const Details = () => {
         {dagRun.bundle_version !== null && (
           <Table.Row>
             <Table.Cell>{translate("components:versionDetails.bundleVersion")}</Table.Cell>
-            <Table.Cell>{dagRun.bundle_version}</Table.Cell>
+            <Table.Cell>
+              {dagRun.bundle_url !== null && dagRun.bundle_url !== "" ? (
+                <Link href={dagRun.bundle_url} rel="noopener noreferrer" target="_blank">
+                  {dagRun.bundle_version}
+                </Link>
+              ) : (
+                dagRun.bundle_version
+              )}
+            </Table.Cell>
           </Table.Row>
         )}
         <Table.Row>
