@@ -243,7 +243,7 @@ class AssetsOperations(BaseOperations):
     ) -> AssetEventResponse | ServerResponseError:
         """Create an asset event."""
         try:
-            # Ensure extra is an object; DB/UI choke on null
+            # Ensure extra is initialised before sent to API
             if asset_event_body.extra is None:
                 asset_event_body.extra = {}
             self.response = self.client.post(
