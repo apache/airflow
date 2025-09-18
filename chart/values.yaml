@@ -498,6 +498,12 @@ extraEnvFrom: ~
 #   - configMapRef:
 #       name: '{{ .Release.Name }}-airflow-variables'
 
+# WARNING: SQLite is the default database for development and testing only.
+# For production deployments, you MUST configure an external database
+# (PostgreSQL, MySQL, etc.)
+#
+# To configure an external database, update the data.metadataConnection
+# section with your database credentials.
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
@@ -522,12 +528,12 @@ data:
 
   # Otherwise pass connection values in
   metadataConnection:
-    user: postgres
-    pass: postgres
-    protocol: postgresql
-    host: ~
-    port: 5432
-    db: postgres
+    user: ""
+    pass: ""
+    protocol: sqlite
+    host: ""
+    port: 0
+    db: /opt/airflow/airflow.db
     sslmode: disable
     # Add custom annotations to the metadata connection secret
     secretAnnotations: {}
@@ -1704,8 +1710,11 @@ webserver:
   #     memory: 128Mi
 
   # Create initial user.
+  # NOTE: When using SQLite as the metadata database, user creation is disabled
+  # by default due to file sharing limitations in Kubernetes. You can create
+  # users manually via the Airflow CLI or web interface after deployment.
   defaultUser:
-    enabled: true
+    enabled: false
     role: Admin
     username: admin
     email: admin@example.com
@@ -2859,7 +2868,7 @@ cleanup:
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions
 # Not recommended for production - use external database instead
 postgresql:
-  enabled: true
+  enabled: false
   image:
     repository: postgres
     tag: "13"
@@ -2889,6 +2898,7 @@ config:
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    sql_alchemy_conn: 'sqlite:////opt/airflow/airflow.db'
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'

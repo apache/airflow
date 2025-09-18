@@ -1318,17 +1318,17 @@
                         "user": {
                             "description": "The database user.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": ""
                         },
                         "pass": {
                             "description": "The user's password.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": ""
                         },
                         "protocol": {
                             "description": "The database protocol.",
                             "type": "string",
-                            "default": "postgresql"
+                            "default": "sqlite"
                         },
                         "host": {
                             "description": "The database host.",
@@ -1336,17 +1336,17 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         },
                         "port": {
                             "description": "The database port.",
                             "type": "integer",
-                            "default": 5432
+                            "default": 0
                         },
                         "db": {
                             "description": "The name of the database.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": "/opt/airflow/airflow.db"
                         },
                         "sslmode": {
                             "description": "The database SSL parameter.",
@@ -5318,7 +5318,7 @@
                             "description": "Enable default user creation.",
                             "type": "boolean",
                             "x-docsSection": "Common",
-                            "default": true
+                            "default": false
                         },
                         "role": {
                             "description": "Default user role.",
@@ -6120,7 +6120,7 @@
                             "description": "Enable default user creation.",
                             "type": "boolean",
                             "x-docsSection": "Common",
-                            "default": true
+                            "default": false
                         },
                         "role": {
                             "description": "Default user role.",
@@ -8919,7 +8919,7 @@
                 "enabled": {
                     "description": "Enable PostgreSQL subchart.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "auth": {
                     "description": "PostgreSQL authentication values.",
