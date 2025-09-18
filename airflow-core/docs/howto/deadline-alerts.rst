@@ -129,8 +129,6 @@ Here's an example using average runtime:
     ):
         EmptyOperator(task_id="data_processing")
 
-The timeline for this example would look like this:
-
 If the calculated historical average was 30 minutes, the timeline for this example would look like this:
 
 ::
