@@ -54,7 +54,6 @@ repos:
         language: golang
       - id: imports
         name: Consistent import ordering for Go files
-        # entry: gci write --skip-generated -s standard -s default -s localmodule
         entry: goimports-reviser -rm-unused -set-exit-status
         additional_dependencies: [github.com/incu6us/goimports-reviser/v3@v3.10.0]
         types: [go]
