@@ -247,7 +247,7 @@ class AssetsOperations(BaseOperations):
             if asset_event_body.extra is None:
                 asset_event_body.extra = {}
             self.response = self.client.post(
-                "/assets/events", json=_date_safe_dict_from_pydantic(asset_event_body)
+                "assets/events", json=_date_safe_dict_from_pydantic(asset_event_body)
             )
             return AssetEventResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
