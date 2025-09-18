@@ -2858,8 +2858,8 @@ cleanup:
 postgresql:
   enabled: true
   image:
-    repository: bitnamilegacy/postgresql
-    tag: "13.2.0"
+    repository: postgres
+    tag: "13"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
