@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -248,6 +250,28 @@ class TestHITLOperator:
             "responded_at": responded_at_dt,
             "responded_by_user": {"id": "test", "name": "test"},
         }
+
+    @pytest.mark.parametrize(
+        "event, expected_exception",
+        [
+            ({"error": "unknown", "error_type": "unknown"}, HITLTriggerEventError),
+            ({"error": "this is timeotu", "error_type": "timeout"}, HITLTimeoutError),
+        ],
+    )
+    def test_process_trigger_event_error(
+        self,
+        event: dict[str, Any],
+        expected_exception,
+    ) -> None:
+        hitl_op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            options=["1", "2", "3", "4", "5"],
+            params={"input": 1},
+        )
+        with pytest.raises(expected_exception):
+            hitl_op.process_trigger_event_error(event)
 
     def test_validate_chosen_options_with_invalid_content(self) -> None:
         hitl_op = HITLOperator(
