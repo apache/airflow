@@ -62,6 +62,13 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     : [
         {
           accessorKey: "dag_display_name",
+          cell: ({ row: { original } }: DagRunRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.dag_id}`}>
+                <TruncatedText text={original.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("dagId"),
         },
