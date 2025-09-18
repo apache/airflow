@@ -98,7 +98,7 @@ UI Internationalization
 """""""""""""""""""""""
 
 Airflow 3.1 delivers comprehensive internationalization (``i18n``) support, making the web interface
-accessible to users worldwide. The React-based UI now supports 16 languages with robust translation infrastructure.
+accessible to users worldwide. The React-based UI now supports 17 languages with robust translation infrastructure.
 
 **Supported Languages**:
 
@@ -115,6 +115,7 @@ accessible to users worldwide. The React-based UI now supports 16 languages with
 - Korean
 - Polish
 - Portuguese
+- Simplified Chinese
 - Spanish
 - Traditional Chinese
 - Turkish
@@ -164,6 +165,12 @@ a more cohesive visual experience throughout Airflow.
 The Calendar and Gantt views from Airflow 2.x have been rebuilt for the modern React UI, along with enhanced
 filtering capabilities across all views. These improvements provide better performance and a more consistent
 user experience with the rest of the modern Airflow interface.
+
+**DAG Dashboard Organization**
+
+Users can now pin and favorite DAGs for better dashboard organization, making it easier to find and prioritize
+frequently used workflows. This feature is particularly valuable for teams managing large numbers of DAGs,
+providing quick access to critical workflows without searching through extensive DAG lists.
 
 Inference Execution (Synchronous DAGs)
 """"""""""""""""""""""""""""""""""""""
@@ -366,6 +373,8 @@ New Features
 - Add utility functions for generic filter counting (#54817)
 - Add keyboard navigation for Grid view interface (#51784)
 - Add improved error handling for plugin import failures (#49643)
+- Add plugin validation in ``/plugins`` API with warnings for invalid plugins (#55673)
+- Improve accessibility for screen readers and assistive technologies with proper language detection (#55839)
 - Add enhanced variable management with upsert operations (#48547)
 - Add favorites/pinning support for DAG dashboard organization (#51264)
 - Add system theme support with automatic OS preference detection (#52649)
@@ -471,6 +480,10 @@ Bug Fixes
 - Fix DB downgrade to Airflow 2 when fab tables exists (#55738)
 - Fix UI stats endpoint causing dashboard loading issues (#55733)
 - Fix unintended console output when DAG not found in ``serialized_dag`` table (#54972)
+- Fix scheduler handling of orphaned tasks from Airflow 2 during upgrade (#55848)
+- Fix logging format to respect existing configuration during upgrade to prevent unexpected log format changes (#55824)
+- Fix Grid view crashes when DAG version information is missing (#55771)
+- Fix compatibility for custom triggers migrating from Airflow 2.x that use synchronous connection calls (#55799)
 
 Miscellaneous
 ^^^^^^^^^^^^^
