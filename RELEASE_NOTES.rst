@@ -410,6 +410,7 @@ New Features
 - Add Filter Bar to Audit Log (#55487)
 - Add Filters UI for Asset View (#54640)
 - Update color palette and leverage Chakra semantic tokens (#53981, #55739)
+- Improve calendar view UI with enhanced tooltips and visual fixes (#55476)
 
 Bug Fixes
 ^^^^^^^^^
@@ -468,6 +469,8 @@ Bug Fixes
 - Ensure filename and ``lineno`` of logger calls are present in Task Logs (#55581)
 - Fix DAG disappearing after callback execution in stale detection (#55698)
 - Fix DB downgrade to Airflow 2 when fab tables exists (#55738)
+- Fix UI stats endpoint causing dashboard loading issues (#55733)
+- Fix unintended console output when DAG not found in ``serialized_dag`` table (#54972)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -498,6 +501,8 @@ Miscellaneous
 - Improve OOM error messaging for clearer task failure diagnosis (#55602)
 - Display responder username for better audit trail in HITL workflows (#55509)
 - The constraint file do not contain developer dependencies anymore (#53631)
+- Add hyperlinks to ``dag_id`` column in DAG Runs and Task Instances pages for better navigation (#55648)
+- Add responsive web design (RWD) support to Grid view (#55745)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -505,6 +510,7 @@ Doc Only Changes
 - Add comprehensive Human-in-the-Loop operator tutorial and examples (#54618)
 - Add deadline alerts configuration and usage documentation (#53727)
 - Make term Dag consistent in docs task-sdk (#55100)
+- Add migration guide for upgrading from legacy SLA functionality to deadline alerts (#55743)
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
 - Remove ``--preview`` flag from ``ruff check`` instructions for Airflow 3 upgrade path (#55516)
