@@ -205,6 +205,7 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
     ):
         EmptyOperator(task_id="example_task")
 
+
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
