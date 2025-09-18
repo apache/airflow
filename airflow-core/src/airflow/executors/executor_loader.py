@@ -210,7 +210,7 @@ class ExecutorLoader:
                 team_name = None
                 executor_names = team_executor_config.strip("=")
             else:
-                # cls.block_use_of_multi_team()
+                cls.block_use_of_multi_team()
                 team_name, executor_names = team_executor_config.split("=")
 
             # Check for duplicate team names
