@@ -932,12 +932,11 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        [DEPRECATED] Retrieve metadata objects from a bucket under a prefix.
+        .. deprecated:: <9.13.0> Use `iter_file_metadata` instead.
 
         This method `get_file_metadata` is deprecated. Calling this method will result in all matching keys
-        being loaded into a single list, and can often result in out-of-memory exceptions. Instead, use
-        `iter_file_metadata`.
-        """  # noqa: D401
+        being loaded into a single list, and can often result in out-of-memory exceptions.
+        """
         warnings.warn(
             "This method `get_file_metadata` is deprecated. Calling this method will result in all matching "
             "keys being loaded into a single list, and can often result in out-of-memory exceptions. "
@@ -946,26 +945,7 @@ class S3Hook(AwsBaseHook):
             stacklevel=2,
         )
 
-        config = {
-            "PageSize": page_size,
-            "MaxItems": max_items,
-        }
-
-        paginator = self.get_conn().get_paginator("list_objects_v2")
-        params = {
-            "Bucket": bucket_name,
-            "Prefix": prefix,
-            "PaginationConfig": config,
-        }
-        if self._requester_pays:
-            params["RequestPayer"] = "requester"
-        response = paginator.paginate(**params)
-
-        files = []
-        for page in response:
-            if "Contents" in page:
-                files += page["Contents"]
-        return files
+        return list(self.iter_file_metadata(prefix=prefix, page_size=page_size, max_items=max_items))
 
     @provide_bucket_name
     def iter_file_metadata(

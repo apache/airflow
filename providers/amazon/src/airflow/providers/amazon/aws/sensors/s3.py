@@ -130,11 +130,10 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
             # key_matches list
             for k in self.hook.iter_file_metadata(prefix, bucket_name):
                 if fnmatch.fnmatch(k["Key"], key):
-                    if self.check_fn is not None:
-                        key_matches.append(k)
-                    # This will only wait for a single match, and will immediately return
-                    else:
+                    if self.check_fn is None:
+                        # This will only wait for a single match, and will immediately return
                         return True
+                    key_matches.append(k)
 
             if not key_matches:
                 return False
