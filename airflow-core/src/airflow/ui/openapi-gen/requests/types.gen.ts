@@ -2865,6 +2865,7 @@ export type GetHitlDetailsData = {
     dagIdPattern?: string | null;
     dagRunId: string;
     limit?: number;
+    mapIndex?: number | null;
     offset?: number;
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;
