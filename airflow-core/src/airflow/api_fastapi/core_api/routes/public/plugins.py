@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-
 import structlog
 from fastapi import Depends
 from pydantic import ValidationError
@@ -48,7 +47,7 @@ def get_plugins(
 ) -> PluginCollectionResponse:
     plugins_info = sorted(plugins_manager.get_plugin_info(), key=lambda x: x["name"])
     valid_plugins: list[PluginResponse] = []
-    for plugin_dict in plugins_info[offset.value :][: limit.value]:
+    for plugin_dict in plugins_info:
         try:
             # Validate each plugin individually
             plugin = PluginResponse.model_validate(plugin_dict)
@@ -61,9 +60,13 @@ def get_plugins(
             )
             continue
 
+    offset_value = offset.value or 0
+    limit_value = limit.value if limit.value is not None else len(valid_plugins)
+
+    paginated_plugins = valid_plugins[offset_value : offset_value + limit_value]
     return PluginCollectionResponse(
-        plugins=valid_plugins,
-        total_entries=len(plugins_info),
+        plugins=paginated_plugins,
+        total_entries=len(valid_plugins),
     )
 
 

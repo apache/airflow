@@ -33,7 +33,7 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                14,
+                13,
                 [
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
@@ -52,10 +52,10 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 2},
-                14,
+                13,
                 ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
             ),
-            ({"limit": 1}, 14, ["MetadataCollectionPlugin"]),
+            ({"limit": 1}, 13, ["MetadataCollectionPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -135,6 +135,18 @@ class TestGetPlugins:
 
         # Verify warning was logged
         assert any("Skipping invalid plugin due to error" in rec.message for rec in caplog.records)
+
+        response = test_client.get("/plugins", params={"limit": 5, "offset": 9})
+        assert response.status_code == 200
+
+        body = response.json()
+        plugins_page = body["plugins"]
+
+        # Even though limit=5, only 4 valid plugins should come back
+        assert len(plugins_page) == 4
+        assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
+
+        assert body["total_entries"] == 13
 
 
 @skip_if_force_lowest_dependencies_marker
