@@ -769,8 +769,9 @@ def post_clear_task_instances(
             end_date=body.end_date,
         )
 
+    isRunning = False
     if not dry_run:
-        clear_task_instances(
+        isRunning = clear_task_instances(
             task_instances,
             session,
             DagRunState.QUEUED if reset_dag_runs else False,
@@ -780,6 +781,7 @@ def post_clear_task_instances(
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=len(task_instances),
+        isRunning=isRunning
     )
 
 

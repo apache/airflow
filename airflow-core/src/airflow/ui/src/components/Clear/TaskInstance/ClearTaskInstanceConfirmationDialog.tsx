@@ -58,8 +58,9 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
 
   // Dialog will only open if the task is in a 'running' state
   // Added up-for-retry and restarting
-  const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.state
-  if (taskCurrentState != "running" && taskCurrentState != "restarting" && taskCurrentState != "up_for_retry") {
+  const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.isRunning
+  console.log(taskCurrentState)
+  if (taskCurrentState != true) {
     handleConfirm();
     return null;
   }
