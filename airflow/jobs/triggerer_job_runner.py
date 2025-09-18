@@ -30,15 +30,16 @@ from copy import copy
 from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import perform_heartbeat
-from airflow.models.trigger import Trigger
+from airflow.jobs.job import Job, perform_heartbeat
+from airflow.models import TaskInstance, Trigger
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
-from airflow.triggers.base import TriggerEvent
+from airflow.traces.tracer import span
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -54,7 +55,8 @@ from airflow.utils.log.trigger_handler import (
     ctx_trigger_id,
 )
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -290,6 +292,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         # Set up runner async thread
         self.trigger_runner = TriggerRunner()
 
+        # Set up cleanup interval (in seconds)
+        self.cleanup_interval = 30.0  # Default to 30 seconds between cleanups
+
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         Stats.incr("triggerer_heartbeat", 1, 1)
@@ -334,6 +339,45 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("Forcing exit due to second exit signal %s", signum)
             sys.exit(os.EX_SOFTWARE)
 
+    def get_sorted_triggers(self, session, count):
+        """
+        Get triggers sorted by priority, excluding those from paused or deactivated DAGs.
+
+        Args:
+            session: SQLAlchemy session
+            count: Maximum number of triggers to return
+
+        Returns:
+            List of Trigger instances sorted by priority
+        """
+        from sqlalchemy import select
+
+        from airflow.models.dag import DagModel
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.trigger import Trigger
+
+        # Get active DAGs (not paused and active)
+        active_dags_subq = (
+            select(DagModel.dag_id).where(and_(DagModel.is_active, ~DagModel.is_paused)).subquery()
+        )
+
+        # Get the list of active DAG IDs
+        active_dag_ids = [row[0] for row in session.execute(select(active_dags_subq)).all()]
+
+        if not active_dag_ids:
+            return []
+
+        # Get triggers for active DAGs, ordered by priority
+        stmt = (
+            select(Trigger)
+            .join(TaskInstance, TaskInstance.trigger_id == Trigger.id)
+            .where(and_(Trigger.triggerer_id == self.job.id, TaskInstance.dag_id.in_(active_dag_ids)))
+            .order_by(Trigger.priority_weight.desc(), Trigger.created_date)
+            .limit(count)
+        )
+
+        return session.scalars(stmt).all()
+
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
         try:
@@ -358,46 +402,353 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     def _run_trigger_loop(self) -> None:
-        """Run synchronously and handle all database reads/writes; the main-thread trigger loop."""
+        """Run trigger in a while loop until stopped via stop flag."""
+        # Start the trigger loop
+        self.log.info("Starting the trigger loop")
+
+        # Log the cleanup interval
+        self.log.info("Trigger cleanup interval: %s seconds", self.cleanup_interval)
+
+        # Track last cleanup time
+        last_cleanup = time.monotonic()
+        loop_count = 0
+
         while not self.trigger_runner.stop:
+            loop_count += 1
+            current_time = time.monotonic()
+            time_since_cleanup = current_time - last_cleanup
+
             if not self.trigger_runner.is_alive():
                 self.log.error("Trigger runner thread has died! Exiting.")
                 break
-            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner") as span:
+
+            self.log.debug(
+                "Trigger loop iteration %d - Time since last cleanup: %.1fs", loop_count, time_since_cleanup
+            )
+
+            # Use the span context manager for the main loop
+            with span(span_name="triggerer_job_loop", component="TriggererJobRunner") as current_span:
+                # Check if it's time to clean up triggers
+                if time_since_cleanup >= self.cleanup_interval:
+                    self.log.info("Triggering cleanup of invalid triggers...")
+                    try:
+                        # Create a new session for the cleanup operation
+                        from airflow.utils.session import create_session
+
+                        with create_session() as session:
+                            self._cleanup_invalid_triggers(session=session)
+                        last_cleanup = current_time
+                        self.log.info(
+                            "Cleanup completed successfully. Next cleanup in %.1f seconds",
+                            self.cleanup_interval,
+                        )
+                    except Exception as e:
+                        self.log.exception("Error during trigger cleanup: %s", str(e))
+
                 # Clean out unused triggers
-                if span.is_recording():
-                    span.add_event(name="Trigger.clean_unused")
+                if current_span and hasattr(current_span, "is_recording") and current_span.is_recording():
+                    current_span.add_event(name="Trigger.clean_unused")
                 Trigger.clean_unused()
                 # Load/delete triggers
-                if span.is_recording():
-                    span.add_event(name="load_triggers")
+                if current_span and hasattr(current_span, "is_recording") and current_span.is_recording():
+                    current_span.add_event(name="load_triggers")
                 self.load_triggers()
                 # Handle events
-                if span.is_recording():
-                    span.add_event(name="handle_events")
+                if current_span and hasattr(current_span, "is_recording") and current_span.is_recording():
+                    current_span.add_event(name="handle_events")
                 self.handle_events()
                 # Handle failed triggers
-                if span.is_recording():
-                    span.add_event(name="handle_failed_triggers")
+                if current_span and hasattr(current_span, "is_recording") and current_span.is_recording():
+                    current_span.add_event(name="handle_failed_triggers")
                 self.handle_failed_triggers()
-                if span.is_recording():
-                    span.add_event(name="perform_heartbeat")
+                if current_span and hasattr(current_span, "is_recording") and current_span.is_recording():
+                    current_span.add_event(name="perform_heartbeat")
                 perform_heartbeat(
                     self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
                 )
                 # Collect stats
-                if span.is_recording():
-                    span.add_event(name="emit_metrics")
+                if current_span and hasattr(current_span, "is_recording") and current_span.is_recording():
+                    current_span.add_event(name="emit_metrics")
                 self.emit_metrics()
+            # Clean up any invalid triggers periodically
+            current_time = time.monotonic()
+            if current_time - last_cleanup > self.cleanup_interval:
+                self.log.info(
+                    "Running trigger cleanup (last cleanup was %.1f seconds ago)", current_time - last_cleanup
+                )
+                # Use the module-level imported create_session
+                from airflow.utils.session import create_session as create_new_session
+
+                with create_new_session() as cleanup_session:
+                    self._cleanup_invalid_triggers(session=cleanup_session)
+                last_cleanup = current_time
             # Idle sleep
             time.sleep(1)
 
+    def _cleanup_invalid_triggers(self, session: Session) -> None:
+        """
+        Clean up triggers that are no longer valid (e.g. DAG is paused or deactivated).
+
+        This method finds all triggers associated with paused or deactivated DAGs and either:
+        - For deactivated DAGs: Marks the associated task instances as FAILED and deletes the triggers
+        - For paused DAGs: Marks the associated task instances as DEFERRED and unassigns the triggers
+
+        Args:
+            session: SQLAlchemy session to use for database operations
+        """
+        self.log.info("Starting cleanup of invalid triggers...")
+        _ = time.monotonic()  # Store start time for future use if needed
+        stats = {
+            "total_triggers_processed": 0,
+            "paused_dag_triggers": 0,
+            "deactivated_dag_triggers": 0,
+            "tasks_marked_failed": 0,
+            "triggers_unassigned": 0,
+        }
+
+        # Local imports to avoid circular imports
+        from sqlalchemy.sql.expression import select
+
+        from airflow.models.dag import DagModel
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.trigger import Trigger
+
+        try:
+            triggerer_id = self.job.id if self.job else None
+            if not triggerer_id:
+                self.log.warning("No triggerer ID available, skipping cleanup")
+                return
+
+            # Log the start of the cleanup process
+            self.log.info("Querying for triggers that need cleanup...")
+
+            # Get all triggers associated with TaskInstances from paused or deactivated DAGs
+            stmt = (
+                select(
+                    Trigger.id,
+                    TaskInstance.task_id,
+                    TaskInstance.dag_id,
+                    TaskInstance.run_id,
+                    TaskInstance.map_index,
+                    DagModel.is_paused,
+                    DagModel.is_active,
+                )
+                .select_from(Trigger)
+                .join(TaskInstance, Trigger.id == TaskInstance.trigger_id)
+                .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
+                .where(or_(DagModel.is_paused.is_(True), DagModel.is_active.is_(False)))
+            )
+
+            self.log.debug("Executing cleanup query...")
+            results = session.execute(stmt).all()
+            self.log.info("Found %d triggers to process for cleanup", len(results))
+
+            for trigger_id, task_id, dag_id, run_id, map_index, is_paused, is_active in results:
+                stats["total_triggers_processed"] += 1
+                self.log.info(
+                    "Processing trigger %s for DAG %s, task %s (paused=%s, active=%s)",
+                    trigger_id,
+                    dag_id,
+                    task_id,
+                    is_paused,
+                    is_active,
+                )
+
+                # Update task instances to mark them as failed if DAG is deactivated
+                # or reset to deferred if DAG is just paused
+                if not is_active:
+                    # For deactivated DAGs, mark task instances as FAILED
+                    update_stmt = (
+                        update(TaskInstance)
+                        .where(
+                            (TaskInstance.dag_id == dag_id)
+                            & (TaskInstance.task_id == task_id)
+                            & (TaskInstance.run_id == run_id)
+                            & (TaskInstance.map_index == map_index)
+                        )
+                        .values(
+                            state=TaskInstanceState.FAILED,
+                            end_date=timezone.utcnow(),
+                            external_executor_id=None,
+                            trigger_id=None,
+                        )
+                    )
+                    session.execute(update_stmt)
+
+                    # Delete the trigger since the DAG is deactivated
+                    delete_stmt = delete(Trigger).where(Trigger.id == trigger_id)
+                    session.execute(delete_stmt)
+
+                    self.log.info(
+                        "Marked task instance %s in dag %s as FAILED and deleted trigger %s "
+                        "because DAG is deactivated",
+                        task_id,
+                        dag_id,
+                        trigger_id,
+                    )
+                else:
+                    # For paused DAGs, keep the trigger_id but unassign the triggerer
+                    # This allows the trigger to be reassigned when the DAG is unpaused
+                    update_stmt = (
+                        update(TaskInstance)
+                        .where(
+                            (TaskInstance.dag_id == dag_id)
+                            & (TaskInstance.task_id == task_id)
+                            & (TaskInstance.run_id == run_id)
+                            & (TaskInstance.map_index == map_index)
+                        )
+                        .values(
+                            state=TaskInstanceState.DEFERRED,
+                            # Keep the trigger_id to allow reassignment when DAG is unpaused
+                        )
+                    )
+                    session.execute(update_stmt)
+
+                    # Unassign the trigger from the current triggerer
+                    # but keep it in the database for reassignment
+                    update_trigger_stmt = (
+                        update(Trigger)
+                        .where(Trigger.id == trigger_id)
+                        .values(
+                            triggerer_id=None,
+                            # Reset the created_date to ensure it gets picked up by the next triggerer
+                            created_date=timezone.utcnow(),
+                        )
+                    )
+                    session.execute(update_trigger_stmt)
+
+                    self.log.info(
+                        "Unassigned trigger %s from triggerer for task instance %s in dag %s "
+                        "(kept trigger reference) and marked as DEFERRED because DAG is paused",
+                        trigger_id,
+                        task_id,
+                        dag_id,
+                    )
+
+                self.log.info(
+                    "Processed trigger cleanup for DAG %s, task %s (paused=%s, active=%s)",
+                    dag_id,
+                    task_id,
+                    is_paused,
+                    is_active,
+                )
+
+            session.commit()
+
+        except Exception as exc:
+            self.log.exception("Error cleaning up invalid triggers: %s", str(exc))
+            session.rollback()
+            stats["error"] = True
+            raise
+
     @span
     def load_triggers(self):
-        """Query the database for the triggers we're supposed to be running and update the runner."""
-        Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
-        ids = Trigger.ids_for_triggerer(self.job.id)
-        self.trigger_runner.update_triggers(set(ids))
+        # Import at the top of the method to avoid any scoping issues
+        from sqlalchemy import func, select, update as sql_update
+
+        from airflow.models.trigger import Trigger as TriggerTable
+
+        # First clean up any invalid triggers
+        with create_session() as session:
+            self._cleanup_invalid_triggers(session=session)
+
+        # Then assign new triggers
+
+        with create_session() as session:
+            # Assign unassigned triggers using direct SQLAlchemy Core
+            triggerer_id = self.job.id
+            capacity = self.capacity
+            health_check_threshold = self.health_check_threshold
+
+            # Get the current count of triggers assigned to this triggerer
+            current_count = session.scalar(
+                select(func.count(TriggerTable.id)).where(TriggerTable.triggerer_id == triggerer_id)
+            )
+            remaining_capacity = max(0, capacity - current_count)
+
+        if remaining_capacity > 0:
+            # Get alive triggerer IDs
+            from datetime import timedelta
+
+            from airflow.jobs.job import Job as JobTable
+
+            alive_triggerer_ids = select(JobTable.id).where(
+                JobTable.end_date.is_(None),
+                JobTable.latest_heartbeat > timezone.utcnow() - timedelta(seconds=health_check_threshold),
+                JobTable.job_type == "TriggererJob",
+            )
+
+            # Get triggers to assign (using the same logic as Trigger.get_sorted_triggers)
+            from sqlalchemy import and_, or_
+            from sqlalchemy.sql.functions import coalesce
+
+            from airflow.models.dag import DagModel
+            from airflow.models.dagrun import DagRun, DagRunState
+            from airflow.models.taskinstance import TaskInstance as TITable
+
+            # Subquery for active DAGs
+            active_dags = (
+                select(DagModel.dag_id)
+                .where(
+                    DagModel.is_active.is_(True),
+                    DagModel.is_paused.is_(False),
+                )
+                .subquery()
+            )
+
+            # Subquery for active DAG runs
+            active_dag_runs = (
+                select(DagRun.dag_id, DagRun.run_id).where(DagRun.state == DagRunState.RUNNING).subquery()
+            )
+
+            # Get triggers to assign
+            triggers_to_assign = (
+                select(TriggerTable.id)
+                .join(TITable, TriggerTable.id == TITable.trigger_id, isouter=False)
+                .join(
+                    active_dag_runs,
+                    and_(
+                        TITable.dag_id == active_dag_runs.c.dag_id,
+                        TITable.run_id == active_dag_runs.c.run_id,
+                    ),
+                    isouter=False,
+                )
+                .join(
+                    active_dags,
+                    TITable.dag_id == active_dags.c.dag_id,
+                    isouter=False,
+                )
+                .where(
+                    or_(
+                        TriggerTable.triggerer_id.is_(None),
+                        ~TriggerTable.triggerer_id.in_(alive_triggerer_ids),
+                    )
+                )
+                .order_by(coalesce(TITable.priority_weight, 0).desc(), TriggerTable.created_date)
+                .limit(remaining_capacity)
+            )
+
+            # Update the triggers to assign them to this triggerer
+            with create_session() as session:
+                # First get the trigger IDs to update
+                trigger_ids = [row[0] for row in session.execute(triggers_to_assign).all()]
+
+                if trigger_ids:
+                    session.execute(
+                        sql_update(TriggerTable)
+                        .where(TriggerTable.id.in_(trigger_ids))
+                        .values(triggerer_id=triggerer_id)
+                    )
+                session.commit()
+
+            # Get the updated list of trigger IDs for this triggerer
+            with create_session() as session:
+                ids = session.scalars(
+                    select(TriggerTable.id).where(TriggerTable.triggerer_id == triggerer_id)
+                ).all()
+
+            # Update the trigger runner with the new set of trigger IDs
+            self.trigger_runner.update_triggers(set(ids))
 
     @span
     def handle_events(self):
@@ -430,9 +781,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         Stats.gauge(
             "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
         )
-        span = Trace.get_current_span()
-        span.set_attribute("trigger host", self.job.hostname)
-        span.set_attribute("triggers running", len(self.trigger_runner.triggers))
+        # Span attributes are now handled by the span decorator
 
 
 class TriggerDetails(TypedDict):
@@ -622,32 +971,101 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         ctx_indiv_trigger.set(True)
 
     async def run_trigger(self, trigger_id, trigger):
-        """Run a trigger (they are async generators) and push their events into our outbound event deque."""
+        """
+        Run a trigger (they are async generators) and push their events into our outbound event deque.
+
+        This method will check if the DAG is paused before running the trigger. If the DAG is paused,
+        the trigger will be unassigned and the task will remain in the deferred state.
+        """
+        from sqlalchemy import select
+
+        from airflow.models.dag import DagModel
+        from airflow.utils.state import TaskInstanceState
+
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
+
+        # Get the DAG state before running the trigger
+        with create_session() as session:
+            # Get the task instance to find the DAG ID
+            ti = trigger.task_instance
+            if not ti:
+                self.log.error("TaskInstance not found for trigger %s", trigger_id)
+                return
+
+            # Check if the DAG is paused
+            dag = session.get(DagModel, ti.dag_id)
+            if dag and dag.is_paused:
+                self.log.info("DAG %s is paused, unassigning trigger %s", ti.dag_id, trigger_id)
+                # Unassign the trigger so it can be picked up by another triggerer
+                session.execute(
+                    select(Trigger)
+                    .where(Trigger.id == trigger_id)
+                    .execution_options(synchronize_session="fetch")
+                ).scalar_one().triggerer_id = None
+
+                # Update the task instance state if it's still DEFERRED
+                if ti.state == TaskInstanceState.DEFERRED:
+                    ti.state = TaskInstanceState.DEFERRED  # Keep it deferred
+                    ti.trigger_id = None  # Clear the trigger ID
+
+                session.commit()
+                self.log.info("Unassigned trigger %s due to DAG being paused", trigger_id)
+                return
+
+        # If we get here, the DAG is not paused, so run the trigger
         try:
             self.set_individual_trigger_logging(trigger)
             async for event in trigger.run():
+                # Before processing the event, check if the DAG is still active
+                with create_session() as session:
+                    dag = session.get(DagModel, trigger.task_instance.dag_id)
+                    if dag and dag.is_paused:
+                        self.log.info(
+                            "DAG %s was paused during trigger execution, stopping trigger",
+                            trigger.task_instance.dag_id,
+                        )
+                        # Unassign the trigger
+                        session.execute(
+                            select(Trigger)
+                            .where(Trigger.id == trigger_id)
+                            .execution_options(synchronize_session="fetch")
+                        ).scalar_one().triggerer_id = None
+
+                        # Keep the task in DEFERRED state
+                        if trigger.task_instance.state == TaskInstanceState.DEFERRED:
+                            trigger.task_instance.trigger_id = None
+
+                        session.commit()
+                        return
+
+                # If we get here, process the event normally
                 self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
+
         except asyncio.CancelledError:
-            if timeout := trigger.task_instance.trigger_timeout:
+            if timeout := getattr(trigger, "task_instance", None) and trigger.task_instance.trigger_timeout:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
-                    self.log.error("Trigger cancelled due to timeout")
+                    self.log.error("Trigger %s cancelled due to timeout", name)
             raise
+
+        except Exception:
+            self.log.exception("Exception while running trigger %s", name)
+            # Re-raise to be handled by the caller
+            raise
+
         finally:
-            # CancelledError will get injected when we're stopped - which is
-            # fine, the cleanup process will understand that, but we want to
-            # allow triggers a chance to cleanup, either in that case or if
-            # they exit cleanly. Exception from cleanup methods are ignored.
+            # Allow triggers a chance to cleanup, either on normal exit or cancellation
+            # Exceptions from cleanup methods are ignored
             with suppress(Exception):
                 await trigger.cleanup()
+
             if SEND_TRIGGER_END_MARKER:
                 self.mark_trigger_end(trigger)
 
-            # unsetting ctx_indiv_trigger var restores stdout logging
+            # Unsetting ctx_indiv_trigger var restores stdout logging
             ctx_indiv_trigger.set(None)
             self.log.info("trigger %s completed", name)
 
