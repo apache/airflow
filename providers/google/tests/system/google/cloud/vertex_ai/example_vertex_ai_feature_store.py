@@ -61,7 +61,9 @@ BQ_DATASET_ID = "bq_ds_featurestore_demo"
 BQ_VIEW_ID = "product_features_view"
 BQ_VIEW_FQN = f"{PROJECT_ID}.{BQ_DATASET_ID}.{BQ_VIEW_ID}"
 
-FEATURE_ONLINE_STORE_ID = f"my_feature_online_store_unique_{ENV_ID}"
+FEATURE_ONLINE_STORE_ID = f"my_feature_online_store_unique_{ENV_ID}".replace("-", "_")
+if len(FEATURE_ONLINE_STORE_ID) > 60:
+    FEATURE_ONLINE_STORE_ID = FEATURE_ONLINE_STORE_ID[:55]
 FEATURE_VIEW_ID = "feature_view_product"
 FEATURE_VIEW_DATA_KEY = {"key": "28098"}
 
