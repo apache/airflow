@@ -1094,21 +1094,7 @@ class BaseSerialization:
         return ParamsDict(op_params)
 
     @classmethod
-    def get_operator_optional_fields_from_schema(cls) -> set[str]:
-        schema_loader = cls._json_schema
-
-        if schema_loader is None:
-            return set()
-
-        schema_data = schema_loader.schema
-        operator_def = schema_data.get("definitions", {}).get("operator", {})
-        operator_fields = set(operator_def.get("properties", {}).keys())
-        required_fields = set(operator_def.get("required", []))
-
-        optional_fields = operator_fields - required_fields
-        return optional_fields
-
-    @classmethod
+    @lru_cache(maxsize=4)  # Cache for "operator", "dag", and a few others
     def get_schema_defaults(cls, object_type: str) -> dict[str, Any]:
         """
         Extract default values from JSON schema for any object type.
@@ -1714,6 +1700,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
+    @lru_cache(maxsize=1)  # Only one type: "operator"
+    def get_operator_optional_fields_from_schema(cls) -> set[str]:
+        schema_loader = cls._json_schema
+
+        if schema_loader is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        operator_fields = set(operator_def.get("properties", {}).keys())
+        required_fields = set(operator_def.get("required", []))
+
+        optional_fields = operator_fields - required_fields
+        return optional_fields
+
+    @classmethod
     def deserialize_operator(
         cls,
         encoded_op: dict[str, Any],
@@ -1814,7 +1816,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return deps
 
     @classmethod
-    def _matches_client_defaults(cls, var: Any, attrname: str, op: DAGNode) -> bool:
+    def _matches_client_defaults(cls, var: Any, attrname: str) -> bool:
         """
         Check if a field value matches client_defaults and should be excluded.
 
@@ -1823,7 +1825,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         :param var: The value to check
         :param attrname: The attribute name
-        :param op: The operator instance
         :return: True if value matches client_defaults and should be excluded
         """
         try:
@@ -1851,7 +1852,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         :return: True if a variable is excluded, False otherwise.
         """
         # Check if value matches client_defaults (hierarchical defaults optimization)
-        if cls._matches_client_defaults(var, attrname, op):
+        if cls._matches_client_defaults(var, attrname):
             return True
         schema_defaults = cls.get_schema_defaults("operator")
 
@@ -2384,13 +2385,13 @@ class SerializedDAG(BaseSerialization):
     _processor_dags_folder: str
 
     def __init__(self, *, dag_id: str) -> None:
-        self.catchup = airflow_conf.getboolean("scheduler", "catchup_by_default")
+        self.catchup = False  # Schema default
         self.dag_id = self.dag_display_name = dag_id
         self.dagrun_timeout = None
         self.deadline = None
         self.default_args = {}
         self.description = None
-        self.disable_bundle_versioning = airflow_conf.getboolean("dag_processor", "disable_bundle_versioning")
+        self.disable_bundle_versioning = False
         self.doc_md = None
         self.edge_info = {}
         self.end_date = None
@@ -2398,11 +2399,9 @@ class SerializedDAG(BaseSerialization):
         self.has_on_failure_callback = False
         self.has_on_success_callback = False
         self.is_paused_upon_creation = None
-        self.max_active_runs = airflow_conf.getint("core", "max_active_runs_per_dag")
-        self.max_active_tasks = airflow_conf.getint("core", "max_active_tasks_per_dag")
-        self.max_consecutive_failed_dag_runs = airflow_conf.getint(
-            "core", "max_consecutive_failed_dag_runs_per_dag"
-        )
+        self.max_active_runs = 16  # Schema default
+        self.max_active_tasks = 16  # Schema default
+        self.max_consecutive_failed_dag_runs = 0  # Schema default
         self.owner_links = {}
         self.params = ParamsDict()
         self.partial = False
@@ -2624,7 +2623,37 @@ class SerializedDAG(BaseSerialization):
             return False
         if attrname == "dag_display_name" and var == op.dag_id:
             return True
+
+        # DAG schema defaults exclusion (same pattern as SerializedBaseOperator)
+        dag_schema_defaults = cls.get_schema_defaults("dag")
+        if attrname in dag_schema_defaults:
+            if dag_schema_defaults[attrname] == var:
+                return True
+
+        optional_fields = cls.get_dag_optional_fields_from_schema()
+        if var is None:
+            return True
+        if attrname in optional_fields:
+            if var in [[], (), set(), {}]:
+                return True
+
         return super()._is_excluded(var, attrname, op)
+
+    @classmethod
+    @lru_cache(maxsize=1)  # Only one type: "dag"
+    def get_dag_optional_fields_from_schema(cls) -> set[str]:
+        schema_loader = cls._json_schema
+
+        if schema_loader is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("dag", {})
+        operator_fields = set(operator_def.get("properties", {}).keys())
+        required_fields = set(operator_def.get("required", []))
+
+        optional_fields = operator_fields - required_fields
+        return optional_fields
 
     @classmethod
     def to_dict(cls, var: Any) -> dict:
@@ -3798,6 +3827,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "dag_display_name",
         "has_on_success_callback",
         "has_on_failure_callback",
+        "tags",
         # Attr properties that are nullable, or have a default that loads from config
         "description",
         "start_date",
