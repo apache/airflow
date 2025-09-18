@@ -637,18 +637,22 @@ class TestGetHITLDetailsEndpoint:
             ("run_after", lambda x: x["task_instance"]["run_after"]),
             ("rendered_map_index", lambda x: x["task_instance"]["rendered_map_index"]),
             ("task_instance_operator", lambda x: x["task_instance"]["operator_name"]),
+            ("task_instance_state", lambda x: x["task_instance"]["state"]),
             # htil key
             ("subject", itemgetter("subject")),
             ("responded_at", itemgetter("responded_at")),
             ("created_at", itemgetter("created_at")),
         ],
         ids=[
+            # ti key
             "ti_id",
             "dag_id",
             "run_id",
             "run_after",
             "rendered_map_index",
             "task_instance_operator",
+            "task_instance_state",
+            # htil key
             "subject",
             "responded_at",
             "created_at",
