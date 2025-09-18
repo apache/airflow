@@ -1,4 +1,5 @@
 import { VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
@@ -22,6 +23,7 @@ type Props = {
 };
 
 const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDetails }: Props) => {
+  const { t: translate } = useTranslation();
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId || "",
     options: {
@@ -67,20 +69,19 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align={"start"} gap={4}>
-            <Dialog.Title>Confirm Clear Task Instance</Dialog.Title>
+            <Dialog.Title>{translate("dags:runAndTaskActions.clearTask.title")}</Dialog.Title>
             <Dialog.Description>
               {data?.task_instances?.[0] && (
                 <>
-                  This task instance was last run by{" "}
+                  {translate("dags:runAndTaskActions.clearTask.lastRun")}{" "}
                   <strong>{data.task_instances[0].unixname || "unknown user"}</strong>{" "}
                   {data.task_instances[0].start_date && (
-                    <>starting {getRelativeTime(data.task_instances[0].start_date)}</>
+                    <>{translate("dags:runAndTaskActions.clearTask.starting")} {getRelativeTime(data.task_instances[0].start_date)}</>
                   )}
                   {data.task_instances[0].end_date && data.task_instances[0].state === "success" && (
-                    <> and completed {getRelativeTime(data.task_instances[0].end_date)}</>
+                    <> {translate("dags:runAndTaskActions.clearTask.completed")} {getRelativeTime(data.task_instances[0].end_date)}</>
                   )}
-                  . The task is currently <strong>{data.task_instances[0].state || "unknown"}</strong>. Are
-                  you sure you want to clear it again?
+                  . {translate("dags:runAndTaskActions.clearTask.state")} <strong>{data.task_instances[0].state || "unknown"}</strong>. {translate("dags:runAndTaskActions.clearTask.clearAgain")}
                 </>
               )}
             </Dialog.Description>

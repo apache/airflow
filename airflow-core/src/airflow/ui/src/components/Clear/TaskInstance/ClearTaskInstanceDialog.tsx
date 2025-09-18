@@ -46,7 +46,6 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
-  const taskState = taskInstance.state;
 
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
