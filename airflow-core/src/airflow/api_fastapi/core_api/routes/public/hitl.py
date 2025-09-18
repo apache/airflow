@@ -220,6 +220,7 @@ def get_hitl_details(
                     "run_after": DagRun.run_after,
                     "rendered_map_index": TI.rendered_map_index,
                     "task_instance_operator": TI.operator,
+                    "task_instance_state": TI.state,
                 },
             ).dynamic_depends(),
         ),
