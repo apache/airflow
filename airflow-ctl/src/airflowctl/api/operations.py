@@ -244,7 +244,7 @@ class AssetsOperations(BaseOperations):
         """Create an asset event."""
         try:
             # Ensure extra is an object; DB/UI choke on null
-            if getattr(asset_event_body, "extra", None) is None:
+            if asset_event_body.extra is None:
                 asset_event_body.extra = {}
             self.response = self.client.post(
                 "/assets/events", json=_date_safe_dict_from_pydantic(asset_event_body)
