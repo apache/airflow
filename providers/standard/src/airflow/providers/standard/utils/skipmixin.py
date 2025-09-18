@@ -59,7 +59,7 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> list[SkipMixinOperator]:
     return result
 
 
-# This class should only be used in Airflow 3.0 and later.
+# This class should only be used in Airflow 3.0 and later
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances."""
 
