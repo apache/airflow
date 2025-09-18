@@ -590,6 +590,7 @@ New Features
 - Add Filters UI for Asset View (#54640)
 - Update color palette and leverage Chakra semantic tokens (#53981, #55739)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Improve calendar view UI with enhanced tooltips and visual fixes (#55476)
 =======
 - Switch all airflow logging to structlog (#52651, #55434, #55431)
@@ -601,6 +602,9 @@ New Features
 >>>>>>> 900b079d2f (Update 3.1.0 release notes based on latest cherry-picks)
 =======
 >>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+- Improve calendar view UI with enhanced tooltips and visual fixes (#55476)
+>>>>>>> 7ce164dd38 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Bug Fixes
 ^^^^^^^^^
@@ -671,6 +675,7 @@ Bug Fixes
 - Fix DB downgrade to Airflow 2 when fab tables exists (#55738)
 - Fix UI stats endpoint causing dashboard loading issues (#55733)
 - Fix unintended console output when DAG not found in ``serialized_dag`` table (#54972)
+<<<<<<< HEAD
 - Fix scheduler handling of orphaned tasks from Airflow 2 during upgrade (#55848)
 - Fix logging format to respect existing configuration during upgrade to prevent unexpected log format changes (#55824)
 - Fix Grid view crashes when DAG version information is missing (#55771)
@@ -705,6 +710,8 @@ Bug Fixes
 - Fix DAG disappearing after callback execution in stale detection (#55698)
 - Fix DB downgrade to Airflow 2 when fab tables exists (#55738)
 >>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+>>>>>>> 7ce164dd38 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -738,6 +745,7 @@ Miscellaneous
 - Display responder username for better audit trail in HITL workflows (#55509)
 - The constraint file do not contain developer dependencies anymore (#53631)
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Add hyperlinks to ``dag_id`` column in DAG Runs and Task Instances pages for better navigation (#55648)
 - Add responsive web design (RWD) support to Grid view (#55745)
 =======
@@ -764,6 +772,10 @@ Miscellaneous
 >>>>>>> 922f344af6 (Update release notes for 3.1.0b2)
 =======
 >>>>>>> 8636e33c69 (Update 3.1.0 release notes based on latest cherry-picks)
+=======
+- Add hyperlinks to ``dag_id`` column in DAG Runs and Task Instances pages for better navigation (#55648)
+- Add responsive web design (RWD) support to Grid view (#55745)
+>>>>>>> 7ce164dd38 (Update 3.1.0 release notes based on latest cherry-picks)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -772,6 +784,9 @@ Doc Only Changes
 - Add deadline alerts configuration and usage documentation (#53727)
 - Make term Dag consistent in docs task-sdk (#55100)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 7ce164dd38 (Update 3.1.0 release notes based on latest cherry-picks)
 - Add migration guide for upgrading from legacy SLA functionality to deadline alerts (#55743)
 - Add DAG bundles triggerer limitation documentation (#55232)
 - Add deadline alerts usage guides and best practices (#53727)
