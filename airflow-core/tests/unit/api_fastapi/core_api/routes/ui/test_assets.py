@@ -132,7 +132,6 @@ class TestNextRunAssets:
             ],
         }
 
-
     def test_last_update_respects_latest_run_filter(self, test_client, dag_maker, session):
         with dag_maker(
             dag_id="filter_run",
