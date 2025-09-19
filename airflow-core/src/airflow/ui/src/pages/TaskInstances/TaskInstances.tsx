@@ -44,6 +44,7 @@ import { TaskInstancesFilter } from "./TaskInstancesFilter";
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
 const {
+  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   POOL: POOL_PARAM,
@@ -205,6 +206,7 @@ export const TaskInstances = () => {
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const pool = searchParams.getAll(POOL_PARAM);
+  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const hasFilteredPool = pool.length > 0;
 
@@ -217,6 +219,7 @@ export const TaskInstances = () => {
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId: dagId ?? "~",
+      dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,

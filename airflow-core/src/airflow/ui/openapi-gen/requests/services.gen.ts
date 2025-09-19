@@ -1002,6 +1002,7 @@ export class DagRunService {
      * @param data.orderBy
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1040,7 +1041,8 @@ export class DagRunService {
                 dag_version: data.dagVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
-                triggering_user_name_pattern: data.triggeringUserNamePattern
+                triggering_user_name_pattern: data.triggeringUserNamePattern,
+                dag_id_pattern: data.dagIdPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -2344,6 +2346,7 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
      * @param data.queue
@@ -2393,6 +2396,7 @@ export class TaskInstanceService {
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                dag_id_pattern: data.dagIdPattern,
                 state: data.state,
                 pool: data.pool,
                 queue: data.queue,
@@ -2792,6 +2796,7 @@ export class TaskInstanceService {
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.taskId
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.mapIndex
      * @param data.state
      * @param data.responseReceived
      * @param data.respondedByUserId
@@ -2820,6 +2825,7 @@ export class TaskInstanceService {
                 dag_id_pattern: data.dagIdPattern,
                 task_id: data.taskId,
                 task_id_pattern: data.taskIdPattern,
+                map_index: data.mapIndex,
                 state: data.state,
                 response_received: data.responseReceived,
                 responded_by_user_id: data.respondedByUserId,

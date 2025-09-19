@@ -2853,9 +2853,13 @@ cleanup:
   successfulJobsHistoryLimit: ~
 
 # Configuration for postgresql subchart
-# Not recommended for production
+# Uses bitnamilegacy images to avoid Bitnami licensing restrictions
+# Not recommended for production - use external database instead
 postgresql:
   enabled: true
+  image:
+    repository: postgres
+    tag: "13"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres

@@ -873,6 +873,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -2244,6 +2245,10 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
@@ -2701,6 +2706,10 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagRunId: string;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -2869,6 +2878,7 @@ export type GetHitlDetailsData = {
     dagIdPattern?: string | null;
     dagRunId: string;
     limit?: number;
+    mapIndex?: number | null;
     offset?: number;
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;

@@ -153,7 +153,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       showGantt={Boolean(runId) && showGantt}
                       triggeringUser={triggeringUserFilter}
                     />
-                    {showGantt ? <Gantt limit={limit} /> : undefined}
+                    {showGantt ? (
+                      <Gantt limit={limit} runType={runTypeFilter} triggeringUser={triggeringUserFilter} />
+                    ) : undefined}
                   </HStack>
                 )}
               </Box>

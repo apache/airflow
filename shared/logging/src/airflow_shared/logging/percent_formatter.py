@@ -140,7 +140,8 @@ class PercentFormatRender(ConsoleRenderer):
         params = _LazyLogRecordDict(
             event_dict,
             method_name,
-            ConsoleRenderer.get_default_level_styles(),
+            # To maintain compat with old log levels, we don't want to color info, just everything else
+            {**ConsoleRenderer.get_default_level_styles(), "info": ""},
             self._styles,
         )
 
