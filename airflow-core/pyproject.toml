@@ -153,6 +153,7 @@ dependencies = [
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=24.2.1",
+    "greenback>=1.2.1",
     "greenlet>=0.4.9",
 ]
 "graphviz" = [

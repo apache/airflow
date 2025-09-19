@@ -737,7 +737,24 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
     def send(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         from asgiref.sync import async_to_sync
 
-        return async_to_sync(self.asend)(msg)
+        try:
+            return async_to_sync(self.asend)(msg)
+        except RuntimeError as e:
+            if str(e).startswith("You cannot use AsyncToSync in the same thread as an async event loop"):
+                log.warning(
+                    "`TriggerCommsDecoder.send` is being called from within a coroutine without "
+                    "having been wrapped with sync_to_async; attempting to invoke with greenback. "
+                    "You must find where this in being invoked and wrap with sync_to_async."
+                )
+                try:
+                    import greenback
+
+                    task = asyncio.current_task()
+                    if greenback.has_portal(task):
+                        return greenback.await_(self.asend(msg))
+                except ImportError:
+                    log.warning("greenback unavailable; raising")
+            raise
 
     async def _aread_frame(self):
         len_bytes = await self._async_reader.readexactly(4)
@@ -1064,6 +1081,15 @@ class TriggerRunner:
 
     async def run_trigger(self, trigger_id, trigger):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
+        if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
+            try:
+                import greenback
+
+                await greenback.ensure_portal()
+
+            except ImportError:
+                log.warning("greenback unavailable; not creating portal.")
+
         bind_log_contextvars(trigger_id=trigger_id)
 
         name = self.triggers[trigger_id]["name"]
