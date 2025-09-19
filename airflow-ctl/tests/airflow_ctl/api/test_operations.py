@@ -18,25 +18,86 @@
 from __future__ import annotations
 
 import datetime
+import json
 
+import httpx
 import pytest
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import (
+    AssetAliasCollectionResponse,
+    AssetAliasResponse,
+    AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
     CreateAssetBody,
     CreateAssetEventsBody,
+    DagRunAssetReference,
+    DAGRunResponse,
+    QueuedEventCollectionResponse,
 )
 
 
-def make_api_client(base_url: str = "http://test-server", token: str = "test-token") -> Client:
+def make_api_client(base_url: str = "http://test-server", token: str = "test-token", transport=None) -> Client:
     """Get a client for testing"""
+    if transport:
+        return Client(base_url=base_url, transport=transport, token=token, kind=ClientKind.CLI)
     return Client(base_url=base_url, token=token, kind=ClientKind.CLI)
 
 
 class TestAssetsOperationsMinimal:
     """Minimal tests for AssetsOperations without httpx dependencies."""
+
+    # Test data
+    asset_id = 1
+    dag_id = "test_dag"
+    assets_dag_reference = DagRunAssetReference(
+        run_id="manual__2025-01-01T00:00:00+00:00",
+        dag_id="test_dag",
+        logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        state="success",
+    )
+
+    asset_response = AssetResponse(
+        id=asset_id,
+        name="test_asset",
+        uri="test_uri",
+        group="test_group",
+        extra=None,
+        created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        scheduled_dags=[],
+        producing_tasks=[],
+        consuming_tasks=[],
+        aliases=[],
+    )
+
+    asset_alias_response = AssetAliasResponse(
+        id=asset_id,
+        name="test_asset_alias",
+        group="test_group",
+    )
+
+    asset_create_event_body = CreateAssetEventsBody(
+        asset_id=asset_id,
+        extra={"test": "extra"}
+    )
+
+    dag_run_response = DAGRunResponse(
+        dag_run_id="test_run_id",
+        dag_id="test_dag",
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_type="manual",
+        state="success",
+        dag_versions=[],
+        dag_display_name="test_dag_display",
+    )
+
+    asset_queued_event_collection_response = QueuedEventCollectionResponse(
+        queued_events=[],
+        total_entries=0,
+    )
 
     def test_create_hits_assets_endpoint(self, monkeypatch):
         """Test that create() posts to /assets with correct payload."""
@@ -81,7 +142,7 @@ class TestAssetsOperationsMinimal:
         timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
     )
 
-    def test_get_asset(self):
+    def test_get_asset(self, monkeypatch):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}"
             return httpx.Response(200, json=json.loads(self.asset_response.model_dump_json()))
@@ -90,7 +151,7 @@ class TestAssetsOperationsMinimal:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
-    def test_get_by_alias(self):
+    def test_get_by_alias(self, monkeypatch):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/aliases/{self.asset_id}"
             return httpx.Response(200, json=json.loads(self.asset_alias_response.model_dump_json()))
@@ -99,7 +160,7 @@ class TestAssetsOperationsMinimal:
         response = client.assets.get_by_alias(self.asset_id)
         assert response == self.asset_alias_response
 
-    def test_list(self):
+    def test_list(self, monkeypatch):
         assets_collection_response = AssetCollectionResponse(
             assets=[self.asset_response],
             total_entries=1,
@@ -113,7 +174,7 @@ class TestAssetsOperationsMinimal:
         response = client.assets.list()
         assert response == assets_collection_response
 
-    def test_list_by_alias(self):
+    def test_list_by_alias(self, monkeypatch):
         assets_collection_response = AssetAliasCollectionResponse(
             asset_aliases=[self.asset_alias_response],
             total_entries=1,
@@ -127,7 +188,7 @@ class TestAssetsOperationsMinimal:
         response = client.assets.list_by_alias()
         assert response == assets_collection_response
 
-    def test_create(self):
+    def test_create(self, monkeypatch):
         asset_create_body = CreateAssetBody(
             name="test_asset",
             uri="test_uri",
@@ -143,7 +204,7 @@ class TestAssetsOperationsMinimal:
         response = client.assets.create(asset_body=asset_create_body)
         assert response == self.asset_response
 
-    def test_create_event(self):
+    def test_create_event(self, monkeypatch):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/assets/events"
             return httpx.Response(200, json=json.loads(self.asset_event_response.model_dump_json()))
@@ -152,7 +213,7 @@ class TestAssetsOperationsMinimal:
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
         assert response == self.asset_event_response
 
-    def test_materialize(self):
+    def test_materialize(self, monkeypatch):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
@@ -161,35 +222,16 @@ class TestAssetsOperationsMinimal:
         response = client.assets.materialize(asset_id=self.asset_id)
         assert response == self.dag_run_response
 
-    def test_get_queued_events(self):
+    def test_get_queued_events(self, monkeypatch):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
             return httpx.Response(
                 200, json=json.loads(self.asset_queued_event_collection_response.model_dump_json())
             )
 
-            class MockResponse:
-                def __init__(self, data):
-                    self.status_code = 201
-                    self._data = data
-                    self.content = data.model_dump_json().encode('utf-8')
-
-                def json(self):
-                    return json.loads(self._data.model_dump_json())
-
-            return MockResponse(mock_response)
-
-        # Patch the client's post method
-        monkeypatch.setattr(Client, "post", mock_post)
-
-        client = make_api_client()
-        response = client.assets.create(asset_body=CreateAssetBody(name="test_asset", uri="s3://bucket/test"))
-
-        assert isinstance(response, AssetResponse)
-        assert response.name == "test_asset"
-        assert response.uri == "s3://bucket/test"
-        assert called['method'] == 'POST'
-        assert called['url'].endswith('assets')
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_queued_events(asset_id=self.asset_id)
+        assert response == self.asset_queued_event_collection_response
 
     def test_create_event_hits_assets_events_endpoint(self, monkeypatch):
         """Test that create_event() posts to /assets/events with correct payload."""
