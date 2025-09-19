@@ -369,7 +369,7 @@ class SnowflakeHook(DbApiHook):
 
         if conn_config.get("authenticator") == "oauth":
             if extra_dict.get("azure_conn_id"):
-                conn_config["token"] = self.get_azure_oauth_token(extra_dict.get("azure_conn_id"))
+                conn_config["token"] = self.get_azure_oauth_token(extra_dict["azure_conn_id"])
             else:
                 token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
                 conn_config["client_id"] = conn.login
