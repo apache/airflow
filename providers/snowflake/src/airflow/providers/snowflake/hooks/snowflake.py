@@ -256,7 +256,7 @@ class SnowflakeHook(DbApiHook):
     def get_azure_oauth_token(self, azure_conn_id: str) -> str:
         """
         Generate OAuth access token using Azure connection id.
-        
+
         This uses AzureBaseHook to retrieve the token.
         """
         azure_conn = Connection.get(azure_conn_id)
