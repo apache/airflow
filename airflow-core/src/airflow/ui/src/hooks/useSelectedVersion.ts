@@ -65,18 +65,20 @@ const useSelectedVersion = (): number | undefined => {
 
   const taskNode = structureData?.nodes.find((node) => node.id === taskId);
   const isMapped = taskNode?.is_mapped;
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const { data: mappedTaskInstanceData } = useTaskInstanceServiceGetMappedTaskInstance(
     {
       dagId,
       dagRunId: runId,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: parsedMapIndex,
       taskId,
     },
     undefined,
     // Do not enable on a task instance summary. (mapped task but no mapIndex defined)
     {
-      enabled: taskNode !== undefined && !Boolean(mapIndex === "-1" && isMapped),
+      enabled:
+        taskNode !== undefined && !Boolean(parsedMapIndex === -1 && isMapped) && !isNaN(parsedMapIndex),
     },
   );
 

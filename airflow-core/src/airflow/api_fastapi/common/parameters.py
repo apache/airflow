@@ -1007,6 +1007,16 @@ QueryHITLDetailTaskIdFilter = Annotated[
         )
     ),
 ]
+QueryHITLDetailMapIndexFilter = Annotated[
+    FilterParam[int | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index,
+            int | None,
+            filter_name="map_index",
+        )
+    ),
+]
 QueryHITLDetailSubjectSearch = Annotated[
     _SearchParam,
     Depends(

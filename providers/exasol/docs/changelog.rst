@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.8.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SqlAlchemy URI Construction in ExasolHook  (#53798)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Switch pre-commit to prek (#54258)``
+
 4.8.2
 .....
 
