@@ -44,7 +44,52 @@ const mockDag = {
   last_expired: null,
   last_parse_duration: 0.23,
   last_parsed_time: "2024-08-22T13:50:10.372238+00:00",
-  latest_dag_runs: [],
+  latest_dag_runs: [
+    {
+      dag_run_id: "scheduled__2025-09-19T19:22:00+00:00",
+      dag_id: "nested_groups",
+      logical_date: "2025-09-19T19:22:00Z",
+      queued_at: "2025-09-19T19:22:00.762952Z",
+      start_date: "2025-09-19T19:22:00.782471Z",
+      end_date: "2025-09-19T19:22:00.798715Z",
+      duration: 16.244,
+      data_interval_start: "2025-09-19T19:22:00Z",
+      data_interval_end: "2025-09-19T19:22:00Z",
+      run_after: "2025-09-19T19:22:00Z",
+      last_scheduling_decision: "2025-09-19T19:22:00.796419Z",
+      run_type: "scheduled",
+      state: "success",
+      triggered_by: null,
+      triggering_user_name: null,
+      conf: {},
+      note: null,
+      dag_versions: [],
+      bundle_version: "2025-09-19T18:07:12.9148295Z",
+      dag_display_name: "nested_groups",
+    },
+    {
+      dag_run_id: "scheduled__2025-09-19T19:21:00+00:00",
+      dag_id: "nested_groups",
+      logical_date: "2025-09-19T19:21:00Z",
+      queued_at: "2025-09-19T19:21:00.695279Z",
+      start_date: "2025-09-19T19:21:00.714807Z",
+      end_date: "2025-09-19T19:21:00.731218Z",
+      duration: 16.411,
+      data_interval_start: "2025-09-19T19:21:00Z",
+      data_interval_end: "2025-09-19T19:21:00Z",
+      run_after: "2025-09-19T19:21:00Z",
+      last_scheduling_decision: "2025-09-19T19:21:00.728105Z",
+      run_type: "scheduled",
+      state: "success",
+      triggered_by: null,
+      triggering_user_name: null,
+      conf: {},
+      note: null,
+      dag_versions: [],
+      bundle_version: "2025-09-19T18:07:12.9148295Z",
+      dag_display_name: "nested_groups",
+    },
+  ],
   max_active_runs: 16,
   max_active_tasks: 16,
   max_consecutive_failed_dag_runs: 0,
@@ -56,8 +101,8 @@ const mockDag = {
   pending_actions: [],
   relative_fileloc: "nested_task_groups.py",
   tags: [],
-  timetable_description: "",
-  timetable_summary: "",
+  timetable_description: "Every minute",
+  timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
 
 beforeAll(async () => {
@@ -102,6 +147,7 @@ describe("DagCard", () => {
     } satisfies DAGWithLatestDagRunsResponse;
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
+    expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.queryByText("tag3")).toBeInTheDocument();
     expect(screen.queryByText("tag4")).toBeInTheDocument();
@@ -123,7 +169,58 @@ describe("DagCard", () => {
     } satisfies DAGWithLatestDagRunsResponse;
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
+    expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.getByText("+2 more")).toBeInTheDocument();
+  });
+
+  it("DagCard should render schedule section", () => {
+    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    const scheduleElement = screen.getByTestId("schedule");
+    expect(scheduleElement).toBeInTheDocument();
+    // Should display the timetable summary from mockDag
+    expect(scheduleElement).toHaveTextContent("* * * * *");
+  });
+
+  it("DagCard should render latest run section with actual run data", () => {
+    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    const latestRunElement = screen.getByTestId("latest-run");
+    expect(latestRunElement).toBeInTheDocument();
+    // Should contain the formatted latest run timestamp (formatted for local timezone)
+    expect(latestRunElement).toHaveTextContent("2025-09-19 14:22:00");
+  });
+
+  it("DagCard should render next run section with timestamp", () => {
+    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    const nextRunElement = screen.getByTestId("next-run");
+    expect(nextRunElement).toBeInTheDocument();
+    // Should display the formatted next run timestamp (converted to local timezone)
+    expect(nextRunElement).toHaveTextContent("2024-08-22 19:00:00");
+  });
+
+  it("DagCard should render StateBadge as success", () => {
+    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    const stateBadge = screen.getByTestId("state-badge");
+    expect(stateBadge).toBeInTheDocument();
+    // Should have the success state from mockDag.latest_dag_runs[0].state
+    expect(stateBadge).toHaveAttribute("aria-label", "success");
+  });
+
+  it("DagCard should render StateBadge as failed", () => {
+    const mockDagWithFailedRun = {
+      ...mockDag,
+      latest_dag_runs: [
+        {
+          ...mockDag.latest_dag_runs[0]!,
+          state: "failed" as const,
+        },
+      ],
+    } satisfies DAGWithLatestDagRunsResponse;
+
+    render(<DagCard dag={mockDagWithFailedRun} />, { wrapper: Wrapper });
+    const stateBadge = screen.getByTestId("state-badge");
+    expect(stateBadge).toBeInTheDocument();
+    // Should have the failed state
+    expect(stateBadge).toHaveAttribute("aria-label", "failed");
   });
 });
