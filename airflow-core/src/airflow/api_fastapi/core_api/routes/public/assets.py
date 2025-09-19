@@ -232,12 +232,18 @@ def create_asset(
         )
 
     # Create the asset
-    asset = Asset(
-        name=body.name,
-        uri=body.uri,
-        group=body.group,
-        extra=body.extra,
-    )
+    try:
+        asset = Asset(
+            name=body.name,
+            uri=body.uri,
+            group=body.group,
+            extra=body.extra,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            str(e),
+        )
 
     # Use the asset manager to create the asset
     asset_models = asset_manager.create_assets([asset], session=session)

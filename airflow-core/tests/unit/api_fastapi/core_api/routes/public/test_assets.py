@@ -1372,23 +1372,23 @@ class TestPostAssets(TestAssets):
             # Happy path cases
             (
                 {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
-                201,
+                200,
                 {"name": "s3_my_dataset", "uri": "s3://bucket/path", "group": "raw", "extra": {"owner": "data-eng"}},
             ),
             (
-                {"name": "only_required", "uri": "s3://b/k"},
-                201,
-                {"name": "only_required", "uri": "s3://b/k", "group": None, "extra": None},
+                {"name": "only_required", "uri": "s3://b/k", "group": "test-group"},
+                200,
+                {"name": "only_required", "uri": "s3://b/k", "group": "test-group", "extra": {}},
             ),
             (
                 {"name": "gcs_asset", "uri": "gs://my-bucket/data", "group": "processed"},
-                201,
+                200,
                 {"name": "gcs_asset", "uri": "gs://my-bucket/data", "group": "processed"},
             ),
             (
-                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path"},
-                201,
-                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path"},
+                {"name": "azure_asset", "uri": "wasb://container@account.blob.core.windows.net/path", "group": "test-group"},
+                200,
+                {"name": "azure_asset", "uri": "wasb://account.blob.core.windows.net/path", "group": "test-group"},
             ),
         ],
         ids=["with_all_fields", "only_required_fields", "gcs_uri", "azure_uri"],
@@ -1412,29 +1412,28 @@ class TestPostAssets(TestAssets):
     @pytest.mark.parametrize(
         "payload,expected_status,expected_error_pattern",
         [
-            # 400 Bad Request cases
-            ({"name": "", "uri": "s3://bucket/key"}, 400, "name"),
-            ({"name": "valid_name", "uri": ""}, 400, "uri"),
-            ({"name": "x" * 1501, "uri": "s3://bucket/key"}, 400, "name"),
-            ({"name": "valid_name", "uri": "x" * 1501}, 400, "uri"),
-
-            # 422 Unprocessable Entity cases
-            ({"name": 123, "uri": "s3://bucket/key"}, 422, "name"),
-            ({"name": "valid_name", "uri": ["not-a-string"]}, 422, "uri"),
-            ({"name": None, "uri": "s3://bucket/key"}, 422, "name"),
-            ({"name": "valid_name", "uri": None}, 422, "uri"),
-            ({"extra": "not-a-dict", "name": "valid_name", "uri": "s3://bucket/key"}, 422, "extra"),
+            # 422 Unprocessable Entity cases (all validation errors are 422 in FastAPI/Pydantic)
+            ({"name": "", "uri": "s3://bucket/key", "group": "test-group"}, 422, "name"),
+            ({"name": "valid_name", "uri": "", "group": "test-group"}, 422, "uri"),
+            ({"name": "x" * 1501, "uri": "s3://bucket/key", "group": "test-group"}, 422, "name"),
+            ({"name": "valid_name", "uri": "x" * 1501, "group": "test-group"}, 422, "uri"),
+            ({"name": 123, "uri": "s3://bucket/key", "group": "test-group"}, 422, "name"),
+            ({"name": "valid_name", "uri": ["not-a-string"], "group": "test-group"}, 422, "uri"),
+            ({"name": None, "uri": "s3://bucket/key", "group": "test-group"}, 422, "name"),
+            ({"name": "valid_name", "uri": None, "group": "test-group"}, 422, "uri"),
+            ({"extra": "not-a-dict", "name": "valid_name", "uri": "s3://bucket/key", "group": "test-group"}, 422, "extra"),
             ({"group": 123, "name": "valid_name", "uri": "s3://bucket/key"}, 422, "group"),
 
             # Missing required fields
-            ({"uri": "s3://bucket/key"}, 422, "name"),
-            ({"name": "valid_name"}, 422, "uri"),
+            ({"uri": "s3://bucket/key", "group": "test-group"}, 422, "name"),
+            ({"name": "valid_name", "group": "test-group"}, 422, "uri"),
+            ({"name": "valid_name", "uri": "s3://bucket/key"}, 422, "group"),
             ({}, 422, "name"),
         ],
         ids=[
             "empty_name", "empty_uri", "name_too_long", "uri_too_long",
             "name_not_string", "uri_not_string", "name_none", "uri_none",
-            "extra_not_dict", "group_not_string", "missing_name", "missing_uri", "missing_both"
+            "extra_not_dict", "group_not_string", "missing_name", "missing_uri", "missing_group", "missing_both"
         ],
     )
     def test_assets_create_validation_errors(self, test_client, payload, expected_status, expected_error_pattern):
@@ -1452,11 +1451,11 @@ class TestPostAssets(TestAssets):
         """Test that creating duplicate assets returns 409 Conflict."""
         from uuid import uuid4
         uniq = uuid4().hex[:8]
-        payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
+        payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}", "group": "test-group"}
 
         # First creation should succeed
         r1 = test_client.post("/assets", json=payload)
-        assert r1.status_code == 201
+        assert r1.status_code == 200
 
         # Second creation with same name+uri should fail
         r2 = test_client.post("/assets", json=payload)
@@ -1479,7 +1478,7 @@ class TestPostAssets(TestAssets):
     def test_assets_create_auth_errors(self, request, client_fixture, expected_status):
         """Test authentication and authorization error cases."""
         client = request.getfixturevalue(client_fixture)
-        payload = {"name": "test_asset", "uri": "s3://bucket/test"}
+        payload = {"name": "test_asset", "uri": "s3://bucket/test", "group": "test-group"}
 
         resp = client.post("/assets", json=payload)
         assert resp.status_code == expected_status

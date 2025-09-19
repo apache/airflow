@@ -125,7 +125,7 @@ class TestAssetsOperationsMinimal:
                 producing_tasks=[],
                 consuming_tasks=[],
                 aliases=[],
-            )
+    )
 
     asset_event_response = AssetEventResponse(
         id=asset_id,
@@ -349,7 +349,7 @@ class TestAssetsOperationsMinimal:
 
             # Return mock response
             mock_response = AssetEventResponse(
-                id=1,
+        id=1,
                 asset_id=1,
                 extra={**expected_extra, "from_rest_api": True},
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
