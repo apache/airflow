@@ -215,7 +215,7 @@ BEGIN
 
     INSERT INTO pool_counts ({TI.pool.name}, count)
     VALUES (rec_{TI.pool.name}, rec_{TI.pool_slots.name})
-    ON DUPLICATE KEY UPDATE count = pool_running + rec_{Pool.slots.name};
+    ON DUPLICATE KEY UPDATE count = pool_running + rec_{TI.pool_slots.name};
 
   END LOOP;
 
@@ -341,7 +341,7 @@ BEGIN
             (rec.{TI.dag_id.name}  || ',' || rec.{TI.task_id.name})::text, (dagrun_running + 1)::text
         );
         pool_counts := pool_counts || hstore(
-            rec.pool::text, (pool_running + rec.{Pool.slots.name})::text
+            rec.pool::text, (pool_running + rec.{TI.pool_slots.name})::text
         );
 
     END LOOP;
