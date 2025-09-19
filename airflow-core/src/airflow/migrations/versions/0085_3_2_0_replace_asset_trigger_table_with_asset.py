@@ -35,7 +35,7 @@ revision = "15d84ca19038"
 down_revision = "eaf332f43c7c"
 branch_labels = None
 depends_on = None
-airflow_version = "3.1.0"
+airflow_version = "3.2.0"
 
 _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
     sa.String(length=1500, collation="latin1_general_cs"),
