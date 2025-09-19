@@ -470,6 +470,7 @@ class EventLogResponse(BaseModel):
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
+    task_display_name: Annotated[str | None, Field(title="Task Display Name")] = None
 
 
 class ExternalLogUrlResponse(BaseModel):
@@ -1061,20 +1062,6 @@ class AssetResponse(BaseModel):
     consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     last_asset_event: LastAssetEventResponse | None = None
-
-
-class CreateAssetBody(BaseModel):
-    """
-    Create asset request.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str | None, Field(title="Group")] = None
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class BackfillPostBody(BaseModel):

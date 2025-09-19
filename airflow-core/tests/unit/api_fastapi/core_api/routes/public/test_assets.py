@@ -1404,13 +1404,13 @@ class TestPostAssets:
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == expected_status
         body = resp.json()
-        
+
         # Check response structure
         assert isinstance(body, dict)
         assert "id" in body
         assert "created_at" in body
         assert "updated_at" in body
-        
+
         # Check expected fields
         for field, expected_value in expected_fields.items():
             assert body[field] == expected_value
@@ -1423,7 +1423,7 @@ class TestPostAssets:
             ({"name": "valid_name", "uri": ""}, 400, "uri"),
             ({"name": "x" * 1501, "uri": "s3://bucket/key"}, 400, "name"),
             ({"name": "valid_name", "uri": "x" * 1501}, 400, "uri"),
-            
+
             # 422 Unprocessable Entity cases
             ({"name": 123, "uri": "s3://bucket/key"}, 422, "name"),
             ({"name": "valid_name", "uri": ["not-a-string"]}, 422, "uri"),
@@ -1431,7 +1431,7 @@ class TestPostAssets:
             ({"name": "valid_name", "uri": None}, 422, "uri"),
             ({"extra": "not-a-dict", "name": "valid_name", "uri": "s3://bucket/key"}, 422, "extra"),
             ({"group": 123, "name": "valid_name", "uri": "s3://bucket/key"}, 422, "group"),
-            
+
             # Missing required fields
             ({"uri": "s3://bucket/key"}, 422, "name"),
             ({"name": "valid_name"}, 422, "uri"),
@@ -1447,7 +1447,7 @@ class TestPostAssets:
         """Test validation error cases with various invalid payloads."""
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == expected_status
-        
+
         if resp.headers.get("content-type", "").startswith("application/json"):
             error_body = resp.json()
             assert isinstance(error_body, dict)
@@ -1460,15 +1460,15 @@ class TestPostAssets:
         from uuid import uuid4
         uniq = uuid4().hex[:8]
         payload = {"name": f"dup_asset_{uniq}", "uri": f"s3://bucket/key-{uniq}"}
-        
+
         # First creation should succeed
         r1 = test_client.post("/assets", json=payload)
         assert r1.status_code == 201
-        
+
         # Second creation with same name+uri should fail
         r2 = test_client.post("/assets", json=payload)
         assert r2.status_code == 409
-        
+
         # Check error response structure
         if r2.headers.get("content-type", "").startswith("application/json"):
             error_body = r2.json()
@@ -1488,10 +1488,10 @@ class TestPostAssets:
         """Test authentication and authorization error cases."""
         client = request.getfixturevalue(client_fixture)
         payload = {"name": "test_asset", "uri": "s3://bucket/test"}
-        
+
         resp = client.post("/assets", json=payload)
         assert resp.status_code == expected_status
-        
+
         if resp.headers.get("content-type", "").startswith("application/json"):
             error_body = resp.json()
             assert isinstance(error_body, dict)
@@ -1505,10 +1505,10 @@ class TestPostAssets:
             "group": "test-group",
             "extra": {"special": "chars", "unicode": "测试", "numbers": 123}
         }
-        
+
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == 201
-        
+
         body = resp.json()
         assert body["name"] == payload["name"]
         assert body["uri"] == payload["uri"]
@@ -1518,17 +1518,17 @@ class TestPostAssets:
     def test_assets_create_response_structure(self, test_client):
         """Test that the response has the correct structure and all required fields."""
         payload = {"name": "structure_test", "uri": "s3://bucket/structure"}
-        
+
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == 201
-        
+
         body = resp.json()
-        
+
         # Required fields
         required_fields = ["id", "name", "uri", "group", "extra", "created_at", "updated_at"]
         for field in required_fields:
             assert field in body, f"Missing required field: {field}"
-        
+
         # Check field types
         assert isinstance(body["id"], int)
         assert isinstance(body["name"], str)
@@ -1537,7 +1537,7 @@ class TestPostAssets:
         assert body["extra"] is None or isinstance(body["extra"], dict)
         assert isinstance(body["created_at"], str)
         assert isinstance(body["updated_at"], str)
-        
+
         # Check timestamps are valid ISO format
         from datetime import datetime
         datetime.fromisoformat(body["created_at"].replace("Z", "+00:00"))
