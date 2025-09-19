@@ -366,20 +366,21 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
             spark_submit_params=self.spark_submit_params,
         )
 
-        for task in tasks:
-            if not (
-                hasattr(task, "_convert_to_databricks_workflow_task")
-                and callable(task._convert_to_databricks_workflow_task)
-            ):
-                raise AirflowException(
-                    f"Task {task.task_id} does not support conversion to databricks workflow task."
-                )
+        try:
+            for task in tasks:
+                if not (
+                    hasattr(task, "_convert_to_databricks_workflow_task")
+                    and callable(task._convert_to_databricks_workflow_task)
+                ):
+                    raise AirflowException(
+                        f"Task {task.task_id} does not support conversion to databricks workflow task."
+                    )
 
-            task.workflow_run_metadata = create_databricks_workflow_task.output
-            create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
-            create_databricks_workflow_task.add_task(task.task_id, task)
+                task.workflow_run_metadata = create_databricks_workflow_task.output
+                create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
+                create_databricks_workflow_task.add_task(task.task_id, task)
 
-        for root_task in roots:
-            root_task.set_upstream(create_databricks_workflow_task)
-
-        super().__exit__(_type, _value, _tb)
+            for root_task in roots:
+                root_task.set_upstream(create_databricks_workflow_task)
+        finally:
+            super().__exit__(_type, _value, _tb)
