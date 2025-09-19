@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack, useDisclosure, Heading, Stack } from "@chakra-ui/react";
+import { Box, Text, HStack, useDisclosure, Heading, Stack, StackSeparator } from "@chakra-ui/react";
 import React, { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -47,39 +47,9 @@ export const LimitedItemsList = ({
   const displayItems = shouldTruncate ? items.slice(0, maxItems) : items;
   const remainingItems = shouldTruncate ? items.slice(maxItems) : [];
   const remainingItemsList = interactive ? (
-    <Box maxH="200px" overflowY="auto" p={2}>
-      <Text fontSize="sm" fontWeight="bold" mb={2}>
-        {translate("limitedList.allItems", { count: items.length })}
-      </Text>
-      <Stack gap={1}>
-        {items.map((item, index) => (
-          <Box fontSize="sm" key={typeof item === "string" ? item : index}>
-            {item}
-          </Box>
-        ))}
-      </Stack>
-      <Text color="gray.500" fontSize="xs" mt={2}>
-        {translate("limitedList.clickToOpenFull", { count: remainingItems.length })}
-      </Text>
-    </Box>
+    <HStack separator={<StackSeparator />}>{remainingItems}</HStack>
   ) : (
-    <Box maxH="200px" overflowY="auto" p={2}>
-      <Text fontSize="sm" fontWeight="bold" mb={2}>
-        {translate("limitedList.allItems", { count: items.length })}
-      </Text>
-      <Stack gap={1}>
-        {items.map((item, index) => (
-          <Text fontSize="sm" key={typeof item === "string" ? item : index}>
-            {item}
-          </Text>
-        ))}
-      </Stack>
-      {showModal ? (
-        <Text color="gray.500" fontSize="xs" mt={2}>
-          {translate("limitedList.clickToOpenFull", { count: remainingItems.length })}
-        </Text>
-      ) : undefined}
-    </Box>
+    `More items: ${remainingItems.map((item) => (typeof item === "string" ? item : "item")).join(", ")}`
   );
 
   if (!items.length) {
@@ -105,22 +75,20 @@ export const LimitedItemsList = ({
             remainingItems.length === 1 ? (
               <Text as="span">{remainingItems[0]}</Text>
             ) : showModal ? (
-              <Tooltip content={remainingItemsList} interactive={interactive}>
-                <Button
-                  _hover={{ color: "blue.600", textDecoration: "underline" }}
-                  color="blue.500"
-                  cursor="pointer"
-                  fontSize="sm"
-                  minH="auto"
-                  onClick={onOpen}
-                  px={1}
-                  py={0}
-                  size="xs"
-                  variant="ghost"
-                >
-                  {translate("limitedList", { count: remainingItems.length })}
-                </Button>
-              </Tooltip>
+              <Button
+                _hover={{ color: "blue.600", textDecoration: "underline" }}
+                color="blue.500"
+                cursor="pointer"
+                fontSize="sm"
+                minH="auto"
+                onClick={onOpen}
+                px={1}
+                py={0}
+                size="xs"
+                variant="ghost"
+              >
+                {translate("limitedList", { count: remainingItems.length })}
+              </Button>
             ) : (
               <Tooltip content={remainingItemsList} interactive={interactive}>
                 <Text as="span" cursor="help">

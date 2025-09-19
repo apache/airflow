@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 run zal getriggerd worden.",
-    "affected_other": "{{count}} Runs zullen getriggered worden.",
+    "affected_other": "{{count}} Runs zullen getriggerd worden.",
     "affectedNone": "Geen Runs komen overeen met de geselecteerde criteria.",
     "allRuns": "Alle Runs",
     "backwards": "Run achterstevoren",
