@@ -25,25 +25,6 @@ from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import (
     AssetEventResponse,
     AssetResponse,
-    BackfillCollectionResponse,
-    BackfillPostBody,
-    BackfillResponse,
-    BulkActionOnExistence,
-    BulkActionResponse,
-    BulkBodyConnectionBody,
-    BulkBodyPoolBody,
-    BulkBodyVariableBody,
-    BulkCreateActionConnectionBody,
-    BulkCreateActionPoolBody,
-    BulkCreateActionVariableBody,
-    BulkResponse,
-    Config,
-    ConfigOption,
-    ConfigSection,
-    ConnectionBody,
-    ConnectionCollectionResponse,
-    ConnectionResponse,
-    ConnectionTestResponse,
     CreateAssetBody,
     CreateAssetEventsBody,
 )
@@ -153,7 +134,7 @@ class TestAssetsOperationsMinimal:
             group="test_group",
             extra={"test": "extra"}
         )
-        
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/assets"
             return httpx.Response(200, json=json.loads(self.asset_response.model_dump_json()))
@@ -185,7 +166,6 @@ class TestAssetsOperationsMinimal:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
             return httpx.Response(
                 200, json=json.loads(self.asset_queued_event_collection_response.model_dump_json())
->>>>>>> a795af149c (fix(airflow-ctl): add missing CreateAssetBody and test_create method)
             )
 
             class MockResponse:
