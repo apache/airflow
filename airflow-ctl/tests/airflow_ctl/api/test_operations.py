@@ -342,3 +342,4 @@ class TestAssetsOperationsMinimal:
         assert response.extra == expected_extra
         assert called['method'] == 'POST'
         assert called['url'].endswith('assets/events')
+# Clean version - no conflict markers
