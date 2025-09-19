@@ -24,8 +24,8 @@
 
 .. towncrier release notes start
 
-Airflow 3.1.0b2 (2025-09-15)
-----------------------------
+Airflow 3.1.0 (2025-09-24)
+--------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
@@ -484,6 +484,10 @@ Bug Fixes
 - Fix logging format to respect existing configuration during upgrade to prevent unexpected log format changes (#55824)
 - Fix Grid view crashes when DAG version information is missing (#55771)
 - Fix compatibility for custom triggers migrating from Airflow 2.x that use synchronous connection calls (#55799)
+- Fix DAG runs triggered from UI incorrectly marked as REST API triggers instead of UI triggers (#54650)
+- Fix XCom API responses failing when encountering non-serializable objects by falling back to string representation (#55880)
+- Fix asset queue display in UI showing incorrect timestamps for deleted queue events (#54652)
+- Fix SQLite database migrations failing due to foreign key constraint handling (#55883)
 
 Miscellaneous
 ^^^^^^^^^^^^^
