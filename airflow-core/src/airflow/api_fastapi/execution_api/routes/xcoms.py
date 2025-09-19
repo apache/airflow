@@ -35,6 +35,7 @@ from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
+from urllib.parse import unquote
 
 
 async def has_xcom_access(
@@ -78,6 +79,7 @@ async def xcom_query(
     key: str,
     map_index: Annotated[int | None, Query()] = None,
 ) -> Select:
+    key= unquote(key)
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -143,6 +145,7 @@ def get_xcom(
     params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
+    key = unquote(key)
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -196,6 +199,7 @@ def get_mapped_xcom_by_index(
     offset: int,
     session: SessionDep,
 ) -> XComSequenceIndexResponse:
+    key = unquote(key)
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -240,6 +244,7 @@ def get_mapped_xcom_by_slice(
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
 ) -> XComSequenceSliceResponse:
+    key = unquote(key)
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -360,7 +365,7 @@ def set_xcom(
                 "message": "XCom key must be a non-empty string.",
             },
         )
-
+    key = unquote(key)
     if mapped_length is not None:
         task_map = TaskMap(
             dag_id=dag_id,
@@ -444,6 +449,7 @@ def delete_xcom(
     map_index: Annotated[int, Query()] = -1,
 ):
     """Delete a single XCom Value."""
+    key = unquote(key)
     query = delete(XComModel).where(
         XComModel.key == key,
         XComModel.run_id == run_id,

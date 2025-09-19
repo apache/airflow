@@ -336,6 +336,7 @@ class RuntimeTaskInstance(TaskInstance):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
+        key = quote(key,safe='')
         if dag_id is None:
             dag_id = self.dag_id
         if run_id is None:
@@ -409,7 +410,8 @@ class RuntimeTaskInstance(TaskInstance):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable values may be used.
         """
-        _xcom_push(self, key, value)
+        encoded_key = quote(key, safe="")
+        _xcom_push(self, encoded_key, value)
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
@@ -899,9 +901,10 @@ def run(
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
             for x in keys_to_delete:
-                log.debug("Clearing XCom with key", key=x)
+                encoded_key = quote(x, safe="")
+                log.debug("Clearing XCom with key", key=encoded_key)
                 XCom.delete(
-                    key=x,
+                    key=encoded_key,
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
                     run_id=ti.run_id,
@@ -1363,8 +1366,10 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
                     "Returned dictionary keys must be strings when using "
                     f"multiple_outputs, found {key} ({type(key)}) instead"
                 )
+
         for k, v in result.items():
             ti.xcom_push(k, v)
+
 
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
