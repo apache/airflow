@@ -77,6 +77,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_task_instance_state,
     _patch_ti_validate_request,
 )
+from airflow.api_fastapi.core_api.services.ui.task_group import resolve_task_group_pattern_to_task_ids
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import Base, DagRun
@@ -476,6 +477,19 @@ def get_task_instances(
         get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         query = query.where(TI.dag_id == dag_id)
 
+    # Handle task group filtering: if task_display_name_pattern appears to be a group ID,
+    # find all tasks that belong to that group and filter by task_id
+    task_id_filter_from_group = None
+    if task_display_name_pattern.value is not None and dag_id != "~":
+        if dag_run:
+            dag = dag_bag.get_dag_for_run(dag_run, session=session)
+            if dag:
+                group_task_ids = resolve_task_group_pattern_to_task_ids(dag, task_display_name_pattern.value)
+                if group_task_ids:
+                    task_id_filter_from_group = FilterParam(
+                        TI.task_id, group_task_ids, FilterOptionEnum.ANY_EQUAL
+                    )
+
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -490,7 +504,7 @@ def get_task_instances(
             queue,
             executor,
             task_id,
-            task_display_name_pattern,
+            task_id_filter_from_group if task_id_filter_from_group else task_display_name_pattern,
             version_number,
             readable_ti_filter,
             try_number,

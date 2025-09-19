@@ -112,3 +112,17 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
         "is_mapped": mapped or None,
         "children": children or None,
     }
+
+
+def resolve_task_group_pattern_to_task_ids(dag, pattern):
+    """Resolve a task group pattern to a list of task IDs."""
+    if not dag or not hasattr(dag, "task_group"):
+        return None
+
+    task_group_dict = dag.task_group.get_task_group_dict()
+    target_group = task_group_dict.get(pattern)
+
+    if target_group:
+        return [task.task_id for task in target_group.iter_tasks()]
+
+    return None
