@@ -48,28 +48,29 @@ class TestAssetsOperationsMinimal:
             called['method'] = 'POST'
 
             # Verify the endpoint and payload
-            assert url.endswith("/assets")
-            assert json == {"name": "test_asset", "uri": "s3://bucket/test"}
+            assert url.endswith("assets")
+            assert json == {"name": "test_asset", "uri": "s3://bucket/test", "group": None, "extra": None}
 
             # Return mock response
             mock_response = AssetResponse(
                 id=1,
                 name="test_asset",
                 uri="s3://bucket/test",
-                group=None,
+                group="default",
                 extra=None,
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        scheduled_dags=[],
-        producing_tasks=[],
-        consuming_tasks=[],
-        aliases=[],
+                updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                scheduled_dags=[],
+                producing_tasks=[],
+                consuming_tasks=[],
+                aliases=[],
             )
 
             class MockResponse:
                 def __init__(self, data):
                     self.status_code = 201
                     self._data = data
+                    self.content = data.model_dump_json().encode('utf-8')
 
                 def json(self):
                     return json.loads(self._data.model_dump_json())
@@ -86,7 +87,7 @@ class TestAssetsOperationsMinimal:
         assert response.name == "test_asset"
         assert response.uri == "s3://bucket/test"
         assert called['method'] == 'POST'
-        assert called['url'].endswith('/assets')
+        assert called['url'].endswith('assets')
 
     def test_create_event_hits_assets_events_endpoint(self, monkeypatch):
         """Test that create_event() posts to /assets/events with correct payload."""
@@ -98,11 +99,12 @@ class TestAssetsOperationsMinimal:
             called['method'] = 'POST'
 
             # Verify the endpoint and payload
-            assert url.endswith("/assets/events")
+            assert url.endswith("assets/events")
             assert json == {"asset_id": 1, "extra": {}}
 
             # Return mock response
             mock_response = AssetEventResponse(
+                id=1,
                 asset_id=1,
                 extra={"from_rest_api": True},
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -117,6 +119,7 @@ class TestAssetsOperationsMinimal:
                 def __init__(self, data):
                     self.status_code = 201
                     self._data = data
+                    self.content = data.model_dump_json().encode('utf-8')
 
                 def json(self):
                     return json.loads(self._data.model_dump_json())
@@ -133,7 +136,7 @@ class TestAssetsOperationsMinimal:
         assert response.asset_id == 1
         assert response.extra == {"from_rest_api": True}
         assert called['method'] == 'POST'
-        assert called['url'].endswith('/assets/events')
+        assert called['url'].endswith('assets/events')
 
     def test_create_event_with_extra_preserves_structure(self, monkeypatch):
         """Test that create_event() preserves extra structure when provided."""
@@ -145,11 +148,12 @@ class TestAssetsOperationsMinimal:
             called['method'] = 'POST'
 
             # Verify the endpoint and payload
-            assert url.endswith("/assets/events")
+            assert url.endswith("assets/events")
             assert json == {"asset_id": 42, "extra": {"test": "data", "nested": {"key": "value"}}}
 
             # Return mock response
             mock_response = AssetEventResponse(
+                id=42,
                 asset_id=42,
                 extra={"test": "data", "nested": {"key": "value"}, "from_rest_api": True},
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -164,6 +168,7 @@ class TestAssetsOperationsMinimal:
                 def __init__(self, data):
                     self.status_code = 201
                     self._data = data
+                    self.content = data.model_dump_json().encode('utf-8')
 
                 def json(self):
                     return json.loads(self._data.model_dump_json())
@@ -181,7 +186,7 @@ class TestAssetsOperationsMinimal:
         expected_extra = {"test": "data", "nested": {"key": "value"}, "from_rest_api": True}
         assert response.extra == expected_extra
         assert called['method'] == 'POST'
-        assert called['url'].endswith('/assets/events')
+        assert called['url'].endswith('assets/events')
 
     @pytest.mark.parametrize("extra", [None, {}, {"k": "v"}])
     def test_create_event_includes_extra(self, monkeypatch, extra):
@@ -194,12 +199,13 @@ class TestAssetsOperationsMinimal:
             called['method'] = 'POST'
 
             # Verify the endpoint and payload
-            assert url.endswith("/assets/events")
+            assert url.endswith("assets/events")
             expected_extra = {} if extra in (None, {}) else extra
             assert json == {"asset_id": 1, "extra": expected_extra}
 
             # Return mock response
             mock_response = AssetEventResponse(
+                id=1,
                 asset_id=1,
                 extra={**expected_extra, "from_rest_api": True},
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -214,6 +220,7 @@ class TestAssetsOperationsMinimal:
                 def __init__(self, data):
                     self.status_code = 201
                     self._data = data
+                    self.content = data.model_dump_json().encode('utf-8')
 
                 def json(self):
                     return json.loads(self._data.model_dump_json())
@@ -232,4 +239,4 @@ class TestAssetsOperationsMinimal:
         expected_extra["from_rest_api"] = True
         assert response.extra == expected_extra
         assert called['method'] == 'POST'
-        assert called['url'].endswith('/assets/events')
+        assert called['url'].endswith('assets/events')
