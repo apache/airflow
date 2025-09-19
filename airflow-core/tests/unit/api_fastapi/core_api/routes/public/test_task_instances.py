@@ -1244,17 +1244,57 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 id="test map_index filter",
             ),
+            pytest.param(
+                "dag_id_pattern_test",  # Special marker for multi-DAG test
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_pattern": "example_python_operator"},
+                9,  # Based on test failure - example_python_operator creates 9 task instances
+                id="test dag_id_pattern exact match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",  # Special marker for multi-DAG test
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_pattern": "example_%"},
+                17,  # Based on test failure - both DAGs together create 17 task instances
+                id="test dag_id_pattern wildcard prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",  # Special marker for multi-DAG test
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_pattern": "%skip%"},
+                8,  # Based on test failure - example_skip_dag creates 8 task instances
+                id="test dag_id_pattern wildcard contains",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",  # Special marker for multi-DAG test
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_pattern": "nonexistent"},
+                0,
+                id="test dag_id_pattern no match",
+            ),
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     def test_should_respond_200(
         self, test_client, task_instances, update_extras, url, params, expected_ti, session
     ):
-        self.create_task_instances(
-            session,
-            update_extras=update_extras,
-            task_instances=task_instances,
-        )
+        # Special handling for dag_id_pattern tests that require multiple DAGs
+        if task_instances == "dag_id_pattern_test":
+            # Create task instances for multiple DAGs like the original test_dag_id_pattern_filter
+            dag1_id = "example_python_operator"
+            dag2_id = "example_skip_dag"
+            self.create_task_instances(session, dag_id=dag1_id)
+            self.create_task_instances(session, dag_id=dag2_id)
+        else:
+            self.create_task_instances(
+                session,
+                update_extras=update_extras,
+                task_instances=task_instances,
+            )
         with mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.DagBundlesManager"):
             # Mock DagBundlesManager to avoid checking if dags-folder bundle is configured
             response = test_client.get(url, params=params)

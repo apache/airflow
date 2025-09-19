@@ -48,6 +48,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   END_DATE: END_DATE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
@@ -189,6 +190,7 @@ export const DagRuns = () => {
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
+  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
 
@@ -197,6 +199,7 @@ export const DagRuns = () => {
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
+      dagIdPattern: filteredDagIdPattern ?? undefined,
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
@@ -282,9 +285,36 @@ export const DagRuns = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  const handleDagIdPatternChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete(DAG_ID_PATTERN_PARAM);
+      } else {
+        searchParams.set(DAG_ID_PATTERN_PARAM, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   return (
     <>
       <HStack paddingY="4px">
+        {dagId === undefined && (
+          <Box>
+            <SearchBar
+              defaultValue={filteredDagIdPattern ?? ""}
+              hideAdvanced
+              hotkeyDisabled={true}
+              onChange={handleDagIdPatternChange}
+              placeHolder={translate("dags:search.dags")}
+            />
+          </Box>
+        )}
         <Box>
           <SearchBar
             defaultValue={filteredRunIdPattern ?? ""}
