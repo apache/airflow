@@ -173,6 +173,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
             ) : undefined}
             <Checkbox
               checked={isRunningMessage}
+              style={{ marginRight: "auto"}}
               onCheckedChange={(event) => setIsRunningMessage(Boolean(event.checked))}
             >
               {translate("dags:runAndTaskActions.options.noRunningState")}

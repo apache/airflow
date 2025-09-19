@@ -73,7 +73,7 @@
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream",
-      "noRunningState": "Do not run until task is not running  "
+      "noRunningState": "Do not re-run until task is not running  "
     }
   },
   "search": {
