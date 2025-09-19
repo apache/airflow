@@ -1083,6 +1083,7 @@ export const useTaskInstanceServiceGetHitlDetailSuspense = <TData = Common.TaskI
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.taskId
 * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.mapIndex
 * @param data.state
 * @param data.responseReceived
 * @param data.respondedByUserId
@@ -1096,7 +1097,7 @@ export const useTaskInstanceServiceGetHitlDetailSuspense = <TData = Common.TaskI
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
+export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
   bodySearch?: string;
   createdAtGt?: string;
   createdAtGte?: string;
@@ -1106,6 +1107,7 @@ export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.Task
   dagIdPattern?: string;
   dagRunId: string;
   limit?: number;
+  mapIndex?: number;
   offset?: number;
   orderBy?: string[];
   respondedByUserId?: string[];
@@ -1115,7 +1117,7 @@ export const useTaskInstanceServiceGetHitlDetailsSuspense = <TData = Common.Task
   subjectSearch?: string;
   taskId?: string;
   taskIdPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }) as TData, ...options });
 /**
 * Get Import Error
 * Get an import error.

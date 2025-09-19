@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, LocaleProvider } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
+import { useEffect, type PropsWithChildren } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 
@@ -32,6 +32,23 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   if (typeof instanceName === "string") {
     document.title = instanceName;
   }
+
+  useEffect(() => {
+    const html = document.documentElement;
+
+    const updateHtml = (language: string) => {
+      if (language) {
+        html.setAttribute("dir", i18n.dir(language));
+        html.setAttribute("lang", language);
+      }
+    };
+
+    i18n.on("languageChanged", updateHtml);
+
+    return () => {
+      i18n.off("languageChanged", updateHtml);
+    };
+  }, [i18n]);
 
   return (
     <LocaleProvider locale={i18n.language}>

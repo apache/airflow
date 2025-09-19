@@ -873,6 +873,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -2869,6 +2870,7 @@ export type GetHitlDetailsData = {
     dagIdPattern?: string | null;
     dagRunId: string;
     limit?: number;
+    mapIndex?: number | null;
     offset?: number;
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;
