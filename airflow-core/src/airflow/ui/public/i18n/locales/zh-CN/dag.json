@@ -35,8 +35,8 @@
   "code": {
     "bundleUrl": "套件包链接",
     "noCode": "找不到代码",
-    "parsedAt": "解析时间：",
-    "parseDuration": "解析耗时："
+    "parseDuration": "解析耗时：",
+    "parsedAt": "解析时间："
   },
   "extraLinks": "额外链接",
   "grid": {
