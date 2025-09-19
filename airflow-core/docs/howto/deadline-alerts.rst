@@ -226,8 +226,8 @@ Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
-:ref:`concepts:jinja-templating` on the kwargs. However, ``Notifier``s already run templating with the
-provided context as part of their execution. This means that templating can be used when using a ``Notifier``
+:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
+provided context as part of their execution. This means that templating can be used when using a Notifier
 as long as the variables being templated are included in the simplified context. This currently includes the
 ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
 response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
