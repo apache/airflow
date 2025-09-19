@@ -149,7 +149,6 @@ class TestCommsDecoder:
         assert msg.value[-1] == "b"
 
     def test_payload_with_builtin_subclass(self):
-
         class CustomFloat(float):
             """A custom subclass of float."""
 

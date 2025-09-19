@@ -471,6 +471,7 @@ class _AssetRefResolutionMixin:
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.serialization.serde import deserialize
 
         msg: ToSupervisor
         if name:
@@ -486,6 +487,7 @@ class _AssetRefResolutionMixin:
 
         if TYPE_CHECKING:
             assert isinstance(resp, AssetResult)
+        resp.extra = deserialize(resp.extra) if resp.extra else {}  # type: ignore
         return Asset(**resp.model_dump(exclude={"type"}))
 
 
