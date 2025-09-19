@@ -54,7 +54,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const [runOnLatestVersion, setRunOnLatestVersion] = useState<boolean>(false);
 
   const [note, setNote] = useState<string>("");
 
@@ -101,6 +101,15 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
 
   const shouldShowBundleVersionOption =
     dagDetails?.bundle_version !== null && dagDetails?.bundle_version !== "";
+
+  // Robust handler: supports Radix `CheckedState` or details object `{ checked }`
+  const handleRunOnLatestVersionChange = (
+    arg: boolean | "indeterminate" | { checked: boolean | "indeterminate" }
+  ) => {
+    const next = typeof arg === "object" ? arg.checked : arg;
+
+    setRunOnLatestVersion(next === true);
+  };
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -160,9 +169,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
             {shouldShowBundleVersionOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
-                onCheckedChange={(checked: boolean | "indeterminate") =>
-                  setRunOnLatestVersion(checked === true)
-                }
+                onCheckedChange={handleRunOnLatestVersionChange}
               >
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
