@@ -7,10 +7,10 @@
     }
   },
   "requiredAction_one": "待操作的任务实例",
-"requiredAction_other": "待操作的任务实例",
+  "requiredAction_other": "待操作的任务实例",
   "requiredActionCount_one": "待操作的任务实例 ({{count}})",
   "requiredActionCount_other": "待操作的任务实例 ({{count}})",
-"requiredActionState": "待操作的任务实例状态",
+  "requiredActionState": "待操作的任务实例状态",
   "response": {
     "error": "响应失败",
     "optionsDescription": "请为此任务实例选择一个选项",
