@@ -170,14 +170,21 @@ class BaseOperations:
         path: str,
         data_model: type[T],
         offset: int = 0,
-        limit: int = 50,
+        limit: int | None = None,
         params: dict | None = None,
     ) -> T | ServerResponseError:
+        limit_flag = True if limit is not None else False
+        if limit is None or limit > 50:
+            limit = 50
+        if params is None:
+            params = {}
+        params["limit"] = limit
         shared_params = {**(params or {})}
         self.response = self.client.get(path, params=shared_params)
+
         first_pass = data_model.model_validate_json(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]
-        if total_entries < limit:
+        if total_entries < limit or limit_flag:
             return first_pass
         for key, value in first_pass.model_dump().items():
             if key != "total_entries" and isinstance(value, list):
@@ -230,9 +237,9 @@ class AssetsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> AssetCollectionResponse | ServerResponseError:
+    def list(self, limit: int) -> AssetCollectionResponse | ServerResponseError:
         """List all assets from the API server."""
-        return super().execute_list(path="assets", data_model=AssetCollectionResponse)
+        return super().execute_list(path="assets", data_model=AssetCollectionResponse, limit=limit)
 
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
@@ -341,10 +348,12 @@ class BackfillOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self, dag_id: str) -> BackfillCollectionResponse | ServerResponseError:
+    def list(self, dag_id: str, limit: int) -> BackfillCollectionResponse | ServerResponseError:
         """List all backfills."""
         params = {"dag_id": dag_id}
-        return super().execute_list(path="backfills", data_model=BackfillCollectionResponse, params=params)
+        return super().execute_list(
+            path="backfills", data_model=BackfillCollectionResponse, params=params, limit=limit
+        )
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
@@ -402,9 +411,9 @@ class ConnectionsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> ConnectionCollectionResponse | ServerResponseError:
+    def list(self, limit: int) -> ConnectionCollectionResponse | ServerResponseError:
         """List all connections from the API server."""
-        return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
+        return super().execute_list(path="connections", data_model=ConnectionCollectionResponse, limit=limit)
 
     def create(
         self,
@@ -491,11 +500,11 @@ class DagsOperations(BaseOperations):
         """Get all DAG tags."""
         return super().execute_list(path="dagTags", data_model=DAGTagCollectionResponse)
 
-    def list(self) -> DAGCollectionResponse | ServerResponseError:
+    def list(self, limit: int) -> DAGCollectionResponse | ServerResponseError:
         """List DAGs."""
-        return super().execute_list(path="dags", data_model=DAGCollectionResponse)
+        return super().execute_list(path="dags", data_model=DAGCollectionResponse, limit=limit)
 
-    def patch(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
+    def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
         try:
             self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump())
             return DAGResponse.model_validate_json(self.response.content)
@@ -566,11 +575,10 @@ class DagRunOperations(BaseOperations):
             "start_date": start_date,
             "end_date": end_date,
             "state": state,
-            "limit": limit,
             "dag_id": dag_id,
         }
         return super().execute_list(
-            path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params
+            path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params, limit=limit
         )
 
     def trigger(
@@ -592,11 +600,11 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, is_alive: bool
+        self, job_type: str, hostname: str, is_alive: bool, limit: int
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
-        return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
+        return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params, limit=limit)
 
 
 class PoolsOperations(BaseOperations):
@@ -610,9 +618,9 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> PoolCollectionResponse | ServerResponseError:
+    def list(self, limit: int) -> PoolCollectionResponse | ServerResponseError:
         """List all pools."""
-        return super().execute_list(path="pools", data_model=PoolCollectionResponse)
+        return super().execute_list(path="pools", data_model=PoolCollectionResponse, limit=limit)
 
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
@@ -668,9 +676,9 @@ class VariablesOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def list(self) -> VariableCollectionResponse | ServerResponseError:
+    def list(self, limit: int) -> VariableCollectionResponse | ServerResponseError:
         """List all variables."""
-        return super().execute_list(path="variables", data_model=VariableCollectionResponse)
+        return super().execute_list(path="variables", data_model=VariableCollectionResponse, limit=limit)
 
     def create(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Create a variable."""
