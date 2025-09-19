@@ -110,9 +110,6 @@ importers:
       react-icons:
         specifier: ^5.5.0
         version: 5.5.0(react@19.1.1)
-      react-innertext:
-        specifier: ^1.1.5
-        version: 1.1.5(@types/react@18.3.19)(react@19.1.1)
       react-json-view:
         specifier: ^1.21.3
         version: 1.21.3(@types/react@18.3.19)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -3847,12 +3844,6 @@ packages:
     resolution: {integrity: sha512-MEFcXdkP3dLo8uumGI5xN3lDFNsRtrjbOEKDLD7yv76v4wpnEq2Lt2qeHaQOr34I/wPN3s3+N08WkQ+CW37Xiw==}
     peerDependencies:
       react: '*'
-
-  react-innertext@1.1.5:
-    resolution: {integrity: sha512-PWAqdqhxhHIv80dT9znP2KvS+hfkbRovFp4zFYHFFlOoQLRiawIic81gKb3U1wEyJZgMwgs3JoLtwryASRWP3Q==}
-    peerDependencies:
-      '@types/react': '>=0.0.0 <=99'
-      react: '>=0.0.0 <=99'
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -9372,11 +9363,6 @@ snapshots:
 
   react-icons@5.5.0(react@19.1.1):
     dependencies:
-      react: 19.1.1
-
-  react-innertext@1.1.5(@types/react@18.3.19)(react@19.1.1):
-    dependencies:
-      '@types/react': 18.3.19
       react: 19.1.1
 
   react-is@16.13.1: {}
