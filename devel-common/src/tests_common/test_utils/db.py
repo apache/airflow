@@ -60,7 +60,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -229,7 +229,7 @@ def clear_db_assets():
             session.query(AssetActive).delete()
             session.query(DagScheduleAssetNameReference).delete()
             session.query(DagScheduleAssetUriReference).delete()
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.models.asset import AssetWatcherModel
 
             session.query(AssetWatcherModel).delete()
@@ -237,7 +237,7 @@ def clear_db_assets():
 
 def clear_db_triggers():
     with create_session() as session:
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.models.asset import AssetWatcherModel
 
             session.query(AssetWatcherModel).delete()
