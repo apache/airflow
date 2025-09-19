@@ -40,6 +40,7 @@ import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import type { DagRunType } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
@@ -70,13 +71,15 @@ ChartJS.register(
 
 type Props = {
   readonly limit: number;
+  readonly runType?: DagRunType | undefined;
+  readonly triggeringUser?: string | undefined;
 };
 
 const CHART_PADDING = 36;
 const CHART_ROW_HEIGHT = 20;
 const MIN_BAR_WIDTH = 10;
 
-export const Gantt = ({ limit }: Props) => {
+export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
@@ -99,14 +102,19 @@ export const Gantt = ({ limit }: Props) => {
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
   const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
 
-  const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit });
-  const { data: dagStructure, isLoading: structureLoading } = useGridStructure({ limit });
+  const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit, runType, triggeringUser });
+  const { data: dagStructure, isLoading: structureLoading } = useGridStructure({
+    limit,
+    runType,
+    triggeringUser,
+  });
   const selectedRun = gridRuns?.find((run) => run.run_id === runId);
   const refetchInterval = useAutoRefresh({ dagId });
 
   // Get grid summaries for groups (which have min/max times)
   const { data: gridTiSummaries, isLoading: summariesLoading } = useGridTiSummaries({
     dagId,
+    enabled: Boolean(selectedRun),
     runId,
     state: selectedRun?.state,
   });
@@ -120,7 +128,7 @@ export const Gantt = ({ limit }: Props) => {
     },
     undefined,
     {
-      enabled: Boolean(dagId) && Boolean(runId),
+      enabled: Boolean(dagId) && Boolean(runId) && Boolean(selectedRun),
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
@@ -205,14 +213,14 @@ export const Gantt = ({ limit }: Props) => {
       datasets: [
         {
           backgroundColor: data.map((dataItem) => stateColorMap[dataItem.state ?? "none"]),
-          data,
+          data: Boolean(selectedRun) ? data : [],
           maxBarThickness: CHART_ROW_HEIGHT,
           minBarLength: MIN_BAR_WIDTH,
         },
       ],
       labels: flatNodes.map((node) => node.id),
     }),
-    [data, flatNodes, stateColorMap],
+    [data, flatNodes, stateColorMap, selectedRun],
   );
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
