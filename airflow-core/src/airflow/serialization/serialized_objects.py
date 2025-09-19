@@ -1339,6 +1339,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
         )
 
+    def __repr__(self) -> str:
+        return f"<SerializedTask({self.task_type}): {self.task_id}>"
+
     @property
     def node_id(self) -> str:
         return self.task_id
@@ -2409,6 +2412,9 @@ class SerializedDAG(BaseSerialization):
         self.start_date = None
         self.tags = set()
         self.template_searchpath = None
+
+    def __repr__(self) -> str:
+        return f"<SerializedDAG: {self.dag_id}>"
 
     @staticmethod
     def __get_constructor_defaults():
