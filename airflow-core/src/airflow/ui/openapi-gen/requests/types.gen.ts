@@ -91,7 +91,17 @@ export type AssetResponse = {
     producing_tasks: Array<TaskOutletAssetReference>;
     consuming_tasks: Array<TaskInletAssetReference>;
     aliases: Array<AssetAliasResponse>;
+    watchers: Array<AssetWatcherResponse>;
     last_asset_event?: LastAssetEventResponse | null;
+};
+
+/**
+ * Asset watcher serializer for responses.
+ */
+export type AssetWatcherResponse = {
+    name: string;
+    trigger_id: number;
+    created_date: string;
 };
 
 /**

@@ -342,6 +342,13 @@ export const $AssetResponse = {
             type: 'array',
             title: 'Aliases'
         },
+        watchers: {
+            items: {
+                '$ref': '#/components/schemas/AssetWatcherResponse'
+            },
+            type: 'array',
+            title: 'Watchers'
+        },
         last_asset_event: {
             anyOf: [
                 {
@@ -354,9 +361,31 @@ export const $AssetResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'name', 'uri', 'group', 'created_at', 'updated_at', 'scheduled_dags', 'producing_tasks', 'consuming_tasks', 'aliases'],
+    required: ['id', 'name', 'uri', 'group', 'created_at', 'updated_at', 'scheduled_dags', 'producing_tasks', 'consuming_tasks', 'aliases', 'watchers'],
     title: 'AssetResponse',
     description: 'Asset serializer for responses.'
+} as const;
+
+export const $AssetWatcherResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        trigger_id: {
+            type: 'integer',
+            title: 'Trigger Id'
+        },
+        created_date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created Date'
+        }
+    },
+    type: 'object',
+    required: ['name', 'trigger_id', 'created_date'],
+    title: 'AssetWatcherResponse',
+    description: 'Asset watcher serializer for responses.'
 } as const;
 
 export const $BackfillCollectionResponse = {

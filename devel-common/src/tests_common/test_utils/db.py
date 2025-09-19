@@ -224,21 +224,23 @@ def clear_db_assets():
                 AssetActive,
                 DagScheduleAssetNameReference,
                 DagScheduleAssetUriReference,
-                asset_trigger_association_table,
             )
 
-            session.query(asset_trigger_association_table).delete()
             session.query(AssetActive).delete()
             session.query(DagScheduleAssetNameReference).delete()
             session.query(DagScheduleAssetUriReference).delete()
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.asset import AssetWatcherModel
+
+            session.query(AssetWatcherModel).delete()
 
 
 def clear_db_triggers():
     with create_session() as session:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.asset import asset_trigger_association_table
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.asset import AssetWatcherModel
 
-            session.query(asset_trigger_association_table).delete()
+            session.query(AssetWatcherModel).delete()
         session.query(Trigger).delete()
 
 
