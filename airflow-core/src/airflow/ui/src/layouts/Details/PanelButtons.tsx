@@ -77,12 +77,12 @@ const getOptions = (translate: (key: string) => string) =>
     ],
   });
 
-const getWidthBasedConfig = (width: number, showGantt: boolean) => {
-  const breakpoints = showGantt
+const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
+  const breakpoints = enableResponsiveOptions
     ? [
         { limit: 100, min: 1600, options: ["5", "10", "25", "50"] }, // xl: extra large screens
         { limit: 25, min: 1024, options: ["5", "10", "25"] }, // lg: large screens
-        { limit: 10, min: 768, options: ["5", "10"] }, // md: medium screens
+        { limit: 10, min: 384, options: ["5", "10"] }, // md: medium screens
         { limit: 5, min: 0, options: ["5"] }, // sm: small screens and below
       ]
     : [{ limit: 5, min: 0, options: ["5", "10", "25", "50"] }];
@@ -131,13 +131,18 @@ export const PanelButtons = ({
     setLimit(runLimit);
   };
 
-  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(containerWidth, showGantt);
+  const enableResponsiveOptions = showGantt && Boolean(runId);
+
+  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(
+    containerWidth,
+    enableResponsiveOptions,
+  );
 
   useEffect(() => {
-    if (showGantt && limit > defaultLimit) {
+    if (enableResponsiveOptions && limit > defaultLimit) {
       setLimit(defaultLimit);
     }
-  }, [showGantt, defaultLimit, setLimit, limit]);
+  }, [defaultLimit, enableResponsiveOptions, limit, setLimit]);
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
