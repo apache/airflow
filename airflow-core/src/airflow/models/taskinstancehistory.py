@@ -40,6 +40,8 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
+from airflow.models.hitl import HITLDetail
+from airflow.models.hitl_history import HITLDetailHistory
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
@@ -121,6 +123,8 @@ class TaskInstanceHistory(Base):
         foreign_keys=[run_id, dag_id],
     )
 
+    hitl_detail = relationship("HITLDetailHistory", lazy="noload", uselist=False)
+
     def __init__(
         self,
         ti: TaskInstance,
@@ -188,6 +192,9 @@ class TaskInstanceHistory(Base):
             ti.end_date = timezone.utcnow()
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
+        ti_hitl_detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti.id))
+        if ti_hitl_detail is not None:
+            ti_history.hitl_detail = HITLDetailHistory(ti_hitl_detail)
         session.add(ti_history)
 
     @provide_session
