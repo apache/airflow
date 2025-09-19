@@ -28,9 +28,10 @@ export type FilterConfig = {
   readonly label: string;
   readonly max?: number;
   readonly min?: number;
+  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly required?: boolean;
-  readonly type: "date" | "number" | "text";
+  readonly type: "date" | "number" | "select" | "text";
 };
 
 export type FilterState = {

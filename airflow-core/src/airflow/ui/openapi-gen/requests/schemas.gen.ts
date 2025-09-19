@@ -3363,6 +3363,17 @@ export const $EventLogResponse = {
                 }
             ],
             title: 'Dag Display Name'
+        },
+        task_display_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Display Name'
         }
     },
     type: 'object',
@@ -3578,6 +3589,11 @@ export const $HITLDetail = {
             type: 'array',
             title: 'Assigned Users'
         },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
         responded_by_user: {
             anyOf: [
                 {
@@ -3588,7 +3604,7 @@ export const $HITLDetail = {
                 }
             ]
         },
-        response_at: {
+        responded_at: {
             anyOf: [
                 {
                     type: 'string',
@@ -3598,7 +3614,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'Response At'
+            title: 'Responded At'
         },
         chosen_options: {
             anyOf: [
@@ -3626,7 +3642,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject', 'created_at'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;
@@ -3656,10 +3672,10 @@ export const $HITLDetailResponse = {
         responded_by: {
             '$ref': '#/components/schemas/HITLUser'
         },
-        response_at: {
+        responded_at: {
             type: 'string',
             format: 'date-time',
-            title: 'Response At'
+            title: 'Responded At'
         },
         chosen_options: {
             items: {
@@ -3676,7 +3692,7 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['responded_by', 'response_at', 'chosen_options'],
+    required: ['responded_by', 'responded_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
 } as const;

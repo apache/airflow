@@ -56,7 +56,7 @@ ARG AIRFLOW_PYTHON_VERSION="3.12.11"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.8.17
+ARG AIRFLOW_UV_VERSION=0.8.18
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -1618,6 +1618,11 @@ fi
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
     && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_celery_broker
+fi
+
+if [[ "$#" -eq 0 && "${_AIRFLOW_DB_MIGRATE}" == "true" ]]; then
+    echo "[INFO] No commands passed and _AIRFLOW_DB_MIGRATE=true. Exiting script with code 0."
+    exit 0
 fi
 
 exec "airflow" "${@}"

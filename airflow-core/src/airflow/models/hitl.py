@@ -26,6 +26,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.functions import FunctionElement
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -97,9 +98,10 @@ class HITLDetail(Base):
     multiple = Column(Boolean, unique=False, default=False)
     params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
-    response_at = Column(UtcDateTime, nullable=True)
+    responded_at = Column(UtcDateTime, nullable=True)
     responded_by = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     chosen_options = Column(
         sqlalchemy_jsonfield.JSONField(json=json),
@@ -125,11 +127,11 @@ class HITLDetail(Base):
 
     @hybrid_property
     def response_received(self) -> bool:
-        return self.response_at is not None
+        return self.responded_at is not None
 
     @response_received.expression  # type: ignore[no-redef]
     def response_received(cls):
-        return cls.response_at.is_not(None)
+        return cls.responded_at.is_not(None)
 
     @hybrid_property
     def responded_by_user_id(self) -> str | None:

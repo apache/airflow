@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+9.3.0
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Add Async support for SMTP Notifier (#55308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid secret false positive from trivy in example dag (#54504)``
+
 9.2.0
 .....
 
@@ -47,8 +62,6 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Make slack providers tests db independent (#54660)``
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 9.1.4
