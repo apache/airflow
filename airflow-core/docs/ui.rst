@@ -331,6 +331,7 @@ Provides extended metadata for the Dag Run, including:
 
 .. image:: img/ui-light/dag_run_details.png
    :alt: Dag Run - Details tab (light mode)
+
 Graph View
 ''''''''''
 
@@ -363,6 +364,7 @@ The Single Run window allows you to trigger a Dag run.
 
 .. image:: img/ui-dark/dag_trigger_window_single_run.png
    :alt: Dag Trigger Window - Single Run (Dark Mode)
+
 Backfill
 ''''''''
 
@@ -375,6 +377,7 @@ The Backfill window allows you to trigger a Dag run for past dates.
 
 .. image:: img/ui-dark/backfill.png
    :alt: Dag Trigger Window - Backfill (Dark Mode)
+
 Task Instance View
 ------------------
 
@@ -414,6 +417,7 @@ Shows any values pushed via ``XCom.push()`` or returned from Python functions wh
 
 .. image:: img/ui-light/dag_run_task_instance_xcom.png
   :alt: Task Instance - XCom tab (light mode)
+
 Events
 ''''''
 If present, displays relevant events related to this specific task instance execution.
