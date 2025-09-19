@@ -146,6 +146,7 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
 
     assert run_list[0] | undeterministic == undeterministic | {
         "conf": {},
+        "bundle_url": None,
         "bundle_version": None,
         "dag_display_name": "asset1_producer",
         "dag_id": "asset1_producer",
@@ -184,6 +185,7 @@ def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, s
 
     assert run_list[0] | undeterministic == undeterministic | {
         "conf": {},
+        "bundle_url": None,
         "bundle_version": None,
         "dag_display_name": "asset1_producer",
         "dag_id": "asset1_producer",
