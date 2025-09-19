@@ -332,7 +332,7 @@ export type BulkUpdateAction_BulkTaskInstanceBody_ = {
      */
     entities: Array<BulkTaskInstanceBody>;
     /**
-     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     * A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
@@ -348,7 +348,7 @@ export type BulkUpdateAction_ConnectionBody_ = {
      */
     entities: Array<ConnectionBody>;
     /**
-     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     * A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
@@ -364,7 +364,7 @@ export type BulkUpdateAction_PoolBody_ = {
      */
     entities: Array<PoolBody>;
     /**
-     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     * A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
@@ -380,7 +380,7 @@ export type BulkUpdateAction_VariableBody_ = {
      */
     entities: Array<VariableBody>;
     /**
-     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     * A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
