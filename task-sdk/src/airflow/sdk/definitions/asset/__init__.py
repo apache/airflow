@@ -323,9 +323,10 @@ class Asset(os.PathLike, BaseAsset):
         factory=dict,
         converter=_set_extra_default,
     )
-    watchers: list[AssetWatcher | SerializedAssetWatcher] = attrs.field(
-        factory=list,
-    )
+    # Dynamic metadata template (rendered at runtime into AssetEvent.extra)
+    event_extra_template: dict[str, Any] = attrs.field(factory=dict)
+
+    watchers: list[AssetWatcher | SerializedAssetWatcher] = attrs.field(factory=list)
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
@@ -338,6 +339,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = ...,
         extra: dict | None = None,
+        event_extra_template: dict[str, Any] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
@@ -349,6 +351,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = ...,
         extra: dict | None = None,
+        event_extra_template: dict[str, Any] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
@@ -360,6 +363,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath,
         group: str = ...,
         extra: dict | None = None,
+        event_extra_template: dict[str, Any] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
@@ -371,6 +375,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str | None = None,
         extra: dict | None = None,
+        event_extra_template: dict[str, Any] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] | None = None,
     ) -> None:
         if name is None and uri is None:
@@ -391,6 +396,8 @@ class Asset(os.PathLike, BaseAsset):
             kwargs["group"] = group
         if extra is not None:
             kwargs["extra"] = extra
+        if event_extra_template is not None:
+            kwargs["event_extra_template"] = event_extra_template
         if watchers is not None:
             kwargs["watchers"] = watchers
 
