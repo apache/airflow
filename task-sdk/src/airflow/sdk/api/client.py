@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    ProcessStateResponse,
     TaskInstanceState,
     TaskStatesResponse,
     TerminalStateNonSuccess,
@@ -365,6 +366,25 @@ class ConnectionOperations:
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
             raise
         return ConnectionResponse.model_validate_json(resp.read())
+
+
+class ProcessStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    # TODO: Update this
+    def get(self, process_name: str, key: str) -> ProcessStateResponse | ErrorResponse:
+        pass
+
+    # TODO: Update this
+    def set(self, process_name: str, key: str, value: Any) -> OKResponse:
+        pass
+
+    # TODO: Update this
+    def delete(self, process_name: str, key: str) -> OKResponse:
+        pass
 
 
 class VariableOperations:
@@ -881,6 +901,11 @@ class Client(httpx.Client):
     def connections(self) -> ConnectionOperations:
         """Operations related to Connections."""
         return ConnectionOperations(self)
+
+    @lru_cache()
+    @property
+    def process_state(self) -> ProcessStateOperations:
+        return ProcessStateOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
