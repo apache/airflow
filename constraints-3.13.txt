@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-18T19:48:05.167764
+# This constraints file was automatically generated on 2025-09-19T19:49:14.407150
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -194,7 +194,7 @@ bcrypt==4.3.0
 beautifulsoup4==4.13.5
 billiard==4.2.1
 bitarray==3.7.1
-black==25.1.0
+black==25.9.0
 bleach==6.2.0
 blinker==1.9.0
 boto3==1.40.18
@@ -272,7 +272,7 @@ google-api-python-client==2.182.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.114.0
+google-cloud-aiplatform==1.115.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -421,7 +421,7 @@ neo4j==5.28.2
 nest-asyncio==1.6.0
 numpy==2.3.3
 oauthlib==3.3.1
-openai==1.108.0
+openai==1.108.1
 openlineage-integration-common==1.37.0
 openlineage-python==1.37.0
 openlineage_sql==1.37.0
@@ -464,7 +464,7 @@ ply==3.11
 polars==1.33.1
 portalocker==3.2.0
 presto-python-client==0.8.4
-prometheus_client==0.22.1
+prometheus_client==0.23.1
 prompt_toolkit==3.0.52
 propcache==0.3.2
 proto-plus==1.26.1
@@ -509,6 +509,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-slugify==8.0.4
 python-telegram-bot==22.4
+pytokens==0.1.10
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
@@ -517,7 +518,7 @@ reactivex==4.0.4
 redis==5.2.1
 redshift-connector==2.1.8
 referencing==0.36.2
-regex==2025.9.1
+regex==2025.9.18
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -580,13 +581,13 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 tiktoken==0.11.0
 tinycss2==1.4.0
-tokenizers==0.22.0
+tokenizers==0.22.1
 tomlkit==0.13.3
 tornado==6.5.2
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-typer==0.17.4
+typer==0.18.0
 types-protobuf==6.32.1.20250918
 types-pytz==2025.2.0.20250809
 types-requests==2.32.4.20250913
