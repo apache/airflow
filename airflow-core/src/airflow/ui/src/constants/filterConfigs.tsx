@@ -19,7 +19,7 @@
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
-import { MdDateRange, MdSearch } from "react-icons/md";
+import { MdDateRange, MdSearch, MdHistory, MdHourglassEmpty, MdCode } from "react-icons/md";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -36,7 +36,7 @@ export enum FilterTypes {
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
+  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl", "dagRun"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.AFTER]: {
@@ -49,6 +49,12 @@ export const useFilterConfigs = () => {
       label: translate("common:table.to"),
       type: FilterTypes.DATE,
     },
+    [SearchParamsKeys.CONF_CONTAINS]: {
+      hotkeyDisabled: true,
+      icon: <MdCode />,
+      label: translate("common:dagRun.conf"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,
@@ -60,6 +66,25 @@ export const useFilterConfigs = () => {
       icon: <DagIcon />,
       label: translate("common:dagId"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.DAG_VERSION]: {
+      hotkeyDisabled: true,
+      icon: <MdHistory />,
+      label: translate("common:dagRun.dagVersions"),
+      min: 1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.DURATION_GTE]: {
+      icon: <MdHourglassEmpty />,
+      label: translate("common:filters.durationFrom", "Duration From"), // To do: add translation key and remove default value
+      min: 0,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.DURATION_LTE]: {
+      icon: <MdHourglassEmpty />,
+      label: translate("common:filters.durationTo", "Duration To"), // To do: add translation key and remove default value
+      min: 0,
+      type: FilterTypes.NUMBER,
     },
     [SearchParamsKeys.END_DATE]: {
       icon: <MdDateRange />,
@@ -144,6 +169,12 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <FiUser />,
+      label: translate("dagRun.triggeringUser"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TRY_NUMBER]: {
