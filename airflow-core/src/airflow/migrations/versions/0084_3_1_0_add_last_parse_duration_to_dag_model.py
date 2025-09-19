@@ -27,8 +27,6 @@ Create Date: 2025-08-20 15:53:26.138686
 
 from __future__ import annotations
 
-import contextlib
-
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import text
@@ -51,13 +49,13 @@ def downgrade():
     """Unapply add last_parse_duration to dag model."""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
-    exitstack = contextlib.ExitStack()
 
     if dialect_name == "sqlite":
         # SQLite requires foreign key constraints to be disabled during batch operations
         conn.execute(text("PRAGMA foreign_keys=OFF"))
-        exitstack.callback(conn.execute, text("PRAGMA foreign_keys=ON"))
-
-    with exitstack:
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("last_parse_duration")
+        conn.execute(text("PRAGMA foreign_keys=ON"))
+    else:
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.drop_column("last_parse_duration")
