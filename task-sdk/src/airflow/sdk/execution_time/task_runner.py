@@ -783,13 +783,15 @@ def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
 
 
 def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, Any]]:
+    from airflow.serialization.serde import serialize
+
     if TYPE_CHECKING:
         assert isinstance(events, OutletEventAccessors)
     # We just collect everything the user recorded in the accessors.
     # Further filtering will be done in the API server.
     for key, accessor in events._dict.items():
         if isinstance(key, AssetUniqueKey):
-            yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
+            yield {"dest_asset_key": attrs.asdict(key), "extra": serialize(accessor.extra)}
         for alias_event in accessor.asset_alias_events:
             yield attrs.asdict(alias_event)
 
@@ -1020,9 +1022,12 @@ def _handle_current_task_failed(
     end_date = datetime.now(tz=timezone.utc)
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
-    return TaskState(
-        state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
-    ), TaskInstanceState.FAILED
+    return (
+        TaskState(
+            state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
+        ),
+        TaskInstanceState.FAILED,
+    )
 
 
 def _handle_trigger_dag_run(
