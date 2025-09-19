@@ -25,6 +25,25 @@ from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import (
     AssetEventResponse,
     AssetResponse,
+    BackfillCollectionResponse,
+    BackfillPostBody,
+    BackfillResponse,
+    BulkActionOnExistence,
+    BulkActionResponse,
+    BulkBodyConnectionBody,
+    BulkBodyPoolBody,
+    BulkBodyVariableBody,
+    BulkCreateActionConnectionBody,
+    BulkCreateActionPoolBody,
+    BulkCreateActionVariableBody,
+    BulkResponse,
+    Config,
+    ConfigOption,
+    ConfigSection,
+    ConnectionBody,
+    ConnectionCollectionResponse,
+    ConnectionResponse,
+    ConnectionTestResponse,
     CreateAssetBody,
     CreateAssetEventsBody,
 )
@@ -64,6 +83,109 @@ class TestAssetsOperationsMinimal:
                 producing_tasks=[],
                 consuming_tasks=[],
                 aliases=[],
+            )
+
+    asset_event_response = AssetEventResponse(
+        id=asset_id,
+        asset_id=asset_id,
+        uri="uri",
+        name="asset",
+        group="group",
+        extra=None,
+        source_task_id="task_id",
+        source_dag_id=dag_id,
+        source_run_id="manual__2025-01-01T00:00:00+00:00",
+        source_map_index=1,
+        created_dagruns=[assets_dag_reference],
+        timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+    )
+
+    def test_get_asset(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}"
+            return httpx.Response(200, json=json.loads(self.asset_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get(self.asset_id)
+        assert response == self.asset_response
+
+    def test_get_by_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_id}"
+            return httpx.Response(200, json=json.loads(self.asset_alias_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_by_alias(self.asset_id)
+        assert response == self.asset_alias_response
+
+    def test_list(self):
+        assets_collection_response = AssetCollectionResponse(
+            assets=[self.asset_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            return httpx.Response(200, json=json.loads(assets_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.list()
+        assert response == assets_collection_response
+
+    def test_list_by_alias(self):
+        assets_collection_response = AssetAliasCollectionResponse(
+            asset_aliases=[self.asset_alias_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/aliases"
+            return httpx.Response(200, json=json.loads(assets_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.list_by_alias()
+        assert response == assets_collection_response
+
+    def test_create(self):
+        asset_create_body = CreateAssetBody(
+            name="test_asset",
+            uri="test_uri",
+            group="test_group",
+            extra={"test": "extra"}
+        )
+        
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets"
+            return httpx.Response(200, json=json.loads(self.asset_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create(asset_body=asset_create_body)
+        assert response == self.asset_response
+
+    def test_create_event(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/assets/events"
+            return httpx.Response(200, json=json.loads(self.asset_event_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
+        assert response == self.asset_event_response
+
+    def test_materialize(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.materialize(asset_id=self.asset_id)
+        assert response == self.dag_run_response
+
+    def test_get_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(
+                200, json=json.loads(self.asset_queued_event_collection_response.model_dump_json())
+>>>>>>> a795af149c (fix(airflow-ctl): add missing CreateAssetBody and test_create method)
             )
 
             class MockResponse:

@@ -240,7 +240,7 @@ class CreateAssetBody(BaseModel):
     )
     name: Annotated[str, Field(title="Name")]
     uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str | None, Field(title="Group")] = None
+    group: Annotated[str, Field(title="Group")]
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
