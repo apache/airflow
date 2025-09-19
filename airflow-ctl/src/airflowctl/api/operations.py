@@ -43,6 +43,7 @@ from airflowctl.api.datamodels.generated import (
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
+    CreateAssetBody,
     CreateAssetEventsBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -238,6 +239,16 @@ class AssetsOperations(BaseOperations):
         """List all assets by alias from the API server."""
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
+    def create(self, asset_body: CreateAssetBody) -> AssetResponse | ServerResponseError:
+        """Create an asset."""
+        try:
+            self.response = self.client.post(
+                "assets", json=_date_safe_dict_from_pydantic(asset_body)
+            )
+            return AssetResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
     def create_event(
         self, asset_event_body: CreateAssetEventsBody
     ) -> AssetEventResponse | ServerResponseError:
@@ -246,8 +257,15 @@ class AssetsOperations(BaseOperations):
             # Ensure extra is initialised before sent to API
             if asset_event_body.extra is None:
                 asset_event_body.extra = {}
+            
+            # Create payload with asset_id and extra (always include extra)
+            payload = {
+                "asset_id": asset_event_body.asset_id,
+                "extra": asset_event_body.extra
+            }
+            
             self.response = self.client.post(
-                "assets/events", json=_date_safe_dict_from_pydantic(asset_event_body)
+                "assets/events", json=payload
             )
             return AssetEventResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:

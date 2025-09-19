@@ -230,6 +230,20 @@ class ConnectionTestResponse(BaseModel):
     message: Annotated[str, Field(title="Message")]
 
 
+class CreateAssetBody(BaseModel):
+    """
+    Create asset request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str | None, Field(title="Group")] = None
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+
+
 class CreateAssetEventsBody(BaseModel):
     """
     Create asset events request.
