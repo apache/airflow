@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-19T13:47:19.794861
+# This constraints file was automatically generated on 2025-09-19T14:50:56.059385
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -710,7 +710,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.10
+ydb==3.21.11
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
