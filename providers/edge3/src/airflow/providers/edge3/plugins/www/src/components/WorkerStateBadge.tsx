@@ -29,9 +29,9 @@ const state2Color = (state: EdgeWorkerState | null | undefined) => {
     case "maintenance exit":
       return "yellow";
     case "running":
-      return "green";
+      return "cyan";
     case "idle":
-      return "teal";
+      return "green";
     case "shutdown request":
     case "terminating":
       return "purple";
