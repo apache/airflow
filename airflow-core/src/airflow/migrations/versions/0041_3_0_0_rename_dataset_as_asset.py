@@ -105,24 +105,23 @@ def _rename_pk_constraint(
 def _drop_fkey_if_exists(table, constraint_name):
     conn = op.get_bind()
     dialect_name = conn.dialect.name
-    exitstack = contextlib.ExitStack()
 
     if dialect_name == "sqlite":
+        exitstack = contextlib.ExitStack()
         # SQLite requires foreign key constraints to be disabled during batch operations
         conn.execute(text("PRAGMA foreign_keys=OFF"))
         exitstack.callback(conn.execute, text("PRAGMA foreign_keys=ON"))
 
-    with exitstack:
-        if dialect_name == "sqlite":
+        with exitstack:
             try:
                 with op.batch_alter_table(table, schema=None) as batch_op:
                     batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
             except ValueError:
                 pass
-        elif dialect_name == "mysql":
-            mysql_drop_foreignkey_if_exists(constraint_name, table, op)
-        else:
-            op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
+    elif dialect_name == "mysql":
+        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
+    else:
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
 
 
 # original table name to new table name
