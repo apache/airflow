@@ -1363,14 +1363,8 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         )
 
 
-class TestPostAssets:
+class TestPostAssets(TestAssets):
     """Test POST /assets endpoint with comprehensive parametrized tests."""
-
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        clear_db_assets()
-        yield
-        clear_db_assets()
 
     @pytest.mark.parametrize(
         "payload,expected_status,expected_fields",
@@ -1448,12 +1442,11 @@ class TestPostAssets:
         resp = test_client.post("/assets", json=payload)
         assert resp.status_code == expected_status
 
-        if resp.headers.get("content-type", "").startswith("application/json"):
-            error_body = resp.json()
-            assert isinstance(error_body, dict)
-            # Check that error message contains expected pattern
-            error_detail = error_body.get("detail", "")
-            assert expected_error_pattern in str(error_detail).lower()
+        error_body = resp.json()
+        assert isinstance(error_body, dict)
+        # Check that error message contains expected pattern
+        error_detail = error_body.get("detail", "")
+        assert expected_error_pattern in str(error_detail).lower()
 
     def test_assets_create_conflict_returns_409(self, test_client):
         """Test that creating duplicate assets returns 409 Conflict."""
@@ -1470,11 +1463,10 @@ class TestPostAssets:
         assert r2.status_code == 409
 
         # Check error response structure
-        if r2.headers.get("content-type", "").startswith("application/json"):
-            error_body = r2.json()
-            assert isinstance(error_body, dict)
-            assert "detail" in error_body
-            assert "already exists" in error_body["detail"].lower() or "conflict" in error_body["detail"].lower()
+        error_body = r2.json()
+        assert isinstance(error_body, dict)
+        assert "detail" in error_body
+        assert "already exists" in error_body["detail"].lower() or "conflict" in error_body["detail"].lower()
 
     @pytest.mark.parametrize(
         "client_fixture,expected_status",
@@ -1492,8 +1484,7 @@ class TestPostAssets:
         resp = client.post("/assets", json=payload)
         assert resp.status_code == expected_status
 
-        if resp.headers.get("content-type", "").startswith("application/json"):
-            error_body = resp.json()
-            assert isinstance(error_body, dict)
-            assert "detail" in error_body
+        error_body = resp.json()
+        assert isinstance(error_body, dict)
+        assert "detail" in error_body
 
