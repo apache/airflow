@@ -215,17 +215,25 @@ def clear_task_instances(
     """
     task_instance_ids: list[str] = []
     from airflow.models.dagbag import DBDagBag
+    from fastapi import HTTPException
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     isRunning = False
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
+        if hasattr(ti, 'is_running_message') and ti.is_running_message == True:
+            isRunning = True
+
         if ti.state == TaskInstanceState.RUNNING:
+            if isRunning == True:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Task {ti.task_id} is running, restarting"
+                )
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
             ti.state = TaskInstanceState.RESTARTING
-            isRunning = True
         else:
             dr = ti.dag_run
             if run_on_latest_version:

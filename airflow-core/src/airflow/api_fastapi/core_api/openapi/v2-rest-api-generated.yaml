@@ -9361,6 +9361,11 @@ components:
           description: (Experimental) Run on the latest bundle version of the dag
             after clearing the task instances.
           default: false
+        is_running_message:
+          type: boolean
+          title: Is Running Message
+          description: Optional flag to set isRunning in backend logic.
+          default: false
       additionalProperties: false
       type: object
       title: ClearTaskInstancesBody

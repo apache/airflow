@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack, useDisclosure } from "@chakra-ui/react";
+import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -30,7 +30,6 @@ import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
 type Props = {
   readonly onClose: () => void;
@@ -38,10 +37,9 @@ type Props = {
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, taskInstance }: Props) => {
+const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
-  const { open, onOpen, onClose } = useDisclosure();
   const { t: translate } = useTranslation();
 
   const dagId = taskInstance.dag_id;
@@ -50,7 +48,7 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
     dagRunId,
-    onSuccessConfirm: onCloseDialog,
+    onSuccessConfirm: onClose,
   });
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
@@ -61,6 +59,7 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const [isRunningMessage, setIsRunningMessage] = useState(false);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -78,7 +77,7 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
-      enabled: openDialog,
+      enabled: open,
       refetchOnMount: "always",
     },
     requestBody: {
@@ -108,11 +107,10 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
     taskInstanceDagVersionBundleVersion !== "";
 
   return (
-    <>
-      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog && !open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Content backdrop>
+        <Dialog.Header>
+          <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>
                 {translate("dags:runAndTaskActions.clear.title", {
@@ -123,13 +121,13 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
               {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
             </Heading>
           </VStack>
-          </Dialog.Header>
+        </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+        <Dialog.CloseTrigger />
 
-          <Dialog.Body width="full">
-            <Flex justifyContent="center">
-              <SegmentedControl
+        <Dialog.Body width="full">
+          <Flex justifyContent="center">
+            <SegmentedControl
               defaultValues={["downstream"]}
               multiple
               onChange={setSelectedOptions}
@@ -158,9 +156,9 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
                 },
               ]}
             />
-            </Flex>
-            <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-            <Flex
+          </Flex>
+          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <Flex
             {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
             justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
             mt={3}
@@ -173,61 +171,49 @@ const ClearTaskInstanceDialog = ({onClose: onCloseDialog, open: openDialog, task
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
             ) : undefined}
+            <Checkbox
+              checked={isRunningMessage}
+              onCheckedChange={(event) => setIsRunningMessage(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.noRunningState")}
+            </Checkbox>
             <Button
               colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
-              onClick={onOpen}
+              onClick={() => {
+                mutate({
+                  dagId,
+                  requestBody: {
+                    dag_run_id: dagRunId,
+                    dry_run: false,
+                    include_downstream: downstream,
+                    include_future: future,
+                    include_past: past,
+                    include_upstream: upstream,
+                    only_failed: onlyFailed,
+                    run_on_latest_version: runOnLatestVersion,
+                    task_ids: [[taskId, mapIndex]],
+                    ...(isRunningMessage ? { is_running_message: true } : {}),
+                  },
+                });
+                if (note !== taskInstance.note) {
+                  mutatePatchTaskInstance({
+                    dagId,
+                    dagRunId,
+                    mapIndex,
+                    requestBody: { note },
+                    taskId,
+                  });
+                }
+              }}
             >
               <CgRedo /> {translate("modal.confirm")}
             </Button>
           </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
-      {open && (
-        <ClearTaskInstanceConfirmationDialog
-          onClose={onClose}
-          onConfirm={() => {
-            mutate({
-              dagId,
-              requestBody: {
-                dag_run_id: dagRunId,
-                dry_run: false,
-                include_downstream: downstream,
-                include_future: future,
-                include_past: past,
-                include_upstream: upstream,
-                only_failed: onlyFailed,
-                task_ids: [[taskId, mapIndex]],
-              },
-            });
-            if (note !== taskInstance.note) {
-              mutatePatchTaskInstance({
-                dagId,
-                dagRunId,
-                mapIndex,
-                requestBody: { note },
-                taskId,
-              });
-            }
-            onCloseDialog();
-          }}
-          open={open}
-          dagDetails={{
-            dagId,
-            dagRunId,
-            taskId,
-            mapIndex,
-            downstream,
-            future,
-            past,
-            upstream,
-            onlyFailed,
-          }}
-        />
-      )}
-    </>
+        </Dialog.Body>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 };
 

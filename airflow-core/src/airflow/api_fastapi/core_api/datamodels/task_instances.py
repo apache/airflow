@@ -202,6 +202,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="(Experimental) Run on the latest bundle version of the dag after "
         "clearing the task instances.",
     )
+    is_running_message: bool = False
 
     @model_validator(mode="before")
     @classmethod
