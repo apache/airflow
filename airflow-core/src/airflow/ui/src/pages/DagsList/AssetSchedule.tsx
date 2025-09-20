@@ -63,7 +63,16 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
     return (
       <HStack>
         <FiDatabase style={{ display: "inline" }} />
-        <Link asChild color="fg.info" display="block" fontSize="sm">
+        <Link
+          asChild
+          color="fg.info"
+          display="block"
+          fontSize="sm"
+          maxWidth="200px"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
           <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
         </Link>
       </HStack>
