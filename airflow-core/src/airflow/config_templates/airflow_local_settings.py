@@ -287,6 +287,7 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_TARGET_INDEX: str = conf.get_mandatory_value("elasticsearch", "TARGET_INDEX")
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value("elasticsearch", "HOST_FIELD")
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("elasticsearch", "OFFSET_FIELD")
+        ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get_mandatory_value("elasticsearch", "LOG_ID_TEMPLATE")
 
         REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(
             host=ELASTICSEARCH_HOST,
@@ -298,6 +299,7 @@ if REMOTE_LOGGING:
             base_log_folder=BASE_LOG_FOLDER,
             delete_local_copy=delete_local_copy,
             json_format=ELASTICSEARCH_JSON_FORMAT,
+            log_id_template=ELASTICSEARCH_LOG_ID_TEMPLATE,
         )
 
     elif OPENSEARCH_HOST:

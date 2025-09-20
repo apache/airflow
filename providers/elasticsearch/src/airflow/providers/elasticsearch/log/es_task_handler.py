@@ -137,38 +137,11 @@ def getattr_nested(obj, item, default):
         return default
 
 
-def _render_log_id(ti: TaskInstance | TaskInstanceKey, try_number: int, json_format: bool) -> str:
-    from airflow.models.taskinstance import TaskInstanceKey
-
-    if isinstance(ti, TaskInstanceKey):
-        ti = _ensure_ti(ti, settings.Session)
-    dag_run = ti.get_dagrun(session=settings.Session)
-    if USE_PER_RUN_LOG_ID:
-        log_id_template = dag_run.get_log_template(session=settings.Session).elasticsearch_id
-
-    if json_format:
-        data_interval_start = _clean_date(dag_run.data_interval_start)
-        data_interval_end = _clean_date(dag_run.data_interval_end)
-        logical_date = _clean_date(dag_run.logical_date)
-    else:
-        if dag_run.data_interval_start:
-            data_interval_start = dag_run.data_interval_start.isoformat()
-        else:
-            data_interval_start = ""
-        if dag_run.data_interval_end:
-            data_interval_end = dag_run.data_interval_end.isoformat()
-        else:
-            data_interval_end = ""
-        logical_date = dag_run.logical_date.isoformat()
-
+def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
     return log_id_template.format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
         run_id=getattr(ti, "run_id", ""),
-        data_interval_start=data_interval_start,
-        data_interval_end=data_interval_end,
-        logical_date=logical_date,
-        execution_date=logical_date,
         try_number=try_number,
         map_index=getattr(ti, "map_index", ""),
     )
@@ -270,6 +243,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: logging.FileHandler | logging.StreamHandler | None = None
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
+        self.log_id_template: str = conf.get(
+            "elasticsearch",
+            "log_id_template",
+            fallback="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
         self.io = ElasticsearchRemoteLogIO(
             host=self.host,
             target_index=self.target_index,
@@ -279,6 +257,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             host_field=self.host_field,
             base_log_folder=base_log_folder,
             delete_local_copy=self.delete_local_copy,
+            log_id_template=self.log_id_template,
         )
         # Airflow 3 introduce REMOTE_TASK_LOG for handling remote logging
         # REMOTE_TASK_LOG should be explicitly set in airflow_local_settings.py when trying to use ESTaskHandler
@@ -331,7 +310,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             metadata["offset"] = 0
 
         offset = metadata["offset"]
-        log_id = _render_log_id(ti, try_number, self.json_format)
+        log_id = _render_log_id(self.log_id_template, ti, try_number)
         response = self.io._es_read(log_id, offset, ti)
         # TODO: Can we skip group logs by host ?
         if response is not None and response.hits:
@@ -340,7 +319,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         else:
             logs_by_host = None
             next_offset = offset
-
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
         # on the client. Sending as a string prevents this issue.
         # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
@@ -457,7 +435,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         _clean_date(ti.logical_date) if AIRFLOW_V_3_0_PLUS else _clean_date(ti.execution_date)
                     ),
                     "try_number": str(ti.try_number),
-                    "log_id": _render_log_id(ti, ti.try_number, self.json_format),
+                    "log_id": _render_log_id(self.log_id_template, ti, ti.try_number),
                 },
             )
 
@@ -523,7 +501,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param try_number: task instance try_number to read logs from.
         :return: URL to the external log collection service
         """
-        log_id = _render_log_id(task_instance, try_number, self.json_format)
+        log_id = _render_log_id(self.log_id_template, task_instance, try_number)
         scheme = "" if "://" in self.frontend else "https://"
         return scheme + self.frontend.format(log_id=quote(log_id))
 
@@ -606,6 +584,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
     offset_field: str = "offset"
     write_to_es: bool = False
     base_log_folder: Path = attrs.field(converter=Path)
+    log_id_template: str = "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
 
     processors = ()
 
@@ -636,7 +615,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             ti.map_index if ti.map_index is not None else -1,
             session=settings.Session,
         )  # type: ignore[assignment]
-        log_id = _render_log_id(ti, ti.try_number, self.json_format)  # type: ignore[arg-type]
+        log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
 
@@ -682,8 +661,8 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
             return False
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
-        log_id = _render_log_id(ti, ti.try_number, self.json_format)  # type: ignore[arg-type]
+    def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+        log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
         response = self._es_read(log_id, offset, ti)

@@ -59,10 +59,11 @@ from unit.elasticsearch.log.elasticmock.utilities import SearchFailedException
 ES_PROVIDER_YAML_FILE = AIRFLOW_PROVIDERS_ROOT_PATH / "elasticsearch" / "provider.yaml"
 
 
-def get_ti(dag_id, task_id, logical_date, create_task_instance):
+def get_ti(dag_id, task_id, run_id, logical_date, create_task_instance):
     ti = create_task_instance(
         dag_id=dag_id,
         task_id=task_id,
+        run_id=run_id,
         logical_date=logical_date,
         dagrun_state=DagRunState.RUNNING,
         state=TaskInstanceState.RUNNING,
@@ -75,8 +76,9 @@ def get_ti(dag_id, task_id, logical_date, create_task_instance):
 class TestElasticsearchTaskHandler:
     DAG_ID = "dag_for_testing_es_task_handler"
     TASK_ID = "task_for_testing_es_log_handler"
+    RUN_ID = "run_for_testing_es_log_handler"
     LOGICAL_DATE = datetime(2016, 1, 1)
-    LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
+    LOG_ID = f"{DAG_ID}-{TASK_ID}-{RUN_ID}--1-1"
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{_clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
@@ -93,6 +95,7 @@ class TestElasticsearchTaskHandler:
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
+            run_id=self.RUN_ID,
             logical_date=self.LOGICAL_DATE,
             create_task_instance=create_task_instance,
         )
@@ -310,9 +313,11 @@ class TestElasticsearchTaskHandler:
         When the log actually isn't there to be found, we only want to wait for 5 seconds.
         In this case we expect to receive a message of the form 'Log {log_id} not found in elasticsearch ...'
         """
+        run_id = "wrong_run_id"
         ti = get_ti(
             self.DAG_ID,
             self.TASK_ID,
+            run_id,
             pendulum.instance(self.LOGICAL_DATE).add(days=1),  # so logs are not found
             create_task_instance=create_task_instance,
         )
@@ -637,7 +642,7 @@ class TestElasticsearchTaskHandler:
         self.body = {
             "message": self.test_message,
             "event": self.test_message,
-            "log_id": f"{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1",
+            "log_id": self.LOG_ID,
             "log": {"offset": 1},
             "host": {"name": "somehostname"},
             "asctime": "2020-12-24 19:25:00,962",
@@ -756,10 +761,10 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     def test_render_log_id(self, ti):
-        assert _render_log_id(ti, 1, self.es_task_handler.json_format) == self.LOG_ID
+        assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
         self.es_task_handler.json_format = True
-        assert _render_log_id(ti, 1, self.es_task_handler.json_format) == self.JSON_LOG_ID
+        assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
     def test_clean_date(self):
         clean_logical_date = _clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
@@ -773,7 +778,7 @@ class TestElasticsearchTaskHandler:
             (
                 True,
                 "localhost:5601/{log_id}",
-                "https://localhost:5601/" + quote(JSON_LOG_ID),
+                "https://localhost:5601/" + quote(LOG_ID),
             ),
             (
                 False,
@@ -953,6 +958,7 @@ def test_self_not_valid_arg():
 class TestElasticsearchRemoteLogIO:
     DAG_ID = "dag_for_testing_es_log_handler"
     TASK_ID = "task_for_testing_es_log_handler"
+    RUN_ID = "run_for_testing_es_log_handler"
     LOGICAL_DATE = datetime(2016, 1, 1)
     FILENAME_TEMPLATE = "{try_number}.log"
 
@@ -1001,6 +1007,7 @@ class TestElasticsearchRemoteLogIO:
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
+            run_id=self.RUN_ID,
             logical_date=self.LOGICAL_DATE,
             create_task_instance=create_task_instance,
         )
@@ -1027,7 +1034,7 @@ class TestElasticsearchRemoteLogIO:
 
         offset = 1
         expected_msg = ["start", "processing", "end"]
-        expected_log_id = _render_log_id(ti, 1, self.elasticsearch_io.json_format)
+        expected_log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, 1)
         assert res["hits"]["total"]["value"] == 3
         for msg, hit in zip(expected_msg, res["hits"]["hits"]):
             assert hit["_index"] == "airflow-logs"
@@ -1085,7 +1092,7 @@ class TestElasticsearchRemoteLogIO:
     @patch("elasticsearch.Elasticsearch.count", return_value={"count": 0})
     def test_read_with_missing_log(self, mocked_count, ti):
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)
-        log_id = _render_log_id(ti, ti.try_number, self.elasticsearch_io.json_format)
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
         mocked_count.assert_called_once()
