@@ -70,6 +70,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "elasticsearch",
     "tinkerpop",
     "kafka",
     "localstack",
@@ -82,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
+    "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
 ]
