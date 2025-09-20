@@ -71,7 +71,7 @@ class FabIndexView(IndexView):
             response = make_response(redirect(f"{conf.get('api', 'base_url', fallback='/')}", code=302))
 
             secure = bool(conf.get("api", "ssl_cert", fallback=""))
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
 
             return response
         return redirect(conf.get("api", "base_url", fallback="/"), code=302)
