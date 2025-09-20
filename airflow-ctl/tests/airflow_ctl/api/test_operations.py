@@ -151,7 +151,79 @@ class TestBaseOperations:
             ),
         ],
     )
-    def test_execute_list(self, total_entries, limit, expected_response):
+    def test_execute_list_without_limit(self, total_entries, limit, expected_response):
+        get_response_mock = []
+
+        mock_client = Mock()
+        mock_client.get.side_effect = get_response_mock
+        base_operation = BaseOperations(client=mock_client)
+
+        nb_of_pages = ceil(total_entries / limit)
+        for page in range(nb_of_pages):
+            if page == nb_of_pages - 1 and (remaining_entries := total_entries % limit) > 0:
+                # partial page
+                get_response_mock.append(
+                    Mock(
+                        content=json.dumps(
+                            {
+                                "hellos": [{"name": "hello"}] * remaining_entries,
+                                "total_entries": total_entries,
+                            }
+                        )
+                    )
+                )
+                continue
+            # page is full
+            get_response_mock.append(
+                Mock(
+                    content=json.dumps(
+                        {
+                            "hellos": [{"name": "hello"}] * limit,
+                            "total_entries": total_entries,
+                        }
+                    )
+                )
+            )
+
+        response = base_operation.execute_list(path="some_fake_path", data_model=HelloCollectionResponse)
+
+        assert expected_response == response
+
+    @pytest.mark.parametrize(
+        "total_entries, limit, expected_response",
+        [
+            (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
+            (
+                150,
+                50,
+                (
+                    HelloCollectionResponse(
+                        hellos=[
+                            HelloResponse(name="hello"),
+                        ]
+                        * 50,
+                        total_entries=150,
+                    )
+                ),
+            ),
+            (
+                90,
+                65,
+                (HelloCollectionResponse(hellos=[HelloResponse(name="hello")] * 65, total_entries=90)),
+            ),
+            (
+                200,
+                15,
+                (HelloCollectionResponse(hellos=[HelloResponse(name="hello")] * 15, total_entries=200)),
+            ),
+            (
+                200,
+                99,
+                (HelloCollectionResponse(hellos=[HelloResponse(name="hello")] * 99, total_entries=200)),
+            ),
+        ],
+    )
+    def test_execute_list_with_limit(self, total_entries, limit, expected_response):
         get_response_mock = []
 
         mock_client = Mock()
@@ -315,7 +387,7 @@ class TestAssetsOperations:
             return httpx.Response(200, json=json.loads(assets_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.list()
+        response = client.assets.list(limit=None)
         assert response == assets_collection_response
 
     def test_list_by_alias(self):
@@ -445,7 +517,7 @@ class TestBackfillOperations:
             return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.list(dag_id="dag_id")
+        response = client.backfills.list(dag_id="dag_id", limit=None)
         assert response == self.backfills_collection_response
 
     def test_pause(self):
@@ -586,7 +658,7 @@ class TestConnectionsOperations:
             return httpx.Response(200, json=json.loads(self.connections_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.list()
+        response = client.connections.list(limit=None)
         assert response == self.connections_response
 
     def test_create(self):
@@ -809,7 +881,7 @@ class TestDagOperations:
             return httpx.Response(200, json=json.loads(self.dag_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.list()
+        response = client.dags.list(limit=None)
         assert response == self.dag_collection_response
 
     def test_patch(self):
@@ -818,7 +890,7 @@ class TestDagOperations:
             return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.patch(dag_id="dag_id", dag_body=self.dag_patch_body)
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
         assert response == self.dag_response
 
     def test_delete(self):
@@ -997,6 +1069,7 @@ class TestJobsOperations:
             job_type="job_type",
             hostname="hostname",
             is_alive=True,
+            limit=None,
         )
         assert response == self.job_collection_response
 
@@ -1055,7 +1128,7 @@ class TestPoolsOperations:
             return httpx.Response(200, json=json.loads(self.pool_response_collection.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.pools.list()
+        response = client.pools.list(limit=None)
         assert response == self.pool_response_collection
 
     def test_create(self):
@@ -1158,7 +1231,7 @@ class TestVariablesOperations:
             return httpx.Response(200, json=json.loads(self.variable_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.variables.list()
+        response = client.variables.list(limit=None)
         assert response == self.variable_collection_response
 
     def test_create(self):
