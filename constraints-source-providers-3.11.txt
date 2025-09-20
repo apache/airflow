@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-20T07:47:13.543368
+# This constraints file was automatically generated on 2025-09-20T13:48:01.865574
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -653,7 +653,7 @@ traitlets==5.14.3
 trino==0.336.0
 trove-classifiers==2025.9.11.17
 twine==6.2.0
-typer==0.18.0
+typer==0.19.1
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.9.0.20250906
 types-PyMySQL==1.1.0.20250916
