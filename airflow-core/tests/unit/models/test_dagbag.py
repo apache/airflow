@@ -877,8 +877,7 @@ with airflow.DAG(
         dag_file.write_text(
             textwrap.dedent(
                 """\
-                from airflow import DAG
-                from airflow.decorators import task
+                from airflow.sdk import DAG, task
                 import sys
                 import bundle_util
 
@@ -946,8 +945,8 @@ with airflow.DAG(
             from airflow.sdk import DAG, BaseOperator
             import sys
 
-            dag = DAG("simple_dag", start_date=datetime(2021, 1, 1), schedule=None, description=f"DAG with sys.path: {sys.path}")
-            t1 = BaseOperator(task_id="test_task", dag=dag)
+            with DAG("simple_dag", start_date=datetime(2021, 1, 1), schedule=None, description=f"DAG with sys.path: {sys.path}") as dag:
+                t1 = BaseOperator(task_id="test_task")
                 """
             )
         )
