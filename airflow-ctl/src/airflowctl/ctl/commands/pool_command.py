@@ -54,7 +54,7 @@ def export(args, api_client: Client = NEW_API_CLIENT) -> None:
     If output is json, write to file. Otherwise, print to console.
     """
     try:
-        pools_response = api_client.pools.list()
+        pools_response = api_client.pools.list(limit=None)
         pools_list = [
             {
                 "name": pool.name,
