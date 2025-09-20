@@ -202,10 +202,10 @@ class BasePythonTest:
     def run_as_task(self, fn, return_ti=False, **kwargs):
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
-        ti.run()
+        self.dag_maker.run_ti(ti)
         if return_ti:
             return ti
-        return ti.task
+        return self.dag_maker.dag.get_task(ti.task_id)
 
     def render_templates(self, fn, **kwargs):
         """Create TaskInstance and render templates without actual run."""
@@ -229,7 +229,7 @@ class TestPythonOperator(BasePythonTest):
         """Tests that the python callable is invoked on task run."""
         ti = self.create_ti(self.do_run)
         assert not self.is_run()
-        ti.run()
+        self.dag_maker.run_ti(ti)
         assert self.is_run()
 
     @pytest.mark.parametrize("not_callable", [{}, None])
@@ -310,7 +310,7 @@ class TestPythonOperator(BasePythonTest):
         ti = self.create_ti(func, op_args=[1])
         error_message = re.escape("The key 'dag' in args is a part of kwargs and therefore reserved.")
         with pytest.raises(ValueError, match=error_message):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
     def test_provide_context_does_not_fail(self):
         """Ensures that provide_context doesn't break dags in 2.0."""
@@ -537,11 +537,8 @@ class TestBranchOperator(BasePythonTest):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(
-            AirflowException,
-            match=r"'branch_task_ids'.*task.*",
-        ):
-            ti.run()
+        with pytest.raises(AirflowException, match=r"'branch_task_ids'.*task.*"):
+            self.dag_maker.run_ti(ti)
 
     def test_raise_exception_on_invalid_task_id(self):
         def f():
@@ -549,9 +546,10 @@ class TestBranchOperator(BasePythonTest):
 
         ti = self.create_ti(f)
         with pytest.raises(
-            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+            AirflowException,
+            match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
     def test_none_return_value_should_skip_all_downstream(self):
         """Test that returning None from callable should skip all downstream tasks."""
@@ -614,11 +612,11 @@ class TestBranchOperator(BasePythonTest):
                 from airflow.exceptions import DownstreamTasksSkipped
 
                 try:
-                    task_instance.run()
+                    self.dag_maker.run_ti(task_instance)
                 except DownstreamTasksSkipped:
                     task_instance.set_state(State.SUCCESS)
             else:
-                task_instance.run()
+                self.dag_maker.run_ti(task_instance)
 
         def get_state(ti):
             ti.refresh_from_db()
@@ -2079,7 +2077,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             AirflowException,
             match=r"'branch_task_ids'.*task.*",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
     def test_raise_exception_on_invalid_task_id(self):
         def f():
@@ -2087,9 +2085,10 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         ti = self.create_ti(f)
         with pytest.raises(
-            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+            AirflowException,
+            match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -2269,10 +2268,7 @@ class TestShortCircuitWithTeardown:
                 op4.as_teardown()
             op1 >> op2 >> op3 >> op4
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+        dag_maker.run_ti("op1")
         if should_skip:
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_skipped = set(x.task_id for x in op1.skip.call_args.kwargs["tasks"])
@@ -2299,10 +2295,7 @@ class TestShortCircuitWithTeardown:
             else:
                 raise ValueError("unexpected")
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+        dag_maker.run_ti("op1")
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
         assert actual_skipped == {s2, op2}
@@ -2326,10 +2319,7 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+        dag_maker.run_ti("op1")
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_kwargs = op1.skip.call_args.kwargs
         actual_skipped = set(actual_kwargs["tasks"])
@@ -2367,7 +2357,7 @@ class TestShortCircuitWithTeardown:
             if hasattr(ti.task.log, "setLevel"):
                 # Compat with Pre Airflow 3.1
                 ti.task.log.setLevel(level)
-            ti._run_raw_task()
+            dag_maker.run_ti(ti)
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_kwargs = op1.skip.call_args.kwargs
         actual_skipped = actual_kwargs["tasks"]

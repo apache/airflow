@@ -58,6 +58,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstances import run_ti
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -1649,8 +1650,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
+    ti = dag_maker.run_ti("task_1", dr)
     decision = dr.task_instance_scheduling_decisions()
     assert len(decision.schedulable_tis) == 2
 
@@ -2103,8 +2103,8 @@ def test_mapped_expand_kwargs(dag_maker):
     assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_3") == [0, 1, 2]
     assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_4") == [0, 1, 2]
 
-    tis[("task_0", -1)].run()
-    tis[("task_1", -1)].run()
+    run_ti(tis[("task_0", -1)], args_0.operator)
+    run_ti(tis[("task_1", -1)], args_list.operator)
 
     # With the upstreams available, everything should get expanded now.
     decision = dr.task_instance_scheduling_decisions()

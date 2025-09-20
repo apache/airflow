@@ -33,11 +33,16 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils import timezone
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+    from airflow.sdk.timezone import datetime
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -232,12 +237,10 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
         dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        dag_maker.run_ti("put_test_task", dag_run=dagrun)
+        check_file_task_ti = dag_maker.run_ti("check_file_task", dag_run=dagrun)
 
-        tis["put_test_task"].run()
-        tis["check_file_task"].run()
-
-        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
+        pulled = check_file_task_ti.xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == b64encode(test_local_file_content).decode("utf-8")
 
     @pytest.fixture
@@ -276,8 +279,7 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            ti.run()
+        dag_maker.run_ti("test_sftp")
 
         # Test the received content.
         content_received = None
