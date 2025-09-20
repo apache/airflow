@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun, Trigger
 from airflow.models.deadline import Deadline, DeadlineCallbackState, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -36,9 +36,8 @@ from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
 
 DAG_ID = "dag_id_1"
-RUN_ID = 1
 INVALID_DAG_ID = "invalid_dag_id"
-INVALID_RUN_ID = 2
+INVALID_RUN_ID = -1
 
 REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
@@ -77,6 +76,18 @@ def dagrun(session, dag_maker):
         return session.query(DagRun).one()
 
 
+@pytest.fixture
+def deadline_orm(dagrun, session):
+    deadline = Deadline(
+        deadline_time=DEFAULT_DATE,
+        callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+        dagrun_id=dagrun.id,
+    )
+    session.add(deadline)
+    session.flush()
+    return deadline
+
+
 @pytest.mark.db_test
 class TestDeadline:
     @staticmethod
@@ -87,129 +98,106 @@ class TestDeadline:
     def teardown_method():
         _clean_db()
 
-    def test_add_deadline(self, dagrun, session):
-        assert session.query(Deadline).count() == 0
-        deadline_orm = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=TEST_ASYNC_CALLBACK,
-            dag_id=DAG_ID,
-            dagrun_id=dagrun.id,
-        )
-
-        session.add(deadline_orm)
-        session.flush()
-
-        assert session.query(Deadline).count() == 1
-
-        result = session.scalars(select(Deadline)).first()
-        assert result.dag_id == deadline_orm.dag_id
-        assert result.dagrun_id == deadline_orm.dagrun_id
-        assert result.deadline_time == deadline_orm.deadline_time
-        assert result.callback == deadline_orm.callback
-
     @pytest.mark.parametrize(
         "conditions",
         [
             pytest.param({}, id="empty_conditions"),
-            pytest.param({Deadline.dagrun_id: INVALID_RUN_ID}, id="no_matches"),
-            pytest.param({Deadline.dagrun_id: RUN_ID}, id="single_condition"),
-            pytest.param({Deadline.dagrun_id: RUN_ID, Deadline.dag_id: DAG_ID}, id="multiple_conditions"),
+            pytest.param({Deadline.dagrun_id: -1}, id="no_matches"),
+            pytest.param({Deadline.dagrun_id: "valid_placeholder"}, id="single_condition"),
             pytest.param(
-                {Deadline.dagrun_id: RUN_ID, Deadline.dag_id: INVALID_DAG_ID}, id="mixed_conditions"
+                {
+                    Deadline.dagrun_id: "valid_placeholder",
+                    Deadline.deadline_time: datetime.now() + timedelta(days=365),
+                },
+                id="multiple_conditions",
+            ),
+            pytest.param(
+                {Deadline.dagrun_id: "valid_placeholder", Deadline.callback_state: "invalid"},
+                id="mixed_conditions",
             ),
         ],
     )
     @mock.patch("sqlalchemy.orm.Session")
-    def test_prune_deadlines(self, mock_session, conditions):
+    def test_prune_deadlines(self, mock_session, conditions, dagrun):
         """Test deadline resolution with various conditions."""
+        if Deadline.dagrun_id in conditions:
+            if conditions[Deadline.dagrun_id] == "valid_placeholder":
+                conditions[Deadline.dagrun_id] = dagrun.id
+
         expected_result = 1 if conditions else 0
         # Set up the query chain to return a list of (Deadline, DagRun) pairs
         mock_dagrun = mock.Mock(spec=DagRun, end_date=datetime.now())
         mock_deadline = mock.Mock(spec=Deadline, deadline_time=mock_dagrun.end_date + timedelta(days=365))
-        mock_query = mock_session.query.return_value
-        mock_query.join.return_value = mock_query
-        mock_query.filter.return_value = mock_query
+        mock_query = mock_session.execute.return_value
         mock_query.all.return_value = [(mock_deadline, mock_dagrun)] if conditions else []
 
         result = Deadline.prune_deadlines(conditions=conditions, session=mock_session)
-
         assert result == expected_result
         if conditions:
-            mock_session.query.assert_called_once_with(Deadline, DagRun)
-            mock_session.query.return_value.filter.assert_called_once()  # Assert that the conditions are applied.
+            mock_session.execute.return_value.all.assert_called_once()
             mock_session.delete.assert_called_once_with(mock_deadline)
         else:
             mock_session.query.assert_not_called()
 
-    def test_orm(self):
-        deadline_orm = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=TEST_ASYNC_CALLBACK,
-            dag_id=DAG_ID,
-            dagrun_id=RUN_ID,
-        )
-
-        assert deadline_orm.deadline_time == DEFAULT_DATE
-        assert deadline_orm.callback == TEST_ASYNC_CALLBACK
-        assert deadline_orm.dag_id == DAG_ID
-        assert deadline_orm.dagrun_id == RUN_ID
-
-    def test_repr_with_callback_kwargs(self):
-        deadline_orm = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=TEST_ASYNC_CALLBACK,
-            dag_id=DAG_ID,
-            dagrun_id=RUN_ID,
-        )
-
+    def test_repr_with_callback_kwargs(self, deadline_orm, dagrun):
         assert (
-            repr(deadline_orm)
-            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
+            repr(deadline_orm) == f"[DagRun Deadline] Dag: {DAG_ID} Run: {dagrun.id} needed by "
+            f"{DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
         )
 
-    def test_repr_without_callback_kwargs(self):
+    def test_repr_without_callback_kwargs(self, deadline_orm, dagrun, session):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=AsyncCallback(TEST_CALLBACK_PATH),
-            dag_id=DAG_ID,
-            dagrun_id=RUN_ID,
-        )
-
-        assert deadline_orm.callback.kwargs is None
-        assert (
-            repr(deadline_orm)
-            == f"[DagRun Deadline] Dag: {deadline_orm.dag_id} Run: {deadline_orm.dagrun_id} needed by "
-            f"{deadline_orm.deadline_time} or run: {TEST_CALLBACK_PATH}()"
-        )
-
-    @pytest.mark.db_test
-    def test_handle_miss_async_callback(self, dagrun, session):
-        deadline_orm = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=TEST_ASYNC_CALLBACK,
-            dag_id=DAG_ID,
             dagrun_id=dagrun.id,
         )
         session.add(deadline_orm)
         session.flush()
 
+        assert deadline_orm.callback.kwargs is None
+        assert (
+            repr(deadline_orm) == f"[DagRun Deadline] Dag: {DAG_ID} Run: {dagrun.id} needed by "
+            f"{DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}()"
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param(TEST_CALLBACK_KWARGS, id="non-empty kwargs"),
+            pytest.param(None, id="null kwargs"),
+        ],
+    )
+    def test_handle_miss_async_callback(self, dagrun, session, kwargs):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs),
+            dagrun_id=dagrun.id,
+        )
+        session.add(deadline_orm)
+        session.flush()
         deadline_orm.handle_miss(session=session)
         session.flush()
 
         assert deadline_orm.trigger_id is not None
-
         trigger = session.query(Trigger).filter(Trigger.id == deadline_orm.trigger_id).one()
         assert trigger is not None
+
         assert trigger.kwargs["callback_path"] == TEST_CALLBACK_PATH
-        assert trigger.kwargs["callback_kwargs"] == TEST_CALLBACK_KWARGS
+
+        trigger_kwargs = trigger.kwargs["callback_kwargs"]
+        context = trigger_kwargs.pop("context")
+        assert trigger_kwargs == (kwargs or {})
+
+        assert context["deadline"]["id"] == str(deadline_orm.id)
+        assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
+        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
 
     @pytest.mark.db_test
     def test_handle_miss_sync_callback(self, dagrun, session):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=TEST_SYNC_CALLBACK,
-            dag_id=DAG_ID,
             dagrun_id=dagrun.id,
         )
         session.add(deadline_orm)
@@ -239,6 +227,11 @@ class TestDeadline:
                 id="failed_event",
             ),
             pytest.param(
+                TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.RUNNING}),
+                False,
+                id="running_event",
+            ),
+            pytest.param(
                 TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.QUEUED, PAYLOAD_BODY_KEY: ""}),
                 False,
                 id="invalid_event",
@@ -246,16 +239,7 @@ class TestDeadline:
             pytest.param(TriggerEvent({PAYLOAD_STATUS_KEY: "unknown_state"}), False, id="unknown_event"),
         ],
     )
-    def test_handle_callback_event(self, dagrun, session, event, none_trigger_expected):
-        deadline_orm = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=TEST_ASYNC_CALLBACK,
-            dag_id=DAG_ID,
-            dagrun_id=dagrun.id,
-        )
-        session.add(deadline_orm)
-        session.flush()
-
+    def test_handle_callback_event(self, dagrun, deadline_orm, session, event, none_trigger_expected):
         deadline_orm.handle_miss(session=session)
         session.flush()
 
@@ -269,6 +253,12 @@ class TestDeadline:
             assert deadline_orm.callback_state == status
         else:
             assert deadline_orm.callback_state == DeadlineCallbackState.QUEUED
+
+    def test_handle_miss_sets_callback_state(self, dagrun, deadline_orm, session):
+        """Test that handle_miss sets the callback state to QUEUED."""
+        deadline_orm.handle_miss(session)
+
+        assert deadline_orm.callback_state == DeadlineCallbackState.QUEUED
 
 
 @pytest.mark.db_test

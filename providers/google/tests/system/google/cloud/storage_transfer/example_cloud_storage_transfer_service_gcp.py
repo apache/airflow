@@ -61,7 +61,12 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
     CloudDataTransferServiceJobStatusSensor,
 )
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID_TRANSFER = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

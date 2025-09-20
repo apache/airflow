@@ -26,12 +26,12 @@ if TYPE_CHECKING:
     import jinja2
     from pendulum import DateTime
 
-    from airflow.models.operator import Operator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
         DagRunProtocol,
+        Operator,
         OutletEventAccessorsProtocol,
         RuntimeTaskInstanceProtocol,
     )
@@ -83,6 +83,28 @@ class Context(TypedDict, total=False):
     var: Any
 
 
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
+
+
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+    """
+    Merge parameters into an existing context.
+
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+    if not context:
+        context = Context()
+
+    context.update(*args, **kwargs)
+
+
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
@@ -117,10 +139,10 @@ def get_current_context() -> Context:
 
 class AirflowParsingContext(NamedTuple):
     """
-    Context of parsing for the DAG.
+    Context of parsing for the Dag.
 
-    If these values are not None, they will contain the specific DAG and Task ID that Airflow is requesting to
-    execute. You can use these for optimizing dynamically generated DAG files.
+    If these values are not None, they will contain the specific Dag and Task ID that Airflow is requesting to
+    execute. You can use these for optimizing dynamically generated Dag files.
 
     You can obtain the current values via :py:func:`.get_parsing_context`.
     """
@@ -134,7 +156,7 @@ _AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
 
 
 def get_parsing_context() -> AirflowParsingContext:
-    """Return the current (DAG) parsing context info."""
+    """Return the current (Dag) parsing context info."""
     return AirflowParsingContext(
         dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
         task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),
@@ -155,7 +177,7 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     :param template: A Jinja2 template to render.
     :param context: The Airflow task context to render the template with.
     :param native: If set to *True*, render the template into a native type. A
-        DAG can enable this with ``render_template_as_native_obj=True``.
+        Dag can enable this with ``render_template_as_native_obj=True``.
     :returns: The render result.
     """
     context = copy.copy(context)

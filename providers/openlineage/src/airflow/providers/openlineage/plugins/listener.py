@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
-from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
 from airflow.listeners import hookimpl
@@ -56,6 +56,13 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.settings import Session
+
+if sys.platform == "darwin":
+    from setproctitle import getproctitle
+
+    setproctitle = lambda title: logging.getLogger(__name__).debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import getproctitle, setproctitle
 
 _openlineage_listener: OpenLineageListener | None = None
 
@@ -215,8 +222,8 @@ class OpenLineageListener:
                 tags=dag.tags,
                 task=task_metadata,
                 run_facets={
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **debug_facet,
@@ -342,8 +349,8 @@ class OpenLineageListener:
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
                 run_facets={
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
                 },
@@ -480,8 +487,8 @@ class OpenLineageListener:
                 job_description=doc,
                 job_description_type=doc_type,
                 run_facets={
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
+                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
                 },

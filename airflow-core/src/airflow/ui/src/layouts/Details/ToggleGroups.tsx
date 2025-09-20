@@ -46,14 +46,13 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
   const collapseLabel = translate("dag:taskGroups.collapseAll");
 
   return (
-    <ButtonGroup attached size="sm" variant="surface" {...props}>
+    <ButtonGroup attached size="sm" variant="outline" {...props}>
       <IconButton
         aria-label={expandLabel}
         disabled={isExpandDisabled}
         onClick={onExpand}
         size="sm"
         title={expandLabel}
-        variant="surface"
       >
         <MdExpand />
       </IconButton>
@@ -63,7 +62,6 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
         onClick={onCollapse}
         size="sm"
         title={collapseLabel}
-        variant="surface"
       >
         <MdCompress />
       </IconButton>

@@ -22,7 +22,8 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.models import DagBag
+from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -34,9 +35,7 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag():
-    # Speed up: We don't want example dags for this module
-
-    return DagBag(include_examples=False, read_dags_from_db=True)
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
@@ -206,7 +205,34 @@ def make_multiple_dags(dag_maker, session):
         start_date=date,
     )
 
+    with dag_maker(
+        dag_id="no_dag_runs",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    with dag_maker(
+        dag_id="stale_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
     dag_maker.sync_dagbag_to_db()
+
+    session.get(DagModel, "stale_dag").is_stale = True
+    session.commit()
 
 
 class TestHistoricalMetricsDataEndpoint:
@@ -306,7 +332,7 @@ class TestDagStatsEndpoint:
         response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
-            "active_dag_count": 3,
+            "active_dag_count": 4,
             "failed_dag_count": 1,
             "running_dag_count": 1,
             "queued_dag_count": 1,

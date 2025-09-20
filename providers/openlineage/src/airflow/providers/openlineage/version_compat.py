@@ -43,7 +43,7 @@ try:
     from airflow.sdk import timezone
     from airflow.sdk.execution_time.timeout import timeout
 except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef, attr-defined]
-    from airflow.utils.timeout import timeout  # type: ignore[assignment]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.timeout import timeout  # type: ignore[assignment,attr-defined,no-redef]
 
 __all__ = ["AIRFLOW_V_3_0_PLUS", "BaseOperator", "timeout", "timezone"]

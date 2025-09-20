@@ -193,6 +193,7 @@ Currently, **officially** using Airflow:
 1. [DoorDash](https://www.doordash.com/) [[@chiragtodarka](https://github.com/chiragtodarka)]
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
+1. [DrMartens](https://www.drmartens.com) [[@sprasad97]]
 1. [Dropbox](https://www.dropbox.com) [[@AlexeySanko](https://github.com/AlexeySanko)]
 1. [Dunnhumby](https://www.dunnhumby.com)
 1. [Dunzo](https://www.dunzo.com)[[@masterlittle](https://github.com/masterlittle)]
@@ -489,6 +490,7 @@ Currently, **officially** using Airflow:
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Talkdesk](https://www.talkdesk.com)
+1. [Tapestry](https://www.tapestry.com) [[@faheem-khau9](https://github.com/faheem-khau9)]
 1. [Tapsi](https://tapsi.ir/)
 1. [TEK](https://www.tek.fi/en) [[@telac](https://github.com/telac)]
 1. [Tekmetric](https://www.tekmetric.com/)

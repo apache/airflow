@@ -53,55 +53,72 @@ type FormStore = {
   setParamsDict: (newParamsDict: ParamsSpec) => void;
 };
 
-export const useParamStore = create<FormStore>((set) => ({
-  conf: "{}",
-  disabled: false,
-  initialParamDict: {},
-  paramsDict: {},
+const createParamStore = () =>
+  create<FormStore>((set) => ({
+    conf: "{}",
+    disabled: false,
+    initialParamDict: {},
+    paramsDict: {},
 
-  setConf: (confString: string) =>
-    set((state) => {
-      if (state.conf === confString) {
-        return {};
-      }
+    setConf: (confString: string) =>
+      set((state) => {
+        if (state.conf === confString) {
+          return {};
+        }
 
-      const parsedConf = JSON.parse(confString) as JSON;
+        const parsedConf = JSON.parse(confString) as JSON;
 
-      const updatedParamsDict: ParamsSpec = Object.fromEntries(
-        Object.entries(parsedConf).map(([key, value]) => {
-          const existingParam = state.paramsDict[key];
+        const updatedParamsDict: ParamsSpec = Object.fromEntries(
+          Object.entries(parsedConf).map(([key, value]) => {
+            const existingParam = state.paramsDict[key];
 
-          return [
-            key,
-            {
-              // eslint-disable-next-line unicorn/no-null
-              description: existingParam?.description ?? null,
-              schema: existingParam?.schema ?? paramPlaceholder.schema,
-              value: value as unknown,
-            },
-          ];
-        }),
-      );
+            return [
+              key,
+              {
+                // eslint-disable-next-line unicorn/no-null
+                description: existingParam?.description ?? null,
+                schema: existingParam?.schema ?? paramPlaceholder.schema,
+                value: value as unknown,
+              },
+            ];
+          }),
+        );
 
-      return { conf: confString, paramsDict: updatedParamsDict };
-    }),
+        return { conf: confString, paramsDict: updatedParamsDict };
+      }),
 
-  setDisabled: (disabled: boolean) => set(() => ({ disabled })),
+    setDisabled: (disabled: boolean) => set(() => ({ disabled })),
 
-  setInitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
+    setInitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 
-  setParamsDict: (newParamsDict: ParamsSpec) =>
-    set((state) => {
-      const newConf = JSON.stringify(
-        Object.fromEntries(Object.entries(newParamsDict).map(([key, { value }]) => [key, value])),
-        undefined,
-        2,
-      );
+    setParamsDict: (newParamsDict: ParamsSpec) =>
+      set((state) => {
+        const newConf = JSON.stringify(
+          Object.fromEntries(Object.entries(newParamsDict).map(([key, { value }]) => [key, value])),
+          undefined,
+          2,
+        );
 
-      if (state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)) {
-        return {};
-      }
+        if (state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)) {
+          return {};
+        }
 
-      return { conf: newConf, paramsDict: newParamsDict };
-    }),
-}));
+        return { conf: newConf, paramsDict: newParamsDict };
+      }),
+  }));
+
+const stores = new Map<string, ReturnType<typeof createParamStore>>();
+
+export const useParamStore = (namespace = "default") => {
+  if (!stores.has(namespace)) {
+    stores.set(namespace, createParamStore());
+  }
+
+  const store = stores.get(namespace);
+
+  if (!store) {
+    throw new Error(`Failed to create store for namespace: ${namespace}`);
+  }
+
+  return store();
+};

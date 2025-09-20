@@ -20,7 +20,8 @@
       "all": "Alle",
       "paused": "Pausiert"
     },
-    "runIdPatternFilter": "Dag Läufe suchen"
+    "runIdPatternFilter": "Dag Läufe suchen",
+    "triggeringUserNameFilter": "Suche Läufe ausgelöst von..."
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {

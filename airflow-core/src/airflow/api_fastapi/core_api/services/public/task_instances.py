@@ -39,8 +39,8 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInsta
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
@@ -55,9 +55,8 @@ def _patch_ti_validate_request(
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
-) -> tuple[DAG, list[TI], dict]:
+) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
     if not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
@@ -95,7 +94,7 @@ def _patch_ti_validate_request(
 def _patch_task_instance_state(
     task_id: str,
     dag_run_id: str,
-    dag: DAG,
+    dag: SerializedDAG,
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
@@ -169,25 +168,29 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self.user = user
 
     def categorize_task_instances(
-        self, task_ids: set[tuple[str, int]]
+        self, task_keys: set[tuple[str, int]]
     ) -> tuple[dict[tuple[str, int], TI], set[tuple[str, int]], set[tuple[str, int]]]:
         """
         Categorize the given task_ids into matched_task_keys and not_found_task_keys based on existing task_ids.
 
-        :param task_ids: set of task_ids
+        :param task_keys: set of task_keys (tuple of task_id and map_index)
         :return: tuple of (task_instances_map, matched_task_keys, not_found_task_keys)
         """
         query = select(TI).where(
             TI.dag_id == self.dag_id,
             TI.run_id == self.dag_run_id,
-            TI.task_id.in_([task_id for task_id, _ in task_ids]),
+            TI.task_id.in_([task_id for task_id, _ in task_keys]),
         )
         task_instances = self.session.scalars(query).all()
         task_instances_map = {
             (ti.task_id, ti.map_index if ti.map_index is not None else -1): ti for ti in task_instances
         }
-        matched_task_keys = {(task_id, map_index) for (task_id, map_index) in task_instances_map.keys()}
-        not_found_task_keys = {(task_id, map_index) for task_id, map_index in task_ids} - matched_task_keys
+        matched_task_keys = {
+            (task_id, map_index)
+            for (task_id, map_index) in task_instances_map.keys()
+            if (task_id, map_index) in task_keys
+        }
+        not_found_task_keys = {(task_id, map_index) for task_id, map_index in task_keys} - matched_task_keys
         return task_instances_map, matched_task_keys, not_found_task_keys
 
     def handle_bulk_create(
@@ -262,21 +265,73 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self, action: BulkDeleteAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete task instances."""
-        to_delete_task_keys = set((task_id, -1) for task_id in action.entities)
-        _, matched_task_keys, not_found_task_keys = self.categorize_task_instances(to_delete_task_keys)
-        not_found_task_ids = [task_id for task_id, _ in not_found_task_keys]
+        delete_all_map_indexes: set[str] = set()
+        delete_specific_task_keys: set[tuple[str, int]] = set()
+
+        for entity in action.entities:
+            if isinstance(entity, str):
+                # String task ID - remove all task instances for this task
+                delete_all_map_indexes.add(entity)
+            else:
+                # BulkTaskInstanceBody object
+                if entity.map_index is None:
+                    delete_all_map_indexes.add(entity.task_id)
+                else:
+                    delete_specific_task_keys.add((entity.task_id, entity.map_index))
 
         try:
-            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
+            # Handle deletion of specific (task_id, map_index) pairs
+            if delete_specific_task_keys:
+                _, matched_task_keys, not_found_task_keys = self.categorize_task_instances(
+                    delete_specific_task_keys
                 )
+                not_found_task_ids = [f"{task_id}[{map_index}]" for task_id, map_index in not_found_task_keys]
 
-            for task_id, _ in matched_task_keys:
-                existing_task_instance = self.session.scalar(select(TI).where(TI.task_id == task_id).limit(1))
-                if existing_task_instance:
-                    self.session.delete(existing_task_instance)
+                if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
+                    )
+
+                for task_id, map_index in matched_task_keys:
+                    result = (
+                        self.session.execute(
+                            select(TI).where(
+                                TI.task_id == task_id,
+                                TI.dag_id == self.dag_id,
+                                TI.run_id == self.dag_run_id,
+                                TI.map_index == map_index,
+                            )
+                        )
+                        .scalars()
+                        .one_or_none()
+                    )
+
+                    if result:
+                        existing_task_instance = result
+                        self.session.delete(existing_task_instance)
+                        results.success.append(f"{task_id}[{map_index}]")
+
+            # Handle deletion of all map indexes for certain task_ids
+            for task_id in delete_all_map_indexes:
+                all_task_instances = self.session.scalars(
+                    select(TI).where(
+                        TI.task_id == task_id,
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.dag_run_id,
+                    )
+                ).all()
+
+                if not all_task_instances and action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"No task instances found for task_id: {task_id}",
+                    )
+
+                for ti in all_task_instances:
+                    self.session.delete(ti)
+
+                if all_task_instances:
                     results.success.append(task_id)
 
         except HTTPException as e:

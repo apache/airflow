@@ -1,0 +1,162 @@
+{
+  "allRuns": "Todas as Execuções",
+  "blockingDeps": {
+    "dependency": "Dependência",
+    "reason": "Motivo",
+    "title": "Dependências Bloqueando Tarefa de Ser Agendada"
+  },
+  "calendar": {
+    "daily": "Diário",
+    "hourly": "Por Hora",
+    "legend": {
+      "less": "Menos",
+      "more": "Mais"
+    },
+    "navigation": {
+      "nextMonth": "Próximo mês",
+      "nextYear": "Próximo ano",
+      "previousMonth": "Mês anterior",
+      "previousYear": "Ano anterior"
+    },
+    "noData": "Nenhum dado disponível",
+    "noRuns": "Nenhuma execução",
+    "totalRuns": "Total de Execuções",
+    "week": "Semana {{weekNumber}}",
+    "weekdays": {
+      "friday": "Sex",
+      "monday": "Seg",
+      "saturday": "Sáb",
+      "sunday": "Dom",
+      "thursday": "Qui",
+      "tuesday": "Ter",
+      "wednesday": "Qua"
+    }
+  },
+  "code": {
+    "bundleUrl": "URL do Bundle",
+    "noCode": "Nenhum Código Encontrado",
+    "parseDuration": "Duração do Processamento:",
+    "parsedAt": "Processado em:"
+  },
+  "extraLinks": "Links Extra",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Redefinir para a Última",
+      "toggleGroup": "Alternar Grupo"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Avançado",
+      "dagDocs": "Documentação do DAG"
+    }
+  },
+  "logs": {
+    "allLevels": "Todos os Níveis de Log",
+    "allSources": "Todas as Fontes",
+    "critical": "CRÍTICO",
+    "debug": "DEBUG",
+    "error": "ERRO",
+    "fullscreen": {
+      "button": "Tela cheia",
+      "tooltip": "Pressione {{hotkey}} para tela cheia"
+    },
+    "info": "INFO",
+    "noTryNumber": "Nenhum número de tentativa",
+    "settings": "Configurações",
+    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
+    "warning": "AVISO"
+  },
+  "navigation": {
+    "navigation": "Navegação: Shift+{{arrow}}",
+    "toggleGroup": "Alternar grupo: Espaço"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_many": "Execuções Falhadas",
+      "failedRun_one": "Execução Falhada",
+      "failedRun_other": "Execuções Falhadas",
+      "failedRun_zero": "Nenhuma execução falhada",
+      "failedTask_many": "Tarefas Falhadas",
+      "failedTask_one": "Tarefa Falhada",
+      "failedTask_other": "Tarefas Falhadas",
+      "failedTask_zero": "Nenhuma tarefa falhada",
+      "failedTaskInstance_many": "Instâncias de Tarefa Falhadas",
+      "failedTaskInstance_one": "Instância de Tarefa Falhada",
+      "failedTaskInstance_other": "Instâncias de Tarefa Falhadas",
+      "failedTaskInstance_zero": "Nenhuma instância de tarefa falhada"
+    },
+    "charts": {
+      "assetEvent_many": "Eventos de Asset Criados",
+      "assetEvent_one": "Evento de Asset Criado",
+      "assetEvent_other": "Eventos de Asset Criados",
+      "assetEvent_zero": "Nenhum evento de asset criado"
+    },
+    "failedLogs": {
+      "hideLogs": "Ocultar Logs",
+      "showLogs": "Mostrar Logs",
+      "title": "Logs Recentes de Tarefas Falhadas",
+      "viewFullLogs": "Ver logs completos"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opções",
+      "showGantt": "Mostrar Gantt",
+      "showGraphShortcut": "Mostrar Gráfico (Pressione g)",
+      "showGridShortcut": "Mostrar Grade (Pressione g)"
+    },
+    "dagRuns": {
+      "label": "Número de Execuções do DAG"
+    },
+    "dependencies": {
+      "label": "Dependências",
+      "options": {
+        "allDagDependencies": "Todas as Dependências do DAG",
+        "externalConditions": "Condições Externas",
+        "onlyTasks": "Somente Tarefas"
+      },
+      "placeholder": "Dependências"
+    },
+    "graphDirection": {
+      "label": "Direção do Gráfico"
+    }
+  },
+  "paramsFailed": "Falha ao carregar parâmetros",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Falha ao processar o DAG. Pode haver solicitações de processamento pendentes ainda não processadas.",
+        "title": "Falha ao Reprocessar o DAG"
+      },
+      "success": {
+        "description": "O DAG deve ser reprocessado em breve.",
+        "title": "Solicitação de Reprocessamento Enviada com Sucesso"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Asset Events",
+    "auditLog": "Log de Auditoria",
+    "backfills": "Backfills",
+    "calendar": "Calendário",
+    "code": "Código",
+    "details": "Detalhes",
+    "logs": "Logs",
+    "mappedTaskInstances_many": "Instâncias de Tarefa [{{count}}]",
+    "mappedTaskInstances_one": "Instância de Tarefa [{{count}}]",
+    "mappedTaskInstances_other": "Instâncias de Tarefa [{{count}}]",
+    "mappedTaskInstances_zero": "Nenhuma instância de tarefa mapeada",
+    "overview": "Visão Geral",
+    "renderedTemplates": "Modelos Renderizados",
+    "requiredActions": "Ações Necessárias",
+    "runs": "Execuções",
+    "taskInstances": "Instâncias de Tarefa",
+    "tasks": "Tarefas",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Recolher todos os grupos de tarefas",
+    "expandAll": "Expandir todos os grupos de tarefas"
+  }
+}

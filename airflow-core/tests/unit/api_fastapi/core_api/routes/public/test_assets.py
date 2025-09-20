@@ -31,17 +31,25 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_runs,
+)
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
 
@@ -64,6 +72,51 @@ def _create_assets(session, num: int = 2) -> list[AssetModel]:
         for i in range(1, 1 + num)
     ]
     session.add_all(assets)
+    session.add_all(AssetActive.for_asset(a) for a in assets)
+    session.commit()
+    return assets
+
+
+def _create_assets_with_watchers(session, num: int = 2) -> list[AssetModel]:
+    """Create assets with watchers for testing."""
+    assets = [
+        AssetModel(
+            id=i,
+            name=f"watched{i}",
+            uri=f"s3://watched/bucket/key/{i}",
+            group="asset",
+            extra={"foo": "bar"},
+            created_at=DEFAULT_DATE,
+            updated_at=DEFAULT_DATE,
+        )
+        for i in range(1, 1 + num)
+    ]
+
+    # Create triggers for the watchers
+    triggers = [
+        Trigger(
+            classpath=f"airflow.triggers.testing.TestTrigger{i}",
+            kwargs={"timeout": 60 * i},
+            created_date=DEFAULT_DATE,
+        )
+        for i in range(1, 1 + num)
+    ]
+
+    session.add_all(assets)
+    session.add_all(triggers)
+    session.flush()  # Flush to get IDs
+
+    # Create watchers that link assets to triggers
+    watchers = [
+        AssetWatcherModel(
+            name=f"watcher_{i}",
+            asset_id=assets[i - 1].id,
+            trigger_id=triggers[i - 1].id,
+        )
+        for i in range(1, 1 + num)
+    ]
+
+    session.add_all(watchers)
     session.add_all(AssetActive.for_asset(a) for a in assets)
     session.commit()
     return assets
@@ -192,17 +245,25 @@ class TestAssets:
     def setup(self):
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_logs()
 
         yield
 
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
         clear_db_logs()
 
     @provide_session
     def create_assets(self, session, num: int = 2) -> list[AssetModel]:
         return _create_assets(session=session, num=num)
+
+    @provide_session
+    def create_assets_with_watchers(self, session, num: int = 2) -> list[AssetModel]:
+        return _create_assets_with_watchers(session=session, num=num)
 
     @provide_session
     def create_assets_with_sensitive_extra(self, session, num: int = 2):
@@ -260,6 +321,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     # No AssetEvent, so no data!
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
@@ -275,6 +337,64 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    def test_should_respond_200_with_watchers(self, test_client, session):
+        """Test that assets with watchers return the watcher information in the API response."""
+        asset1, asset2 = self.create_assets_with_watchers(session, num=2)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        response_data = response.json()
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+
+        assert response_data == {
+            "assets": [
+                {
+                    "id": asset1.id,
+                    "name": "watched1",
+                    "uri": "s3://watched/bucket/key/1",
+                    "group": "asset",
+                    "extra": {"foo": "bar"},
+                    "created_at": tz_datetime_format,
+                    "updated_at": tz_datetime_format,
+                    "scheduled_dags": [],
+                    "producing_tasks": [],
+                    "consuming_tasks": [],
+                    "aliases": [],
+                    "watchers": [
+                        {
+                            "name": "watcher_1",
+                            "trigger_id": asset1.watchers[0].trigger_id,
+                            "created_date": tz_datetime_format,
+                        }
+                    ],
+                    "last_asset_event": {"id": None, "timestamp": None},
+                },
+                {
+                    "id": asset2.id,
+                    "name": "watched2",
+                    "uri": "s3://watched/bucket/key/2",
+                    "group": "asset",
+                    "extra": {"foo": "bar"},
+                    "created_at": tz_datetime_format,
+                    "updated_at": tz_datetime_format,
+                    "scheduled_dags": [],
+                    "producing_tasks": [],
+                    "consuming_tasks": [],
+                    "aliases": [],
+                    "watchers": [
+                        {
+                            "name": "watcher_2",
+                            "trigger_id": asset2.watchers[0].trigger_id,
+                            "created_date": tz_datetime_format,
+                        }
+                    ],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
@@ -316,6 +436,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
@@ -330,6 +451,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
@@ -344,6 +466,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
@@ -439,9 +562,13 @@ class TestGetAssets(TestAssets):
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
-    def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
+    def test_filter_assets_by_dag_ids_works(
+        self, test_client, dag_ids, expected_num, testing_dag_bundle, session
+    ):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "testing"
+
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -453,9 +580,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
@@ -475,10 +602,12 @@ class TestGetAssets(TestAssets):
     )
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
-        self, test_client, dag_ids, uri_pattern, expected_num, session
+        self, test_client, dag_ids, uri_pattern, expected_num, testing_dag_bundle, session
     ):
         session.query(DagModel).delete()
         session.commit()
+        bundle_name = "testing"
+
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -490,9 +619,9 @@ class TestGetAssets(TestAssets):
                 AssetActive.for_asset(asset1),
                 AssetActive.for_asset(asset2),
                 AssetActive.for_asset(asset3),
-                DagModel(dag_id="dag1"),
-                DagModel(dag_id="dag2"),
-                DagModel(dag_id="dag3"),
+                DagModel(dag_id="dag1", bundle_name=bundle_name),
+                DagModel(dag_id="dag2", bundle_name=bundle_name),
+                DagModel(dag_id="dag3", bundle_name=bundle_name),
                 DagScheduleAssetReference(dag_id="dag1", asset=asset1),
                 DagScheduleAssetReference(dag_id="dag2", asset=asset2),
                 TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3),
@@ -545,10 +674,14 @@ class TestAssetAliases:
     def setup(self) -> None:
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_assets()
         clear_db_runs()
+        clear_db_dags()
+        clear_db_dag_bundles()
 
     @provide_session
     def create_asset_aliases(self, num: int = 2, *, session):
@@ -725,6 +858,9 @@ class TestGetAssetEvents(TestAssets):
             ({"source_task_id": "source_task_id"}, 2),
             ({"source_run_id": "source_run_id_1"}, 1),
             ({"source_map_index": "-1"}, 2),
+            ({"name_pattern": "simple1"}, 1),
+            ({"name_pattern": "simple%"}, 2),
+            ({"name_pattern": "nonexistent"}, 0),
         ],
     )
     @provide_session
@@ -909,6 +1045,40 @@ class TestGetAssetEndpoint(TestAssets):
             "producing_tasks": [],
             "consuming_tasks": [],
             "aliases": [],
+            "watchers": [],
+            "last_asset_event": {"id": None, "timestamp": None},
+        }
+
+    @provide_session
+    def test_should_respond_200_with_watchers(self, test_client, session):
+        """Test that single asset endpoint returns watcher information."""
+        assets = self.create_assets_with_watchers(session, num=1)
+        asset = assets[0]
+
+        response = test_client.get(f"/assets/{asset.id}")
+        assert response.status_code == 200
+        response_data = response.json()
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+
+        assert response_data == {
+            "id": asset.id,
+            "name": "watched1",
+            "uri": "s3://watched/bucket/key/1",
+            "group": "asset",
+            "extra": {"foo": "bar"},
+            "created_at": tz_datetime_format,
+            "updated_at": tz_datetime_format,
+            "scheduled_dags": [],
+            "producing_tasks": [],
+            "consuming_tasks": [],
+            "aliases": [],
+            "watchers": [
+                {
+                    "name": "watcher_1",
+                    "trigger_id": asset.watchers[0].trigger_id,
+                    "created_date": tz_datetime_format,
+                }
+            ],
             "last_asset_event": {"id": None, "timestamp": None},
         }
 
@@ -944,6 +1114,7 @@ class TestGetAssetEndpoint(TestAssets):
             "producing_tasks": [],
             "consuming_tasks": [],
             "aliases": [],
+            "watchers": [],
             "last_asset_event": {"id": None, "timestamp": None},
         }
 

@@ -36,6 +36,7 @@
       "extraFields": "Weitere Felder",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
+      "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
       "selectConnectionType": "Verbindungstyp auswählen",
       "standardFields": "Standardfelder"
     },
@@ -71,7 +72,6 @@
     "tooltip": "Ausgewählte Verbindungen löschen"
   },
   "formActions": {
-    "reset": "Zurücksetzen",
     "save": "Speichern"
   },
   "plugins": {

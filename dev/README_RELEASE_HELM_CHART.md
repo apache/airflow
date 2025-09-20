@@ -156,7 +156,7 @@ annotations:
 ```
 
 Make sure that all the release notes changes are submitted as PR and merged. Changes in release notes should
-also automatically (via `pre-commit` trigger updating of the [reproducible_build.yaml](../chart/reproducible_build.yaml))
+also automatically (via `prek` trigger updating of the [reproducible_build.yaml](../chart/reproducible_build.yaml))
 file which is uses to reproducibly build the chart package and source tarball.
 
 You can leave the k8s environment now:

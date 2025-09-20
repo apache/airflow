@@ -55,7 +55,12 @@ from airflow.providers.google.marketing_platform.operators.display_video import 
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
@@ -93,6 +98,7 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
 
 with DAG(
     "display_video_sdf",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "display_video_sdf"],

@@ -438,11 +438,10 @@ class TestKubernetesHook:
             mock_get_client.assert_called_with(cluster_context="test")
             assert kubernetes_hook.get_namespace() == "test"
 
-    def test_missing_default_connection_is_ok(self, remove_default_conn):
+    def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):
         # prove to ourselves that the default conn doesn't exist
         k8s_conn_exists = os.environ.get(f"AIRFLOW_CONN_{DEFAULT_CONN_ID.upper()}")
         assert k8s_conn_exists is None
-
         # verify K8sHook still works
         hook = KubernetesHook()
         assert hook.conn_extras == {}
@@ -1001,9 +1000,7 @@ class TestAsyncKubernetesHook:
         assert kube_client is None
 
     @pytest.mark.asyncio
-    async def test_load_config_with_several_params(
-        self,
-    ):
+    async def test_load_config_with_several_params(self, sdk_connection_not_found):
         hook = AsyncKubernetesHook(
             conn_id=CONN_ID,
             in_cluster=True,

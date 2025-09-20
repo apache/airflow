@@ -91,7 +91,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     const contentHeight = rowVirtualizer.getTotalSize();
     const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
 
-    return parsedLogs.length > 0 && contentHeight > containerHeight;
+    return parsedLogs.length > 1 && contentHeight > containerHeight;
   }, [rowVirtualizer, parsedLogs]);
 
   useLayoutEffect(() => {
@@ -116,7 +116,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       <Code
         css={{
           "& *::selection": {
-            bg: "blue.subtle",
+            bg: "brand.subtle",
           },
         }}
         data-testid="virtualized-list"
@@ -140,7 +140,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
                 left: "auto",
                 right: 0,
               }}
-              bgColor={virtualRow.index === Number(hash) ? "blue.emphasized" : "transparent"}
+              bgColor={
+                Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
+              }
               data-index={virtualRow.index}
               data-testid={`virtualized-item-${virtualRow.index}`}
               key={virtualRow.key}

@@ -24,9 +24,9 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models import DagRun
+from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState
-from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.system_tests import get_test_run
