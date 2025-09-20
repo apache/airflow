@@ -41,6 +41,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/postgres/index>
     Dialects <dialects>
 
