@@ -41,24 +41,27 @@ import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunType } from "openapi/requests/types.gen";
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
+import { StateBadge } from "src/components/StateBadge";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
-import { dagRunTypeOptions } from "src/constants/stateOptions";
+import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
+  readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: string;
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly runTypeFilter: DagRunType | undefined;
+  readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
@@ -77,12 +80,12 @@ const getOptions = (translate: (key: string) => string) =>
     ],
   });
 
-const getWidthBasedConfig = (width: number, showGantt: boolean) => {
-  const breakpoints = showGantt
+const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
+  const breakpoints = enableResponsiveOptions
     ? [
         { limit: 100, min: 1600, options: ["5", "10", "25", "50"] }, // xl: extra large screens
         { limit: 25, min: 1024, options: ["5", "10", "25"] }, // lg: large screens
-        { limit: 10, min: 768, options: ["5", "10"] }, // md: medium screens
+        { limit: 10, min: 384, options: ["5", "10"] }, // md: medium screens
         { limit: 5, min: 0, options: ["5"] }, // sm: small screens and below
       ]
     : [{ limit: 5, min: 0, options: ["5", "10", "25", "50"] }];
@@ -102,10 +105,12 @@ const deps = ["all", "immediate", "tasks"];
 type Dependency = (typeof deps)[number];
 
 export const PanelButtons = ({
+  dagRunStateFilter,
   dagView,
   limit,
   panelGroupRef,
   runTypeFilter,
+  setDagRunStateFilter,
   setDagView,
   setLimit,
   setRunTypeFilter,
@@ -131,13 +136,18 @@ export const PanelButtons = ({
     setLimit(runLimit);
   };
 
-  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(containerWidth, showGantt);
+  const enableResponsiveOptions = showGantt && Boolean(runId);
+
+  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(
+    containerWidth,
+    enableResponsiveOptions,
+  );
 
   useEffect(() => {
-    if (showGantt && limit > defaultLimit) {
+    if (enableResponsiveOptions && limit > defaultLimit) {
       setLimit(defaultLimit);
     }
-  }, [showGantt, defaultLimit, setLimit, limit]);
+  }, [defaultLimit, enableResponsiveOptions, limit, setLimit]);
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
@@ -162,6 +172,16 @@ export const PanelButtons = ({
       setRunTypeFilter(undefined);
     } else {
       setRunTypeFilter(val as DagRunType);
+    }
+  };
+
+  const handleDagRunStateChange = (event: SelectValueChangeDetails<string>) => {
+    const [val] = event.value;
+
+    if (val === undefined || val === "all") {
+      setDagRunStateFilter(undefined);
+    } else {
+      setDagRunStateFilter(val as DagRunState);
     }
   };
 
@@ -383,6 +403,51 @@ export const PanelButtons = ({
                                       <RunTypeIcon runType={option.value as DagRunType} />
                                       {translate(option.label)}
                                     </Flex>
+                                  )}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Positioner>
+                        </Select.Root>
+                        <Select.Root
+                          // @ts-expect-error The expected option type is incorrect
+                          collection={dagRunStateOptions}
+                          data-testid="dag-run-state-filter"
+                          onValueChange={handleDagRunStateChange}
+                          size="sm"
+                          value={[dagRunStateFilter ?? "all"]}
+                        >
+                          <Select.Label>{translate("common:state")}</Select.Label>
+                          <Select.Control>
+                            <Select.Trigger>
+                              <Select.ValueText>
+                                {dagRunStateFilter ? (
+                                  <StateBadge state={dagRunStateFilter}>
+                                    {translate(
+                                      dagRunStateOptions.items.find(
+                                        (item) => item.value === dagRunStateFilter,
+                                      )?.label ?? "",
+                                    )}
+                                  </StateBadge>
+                                ) : (
+                                  translate("dags:filters.allStates")
+                                )}
+                              </Select.ValueText>
+                            </Select.Trigger>
+                            <Select.IndicatorGroup>
+                              <Select.Indicator />
+                            </Select.IndicatorGroup>
+                          </Select.Control>
+                          <Select.Positioner>
+                            <Select.Content>
+                              {dagRunStateOptions.items.map((option) => (
+                                <Select.Item item={option} key={option.value}>
+                                  {option.value === "all" ? (
+                                    translate(option.label)
+                                  ) : (
+                                    <StateBadge state={option.value as DagRunState}>
+                                      {translate(option.label)}
+                                    </StateBadge>
                                   )}
                                 </Select.Item>
                               ))}
