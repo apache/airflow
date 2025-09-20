@@ -774,6 +774,9 @@ def post_clear_task_instances(
         )
 
     if not dry_run:
+        if hasattr(body, 'is_running_message'):
+            for ti in task_instances:
+                ti.is_running_message = body.is_running_message
         clear_task_instances(
             task_instances,
             session,
