@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-20T13:51:26.536790
+# This constraints file was automatically generated on 2025-09-20T19:47:57.440542
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -206,7 +206,7 @@ backoff==2.2.1
 backports.tarfile==1.2.0
 bcrypt==4.3.0
 beautifulsoup4==4.13.5
-billiard==4.2.1
+billiard==4.2.2
 bitarray==3.7.1
 black==25.9.0
 bleach==6.2.0
@@ -270,8 +270,8 @@ et_xmlfile==2.0.0
 eventlet==0.40.3
 executing==2.2.1
 facebook_business==23.0.1
-fastapi-cli==0.0.12
-fastapi==0.116.2
+fastapi-cli==0.0.13
+fastapi==0.117.0
 fastavro==1.12.0
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -410,7 +410,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.4
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.77.1
+litellm==1.77.2.post1
 lockfile==0.12.2
 looker-sdk==25.16.0
 lxml==6.0.1
