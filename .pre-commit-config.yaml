@@ -1649,3 +1649,9 @@ repos:
         files: ^airflow-core/src/airflow/serialization/schema\.json$|^airflow-core/src/airflow/serialization/serialized_objects\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-contextmanager-class-decorators
+        name: Check for problematic context manager class decorators
+        entry: ./scripts/ci/prek/check_contextmanager_class_decorators.py
+        language: python
+        files: .*test.*\.py$
+        pass_filenames: true
