@@ -38,6 +38,7 @@ export const PoolSummary = () => {
 
   const pools = data?.pools;
   const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;
+
   const aggregatePool: Slots = {
     deferred_slots: 0,
     open_slots: 0,
@@ -57,6 +58,11 @@ export const PoolSummary = () => {
   pools?.forEach((pool) => {
     slotKeys.forEach((slotKey) => {
       const slotValue = pool[slotKey];
+
+      // NEW: only include deferred slots from pools that count deferred
+      if (slotKey === "deferred_slots" && !pool.include_deferred) {
+        return;
+      }
 
       if (slotValue > 0) {
         aggregatePool[slotKey] += slotValue;
