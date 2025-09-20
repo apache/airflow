@@ -62,6 +62,24 @@ type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
 const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
 
+const getLabelFormat = (entries: Array<RunResponse>) => {
+  const timestamps = entries.map(entry => dayjs(entry.run_after));
+  const minTime = dayjs.min(timestamps);
+  const maxTime = dayjs.max(timestamps);
+
+  // satisfy null typecheck for dayjs.min/max
+  if (minTime === null || maxTime === null) {
+    return "MM-DD";
+  }
+  const diffInDays = maxTime.diff(minTime, 'days');
+
+  if (diffInDays < 1) {
+    return "hh:mm:ss"
+  } else {
+    return "MM-DD"
+  }
+};
+
 export const DurationChart = ({
   autoRefreshEnabled,
   entries,
@@ -119,24 +137,6 @@ export const DurationChart = ({
     value: (ctx: PartialEventContext) => average(ctx, 0),
   };
 
-  const getLabelFormat = (entries: Array<RunResponse>) => {
-    const timestamps = entries.map(entry => dayjs(entry.run_after));
-    const minTime = dayjs.min(timestamps);
-    const maxTime = dayjs.max(timestamps);
-    
-    // satisfy null typecheck for dayjs.min/max
-    if (minTime === null || maxTime === null) {
-      return "MM-DD";
-    }
-    const diffInDays = maxTime.diff(minTime, 'days');
-
-    if (diffInDays < 1) {
-      return "hh:mm:ss"
-    } else {
-      return "MM-DD"
-    }
-  };
-
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
@@ -184,7 +184,7 @@ export const DurationChart = ({
               label: translate("durationChart.runDuration"),
             },
           ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(getLabelFormat(entries))),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD HH:mm:ss")),
         }}
         datasetIdKey="id"
         options={{
@@ -236,6 +236,9 @@ export const DurationChart = ({
               stacked: true,
               ticks: {
                 maxTicksLimit: 3,
+                callback: (value) => {
+                  return(dayjs(value).format(getLabelFormat(entries)))
+                }
               },
               title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
             },
