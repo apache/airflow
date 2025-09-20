@@ -21,11 +21,13 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, computed_field, model_validator
+from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
@@ -83,7 +85,33 @@ class DAGRunResponse(BaseModel):
     note: str | None
     dag_versions: list[DagVersionResponse]
     bundle_version: str | None
+    bundle_name: str | None = Field(validation_alias=AliasPath("dag_model", "bundle_name"), exclude=True)
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def bundle_url(self) -> str | None:
+        if not self.bundle_name:
+            return None
+
+        # Get the bundle model from the database and render the URL
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            bundle_model = session.scalar(
+                select(DagBundleModel).where(DagBundleModel.name == self.bundle_name)
+            )
+
+            if bundle_model and hasattr(bundle_model, "signed_url_template"):
+                return bundle_model.render_url(self.bundle_version)
+            # fallback to the deprecated option if the bundle model does not have a signed_url_template
+            # attribute
+            try:
+                return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+            except ValueError:
+                return None
 
 
 class DAGRunCollectionResponse(BaseModel):
