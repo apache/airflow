@@ -34,19 +34,25 @@ def _producer_function():
         yield (json.dumps(i), json.dumps(i + 1))
 
 
+@pytest.fixture
+def kafka_connections():
+    with conf_vars(
+        {
+            (
+                "connections",
+                "kafka_default_test_1",
+            ): "kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_1",
+            (
+                "connections",
+                "kafka_default_test_2",
+            ): "kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_2",
+        }
+    ):
+        yield
+
+
 @pytest.mark.integration("kafka")
-@conf_vars(
-    {
-        (
-            "connections",
-            "kafka_default_test_1",
-        ): "kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_1",
-        (
-            "connections",
-            "kafka_default_test_2",
-        ): "kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_2",
-    }
-)
+@pytest.mark.usefixtures("kafka_connections")
 class TestProduceToTopic:
     """
     test ProduceToTopicOperator
