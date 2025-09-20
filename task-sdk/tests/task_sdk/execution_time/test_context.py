@@ -58,6 +58,7 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
+    _async_get_connection,
     _convert_variable_result_to_variable,
     _process_connection_result_conn,
     context_to_airflow_vars,
@@ -730,3 +731,37 @@ class TestInletEventAccessor:
                 map_index=0,
             ),
         )
+
+
+class TestAsyncGetConnection:
+    """Test async connection retrieval with secrets backends."""
+
+    @pytest.mark.asyncio
+    async def test_async_get_connection_from_secrets_backend(self, mock_supervisor_comms):
+        """Test that _async_get_connection successfully retrieves from secrets backend using sync_to_async."""
+        sample_connection = Connection(
+            conn_id="test_conn", conn_type="postgres", host="localhost", port=5432, login="user"
+        )
+
+        class MockSecretsBackend:
+            """Simple mock secrets backend for testing."""
+
+            def __init__(self, connections: dict[str, Connection | None] | None = None):
+                self.connections = connections or {}
+
+            def get_connection(self, conn_id: str) -> Connection | None:
+                return self.connections.get(conn_id)
+
+        backend = MockSecretsBackend({"test_conn": sample_connection})
+
+        with patch(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
+        ) as mock_load:
+            mock_load.return_value = [backend]
+
+            result = await _async_get_connection("test_conn")
+
+            assert result == sample_connection
+            # Should not have tried SUPERVISOR_COMMS since secrets backend had the connection
+            mock_supervisor_comms.send.assert_not_called()
+            mock_supervisor_comms.asend.assert_not_called()
