@@ -40,11 +40,13 @@ from airflow.api_fastapi.common.parameters import (
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
+    QueryHasImportErrorsFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
     QueryOwnersFilter,
     QueryPausedFilter,
+    QueryPendingActionsFilter,
     QueryTagsFilter,
     SortParam,
     filter_param_factory,
@@ -63,6 +65,9 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
 )
 from airflow.models import DagModel, DagRun
+from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -89,6 +94,7 @@ def get_dags(
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
@@ -105,6 +111,7 @@ def get_dags(
     is_favorite: QueryFavoriteFilter,
     has_asset_schedule: QueryHasAssetScheduleFilter,
     asset_dependency: QueryAssetDependencyFilter,
+    has_pending_actions: QueryPendingActionsFilter,
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     dag_runs_limit: int = 10,
@@ -123,6 +130,7 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            has_import_errors,
             dag_id_pattern,
             dag_ids,
             dag_display_name_pattern,
@@ -132,6 +140,7 @@ def get_dags(
             is_favorite,
             has_asset_schedule,
             asset_dependency,
+            has_pending_actions,
             readable_dags_filter,
             bundle_name,
             bundle_version,
@@ -184,6 +193,29 @@ def get_dags(
 
     recent_dag_runs = session.execute(recent_dag_runs_select)
 
+    # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
+    pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
+    if has_pending_actions.value is not False:
+        pending_actions_select = (
+            select(
+                TaskInstance.dag_id,
+                HITLDetail,
+            )
+            .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
+            .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
+            .order_by(TaskInstance.dag_id)
+        )
+
+        pending_actions = session.execute(pending_actions_select)
+
+        # Group pending actions by dag_id
+        for dag_id, hitl_detail in pending_actions:
+            pending_actions_by_dag_id[dag_id].append(hitl_detail)
+
     # aggregate rows by dag_id
     dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {
         dag.dag_id: DAGWithLatestDagRunsResponse.model_validate(
@@ -191,6 +223,7 @@ def get_dags(
                 **DAGResponse.model_validate(dag).model_dump(),
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
+                "pending_actions": pending_actions_by_dag_id[dag.dag_id],
             }
         )
         for dag in dags

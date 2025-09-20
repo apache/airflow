@@ -53,7 +53,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
 # Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -72,6 +72,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "drill",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
@@ -82,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
+    "localstack",  # just for local integration testing for now
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -201,12 +203,12 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.14"
+UV_VERSION = "0.8.18"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
 
-# packages that  providers docs
+# packages that providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
     "docker-stack",
@@ -215,6 +217,16 @@ REGULAR_DOC_PACKAGES = [
     "task-sdk",
     "apache-airflow-ctl",
 ]
+
+
+# packages that are distributions of Airflow
+class DistributionType(Enum):
+    AIRFLOW_CORE = "airflow"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    AIRFLOW_CTL = "airflowctl"
+    HELM_CHART = "helm-chart"
+
 
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
@@ -783,14 +795,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
 ]
 
-ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
-    "3.6": "v3.6.15",
-    "3.7": "v3.7.17",
-    "3.8": "v3.8.20",
-    "3.9": "v3.9.23",
-    "3.10": "v3.10.18",
-    "3.11": "v3.11.13",
-    "3.12": "v3.12.11",
+ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
+    "3.9": "3.9.23",
+    "3.10": "3.10.18",
+    "3.11": "3.11.13",
+    "3.12": "3.12.11",
+    "3.13": "3.13.7",
 }
 
 # Number of slices for low dep tests

@@ -21,20 +21,21 @@ import pendulum
 import pytest
 
 from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    TaskGroup,
     setup,
     task as task_decorator,
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 
-from tests_common.test_utils.compat import BashOperator, PythonOperator
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -157,6 +158,7 @@ EXPECTED_JSON_LEGACY = {
 EXPECTED_JSON = {
     "children": [
         {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
+        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
         {
             "children": [
                 {
@@ -195,11 +197,10 @@ EXPECTED_JSON = {
             "tooltip": "",
             "type": "task",
         },
-        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
     ],
     "id": None,
     "is_mapped": False,
-    "label": None,
+    "label": "",
     "tooltip": "",
     "type": "task",
 }
@@ -276,7 +277,10 @@ def test_task_group_to_dict_with_prefix(dag_maker):
     expected_node_id = {
         "children": [
             {"id": "task1", "label": "task1"},
+            {"id": "task5", "label": "task5"},
             {
+                "id": "group234",
+                "label": "group234",
                 "children": [
                     {
                         "children": [
@@ -294,13 +298,10 @@ def test_task_group_to_dict_with_prefix(dag_maker):
                     {"id": "task2", "label": "task2"},
                     {"id": "group234.upstream_join_id", "label": ""},
                 ],
-                "id": "group234",
-                "label": "group234",
             },
-            {"id": "task5", "label": "task5"},
         ],
         "id": None,
-        "label": None,
+        "label": "",
     }
 
     assert extract_node_id(task_group_to_dict(dag.task_group), include_label=True) == expected_node_id
@@ -346,6 +347,7 @@ def test_task_group_to_dict_with_task_decorator(dag_maker):
         "id": None,
         "children": [
             {"id": "task_1"},
+            {"id": "task_5"},
             {
                 "id": "group234",
                 "children": [
@@ -356,7 +358,6 @@ def test_task_group_to_dict_with_task_decorator(dag_maker):
                     {"id": "group234.downstream_join_id"},
                 ],
             },
-            {"id": "task_5"},
         ],
     }
 
@@ -402,6 +403,7 @@ def test_task_group_to_dict_sub_dag(dag_maker):
         "id": None,
         "children": [
             {"id": "task1"},
+            {"id": "task5"},
             {
                 "id": "group234",
                 "children": [
@@ -416,7 +418,6 @@ def test_task_group_to_dict_sub_dag(dag_maker):
                     {"id": "group234.upstream_join_id"},
                 ],
             },
-            {"id": "task5"},
         ],
     }
 
@@ -478,6 +479,16 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
         "id": None,
         "children": [
             {
+                "id": "group_c",
+                "children": [
+                    {"id": "group_c.task6"},
+                    {"id": "group_c.task7"},
+                    {"id": "group_c.task8"},
+                    {"id": "group_c.upstream_join_id"},
+                    {"id": "group_c.downstream_join_id"},
+                ],
+            },
+            {
                 "id": "group_d",
                 "children": [
                     {"id": "group_d.task11"},
@@ -486,6 +497,8 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
                 ],
             },
             {"id": "task1"},
+            {"id": "task10"},
+            {"id": "task9"},
             {
                 "id": "group_a",
                 "children": [
@@ -503,18 +516,6 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
                     {"id": "group_a.downstream_join_id"},
                 ],
             },
-            {
-                "id": "group_c",
-                "children": [
-                    {"id": "group_c.task6"},
-                    {"id": "group_c.task7"},
-                    {"id": "group_c.task8"},
-                    {"id": "group_c.upstream_join_id"},
-                    {"id": "group_c.downstream_join_id"},
-                ],
-            },
-            {"id": "task10"},
-            {"id": "task9"},
         ],
     }
 
@@ -783,6 +784,7 @@ def test_task_group_context_mix(dag_maker):
     node_ids = {
         "id": None,
         "children": [
+            {"id": "task_end"},
             {"id": "task_start"},
             {
                 "id": "section_1",
@@ -802,7 +804,6 @@ def test_task_group_context_mix(dag_maker):
                     {"id": "section_1.downstream_join_id"},
                 ],
             },
-            {"id": "task_end"},
         ],
     }
 
@@ -1184,7 +1185,7 @@ def test_task_group_display_name_used_as_label(dag_maker):
     assert tg.label == "my_custom_name"
     expected_node_id = {
         "id": None,
-        "label": None,
+        "label": "",
         "children": [
             {
                 "id": "tg",

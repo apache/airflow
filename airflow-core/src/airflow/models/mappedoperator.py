@@ -20,21 +20,20 @@ from __future__ import annotations
 
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard, overload
 
 import attrs
 import methodtools
 import structlog
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import (
-    NotMapped,
-)
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 
@@ -45,11 +44,11 @@ if TYPE_CHECKING:
     import pendulum
 
     from airflow.models import TaskInstance
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -59,8 +58,16 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-def is_mapped(task: Operator) -> TypeGuard[MappedOperator]:
-    return task.is_mapped
+@overload
+def is_mapped(obj: Operator) -> TypeGuard[MappedOperator]: ...
+
+
+@overload
+def is_mapped(obj: SerializedTaskGroup) -> TypeGuard[SerializedMappedTaskGroup]: ...
+
+
+def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator | SerializedMappedTaskGroup]:
+    return obj.is_mapped
 
 
 @attrs.define(
@@ -102,8 +109,15 @@ class MappedOperator(DAGNode):
     start_from_trigger: bool = False
     _needs_expansion: bool = True
 
-    dag: SchedulerDAG = attrs.field(init=False)
-    task_group: TaskGroup = attrs.field(init=False)
+    # TODO (GH-52141): These should contain serialized containers, but currently
+    # this class inherits from an SDK one.
+    dag: SerializedDAG = attrs.field(init=False)  # type: ignore[assignment]
+    task_group: SerializedTaskGroup = attrs.field(init=False)  # type: ignore[assignment]
+
+    doc: str | None = attrs.field(init=False)
+    doc_json: str | None = attrs.field(init=False)
+    doc_rst: str | None = attrs.field(init=False)
+    doc_yaml: str | None = attrs.field(init=False)
     start_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     end_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
@@ -125,6 +139,9 @@ class MappedOperator(DAGNode):
     deps: frozenset[BaseTIDep] = attrs.field(init=False, default=DEFAULT_OPERATOR_DEPS)
 
     is_mapped: ClassVar[bool] = True
+
+    def __repr__(self) -> str:
+        return f"<SerializedMappedTask({self.task_type}): {self.task_id}>"
 
     @property
     def node_id(self) -> str:
@@ -290,6 +307,18 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("outlets", [])
 
     @property
+    def email(self) -> str | Iterable[str] | None:
+        return self.partial_kwargs.get("email")
+
+    @property
+    def email_on_failure(self) -> bool:
+        return self.partial_kwargs.get("email_on_failure", True)
+
+    @property
+    def email_on_retry(self) -> bool:
+        return self.partial_kwargs.get("email_on_retry", True)
+
+    @property
     def on_failure_fail_dagrun(self) -> bool:
         return bool(self.partial_kwargs.get("on_failure_fail_dagrun"))
 
@@ -380,13 +409,17 @@ class MappedOperator(DAGNode):
             return None
         return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives MappedOperator
 
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
+        """Implement DAGNode."""
+        return DagAttributeTypes.OP, self.task_id
+
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
     def _get_specified_expand_input(self) -> SchedulerExpandInput:
         """Input received from the expand call on the operator."""
         return getattr(self, self._expand_input_attr)
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+    def iter_mapped_task_groups(self) -> Iterator[SerializedMappedTaskGroup]:
         """
         Return mapped task groups this task belongs to.
 
@@ -399,7 +432,7 @@ class MappedOperator(DAGNode):
         yield from group.iter_mapped_task_groups()
 
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
+    def get_closest_mapped_task_group(self) -> SerializedMappedTaskGroup | None:
         """
         Get the mapped task group "closest" to this task in the DAG.
 
@@ -482,7 +515,7 @@ def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Ses
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
     if not hasattr(exp_input, "get_total_map_length"):
         if TYPE_CHECKING:
-            assert isinstance(task.dag, SchedulerDAG)
+            assert isinstance(task.dag, SerializedDAG)
         current_count = (
             _ExpandInputRef(
                 exp_input.EXPAND_INPUT_TYPE,
@@ -502,7 +535,7 @@ def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Ses
 
 
 @get_mapped_ti_count.register
-def _(group: TaskGroup, run_id: str, *, session: Session) -> int:
+def _(group: SerializedTaskGroup, run_id: str, *, session: Session) -> int:
     """
     Return the number of instances a task in this group should be mapped to at run time.
 
@@ -521,12 +554,12 @@ def _(group: TaskGroup, run_id: str, *, session: Session) -> int:
 
     def iter_mapped_task_group_lengths(group) -> Iterator[int]:
         while group is not None:
-            if isinstance(group, MappedTaskGroup):
+            if isinstance(group, SerializedMappedTaskGroup):
                 exp_input = group._expand_input
                 # TODO (GH-52141): 'group' here should be scheduler-bound and returns scheduler expand input.
                 if not hasattr(exp_input, "get_total_map_length"):
                     if TYPE_CHECKING:
-                        assert isinstance(group.dag, SchedulerDAG)
+                        assert isinstance(group.dag, SerializedDAG)
                     exp_input = _ExpandInputRef(
                         exp_input.EXPAND_INPUT_TYPE,
                         BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),

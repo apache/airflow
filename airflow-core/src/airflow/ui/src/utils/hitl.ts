@@ -79,10 +79,10 @@ export const getHITLParamsDict = (
 
   if (shouldRenderOptionDropdown || hitlDetail.options.length > 4 || hitlDetail.multiple) {
     paramsDict.chosen_options = {
-      description: translate("hitl:response.optionsDescription"),
+      description: translate("response.optionsDescription"),
       schema: {
         const: undefined,
-        description_md: translate("hitl:response.optionsDescription"),
+        description_md: translate("response.optionsDescription"),
         enum: hitlDetail.options.length > 0 ? hitlDetail.options : undefined,
         examples: undefined,
         format: undefined,
@@ -92,7 +92,7 @@ export const getHITLParamsDict = (
         minimum: undefined,
         minLength: undefined,
         section: undefined,
-        title: translate("hitl:response.optionsLabel"),
+        title: translate("response.optionsLabel"),
         type: hitlDetail.multiple ? "array" : "string",
         values_display: undefined,
       },
@@ -167,9 +167,21 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
 };
 
 export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
-  const { chosen_options: chosenOptions, options, params, response_received: responseReceived } = hitlDetail;
+  const {
+    chosen_options: chosenOptions,
+    options,
+    params,
+    response_received: responseReceived,
+    task_instance: { state: taskInstanceState },
+  } = hitlDetail;
+
+  const isNotDeferred = taskInstanceState !== "deferred";
 
   let stateType: [string, string] = ["responseRequired", "responseReceived"];
+
+  if (!responseReceived && isNotDeferred) {
+    return translate("state.noResponseReceived");
+  }
 
   if (options.length === 2 && options.includes("Approve") && options.includes("Reject")) {
     // If options contain only "Approve" and "Reject" -> approval task
@@ -184,5 +196,5 @@ export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
 
   const [required, received] = stateType;
 
-  return translate(`hitl:state.${responseReceived ? received : required}`);
+  return translate(`state.${responseReceived ? received : required}`);
 };

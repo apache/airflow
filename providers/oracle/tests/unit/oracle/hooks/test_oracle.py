@@ -525,3 +525,43 @@ class TestOracleHook:
         self.cur.execute.assert_called_once_with("select 1 from dual")
         assert status is True
         assert message == "Connection successfully tested"
+
+    def test_get_openlineage_database_info_with_service_name(self):
+        conn = Connection(
+            conn_id="oracle_default",
+            conn_type="oracle",
+            host="localhost",
+            port=1521,
+            extra='{"service_name": "ORCLPDB1"}',
+        )
+        hook = OracleHook(oracle_conn_id="oracle_default")
+        hook.get_connection = lambda _: conn
+
+        assert hook.service_name == "ORCLPDB1"
+        db_info = hook.get_openlineage_database_info(conn)
+        assert db_info.scheme == "oracle"
+        assert db_info.authority == "localhost:1521"
+        assert db_info.database == "ORCLPDB1"
+        assert db_info.normalize_name_method("employees") == "EMPLOYEES"
+        assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
+        assert "owner" in db_info.information_schema_columns
+
+    def test_get_openlineage_database_info_with_sid(self):
+        conn = Connection(
+            conn_id="oracle_default",
+            conn_type="oracle",
+            host="dbhost",
+            port=1521,
+            extra='{"sid": "XE"}',
+        )
+        hook = OracleHook(oracle_conn_id="oracle_default")
+        hook.get_connection = lambda _: conn
+
+        assert hook.sid == "XE"
+        db_info = hook.get_openlineage_database_info(conn)
+        assert db_info.scheme == "oracle"
+        assert db_info.authority == "dbhost:1521"
+        assert db_info.database == "XE"
+        assert db_info.normalize_name_method("employees") == "EMPLOYEES"
+        assert db_info.information_schema_table_name == "ALL_TAB_COLUMNS"
+        assert "owner" in db_info.information_schema_columns

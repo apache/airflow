@@ -29,7 +29,7 @@ Asset Definitions
 What is an "Asset"?
 --------------------
 
-An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer dags.
+An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer Dags.
 
 `Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define assets:
 
@@ -104,27 +104,6 @@ If needed, you can include an extra dictionary in an asset:
 
 This can be used to supply custom description to the asset, such as who has ownership to the target file, or what the file is for. The extra information does not affect an asset's identity.
 
-You can also use Jinja templating in the extra dictionary to enrich the asset with runtime information, such as the execution date of the task that emits events of the asset:
-
-.. code-block::
-
-    BashOperator(
-        task_id="write_example_asset",
-        bash_command="echo 'writing...'",
-        outlets=Asset(
-            "asset_example",
-            extra={
-                "static_extra": "value",
-                "dag_id": "{{ dag.dag_id }}",
-                "nested_extra": {
-                    "run_id": "{{ run_id }}",
-                    "logical_date": "{{ ds }}",
-                }
-            }
-        ),
-    )
-
-
 .. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
 
 Creating a task to emit asset events
@@ -147,7 +126,7 @@ Once an asset is defined, tasks can be created to emit events against it by spec
     with DAG(dag_id="example_asset", schedule="@daily"):
         PythonOperator(task_id="example_asset", outlets=[example_asset], python_callable=_write_example_asset)
 
-This is quite a lot of boilerplate. Airflow provides a shorthand for this simple but most common case of *creating a DAG with one single task that emits events of one asset*. The code block below is exactly equivalent to the one above:
+This is quite a lot of boilerplate. Airflow provides a shorthand for this simple but most common case of *creating a Dag with one single task that emits events of one asset*. The code block below is exactly equivalent to the one above:
 
 .. code-block:: python
 
@@ -222,7 +201,7 @@ Each value in the ``inlet_events`` mapping is a sequence-like object that orders
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------
 
-Since an ``@asset`` is simply a wrapper around a dag with a task and an asset, it is quite easy to read and ``@asset`` in a ``@task`` or a classic operator. For example, the above ``post_process_s3_file`` can also be written as a task (inside a dag, omitted here for brevity):
+Since an ``@asset`` is simply a wrapper around a Dag with a task and an asset, it is quite easy to read and ``@asset`` in a ``@task`` or a classic operator. For example, the above ``post_process_s3_file`` can also be written as a task (inside a Dag, omitted here for brevity):
 
 .. code-block:: python
 
@@ -300,7 +279,7 @@ The shorthand for this is ``@asset.multi``:
 
 Dynamic data events emitting and asset creation through AssetAlias
 -----------------------------------------------------------------------
-An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for DAG executions based on asset updates.
+An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for Dag executions based on asset updates.
 
 How to use AssetAlias
 ~~~~~~~~~~~~~~~~~~~~~~~

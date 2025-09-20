@@ -319,10 +319,10 @@ class AbstractOperator(Templater, DAGNode):
         """
         Return mapped nodes that are direct dependencies of the current task.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record an Dag node's all downstream nodes instead.
 
         Note that this does not guarantee the returned tasks actually use the
         current task for task mapping, but only checks those task are mapped
@@ -348,7 +348,7 @@ class AbstractOperator(Templater, DAGNode):
 
         dag = self.get_dag()
         if not dag:
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
+            raise RuntimeError("Cannot check for mapped dependants when not attached to a Dag")
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
@@ -361,10 +361,10 @@ class AbstractOperator(Templater, DAGNode):
         """
         Return mapped nodes that depend on the current task the expansion.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record an Dag node's all downstream nodes instead.
         """
         return (
             downstream
@@ -386,7 +386,7 @@ class AbstractOperator(Templater, DAGNode):
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """
-        Get the mapped task group "closest" to this task in the DAG.
+        Get the mapped task group "closest" to this task in the Dag.
 
         :meta private:
         """
@@ -408,7 +408,7 @@ class AbstractOperator(Templater, DAGNode):
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
-        Return the number of mapped task instances that can be created on DAG run creation.
+        Return the number of mapped task instances that can be created on Dag run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.

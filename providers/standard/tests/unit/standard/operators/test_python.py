@@ -41,7 +41,6 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
@@ -63,6 +62,20 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
+from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.types import NOTSET, DagRunType
+
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
+    from airflow.sdk.execution_time.context import set_current_context
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
 
 try:
     from airflow.sdk import timezone
@@ -73,20 +86,6 @@ try:
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
-from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, DagRunType
-
-from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-    from airflow.sdk.execution_time.context import set_current_context
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
-
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -164,7 +163,12 @@ class BasePythonTest:
         from airflow.models.serialized_dag import SerializedDagModel
 
         # Update the serialized DAG with any tasks added after initial dag was created
-        self.dag_maker.serialized_model = SerializedDagModel(self.dag_non_serialized)
+        if AIRFLOW_V_3_1_PLUS:
+            self.dag_maker.serialized_model = SerializedDagModel(
+                LazyDeserializedDAG.from_dag(self.dag_non_serialized)
+            )
+        else:
+            self.dag_maker.serialized_model = SerializedDagModel(self.dag_non_serialized)
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
@@ -210,9 +214,6 @@ class BasePythonTest:
 
 class TestPythonOperator(BasePythonTest):
     opcls = PythonOperator
-
-    def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @pytest.fixture(autouse=True)
     def setup_tests(self):
@@ -984,9 +985,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(ValueError) as info:
+        with pytest.raises(
+            ValueError, match="PythonVirtualenvOperator only supports functions for python_callable arg"
+        ):
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
-        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):
@@ -1688,12 +1690,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             system_site_packages=False,
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=rf"Invalid requirement '{invalid_requirement}'"):
             # Consume the generator to trigger parsing
             list(op._iter_serializable_context_keys())
-
-        msg = str(exc_info.value)
-        assert f"Invalid requirement '{invalid_requirement}'" in msg
 
     @mock.patch("airflow.providers.standard.operators.python.PythonVirtualenvOperator._prepare_venv")
     @mock.patch(
@@ -1739,9 +1738,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 @pytest.mark.external_python_operator
 class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
     opcls = ExternalPythonOperator
-
-    def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @staticmethod
     def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
@@ -2340,7 +2336,7 @@ class TestShortCircuitWithTeardown:
         assert actual_skipped == {op3}
 
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
-    def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
+    def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db, caplog):
         """
         When logging is debug we convert to a list to log the tasks skipped
         before passing them to the skip method.
@@ -2352,7 +2348,6 @@ class TestShortCircuitWithTeardown:
                 task_id="op1",
                 python_callable=lambda: False,
             )
-            op1.log.setLevel(level)
             op2 = PythonOperator(task_id="op2", python_callable=print)
             op3 = PythonOperator(task_id="op3", python_callable=print)
             t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
@@ -2367,7 +2362,12 @@ class TestShortCircuitWithTeardown:
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
         ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+
+        with caplog.at_level(level):
+            if hasattr(ti.task.log, "setLevel"):
+                # Compat with Pre Airflow 3.1
+                ti.task.log.setLevel(level)
+            ti._run_raw_task()
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_kwargs = op1.skip.call_args.kwargs
         actual_skipped = actual_kwargs["tasks"]

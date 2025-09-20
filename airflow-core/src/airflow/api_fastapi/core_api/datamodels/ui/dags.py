@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
 
 
 class DAGWithLatestDagRunsResponse(DAGResponse):
@@ -27,6 +28,7 @@ class DAGWithLatestDagRunsResponse(DAGResponse):
 
     asset_expression: dict | None
     latest_dag_runs: list[DAGRunResponse]
+    pending_actions: list[HITLDetail]
 
 
 class DAGWithLatestDagRunsCollectionResponse(BaseModel):

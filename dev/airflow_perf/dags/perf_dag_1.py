@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.models.dag import DAG
 from airflow.operators.bash_operator import BashOperator
+from airflow.sdk import DAG
 
 args = {
     "owner": "airflow",

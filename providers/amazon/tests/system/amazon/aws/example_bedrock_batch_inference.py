@@ -67,7 +67,7 @@ DAG_ID = "example_bedrock_batch_inference"
 #   the Amazon Bedrock console and may take up to 24 hours to apply:
 #######################################################################
 
-CLAUDE_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 
 # Batch inferences currently require a minimum of 100 prompts per batch.

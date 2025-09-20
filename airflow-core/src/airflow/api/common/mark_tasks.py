@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
@@ -33,9 +33,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
 
-    from airflow.models.dag import DAG
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
@@ -86,9 +85,6 @@ def set_state(
     if not run_id:
         raise ValueError("Received tasks with no run_id")
 
-    if TYPE_CHECKING:
-        assert isinstance(dag, DAG)
-
     dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
     # now look for the task instances that are affected
@@ -106,7 +102,7 @@ def set_state(
 
 
 def get_all_dag_task_query(
-    dag: DAG,
+    dag: SerializedDAG,
     state: TaskInstanceState,
     task_ids: list[str | tuple[str, int]],
     run_ids: Iterable[str],
@@ -142,30 +138,44 @@ def find_task_relatives(tasks, downstream, upstream):
 
 
 @provide_session
-def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
+def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
     """Return DAG executions' run_ids."""
-    current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
-    if current_dagrun.logical_date is None:
+    current_logical_date = session.scalar(
+        select(DagRun.logical_date).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
+    )
+    if current_logical_date is None:
         return [run_id]
 
-    last_dagrun = dag.get_last_dagrun(include_manually_triggered=True, session=session)
-    first_dagrun = session.scalar(
-        select(DagRun)
+    last_logical_date = session.scalar(
+        select(DagRun.logical_date)
+        .where(DagRun.dag_id == dag.dag_id, DagRun.logical_date.is_not(None))
+        .order_by(DagRun.logical_date.desc())
+        .limit(1)
+    )
+    if last_logical_date is None:
+        raise ValueError(f"DagRun for {dag.dag_id} not found")
+
+    first_logical_date = session.scalar(
+        select(DagRun.logical_date)
         .where(DagRun.dag_id == dag.dag_id, DagRun.logical_date.is_not(None))
         .order_by(DagRun.logical_date.asc())
         .limit(1)
     )
-    if last_dagrun is None:
-        raise ValueError(f"DagRun for {dag.dag_id} not found")
 
     # determine run_id range of dag runs and tasks to consider
-    end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
-    start_date = current_dagrun.logical_date if not past else first_dagrun.logical_date
+    end_date = last_logical_date if future else current_logical_date
+    start_date = current_logical_date if not past else first_logical_date
     if not dag.timetable.can_be_scheduled:
-        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
-        # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
-        run_ids = sorted({d.run_id for d in dag_runs})
+        # If the DAG never schedules, need to look at existing DagRun if the
+        # user wants future or past runs.
+        dag_runs = session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag.dag_id,
+                DagRun.logical_date >= start_date,
+                DagRun.logical_date <= end_date,
+            )
+        )
+        run_ids = sorted(d.run_id for d in dag_runs)
     elif not dag.timetable.periodic:
         run_ids = [run_id]
     else:
@@ -195,7 +205,7 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
 @provide_session
 def set_dag_run_state_to_success(
     *,
-    dag: DAG,
+    dag: SerializedDAG,
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
@@ -218,9 +228,7 @@ def set_dag_run_state_to_success(
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
-    # TODO (GH-52141): 'tasks' in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    tasks = cast("list[Operator]", dag.tasks)
+    tasks = dag.tasks
 
     # Mark all task instances of the dag run to success - except for unfinished teardown as they need to complete work.
     teardown_tasks = [task for task in tasks if task.is_teardown]
@@ -256,7 +264,7 @@ def set_dag_run_state_to_success(
 @provide_session
 def set_dag_run_state_to_failed(
     *,
-    dag: DAG,
+    dag: SerializedDAG,
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
@@ -302,13 +310,7 @@ def set_dag_run_state_to_failed(
         task.dag = dag
         return task
 
-    # TODO (GH-52141): 'tasks' in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    running_tasks = [
-        _set_runing_task(task)
-        for task in cast("list[Operator]", dag.tasks)
-        if task.task_id in task_ids_of_running_tis
-    ]
+    running_tasks = [_set_runing_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = session.scalars(
@@ -348,7 +350,7 @@ def set_dag_run_state_to_failed(
 def __set_dag_run_state_to_running_or_queued(
     *,
     new_state: DagRunState,
-    dag: DAG,
+    dag: SerializedDAG,
     run_id: str | None = None,
     commit: bool = False,
     session: SASession,
@@ -379,7 +381,7 @@ def __set_dag_run_state_to_running_or_queued(
 @provide_session
 def set_dag_run_state_to_queued(
     *,
-    dag: DAG,
+    dag: SerializedDAG,
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,

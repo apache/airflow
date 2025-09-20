@@ -16,10 +16,10 @@
     under the License.
 
 
-Pythonic DAGs with the TaskFlow API
+Pythonic Dags with the TaskFlow API
 ===================================
 
-In the first tutorial, you built your first Airflow DAG using traditional Operators like ``BashOperator``.
+In the first tutorial, you built your first Airflow Dag using traditional Operators like ``BashOperator``.
 Now let's look at a more modern and Pythonic way to write workflows using the **TaskFlow API** — introduced in Airflow
 2.0.
 
@@ -41,10 +41,10 @@ down step-by-step.
     :start-after: [START tutorial]
     :end-before: [END tutorial]
 
-Step 1: Define the DAG
+Step 1: Define the Dag
 ----------------------
 
-Just like before, your DAG is a Python script that Airflow loads and parses. But this time, we're using the ``@dag``
+Just like before, your Dag is a Python script that Airflow loads and parses. But this time, we're using the ``@dag``
 decorator to define it.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
@@ -54,7 +54,7 @@ decorator to define it.
 
 |
 
-To make this DAG discoverable by Airflow, we can call the Python function that was decorated with ``@dag``:
+To make this Dag discoverable by Airflow, we can call the Python function that was decorated with ``@dag``:
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
@@ -64,10 +64,10 @@ To make this DAG discoverable by Airflow, we can call the Python function that w
 |
 
 .. versionchanged:: 2.4
-  If you're using the ``@dag`` decorator or defining your DAG in a ``with`` block, you no longer need to assign it to a
+  If you're using the ``@dag`` decorator or defining your Dag in a ``with`` block, you no longer need to assign it to a
   global variable. Airflow will find it automatically.
 
-You can visualize your DAG in the Airflow UI! Once your DAG is loaded, navigate to the Graph View to see how tasks are
+You can visualize your Dag in the Airflow UI! Once your Dag is loaded, navigate to the Graph View to see how tasks are
 connected.
 
 Step 2: Write Your Tasks with ``@task``
@@ -109,14 +109,14 @@ functional invocation to set task dependencies and manage data passing.
 
 That's it! Airflow knows how to schedule and orchestrate your pipeline from this code alone.
 
-Running Your DAG
+Running Your Dag
 ----------------
 
-To enable and trigger your DAG:
+To enable and trigger your Dag:
 
 1. Navigate to the Airflow UI.
-2. Find your DAG in the list and click the toggle to enable it.
-3. You can trigger it manually by clicking the "Trigger DAG" button, or wait for it to run on its schedule.
+2. Find your Dag in the list and click the toggle to enable it.
+3. You can trigger it manually by clicking the "Trigger Dag" button, or wait for it to run on its schedule.
 
 What's Happening Behind the Scenes?
 -----------------------------------
@@ -129,7 +129,7 @@ The "Old Way": Manual Wiring and XComs
 Before the TaskFlow API, you had to use Operators like ``PythonOperator`` and pass data manually between tasks using
 ``XComs``.
 
-Here's what the same DAG might have looked like using the traditional approach:
+Here's what the same Dag might have looked like using the traditional approach:
 
 .. code-block:: python
 
@@ -212,7 +212,7 @@ This helps ensure that transient failures do not lead to task failure.
 Task Parameterization
 ---------------------
 
-You can reuse decorated tasks in multiple DAGs and override parameters like ``task_id`` or ``retries``.
+You can reuse decorated tasks in multiple Dags and override parameters like ``task_id`` or ``retries``.
 
 .. code-block:: python
 
@@ -227,7 +227,7 @@ What to Explore Next
 
 Nice work! You've now written your first pipeline using the TaskFlow API. Curious where to go from here?
 
-- Add a new task to the DAG -- maybe a filter or validation step
+- Add a new task to the Dag -- maybe a filter or validation step
 - Modify return values and pass multiple outputs
 - Explore retries and overrides with ``.override(task_id="...")``
 - Open the Airflow UI and inspect how the data flows between tasks, including task logs and dependencies
@@ -248,7 +248,7 @@ Once you're comfortable with the basics, here are a few powerful techniques you 
 Reusing Decorated Tasks
 '''''''''''''''''''''''
 
-You can reuse decorated tasks across multiple DAGs or DAG runs. This is especially useful for common logic like reusable
+You can reuse decorated tasks across multiple Dags or Dag runs. This is especially useful for common logic like reusable
 utilities or shared business rules. Use ``.override()`` to customize task metadata like ``task_id`` or ``retries``.
 
 .. code-block:: python
@@ -260,7 +260,7 @@ You can even import decorated tasks from a shared module.
 Handling Conflicting Dependencies
 '''''''''''''''''''''''''''''''''
 
-Sometimes tasks require different Python dependencies than the rest of your DAG — for example, specialized libraries or
+Sometimes tasks require different Python dependencies than the rest of your Dag — for example, specialized libraries or
 system-level packages. TaskFlow supports multiple execution environments to isolate those dependencies.
 
 .. _taskflow-dynamically-created-virtualenv:
@@ -410,7 +410,7 @@ Conditional Execution
 '''''''''''''''''''''
 
 Use ``@task.run_if()`` or ``@task.skip_if()`` to control whether a task runs based on dynamic conditions at runtime —
-without altering your DAG structure.
+without altering your Dag structure.
 
 .. code-block:: python
 
@@ -422,7 +422,7 @@ without altering your DAG structure.
 What's Next
 -----------
 
-Now that you've seen how to build clean, maintainable DAGs using the TaskFlow API, here are some good next steps:
+Now that you've seen how to build clean, maintainable Dags using the TaskFlow API, here are some good next steps:
 
 - Explore asset-aware workflows in :doc:`/authoring-and-scheduling/asset-scheduling`
 - Dive into scheduling patterns in :ref:`Scheduling Options <scheduling-section>`
