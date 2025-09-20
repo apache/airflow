@@ -50,15 +50,14 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.executors import workloads
+        from airflow.providers.cncf.kubernetes.pod_generator import workload_to_command_args
 
         workload = workloads.ExecuteTask.make(ti)
-        rendered_args = [
-            "python",
-            "-m",
-            "airflow.sdk.execution_time.execute_workload",
-            "--json-string",
-            workload.model_dump_json(),
-        ]
+        rendered_args = workload_to_command_args(workload)
+        # Clean up the temporary JSON file created by workload_to_command_args
+        json_file_path = rendered_args[4]  # The --json-path argument
+        import os
+        cleanup_file = json_file_path if os.path.exists(json_file_path) else None
     else:
         rendered_args = [
             "airflow",
@@ -70,6 +69,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
             "--subdir",
             mock.ANY,
         ]
+        cleanup_file = None
 
     expected_pod_spec = {
         "metadata": {
@@ -103,6 +103,13 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
     }
     assert render_k8s_pod_yaml(ti) == expected_pod_spec
     pod_mutation_hook.assert_called_once_with(mock.ANY)
+    
+    # Clean up temporary file if it was created
+    if cleanup_file:
+        try:
+            os.unlink(cleanup_file)
+        except OSError:
+            pass  # File might have been cleaned up already
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
