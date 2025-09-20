@@ -25,6 +25,7 @@ from os.path import isabs
 from typing import TYPE_CHECKING
 
 from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import make_url
 
 import airflow
@@ -39,11 +40,11 @@ if TYPE_CHECKING:
 
 
 @cache
-def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
+def _return_appbuilder(app: Flask, db) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
     init_appbuilder(app, enable_plugins=False)
     init_plugins(app)
-    init_airflow_session_interface(app)
+    init_airflow_session_interface(app, db)
     return app.appbuilder  # type: ignore[attr-defined]
 
 
@@ -63,4 +64,7 @@ def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
                 "Please use absolute path such as `sqlite:////tmp/airflow.db`."
             )
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-        yield _return_appbuilder(flask_app)
+
+        db = SQLAlchemy(flask_app)
+        yield _return_appbuilder(flask_app, db)
+        db.engine.dispose(close=True)

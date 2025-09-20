@@ -19,7 +19,12 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from airflow.utils import timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow._shared.timezones import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
@@ -42,14 +47,15 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
     app = minimal_app_for_auth_api
-    create_role(
-        app,
-        name="TestRole",
-        permissions=[],
-    )
-    yield app
+    with minimal_app_for_auth_api.app_context():
+        create_role(
+            app,
+            name="TestRole",
+            permissions=[],
+        )
+        yield app
 
-    delete_role(app, "TestRole")
+        delete_role(app, "TestRole")
 
 
 class TestUserBase:
@@ -58,7 +64,7 @@ class TestUserBase:
         self.app = configured_app
         self.client = self.app.test_client()
         self.role = self.app.appbuilder.sm.find_role("TestRole")
-        self.session = self.app.appbuilder.get_session
+        self.session = self.app.appbuilder.session
 
     def teardown_method(self):
         user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()

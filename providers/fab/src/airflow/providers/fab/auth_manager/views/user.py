@@ -24,7 +24,6 @@ from flask_appbuilder.security.views import (
     UserDBModelView,
     UserLDAPModelView,
     UserOAuthModelView,
-    UserOIDModelView,
     UserRemoteUserModelView,
 )
 
@@ -120,10 +119,6 @@ class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
 
 class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
-
-
-class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
-    """Customize permission names for FAB's builtin UserOIDModelView."""
 
 
 class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
