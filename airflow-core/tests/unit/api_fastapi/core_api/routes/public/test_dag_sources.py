@@ -43,6 +43,7 @@ EXAMPLE_DAG_FILE = (
 )
 TEST_DAG_ID = "example_simplest_dag"
 TEST_DAG_DISPLAY_NAME = "example_simplest_dag"
+TEST_FILE_DISPLAY_NAME = "example_simplest_dag.py"
 
 
 @pytest.fixture
@@ -121,6 +122,7 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
+            "file_display_name": TEST_FILE_DISPLAY_NAME,
         }
         assert response.headers["Content-Type"].startswith("application/json")
 
@@ -169,6 +171,7 @@ class TestGetDAGSource:
                 "dag_id": TEST_DAG_ID,
                 "version_number": 2,
                 "dag_display_name": TEST_DAG_DISPLAY_NAME,
+                "file_display_name": TEST_FILE_DISPLAY_NAME,
             }
 
     def test_should_respond_406_unsupport_mime_type(self, test_client, test_dag):
