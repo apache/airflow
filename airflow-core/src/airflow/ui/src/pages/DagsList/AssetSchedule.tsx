@@ -69,9 +69,7 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
           display="block"
           fontSize="sm"
           maxWidth="200px"
-          overflow="hidden"
-          textOverflow="ellipsis"
-          whiteSpace="nowrap"
+          truncate
         >
           <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
         </Link>
