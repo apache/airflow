@@ -335,10 +335,10 @@ BEGIN
             (rec.{TI.dag_id.name} || ',' || rec.{TI.run_id.name} || ',' || rec.{TI.task_id.name})::text, (mapped_running + 1)::text
         );
         dag_counts := dag_counts || hstore(
-            (rec.{TI.dag_id.name} || ',' || rec.{TI.run_id.name})::text, (dag_running + 1)::text
+            (rec.{TI.dag_id.name} || ',' || rec.{TI.task_id.name})::text, (dag_running + 1)::text
         );
         dagrun_counts := dagrun_counts || hstore(
-            (rec.{TI.dag_id.name}  || ',' || rec.{TI.task_id.name})::text, (dagrun_running + 1)::text
+            (rec.{TI.dag_id.name}  || ',' || rec.{TI.run_id.name})::text, (dagrun_running + 1)::text
         );
         pool_counts := pool_counts || hstore(
             rec.pool::text, (pool_running + rec.{TI.pool_slots.name})::text
