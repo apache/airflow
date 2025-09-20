@@ -239,11 +239,11 @@ def worker(args):
         args.queues,
         "--concurrency",
         args.concurrency,
-        "--hostname",
-        args.celery_hostname,
         "--loglevel",
         celery_log_level,
     ]
+    if args.celery_hostname:
+        options.extend(["--hostname", args.celery_hostname])
     if autoscale:
         options.extend(["--autoscale", autoscale])
     if args.without_mingle:
