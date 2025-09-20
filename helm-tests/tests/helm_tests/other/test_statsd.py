@@ -26,7 +26,10 @@ class TestStatsd:
     """Tests statsd."""
 
     def test_should_create_statsd_default(self):
-        docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
+        docs = render_chart(show_only=['templates/statsd/statsd-deployment.yaml',
+                                       '--statsd.cache-size=1000',                                  
+                                       '--statsd.cache-type=lru',                                   
+                                       '--ttl='])
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
 
