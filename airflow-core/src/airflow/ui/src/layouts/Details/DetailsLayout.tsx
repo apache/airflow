@@ -161,7 +161,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       triggeringUser={triggeringUserFilter}
                     />
                     {showGantt ? (
-                      <Gantt limit={limit} runType={runTypeFilter} triggeringUser={triggeringUserFilter} />
+                      <Gantt
+                        dagRunState={dagRunStateFilter}
+                        limit={limit}
+                        runType={runTypeFilter}
+                        triggeringUser={triggeringUserFilter}
+                      />
                     ) : undefined}
                   </HStack>
                 )}

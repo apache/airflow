@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -40,7 +42,7 @@ import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { DagRunType } from "openapi/requests/types.gen";
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
@@ -70,6 +72,7 @@ ChartJS.register(
 );
 
 type Props = {
+  readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly triggeringUser?: string | undefined;
@@ -79,7 +82,7 @@ const CHART_PADDING = 36;
 const CHART_ROW_HEIGHT = 20;
 const MIN_BAR_WIDTH = 10;
 
-export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
+export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
@@ -102,8 +105,14 @@ export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
   const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
 
-  const { data: gridRuns, isLoading: runsLoading } = useGridRuns({ limit, runType, triggeringUser });
+  const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
+    dagRunState,
+    limit,
+    runType,
+    triggeringUser,
+  });
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({
+    dagRunState,
     limit,
     runType,
     triggeringUser,
