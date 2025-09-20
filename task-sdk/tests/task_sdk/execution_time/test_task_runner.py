@@ -1166,6 +1166,7 @@ class TestRuntimeTaskInstance:
                 "value": VariableAccessor(deserialize_json=False),
             },
             "conn": ConnectionAccessor(),
+            "extra_links": {},
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
             "inlet_events": InletEventsAccessors(inlets=[]),
@@ -1199,6 +1200,7 @@ class TestRuntimeTaskInstance:
         )
 
         context = runtime_ti.get_template_context()
+        print(context, "++++++++++++++++++++++++++++++++++++++++++++")
 
         assert context == {
             "params": {},
@@ -1207,6 +1209,7 @@ class TestRuntimeTaskInstance:
                 "value": VariableAccessor(deserialize_json=False),
             },
             "conn": ConnectionAccessor(),
+            "extra_links": {},
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
             "inlet_events": InletEventsAccessors(inlets=[]),
