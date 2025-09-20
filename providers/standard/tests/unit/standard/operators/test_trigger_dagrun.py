@@ -28,18 +28,23 @@ from sqlalchemy import update
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused, TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DagRunTriggerException
 if AIRFLOW_V_3_1_PLUS:
@@ -94,7 +99,7 @@ class TestDagRunOperator:
         """Cleanup state after testing in DB."""
         with create_session() as session:
             session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
-            for dbmodel in [DagModel, DagRun, TaskInstance]:
+            for dbmodel in [TaskInstance, DagModel, DagRun]:
                 session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
                     synchronize_session=False
                 )
@@ -131,6 +136,7 @@ class TestDagRunOperator:
             assert exc_info.value.wait_for_completion is False
             assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
             assert exc_info.value.failed_states == [DagRunState.FAILED]
+            assert exc_info.value.reset_mode == "all"
 
             expected_run_id = DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
@@ -215,6 +221,17 @@ class TestDagRunOperator:
 
         assert task.failed_states == []
 
+    def test_trigger_dagrun_with_not_supported_reset_mode(self, dag_maker):
+        with pytest.raises(ValueError, match="reset_mode must be one of 'all', 'only_failed'"):
+            TriggerDagRunOperator(
+                task_id="test_rest_mode_task",
+                trigger_dag_id="test_dag",
+                trigger_run_id="test_run_id",
+                poke_interval=5,
+                wait_for_completion=False,
+                reset_mode="only_passed",
+            )
+
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
     def test_trigger_dag_run_execute_complete(self):
         operator = TriggerDagRunOperator(
@@ -254,6 +271,97 @@ class TestDagRunOperator:
                     {"run_ids": ["run_id_1"], "run_id_1": "failed"},
                 ),
             )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    @pytest.mark.parametrize(
+        "reset_mode",
+        [
+            "all",
+            "only_failed",
+        ],
+    )
+    def test_trigger_dag_run_operator_reset_mode(self, reset_mode, dag_maker, session):
+        """
+        Test that Dag run clear with reset mode option
+        """
+        trigger_run_id = "test_handle_trigger_dag_run_reset_mode_run_op_" + reset_mode
+
+        first_task_id = "1_success_" + reset_mode
+        second_task_id = "2_failure_" + reset_mode
+
+        trigger_dag = DAG(dag_id=TRIGGERED_DAG_ID)
+
+        t1 = EmptyOperator(dag=trigger_dag, task_id=first_task_id)
+        t2 = EmptyOperator(dag=trigger_dag, task_id=second_task_id)
+
+        sync_dag_to_db(trigger_dag, session=session, bundle_name="test_bundle")
+
+        dag_run = DagRun(
+            dag_id=TRIGGERED_DAG_ID,
+            run_id=trigger_run_id,
+            state=DagRunState.FAILED,
+            run_type="manual",
+        )
+
+        session.add(dag_run)
+
+        dag_version = DagVersion.get_latest_version(TRIGGERED_DAG_ID)
+
+        task_instance1 = TaskInstance(
+            task=t1,
+            run_id=trigger_run_id,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version.id,
+        )
+
+        task_instance2 = TaskInstance(
+            task=t2,
+            run_id=trigger_run_id,
+            state=TaskInstanceState.FAILED,
+            dag_version_id=dag_version.id,
+        )
+
+        session.add(task_instance1)
+        session.add(task_instance2)
+
+        session.flush()
+
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        run_id = "trigger_dag_run_reset_mode_op_" + reset_mode
+
+        task = None
+
+        with dag_maker(TEST_DAG_ID, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_trigger_task_" + reset_mode,
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=trigger_run_id,
+                poke_interval=5,
+                wait_for_completion=False,
+                deferrable=True,
+                reset_dag_run=True,
+                reset_mode=reset_mode,
+            )
+
+        dr = dag_maker.create_dagrun(run_id=run_id)
+
+        dag_maker.run_ti(task.task_id, dr)
+
+        task_instances = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == TRIGGERED_DAG_ID)
+            .order_by(TaskInstance.task_id)
+            .all()
+        )
+
+        for ti in task_instances:
+            if reset_mode == "all":
+                assert ti.state is None
+            elif ti.task_id == first_task_id:
+                assert ti.state == TaskInstanceState.SUCCESS
+            else:
+                assert ti.state is None
 
 
 # TODO: To be removed once the provider drops support for Airflow 2
