@@ -41,11 +41,8 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
-from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import (
@@ -66,7 +63,7 @@ else:
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogMetadata, LogSourceInfo
 
@@ -94,32 +91,6 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         else {}
     )
     return kwargs_dict
-
-
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """
-    Given TI | TIKey, return a TI object.
-
-    Will raise exception if no TI is found in the database.
-    """
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-
-    if not isinstance(ti, TaskInstanceKey):
-        return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.task_id == ti.task_id,
-            TaskInstance.dag_id == ti.dag_id,
-            TaskInstance.run_id == ti.run_id,
-            TaskInstance.map_index == ti.map_index,
-        )
-        .one_or_none()
-    )
-    if isinstance(val, TaskInstance):
-        val.try_number = ti.try_number
-        return val
-    raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
 def getattr_nested(obj, item, default):
@@ -607,14 +578,6 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             local_loc = self.base_log_folder.joinpath(path)
 
-        # Convert the runtimeTI to the real TaskInstance that via fetching from DB
-        ti = TaskInstance.get_task_instance(
-            ti.dag_id,
-            ti.run_id,
-            ti.task_id,
-            ti.map_index if ti.map_index is not None else -1,
-            session=settings.Session,
-        )  # type: ignore[assignment]
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
