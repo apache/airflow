@@ -174,11 +174,10 @@ class BaseOperations:
         params: dict | None = None,
     ) -> T | ServerResponseError:
         limit_flag = True if limit is not None else False
-        if limit is None or limit > 50:
+        if limit is None:
             limit = 50
         if params is None:
-            params = {}
-        params["limit"] = limit
+            params = {"limit": limit}
         shared_params = {**(params or {})}
         self.response = self.client.get(path, params=shared_params)
 
