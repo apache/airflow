@@ -42,18 +42,13 @@ with suppress(ImportError):
         DagDetails,
     )
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.dag import sync_dag_to_db
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
-
 from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET,
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -75,6 +70,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
 )
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
