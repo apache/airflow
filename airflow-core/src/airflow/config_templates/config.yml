@@ -788,11 +788,34 @@ logging:
       description: |
         Logging level.
 
+        Individual loggers can be set at a different level with the :ref:`config:logging__namespace_levels`
+        option.
+
         Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: 2.0.0
       type: string
       example: ~
       default: "INFO"
+    namespace_levels:
+      description: |
+        Set the log level for individual named loggers.
+
+        A very common convention in Python is to use the module name as the name of the logger from which log
+        messages originate. This config option gives us the ability to set log levels for those loggers
+        easily.
+
+        The format of this variable is a series of ``<logger>=<level>`` pairs, separated by whitespace or
+        commas.
+
+        Each level is one of the possible values to ``logging_level``.
+
+        The logger names are viewable in task logs (as the "source" attribute), or in server components by
+        including ``%(name)s`` in your format string, or in the between ``[]`` after the message in the
+        default format.
+      version_added: 3.1.0
+      type: string
+      example: "sqlalchemy=INFO sqlalchemy.engine=DEBUG, botocor"
+      default: ~
     celery_logging_level:
       description: |
         Logging level for celery. If not set, it uses the value of logging_level

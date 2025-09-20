@@ -40,6 +40,7 @@ import httpx
 import msgspec
 import psutil
 import pytest
+import structlog
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
@@ -126,6 +127,7 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessSupervisorComms,
     InProcessTestSupervisor,
     _remote_logging_conn,
+    process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise,
 )
@@ -2425,3 +2427,27 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 f"Connection {expected_env} was not available during upload_to_remote call"
             )
             assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+def test_process_log_messages_from_subprocess(monkeypatch, caplog):
+    from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
+
+    read_end, write_end = socket.socketpair()
+
+    # Set global level at warning
+    monkeypatch.setitem(PER_LOGGER_LEVELS, "", logging.WARNING)
+    output_log = structlog.get_logger()
+
+    gen = process_log_messages_from_subprocess(loggers=(output_log,))
+
+    # We need to start up the generator to get it to the point it's at waiting on the yield
+    next(gen)
+
+    # Now we can send in messages to it.
+    gen.send(b'{"level": "debug", "event": "A debug"}\n')
+    gen.send(b'{"level": "error", "event": "An error"}\n')
+
+    assert caplog.record_tuples == [
+        (None, logging.DEBUG, "A debug"),
+        (None, logging.ERROR, "An error"),
+    ]

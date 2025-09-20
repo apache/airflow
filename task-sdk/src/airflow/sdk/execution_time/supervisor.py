@@ -55,6 +55,7 @@ import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.configuration import conf
+from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -538,15 +539,11 @@ class WatchedSubprocess:
             )
         )
 
-        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
-
-        std_handle_log = logger_without_processor_of_type(
-            self.process_log, structlog.processors.CallsiteParameterAdder
-        )
-        target_loggers: tuple[FilteringBoundLogger, ...] = (std_handle_log,)
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
 
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
+
         self.selector.register(
             stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
         )
@@ -570,6 +567,13 @@ class WatchedSubprocess:
 
     def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
+        loggers = tuple(
+            reconfigure_logger(
+                log,
+                structlog.processors.CallsiteParameterAdder,
+            )
+            for log in loggers
+        )
         return make_buffered_socket_reader(
             forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
         )
@@ -1374,12 +1378,7 @@ class ActivitySubprocess(WatchedSubprocess):
             raise RuntimeError("send_fds is not available on this platform")
         child_logs, read_logs = socketpair()
 
-        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
-
-        std_handle_log = logger_without_processor_of_type(
-            self.process_log, structlog.processors.CallsiteParameterAdder
-        )
-        target_loggers: tuple[FilteringBoundLogger, ...] = (std_handle_log,)
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
 
@@ -1712,6 +1711,17 @@ def process_log_messages_from_subprocess(
     loggers: tuple[FilteringBoundLogger, ...],
 ) -> Generator[None, bytes | bytearray, None]:
     from structlog.stdlib import NAME_TO_LEVEL
+
+    loggers = tuple(
+        reconfigure_logger(
+            log,
+            structlog.processors.CallsiteParameterAdder,
+            # We need these logger to print _everything_ they are given. The subprocess itself does the level
+            # filtering.
+            level_override=logging.NOTSET,
+        )
+        for log in loggers
+    )
 
     while True:
         # Generator receive syntax, values are "sent" in  by the `make_buffered_socket_reader` and returned to
