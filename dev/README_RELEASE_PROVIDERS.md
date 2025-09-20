@@ -914,7 +914,13 @@ This can be done with the Apache RAT tool.
 
 ```shell script
 # Get rat if you do not have it
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+if command -v wget >/dev/null 2>&1; then
+    echo "Using wget to download Apache RAT..."
+    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+else
+    echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
+    exit 1
+fi
 # Cleanup old folders (if needed)
 find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
 cat /tmp/files.txt | xargs rm -rf

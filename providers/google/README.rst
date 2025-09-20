@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``17.2.0``
+Release: ``18.0.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/17.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/18.0.0/>`_.
 
 Installation
 ------------
@@ -69,7 +69,7 @@ PIP package                                 Version required
 ``gcloud-aio-bigquery``                     ``>=6.1.2``
 ``gcloud-aio-storage``                      ``>=9.0.0``
 ``gcsfs``                                   ``>=2023.10.0``
-``google-ads``                              ``>=26.0.0``
+``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
 ``google-api-core``                         ``>=2.11.0,!=2.16.0,!=2.18.0``
 ``google-api-python-client``                ``>=2.0.2``
@@ -171,5 +171,32 @@ Dependent package                                                               
 `apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_                        ``trino``
 ========================================================================================================================  ====================
 
+Optional dependencies
+----------------------
+
+====================  =========================================================================================================================================
+Extra                 Dependencies
+====================  =========================================================================================================================================
+``apache.beam``       ``apache-beam[gcp]>=2.53.0; python_version < "3.12"``, ``apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"``
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
+``fab``               ``apache-airflow-providers-fab>=2.0.0; python_version < '3.13'``
+``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
+``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
+``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
+``amazon``            ``apache-airflow-providers-amazon>=2.6.0``
+``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
+``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
+``mysql``             ``apache-airflow-providers-mysql``
+``openlineage``       ``apache-airflow-providers-openlineage``
+``postgres``          ``apache-airflow-providers-postgres``
+``presto``            ``apache-airflow-providers-presto``
+``salesforce``        ``apache-airflow-providers-salesforce``
+``sftp``              ``apache-airflow-providers-sftp``
+``ssh``               ``apache-airflow-providers-ssh``
+``trino``             ``apache-airflow-providers-trino``
+``http``              ``apache-airflow-providers-http``
+====================  =========================================================================================================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/17.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/18.0.0/changelog.html>`_.

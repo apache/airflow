@@ -43,16 +43,11 @@ LOG_FORMATTER_CLASS: str = conf.get_mandatory_value(
     "logging", "LOG_FORMATTER_CLASS", fallback="airflow.utils.log.timezone_aware.TimezoneAware"
 )
 
-COLORED_LOG_FORMAT: str = conf.get_mandatory_value("logging", "COLORED_LOG_FORMAT")
-
-COLORED_LOG: bool = conf.getboolean("logging", "COLORED_CONSOLE_LOG")
-
-COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value("logging", "COLORED_FORMATTER_CLASS")
-
 DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_TARGET")
 
 BASE_LOG_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("logging", "BASE_LOG_FOLDER"))
 
+# This isn't used anymore, but kept for compat of people who might have imported it
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -60,10 +55,6 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
         "airflow": {
             "format": LOG_FORMAT,
             "class": LOG_FORMATTER_CLASS,
-        },
-        "airflow_coloured": {
-            "format": COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
-            "class": COLORED_FORMATTER_CLASS if COLORED_LOG else LOG_FORMATTER_CLASS,
         },
         "source_processor": {
             "format": DAG_PROCESSOR_LOG_FORMAT,
@@ -79,7 +70,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
         "console": {
             "class": "logging.StreamHandler",
             # "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
-            "formatter": "airflow_coloured",
+            "formatter": "airflow",
             "stream": "sys.stdout",
             "filters": ["mask_secrets_core"],
         },
