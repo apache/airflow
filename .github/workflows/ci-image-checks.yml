@@ -250,7 +250,7 @@ jobs:
         id: restore-docs-inventory-cache
       - name: "Install documentation dependencies"
         run: |
-          pip install apache-airflow-devel-common[docs]
+          uv run --group docs pip install apache-airflow-devel-common[docs]
       - name: "Building docs with ${{ matrix.flag }} flag"
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
