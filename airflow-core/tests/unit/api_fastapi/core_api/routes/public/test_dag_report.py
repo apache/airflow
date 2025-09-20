@@ -95,7 +95,7 @@ class TestDagReportEndpoint:
         def _mock_collect_dags(self, *args, **kwargs):
             self.dagbag_stats = []
 
-        with patch("airflow.models.dagbag.DagBag.collect_dags", _mock_collect_dags):
+        with patch("airflow.dag_processing.dagbag.DagBag.collect_dags", _mock_collect_dags):
             response = test_client.get("/dagReports", params={"subdir": TEST_DAG_FOLDER})
             assert response.status_code == 200
             assert response.json() == {"dag_reports": [], "total_entries": 0}
