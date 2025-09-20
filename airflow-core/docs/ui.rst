@@ -49,6 +49,7 @@ asset-triggered events.
 
 |
 
+
 .. image:: img/ui-light/home_light.png
    :alt: Airflow Home Page showing system health, Dag/task stats, and asset events (Light Mode)
 
@@ -122,7 +123,6 @@ This page also includes a visual **timeline of recent Dag runs** and a **log pre
    :alt: Dag Details Page in light mode showing overview dashboard and failure diagnostics
 
 .. _ui-grid-view:
-
 Grid View
 '''''''''
 
@@ -211,18 +211,6 @@ The **Tasks** tab shows metadata for each task in the Dag, including operator ty
 
 |
 
-Events Tab
-''''''''''
-
-The **Events** tab surfaces structured events related to the Dag, such as Dag triggers and version patches. This tab is especially useful for Dag versioning and troubleshooting changes.
-
-.. image:: img/ui-dark/dag_overview_events.png
-   :alt: Dag Events Tab (Dark Mode)
-
-|
-
-.. image:: img/ui-light/dag_overview_events.png
-   :alt: Dag Events Tab (Light Mode)
 
 Code Tab
 ''''''''
@@ -344,6 +332,7 @@ Provides extended metadata for the Dag Run, including:
 .. image:: img/ui-light/dag_run_details.png
    :alt: Dag Run - Details tab (light mode)
 
+
 Graph View
 ''''''''''
 
@@ -429,7 +418,6 @@ Shows any values pushed via ``XCom.push()`` or returned from Python functions wh
 
 .. image:: img/ui-light/dag_run_task_instance_xcom.png
   :alt: Task Instance - XCom tab (light mode)
-
 Events
 ''''''
 If present, displays relevant events related to this specific task instance execution.
@@ -558,11 +546,14 @@ Key pages include:
 ------------
 
 .. image:: img/ui-dark/variable_hidden.png
+.. image:: img/ui-light/variable_hidden.png
 
 ------------
 
 .. image:: img/ui-dark/admin_connections.png
+.. image:: img/ui-light/admin_connections.png
 
 ------------
 
 .. image:: img/ui-dark/admin_connections_add.png
+.. image:: img/ui-light/admin_connections_add.png
