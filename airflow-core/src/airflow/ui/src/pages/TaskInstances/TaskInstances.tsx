@@ -161,6 +161,21 @@ const taskInstanceColumns = ({
     header: translate("taskInstance.pool"),
   },
   {
+    accessorKey: "queue",
+    enableSorting: false,
+    header: translate("taskInstance.queue"),
+  },
+  {
+    accessorKey: "executor",
+    enableSorting: false,
+    header: translate("taskInstance.executor"),
+  },
+  {
+    accessorKey: "hostname",
+    enableSorting: false,
+    header: translate("taskInstance.hostname"),
+  },
+  {
     accessorKey: "operator_name",
     enableSorting: false,
     header: translate("task.operator"),
