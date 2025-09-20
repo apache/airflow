@@ -270,7 +270,7 @@ def _get_git_log_command(
         "--date=short",
     ]
     if from_commit and to_commit:
-        git_cmd.append(f"{from_commit}...{to_commit}")
+        git_cmd.append(f"{from_commit}..{to_commit}")
     elif from_commit:
         git_cmd.append(from_commit)
     elif to_commit:
