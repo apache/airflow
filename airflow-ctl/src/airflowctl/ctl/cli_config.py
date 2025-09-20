@@ -77,7 +77,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
-    except httpx.RemoteProtocolError as e:
+    except (httpx.RemoteProtocolError, httpx.ReadError) as e:
         rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
