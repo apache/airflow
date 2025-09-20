@@ -3906,6 +3906,7 @@ export class GridService {
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.runType
+     * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
@@ -3926,6 +3927,7 @@ export class GridService {
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
+                state: data.state,
                 triggering_user: data.triggeringUser
             },
             errors: {
@@ -3949,6 +3951,7 @@ export class GridService {
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.runType
+     * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
@@ -3969,6 +3972,7 @@ export class GridService {
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
+                state: data.state,
                 triggering_user: data.triggeringUser
             },
             errors: {

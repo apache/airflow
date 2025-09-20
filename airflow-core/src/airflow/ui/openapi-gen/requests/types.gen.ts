@@ -1866,7 +1866,7 @@ export type GridRunsResponse = {
     start_date: string | null;
     end_date: string | null;
     run_after: string;
-    state: TaskInstanceState | null;
+    state: DagRunState | null;
     run_type: DagRunType;
     readonly duration: number;
 };
@@ -3218,6 +3218,7 @@ export type GetDagStructureData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -3236,6 +3237,7 @@ export type GetGridRunsData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */

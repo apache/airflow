@@ -7440,7 +7440,7 @@ export const $GridRunsResponse = {
         state: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/TaskInstanceState'
+                    '$ref': '#/components/schemas/DagRunState'
                 },
                 {
                     type: 'null'
