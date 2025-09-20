@@ -49,23 +49,29 @@ def _basic_message_tester(message, test=None) -> Any:
     assert message.value().decode(encoding="utf-8") == test
 
 
+@pytest.fixture
+def kafka_consumer_connections():
+    with conf_vars(
+        {
+            (
+                "connections",
+                "operator.consumer.test.integration.test_1",
+            ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_1&enable.auto.commit=False&auto.offset.reset=beginning",
+            (
+                "connections",
+                "operator.consumer.test.integration.test_2",
+            ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_2&enable.auto.commit=False&auto.offset.reset=beginning",
+            (
+                "connections",
+                "operator.consumer.test.integration.test_3",
+            ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_3&enable.auto.commit=False&auto.offset.reset=beginning",
+        }
+    ):
+        yield
+
+
 @pytest.mark.integration("kafka")
-@conf_vars(
-    {
-        (
-            "connections",
-            "operator.consumer.test.integration.test_1",
-        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_1&enable.auto.commit=False&auto.offset.reset=beginning",
-        (
-            "connections",
-            "operator.consumer.test.integration.test_2",
-        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_2&enable.auto.commit=False&auto.offset.reset=beginning",
-        (
-            "connections",
-            "operator.consumer.test.integration.test_3",
-        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_3&enable.auto.commit=False&auto.offset.reset=beginning",
-    }
-)
+@pytest.mark.usefixtures("kafka_consumer_connections")
 class TestConsumeFromTopic:
     """
     test ConsumeFromTopicOperator
