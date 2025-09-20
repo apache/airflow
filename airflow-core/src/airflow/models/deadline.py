@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, select
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, and_, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -283,7 +283,7 @@ class ReferenceModels:
         def reference_name(cls: Any) -> str:
             return cls.__name__
 
-        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime:
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
             """Validate the provided kwargs and evaluate this deadline with the given conditions."""
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in self.required_kwargs}
 
@@ -295,10 +295,11 @@ class ReferenceModels:
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
                 self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
 
-            return self._evaluate_with(session=session, **filtered_kwargs) + interval
+            base_time = self._evaluate_with(session=session, **filtered_kwargs)
+            return base_time + interval if base_time is not None else None
 
         @abstractmethod
-        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime:
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             """Must be implemented by subclasses to perform the actual evaluation."""
             raise NotImplementedError
 
@@ -365,6 +366,95 @@ class ReferenceModels:
             from airflow.models import DagRun
 
             return _fetch_from_db(DagRun.queued_at, session=session, **kwargs)
+
+    @dataclass
+    class AverageRuntimeDeadline(BaseDeadlineReference):
+        """A deadline that calculates the average runtime from past DAG runs."""
+
+        DEFAULT_LIMIT = 10
+        max_runs: int
+        min_runs: int | None = None
+        required_kwargs = {"dag_id"}
+
+        def __post_init__(self):
+            if self.min_runs is None:
+                self.min_runs = self.max_runs
+            if self.min_runs < 1:
+                raise ValueError("min_runs must be at least 1")
+
+        @provide_session
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
+            from airflow.models import DagRun
+
+            dag_id = kwargs["dag_id"]
+
+            # Get database dialect to use appropriate time difference calculation
+            dialect = session.bind.dialect.name
+
+            # Create database-specific expression for calculating duration in seconds
+            if dialect == "postgresql":
+                duration_expr = func.extract("epoch", DagRun.end_date - DagRun.start_date)
+            elif dialect == "mysql":
+                # Use TIMESTAMPDIFF to get exact seconds like PostgreSQL EXTRACT(epoch FROM ...)
+                duration_expr = func.timestampdiff(text("SECOND"), DagRun.start_date, DagRun.end_date)
+            elif dialect == "sqlite":
+                duration_expr = (func.julianday(DagRun.end_date) - func.julianday(DagRun.start_date)) * 86400
+            else:
+                raise ValueError(f"Unsupported database dialect: {dialect}")
+
+            # Query for completed DAG runs with both start and end dates
+            # Order by logical_date descending to get most recent runs first
+            query = (
+                select(duration_expr)
+                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .order_by(DagRun.logical_date.desc())
+            )
+
+            # Apply max_runs
+            query = query.limit(self.max_runs)
+
+            # Get all durations and calculate average
+            durations = session.execute(query).scalars().all()
+
+            if len(durations) < cast("int", self.min_runs):
+                logger.info(
+                    "Only %d completed DAG runs found for dag_id: %s (need %d), skipping deadline creation",
+                    len(durations),
+                    dag_id,
+                    self.min_runs,
+                )
+                return None
+            # Convert to float to handle Decimal types from MySQL while preserving precision
+            # Use Decimal arithmetic for higher precision, then convert to float
+            from decimal import Decimal
+
+            decimal_durations = [Decimal(str(d)) for d in durations]
+            avg_seconds = float(sum(decimal_durations) / len(decimal_durations))
+            logger.info(
+                "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                dag_id,
+                len(durations),
+                avg_seconds,
+            )
+            return timezone.utcnow() + timedelta(seconds=avg_seconds)
+
+        def serialize_reference(self) -> dict:
+            return {
+                ReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
+                "max_runs": self.max_runs,
+                "min_runs": self.min_runs,
+            }
+
+        @classmethod
+        def deserialize_reference(cls, reference_data: dict):
+            max_runs = reference_data.get("max_runs", cls.DEFAULT_LIMIT)
+            min_runs = reference_data.get("min_runs", max_runs)
+            if min_runs < 1:
+                raise ValueError("min_runs must be at least 1")
+            return cls(
+                max_runs=max_runs,
+                min_runs=min_runs,
+            )
 
 
 DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
