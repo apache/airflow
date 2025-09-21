@@ -44,6 +44,12 @@ For Breeze (local development):
 .. code-block:: bash
 
     curl -LsSf https://astral.sh/uv/install.sh | sh
+* Prek for code quality checks
+
+.. code-block:: bash
+
+    uv tool install prek
+    prek install -f
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
@@ -102,6 +108,8 @@ Option B – One-Click GitHub Codespaces
 .. code-block:: bash
 
     curl -LsSf https://astral.sh/uv/install.sh | sh
+    uv tool install prek
+    prek install -f
     uv tool install -e ./dev/breeze
     breeze start-airflow
 
