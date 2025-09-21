@@ -128,6 +128,7 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -166,6 +167,7 @@ spec:
           {{- end }}
           resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -233,6 +235,7 @@ spec:
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -266,6 +269,7 @@ spec:
         {{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}

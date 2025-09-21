@@ -106,6 +106,7 @@ spec:
           resources: {{- toYaml .Values.flower.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -174,6 +175,7 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}

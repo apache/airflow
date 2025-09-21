@@ -22,6 +22,10 @@
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
 {{- $nodeSelector := or .Values.apiServer.nodeSelector .Values.nodeSelector }}
+{{- $sqliteSharedNodeSelector := include "airflow.sqliteShared.nodeSelector" . | fromYaml }}
+{{- if $sqliteSharedNodeSelector }}
+{{- $nodeSelector := mergeOverwrite ($nodeSelector | default dict) $sqliteSharedNodeSelector }}
+{{- end }}
 {{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.apiServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
@@ -135,6 +139,7 @@ spec:
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -180,6 +185,7 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- end }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -243,6 +249,7 @@ spec:
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
         {{- end }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
