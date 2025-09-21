@@ -91,6 +91,7 @@ const displayRunOptions = createListCollection({
 const getVersionDisplayOptions = (translate: (key: string) => string) =>
   createListCollection({
     items: [
+      { label: translate("dag:panel.versionDisplay.options.showAll"), value: "all" },
       { label: translate("dag:panel.versionDisplay.options.showDagVersion"), value: "dag" },
       { label: translate("dag:panel.versionDisplay.options.showBundleVersion"), value: "bundle" },
       { label: translate("dag:panel.versionDisplay.options.hideAll"), value: "none" },
@@ -406,38 +407,42 @@ export const PanelButtons = ({
                             <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
                               {translate("dag:panel.buttons.showGantt")}
                             </Checkbox>
-                            <Select.Root
-                              // @ts-expect-error option type
-                              collection={getVersionDisplayOptions(translate)}
-                              onValueChange={handleVersionDisplayChange}
-                              size="sm"
-                              value={[versionDisplayMode]}
-                            >
-                              <Select.Label fontSize="xs">
-                                {translate("dag:panel.versionDisplay.label")}
-                              </Select.Label>
-                              <Select.Control>
-                                <Select.Trigger>
-                                  <Select.ValueText />
-                                </Select.Trigger>
-                                <Select.IndicatorGroup>
-                                  <Select.Indicator />
-                                </Select.IndicatorGroup>
-                              </Select.Control>
-                              <Select.Positioner>
-                                <Select.Content>
-                                  {getVersionDisplayOptions(translate).items.map((option) => (
-                                    <Select.Item item={option} key={option.value}>
-                                      {option.label}
-                                    </Select.Item>
-                                  ))}
-                                </Select.Content>
-                              </Select.Positioner>
-                            </Select.Root>
                           </VStack>
                         ) : undefined}
                       </>
                     )}
+                    {/* eslint-disable react/jsx-max-depth */}
+                    <VStack alignItems="flex-start" px={1}>
+                      <Select.Root
+                        // @ts-expect-error option type
+                        collection={getVersionDisplayOptions(translate)}
+                        onValueChange={handleVersionDisplayChange}
+                        size="sm"
+                        value={[versionDisplayMode]}
+                      >
+                        <Select.Label fontSize="xs">
+                          {translate("dag:panel.versionDisplay.label")}
+                        </Select.Label>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {getVersionDisplayOptions(translate).items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
+                    </VStack>
+                    {/* eslint-enable react/jsx-max-depth */}
                   </Popover.Body>
                 </Popover.Content>
               </Popover.Positioner>

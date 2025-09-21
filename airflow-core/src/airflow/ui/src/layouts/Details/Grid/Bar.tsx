@@ -58,10 +58,10 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
       position="relative"
       transition="background-color 0.2s"
     >
-      {Boolean(run.isVersionChange && versionDisplayMode === "bundle") && (
+      {Boolean(run.isVersionChange && (versionDisplayMode === "bundle" || versionDisplayMode === "all")) && (
         <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />
       )}
-      {Boolean(run.isVersionChange && versionDisplayMode === "dag") && (
+      {Boolean(run.isVersionChange && (versionDisplayMode === "dag" || versionDisplayMode === "all")) && (
         <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />
       )}
 

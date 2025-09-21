@@ -107,7 +107,10 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser, versionDisplay
         const isVersionChange =
           prevRun &&
           ((versionDisplayMode === "dag" && prevRun.dag_version_number !== dr.dag_version_number) ||
-            (versionDisplayMode === "bundle" && prevRun.bundle_version !== dr.bundle_version));
+            (versionDisplayMode === "bundle" && prevRun.bundle_version !== dr.bundle_version) ||
+            (versionDisplayMode === "all" &&
+              (prevRun.dag_version_number !== dr.dag_version_number ||
+                prevRun.bundle_version !== dr.bundle_version)));
 
         return { ...dr, isVersionChange: Boolean(isVersionChange) };
       }) ?? [],
