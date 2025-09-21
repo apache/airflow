@@ -1130,3 +1130,91 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{/*
+SQLite shared mode helper functions
+*/}}
+
+{{/*
+Check if SQLite shared mode is enabled
+*/}}
+{{- define "airflow.sqliteShared.enabled" -}}
+{{- if and .Values.sqliteShared.enabled (eq .Values.data.metadataConnection.protocol "sqlite") -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if SQLite shared mode needs nodeSelector (when using ReadWriteOnce)
+*/}}
+{{- define "airflow.sqliteShared.needsNodeSelector" -}}
+{{- if and (include "airflow.sqliteShared.enabled" .) .Values.sqliteShared.persistence.enabled -}}
+{{- $accessMode := .Values.sqliteShared.persistence.accessMode | default "ReadWriteMany" -}}
+{{- if eq $accessMode "ReadWriteOnce" -}}
+true
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate SQLite shared PVC name
+*/}}
+{{- define "airflow.sqliteShared.pvcName" -}}
+{{- if .Values.sqliteShared.persistence.existingClaim -}}
+{{- .Values.sqliteShared.persistence.existingClaim -}}
+{{- else -}}
+{{- include "airflow.fullname" . -}}-sqlite-shared
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate SQLite shared volume configuration
+*/}}
+{{- define "airflow.sqliteShared.volume" -}}
+{{- if include "airflow.sqliteShared.enabled" . -}}
+- name: sqlite-shared
+  persistentVolumeClaim:
+    claimName: {{ include "airflow.sqliteShared.pvcName" . }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate SQLite shared volume mount configuration
+*/}}
+{{- define "airflow.sqliteShared.volumeMount" -}}
+{{- if include "airflow.sqliteShared.enabled" . -}}
+- name: sqlite-shared
+  mountPath: /opt/airflow/shared-db
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate nodeSelector for SQLite shared mode
+*/}}
+{{- define "airflow.sqliteShared.nodeSelector" -}}
+{{- if include "airflow.sqliteShared.needsNodeSelector" . -}}
+{{- if .Values.sqliteShared.nodeSelector -}}
+{{- toYaml .Values.sqliteShared.nodeSelector -}}
+{{- else -}}
+# Auto-generated nodeSelector for SQLite shared mode with ReadWriteOnce
+kubernetes.io/os: linux
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Merge current nodeSelector with SQLite shared nodeSelector
+*/}}
+{{- define "airflow.sqliteShared.mergeNodeSelector" -}}
+{{- $current := .current | default dict -}}
+{{- $context := .context -}}
+{{- $sqliteNodeSelector := dict -}}
+{{- if include "airflow.sqliteShared.needsNodeSelector" $context -}}
+  {{- if $context.Values.sqliteShared.nodeSelector -}}
+    {{- $sqliteNodeSelector = $context.Values.sqliteShared.nodeSelector -}}
+  {{- else -}}
+    {{- $sqliteNodeSelector = dict "kubernetes.io/os" "linux" -}}
+  {{- end -}}
+{{- end -}}
+{{- mustMerge $current $sqliteNodeSelector | toYaml -}}
+{{- end -}}
