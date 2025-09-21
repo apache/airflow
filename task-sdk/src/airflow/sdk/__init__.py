@@ -72,6 +72,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "safe_dag",
     "macros",
     "setup",
     "task",
@@ -101,7 +102,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
-    from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.dag import DAG, dag, safe_dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
@@ -184,6 +185,7 @@ __lazy_imports: dict[str, str] = {
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "safe_dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",

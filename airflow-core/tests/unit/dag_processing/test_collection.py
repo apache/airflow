@@ -479,7 +479,7 @@ class TestUpdateDagParsingResults:
 
         # Should have been edited in place
         err = import_errors.get(("testing", dag.relative_fileloc))
-        assert "SerializationError" in err
+        assert "SerializationError" in err[0]
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is True
 
@@ -533,7 +533,7 @@ class TestUpdateDagParsingResults:
         # run the DAG parsing.
         update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session)
         # expect to get an error with "role does not exist" message.
-        err = import_errors.get(("testing", dag.relative_fileloc))
+        err = import_errors.get(("testing", dag.relative_fileloc))[0]
         assert "AirflowException" in err
         assert "role does not exist" in err
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
@@ -611,7 +611,7 @@ class TestUpdateDagParsingResults:
         self, mock_full_file_path, session, dag_import_error_listener, testing_dag_bundle
     ):
         """
-        Test that existing import error is updated and new record not created
+        Test that existing import error is deleted and new record created
         for a dag with the same filename
         """
         bundle_name = "testing"
@@ -631,7 +631,7 @@ class TestUpdateDagParsingResults:
             bundle_name=bundle_name,
             bundle_version=None,
             dags=[],
-            import_errors={("testing", "abc.py"): "New error"},
+            import_errors={(bundle_name, filename): ["New error"]},
             parse_duration=None,
             warnings=set(),
             session=session,
@@ -644,14 +644,14 @@ class TestUpdateDagParsingResults:
             )
         )
 
-        # assert that the ID of the import error did not change
-        assert import_error.id == prev_error_id
+        # assert that the ID of the import error changed
+        assert import_error.id != prev_error_id
         assert import_error.stacktrace == "New error"
 
         # Ensure the listener was notified
-        assert len(dag_import_error_listener.new) == 0
-        assert len(dag_import_error_listener.existing) == 1
-        assert dag_import_error_listener.existing["abc.py"] == prev_error.stacktrace
+        assert len(dag_import_error_listener.new) == 1
+        assert len(dag_import_error_listener.existing) == 0
+        assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
 
     @pytest.mark.usefixtures("clean_db")
     def test_remove_error_clears_import_error(self, testing_dag_bundle, session):
@@ -679,7 +679,7 @@ class TestUpdateDagParsingResults:
 
         # Sanity check of pre-condition
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
-        assert import_errors == {("abc.py", bundle_name), ("def.py", bundle_name)}
+        assert import_errors == {(filename, bundle_name), ("def.py", bundle_name)}
 
         dag = DAG(dag_id="test")
         dag.fileloc = filename
@@ -704,7 +704,8 @@ class TestUpdateDagParsingResults:
         assert import_errors == {("def.py", bundle_name)}
 
     @pytest.mark.usefixtures("clean_db")
-    def test_remove_error_updates_loaded_dag_model(self, testing_dag_bundle, session):
+    @patch.object(SerializedDagModel, "write_dag")
+    def test_remove_error_updates_loaded_dag_model(self, mock_serialize, testing_dag_bundle, session):
         bundle_name = "testing"
         filename = "abc.py"
         session.add(
@@ -724,13 +725,14 @@ class TestUpdateDagParsingResults:
             )
         )
         session.flush()
+        mock_serialize.side_effect = [SerializationError, None]
 
         dag = DAG(dag_id="test")
         dag.fileloc = filename
         dag.relative_fileloc = filename
         lazy_deserialized_dags = [LazyDeserializedDAG.from_dag(dag)]
 
-        import_errors = {(bundle_name, filename): "Some error"}
+        import_errors = {(bundle_name, filename): ["Some error"]}
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version=None,
@@ -754,7 +756,10 @@ class TestUpdateDagParsingResults:
             warnings=set(),
             session=session,
         )
+        dag_model = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
+        other_error = session.scalar(select(ParseImportError).where(ParseImportError.filename == "def.py"))
+        assert other_error is not None
 
     @pytest.mark.usefixtures("clean_db")
     def test_clear_import_error_for_file_without_dags(self, testing_dag_bundle, session):

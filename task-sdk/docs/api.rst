@@ -55,6 +55,7 @@ Decorators
 ----------
 .. autoapifunction:: airflow.sdk.dag
 .. autoapifunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.safe_dag
 
 Task Decorators:
 

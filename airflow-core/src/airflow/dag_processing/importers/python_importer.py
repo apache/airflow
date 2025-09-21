@@ -42,6 +42,7 @@ from airflow.dag_processing.importers.base import (
     DagImportResult,
     DagImportWarning,
 )
+from airflow.sdk.definitions.dag import DAG_PARSING_ERRORS_ATTR
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import get_unique_dag_module_name, might_contain_dag
 
@@ -236,6 +237,21 @@ class PythonDagImporter(AbstractDagImporter):
                 new_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
                 sys.modules[spec.name] = new_module  # type: ignore[union-attr]
                 loader.exec_module(new_module)
+
+                # Collect individual DAG parsing errors from safe_dag context manager
+                if hasattr(new_module, DAG_PARSING_ERRORS_ATTR):
+                    relative_filepath = self._get_relative_fileloc(filepath)
+                    errors = getattr(new_module, DAG_PARSING_ERRORS_ATTR, [])
+                    if errors:
+                        result.errors.extend(
+                            DagImportError(
+                                file_path=relative_filepath,
+                                message=error,
+                                error_type="import",
+                            )
+                            for error in errors
+                        )
+
                 return [new_module]
             except KeyboardInterrupt:
                 raise
@@ -307,6 +323,22 @@ class PythonDagImporter(AbstractDagImporter):
                 try:
                     sys.path.insert(0, filepath)
                     current_module = importlib.import_module(mod_name)
+
+                    # Collect individual DAG parsing errors from safe_dag context manager
+                    if hasattr(current_module, DAG_PARSING_ERRORS_ATTR):
+                        fileloc = os.path.join(filepath, zip_info.filename)
+                        relative_fileloc = self._get_relative_fileloc(fileloc)
+                        errors = getattr(current_module, DAG_PARSING_ERRORS_ATTR, [])
+                        if errors:
+                            result.errors.extend(
+                                DagImportError(
+                                    file_path=relative_fileloc,
+                                    message=error,
+                                    error_type="import",
+                                )
+                                for error in errors
+                            )
+
                     mods.append(current_module)
                 except Exception as e:
                     DagContext.autoregistered_dags.clear()
@@ -352,6 +384,12 @@ class PythonDagImporter(AbstractDagImporter):
         DagContext.autoregistered_dags.clear()
 
         for dag, mod in top_level_dags:
+            is_failed = getattr(dag, "_safe_dag_failed", False)
+            if is_failed:
+                self.log.info("Skipping DAG %s due to safe_dag failure", dag.dag_id)
+                delattr(dag, "_safe_dag_failed")
+                continue
+
             dag.fileloc = mod.__file__
             relative_fileloc = self.get_relative_path(dag.fileloc, bundle_path)
             dag.relative_fileloc = relative_fileloc

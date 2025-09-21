@@ -1210,7 +1210,8 @@ def process_parse_results(
         import_errors = {}
         if parsing_result.import_errors:
             import_errors = {
-                (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
+                (bundle_name, rel_path): error_list
+                for rel_path, error_list in parsing_result.import_errors.items()
             }
 
         # Build the set of files that were parsed. This includes the file that was parsed,
@@ -1235,5 +1236,5 @@ def process_parse_results(
         )
         stat.num_dags = len(parsing_result.serialized_dags)
         if parsing_result.import_errors:
-            stat.import_errors = len(parsing_result.import_errors)
+            stat.import_errors = sum(len(errors) for errors in parsing_result.import_errors.values())
     return stat

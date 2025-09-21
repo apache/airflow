@@ -1691,15 +1691,16 @@ def get_test_dag():
             timezone = _import_timezone()
 
             # Add the new import errors
-            for _filename, stacktrace in dagbag.import_errors.items():
-                session.add(
-                    ParseImportError(
-                        filename=str(dag_file),
-                        bundle_name="testing",
-                        timestamp=timezone.utcnow(),
-                        stacktrace=stacktrace,
+            for _filename, stacktraces in dagbag.import_errors.items():
+                for stacktrace in stacktraces:
+                    session.add(
+                        ParseImportError(
+                            filename=str(dag_file),
+                            bundle_name="testing",
+                            timestamp=timezone.utcnow(),
+                            stacktrace=stacktrace,
+                        )
                     )
-                )
 
             return
 

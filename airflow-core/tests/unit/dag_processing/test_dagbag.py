@@ -479,8 +479,9 @@ class TestDagBag:
 
         found_2 = dagbag.process_file(os.fspath(path2))
         assert len(found_2) == 0
-        assert dagbag.import_errors[os.fspath(path2)].startswith(
-            "AirflowDagDuplicatedIdException: Ignoring DAG"
+        assert any(
+            error.startswith("AirflowDagDuplicatedIdException: Ignoring DAG")
+            for error in dagbag.import_errors[os.fspath(path2)]
         )
         assert dagbag.dags == dags_in_bag  # Should not change.
 
@@ -582,6 +583,8 @@ class TestDagBag:
         assert len(dagbag.import_errors) == 0
         dagbag.process_file(request.getfixturevalue(invalid_dag_name))
         assert len(dagbag.import_errors) == 1
+        errors = next(iter(dagbag.import_errors.values()))
+        assert len(errors) == 1
         assert len(dagbag.dags) == 0
 
     def test_process_file_invalid_param_check(self, tmp_path):
@@ -888,7 +891,7 @@ with airflow.DAG(
         import_errors = dagbag.import_errors
 
         assert unparseable_filename in import_errors
-        assert import_errors[unparseable_filename] == self._make_test_traceback(unparseable_filename, depth)
+        assert self._make_test_traceback(unparseable_filename, depth) in import_errors[unparseable_filename]
 
     @pytest.mark.parametrize("depth", (None, 1))
     def test_import_error_tracebacks_zip(self, tmp_path, depth):
@@ -903,7 +906,7 @@ with airflow.DAG(
             dagbag = DagBag(dag_folder=invalid_zip_filename, include_examples=False)
         import_errors = dagbag.import_errors
         assert invalid_dag_filename in import_errors
-        assert import_errors[invalid_dag_filename] == self._make_test_traceback(invalid_dag_filename, depth)
+        assert self._make_test_traceback(invalid_dag_filename, depth) in import_errors[invalid_dag_filename]
 
     @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_violation(self):
@@ -917,14 +920,12 @@ with airflow.DAG(
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
-        expected_import_errors = {
-            dag_file: (
-                f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
-                """Notices:\n"""
-                """ * Task must have non-None non-default owner. Current value: airflow"""
-            )
-        }
-        assert expected_import_errors == dagbag.import_errors
+        expected = (
+            f"{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"
+            "Notices:\n"
+            " * Task must have non-None non-default owner. Current value: airflow"
+        )
+        assert expected in dagbag.import_errors[dag_file]
 
     @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_nonstring_owner(self):
@@ -939,14 +940,12 @@ with airflow.DAG(
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
-        expected_import_errors = {
-            dag_file: (
-                f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
-                """Notices:\n"""
-                """ * owner should be a string. Current value: ['a']"""
-            )
-        }
-        assert expected_import_errors == dagbag.import_errors
+        expected = (
+            f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
+            """Notices:\n"""
+            """ * owner should be a string. Current value: ['a']"""
+        )
+        assert expected in dagbag.import_errors[dag_file]
 
     @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_obeyed(self):
@@ -967,7 +966,7 @@ with airflow.DAG(
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert len(dagbag.dag_ids) == 0
-        assert "has no tags" in dagbag.import_errors[dag_file]
+        assert any("has no tags" in err for err in dagbag.import_errors[dag_file])
 
     def test_dagbag_dag_collection(self):
         dagbag = DagBag(

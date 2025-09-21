@@ -131,7 +131,7 @@ class TestDagFileProcessor:
     def test_dagbag_import_errors_captured(self, spy_agency: SpyAgency):
         @spy_agency.spy_for(DagBag.collect_dags, owner=DagBag)
         def fake_collect_dags(dagbag: DagBag, *args, **kwargs):
-            dagbag.import_errors["a.py"] = "Import error"
+            "Import error" in dagbag.import_errors["a.py"]
 
         resp = self._process_file("a.py")
         assert resp is not None
@@ -212,7 +212,7 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors != {}
         if result.import_errors:
-            assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
+            assert any("VARIABLE_NOT_FOUND" in err for err in next(iter(result.import_errors.values())))
 
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
@@ -358,7 +358,10 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors != {}
         if result.import_errors:
-            assert "The conn_id `my_conn` isn't defined" in next(iter(result.import_errors.values()))
+            assert any(
+                "The conn_id `my_conn` isn't defined" in err
+                for err in next(iter(result.import_errors.values()))
+            )
 
     def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client):
         tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")

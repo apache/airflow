@@ -82,7 +82,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
         <Dialog.Body>
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
             {data?.import_errors.map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
+              <Accordion.Item
+                key={importError.import_error_id}
+                value={importError.import_error_id.toString()}
+              >
                 <Accordion.ItemTrigger cursor="pointer">
                   <Text display="flex" fontWeight="bold">
                     {translate("components:versionDetails.bundleName")}

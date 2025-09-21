@@ -465,7 +465,8 @@ def collect_dags(dag_folder=None):
                     continue
                 dagbag = DagBag(directory, include_examples=False)
                 dags.update(dagbag.dags)
-                import_errors.update(dagbag.import_errors)
+            for fileloc, errors in dagbag.import_errors.items():
+                import_errors.setdefault(fileloc, []).extend(errors)
     return dags, import_errors
 
 
@@ -538,20 +539,26 @@ class TestStringifiedDAGs:
             DagSerialization.validate_schema(dag)
             serialized_dags[v.dag_id] = dag
 
-        # Ignore some errors.
-        import_errors = {
-            file: error
-            for file, error in import_errors.items()
-            # Don't worry about warnings, we only care about errors here -- otherwise
-            # AirflowProviderDeprecationWarning etc show up in import_errors, and being aware of all of those is
-            # not relevant to this test; we only care about actual errors
-            if "airflow.exceptions.AirflowProviderDeprecationWarning" not in error
-            # TODO: TaskSDK
-            if "`use_airflow_context=True` is not yet implemented" not in error
-            # This "looks" like a problem, but is just a quirk of the parse-all-dags-in-one-process we do
-            # in this test
-            if "AirflowDagDuplicatedIdException: Ignoring DAG example_sagemaker" not in error
-        }
+            # Ignore some errors.
+            import_errors = {
+                file: filtered_errors
+                for file, error in import_errors.items()
+                if (
+                    filtered_errors := [
+                        err
+                        for err in error
+                        # Don't worry about warnings, we only care about errors here -- otherwise
+                        # AirflowProviderDeprecationWarning etc show up in import_errors, and being aware of all of those is
+                        # not relevant to this test; we only care about actual errors
+                        if "airflow.exceptions.AirflowProviderDeprecationWarning" not in err
+                        # TODO: TaskSDK
+                        if "`use_airflow_context=True` is not yet implemented" not in err
+                        # This "looks" like a problem, but is just a quirk of the parse-all-dags-in-one-process we do
+                        # in this test
+                        if "AirflowDagDuplicatedIdException: Ignoring DAG example_sagemaker" not in err
+                    ]
+                )
+            }
 
         # Let's not be exact about this, but if everything fails to parse we should fail this test too
         assert import_errors == {}

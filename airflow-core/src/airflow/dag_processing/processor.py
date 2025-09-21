@@ -20,6 +20,7 @@ import contextlib
 import importlib
 import os
 import traceback
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
@@ -115,7 +116,7 @@ class DagFileParsingResult(BaseModel):
     fileloc: str
     serialized_dags: list[LazyDeserializedDAG]
     warnings: list | None = None
-    import_errors: dict[str, str] | None = None
+    import_errors: dict[str, list[str]] | None = None
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
@@ -230,7 +231,8 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         return None
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
-    bag.import_errors.update(serialization_import_errors)
+    for fileloc, errors in serialization_import_errors.items():
+        bag.import_errors.setdefault(fileloc, []).extend(errors)
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
@@ -243,8 +245,8 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 def _serialize_dags(
     bag: DagBag,
     log: FilteringBoundLogger,
-) -> tuple[list[LazyDeserializedDAG], dict[str, str]]:
-    serialization_import_errors = {}
+) -> tuple[list[LazyDeserializedDAG], dict[str, list[str]]]:
+    serialization_import_errors = defaultdict(list)
     serialized_dags = []
     for dag in bag.dags.values():
         try:
@@ -255,8 +257,8 @@ def _serialize_dags(
             dagbag_import_error_traceback_depth = conf.getint(
                 "core", "dagbag_import_error_traceback_depth", fallback=None
             )
-            serialization_import_errors[dag.fileloc] = traceback.format_exc(
-                limit=-dagbag_import_error_traceback_depth
+            serialization_import_errors[dag.fileloc].append(
+                traceback.format_exc(limit=-dagbag_import_error_traceback_depth)
             )
     return serialized_dags, serialization_import_errors
 

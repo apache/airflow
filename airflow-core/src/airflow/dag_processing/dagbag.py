@@ -23,6 +23,7 @@ import sys
 import textwrap
 import warnings
 import zipfile
+from collections import defaultdict
 from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -204,7 +205,7 @@ class DagBag(LoggingMixin):
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
         # Store import errors with relative file paths as keys (relative to bundle_path)
-        self.import_errors: dict[str, str] = {}
+        self.import_errors: dict[str, list[str]] = defaultdict(list)
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
@@ -580,17 +581,9 @@ def sync_bag_to_db(
     """Save attributes about list of DAG to the DB."""
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
-    import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
-
-    # Build the set of all files that were parsed and include files with import errors
-    # in case they are not in file_last_changed
-    files_parsed = set(import_errors)
-    if dagbag.bundle_path:
-        files_parsed.update(
-            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
-            for abs_filepath in dagbag.file_last_changed
-        )
-
+    import_errors = {
+        (bundle_name, rel_path): error_list for rel_path, error_list in dagbag.import_errors.items()
+    }
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
@@ -599,5 +592,4 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
-        files_parsed=files_parsed,
     )

@@ -400,7 +400,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
         from rich import print as rich_print
 
         rich_print(
-            "[red][bold]Error:[/bold] Failed to load all files. "
+            "[red][bold]Error:[/bold] Failed to load all DAGs. "
             "For details, run `airflow dags list-import-errors`",
             file=sys.stderr,
         )
@@ -480,11 +480,13 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
                         bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
                     )
                     for filename, errors in bundle_dagbag.import_errors.items():
-                        data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
+                        for err in errors:
+                            data.append({"bundle_name": bundle.name, "filepath": filename, "error": err})
         else:
             dagbag = DagBag()
             for filename, errors in dagbag.import_errors.items():
-                data.append({"filepath": filename, "error": errors})
+                for err in errors:
+                    data.append({"filepath": filename, "error": err})
 
     else:
         # Get import errors from the DB

@@ -198,8 +198,8 @@ def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
         dag_folder=example,
         include_examples=False,
     )
-    if len(dagbag.import_errors) == 1 and "AirflowOptionalProviderFeatureException" in str(
-        dagbag.import_errors
+    if len(dagbag.import_errors) == 1 and any(
+        "AirflowOptionalProviderFeatureException" in err for err in next(iter(dagbag.import_errors.values()))
     ):
         pytest.skip(
             f"Skipping {example} because it requires an optional provider feature that is not installed."

@@ -161,8 +161,8 @@ class TestCliDags:
                 [
                     "from airflow import DAG",
                     "from airflow.providers.standard.operators.empty import EmptyOperator",
-                    "from datetime import timedelta; from pendulum import today",
-                    f"dag = DAG('{f[0]}', start_date=today() + {f[1]}, schedule={f[2]}, catchup={f[3]})",
+                    "from datetime import timedelta; import pendulum",
+                    f"dag = DAG('{f[0]}', start_date=pendulum.today('UTC') + {f[1]}, schedule={f[2]}, catchup={f[3]})",
                     "task = EmptyOperator(task_id='empty_task',dag=dag)",
                 ]
             )
@@ -329,7 +329,7 @@ class TestCliDags:
                 dag_command.dag_list_dags(args)
                 out = temp_stderr.getvalue()
 
-        assert "Failed to load all files." in out
+        assert "Failed to load all DAGs." in out
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_dags_prints_local_import_errors(
@@ -349,7 +349,7 @@ class TestCliDags:
                 dag_command.dag_list_dags(args)
                 out = temp_stderr.getvalue()
 
-        assert "Failed to load all files." in out
+        assert "Failed to load all DAGs." in out
         # Rebuild Test DB for other tests
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
