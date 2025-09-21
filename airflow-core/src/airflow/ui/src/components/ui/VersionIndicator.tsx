@@ -21,8 +21,8 @@ import { FiGitCommit } from "react-icons/fi";
 
 export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => (
   <Box
-    color="orange.700"
-    left="-7px"
+    color="orange.fg"
+    left="-8px"
     position="absolute"
     title={`Bundle Version: ${bundleVersion}`}
     top="93px"
@@ -44,7 +44,7 @@ export const DagVersionIndicator = ({
     <Box
       aria-label={`Version ${dagVersionNumber} indicator`}
       as="output"
-      height={isVertical ? "100px" : "2px"}
+      height={isVertical ? "98px" : "2px"}
       left={isVertical ? "-1px" : "0"}
       position="absolute"
       top={isVertical ? "0" : "-1px"}
@@ -53,53 +53,56 @@ export const DagVersionIndicator = ({
     >
       {isVertical ? (
         <>
-          <Box bg="orange.400" height="100px" width="2px" />
-          <Text
-            bg="white"
-            borderRadius="2px"
-            color="orange.700"
-            fontSize="10px"
-            left="-5px"
-            position="absolute"
-            px="1px"
-            title={`Version ${dagVersionNumber}`}
-            top="-16px"
-            whiteSpace="nowrap"
-          >
-            {`v${dagVersionNumber ?? ""}`}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Box bg="orange.400" height="2px" left="0" position="absolute" top="0" width="4px" />
+          <Box bg="orange.focusRing" height="100%" left="0" position="absolute" top="0" width="2px" />
+
           <Box
-            alignItems="center"
-            bg="transparent"
-            borderRadius="2px"
-            display="flex"
-            height="10px"
-            justifyContent="center"
-            left="4px"
+            bg="orange.focusRing"
+            borderRadius="4px"
+            left="1px"
             position="absolute"
-            top="-4px"
-            width="10px"
+            px="2px"
+            py="0.5px"
+            title={`Version ${dagVersionNumber}`}
+            top="-7px"
+            transform="translateX(-50%)"
+            zIndex={5}
           >
             <Text
-              bg="white"
-              borderRadius="2px"
-              color="orange.700"
-              fontSize="6px"
-              left="0"
-              position="absolute"
-              px="1px"
-              title={`Version ${dagVersionNumber}`}
-              top="0"
+              color={{ _dark: "black", _light: "white" }}
+              fontSize="7px"
+              fontWeight="bold"
+              lineHeight="1"
               whiteSpace="nowrap"
             >
               {`v${dagVersionNumber ?? ""}`}
             </Text>
           </Box>
-          <Box bg="orange.400" height="2px" left="14px" position="absolute" top="0" width="4px" />
+        </>
+      ) : (
+        <>
+          <Box bg="orange.focusRing" height="2px" left="0" position="absolute" top="0" width="100%" />
+          <Box
+            bg="orange.focusRing"
+            borderRadius="4px"
+            left="50%"
+            position="absolute"
+            px="2px"
+            py="0.5px"
+            title={`Version ${dagVersionNumber}`}
+            top="-4px"
+            transform="translateX(-50%)"
+            zIndex={5}
+          >
+            <Text
+              color={{ _dark: "black", _light: "white" }}
+              fontSize="7px"
+              fontWeight="bold"
+              lineHeight="1"
+              whiteSpace="nowrap"
+            >
+              {`v${dagVersionNumber ?? ""}`}
+            </Text>
+          </Box>
         </>
       )}
     </Box>
