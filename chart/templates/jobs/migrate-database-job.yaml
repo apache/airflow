@@ -123,6 +123,9 @@ spec:
           resources: {{- toYaml .Values.migrateDatabaseJob.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if include "airflow.sqliteShared.enabled" . }}
+              {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
+            {{- end }}
               {{- if .Values.volumeMounts }}
             {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -136,6 +139,9 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if include "airflow.sqliteShared.enabled" . }}
+          {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
+        {{- end }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
