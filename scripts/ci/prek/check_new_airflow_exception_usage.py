@@ -69,7 +69,6 @@ def main(argv: Sequence[str]) -> int:
             if line.startswith("+") and not line.startswith("+++"):
                 if "raise AirflowException" in line:
                     bad_files.append(path)
-                    break  # stop after first match in this file
 
     if bad_files:
         console.print(
@@ -86,13 +85,6 @@ def main(argv: Sequence[str]) -> int:
             console.print(f" • [cyan]{bad_file}[/cyan]")
         return 1
 
-    console.print(
-        Panel.fit(
-            "[bold green]No 'raise AirflowException' usages found in staged changes.[/bold green]",
-            title="✅ Passed",
-            border_style="green",
-        )
-    )
     return 0
 
 
