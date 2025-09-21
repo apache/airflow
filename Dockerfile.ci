@@ -1692,7 +1692,7 @@ ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG DEPENDENCY_CACHE_EPOCH="1"
+ARG DEPENDENCY_CACHE_EPOCH="2"
 
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
