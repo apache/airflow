@@ -2613,7 +2613,7 @@ export type DeleteTaskInstanceData = {
     taskId: string;
 };
 
-export type DeleteTaskInstanceResponse = unknown;
+export type DeleteTaskInstanceResponse = null;
 
 export type GetMappedTaskInstancesData = {
     dagId: string;
@@ -3137,7 +3137,7 @@ export type ReparseDagFileData = {
     fileToken: string;
 };
 
-export type ReparseDagFileResponse = unknown;
+export type ReparseDagFileResponse = null;
 
 export type GetDagVersionData = {
     dagId: string;
@@ -4938,7 +4938,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: unknown;
+                200: null;
                 /**
                  * Unauthorized
                  */
@@ -6146,7 +6146,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                201: unknown;
+                201: null;
                 /**
                  * Unauthorized
                  */
