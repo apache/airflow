@@ -27,7 +27,7 @@ spec:
   capacity:
     storage: 1Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   hostPath:
     path: /Users/garyhsu/Dropbox/Code_Project/OpenSource/airflow-dev-sqlite-shared
     type: DirectoryOrCreate

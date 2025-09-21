@@ -1448,6 +1448,71 @@
                 }
             }
         },
+        "sqliteShared": {
+            "description": "SQLite shared file system configuration. This enables multiple Airflow pods to share a single SQLite database file through a shared persistent volume. Suitable for development/testing environments. WARNING: Not recommended for production use.",
+            "type": "object",
+            "x-docsSection": "Database",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable SQLite shared mode (default: false for backward compatibility)",
+                    "type": "boolean",
+                    "default": true
+                },
+                "persistence": {
+                    "description": "Shared storage configuration",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volume for SQLite database file",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "storageClassName": {
+                            "description": "Storage class name for the PVC (empty means use default storage class)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "accessMode": {
+                            "description": "Access mode for the persistent volume. ReadWriteMany: Preferred for multi-node clusters with NFS/EFS/Azure Files. ReadWriteOnce: For single-node clusters (Docker Desktop, Kind, Minikube)",
+                            "type": "string",
+                            "enum": [
+                                "ReadWriteMany",
+                                "ReadWriteOnce"
+                            ],
+                            "default": "ReadWriteMany"
+                        },
+                        "size": {
+                            "description": "Size of the persistent volume",
+                            "type": "string",
+                            "default": "1Gi"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "existingClaim": {
+                            "description": "Existing PVC name (optional, if you want to use an existing PVC)",
+                            "type": "string",
+                            "default": ""
+                        }
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Node selector for pod scheduling (used when accessMode is ReadWriteOnce). Ensures all pods are scheduled on the same node to share the volume",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "fernetKey": {
             "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
             "type": [
@@ -6120,7 +6185,7 @@
                             "description": "Enable default user creation.",
                             "type": "boolean",
                             "x-docsSection": "Common",
-                            "default": false
+                            "default": true
                         },
                         "role": {
                             "description": "Default user role.",
