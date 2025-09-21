@@ -28,6 +28,7 @@ import textwrap
 import traceback
 import warnings
 import zipfile
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -49,6 +50,7 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
+from airflow.sdk.definitions.dag import DAG_PARSING_ERRORS_ATTR
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
@@ -246,7 +248,7 @@ class DagBag(LoggingMixin):
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
         # Store import errors with relative file paths as keys (relative to bundle_path)
-        self.import_errors: dict[str, str] = {}
+        self.import_errors: dict[str, list[str]] = defaultdict(list)
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
@@ -410,7 +412,7 @@ class DagBag(LoggingMixin):
             msg = f"Received SIGSEGV signal while processing {filepath}."
             self.log.error(msg)
             relative_filepath = self._get_relative_fileloc(filepath)
-            self.import_errors[relative_filepath] = msg
+            self.import_errors[relative_filepath] = [msg]
 
         try:
             signal.signal(signal.SIGSEGV, handler)
@@ -439,6 +441,14 @@ class DagBag(LoggingMixin):
                 new_module = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
+
+                # Collect individual DAG parsing errors from safe_dag context manager
+                if hasattr(new_module, DAG_PARSING_ERRORS_ATTR):
+                    relative_filepath = self._get_relative_fileloc(filepath)
+                    errors = getattr(new_module, DAG_PARSING_ERRORS_ATTR, [])
+                    if errors:
+                        self.import_errors[relative_filepath] = errors
+
                 return [new_module]
             except KeyboardInterrupt:
                 # re-raise ctrl-c
@@ -451,11 +461,10 @@ class DagBag(LoggingMixin):
                 self.log.exception("Failed to import: %s", filepath)
                 relative_filepath = self._get_relative_fileloc(filepath)
                 if self.dagbag_import_error_tracebacks:
-                    self.import_errors[relative_filepath] = traceback.format_exc(
-                        limit=-self.dagbag_import_error_traceback_depth
-                    )
+                    error_msg = traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth)
                 else:
-                    self.import_errors[relative_filepath] = str(e)
+                    error_msg = str(e)
+                self.import_errors[relative_filepath] = [error_msg]
                 return []
 
         dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
@@ -510,6 +519,15 @@ class DagBag(LoggingMixin):
                 try:
                     sys.path.insert(0, filepath)
                     current_module = importlib.import_module(mod_name)
+
+                    # Collect individual DAG parsing errors from safe_dag context manager
+                    if hasattr(current_module, DAG_PARSING_ERRORS_ATTR):
+                        fileloc = os.path.join(filepath, zip_info.filename)
+                        relative_fileloc = self._get_relative_fileloc(fileloc)
+                        errors = getattr(current_module, DAG_PARSING_ERRORS_ATTR, [])
+                        if errors:
+                            self.import_errors[relative_fileloc] = errors
+
                     mods.append(current_module)
                 except Exception as e:
                     DagContext.autoregistered_dags.clear()
@@ -517,11 +535,10 @@ class DagBag(LoggingMixin):
                     self.log.exception("Failed to import: %s", fileloc)
                     relative_fileloc = self._get_relative_fileloc(fileloc)
                     if self.dagbag_import_error_tracebacks:
-                        self.import_errors[relative_fileloc] = traceback.format_exc(
-                            limit=-self.dagbag_import_error_traceback_depth
-                        )
+                        error_msg = traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth)
                     else:
-                        self.import_errors[relative_fileloc] = str(e)
+                        error_msg = str(e)
+                    self.import_errors[relative_fileloc] = [error_msg]
                 finally:
                     if sys.path[0] == filepath:
                         del sys.path[0]
@@ -552,7 +569,7 @@ class DagBag(LoggingMixin):
                 pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[relative_fileloc] = f"{type(e).__name__}: {e}"
+                self.import_errors[relative_fileloc].append(f"{type(e).__name__}: {e}")
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             else:
                 found_dags.append(dag)
@@ -697,7 +714,9 @@ def sync_bag_to_db(
     """Save attributes about list of DAG to the DB."""
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
-    import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+    import_errors = {
+        (bundle_name, rel_path): error_list for rel_path, error_list in dagbag.import_errors.items()
+    }
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
