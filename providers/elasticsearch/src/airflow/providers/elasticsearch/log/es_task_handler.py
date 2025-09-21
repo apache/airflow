@@ -555,7 +555,11 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
     offset_field: str = "offset"
     write_to_es: bool = False
     base_log_folder: Path = attrs.field(converter=Path)
-    log_id_template: str = "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
+    log_id_template: str = conf.get(
+        "elasticsearch",
+        "log_id_template",
+        fallback="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+    )
 
     processors = ()
 

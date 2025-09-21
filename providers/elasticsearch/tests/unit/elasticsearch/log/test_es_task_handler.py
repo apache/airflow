@@ -77,8 +77,10 @@ class TestElasticsearchTaskHandler:
     DAG_ID = "dag_for_testing_es_task_handler"
     TASK_ID = "task_for_testing_es_log_handler"
     RUN_ID = "run_for_testing_es_log_handler"
+    MAP_INDEX = -1
+    TRY_NUM = 1
     LOGICAL_DATE = datetime(2016, 1, 1)
-    LOG_ID = f"{DAG_ID}-{TASK_ID}-{RUN_ID}--1-1"
+    LOG_ID = f"{DAG_ID}-{TASK_ID}-{RUN_ID}-{MAP_INDEX}-{TRY_NUM}"
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{_clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
