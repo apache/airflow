@@ -135,7 +135,7 @@ class VerticaHook(DbApiHook):
         return conn
 
     @property
-    def sqlalchemy_url(self):
+    def sqlalchemy_url(self) -> URL:
         """Return a SQLAlchemy URL object with properly formatted query parameters."""
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
@@ -157,7 +157,7 @@ class VerticaHook(DbApiHook):
             query=query,
         )
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         """Return a URI string with password visible."""
         return self.sqlalchemy_url.render_as_string(hide_password=False)
 
