@@ -119,36 +119,24 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja's environment to use for rendering.
         """
-        if (
-            self.task
-            and self.task.start_from_trigger
-            and self.task.start_trigger_args
-            and self.task.start_trigger_args.trigger_kwargs
-        ):
-            # Find intersection between start_trigger_args.trigger_kwargs and template_fields
-            attribute_names = set(self.task.start_trigger_args.trigger_kwargs.keys()).intersection(
-                set(self.template_fields)
-            )
+        # We only need to render templated fields if templated fields are part of the start_trigger_args
+        for attr_name in self.template_fields:
+            value = getattr(self, attr_name, None)
 
-            # We only need to render templated fields if templated fields are part of the start_trigger_args
-            if attribute_names:
-                for attr_name in attribute_names:
-                    value = getattr(self, attr_name, None)
-
-                    if value:
-                        try:
-                            rendered_content = self.render_template(value, context, jinja_env)
-                        except Exception:
-                            # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
-                            self.log.exception(
-                                "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                                self.task.task_id,
-                                attr_name,
-                                value,
-                            )
-                            raise
-                        else:
-                            setattr(self, attr_name, rendered_content)
+            if value:
+                try:
+                    rendered_content = self.render_template(value, context, jinja_env)
+                except Exception:
+                    # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                    self.log.exception(
+                        "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                        self.task.task_id,
+                        attr_name,
+                        value,
+                    )
+                    raise
+                else:
+                    setattr(self, attr_name, rendered_content)
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
