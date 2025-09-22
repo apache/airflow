@@ -91,7 +91,17 @@ export type AssetResponse = {
     producing_tasks: Array<TaskOutletAssetReference>;
     consuming_tasks: Array<TaskInletAssetReference>;
     aliases: Array<AssetAliasResponse>;
+    watchers: Array<AssetWatcherResponse>;
     last_asset_event?: LastAssetEventResponse | null;
+};
+
+/**
+ * Asset watcher serializer for responses.
+ */
+export type AssetWatcherResponse = {
+    name: string;
+    trigger_id: number;
+    created_date: string;
 };
 
 /**
@@ -873,6 +883,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -1855,7 +1866,7 @@ export type GridRunsResponse = {
     start_date: string | null;
     end_date: string | null;
     run_after: string;
-    state: TaskInstanceState | null;
+    state: DagRunState | null;
     run_type: DagRunType;
     readonly duration: number;
 };
@@ -2244,6 +2255,10 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
@@ -2701,6 +2716,10 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagRunId: string;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -2869,6 +2888,7 @@ export type GetHitlDetailsData = {
     dagIdPattern?: string | null;
     dagRunId: string;
     limit?: number;
+    mapIndex?: number | null;
     offset?: number;
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;
@@ -3198,6 +3218,7 @@ export type GetDagStructureData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -3216,6 +3237,7 @@ export type GetGridRunsData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */

@@ -672,6 +672,14 @@ paths:
           items:
             type: string
           title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
       - name: triggering_user
         in: query
         required: false
@@ -799,6 +807,14 @@ paths:
           items:
             type: string
           title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
       - name: triggering_user
         in: query
         required: false
@@ -1920,7 +1936,7 @@ components:
           title: Run After
         state:
           anyOf:
-          - $ref: '#/components/schemas/TaskInstanceState'
+          - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
