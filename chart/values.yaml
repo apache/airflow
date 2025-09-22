@@ -560,7 +560,7 @@ data:
 # through a shared persistent volume. Suitable for development/testing environments.
 # WARNING: Not recommended for production use.
 sqliteShared:
-  # Enable SQLite shared mode (default: false for backward compatibility)
+  # Enable SQLite shared mode
   enabled: true
 
   # Shared storage configuration
@@ -2889,19 +2889,6 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
-# Configuration for postgresql subchart
-# Uses bitnamilegacy images to avoid Bitnami licensing restrictions
-# Not recommended for production - use external database instead
-postgresql:
-  enabled: false
-  image:
-    repository: postgres
-    tag: "13"
-  auth:
-    enablePostgresUser: true
-    postgresPassword: postgres
-    username: ""
-    password: ""
 
 # Config settings to go into the mounted airflow.cfg
 #

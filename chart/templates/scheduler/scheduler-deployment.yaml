@@ -37,6 +37,7 @@
 # If we're using elasticsearch or opensearch logging
 {{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
