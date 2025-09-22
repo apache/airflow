@@ -66,6 +66,9 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
     .sort((left, right) => left.label.localeCompare(right.label));
   const mappedOptions = allMappedValues.map(({ key, label }) => ({ label, value: key }));
 
+  // Narrow falsy entries without hard casts
+  const isFilterConfig = (x: FilterConfig | false): x is FilterConfig => x !== false;
+
   // FilterBar configs (keys unchanged; labels stick to prior wording)
   const configsUnfiltered: Array<FilterConfig | false> = [
     {
@@ -105,7 +108,8 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
     },
   ];
 
-  const configs: Array<FilterConfig> = configsUnfiltered.filter(Boolean) as Array<FilterConfig>;
+  // Make this a mutable array type to satisfy FilterBar's prop
+  const configs: Array<FilterConfig> = configsUnfiltered.filter(isFilterConfig);
 
   // Initial values mirror previous local names
   const initialValues = {
@@ -129,15 +133,24 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
       next.set(NAME_PATTERN, String(name));
     }
 
-    const operators = Array.isArray(record[OPERATOR]) ? (record[OPERATOR] as Array<string>) : [];
+    const opRaw = record[OPERATOR];
+    const operators = Array.isArray(opRaw)
+      ? opRaw.filter((valueItem): valueItem is string => typeof valueItem === "string")
+      : [];
 
     operators.forEach((val) => next.append(OPERATOR, val));
 
-    const triggers = Array.isArray(record[TRIGGER_RULE]) ? (record[TRIGGER_RULE] as Array<string>) : [];
+    const trigRaw = record[TRIGGER_RULE];
+    const triggers = Array.isArray(trigRaw)
+      ? trigRaw.filter((valueItem): valueItem is string => typeof valueItem === "string")
+      : [];
 
     triggers.forEach((val) => next.append(TRIGGER_RULE, val));
 
-    const retries = Array.isArray(record[RETRIES]) ? (record[RETRIES] as Array<string>) : [];
+    const retriesRaw = record[RETRIES];
+    const retries = Array.isArray(retriesRaw)
+      ? retriesRaw.filter((valueItem): valueItem is string => typeof valueItem === "string")
+      : [];
 
     retries.forEach((val) => next.append(RETRIES, val));
 

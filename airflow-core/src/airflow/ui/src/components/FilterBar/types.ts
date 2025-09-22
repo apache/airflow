@@ -34,7 +34,7 @@ export type FilterConfig = {
   /** When true (default), select behaves as multi-select; when false, single-select. */
   readonly multiple?: boolean;
   // select-only (optional; ignored by other types)
-  readonly options?: ReadonlyArray<{ disabled?: boolean; label: React.ReactNode | string; value: string; }>;
+  readonly options?: ReadonlyArray<{ disabled?: boolean; label: React.ReactNode | string; value: string }>;
 
   readonly placeholder?: string;
   readonly required?: boolean;
