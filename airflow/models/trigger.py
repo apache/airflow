@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, Iterable
 
-from sqlalchemy import Column, Integer, String, Text, and_, delete, func, or_, select, update
+from sqlalchemy import Column, Integer, String, Text, and_, case, delete, func, or_, select, update
 from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
@@ -291,36 +291,30 @@ class Trigger(Base):
         from airflow.models.dag import DagModel  # Avoid circular import
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
-        # Subquery to get active DAGs (not paused and not deleted)
-        active_dags = (
-            select(DagModel.dag_id)
-            .where(
-                DagModel.is_active.is_(True),
-                DagModel.is_paused.is_(False),
-            )
-            .subquery()
-        )
+        # First, get the IDs of triggers that need to be claimed
+        # This is a two-step process to work around PostgreSQL's limitation with FOR UPDATE and outer joins
 
-        # Get active DAG runs
-        active_dag_runs = (
-            select(DagRun.dag_id, DagRun.run_id).where(DagRun.state == DagRunState.RUNNING).subquery()
-        )
-
-        # Build the query to get triggers that need to be assigned
-        query = with_row_locks(
-            select(cls.id)
+        # Step 1: Identify the trigger IDs that need to be claimed
+        trigger_ids_subq = (
+            select(cls.id, coalesce(TaskInstance.priority_weight, 0).label("priority"), cls.created_date)
+            .select_from(cls)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .join(
-                active_dag_runs,
+                DagRun,
                 and_(
-                    TaskInstance.dag_id == active_dag_runs.c.dag_id,
-                    TaskInstance.run_id == active_dag_runs.c.run_id,
+                    TaskInstance.dag_id == DagRun.dag_id,
+                    TaskInstance.run_id == DagRun.run_id,
+                    DagRun.state == DagRunState.RUNNING,
                 ),
                 isouter=True,
             )
             .join(
-                active_dags,
-                TaskInstance.dag_id == active_dags.c.dag_id,
+                DagModel,
+                and_(
+                    TaskInstance.dag_id == DagModel.dag_id,
+                    DagModel.is_active.is_(True),
+                    DagModel.is_paused.is_(False),
+                ),
                 isouter=True,
             )
             .where(
@@ -330,7 +324,29 @@ class Trigger(Base):
                 )
             )
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date)
-            .limit(capacity),
+            .limit(capacity)
+            .subquery("eligible_triggers")
+        )
+
+        # Step 2: Get the trigger IDs in the correct order
+        ordered_ids = session.execute(
+            select(trigger_ids_subq.c.id).order_by(
+                trigger_ids_subq.c.priority.desc(), trigger_ids_subq.c.created_date
+            )
+        ).all()
+
+        # Step 3: Use the ordered IDs to get the triggers with FOR UPDATE
+        if not ordered_ids:
+            return []
+
+        # Convert to list of IDs for the IN clause
+        ids = [id_tuple[0] for id_tuple in ordered_ids]
+
+        # Get the triggers with FOR UPDATE in the correct order
+        query = with_row_locks(
+            select(cls.id)
+            .where(cls.id.in_(ids))
+            .order_by(case({id_: idx for idx, id_ in enumerate(ids)}, value=cls.id)),
             session,
             skip_locked=True,
         )
