@@ -29,9 +29,9 @@ from airflow.configuration import conf
 from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
-    AirflowSDKException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
@@ -253,7 +253,7 @@ class BaseSensorOperator(BaseOperator):
             return super().resume_execution(next_method, next_kwargs, context)
         except TaskDeferralTimeout as e:
             raise AirflowSensorTimeout(*e.args) from e
-        except (RuntimeError, AirflowSDKException, TaskDeferralError) as e:
+        except (RuntimeError, AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
                 raise AirflowSkipException(str(e)) from e
             raise

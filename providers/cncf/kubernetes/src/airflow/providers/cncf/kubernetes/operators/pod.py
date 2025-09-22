@@ -75,13 +75,13 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     get_container_termination_message,
 )
-
 from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
     XCOM_RETURN_KEY,
     AirflowSkipException,
     TaskDeferred,
-    AIRFLOW_V_3_1_PLUS
 )
+
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
 else:
