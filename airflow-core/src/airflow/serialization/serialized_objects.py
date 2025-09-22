@@ -1416,6 +1416,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
+        if isinstance(self._weight_rule, PriorityWeightStrategy):
+            return self._weight_rule
         return validate_and_load_priority_weight_strategy(self._weight_rule)
 
     def __getattr__(self, name):

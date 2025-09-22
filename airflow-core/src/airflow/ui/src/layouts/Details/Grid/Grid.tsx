@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
-import type { DagRunType, GridRunsResponse } from "openapi/requests";
+import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -40,13 +40,14 @@ import { flattenNodes } from "./utils";
 dayjs.extend(dayjsDuration);
 
 type Props = {
+  readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +56,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
-  const { data: gridRuns, isLoading } = useGridRuns({ limit, runType, triggeringUser });
+  const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
   const selectedRun = gridRuns?.find((run) => run.run_id === runId);
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
@@ -80,7 +81,13 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
     }
   }, [gridRuns, setHasActiveRun]);
 
-  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit, runType, triggeringUser });
+  const { data: dagStructure } = useGridStructure({
+    dagRunState,
+    hasActiveRun,
+    limit,
+    runType,
+    triggeringUser,
+  });
   // calculate dag run bar heights relative to max
 
   const max = Math.max.apply(
