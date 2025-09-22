@@ -1022,14 +1022,14 @@ class TestBigQueryOpenLineageMixin:
         from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
         class TestOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
-            def __init__(self, project_id: str = None, **kwargs):
+            def __init__(self, project_id: str = None, **_):
                 self.project_id = project_id
                 self.job_id = "foobar"
                 self.location = "foobar"
                 self.sql = "foobar"
 
         # First test task where project_id is set explicitly
-        test = TestOperator(task_id="foo", job_id="bar", project_id="project_a")
+        test = TestOperator(project_id="project_a")
         test.hook = MagicMock()
         test.hook.project_id = "project_b"
         test._client = MagicMock()
@@ -1039,7 +1039,7 @@ class TestBigQueryOpenLineageMixin:
         assert kwargs["project_id"] == "project_a"
 
         # Then test task where project_id is inherited from the hook
-        test = TestOperator(task_id="foo", job_id="bar")
+        test = TestOperator()
         test.hook = MagicMock()
         test.hook.project_id = "project_b"
         test._client = MagicMock()
