@@ -16,20 +16,32 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from pathlib import Path
+import time
 
-AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
-TASK_SDK_TESTS_ROOT = Path(__file__).resolve().parents[2]
+from airflow.sdk import DAG, task
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
-DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
-DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
+dag = DAG("test_dag", description="Test DAG for Task SDK testing with long-running task", schedule=None)
 
-DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-TASK_SDK_HOST_PORT = os.environ.get("TASK_SDK_HOST_PORT", "localhost:8080")
 
-# Keep this in sync with: airflow/sdk/api/datamodels/_generated.py
-TASK_SDK_API_VERSION = "2025-09-23"
+@task(dag=dag)
+def get_task_instance_id(ti=None):
+    """Task that returns its own task instance ID"""
+    return str(ti.id)
 
-DOCKER_COMPOSE_FILE_PATH = TASK_SDK_TESTS_ROOT / "docker" / "docker-compose.yaml"
+
+@task(dag=dag)
+def long_running_task(ti=None):
+    """Long-running task that sleeps for 5 minutes to allow testing"""
+    print(f"Starting long-running task with TI ID: {ti.id}")
+    print("This task will run for 5 minutes to allow API testing...")
+
+    time.sleep(3000)
+
+    print("Long-running task completed!")
+    return "test completed"
+
+
+get_ti_id = get_task_instance_id()
+long_task = long_running_task()
+
+get_ti_id >> long_task
