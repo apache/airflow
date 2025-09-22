@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-snowflake``
 
-Release: ``6.5.3``
+Release: ``6.5.4``
 
 
 `Snowflake <https://www.snowflake.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``snowflake`` provider. All classes for this prov
 are in ``airflow.providers.snowflake`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.4/>`_.
 
 Installation
 ------------
@@ -87,5 +87,14 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+===============  ===============================================
+Extra            Dependencies
+===============  ===============================================
+``openlineage``  ``apache-airflow-providers-openlineage>=2.3.0``
+===============  ===============================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.4/changelog.html>`_.

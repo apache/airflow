@@ -28,6 +28,20 @@ Changelog
 ---------
 
 
+2.3.0
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Features
+~~~~~~~~
+
+* ``Add Async support for SMTP Notifier (#55308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.2.1
 .....
 

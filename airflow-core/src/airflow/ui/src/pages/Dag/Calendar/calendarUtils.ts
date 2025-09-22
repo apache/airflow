@@ -25,7 +25,6 @@ import type {
   RunCounts,
   DailyCalendarData,
   HourlyCalendarData,
-  CalendarCellData,
   CalendarColorMode,
   CalendarGranularity,
   CalendarScale,
@@ -36,7 +35,7 @@ dayjs.extend(isSameOrBefore);
 
 // Calendar color constants
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
-const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
+const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.200" };
 
 const TOTAL_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
@@ -220,7 +219,8 @@ export const createCalendarScale = (
 
   // Handle single value case
   if (minCount === maxCount) {
-    const singleColor = viewMode === "total" ? TOTAL_COLOR_INTENSITIES[2]! : FAILURE_COLOR_INTENSITIES[2]!;
+    const singleColor =
+      (viewMode === "total" ? TOTAL_COLOR_INTENSITIES[2] : FAILURE_COLOR_INTENSITIES[2]) ?? EMPTY_COLOR;
 
     return {
       getColor: (counts: RunCounts) => {
@@ -294,7 +294,7 @@ export const createCalendarScale = (
       label = `${threshold}-${nextThreshold - 1}`;
     }
 
-    const color = colorScheme[Math.min(index, colorScheme.length - 1)]!;
+    const color = colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
 
     legendItems.push({
       color,
@@ -307,18 +307,4 @@ export const createCalendarScale = (
     legendItems,
     type: "gradient",
   };
-};
-
-export const createTooltipContent = (cellData: CalendarCellData): string => {
-  const { counts, date } = cellData;
-
-  if (counts.total === 0) {
-    return `${date}: No runs`;
-  }
-
-  const parts = Object.entries(counts)
-    .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => `${count} ${state}`);
-
-  return `${date}: ${counts.total} runs (${parts.join(", ")})`;
 };

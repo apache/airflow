@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
-from urllib.parse import ParseResult, urljoin, urlparse
+from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
@@ -233,6 +233,36 @@ def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseU
     return inner
 
 
+class PermittedPoolFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted pools for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Pool.pool.in_(self.value))
+
+
+def permitted_pool_filter_factory(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], PermittedPoolFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted pools for the user.
+
+    :param method: whether filter readable or writable.
+    """
+
+    def depends_permitted_pools_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedPoolFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_pools: set[str] = auth_manager.get_authorized_pools(user=user, method=method)
+        return PermittedPoolFilter(authorized_pools)
+
+    return depends_permitted_pools_filter
+
+
+ReadablePoolsFilterDep = Annotated[PermittedPoolFilter, Depends(permitted_pool_filter_factory("GET"))]
+
+
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
@@ -292,6 +322,38 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         )
 
     return inner
+
+
+class PermittedConnectionFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted connections for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Connection.conn_id.in_(self.value))
+
+
+def permitted_connection_filter_factory(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], PermittedConnectionFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted connections for the user.
+
+    :param method: whether filter readable or writable.
+    """
+
+    def depends_permitted_connections_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedConnectionFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_connections: set[str] = auth_manager.get_authorized_connections(user=user, method=method)
+        return PermittedConnectionFilter(authorized_connections)
+
+    return depends_permitted_connections_filter
+
+
+ReadableConnectionsFilterDep = Annotated[
+    PermittedConnectionFilter, Depends(permitted_connection_filter_factory("GET"))
+]
 
 
 def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
@@ -377,6 +439,38 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
         )
 
     return inner
+
+
+class PermittedVariableFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted variables for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Variable.key.in_(self.value))
+
+
+def permitted_variable_filter_factory(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], PermittedVariableFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted variables for the user.
+
+    :param method: whether filter readable or writable.
+    """
+
+    def depends_permitted_variables_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedVariableFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_variables: set[str] = auth_manager.get_authorized_variables(user=user, method=method)
+        return PermittedVariableFilter(authorized_variables)
+
+    return depends_permitted_variables_filter
+
+
+ReadableVariablesFilterDep = Annotated[
+    PermittedVariableFilter, Depends(permitted_variable_filter_factory("GET"))
+]
 
 
 def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
@@ -529,7 +623,7 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         return True
 
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 
         target_path = Path(parsed_target.path).resolve()
 

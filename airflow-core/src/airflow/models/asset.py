@@ -34,6 +34,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow._shared.timezones import timezone
@@ -47,6 +48,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models.trigger import Trigger
     from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 
@@ -134,14 +136,48 @@ asset_alias_asset_event_association_table = Table(
     Index("idx_asset_alias_asset_event_event_id", "event_id"),
 )
 
-asset_trigger_association_table = Table(
-    "asset_trigger",
-    Base.metadata,
-    Column("asset_id", ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
-    Column("trigger_id", ForeignKey("trigger.id", ondelete="CASCADE"), primary_key=True),
-    Index("idx_asset_trigger_asset_id", "asset_id"),
-    Index("idx_asset_trigger_trigger_id", "trigger_id"),
-)
+
+class AssetWatcherModel(Base):
+    """A table to store asset watchers."""
+
+    name = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    trigger_id = Column(Integer, primary_key=True, nullable=False)
+
+    asset = relationship("AssetModel", back_populates="watchers")
+    trigger = relationship("Trigger", back_populates="asset_watchers")
+
+    __tablename__ = "asset_watcher"
+    __table_args__ = (
+        PrimaryKeyConstraint(asset_id, trigger_id, name="asset_watcher_pkey"),
+        ForeignKeyConstraint(
+            columns=(asset_id,),
+            refcolumns=["asset.id"],
+            name="awm_asset_id_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            columns=(trigger_id,),
+            refcolumns=["trigger.id"],
+            name="awm_trigger_id_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_awm_trigger_id", trigger_id),
+    )
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name!r}, asset_id={self.asset_id!r}, trigger_id={self.trigger_id!r})"
 
 
 class AssetAliasModel(Base):
@@ -275,7 +311,8 @@ class AssetModel(Base):
     scheduled_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
     consuming_tasks = relationship("TaskInletAssetReference", back_populates="asset")
-    triggers = relationship("Trigger", secondary=asset_trigger_association_table, back_populates="assets")
+    watchers = relationship("AssetWatcherModel", back_populates="asset", cascade="all, delete, delete-orphan")
+    triggers = association_proxy("watchers", "trigger")
 
     __tablename__ = "asset"
     __table_args__ = (
@@ -320,6 +357,9 @@ class AssetModel(Base):
         from airflow.sdk.definitions.asset import Asset
 
         return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
+
+    def add_trigger(self, trigger: Trigger, watcher_name: str):
+        self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))
 
 
 class AssetActive(Base):

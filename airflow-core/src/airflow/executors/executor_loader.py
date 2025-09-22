@@ -199,6 +199,15 @@ class ExecutorLoader:
             # Split by comma to get the individual executor names and strip spaces off of them
             configs.append((team_name, [name.strip() for name in executor_names.split(",")]))
 
+        # Validate that at least one global executor exists
+        has_global_executor = any(team_name is None for team_name, _ in configs)
+        if not has_global_executor:
+            raise AirflowConfigException(
+                "At least one global executor must be configured. Current configuration only contains "
+                "team-based executors. Please add a global executor configuration (e.g., "
+                "'CeleryExecutor;team1=LocalExecutor' instead of 'team1=CeleryExecutor;team2=LocalExecutor')."
+            )
+
         return configs
 
     @classmethod

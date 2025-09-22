@@ -103,7 +103,7 @@ export const TaskLogHeader = ({
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val, ...rest] = value;
 
-      if ((val === undefined || val === "all") && rest.length === 0) {
+      if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
         searchParams.delete(SearchParamsKeys.LOG_LEVEL);
       } else {
         searchParams.delete(SearchParamsKeys.LOG_LEVEL);
@@ -120,7 +120,7 @@ export const TaskLogHeader = ({
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val, ...rest] = value;
 
-      if ((val === undefined || val === "all") && rest.length === 0) {
+      if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
         searchParams.delete(SearchParamsKeys.SOURCE);
       } else {
         searchParams.delete(SearchParamsKeys.SOURCE);
