@@ -150,6 +150,7 @@ experience is continuously improving, but defining workflows as code is central 
     Overview <self>
     start
     installation/index
+    installation/upgrading_to_airflow3
     security/index
     tutorial/index
     howto/index
