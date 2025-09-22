@@ -104,7 +104,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
 
   // Robust handler: supports Radix `CheckedState` or details object `{ checked }`
   const handleRunOnLatestVersionChange = (
-    arg: boolean | "indeterminate" | { checked: boolean | "indeterminate" }
+    arg: boolean | "indeterminate" | { checked: boolean | "indeterminate" },
   ) => {
     const next = typeof arg === "object" ? arg.checked : arg;
 
@@ -167,10 +167,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
             mt={3}
           >
             {shouldShowBundleVersionOption ? (
-              <Checkbox
-                checked={runOnLatestVersion}
-                onCheckedChange={handleRunOnLatestVersionChange}
-              >
+              <Checkbox checked={runOnLatestVersion} onCheckedChange={handleRunOnLatestVersionChange}>
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
             ) : undefined}
