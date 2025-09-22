@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package worker
+package worker_test
 
 import (
 	"context"
@@ -31,8 +31,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/api/mocks"
+	"github.com/apache/airflow/go-sdk/pkg/worker"
 )
 
 const ExecutionAPIServer = "http://localhost:9999/execution"
@@ -68,7 +70,8 @@ func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
 
 type WorkerSuite struct {
 	suite.Suite
-	worker    Worker
+	worker    worker.Worker
+	registry  bundlev1.Registry
 	client    *mocks.ClientInterface
 	ti        *mocks.TaskInstancesClient
 	transport *httpmock.MockTransport
@@ -82,13 +85,13 @@ func (s *WorkerSuite) SetupSuite() {
 	// Stop the test from writing log files
 	viper.Set("logging.task.stdout_only", "true")
 
-	s.worker = New(slog.New(slogt.Handler(s.T())))
+	s.registry = bundlev1.New()
+	s.worker = worker.NewWithBundle(s.registry, slog.New(slogt.Handler(s.T())))
 
 	s.transport = httpmock.NewMockTransport()
 	s.client = &mocks.ClientInterface{}
 	s.ti = &mocks.TaskInstancesClient{}
-	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
-	s.worker.(*worker).client = s.client
+	s.worker = s.worker.WithHeartbeatInterval(100 * time.Millisecond).WithClient(s.client)
 }
 
 func (s *WorkerSuite) TearDownSuite() {
@@ -96,20 +99,10 @@ func (s *WorkerSuite) TearDownSuite() {
 	s.client.AssertExpectations(s.T())
 }
 
-func (s *WorkerSuite) TestWithServer() {
-	s.T().Parallel()
-	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
-	iface, err := s.worker.WithServer("http://example.com")
-
-	s.Require().NoError(err)
-	w := iface.(*worker)
-	s.Equal(100*time.Millisecond, w.heartbeatInterval)
-	s.Equal(w.client.(*api.Client).BaseURL(), "http://example.com")
-}
-
 // ExpectTaskRun sets up  a matcher for the "/task-instances/{id}/run" end point and adds a finalize check
 // that it has been called
 func (s *WorkerSuite) ExpectTaskRun(taskId string) {
+	s.T().Helper()
 	s.ti.EXPECT().
 		Run(mock.Anything, uuid.MustParse(taskId), mock.Anything).
 		Return(&api.TIRunContext{}, nil)
@@ -118,6 +111,7 @@ func (s *WorkerSuite) ExpectTaskRun(taskId string) {
 
 // ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
 func (s *WorkerSuite) ExpectTaskState(taskId string, state api.TerminalTIState) {
+	s.T().Helper()
 	s.ti.EXPECT().
 		UpdateState(mock.AnythingOfType("context.backgroundCtx"), uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
 		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIUpdateStatePayload) error {
@@ -165,7 +159,7 @@ func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
 	wasCalled := false
 
 	// Register a task that should NOT be called if everything works
-	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
+	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
 		wasCalled = true
 		return nil
 	})
@@ -199,7 +193,7 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	id := uuid.New().String()
 	callCount := 0
 	testWorkload := newTestWorkLoad(id, id[:8])
-	s.worker.RegisterTaskWithName(testWorkload.TI.DagId, testWorkload.TI.TaskId, func() error {
+	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
 		time.Sleep(time.Second)
 		return nil
 	})
@@ -216,7 +210,6 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 		})
 	s.client.EXPECT().TaskInstances().Return(s.ti)
 
-	s.worker.(*worker).heartbeatInterval = 100 * time.Millisecond
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 

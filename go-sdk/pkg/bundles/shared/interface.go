@@ -15,35 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package cmd
+// Package shared contains shared data between the host and plugins.
+package shared
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
-	"github.com/apache/airflow/go-sdk/celery"
+	"github.com/hashicorp/go-plugin"
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Connect to Celery broker and run Airflow workloads",
-
-	RunE: func(cmd *cobra.Command, args []string) error {
-		var config celery.Config
-
-		viper.BindPFlags(cmd.Flags())
-
-		err := viper.Unmarshal(&config)
-		cobra.CheckErr(err)
-
-		return celery.Run(cmd.Context(), config)
-	},
-}
-
-func init() {
-	runCmd.Flags().StringP("broker-address", "b", "", "Celery Broker host:port to connect to")
-	runCmd.Flags().
-		StringP("execution-api-url", "e", "http://localhost:8080/execution/", "Execution API to connect to")
-	runCmd.Flags().StringSliceP("queues", "q", []string{"default"}, "Celery queues to listen on")
-	runCmd.MarkFlagRequired("broker-address")
+// Handshake is a common handshake that is shared by plugin and host.
+var Handshake = plugin.HandshakeConfig{
+	ProtocolVersion: 1,
+	MagicCookieKey:  "AIRFLOW_BUNDLE_MAGIC_COOKIE",
+	// This value has no particular meaning, it was just a random uuid
+	MagicCookieValue: "23C6AB18-91F9-4760-B3E8-328EF3C861AB",
 }

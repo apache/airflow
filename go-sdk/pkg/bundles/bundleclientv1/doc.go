@@ -15,11 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package celery
-
-type Config struct {
-	BrokerAddr    string   `mapstructure:"broker_address"`
-	Port          int      `mapstructure:"port"`
-	Queues        []string `mapstructure:"queues"`
-	BundlesFolder string   `mapstructure:"bundles-folder"`
-}
+// Package bundleclientv1 implements the worker-side Client to speak to providers
+package bundleclientv1
