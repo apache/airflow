@@ -65,6 +65,8 @@ def lineage_run_id(task_instance: TaskInstance):
         try_number=task_instance.try_number,
         logical_date=_get_logical_date(task_instance),
         map_index=task_instance.map_index,
+        # Airflow 3.0+
+        task_instance_id=getattr(task_instance, "id", None),
     )
 
 
