@@ -30,7 +30,7 @@ from copy import copy
 from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
@@ -367,16 +367,35 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         if not active_dag_ids:
             return []
 
-        # Get triggers for active DAGs, ordered by priority
-        stmt = (
-            select(Trigger)
-            .join(TaskInstance, TaskInstance.trigger_id == Trigger.id)
+        # First, get the trigger IDs with their priority weights
+        trigger_id_query = (
+            select(
+                Trigger.id,
+                func.coalesce(TaskInstance.priority_weight, 0).label("priority_weight"),
+                Trigger.created_date,
+            )
+            .join(TaskInstance, TaskInstance.trigger_id == Trigger.id, isouter=True)
             .where(and_(Trigger.triggerer_id == self.job.id, TaskInstance.dag_id.in_(active_dag_ids)))
-            .order_by(Trigger.priority_weight.desc(), Trigger.created_date)
+            .order_by(func.coalesce(TaskInstance.priority_weight, 0).desc(), Trigger.created_date)
             .limit(count)
         )
 
-        return session.scalars(stmt).all()
+        # Execute the query to get the trigger IDs
+        trigger_rows = session.execute(trigger_id_query).all()
+        if not trigger_rows:
+            return []
+
+        # Extract the trigger IDs
+        trigger_ids = [row[0] for row in trigger_rows]
+
+        # Now fetch the full trigger objects in a separate query
+        # Create a case statement to preserve the original order
+        whens = {trigger_id: index for index, trigger_id in enumerate(trigger_ids)}
+        order_by_case = case(whens, value=Trigger.id)
+
+        triggers = session.query(Trigger).filter(Trigger.id.in_(trigger_ids)).order_by(order_by_case).all()
+
+        return triggers
 
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")

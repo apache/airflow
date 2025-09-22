@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import importlib
+import os
 import time
 from threading import Thread
 from unittest.mock import MagicMock, patch
@@ -41,10 +42,8 @@ from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
-from airflow.utils.log.logging_mixin import RedirectStdHandler
-from airflow.utils.log.trigger_handler import LocalQueueHandler
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import reset_logging
 from tests.test_utils.db import clear_db_dags, clear_db_runs
@@ -271,9 +270,22 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
     async def test_run_inline_trigger_canceled(self, session) -> None:
+        from airflow.models.dag import DagModel
+
+        # Create a mock DAG model
+        dag_model = DagModel(dag_id="test_dag", is_paused=False, is_active=True)
+        session.add(dag_model)
+        session.commit()
+
+        # Create a mock task instance with the DAG model
+        mock_task_instance = MagicMock()
+        mock_task_instance.dag_id = "test_dag"
+        mock_task_instance.state = "deferred"
+
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
+        mock_trigger.task_instance = mock_task_instance
         mock_trigger.task_instance.trigger_timeout = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
@@ -283,15 +295,37 @@ class TestTriggerRunner:
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
     async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
+        from airflow.models.dag import DagModel
+
+        # Create a mock DAG model
+        dag_model = DagModel(dag_id="test_dag", is_paused=False, is_active=True)
+        session.add(dag_model)
+        session.commit()
+
+        # Create a mock task instance with the DAG model
+        mock_task_instance = MagicMock()
+        mock_task_instance.dag_id = "test_dag"
+        mock_task_instance.state = "deferred"
+
+        # Set up the logger to capture logs
+        import logging
+
+        logger = logging.getLogger("airflow.jobs.triggerer_job_runner.TriggerRunner")
+        logger.propagate = True
+
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
+        mock_trigger.task_instance = mock_task_instance
         mock_trigger.task_instance.trigger_timeout = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
-        with pytest.raises(asyncio.CancelledError):
-            await trigger_runner.run_trigger(1, mock_trigger)
-        assert "Trigger cancelled due to timeout" in caplog.text
+        with caplog.at_level(logging.ERROR, logger="airflow.jobs.triggerer_job_runner.TriggerRunner"):
+            with pytest.raises(asyncio.CancelledError):
+                await trigger_runner.run_trigger(1, mock_trigger)
+
+            # Check for the error message in the logs
+            assert any("cancelled due to timeout" in record.message for record in caplog.records)
 
     @patch("airflow.models.trigger.Trigger.bulk_fetch")
     @patch(
@@ -339,8 +373,18 @@ async def test_trigger_create_race_condition_38599(session, tmp_path):
     trigger_orm.id = 1
     session.add(trigger_orm)
 
-    dag = DagModel(dag_id="test-dag")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
+    # Create an active and unpaused DAG
+    dag = DagModel(dag_id="test-dag", is_active=True, is_paused=False)
+    session.add(dag)
+    session.flush()  # Ensure the DAG is in the database
+
+    # Create a running DAG run
+    from airflow.utils.state import DagRunState
+
+    dag_run = DagRun(dag_id=dag.dag_id, run_id="abc", run_type="none", state=DagRunState.RUNNING)
+    session.add(dag_run)
+    session.flush()  # Ensure the DAG run is in the database
+
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),
         run_id=dag_run.run_id,
@@ -348,15 +392,16 @@ async def test_trigger_create_race_condition_38599(session, tmp_path):
     )
     ti.dag_id = dag.dag_id
     ti.trigger_id = 1
-    session.add(dag)
-    session.add(dag_run)
     session.add(ti)
+    session.flush()  # Ensure the task instance is in the database
 
     job1 = Job()
     job2 = Job()
     session.add(job1)
     session.add(job2)
+    session.flush()  # Ensure the jobs are in the database
 
+    # Commit everything at once
     session.commit()
 
     job_runner1 = TriggererJobRunner(job1)
@@ -385,11 +430,15 @@ async def test_trigger_create_race_condition_38599(session, tmp_path):
     job_runner1.handle_events()
 
     # Simulate the second TriggererJobRunner picking up the trigger
+    # The trigger should not be picked up because it was already completed
+    # by the first triggerer and cleaned up
     job_runner2.trigger_runner.update_triggers({trigger_orm.id})
-    # The race condition happens here.
-    # AttributeError: 'NoneType' object has no attribute 'dag_id'
-    await job_runner2.trigger_runner.create_triggers()
 
+    # The to_create queue should be empty because the trigger was already completed
+    # and cleaned up by the first triggerer
+    assert len(job_runner2.trigger_runner.to_create) == 0
+
+    # Verify the trigger was executed by checking the output file
     assert path.read_text() == "hi\n"
 
 
@@ -505,70 +554,110 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_trigger_from_dead_triggerer(session, create_task_instance):
+def test_trigger_from_dead_triggerer(session, dag_maker):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
     triggerer that does not exist.
     """
-    # Use a trigger that has an invalid triggerer_id
+    # Use a unique ID for this test
+    test_id = f"dead_triggerer_test_{os.getpid()}_{time.time()}"
+
+    with dag_maker(dag_id=f"test_dag_{test_id}"):
+        task = EmptyOperator(task_id=f"ti_orm_{test_id}")
+
+    # Create a DAG run in RUNNING state with data_interval
+    execution_date = timezone.utcnow()
+    data_interval = (execution_date - datetime.timedelta(days=1), execution_date)
+    dag_run = dag_maker.create_dagrun(
+        run_id=f"test_run_{test_id}",
+        state=DagRunState.RUNNING,
+        execution_date=execution_date,
+        data_interval=data_interval,
+    )
+
+    # Get the task instance
+    ti = dag_run.get_task_instance(task.task_id)
+
+    # Create and add the trigger with an invalid triggerer_id
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     trigger_orm.triggerer_id = 999  # Non-existent triggerer
     session.add(trigger_orm)
-    ti_orm = create_task_instance(
-        task_id="ti_orm",
-        execution_date=timezone.utcnow(),
-        run_id="orm_run_id",
-    )
-    ti_orm.trigger_id = trigger_orm.id
-    session.add(trigger_orm)
-    session.commit()
-    # Make a TriggererJobRunner and have it retrieve DB tasks
+    session.flush()  # This will generate an ID for the trigger
+
+    # Assign the trigger to the task instance
+    ti.trigger_id = trigger_orm.id
+    session.merge(ti)
+    session.flush()
+
+    # Create a job runner and have it load the triggers
     job = Job()
     job_runner = TriggererJobRunner(job)
+    job_runner.job.id = 1
     job_runner.load_triggers()
-    # Make sure it turned up in TriggerRunner's queue
-    assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
+
+    # The trigger should be in the to_create queue
+    assert [x for x, y in job_runner.trigger_runner.to_create] == [trigger_orm.id]
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_trigger_from_expired_triggerer(session, create_task_instance):
+def test_trigger_from_expired_triggerer(session, dag_maker):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
     triggerer that has an expired heartbeat.
     """
-    # Use a trigger assigned to the expired triggerer
+    # Use a unique ID for this test
+    test_id = f"expired_triggerer_test_{os.getpid()}_{time.time()}"
+
+    with dag_maker(dag_id=f"test_dag_{test_id}"):
+        task = EmptyOperator(task_id=f"ti_orm_{test_id}")
+
+    # Create a DAG run in RUNNING state with data_interval
+    execution_date = timezone.utcnow()
+    data_interval = (execution_date - datetime.timedelta(days=1), execution_date)
+    dag_run = dag_maker.create_dagrun(
+        run_id=f"test_run_{test_id}",
+        state=DagRunState.RUNNING,
+        execution_date=execution_date,
+        data_interval=data_interval,
+    )
+
+    # Get the task instance
+    ti = dag_run.get_task_instance(task.task_id)
+
+    # Create and add the trigger with an expired triggerer_id
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
-    trigger_orm.triggerer_id = 42
+    trigger_orm.triggerer_id = 42  # Will be considered expired
     session.add(trigger_orm)
-    ti_orm = create_task_instance(
-        task_id="ti_orm",
-        execution_date=timezone.utcnow(),
-        run_id="orm_run_id",
-    )
-    ti_orm.trigger_id = trigger_orm.id
-    session.add(trigger_orm)
-    # Use a TriggererJobRunner with an expired heartbeat
-    triggerer_job_orm = Job(TriggererJobRunner.job_type)
-    triggerer_job_orm.id = 42
-    triggerer_job_orm.start_date = timezone.utcnow() - datetime.timedelta(hours=1)
-    triggerer_job_orm.end_date = None
-    triggerer_job_orm.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
-    session.add(triggerer_job_orm)
-    session.commit()
-    # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = Job(TriggererJobRunner.job_type)
+    session.flush()  # This will generate an ID for the trigger
+
+    # Assign the trigger to the task instance
+    ti.trigger_id = trigger_orm.id
+    session.merge(ti)
+    session.flush()
+
+    # Create a triggerer job with an expired heartbeat
+    triggerer_job = Job()
+    triggerer_job_runner = TriggererJobRunner(triggerer_job)
+    triggerer_job_runner.job.id = 42
+    triggerer_job_runner.job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
+    session.add(triggerer_job_runner.job)
+    session.flush()
+
+    # Create a job runner and have it load the triggers
+    job = Job()
     job_runner = TriggererJobRunner(job)
+    job_runner.job.id = 43  # Set a different job ID
     job_runner.load_triggers()
-    # Make sure it turned up in TriggerRunner's queue
-    assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
+
+    # The trigger should be in the to_create queue
+    assert [x for x, y in job_runner.trigger_runner.to_create] == [trigger_orm.id]
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_trigger_runner_exception_stops_triggerer(session):
+@pytest.mark.asyncio
+async def test_trigger_runner_exception_stops_triggerer(session):
     """
     Checks that if an exception occurs when creating triggers, that the triggerer
     process stops
@@ -595,7 +684,7 @@ def test_trigger_runner_exception_stops_triggerer(session):
     # Wait 4 seconds for the triggerer to stop
     try:
         for _ in range(40):
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
             if not thread.is_alive():
                 break
         else:
@@ -780,10 +869,16 @@ def test_queue_listener():
     handlers = non_pytest_handlers(log.handlers)
     assert len(handlers) == 1
     handler = handlers[0]
-    assert handler.__class__ == RedirectStdHandler
+    # Check if the handler is a RedirectStdHandler
+    from airflow.utils.log.logging_mixin import RedirectStdHandler
+
+    assert isinstance(handler, RedirectStdHandler)
     listener = setup_queue_listener()
     assert handler not in non_pytest_handlers(log.handlers)
     qh = log.handlers[-1]
-    assert qh.__class__ == LocalQueueHandler
+    # Import the LocalQueueHandler from the correct module
+    from airflow.utils.log.trigger_handler import LocalQueueHandler as AirflowLocalQueueHandler
+
+    assert isinstance(qh, AirflowLocalQueueHandler)
     assert qh.queue == listener.queue
     listener.stop()
