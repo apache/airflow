@@ -141,6 +141,41 @@ class TaskInstancesBatchBody(StrictBaseModel):
     order_by: str | None = None
 
 
+class HITLUser(BaseModel):
+    """Schema for a Human-in-the-loop users."""
+
+    id: str
+    name: str
+
+
+class HITLDetailHisotry(BaseModel):
+    """Schema for Human-in-the-loop detail hisotry."""
+
+    # User Request Detail
+    options: list[str] = Field(min_length=1)
+    subject: str
+    body: str | None = None
+    defaults: list[str] | None = None
+    multiple: bool = False
+    params: dict[str, Any] = Field(default_factory=dict)
+    assigned_users: list[HITLUser] = Field(default_factory=list)
+    created_at: datetime
+
+    # Response Content Detail
+    responded_by_user: HITLUser | None = None
+    responded_at: datetime | None = None
+    chosen_options: list[str] | None = None
+    params_input: dict[str, Any] = Field(default_factory=dict)
+
+    response_received: bool = False
+
+    @field_validator("params", mode="before")
+    @classmethod
+    def get_params(cls, params: dict[str, Any]) -> dict[str, Any]:
+        """Convert params attribute to dict representation."""
+        return {k: v.dump() if getattr(v, "dump", None) else v for k, v in params.items()}
+
+
 class TaskInstanceHistoryResponse(BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
@@ -173,6 +208,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
+    hitl_detail: HITLDetailHisotry | None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

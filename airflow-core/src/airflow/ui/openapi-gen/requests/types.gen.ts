@@ -971,6 +971,29 @@ export type HITLDetailCollection = {
 };
 
 /**
+ * Schema for Human-in-the-loop detail hisotry.
+ */
+export type HITLDetailHisotry = {
+    options: Array<(string)>;
+    subject: string;
+    body?: string | null;
+    defaults?: Array<(string)> | null;
+    multiple?: boolean;
+    params?: {
+        [key: string]: unknown;
+    };
+    assigned_users?: Array<HITLUser>;
+    created_at: string;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
+    chosen_options?: Array<(string)> | null;
+    params_input?: {
+        [key: string]: unknown;
+    };
+    response_received?: boolean;
+};
+
+/**
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
@@ -1327,6 +1350,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    hitl_detail: HITLDetailHisotry | null;
 };
 
 /**
