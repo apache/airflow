@@ -1455,7 +1455,7 @@
             "additionalProperties": false,
             "properties": {
                 "enabled": {
-                    "description": "Enable SQLite shared mode (default: false for backward compatibility)",
+                    "description": "Enable SQLite shared mode",
                     "type": "boolean",
                     "default": true
                 },
@@ -8973,54 +8973,6 @@
                     ],
                     "default": null,
                     "x-docsSection": null
-                }
-            }
-        },
-        "postgresql": {
-            "description": "Configuration for PostgreSQL subchart.",
-            "type": "object",
-            "x-docsSection": "Database",
-            "properties": {
-                "enabled": {
-                    "description": "Enable PostgreSQL subchart.",
-                    "type": "boolean",
-                    "default": false
-                },
-                "auth": {
-                    "description": "PostgreSQL authentication values.",
-                    "type": "object",
-                    "additionalProperties": true,
-                    "properties": {
-                        "enablePostgresUser": {
-                            "description": "Assign a password to the 'postgres' admin user. Otherwise, remote access will be blocked for this user",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "postgresPassword": {
-                            "description": "Password for the 'postgres' admin user.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": "postgres"
-                        },
-                        "username": {
-                            "description": "Name for a custom user to create",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": ""
-                        },
-                        "password": {
-                            "description": "Password for the custom user to create.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": ""
-                        }
-                    }
                 }
             }
         },
