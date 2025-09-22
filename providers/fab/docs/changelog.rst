@@ -20,6 +20,28 @@
 Changelog
 ---------
 
+2.4.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Clean up FAB permissions when deleting DAGs (#54528)``
+
+Misc
+~~~~
+
+* ``Bump stylelint from 16.23.1 to 16.24.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#55382)``
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Set flask_limiter>3,<4,!=3.13 (#55592)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#55302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.4.2
 .....
 

@@ -300,7 +300,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     )
 
 
-def _get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
+def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
     """
     Return DAG of a given dag_id.
 
@@ -321,7 +321,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
 
     if not use_regex:
         if from_db:
-            return [_get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
+            return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):

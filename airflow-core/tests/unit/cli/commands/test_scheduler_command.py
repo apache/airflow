@@ -70,8 +70,7 @@ class TestSchedulerCommand:
         with conf_vars({("core", "executor"): executor}):
             reload(executor_loader)
             scheduler_command.scheduler(args)
-            with pytest.raises(AssertionError):
-                mock_process.assert_has_calls([mock.call(target=serve_logs)])
+            assert mock_process.call_count == 0
 
     @mock.patch("airflow.utils.db.check_and_run_migrations")
     @mock.patch("airflow.utils.db.synchronize_log_template")

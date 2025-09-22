@@ -78,7 +78,7 @@ def upsert_hitl_detail(
         # Cleanup the response part of HITLDetail as we only store one response for one task instance.
         # It normally happens after retry, we keep only the latest response.
         hitl_detail_model.responded_by = None
-        hitl_detail_model.response_at = None
+        hitl_detail_model.responded_at = None
         hitl_detail_model.chosen_options = None
         hitl_detail_model.params_input = {}
         session.add(hitl_detail_model)
@@ -117,7 +117,7 @@ def update_hitl_detail(
         )
 
     hitl_detail_model.responded_by = None
-    hitl_detail_model.response_at = datetime.now(timezone.utc)
+    hitl_detail_model.responded_at = datetime.now(timezone.utc)
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input
     session.add(hitl_detail_model)

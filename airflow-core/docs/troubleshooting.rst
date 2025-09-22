@@ -36,16 +36,26 @@ Below are some example scenarios that could cause a task's state to change by a 
 - A user marked the task as successful or failed in the Airflow UI.
 - An external script or process used the :doc:`Airflow REST API <stable-rest-api-ref>` to change the state of a task.
 
-TaskRunner killed
------------------
+Process terminated by signal
+----------------------------
 
 Sometimes, Airflow or some adjacent system will kill a task instance's ``TaskRunner``, causing the task instance to fail.
 
-Here are some examples that could cause such an event:
+Below we discuss a few common cases.
 
-- A Dag run timeout, specified by ``dagrun_timeout`` in the Dag's definition.
-- An Airflow worker running out of memory
-  - Usually, Airflow workers that run out of memory receive a SIGKILL, and the scheduler will fail the corresponding task instance for not having a heartbeat. However, in some scenarios, Airflow kills the task before that happens.
+Dag run timeout
+"""""""""""""""
+
+A dag run timeout can be specified by ``dagrun_timeout`` in the dag's definition.
+The task process would likely be killed with SIGTERM (exit code -15).
+
+Out of memory error (OOM)
+"""""""""""""""""""""""""
+
+When a task process consumes too much memory for a worker, the best case scenario is it is killed
+with SIGKILL (exit code -9). Depending on configuration and infrastructure, it is also
+possible that the whole worker will be killed due to OOM and then the tasks would be marked as
+failed after failing to heartbeat.
 
 Lingering task supervisor processes
 -----------------------------------

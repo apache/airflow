@@ -25,6 +25,21 @@
 Changelog
 ---------
 
+1.28.1
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: rows_processor in SQLInsertRowsOperator (#55290)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch all airflow logging to structlog (#52651)``
+
 1.28.0
 ......
 

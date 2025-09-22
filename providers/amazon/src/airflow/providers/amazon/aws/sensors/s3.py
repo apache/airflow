@@ -122,8 +122,19 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         """
         if self.wildcard_match:
             prefix = re.split(r"[\[*?]", key, 1)[0]
-            keys = self.hook.get_file_metadata(prefix, bucket_name)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+
+            key_matches: list[str] = []
+
+            # Is check_fn is None, then we can return True without having to iterate through each value in
+            # yielded by iter_file_metadata. Otherwise, we'll check for a match, and add all matches to the
+            # key_matches list
+            for k in self.hook.iter_file_metadata(prefix, bucket_name):
+                if fnmatch.fnmatch(k["Key"], key):
+                    if self.check_fn is None:
+                        # This will only wait for a single match, and will immediately return
+                        return True
+                    key_matches.append(k)
+
             if not key_matches:
                 return False
 
@@ -132,21 +143,23 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
             for f in key_matches:
                 metadata = {}
                 if "*" in self.metadata_keys:
-                    metadata = self.hook.head_object(f["Key"], bucket_name)
+                    metadata = self.hook.head_object(f["Key"], bucket_name)  # type: ignore[index]
                 else:
-                    for key in self.metadata_keys:
+                    for mk in self.metadata_keys:
                         try:
-                            metadata[key] = f[key]
+                            metadata[mk] = f[mk]  # type: ignore[index]
                         except KeyError:
                             # supplied key might be from head_object response
-                            self.log.info("Key %s not found in response, performing head_object", key)
-                            metadata[key] = self.hook.head_object(f["Key"], bucket_name).get(key, None)
+                            self.log.info("Key %s not found in response, performing head_object", mk)
+                            metadata[mk] = self.hook.head_object(f["Key"], bucket_name).get(mk, None)  # type: ignore[index]
                 files.append(metadata)
+
         elif self.use_regex:
-            keys = self.hook.get_file_metadata("", bucket_name)
-            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
-            if not key_matches:
-                return False
+            for k in self.hook.iter_file_metadata("", bucket_name):
+                if re.match(pattern=key, string=k["Key"]):
+                    return True
+            return False
+
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:

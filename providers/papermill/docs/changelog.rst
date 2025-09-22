@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.11.3
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Misc
+~~~~
+
+* ``Bump mypy to 1.18.1 (#55596)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Switch pre-commit to prek (#54258)``
+
 3.11.2
 ......
 

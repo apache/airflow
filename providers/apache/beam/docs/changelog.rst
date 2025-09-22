@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+6.1.5
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``disable links for beam provider operators using runner (#55248)``
+* ``Fix dataflow java streaming infinite run (#55209)``
+* ``remove the 'provide_authorized_glcoud' from BeamPipeline operators (#55453)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.1.4
 .....
 

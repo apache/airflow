@@ -85,13 +85,32 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
 
 
 def configure_logging():
-    from airflow._shared.logging import configure_logging, init_log_folder
+    from airflow._shared.logging import configure_logging, init_log_folder, translate_config_values
 
     logging_config, logging_class_path = load_logging_config()
     try:
-        level: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
+        level: str = getattr(
+            logging_config, "LOG_LEVEL", conf.get("logging", "logging_level", fallback="INFO")
+        ).upper()
+
+        colors = getattr(
+            logging_config,
+            "COLORED_LOG",
+            conf.getboolean("logging", "colored_console_log", fallback=True),
+        )
         # Try to init logging
-        configure_logging(log_level=level, stdlib_config=logging_config)
+
+        log_fmt, callsite_params = translate_config_values(
+            log_format=getattr(logging_config, "LOG_FORMAT", conf.get("logging", "log_format", fallback="")),
+            callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
+        )
+        configure_logging(
+            log_level=level,
+            stdlib_config=logging_config,
+            log_format=log_fmt,
+            callsite_parameters=callsite_params,
+            colors=colors,
+        )
     except (ValueError, KeyError) as e:
         log.error("Unable to load the config, contains a configuration error.")
         # When there is an error in the config, escalate the exception

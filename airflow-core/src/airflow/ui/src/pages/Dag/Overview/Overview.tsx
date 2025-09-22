@@ -35,6 +35,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -75,9 +76,14 @@ export const Overview = () => {
     timestampLte: endDate,
   });
 
+  const refetchInterval = useAutoRefresh({});
+
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton dagId={dagId} />
+      <NeedsReviewButton
+        dagId={dagId}
+        refreshInterval={gridRuns?.some((dr) => isStatePending(dr.state)) ? refetchInterval : false}
+      />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}

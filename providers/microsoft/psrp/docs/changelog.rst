@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.1.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Switch pre-commit to prek (#54258)``
+
 3.1.2
 .....
 

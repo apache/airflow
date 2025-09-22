@@ -32,6 +32,7 @@ from alembic import op
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text
 from sqlalchemy.dialects import postgresql
 
+from airflow._shared.timezones import timezone
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -60,7 +61,8 @@ def upgrade():
         Column("multiple", Boolean, unique=False, default=False),
         Column("params", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
         Column("assignees", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-        Column("response_at", UtcDateTime, nullable=True),
+        Column("created_at", UtcDateTime(timezone=True), nullable=False, default=timezone.utcnow),
+        Column("responded_at", UtcDateTime, nullable=True),
         Column("responded_by", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("chosen_options", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
         Column("params_input", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),

@@ -34,7 +34,7 @@ PROJECT BY THE `generate-pypi-readme` PREK HOOK. YOUR CHANGES HERE WILL BE AUTOM
 | Version | Build Status                                                                                                                                                                                                                                                                                                            |
 |---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Main    | [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg)](https://github.com/apache/airflow/actions) [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg)](https://github.com/apache/airflow/actions)                                 |
-| 3.x     | [![GitHub Build 3.0](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-0-test)](https://github.com/apache/airflow/actions) [![GitHub Build 3.0](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg?branch=v3-0-test)](https://github.com/apache/airflow/actions) |
+| 3.x     | [![GitHub Build 3.1](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-1-test)](https://github.com/apache/airflow/actions) [![GitHub Build 3.1](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg?branch=v3-1-test)](https://github.com/apache/airflow/actions) |
 | 2.x     | [![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)                                                                                                                                                               |
 
 
@@ -56,14 +56,14 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)     | Stable version (3.0.6) |
-|------------|------------------------|------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13 | 3.9, 3.10, 3.11, 3.12  |
-| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
-| Kubernetes | 1.30, 1.31, 1.32, 1.33 | 1.30, 1.31, 1.32, 1.33 |
-| PostgreSQL | 13, 14, 15, 16, 17     | 13, 14, 15, 16, 17     |
-| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation   |
-| SQLite     | 3.15.0+                | 3.15.0+                |
+|            | Main version (dev)           | Stable version (3.0.6) |
+|------------|------------------------------|------------------------|
+| Python     | 3.10, 3.11, 3.12, 3.13       | 3.9, 3.10, 3.11, 3.12  |
+| Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
+| Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34 | 1.30, 1.31, 1.32, 1.33 |
+| PostgreSQL | 13, 14, 15, 16, 17           | 13, 14, 15, 16, 17     |
+| MySQL      | 8.0, 8.4, Innovation         | 8.0, 8.4, Innovation   |
+| SQLite     | 3.15.0+                      | 3.15.0+                |
 
 \* Experimental
 

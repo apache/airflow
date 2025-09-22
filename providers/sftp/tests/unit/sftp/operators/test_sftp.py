@@ -389,7 +389,7 @@ class TestSFTPOperator:
         assert task_3.sftp_hook.remote_host == "remotehost"
 
     def test_unequal_local_remote_file_paths(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="1 paths in local_filepath != 2 paths in remote_filepath"):
             SFTPOperator(
                 task_id="test_sftp_unequal_paths",
                 local_filepath="/tmp/test",

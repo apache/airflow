@@ -172,8 +172,19 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     It extends airflow FileTaskHandler and uploads to and reads from S3 remote storage.
     """
 
-    def __init__(self, base_log_folder: str, s3_log_folder: str, **kwargs):
-        super().__init__(base_log_folder)
+    def __init__(
+        self,
+        base_log_folder: str,
+        s3_log_folder: str,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+        **kwargs,
+    ) -> None:
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.handler: logging.FileHandler | None = None
         self.remote_base = s3_log_folder
         self.log_relative_path = ""

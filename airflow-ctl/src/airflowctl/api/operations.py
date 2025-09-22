@@ -243,6 +243,9 @@ class AssetsOperations(BaseOperations):
     ) -> AssetEventResponse | ServerResponseError:
         """Create an asset event."""
         try:
+            # Ensure extra is initialised before sent to API
+            if asset_event_body.extra is None:
+                asset_event_body.extra = {}
             self.response = self.client.post(
                 "assets/events", json=_date_safe_dict_from_pydantic(asset_event_body)
             )
@@ -309,7 +312,7 @@ class AssetsOperations(BaseOperations):
             raise e
 
 
-class BackfillsOperations(BaseOperations):
+class BackfillOperations(BaseOperations):
     """Backfill operations."""
 
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
@@ -465,8 +468,8 @@ class ConnectionsOperations(BaseOperations):
             raise e
 
 
-class DagOperations(BaseOperations):
-    """Dag operations."""
+class DagsOperations(BaseOperations):
+    """Dags operations."""
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
         """Get a DAG."""

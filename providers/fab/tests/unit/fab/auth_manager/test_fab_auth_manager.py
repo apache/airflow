@@ -686,6 +686,12 @@ class TestFabAuthManager:
         result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
         assert result == expected_result
 
+    def test_get_authorized_connections(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["conn1", "conn2"]
+        result = auth_manager.get_authorized_connections(user=Mock(), method="GET", session=session)
+        assert result == {"conn1", "conn2"}
+
     @pytest.mark.parametrize(
         "method, user_permissions, expected_results",
         [
@@ -777,6 +783,18 @@ class TestFabAuthManager:
         assert results == expected_results
 
         delete_user(flask_app, "username")
+
+    def test_get_authorized_pools(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["pool1", "pool2"]
+        result = auth_manager.get_authorized_pools(user=Mock(), method="GET", session=session)
+        assert result == {"pool1", "pool2"}
+
+    def test_get_authorized_variables(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["var1", "var2"]
+        result = auth_manager.get_authorized_variables(user=Mock(), method="GET", session=session)
+        assert result == {"var1", "var2"}
 
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)

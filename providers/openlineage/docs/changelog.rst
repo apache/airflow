@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+2.7.1
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: prevent user facets from overriding OL facets (#55765)``
+
+Misc
+~~~~
+
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Decouple secrets_masker project from airflow configuration (#55259)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.7.0
 .....
 

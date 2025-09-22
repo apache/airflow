@@ -401,7 +401,9 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        _, callback = dag_run.update_state()
+        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+            _, callback = dag_run.update_state()
+        assert handle_dag_callback.mock_calls == [mock.call(dag=dag, success=True, reason="success")]
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
@@ -426,7 +428,9 @@ class TestDagRun:
         dag_task1.set_downstream(dag_task2)
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        _, callback = dag_run.update_state()
+        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+            _, callback = dag_run.update_state()
+        assert handle_dag_callback.mock_calls == [mock.call(dag=dag, success=False, reason="task_failure")]
         assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
@@ -790,8 +794,7 @@ class TestDagRun:
             schedule=datetime.timedelta(days=1),
             start_date=timezone.datetime(2017, 1, 1),
         ) as dag:
-            ...
-        ShortCircuitOperator(task_id="test_short_circuit_false", dag=dag, python_callable=lambda: False)
+            ShortCircuitOperator(task_id="test_short_circuit_false", python_callable=lambda: False)
 
         now = timezone.utcnow()
 
@@ -1282,7 +1285,9 @@ class TestDagRun:
         dag_run = session.merge(dag_run)
         dag_run.dag = dag
 
-        _, callback = dag_run.update_state()
+        with mock.patch.object(dag_run, "handle_dag_callback") as handle_dag_callback:
+            _, callback = dag_run.update_state()
+        assert handle_dag_callback.mock_calls == [mock.call(dag=dag, success=True, reason="success")]
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None

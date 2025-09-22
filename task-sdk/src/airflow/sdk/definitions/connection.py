@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from json import JSONDecodeError
@@ -203,6 +204,24 @@ class Connection:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
             cls._handle_connection_error(e, conn_id)
+        except RuntimeError as e:
+            # The error from async_to_sync is a RuntimeError, so we have to fall back to text matching
+            if str(e).startswith("You cannot use AsyncToSync in the same thread as an async event loop"):
+                import greenback
+
+                task = asyncio.current_task()
+                if greenback.has_portal(task):
+                    import warnings
+
+                    warnings.warn(
+                        "You should not use sync calls here -- use `await Conn.async_get` instead",
+                        stacklevel=2,
+                    )
+
+                    return greenback.await_(cls.async_get(conn_id))
+
+            log.exception("async_to_sync failed")
+            raise
 
     @classmethod
     async def async_get(cls, conn_id: str) -> Any:

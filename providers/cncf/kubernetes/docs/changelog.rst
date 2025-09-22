@@ -28,6 +28,30 @@ Changelog
 ---------
 
 
+10.8.1
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#50803)``
+* ``Add more error handling in pod_manager consume_logs (#55479)``
+* ``Add more robust check of the container statuses (#55371)``
+* ``Fix circular import in version_compat (#55809)``
+
+Misc
+~~~~
+
+* ``Move the KubernetesPodOperator 'convert_config_file_to_dict' call (#55064)``
+* ``Fix kpo log_events_on_failure logs warnings at warning level (#54967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch all airflow logging to structlog (#52651)``
+
 10.8.0
 ......
 

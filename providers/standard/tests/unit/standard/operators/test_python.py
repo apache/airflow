@@ -985,9 +985,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(ValueError) as info:
+        with pytest.raises(
+            ValueError, match="PythonVirtualenvOperator only supports functions for python_callable arg"
+        ):
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
-        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):
@@ -1689,12 +1690,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             system_site_packages=False,
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=rf"Invalid requirement '{invalid_requirement}'"):
             # Consume the generator to trigger parsing
             list(op._iter_serializable_context_keys())
-
-        msg = str(exc_info.value)
-        assert f"Invalid requirement '{invalid_requirement}'" in msg
 
     @mock.patch("airflow.providers.standard.operators.python.PythonVirtualenvOperator._prepare_venv")
     @mock.patch(

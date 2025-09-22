@@ -28,6 +28,26 @@
 Changelog
 ---------
 
+4.4.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: use merged headers in LivyAsyncHook API call (#55072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+   * ``Conn docs extra fix (#53942)``
+
 4.4.2
 .....
 

@@ -111,6 +111,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
     "3.1.0": "eaf332f43c7c",
+    "3.2.0": "15d84ca19038",
 }
 
 
@@ -1253,6 +1254,14 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             "FAB migration version %s matches known version from 1.4.0. "
             "FAB provider is not required for downgrade.",
             fab_version,
+        )
+        return
+    connection = settings.engine.connect()
+    insp = inspect(connection)
+    if not fab_version and insp.has_table("ab_user"):
+        log.info(
+            "FAB migration version not found, but FAB tables exist. "
+            "FAB provider is not required for downgrade.",
         )
         return
 

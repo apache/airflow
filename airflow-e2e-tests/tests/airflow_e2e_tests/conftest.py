@@ -73,6 +73,8 @@ def spin_up_airflow_environment(tmp_path_factory):
     # as it is already available and loaded using prepare_breeze_and_image step in workflow
     pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
 
+    console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
+
     compose_instance = DockerCompose(tmp_dir, compose_file_name=["docker-compose.yaml"], pull=pull)
 
     compose_instance.start()
@@ -84,8 +86,6 @@ def spin_up_airflow_environment(tmp_path_factory):
 
 
 def pytest_sessionstart(session):
-    console.print("[blue]Spinning airflow environment...")
-
     tmp_path_factory = session.config._tmp_path_factory
     spin_up_airflow_environment(tmp_path_factory)
 

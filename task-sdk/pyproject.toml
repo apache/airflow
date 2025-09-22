@@ -60,6 +60,7 @@ dependencies = [
     "psutil>=6.1.0",
     "structlog>=25.4.0",
     "retryhttp>=1.2.0,!=1.3.0",
+    "greenback>=1.2.1",
     # Requests is known to introduce breaking changes, so we pin it to a specific range
     "requests>=2.31.0,<3",
     "types-requests>=2.31.0",

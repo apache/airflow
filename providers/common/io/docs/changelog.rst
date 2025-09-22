@@ -25,6 +25,30 @@
 Changelog
 ---------
 
+1.6.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix circular import when using ''XComObjectStorageBackend'' (#55805)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove Legacy Query Object Usage from airflow-models (#52325)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
 1.6.2
 .....
 

@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+12.7.1
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Avoid using extra_dejson method on connection in KiotaRequestAdapterHook to avoid AsyncToSync RuntimeError (#55179)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove db dependency from test_wasb trigger tests (#55624)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
 12.7.0
 ......
 

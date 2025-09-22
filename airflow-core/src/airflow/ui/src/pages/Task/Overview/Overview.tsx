@@ -72,7 +72,12 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton taskId={taskId} />
+      <NeedsReviewButton
+        refreshInterval={
+          taskInstances?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false
+        }
+        taskId={taskId}
+      />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
