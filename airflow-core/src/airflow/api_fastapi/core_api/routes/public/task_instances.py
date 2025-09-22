@@ -60,14 +60,16 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
+from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
+    TaskInstanceHistoryCollectionResponse,
+    TaskInstanceHistoryResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
-    TaskInstanceHistoryCollectionResponse,
-    TaskInstanceHistoryResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -321,6 +323,7 @@ def get_task_instance_tries(
             )
             .options(joinedload(orm_object.dag_version))
             .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
+            .options(joinedload(orm_object.hitl_detail))
         )
         return query
 
@@ -644,12 +647,16 @@ def get_task_instance_try_details(
     """Get task instance details by try number."""
 
     def _query(orm_object: Base) -> TI | TIH | None:
-        query = select(orm_object).where(
-            orm_object.dag_id == dag_id,
-            orm_object.run_id == dag_run_id,
-            orm_object.task_id == task_id,
-            orm_object.try_number == task_try_number,
-            orm_object.map_index == map_index,
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.try_number == task_try_number,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.hitl_detail))
         )
 
         task_instance = session.scalar(query)

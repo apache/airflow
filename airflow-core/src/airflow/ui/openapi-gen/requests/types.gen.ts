@@ -942,7 +942,6 @@ export type FastAPIRootMiddlewareResponse = {
  * Schema for Human-in-the-loop detail.
  */
 export type HITLDetail = {
-    task_instance: TaskInstanceResponse;
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -960,6 +959,7 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    task_instance: TaskInstanceResponse;
 };
 
 /**
@@ -968,6 +968,29 @@ export type HITLDetail = {
 export type HITLDetailCollection = {
     hitl_details: Array<HITLDetail>;
     total_entries: number;
+};
+
+/**
+ * Schema for Human-in-the-loop detail history.
+ */
+export type HITLDetailHisotry = {
+    options: Array<(string)>;
+    subject: string;
+    body?: string | null;
+    defaults?: Array<(string)> | null;
+    multiple?: boolean;
+    params?: {
+        [key: string]: unknown;
+    };
+    assigned_users?: Array<HITLUser>;
+    created_at: string;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
+    chosen_options?: Array<(string)> | null;
+    params_input?: {
+        [key: string]: unknown;
+    };
+    response_received?: boolean;
 };
 
 /**
@@ -1327,6 +1350,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    hitl_detail: HITLDetailHisotry | null;
 };
 
 /**

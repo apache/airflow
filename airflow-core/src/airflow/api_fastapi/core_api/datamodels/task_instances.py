@@ -173,6 +173,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
+    # hitl_detail: HITLDetailHisotry | None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):
