@@ -770,15 +770,19 @@ def post_clear_task_instances(
         )
 
     if not dry_run:
-        if hasattr(body, 'is_running_message'):
+        if body.is_running_message:
             for ti in task_instances:
                 ti.is_running_message = body.is_running_message
-        clear_task_instances(
-            task_instances,
-            session,
-            DagRunState.QUEUED if reset_dag_runs else False,
-            run_on_latest_version=body.run_on_latest_version,
-        )
+        
+        try:
+            clear_task_instances(
+                task_instances,
+                session,
+                DagRunState.QUEUED if reset_dag_runs else False,
+                run_on_latest_version=body.run_on_latest_version,
+            )
+        except ValueError as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,

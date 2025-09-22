@@ -9364,7 +9364,7 @@ components:
         is_running_message:
           type: boolean
           title: Is Running Message
-          description: Optional flag to set isRunning in backend logic.
+          description: Optional flag to set task_confirmed_running in backend logic.
           default: false
       additionalProperties: false
       type: object

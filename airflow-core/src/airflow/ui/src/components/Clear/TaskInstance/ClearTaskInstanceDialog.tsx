@@ -176,7 +176,8 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               style={{ marginRight: "auto"}}
               onCheckedChange={(event) => setIsRunningMessage(Boolean(event.checked))}
             >
-              {translate("dags:runAndTaskActions.options.noRunningState")}
+              {/* Reverting to hard coded english. Will need approval for translation changes, please remember */}
+              Don't re-run while task is running 
             </Checkbox>
             <Button
               colorPalette="brand"

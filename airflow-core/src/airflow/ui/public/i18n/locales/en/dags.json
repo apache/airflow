@@ -35,14 +35,6 @@
       "error": "Failed to clear {{type}}",
       "title": "Clear {{type}}"
     },
-    "clearTask":{
-      "title": "Confirm Clear Task Instance ",
-      "lastRun": " This task instance was last run by",
-      "starting": "starting from",
-      "completed": "and completed in",
-      "state": " The task is currently",
-      "clearAgain": " Are you sure you want to clear it again?"
-    },
     "delete": {
       "button": "Delete {{type}}",
       "dialog": {
@@ -72,8 +64,7 @@
       "past": "Past",
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
-      "upstream": "Upstream",
-      "noRunningState": "Do not re-run until task is not running  "
+      "upstream": "Upstream"
     }
   },
   "search": {
