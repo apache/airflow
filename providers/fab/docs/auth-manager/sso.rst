@@ -15,6 +15,10 @@
    specific language governing permissions and limitations
    under the License.
 
+.. spelling::
+   word-list::
+     Entra
+
 ================================
 Single Sign-On (SSO) Integration
 ================================
