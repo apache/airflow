@@ -1076,7 +1076,7 @@ export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
                 }
             ],
             title: 'Update Mask',
-            description: 'A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.'
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -1118,7 +1118,7 @@ export const $BulkUpdateAction_ConnectionBody_ = {
                 }
             ],
             title: 'Update Mask',
-            description: 'A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.'
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -1160,7 +1160,7 @@ export const $BulkUpdateAction_PoolBody_ = {
                 }
             ],
             title: 'Update Mask',
-            description: 'A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.'
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -1202,7 +1202,7 @@ export const $BulkUpdateAction_VariableBody_ = {
                 }
             ],
             title: 'Update Mask',
-            description: 'A list of field names to update for each entity. Only these fields will be applied from the request body to the database model. Any extra fields provided will be ignored.'
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
