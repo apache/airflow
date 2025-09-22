@@ -606,7 +606,6 @@ encodable
 encryptor
 enqueue
 enqueued
-Entra
 Entry
 EntryGroup
 EntryGroups
@@ -626,7 +625,6 @@ environ
 envs
 EnvVar
 envvar
-Entra
 eof
 eol
 eols
