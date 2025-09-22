@@ -131,6 +131,7 @@ class TestWorkerStart:
     @classmethod
     def setup_class(cls):
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
@@ -172,10 +173,10 @@ class TestWorkerStart:
                 queues,
                 "--concurrency",
                 int(concurrency),
-                "--hostname",
-                celery_hostname,
                 "--loglevel",
                 conf.get("logging", "CELERY_LOGGING_LEVEL"),
+                "--hostname",
+                celery_hostname,
                 "--autoscale",
                 autoscale,
                 "--without-mingle",
