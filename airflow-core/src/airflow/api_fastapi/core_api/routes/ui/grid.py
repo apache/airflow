@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -162,6 +162,7 @@ def get_dag_structure(
 
     serdags = session.scalars(
         select(SerializedDagModel).where(
+            and_(SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
                 .join(TaskInstance.dag_run)
@@ -169,7 +170,7 @@ def get_dag_structure(
                     DagRun.id.in_(run_ids),
                     SerializedDagModel.id != latest_serdag.id,
                 )
-            )
+            ))
         )
     )
     merged_nodes: list[GridNodeResponse] = []
