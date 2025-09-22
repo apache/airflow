@@ -23,6 +23,7 @@
 {{- if .Values.flower.enabled }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.flower.affinity .Values.affinity }}
 {{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.flower.topologySpreadConstraints .Values.topologySpreadConstraints }}
