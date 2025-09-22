@@ -5383,7 +5383,7 @@
                             "description": "Enable default user creation.",
                             "type": "boolean",
                             "x-docsSection": "Common",
-                            "default": false
+                            "default": true
                         },
                         "role": {
                             "description": "Default user role.",
