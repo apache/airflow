@@ -192,10 +192,11 @@ class TaskInstanceHistory(Base):
             ti.end_date = timezone.utcnow()
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
+        session.add(ti_history)
+
         ti_hitl_detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti.id))
         if ti_hitl_detail is not None:
-            ti_history.hitl_detail = HITLDetailHistory(ti_hitl_detail)
-        session.add(ti_history)
+            session.add(HITLDetailHistory(ti_hitl_detail))
 
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:

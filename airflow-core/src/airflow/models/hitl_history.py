@@ -72,8 +72,6 @@ class HITLDetailHistory(Base):
         super().__init__()
         for column in self.__table__.columns:
             if column.name == "ti_history_id":
-                continue
-            if column.name == "ti_id":
                 setattr(self, column.name, hitl_detail.ti_id)
                 continue
             setattr(self, column.name, getattr(hitl_detail, column.name))

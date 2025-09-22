@@ -1477,6 +1477,26 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class HITLDetailHisotry(BaseModel):
+    """
+    Schema for Human-in-the-loop detail history.
+    """
+
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+    responded_by_user: HITLUser | None = None
+    responded_at: Annotated[datetime | None, Field(title="Responded At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    response_received: Annotated[bool | None, Field(title="Response Received")] = False
+
+
 class HITLDetailResponse(BaseModel):
     """
     Response of updating a Human-in-the-loop detail.
@@ -1641,6 +1661,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")] = None
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None = None
+    hitl_detail: HITLDetailHisotry | None = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -1875,7 +1896,6 @@ class HITLDetail(BaseModel):
     Schema for Human-in-the-loop detail.
     """
 
-    task_instance: TaskInstanceResponse
     options: Annotated[list[str], Field(min_length=1, title="Options")]
     subject: Annotated[str, Field(title="Subject")]
     body: Annotated[str | None, Field(title="Body")] = None
@@ -1889,6 +1909,7 @@ class HITLDetail(BaseModel):
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
     response_received: Annotated[bool | None, Field(title="Response Received")] = False
+    task_instance: TaskInstanceResponse
 
 
 class HITLDetailCollection(BaseModel):
