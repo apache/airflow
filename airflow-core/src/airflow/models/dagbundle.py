@@ -16,14 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, String
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import JSONType
 
 from airflow.models.base import Base, StringID
 from airflow.models.team import dag_bundle_team_association_table
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 
 class DagBundleModel(Base, LoggingMixin):
@@ -42,12 +42,12 @@ class DagBundleModel(Base, LoggingMixin):
     """
 
     __tablename__ = "dag_bundle"
-    name = Column(StringID(length=250), primary_key=True, nullable=False)
-    active = Column(Boolean, default=True)
-    version = Column(String(200), nullable=True)
-    last_refreshed = Column(UtcDateTime, nullable=True)
-    signed_url_template = Column(String(200), nullable=True)
-    template_params = Column(JSONType, nullable=True)
+    name: Mapped[str] = mapped_column(StringID(length=250), primary_key=True, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    last_refreshed: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    signed_url_template: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    template_params: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
     def __init__(self, *, name: str, version: str | None = None):
