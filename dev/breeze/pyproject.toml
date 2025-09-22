@@ -44,7 +44,7 @@ classifiers = [
 requires-python = ">=3.10, !=3.13"
 
 dependencies = [
-    "black>=23.11.0",
+    "black>=25.0.0",
     # There is a bug in Click 8.2.0 and 8.2.1 that makes flag variables do not properly evaluate
     # "false"-y values set in environment variables. See https://github.com/pallets/click/issues/2952
     "click>=8.1.8,<8.2.0",

@@ -1035,27 +1035,32 @@
 <text text-anchor="start" x="931.61" y="-1194.89" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="760.34" y="-1289.69" font-family="Times,serif" font-size="14.00">1</text>
 </g>
-<!-- asset_trigger -->
+<!-- asset_watcher -->
 <g id="node18" class="node">
-<title>asset_trigger</title>
-<polygon fill="none" stroke="black" points="1802,-2009 1802,-2037 2037,-2037 2037,-2009 1802,-2009"/>
-<text text-anchor="start" x="1860" y="-2020.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">asset_trigger</text>
-<polygon fill="none" stroke="black" points="1802,-1984 1802,-2009 2037,-2009 2037,-1984 1802,-1984"/>
-<text text-anchor="start" x="1807" y="-1993.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">asset_id</text>
-<text text-anchor="start" x="1864" y="-1993.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1869" y="-1993.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1946" y="-1993.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="1802,-1959 1802,-1984 2037,-1984 2037,-1959 1802,-1959"/>
-<text text-anchor="start" x="1807" y="-1968.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">trigger_id</text>
-<text text-anchor="start" x="1874" y="-1968.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1879" y="-1968.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="1956" y="-1968.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<title>asset_watcher</title>
+<polygon fill="none" stroke="black" points="1789,-2033 1789,-2061 2050,-2061 2050,-2033 1789,-2033"/>
+<text text-anchor="start" x="1854.5" y="-2044.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">asset_watcher</text>
+<polygon fill="none" stroke="black" points="1789,-2008 1789,-2033 2050,-2033 2050,-2008 1789,-2008"/>
+<text text-anchor="start" x="1794" y="-2017.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">asset_id</text>
+<text text-anchor="start" x="1851" y="-2017.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1856" y="-2017.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1933" y="-2017.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1789,-1983 1789,-2008 2050,-2008 2050,-1983 1789,-1983"/>
+<text text-anchor="start" x="1794" y="-1992.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">trigger_id</text>
+<text text-anchor="start" x="1861" y="-1992.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1866" y="-1992.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1943" y="-1992.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="1789,-1958 1789,-1983 2050,-1983 2050,-1958 1789,-1958"/>
+<text text-anchor="start" x="1794" y="-1967.8" font-family="Helvetica,sans-Serif" font-size="14.00">name</text>
+<text text-anchor="start" x="1834" y="-1967.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1839" y="-1967.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(1500)]</text>
+<text text-anchor="start" x="1969" y="-1967.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
-<!-- asset&#45;&#45;asset_trigger -->
+<!-- asset&#45;&#45;asset_watcher -->
 <g id="edge11" class="edge">
-<title>asset&#45;&#45;asset_trigger</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M760.14,-1395.6C851.84,-1398.23 974.28,-1401 1082.5,-1401 1082.5,-1401 1082.5,-1401 1512,-1401 1777.17,-1401 1559.91,-1767.61 1757,-1945 1767.72,-1954.65 1780.23,-1962.54 1793.46,-1969"/>
-<text text-anchor="start" x="1762.46" y="-1957.8" font-family="Times,serif" font-size="14.00">0..N</text>
+<title>asset&#45;&#45;asset_watcher</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M760.14,-1395.6C851.84,-1398.23 974.28,-1401 1082.5,-1401 1082.5,-1401 1082.5,-1401 1512,-1401 1777.17,-1401 1565.84,-1761.23 1757,-1945 1764.06,-1951.79 1771.93,-1957.9 1780.28,-1963.4"/>
+<text text-anchor="start" x="1749.28" y="-1952.2" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="760.14" y="-1384.4" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- asset_active -->
@@ -1218,11 +1223,11 @@
 <text text-anchor="start" x="1453" y="-1224.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1458" y="-1224.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 </g>
-<!-- trigger&#45;&#45;asset_trigger -->
+<!-- trigger&#45;&#45;asset_watcher -->
 <g id="edge20" class="edge">
-<title>trigger&#45;&#45;asset_trigger</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1663.1,-1336.28C1685.72,-1349.19 1706.34,-1365.76 1721,-1387 1791.6,-1489.25 1680.95,-1846.73 1757,-1945 1766.64,-1957.45 1779.27,-1967.01 1793.24,-1974.35"/>
-<text text-anchor="start" x="1762.24" y="-1978.15" font-family="Times,serif" font-size="14.00">0..N</text>
+<title>trigger&#45;&#45;asset_watcher</title>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1663.1,-1336.28C1685.72,-1349.19 1706.34,-1365.76 1721,-1387 1791.6,-1489.25 1684.22,-1844.29 1757,-1945 1763.53,-1954.04 1771.54,-1961.82 1780.46,-1968.53"/>
+<text text-anchor="start" x="1749.46" y="-1972.33" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1663.1" y="-1340.08" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance -->
