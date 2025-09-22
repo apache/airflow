@@ -27,19 +27,7 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from airflow.models import DagRun
 
-
-class AirflowException(Exception):  # type: ignore[no-redef]
-    """
-    Base class for all Airflow's errors.
-
-    Each custom exception should be derived from this class.
-    """
-
-    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
-
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+from airflow.sdk.exceptions import AirflowException
 
 
 class TaskNotFound(AirflowException):

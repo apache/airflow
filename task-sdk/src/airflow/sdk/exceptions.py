@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import enum
-from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 from airflow.sdk import TriggerRule
@@ -30,21 +29,10 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import ErrorResponse
 
 
-class AirflowSDKException(Exception):
-    """
-    Base class for all Airflow's errors.
-
-    Each custom exception should be derived from this class.
-    """
-
-    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
-
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+AirflowException = Exception
 
 
-class AirflowDagCycleException(AirflowSDKException):
+class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition."""
 
 
@@ -88,7 +76,7 @@ class UnmappableXComTypePushed(TypeError):
         return f"unmappable return type {typename!r}"
 
 
-class AirflowFailException(AirflowSDKException):
+class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
@@ -124,7 +112,7 @@ class AirflowInactiveAssetInInletOrOutletException(_AirflowExecuteWithInactiveAs
     main_message = "Task has the following inactive assets in its inlets or outlets"
 
 
-class AirflowRescheduleException(AirflowSDKException):
+class AirflowRescheduleException(AirflowException):
     """
     Raise when the task should be re-scheduled at a later time.
 
@@ -140,11 +128,11 @@ class AirflowRescheduleException(AirflowSDKException):
         return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
 
-class AirflowSensorTimeout(AirflowSDKException):
+class AirflowSensorTimeout(AirflowException):
     """Raise when there is a timeout on sensor polling."""
 
 
-class AirflowSkipException(AirflowSDKException):
+class AirflowSkipException(AirflowException):
     """Raise when the task should be skipped."""
 
 
@@ -201,15 +189,15 @@ class TaskDeferred(BaseException):
         return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
 
 
-class TaskDeferralError(AirflowSDKException):
+class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 
 
-class TaskDeferralTimeout(AirflowSDKException):
+class TaskDeferralTimeout(AirflowException):
     """Raise when there is a timeout on the deferral."""
 
 
-class DagRunTriggerException(AirflowSDKException):
+class DagRunTriggerException(AirflowException):
     """
     Signal by an operator to trigger a specific Dag Run of a dag.
 
@@ -246,7 +234,7 @@ class DagRunTriggerException(AirflowSDKException):
         self.deferrable = deferrable
 
 
-class DownstreamTasksSkipped(AirflowSDKException):
+class DownstreamTasksSkipped(AirflowException):
     """
     Signal by an operator to skip its downstream tasks.
 
@@ -261,7 +249,7 @@ class DownstreamTasksSkipped(AirflowSDKException):
         self.tasks = tasks
 
 
-class XComNotFound(AirflowSDKException):
+class XComNotFound(AirflowException):
     """Raise when an XCom reference is being resolved against a non-existent XCom."""
 
     def __init__(self, dag_id: str, task_id: str, key: str) -> None:
@@ -282,15 +270,15 @@ class XComNotFound(AirflowSDKException):
         )
 
 
-class ParamValidationError(AirflowSDKException):
+class ParamValidationError(AirflowException):
     """Raise when DAG params is invalid."""
 
 
-class DuplicateTaskIdFound(AirflowSDKException):
+class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG."""
 
 
-class TaskAlreadyInTaskGroup(AirflowSDKException):
+class TaskAlreadyInTaskGroup(AirflowException):
     """Raise when a Task cannot be added to a TaskGroup since it already belongs to another TaskGroup."""
 
     def __init__(self, task_id: str, existing_group_id: str | None, new_group_id: str):
@@ -307,11 +295,11 @@ class TaskAlreadyInTaskGroup(AirflowSDKException):
         return f"cannot add {self.task_id!r} to {self.new_group_id!r} (already in {existing_group})"
 
 
-class TaskNotFound(AirflowSDKException):
+class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
 
 
-class FailFastDagInvalidTriggerRule(AirflowSDKException):
+class FailFastDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 
     _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
