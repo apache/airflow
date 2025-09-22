@@ -41,8 +41,8 @@ Prerequisites
    For provider-specific authentication setup (obtaining client IDs, secrets, etc.),
    refer to the relevant provider documentation:
 
-   - **Google**: :doc:`apache-airflow-providers-google:api-auth-backend/google-openid` and :doc:`apache-airflow-providers-google:connections/gcp`                                    
-   - **Microsoft Azure**: :doc:`apache-airflow-providers-microsoft-azure:connections/azure`                                                                                          
+   - **Google**: :doc:`apache-airflow-providers-google:api-auth-backend/google-openid` and :doc:`apache-airflow-providers-google:connections/gcp`
+   - **Microsoft Azure**: :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
    - **Amazon**: :doc:`apache-airflow-providers-amazon:auth-manager/setup/identity-center`
 
 Configuration Steps
@@ -151,7 +151,7 @@ Provider Examples
    }]'
 
 .. seealso::
-   For detailed Okta setup instructions, see the `Okta OAuth2 documentation <https://developer.okta.com/docs/guides/implement-oauth/>`_.                                             
+   For detailed Okta setup instructions, see the `Okta OAuth2 documentation <https://developer.okta.com/docs/guides/implement-oauth/>`_.
 
 **Azure Entra ID (Azure AD)**
 
@@ -166,8 +166,8 @@ Provider Examples
         "client_secret": "your-client-secret",
         "api_base_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/",
         "request_token_url": null,
-        "access_token_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",                                                                                       
-        "authorize_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize",                                                                                      
+        "access_token_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",
+        "authorize_url": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize",
         "client_kwargs": {
           "scope": "openid email profile"
         }
@@ -175,8 +175,8 @@ Provider Examples
    }]'
 
 .. seealso::
-   For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure`                                                                 
-   and the `Azure OAuth2 documentation <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_.                                                
+   For Azure app registration and OAuth setup, see :doc:`apache-airflow-providers-microsoft-azure:connections/azure`
+   and the `Azure OAuth2 documentation <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_.
 
 **Google OAuth2**
 
@@ -200,7 +200,7 @@ Provider Examples
    }]'
 
 .. seealso::
-   For Google OAuth setup and credential configuration, see :doc:`apache-airflow-providers-google:connections/gcp`                                                                   
+   For Google OAuth setup and credential configuration, see :doc:`apache-airflow-providers-google:connections/gcp`
    and :doc:`apache-airflow-providers-google:api-auth-backend/google-openid`.
 
 Troubleshooting
@@ -212,16 +212,16 @@ Troubleshooting
 
   - Check Airflow and webserver logs for detailed error messages
   - Ensure all environment variables are set and exported correctly
-  - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/oauth-authorized``)                                           
+  - Verify callback URLs in your SSO provider match your Airflow webserver URL (typically ``http://your-airflow-domain/oauth-authorized``)
 
 - **Redirect URI mismatch**:
 
-  - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/oauth-authorized``                                                                                 
+  - In your OAuth provider, set the redirect URI to: ``http://your-airflow-domain/oauth-authorized``
   - For development, this might be: ``http://localhost:8080/oauth-authorized``
 
 - **Scope-related errors**:
 
-  - Confirm that scopes (``openid email profile`` or similar) are allowed in your OAuth provider                                                                                     
+  - Confirm that scopes (``openid email profile`` or similar) are allowed in your OAuth provider
   - Some providers require specific scopes to be explicitly configured
 
 - **Token validation errors**:
@@ -236,11 +236,11 @@ Troubleshooting
 
 References
 ----------
-- `Airflow Authentication <https://airflow.apache.org/docs/apache-airflow/stable/security/authentication.html>`_                                                                     
-- `FAB Auth Manager Provider Docs <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth_manager.html>`_                                                          
-- `Flask AppBuilder Security <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_                                                                                     
+- `Airflow Authentication <https://airflow.apache.org/docs/apache-airflow/stable/security/authentication.html>`_
+- `FAB Auth Manager Provider Docs <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth_manager.html>`_
+- `Flask AppBuilder Security <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
 - `Okta OAuth2 Docs <https://developer.okta.com/docs/guides/implement-oauth/>`_
-- `Azure OAuth2 Docs <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_                                                                   
+- `Azure OAuth2 Docs <https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow>`_
 
 .. note::
    This example uses the **Flask AppBuilder Auth Manager**.
