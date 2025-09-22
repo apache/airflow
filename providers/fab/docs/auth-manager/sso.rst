@@ -15,9 +15,9 @@
    specific language governing permissions and limitations
    under the License.
 
-=============================
+================================
 Single Sign-On (SSO) Integration
-=============================
+================================
 
 The FAB Auth Manager supports Single Sign-On (SSO) through OAuth2 providers.
 This guide shows how to configure SSO with various OAuth2 providers such as
