@@ -1022,7 +1022,7 @@ class TestBigQueryOpenLineageMixin:
         from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
         class TestOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
-            def __init__(self, project_id: str = None, **_):
+            def __init__(self, project_id: str | None = None, **_):
                 self.project_id = project_id
                 self.job_id = "foobar"
                 self.location = "foobar"
