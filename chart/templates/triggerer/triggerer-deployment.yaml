@@ -26,6 +26,7 @@
 {{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
 {{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}

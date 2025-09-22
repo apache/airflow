@@ -1140,16 +1140,6 @@ capabilities:
   {{- end -}}
 {{- end -}}
 
-{{/* Check if SQLite shared mode needs nodeSelector (when using ReadWriteOnce) */}}
-{{- define "airflow.sqliteShared.needsNodeSelector" -}}
-  {{- if and (include "airflow.sqliteShared.enabled" .) .Values.sqliteShared.persistence.enabled -}}
-    {{- $accessMode := .Values.sqliteShared.persistence.accessMode | default "ReadWriteMany" -}}
-    {{- if eq $accessMode "ReadWriteOnce" -}}
-      true
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-
 {{/* Generate SQLite shared PVC name */}}
 {{- define "airflow.sqliteShared.pvcName" -}}
   {{- if .Values.sqliteShared.persistence.existingClaim -}}
@@ -1176,28 +1166,22 @@ capabilities:
 {{- end -}}
 {{- end -}}
 
-{{/* Generate nodeSelector for SQLite shared mode */}}
-{{- define "airflow.sqliteShared.nodeSelector" -}}
-  {{- if include "airflow.sqliteShared.needsNodeSelector" . -}}
-    {{- if .Values.sqliteShared.nodeSelector -}}
-      {{- toYaml .Values.sqliteShared.nodeSelector -}}
-    # {{- else -}}
-    #   kubernetes.io/os: linux
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-
-{{/* Merge current nodeSelector with SQLite shared nodeSelector */}}
-{{- define "airflow.sqliteShared.mergeNodeSelector" -}}
-  {{- $current := .current | default dict -}}
+{{/* Apply SQLite shared nodeSelector if needed */}}
+{{- define "airflow.sqliteShared.applyNodeSelector" -}}
+  {{- $currentNodeSelector := .currentNodeSelector | default dict -}}
   {{- $context := .context -}}
-  {{- $sqliteNodeSelector := dict -}}
-  {{- if include "airflow.sqliteShared.needsNodeSelector" $context -}}
-    {{- if $context.Values.sqliteShared.nodeSelector -}}
-      {{- $sqliteNodeSelector = $context.Values.sqliteShared.nodeSelector -}}
+  {{- if and (include "airflow.sqliteShared.enabled" $context) $context.Values.sqliteShared.persistence.enabled -}}
+    {{- $accessMode := $context.Values.sqliteShared.persistence.accessMode | default "ReadWriteMany" -}}
+    {{- if eq $accessMode "ReadWriteOnce" -}}
+      {{- if $context.Values.sqliteShared.nodeSelector -}}
+        {{- mergeOverwrite ($currentNodeSelector | default dict) $context.Values.sqliteShared.nodeSelector | toYaml -}}
+      {{- else -}}
+        {{- $currentNodeSelector | toYaml -}}
+      {{- end -}}
     {{- else -}}
-      {{- $sqliteNodeSelector = dict "kubernetes.io/os" "linux" -}}
+      {{- $currentNodeSelector | toYaml -}}
     {{- end -}}
+  {{- else -}}
+    {{- $currentNodeSelector | toYaml -}}
   {{- end -}}
-  {{- mustMerge $current $sqliteNodeSelector | toYaml -}}
 {{- end -}}

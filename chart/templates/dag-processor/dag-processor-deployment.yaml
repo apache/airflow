@@ -27,6 +27,7 @@
 {{- end }}
 {{- if $enabled }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.dagProcessor.topologySpreadConstraints .Values.topologySpreadConstraints }}

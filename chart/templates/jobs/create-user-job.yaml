@@ -22,6 +22,7 @@
 #################################
 {{- if .Values.webserver.defaultUser.enabled }}
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
