@@ -160,8 +160,8 @@ def test_vertica_run_queries(
         return_last=return_last,
     )
 
-    actual_calls = [call.args[0] for call in mock_cursor.execute.call_args_list]
-    assert actual_calls == expected_calls
+    expected_mock_calls = [call(sql_call) for sql_call in expected_calls]
+    mock_cursor.execute.assert_has_calls(expected_mock_calls)
     assert [SerializableRow(*row) for row in result] == expected_result
 
 
@@ -194,6 +194,7 @@ def test_get_uri(vertica_hook):
     actual_uri = vertica_hook.get_uri()
 
     assert actual_uri == expected_uri
+    assert vertica_hook.get_uri() == "vertica-python://user:pass@vertica.cloud.com:5433/test_db"
 
 
 def test_get_sqlalchemy_engine(vertica_hook):
