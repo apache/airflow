@@ -36,7 +36,8 @@ from airflow.models import Trigger
 from airflow.models.base import Base
 from airflow.serialization.serde import deserialize, serialize
 from airflow.settings import json
-from airflow.triggers.deadline import PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
+from airflow.stats import Stats
+from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -182,6 +183,10 @@ class Deadline(Base):
             if dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
+                Stats.incr(
+                    "deadlines.deadline_not_missed",
+                    tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
+                )
                 deleted_count += 1
                 dagruns_to_refresh.add(dagrun)
         session.flush()
@@ -230,6 +235,10 @@ class Deadline(Base):
 
         self.callback_state = DeadlineCallbackState.QUEUED
         session.add(self)
+        Stats.incr(
+            "deadlines.deadline_missed",
+            tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
+        )
 
     def handle_callback_event(self, event: TriggerEvent, session: Session):
         if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in {
@@ -240,6 +249,17 @@ class Deadline(Base):
             self.callback_state = status
             if status != DeadlineCallbackState.RUNNING:
                 self.trigger = None
+                if status == DeadlineCallbackState.FAILED:
+                    Stats.incr(
+                        "deadlines.deadline_callback_failure",
+                        tags={
+                            "dag_id": self.dagrun.dag_id,
+                            "callback": self.callback,
+                            "result": event.payload.get(PAYLOAD_BODY_KEY),
+                        },
+                    )
+                elif status == DeadlineCallbackState.SUCCESS:
+                    Stats.incr("deadlines.deadline_callback_success", tags={"dag_id": self.dagrun.dag_id})
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)
