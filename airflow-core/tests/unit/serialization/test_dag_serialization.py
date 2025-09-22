@@ -46,7 +46,6 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow._shared.timezones import timezone
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
     AirflowException,
