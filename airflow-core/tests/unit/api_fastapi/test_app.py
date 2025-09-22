@@ -19,10 +19,10 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from fastapi import FastAPI
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
-from fastapi import FastAPI
 
 pytestmark = pytest.mark.db_test
 
@@ -105,8 +105,7 @@ def test_catch_all_route_last(client):
             "",
         ),
         (
-            [{"name": "test", "app": FastAPI(), "url_prefix": next(
-                iter(app_module.RESERVED_URL_PREFIXES))}],
+            [{"name": "test", "app": FastAPI(), "url_prefix": next(iter(app_module.RESERVED_URL_PREFIXES))}],
             "attempted to use reserved url_prefix",
             next(iter(app_module.RESERVED_URL_PREFIXES)),
         ),
