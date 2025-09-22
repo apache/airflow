@@ -184,7 +184,7 @@ class Deadline(Base):
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
                 Stats.incr(
-                    "deadlines.deadline_not_missed",
+                    "deadline_alerts.deadline_not_missed",
                     tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
                 )
                 deleted_count += 1
@@ -236,7 +236,7 @@ class Deadline(Base):
         self.callback_state = DeadlineCallbackState.QUEUED
         session.add(self)
         Stats.incr(
-            "deadlines.deadline_missed",
+            "deadline_alerts.deadline_missed",
             tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
         )
 
@@ -251,7 +251,7 @@ class Deadline(Base):
                 self.trigger = None
                 if status == DeadlineCallbackState.FAILED:
                     Stats.incr(
-                        "deadlines.deadline_callback_failure",
+                        "deadline_alerts.deadline_callback_failure",
                         tags={
                             "dag_id": self.dagrun.dag_id,
                             "callback": self.callback,
@@ -259,7 +259,10 @@ class Deadline(Base):
                         },
                     )
                 elif status == DeadlineCallbackState.SUCCESS:
-                    Stats.incr("deadlines.deadline_callback_success", tags={"dag_id": self.dagrun.dag_id})
+                    Stats.incr(
+                        "deadline_alerts.deadline_callback_success",
+                        tags={"dag_id": self.dagrun.dag_id},
+                    )
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)

@@ -3285,7 +3285,7 @@ class SerializedDAG(BaseSerialization):
                                 dagrun_id=orm_dagrun.id,
                             )
                         )
-                        Stats.incr("deadlines.deadline_created", tags={"dag_id": self.dag_id})
+                        Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
         return orm_dagrun
 
