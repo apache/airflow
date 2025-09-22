@@ -254,7 +254,7 @@ class Deadline(Base):
                         "deadline_alerts.deadline_callback_failure",
                         tags={
                             "dag_id": self.dagrun.dag_id,
-                            "callback": self.callback,
+                            "callback": self._callback,
                             "result": event.payload.get(PAYLOAD_BODY_KEY),
                         },
                     )
