@@ -2015,15 +2015,7 @@ class DagRun(Base, LoggingMixin):
             # to see whether this feature is turned on and defer this task.
             # If not, we'll add this "ti" into "schedulable_ti_ids" and later
             # execute it to run in the worker.
-            elif task.start_trigger_args is not None:
-                if task.expand_start_from_trigger(context=ti.get_template_context()):
-                    ti.start_date = timezone.utcnow()
-                    if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                        ti.try_number += 1
-                    ti.defer_task(session=session)
-                else:
-                    schedulable_ti_ids.append(ti.id)
-            else:
+            elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
 
         count = 0
