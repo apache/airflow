@@ -216,8 +216,11 @@ export const TaskInstances = () => {
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
+      dag_version: false,
+      end_date: false,
       executor: false,
       hostname: false,
+      pool: false,
       queue: false,
     },
   });
