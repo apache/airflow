@@ -148,7 +148,9 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
         if not logger_name and isinstance(logger, (NamedWriteLogger, NamedBytesLogger)):
             logger_name = logger.name
 
-        if logger_name:
+        if (level_override := kwargs.get("context", {}).pop("__level_override", None)) is not None:
+            level = level_override
+        elif logger_name:
             level = PER_LOGGER_LEVELS.longest_prefix(logger_name).get(PER_LOGGER_LEVELS[""])
         else:
             level = PER_LOGGER_LEVELS[""]
@@ -386,7 +388,7 @@ def configure_logging(
     callsite_parameters: Iterable[CallsiteParameter] | None = None,
     colors: bool | None = None,
     output: LogOutputType | None = None,
-    log_levels: str | dict[str, str] | None = None,
+    namespace_log_levels: str | dict[str, str] | None = None,
     cache_logger_on_first_use: bool = True,
 ):
     """
@@ -413,7 +415,7 @@ def configure_logging(
 
         If ``log_format`` is specified, then anything required to populate that (such as ``%(lineno)d``) will
         be automatically included.
-    :param log_levels: Levels of extra loggers to configure.
+    :param namespace_log_levels: Levels of extra loggers to configure.
 
         To make this easier to use, this can be a string consisting of pairs of ``<logger>=<level>`` (either
         string, or space delimited) which will set the level for that specific logger.
@@ -437,11 +439,13 @@ def configure_logging(
     PER_LOGGER_LEVELS[""] = NAME_TO_LEVEL[log_level.lower()]
 
     # Extract per-logger-tree levels and set them
-    if isinstance(log_levels, str):
+    if isinstance(namespace_log_levels, str):
         log_from_level = partial(re.compile(r"\s*=\s*").split, maxsplit=2)
-        log_levels = {log: level for log, level in map(log_from_level, re.split(r"[\s,]+", log_levels))}
-    if log_levels:
-        for log, level in log_levels.items():
+        namespace_log_levels = {
+            log: level for log, level in map(log_from_level, re.split(r"[\s,]+", namespace_log_levels))
+        }
+    if namespace_log_levels:
+        for log, level in namespace_log_levels.items():
             try:
                 loglevel = NAME_TO_LEVEL[level.lower()]
             except KeyError:
@@ -603,14 +607,19 @@ def init_log_file(
     return full_path
 
 
-def logger_without_processor_of_type(logger: WrappedLogger, processor_type: type):
+def reconfigure_logger(
+    logger: WrappedLogger, without_processor_type: type, level_override: int | None = None
+):
     procs = getattr(logger, "_processors", None)
     if procs is None:
         procs = structlog.get_config()["processors"]
-    procs = [proc for proc in procs if not isinstance(proc, processor_type)]
+    procs = [proc for proc in procs if not isinstance(proc, without_processor_type)]
 
     return structlog.wrap_logger(
-        getattr(logger, "_logger", None), processors=procs, **getattr(logger, "_context", {})
+        getattr(logger, "_logger", None),
+        processors=procs,
+        **getattr(logger, "_context", {}),
+        __level_override=level_override,
     )
 
 
