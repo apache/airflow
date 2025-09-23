@@ -812,7 +812,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "Update not allowed: the following fields are immutable and cannot be modified:{'key'}",
+                                "error": "Update not allowed: the following fields are immutable and cannot be modified: {'key'}",
                                 "status_code": 400,
                             }
                         ],

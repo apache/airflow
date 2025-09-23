@@ -104,7 +104,7 @@ class BulkService(Generic[T], ABC):
             if restricted_in_mask:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Update not allowed: the following fields are immutable and cannot be modified:{restricted_in_mask}",
+                    detail=f"Update not allowed: the following fields are immutable and cannot be modified: {restricted_in_mask}",
                 )
             fields_to_update = fields_to_update.intersection(update_mask)
 
