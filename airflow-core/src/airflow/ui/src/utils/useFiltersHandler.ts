@@ -56,26 +56,32 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
-      filterConfigs.forEach((config) => {
-        const value = filters[config.key];
-
-        if (value === null || value === undefined || value === "") {
-          searchParams.delete(config.key);
-        } else {
-          searchParams.set(config.key, String(value));
-        }
-      });
-
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      setSearchParams(searchParams);
+
+      setSearchParams((prevParams) => {
+        const newParams = new URLSearchParams(prevParams);
+
+        filterConfigs.forEach((config) => {
+          const value = filters[config.key];
+
+          if (value === null || value === undefined || value === "") {
+            newParams.delete(config.key);
+          } else {
+            newParams.set(config.key, String(value));
+          }
+        });
+
+        newParams.delete("offset");
+
+        return newParams;
+      });
     },
-    [filterConfigs, pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [filterConfigs, pagination, setSearchParams, setTableURLState, sorting],
   );
 
   return {
