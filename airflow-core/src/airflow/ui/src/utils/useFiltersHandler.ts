@@ -35,6 +35,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_ID

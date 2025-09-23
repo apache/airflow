@@ -91,7 +91,17 @@ export type AssetResponse = {
     producing_tasks: Array<TaskOutletAssetReference>;
     consuming_tasks: Array<TaskInletAssetReference>;
     aliases: Array<AssetAliasResponse>;
+    watchers: Array<AssetWatcherResponse>;
     last_asset_event?: LastAssetEventResponse | null;
+};
+
+/**
+ * Asset watcher serializer for responses.
+ */
+export type AssetWatcherResponse = {
+    name: string;
+    trigger_id: number;
+    created_date: string;
 };
 
 /**
@@ -873,6 +883,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -941,8 +952,9 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     assigned_users?: Array<HITLUser>;
+    created_at: string;
     responded_by_user?: HITLUser | null;
-    response_at?: string | null;
+    responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
@@ -963,7 +975,7 @@ export type HITLDetailCollection = {
  */
 export type HITLDetailResponse = {
     responded_by: HITLUser;
-    response_at: string;
+    responded_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
@@ -1854,7 +1866,7 @@ export type GridRunsResponse = {
     start_date: string | null;
     end_date: string | null;
     run_after: string;
-    state: TaskInstanceState | null;
+    state: DagRunState | null;
     run_type: DagRunType;
     readonly duration: number;
 };
@@ -2006,6 +2018,10 @@ export type GetAssetAliasResponse = unknown;
 export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    namePattern?: string | null;
     offset?: number;
     orderBy?: Array<(string)>;
     sourceDagId?: string | null;
@@ -2239,6 +2255,10 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
@@ -2612,6 +2632,7 @@ export type GetMappedTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
     orderBy?: Array<(string)>;
@@ -2695,6 +2716,10 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagRunId: string;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -2710,6 +2735,7 @@ export type GetTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
     orderBy?: Array<(string)>;
@@ -2827,6 +2853,61 @@ export type GetExternalLogUrlData = {
 
 export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
 
+export type UpdateHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type UpdateHitlDetailResponse = HITLDetailResponse;
+
+export type GetHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    bodySearch?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
+    dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number | null;
+    offset?: number;
+    orderBy?: Array<(string)>;
+    respondedByUserId?: Array<(string)>;
+    respondedByUserName?: Array<(string)>;
+    responseReceived?: boolean | null;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
+};
+
+export type GetHitlDetailsResponse = HITLDetailCollection;
+
 export type GetImportErrorData = {
     importErrorId: number;
 };
@@ -2834,6 +2915,10 @@ export type GetImportErrorData = {
 export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    filenamePattern?: string | null;
     limit?: number;
     offset?: number;
     orderBy?: Array<(string)>;
@@ -3073,56 +3158,6 @@ export type GetDagVersionsData = {
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 
-export type UpdateHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex?: number;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-};
-
-export type UpdateHitlDetailResponse = HITLDetailResponse;
-
-export type GetHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex?: number;
-    taskId: string;
-};
-
-export type GetHitlDetailResponse = HITLDetail;
-
-export type GetHitlDetailsData = {
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    bodySearch?: string | null;
-    dagId?: string | null;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    dagIdPattern?: string | null;
-    dagRunId?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: Array<(string)>;
-    respondedByUserId?: Array<(string)>;
-    respondedByUserName?: Array<(string)>;
-    responseReceived?: boolean | null;
-    state?: Array<(string)>;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    subjectSearch?: string | null;
-    taskId?: string | null;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    taskIdPattern?: string | null;
-};
-
-export type GetHitlDetailsResponse = HITLDetailCollection;
-
 export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
@@ -3183,6 +3218,7 @@ export type GetDagStructureData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -3201,6 +3237,7 @@ export type GetGridRunsData = {
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -5392,6 +5429,85 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails': {
+        patch: {
+            req: UpdateHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails': {
+        get: {
+            req: GetHitlDetailsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailCollection;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/importErrors/{import_error_id}': {
         get: {
             req: GetImportErrorData;
@@ -6097,85 +6213,6 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}': {
-        patch: {
-            req: UpdateHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-        get: {
-            req: GetHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetail;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitlDetails/': {
-        get: {
-            req: GetHitlDetailsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailCollection;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

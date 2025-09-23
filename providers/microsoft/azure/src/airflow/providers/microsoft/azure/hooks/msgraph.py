@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import warnings
 from ast import literal_eval
@@ -28,7 +29,6 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
-from asgiref.sync import sync_to_async
 from azure.identity import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Response, Timeout
 from kiota_abstractions.api_error import APIError
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
-    from airflow.models import Connection
+    from airflow.providers.microsoft.azure.version_compat import Connection
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -250,7 +250,9 @@ class KiotaRequestAdapterHook(BaseHook):
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
-        config = connection.extra_dejson if connection.extra else {}
+        # TODO (#54350): do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
+        #       RuntimeError: You cannot use AsyncToSync in the same thread as an async event loop.
+        config = json.loads(connection.extra) if connection.extra else {}
         api_version = self.get_api_version(config)
         host = self.get_host(connection)  # type: ignore[arg-type]
         base_url = self.get_base_url(host, api_version, config)
@@ -342,6 +344,15 @@ class KiotaRequestAdapterHook(BaseHook):
         self.api_version = api_version
         return request_adapter
 
+    @classmethod
+    async def get_async_connection(cls, conn_id: str) -> Connection:
+        if hasattr(BaseHook, "aget_connection"):
+            return await BaseHook.aget_connection(conn_id=conn_id)
+
+        from asgiref.sync import sync_to_async
+
+        return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
+
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
         if not self.conn_id:
@@ -350,7 +361,7 @@ class KiotaRequestAdapterHook(BaseHook):
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
         if not request_adapter:
-            connection = await sync_to_async(self.get_connection)(conn_id=self.conn_id)
+            connection = await self.get_async_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
         self.api_version = api_version
         return request_adapter
@@ -417,7 +428,7 @@ class KiotaRequestAdapterHook(BaseHook):
     def test_connection(self):
         """Test HTTP Connection."""
         try:
-            self.run()
+            asyncio.run(self.run())
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)

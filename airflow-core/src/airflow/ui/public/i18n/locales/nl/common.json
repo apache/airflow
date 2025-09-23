@@ -39,6 +39,7 @@
     "fileLocation": "Bestandslocatie",
     "hasTaskConcurrencyLimits": "Heeft Task Concurrency limieten",
     "lastExpired": "Laatst verlopen",
+    "lastParseDuration": "Laatste parse duur",
     "lastParsed": "Laatst geparsed",
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",

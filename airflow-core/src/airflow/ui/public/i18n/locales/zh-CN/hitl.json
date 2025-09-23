@@ -6,9 +6,11 @@
       "received": "已响应"
     }
   },
-  "requiredAction_one": "待响应的任务实例",
-  "requiredAction_other": "待响应的任务实例",
-  "requiredActionState": "待响应的任务实例状态",
+  "requiredAction_one": "待操作的任务实例",
+  "requiredAction_other": "待操作的任务实例",
+  "requiredActionCount_one": "待操作的任务实例 ({{count}})",
+  "requiredActionCount_other": "待操作的任务实例 ({{count}})",
+  "requiredActionState": "待操作的任务实例状态",
   "response": {
     "error": "响应失败",
     "optionsDescription": "请为此任务实例选择一个选项",
@@ -23,6 +25,7 @@
     "approvalRequired": "需要批准",
     "choiceReceived": "已选择",
     "choiceRequired": "需要选择",
+    "noResponseReceived": "未收到响应",
     "rejectionReceived": "已拒绝",
     "responseReceived": "已响应",
     "responseRequired": "需要响应"

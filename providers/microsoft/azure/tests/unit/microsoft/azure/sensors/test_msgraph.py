@@ -28,16 +28,15 @@ from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response
+from unit.microsoft.azure.test_utils import mock_json_response, patch_hook_and_request_adapter
 
 
-class TestMSGraphSensor(Base):
+class TestMSGraphSensor:
     def test_execute_with_result_processor_with_old_signature(self):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -73,7 +72,7 @@ class TestMSGraphSensor(Base):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
@@ -105,7 +104,7 @@ class TestMSGraphSensor(Base):
         status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             sensor = MSGraphSensor(
                 task_id="check_workspaces_status",
                 conn_id="powerbi",

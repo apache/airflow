@@ -62,7 +62,7 @@ def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
     mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=True,
         chosen_options=["Approve"],
-        response_at=timestamp,
+        responded_at=timestamp,
         responded_by_user=APIHITLUser(id="admin", name="admin"),
         params_input={"input_1": 1},
     )
@@ -74,7 +74,7 @@ def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
     assert resp == HITLDetailResponse(
         response_received=True,
         chosen_options=["Approve"],
-        response_at=timestamp,
+        responded_at=timestamp,
         responded_by_user=APIHITLUser(id="admin", name="admin"),
         params_input={"input_1": 1},
     )
@@ -84,7 +84,7 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
     mock_supervisor_comms.send.return_value = HITLDetailResponse(
         response_received=False,
         chosen_options=None,
-        response_at=None,
+        responded_at=None,
         responded_by_user=None,
         params_input={},
     )
@@ -92,7 +92,7 @@ def test_get_hitl_detail_content_detail(mock_supervisor_comms) -> None:
     assert resp == HITLDetailResponse(
         response_received=False,
         chosen_options=None,
-        response_at=None,
+        responded_at=None,
         responded_by_user=None,
         params_input={},
     )

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-sql``
 
-Release: ``1.28.0``
+Release: ``1.28.1``
 
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
@@ -36,7 +36,7 @@ This is a provider package for ``common.sql`` provider. All classes for this pro
 are in ``airflow.providers.common.sql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.1/>`_.
 
 Installation
 ------------
@@ -78,5 +78,16 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
 
+Optional dependencies
+----------------------
+
+===============  ================================================================================================
+Extra            Dependencies
+===============  ================================================================================================
+``pandas``       ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
+``openlineage``  ``apache-airflow-providers-openlineage``
+``polars``       ``polars>=1.26.0``
+===============  ================================================================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.1/changelog.html>`_.

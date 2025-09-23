@@ -80,7 +80,12 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     get_container_termination_message,
 )
-from airflow.providers.cncf.kubernetes.version_compat import XCOM_RETURN_KEY, BaseOperator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -833,7 +838,6 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
@@ -847,6 +851,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
+        self.convert_config_file_to_dict()
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
             trigger=KubernetesPodTrigger(
