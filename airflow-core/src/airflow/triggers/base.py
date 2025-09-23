@@ -90,10 +90,8 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         pass
 
     @property
-    def task(self) -> Operator | None:
-        if self.task_instance:
-            return self.task_instance.task
-        return None
+    def task(self) -> Operator:
+        return self.task_instance.task
 
     @property
     def task_instance(self) -> TaskInstance | None:
@@ -128,12 +126,13 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
                     rendered_content = self.render_template(value, context, jinja_env)
                 except Exception:
                     # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
-                    self.log.exception(
-                        "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                        self.task.task_id,
-                        attr_name,
-                        value,
-                    )
+                    if self.task:
+                        self.log.exception(
+                            "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                            self.task.task_id,
+                            attr_name,
+                            value,
+                        )
                     raise
                 else:
                     setattr(self, attr_name, rendered_content)
