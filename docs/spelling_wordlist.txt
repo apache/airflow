@@ -606,6 +606,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entra
 Entry
 EntryGroup
 EntryGroups
