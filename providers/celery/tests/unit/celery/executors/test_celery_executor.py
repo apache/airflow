@@ -126,6 +126,17 @@ class TestCeleryExecutor:
     def test_cli_commands_vended(self):
         assert CeleryExecutor.get_cli_commands()
 
+    def test_celery_executor_init_with_args_kwargs(self):
+        """Test that CeleryExecutor properly passes args and kwargs to BaseExecutor."""
+        parallelism = 50
+        team_name = "test_team"
+
+        executor = celery_executor.CeleryExecutor(parallelism, team_name=team_name)
+
+        assert executor.parallelism == parallelism
+        assert executor.team_name == team_name
+        assert executor.conf.team_name == team_name
+
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
         caplog.set_level(
