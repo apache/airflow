@@ -162,6 +162,26 @@ def setup(request, dag_maker, session=None):
     # Leave triggering_user_name as None for testing
     dag_run4.triggering_user_name = None
 
+    # Set start_date and end_date to create durations for testing duration filters
+    base_start = dag_run1.start_date or datetime(2021, 1, 1, tzinfo=timezone.utc)
+    dag_run1.start_date = base_start
+    dag_run1.end_date = base_start + timedelta(seconds=100.5)  # 100.5 seconds duration
+
+    dag_run2.start_date = base_start
+    dag_run2.end_date = base_start + timedelta(seconds=200.75)  # 200.75 seconds duration
+
+    dag_run3.start_date = base_start
+    dag_run3.end_date = base_start + timedelta(seconds=50.25)  # 50.25 seconds duration
+
+    dag_run4.start_date = base_start
+    dag_run4.end_date = base_start + timedelta(seconds=150.0)  # 150 seconds duration
+
+    # Set conf for testing conf_contains filter
+    dag_run1.conf = {"env": "production", "version": "1.0"}
+    dag_run2.conf = {"env": "staging", "debug": True}
+    dag_run3.conf = {"env": "development", "test_mode": True}
+    dag_run4.conf = {"env": "production", "version": "2.0"}
+
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
     session.merge(ti1)
@@ -629,6 +649,35 @@ class TestGetDagRuns:
                 {"dag_version": [1, 999]},
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Multiple versions, only existing ones match
+            # Test duration filters
+            ("~", {"duration_gte": 100}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN2_ID]),  # >= 100 seconds
+            ("~", {"duration_lte": 100}, [DAG1_RUN1_ID, DAG2_RUN1_ID]),  # <= 100 seconds
+            ("~", {"duration_gte": 50, "duration_lte": 150}, [DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"duration_gt": 100}, [DAG1_RUN2_ID, DAG2_RUN2_ID]),  # > 100 seconds
+            ("~", {"duration_lt": 100}, [DAG2_RUN1_ID]),  # < 100 seconds
+            (DAG1_ID, {"duration_gte": 150}, [DAG1_RUN2_ID]),  # DAG1 runs >= 150 seconds
+            (DAG2_ID, {"duration_lte": 100}, [DAG2_RUN1_ID]),  # DAG2 runs <= 100 seconds
+            # Test conf_contains filter
+            ("~", {"conf_contains": "production"}, [DAG1_RUN1_ID, DAG2_RUN2_ID]),  # Contains "production"
+            ("~", {"conf_contains": "staging"}, [DAG1_RUN2_ID]),  # Contains "staging"
+            ("~", {"conf_contains": "development"}, [DAG2_RUN1_ID]),  # Contains "development"
+            ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID, DAG2_RUN2_ID]),  # Contains "version"
+            ("~", {"conf_contains": "debug"}, [DAG1_RUN2_ID]),  # Contains "debug"
+            ("~", {"conf_contains": "test_mode"}, [DAG2_RUN1_ID]),  # Contains "test_mode"
+            ("~", {"conf_contains": "nonexistent"}, []),  # Contains non-existent string
+            (DAG1_ID, {"conf_contains": "production"}, [DAG1_RUN1_ID]),  # DAG1 with "production"
+            (DAG2_ID, {"conf_contains": "env"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),  # DAG2 with "env"
+            # Test combined filters
+            (
+                "~",
+                {"duration_gte": 100, "conf_contains": "production"},
+                [DAG1_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Duration >= 100 AND contains "production"
+            (
+                "~",
+                {"state": DagRunState.SUCCESS.value, "duration_lte": 150},
+                [DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Success state AND duration <= 150
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -648,6 +697,8 @@ class TestGetDagRuns:
             "start_date_lte": "invalid",
             "end_date_lte": "invalid",
             "run_after_lte": "invalid",
+            "duration_gte": "invalid",
+            "duration_lte": "invalid",
         }
         expected_detail = [
             {
@@ -705,6 +756,18 @@ class TestGetDagRuns:
                 "msg": "Input should be a valid datetime or date, input is too short",
                 "input": "invalid",
                 "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "float_parsing",
+                "loc": ["query", "duration_gte"],
+                "msg": "Input should be a valid number, unable to parse string as a number",
+                "input": "invalid",
+            },
+            {
+                "type": "float_parsing",
+                "loc": ["query", "duration_lte"],
+                "msg": "Input should be a valid number, unable to parse string as a number",
+                "input": "invalid",
             },
         ]
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params=query_params)
@@ -945,6 +1008,27 @@ class TestListDagRunsBatch:
                 },
                 [DAG1_RUN2_ID],
             ),
+            # Test duration filters for batch API
+            ({"duration_gte": 100}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN2_ID]),  # >= 100 seconds
+            ({"duration_lte": 100}, [DAG1_RUN1_ID, DAG2_RUN1_ID]),  # <= 100 seconds
+            ({"duration_gte": 50, "duration_lte": 150}, [DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ({"duration_gt": 100}, [DAG1_RUN2_ID, DAG2_RUN2_ID]),  # > 100 seconds
+            ({"duration_lt": 100}, [DAG2_RUN1_ID]),  # < 100 seconds
+            # Test conf_contains filter for batch API
+            ({"conf_contains": "production"}, [DAG1_RUN1_ID, DAG2_RUN2_ID]),  # Contains "production"
+            ({"conf_contains": "staging"}, [DAG1_RUN2_ID]),  # Contains "staging"
+            ({"conf_contains": "development"}, [DAG2_RUN1_ID]),  # Contains "development"
+            ({"conf_contains": "version"}, [DAG1_RUN1_ID, DAG2_RUN2_ID]),  # Contains "version"
+            ({"conf_contains": "nonexistent"}, []),  # Contains non-existent string
+            # Test combined filters for batch API
+            (
+                {"duration_gte": 100, "conf_contains": "production"},
+                [DAG1_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Duration >= 100 AND contains "production"
+            (
+                {"states": [DagRunState.SUCCESS.value], "duration_lte": 150},
+                [DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Success state AND duration <= 150
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -962,6 +1046,8 @@ class TestListDagRunsBatch:
             "logical_date_lte": "invalid",
             "start_date_lte": "invalid",
             "end_date_lte": "invalid",
+            "duration_gte": "invalid",
+            "duration_lte": "invalid",
             "dag_ids": "invalid",
         }
         expected_detail = [
@@ -1012,6 +1098,18 @@ class TestListDagRunsBatch:
                 "msg": "Input should be a valid datetime or date, input is too short",
                 "input": "invalid",
                 "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "float_parsing",
+                "loc": ["body", "duration_gte"],
+                "msg": "Input should be a valid number, unable to parse string as a number",
+                "input": "invalid",
+            },
+            {
+                "type": "float_parsing",
+                "loc": ["body", "duration_lte"],
+                "msg": "Input should be a valid number, unable to parse string as a number",
+                "input": "invalid",
             },
         ]
         response = test_client.post("/dags/~/dagRuns/list", json=post_body)
