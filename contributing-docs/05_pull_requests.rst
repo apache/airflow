@@ -246,7 +246,7 @@ Airflow Operators might have some fields added to the list of ``template_fields`
 set in the constructor (``__init__`` method) of the operator and usually their values should
 come from the ``__init__`` method arguments. The reason for that is that the templated fields
 are evaluated at the time of the operator execution and when you pass arguments to the operator
-in the DAG, the fields that are set on the class just before the ``execute`` method is called
+in the Dag, the fields that are set on the class just before the ``execute`` method is called
 are processed through templating engine and the fields values are set to the result of applying the
 templating engine to the fields (in case the field is a structure such as dict or list, the templating
 engine is applied to all the values of the structure).

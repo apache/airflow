@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.18.0
+  node: 22.19.0
   golang: 1.24.0
 minimum_prek_version: '0.1.1'
 exclude: ^.*/.*_vendor/
@@ -226,8 +226,8 @@ repos:
         # libcst 1.8.1 doesn't include typing-extensions which is needed for Python 3.9
         additional_dependencies: ['libcst>=1.1.0,!=1.8.0,!=1.8.1']
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
-  - repo: https://github.com/asottile/blacken-docs
-    rev: 78a9dcbecf4f755f65d1f3dec556bc249d723600  # frozen: 1.19.1
+  - repo: https://github.com/adamchainz/blacken-docs
+    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs

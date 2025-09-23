@@ -134,7 +134,9 @@ dependencies = [
     "pytest-icdiff>=0.9",
     "pytest-instafail>=0.5.0",
     "pytest-mock>=3.14.0",
-    "pytest-rerunfailures>=13.0",
+    # pytest-rerunfailures 16.0 crashes xdist xfail tests
+    # https://github.com/pytest-dev/pytest-rerunfailures/issues/302
+    "pytest-rerunfailures>=13.0,!=16.0",
     "pytest-timeouts>=1.2.1",
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",

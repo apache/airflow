@@ -29,7 +29,7 @@ For applications, pinning the dependencies makes it more stable to install in th
 be open to allow several different libraries with the same requirements to be installed at the same time.
 
 The problem is that Apache Airflow is a bit of both - application to install and library to be used when
-you are developing your own operators and DAGs.
+you are developing your own operators and Dags.
 
 This - seemingly unsolvable - puzzle is solved by having pinned constraints files.
 

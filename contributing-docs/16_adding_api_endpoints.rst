@@ -54,7 +54,7 @@ Example:
       paused: bool | None = None,
       order_by: str = "dag_id",
       session: SessionDep,
-  ) -> DAGCollectionResponse:
+  ) -> DagCollectionResponse:
       pass
 
 
@@ -88,8 +88,8 @@ In some cases, you may need to define additional models for new data structures.
 
 .. code-block:: python
 
-    class DAGModelResponse(BaseModel):
-        """DAG serializer for responses."""
+    class DagModelResponse(BaseModel):
+        """Dag serializer for responses."""
 
         dag_id: str
         dag_display_name: str

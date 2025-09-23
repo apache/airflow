@@ -421,7 +421,9 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--version",
                 "--previous-version",
+                "--task-sdk-version",
                 "--github-token",
+                "--remote-name",
             ],
         }
     ],
