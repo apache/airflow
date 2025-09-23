@@ -82,7 +82,6 @@ class ContextManagerClassDecoratorChecker(ast.NodeVisitor):
             "env_vars",
             "contextlib.contextmanager",
             "contextmanager",
-            # Add other known problematic decorators here
         }
         return decorator_name in problematic_decorators
 
@@ -112,7 +111,10 @@ def main() -> int:
     for arg in sys.argv[1:]:
         path = Path(arg)
         if path.is_file() and path.suffix == ".py":
-            all_errors.extend(check_file(path))
+            if "test" in str(path):  # Only check test files
+                all_errors.extend(check_file(path))
+            else:
+                print(f"Skipping non-test file: {path}")
         elif path.is_dir():
             for py_file in path.rglob("*.py"):
                 if "test" in str(py_file):  # Only check test files
