@@ -57,7 +57,6 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
-  const selectedRun = gridRuns?.find((run) => run.run_id === runId);
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -117,12 +116,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
     >
-      <Box
-        flexGrow={1}
-        minWidth={7}
-        position="relative"
-        top={Boolean(runId) && !Boolean(selectedRun) ? "50px" : "100px"}
-      >
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth={7}>
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
