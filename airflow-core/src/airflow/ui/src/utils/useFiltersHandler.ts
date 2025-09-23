@@ -30,6 +30,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
+  | SearchParamsKeys.DAG_ID_PATTERN
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DURATION_GTE
   | SearchParamsKeys.DURATION_LTE
@@ -44,7 +45,9 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.RUN_TYPE
   | SearchParamsKeys.START_DATE
+  | SearchParamsKeys.STATE
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN

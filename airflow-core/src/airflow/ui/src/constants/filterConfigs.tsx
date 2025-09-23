@@ -19,12 +19,21 @@
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
-import { MdDateRange, MdSearch, MdHistory, MdHourglassEmpty, MdCode } from "react-icons/md";
+import {
+  MdDateRange,
+  MdSearch,
+  MdHistory,
+  MdHourglassEmpty,
+  MdCode,
+  MdPlayArrow,
+  MdCheckCircle,
+} from "react-icons/md";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
 import { StateBadge } from "src/components/StateBadge";
+import { dagRunStateOptions, dagRunTypeOptions } from "src/constants/stateOptions";
 
 import { SearchParamsKeys } from "./searchParams";
 
@@ -62,6 +71,12 @@ export const useFilterConfigs = () => {
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.DAG_ID]: {
+      hotkeyDisabled: true,
+      icon: <DagIcon />,
+      label: translate("common:dagId"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.DAG_ID_PATTERN]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,
       label: translate("common:dagId"),
@@ -154,10 +169,28 @@ export const useFilterConfigs = () => {
       label: translate("common:runId"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.RUN_TYPE]: {
+      icon: <MdPlayArrow />,
+      label: translate("common:dagRun.runType"),
+      options: dagRunTypeOptions.items.map((option) => ({
+        label: option.value === "all" ? translate(option.label) : translate(option.label),
+        value: option.value,
+      })),
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.START_DATE]: {
       icon: <MdDateRange />,
       label: translate("common:table.from"),
       type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: dagRunStateOptions.items.map((option) => ({
+        label: option.value === "all" ? translate(option.label) : translate(option.label),
+        value: option.value,
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.TASK_ID]: {
       hotkeyDisabled: true,
@@ -174,7 +207,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiUser />,
-      label: translate("dagRun.triggeringUser"),
+      label: translate("common:dagRun.triggeringUser"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TRY_NUMBER]: {

@@ -30,6 +30,9 @@ type DagRunsFiltersProps = {
 export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
+      SearchParamsKeys.RUN_ID_PATTERN,
+      SearchParamsKeys.STATE,
+      SearchParamsKeys.RUN_TYPE,
       SearchParamsKeys.START_DATE,
       SearchParamsKeys.END_DATE,
       SearchParamsKeys.RUN_AFTER_GTE,
@@ -42,7 +45,7 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
     ];
 
     if (dagId === undefined) {
-      keys.unshift(SearchParamsKeys.DAG_ID);
+      keys.unshift(SearchParamsKeys.DAG_ID_PATTERN);
     }
 
     return keys;
