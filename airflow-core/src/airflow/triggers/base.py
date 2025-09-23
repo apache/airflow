@@ -90,8 +90,10 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         pass
 
     @property
-    def task(self) -> Operator:
-        return self.task_instance.task
+    def task(self) -> Operator | None:
+        if self.task_instance:
+            return self.task_instance.task
+        return None
 
     @property
     def task_instance(self) -> TaskInstance | None:
