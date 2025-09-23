@@ -184,7 +184,7 @@ export const DurationChart = ({
               label: translate("durationChart.runDuration"),
             },
           ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD HH:mm:ss")),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT)),
         }}
         datasetIdKey="id"
         options={{
