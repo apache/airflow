@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, JsonValue, StringConstraints
@@ -35,7 +36,6 @@ from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
-from urllib.parse import unquote
 
 
 async def has_xcom_access(
