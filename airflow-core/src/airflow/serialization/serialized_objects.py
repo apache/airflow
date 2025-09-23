@@ -2901,6 +2901,10 @@ class SerializedDAG(BaseSerialization):
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 
