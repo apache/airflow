@@ -20,9 +20,43 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import type { FilterValue } from "src/components/FilterBar";
+import type { FilterValue, DateRangeValue } from "src/components/FilterBar";
 import { useFilterConfigs } from "src/constants/filterConfigs";
 import { SearchParamsKeys } from "src/constants/searchParams";
+
+const isNonEmptyString = (value: string | null | undefined): value is string =>
+  value !== null && value !== undefined && value !== "";
+
+const isValidDateRangeValue = (value: DateRangeValue): boolean =>
+  isNonEmptyString(value.startDate) || isNonEmptyString(value.endDate);
+
+const handleLogicalDateRange = (newParams: URLSearchParams, rangeValue: DateRangeValue) => {
+  newParams.delete(SearchParamsKeys.LOGICAL_DATE_RANGE as string);
+  if (isNonEmptyString(rangeValue.startDate)) {
+    newParams.set(SearchParamsKeys.LOGICAL_DATE_GTE, rangeValue.startDate);
+  } else {
+    newParams.delete(SearchParamsKeys.LOGICAL_DATE_GTE);
+  }
+  if (isNonEmptyString(rangeValue.endDate)) {
+    newParams.set(SearchParamsKeys.LOGICAL_DATE_LTE, rangeValue.endDate);
+  } else {
+    newParams.delete(SearchParamsKeys.LOGICAL_DATE_LTE);
+  }
+};
+
+const handleRunAfterRange = (newParams: URLSearchParams, rangeValue: DateRangeValue) => {
+  newParams.delete(SearchParamsKeys.RUN_AFTER_RANGE as string);
+  if (isNonEmptyString(rangeValue.startDate)) {
+    newParams.set(SearchParamsKeys.RUN_AFTER_GTE, rangeValue.startDate);
+  } else {
+    newParams.delete(SearchParamsKeys.RUN_AFTER_GTE);
+  }
+  if (isNonEmptyString(rangeValue.endDate)) {
+    newParams.set(SearchParamsKeys.RUN_AFTER_LTE, rangeValue.endDate);
+  } else {
+    newParams.delete(SearchParamsKeys.RUN_AFTER_LTE);
+  }
+};
 
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
@@ -42,11 +76,13 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
+  | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
+  | SearchParamsKeys.RUN_AFTER_RANGE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_TYPE
@@ -69,6 +105,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
+
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
       setTableURLState({
@@ -84,8 +121,34 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
           if (value === null || value === undefined || value === "") {
             newParams.delete(config.key);
+            if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
+              newParams.delete(SearchParamsKeys.LOGICAL_DATE_GTE);
+              newParams.delete(SearchParamsKeys.LOGICAL_DATE_LTE);
+            }
+            if (config.key === (SearchParamsKeys.RUN_AFTER_RANGE as string)) {
+              newParams.delete(SearchParamsKeys.RUN_AFTER_GTE);
+              newParams.delete(SearchParamsKeys.RUN_AFTER_LTE);
+            }
+          } else if (config.type === "daterange" && typeof value === "object") {
+            const rangeValue = value as DateRangeValue;
+
+            if (isValidDateRangeValue(rangeValue)) {
+              if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
+                handleLogicalDateRange(newParams, rangeValue);
+              } else if (config.key === (SearchParamsKeys.RUN_AFTER_RANGE as string)) {
+                handleRunAfterRange(newParams, rangeValue);
+              } else {
+                newParams.set(config.key, JSON.stringify(rangeValue));
+              }
+            } else {
+              newParams.delete(config.key);
+              if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
+                newParams.delete(SearchParamsKeys.LOGICAL_DATE_GTE);
+                newParams.delete(SearchParamsKeys.LOGICAL_DATE_LTE);
+              }
+            }
           } else {
-            newParams.set(config.key, String(value));
+            newParams.set(config.key, typeof value === "object" ? JSON.stringify(value) : String(value));
           }
         });
 
