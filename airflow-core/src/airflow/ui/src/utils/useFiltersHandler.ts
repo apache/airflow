@@ -22,7 +22,7 @@ import { useSearchParams } from "react-router-dom";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import type { FilterValue } from "src/components/FilterBar";
 import { useFilterConfigs } from "src/constants/filterConfigs";
-import type { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
