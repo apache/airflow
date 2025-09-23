@@ -35,7 +35,11 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
-  readonly run: { has_mixed_versions?: boolean; isVersionChange?: boolean } & GridRunsResponse;
+  readonly run: {
+    has_mixed_versions?: boolean;
+    isBundleVersionChange?: boolean;
+    isDagVersionChange?: boolean;
+  } & GridRunsResponse;
   readonly versionDisplayMode?: string;
 };
 
@@ -58,10 +62,10 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
       position="relative"
       transition="background-color 0.2s"
     >
-      {Boolean(run.isVersionChange && (versionDisplayMode === "bundle" || versionDisplayMode === "all")) && (
-        <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />
-      )}
-      {Boolean(run.isVersionChange && (versionDisplayMode === "dag" || versionDisplayMode === "all")) && (
+      {Boolean(
+        run.isBundleVersionChange && (versionDisplayMode === "bundle" || versionDisplayMode === "all"),
+      ) && <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />}
+      {Boolean(run.isDagVersionChange && (versionDisplayMode === "dag" || versionDisplayMode === "all")) && (
         <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />
       )}
 
