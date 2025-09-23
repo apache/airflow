@@ -170,7 +170,7 @@ def get_dag_structure(
                     DagRun.id.in_(run_ids),
                     SerializedDagModel.id != latest_serdag.id,
                 )
-            )
+            ),
         )
     )
     merged_nodes: list[GridNodeResponse] = []
