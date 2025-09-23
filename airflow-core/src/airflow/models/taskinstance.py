@@ -1456,7 +1456,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if self.task and self.task.expand_start_from_trigger(context=context) and (start_trigger_args := self.task.expand_start_trigger_args(context=context)):
             trigger_kwargs = start_trigger_args.trigger_kwargs or {}
-            timeout = self.task.start_trigger_args.timeout
+            timeout = start_trigger_args.timeout
 
             # Calculate timeout too if it was passed
             if timeout is not None:
