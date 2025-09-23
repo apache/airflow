@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "17.1.0"
+version = "18.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -66,7 +66,7 @@ dependencies = [
     "gcloud-aio-bigquery>=6.1.2",
     "gcloud-aio-storage>=9.0.0",
     "gcsfs>=2023.10.0",
-    "google-ads>=26.0.0",
+    "google-ads>=26.0.0,!=28.0.0.post2",
     "google-analytics-admin>=0.9.0",
     # Google-api-core 2.16.0 back-compat issue:
     # - https://github.com/googleapis/python-api-core/issues/576
@@ -259,8 +259,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/17.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/17.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/18.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/18.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

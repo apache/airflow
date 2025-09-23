@@ -26,8 +26,10 @@ from io import TextIOBase, UnsupportedOperation
 from logging import Handler, StreamHandler
 from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
+import structlog
+
 if TYPE_CHECKING:
-    from logging import Logger
+    from airflow._shared.logging.types import Logger
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -67,7 +69,7 @@ _T = TypeVar("_T")
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name."""
 
-    _log: logging.Logger | None = None
+    _log: Logger | None = None
 
     # Parent logger used by this class. It should match one of the loggers defined in the
     # `logging_config_class`. By default, this attribute is used to create the final name of the logger, and
@@ -111,7 +113,7 @@ class LoggingMixin:
                 log_config_logger_name=obj._log_config_logger_name,
                 class_logger_name=obj._logger_name,
             )
-            obj._log = logging.getLogger(logger_name)
+            obj._log = structlog.get_logger(logger_name)
         return obj._log
 
     @classmethod
@@ -124,9 +126,7 @@ class LoggingMixin:
         """Return a logger."""
         return LoggingMixin._get_log(self, self.__class__)
 
-    def _set_context(self, context):
-        if context is not None:
-            set_context(self.log, context)
+    def _set_context(self, context): ...
 
 
 class ExternalLoggingMixin(metaclass=abc.ABCMeta):
@@ -286,6 +286,10 @@ def set_context(logger, value):
     :param logger: logger
     :param value: value to set
     """
+    if not isinstance(logger, logging.Logger):
+        # This fn doesn't make sense for structlog based handlers
+        return
+
     while logger:
         orig_propagate = logger.propagate
         for handler in logger.handlers:

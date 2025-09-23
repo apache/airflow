@@ -74,7 +74,7 @@ def _providers_configuration_loaded(func):
     return wrapper
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def flower(args):
     """Start Flower, Celery monitoring tool."""
@@ -186,7 +186,7 @@ def logger_setup_handler(logger, **kwargs):
         logger.handlers[:] = [below_error_handler, from_error_handler]
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=not AIRFLOW_V_3_0_PLUS)
 @_providers_configuration_loaded
 def worker(args):
     """Start Airflow Celery worker."""
@@ -288,7 +288,7 @@ def worker(args):
     )
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def stop_worker(args):
     """Send SIGTERM to Celery worker."""
@@ -322,7 +322,7 @@ def _check_if_active_celery_worker(hostname: str):
         raise SystemExit(f"Error: {hostname} is unknown!")
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def list_workers(args):
     """List all active celery workers."""
@@ -343,7 +343,7 @@ def list_workers(args):
     AirflowConsole().print_as(data=workers, output=args.output)
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def shutdown_worker(args):
     """Request graceful shutdown of a celery worker."""
@@ -354,7 +354,7 @@ def shutdown_worker(args):
     celery_app.control.shutdown(destination=[args.celery_hostname])
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def shutdown_all_workers(args):
     """Request graceful shutdown all celery workers."""
@@ -372,7 +372,7 @@ def shutdown_all_workers(args):
     celery_app.control.broadcast("shutdown")
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def add_queue(args):
     """Subscribe a Celery worker to specified queues."""
@@ -385,7 +385,7 @@ def add_queue(args):
         celery_app.control.add_consumer(queue, destination=[args.celery_hostname])
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def remove_queue(args):
     """Unsubscribe a Celery worker from specified queues."""

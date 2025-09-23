@@ -30,7 +30,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
@@ -40,9 +40,15 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
-from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagRunContext,
+    EmailNotificationRequest,
+    TaskCallbackRequest,
+)
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
@@ -53,10 +59,10 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
-    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
@@ -84,17 +90,16 @@ from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    import logging
     from types import FrameType
 
     from pendulum.datetime import DateTime
     from sqlalchemy.orm import Query, Session
 
+    from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -184,7 +189,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        log: logging.Logger | None = None,
+        log: Logger | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
@@ -193,7 +198,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
         )
-        self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
 
@@ -750,7 +754,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: DBDagBag, session: Session
     ) -> int:
         """
-        Respond to executor events.
+        Process task completion events from the executor and update task instance states.
+
+        This method handles task state transitions reported by executors, ensuring proper
+        state management, callback execution, and notification processing. It maintains
+        scheduler architectural principles by delegating user code execution to appropriate
+        isolated processes.
+
+        The method handles several key scenarios:
+        1. **Normal task completion**: Updates task states for successful/failed tasks
+        2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
+        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors
+        4. **Callback processing**: Sends task callback requests to DAG Processor for execution
+        5. **Email notifications**: Sends email notification requests to DAG Processor
+
+        :param executor: The executor reporting task completion events
+        :param job_id: The scheduler job ID, used to detect task requeuing by other schedulers
+        :param scheduler_dag_bag: Serialized DAG bag for retrieving task definitions
+        :param session: Database session for task instance updates
+
+        :return: Number of events processed from the executor event buffer
+
+        :raises Exception: If DAG retrieval or task processing fails, logs error and continues
 
         This is a classmethod because this is also used in `dag.test()`.
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
@@ -884,16 +909,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Get task from the Serialized DAG
                 try:
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                    cls.logger().error(
-                        "DAG '%s' for task instance %s not found in serialized_dag table",
-                        ti.dag_id,
-                        ti,
-                    )
-                    if TYPE_CHECKING:
-                        assert dag
-                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-                    # instead, but currently it inherits SDK's DAG.
-                    task = cast("MappedOperator | SerializedBaseOperator", dag.get_task(ti.task_id))
+                    if not dag:
+                        cls.logger().error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            ti.dag_id,
+                            ti,
+                        )
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+
+                    task = dag.get_task(ti.task_id)
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
@@ -929,6 +953,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(None)
                     continue
 
+                # Send email notification request to DAG processor via DB
+                if task.email and (task.email_on_failure or task.email_on_retry):
+                    cls.logger().info(
+                        "Sending email request for task %s to DAG Processor",
+                        ti,
+                    )
+                    email_request = EmailNotificationRequest(
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
+                        ti=ti,
+                        msg=msg,
+                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                        context_from_server=TIRunContext(
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(email_request)
+
+                # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
@@ -2243,6 +2291,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
+                        # If old ti from Airflow 2 and last_heartbeat_at is None, set last_heartbeat_at to now
+                        if ti.last_heartbeat_at is None:
+                            ti.last_heartbeat_at = timezone.utcnow()
+                        # If old ti from Airflow 2 and dag_run.conf is None, set dag_run.conf to {}
+                        if ti.dag_run.conf is None:
+                            ti.dag_run.conf = {}
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
@@ -2339,6 +2393,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
+            if not ti.dag_version:
+                # If old ti from Airflow 2 and dag_version is None, skip heartbeat timeout handling.
+                self.log.warning(
+                    "DAG Version not found for TaskInstance %s. Skipping heartbeat timeout handling.",
+                    ti,
+                )
+                continue
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc,
                 bundle_name=ti.dag_version.bundle_name,
@@ -2409,7 +2470,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(Trigger)
             .where(
-                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(AssetWatcherModel.trigger_id)),
                 Trigger.id.not_in(select(Deadline.trigger_id)),
                 Trigger.id.not_in(select(TaskInstance.trigger_id)),
             )

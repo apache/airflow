@@ -318,6 +318,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: timestamp_gte
         in: query
         required: false
@@ -2191,6 +2203,14 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
       - name: order_by
         in: query
         required: false
@@ -2223,6 +2243,18 @@ paths:
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
           title: Triggering User Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       responses:
@@ -2328,7 +2360,8 @@ paths:
       summary: 'Experimental: Wait for a dag run to complete, and return task results
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
-        \ be removed without notice."
+        \ be removed without notice.Successful response are streamed as newline-delimited\
+        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
@@ -2980,6 +3013,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -4019,6 +4064,18 @@ paths:
           default:
           - id
           title: Order By
+      - name: filename_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Filename Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -5682,6 +5739,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -6426,6 +6491,18 @@ paths:
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: state
         in: query
         required: false
@@ -6482,6 +6559,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -7935,10 +8020,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Update Hitl Detail
       description: Update a Human-in-the-loop detail.
       operationId: update_hitl_detail
@@ -7965,11 +8050,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       requestBody:
         required: true
@@ -8016,7 +8100,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
       operationId: get_hitl_detail
@@ -8043,11 +8127,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       responses:
         '200':
@@ -8080,10 +8163,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails:
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Details
       description: Get Human-in-the-loop details.
       operationId: get_hitl_details
@@ -8091,6 +8174,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -8117,14 +8212,6 @@ paths:
           default:
           - ti_id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: dag_id_pattern
         in: query
         required: false
@@ -8137,12 +8224,6 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: dag_run_id
-        in: query
-        required: false
-        schema:
-          type: string
-          title: Dag Run Id
       - name: task_id
         in: query
         required: false
@@ -8163,6 +8244,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
       - name: state
         in: query
         required: false
@@ -8179,22 +8268,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: responded_user_id
+      - name: responded_by_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Responded User Id
-      - name: responded_user_name
+          title: Responded By User Id
+      - name: responded_by_user_name
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: Responded User Name
+          title: Responded By User Name
       - name: subject_search
         in: query
         required: false
@@ -8219,6 +8308,42 @@ paths:
           title: Body Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
       responses:
         '200':
           description: Successful Response
@@ -8600,6 +8725,11 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        watchers:
+          items:
+            $ref: '#/components/schemas/AssetWatcherResponse'
+          type: array
+          title: Watchers
         last_asset_event:
           anyOf:
           - $ref: '#/components/schemas/LastAssetEventResponse'
@@ -8616,8 +8746,28 @@ components:
       - producing_tasks
       - consuming_tasks
       - aliases
+      - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetWatcherResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        trigger_id:
+          type: integer
+          title: Trigger Id
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+      type: object
+      required:
+      - name
+      - trigger_id
+      - created_date
+      title: AssetWatcherResponse
+      description: Asset watcher serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -9513,6 +9663,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9707,6 +9862,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -9775,6 +9931,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9877,6 +10038,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -10668,6 +10830,11 @@ components:
           - type: string
           - type: 'null'
           title: Dag Display Name
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
       type: object
       required:
       - event_log_id
@@ -10823,29 +10990,25 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        respondents:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
           anyOf:
-          - items:
-              type: string
-            type: array
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: Respondents
-        responded_user_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Id
-        responded_user_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Name
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -10866,6 +11029,7 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLDetailCollection:
@@ -10886,16 +11050,12 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        responded_user_id:
-          type: string
-          title: Responded User Id
-        responded_user_name:
-          type: string
-          title: Responded User Name
-        response_at:
+        responded_by:
+          $ref: '#/components/schemas/HITLUser'
+        responded_at:
           type: string
           format: date-time
-          title: Response At
+          title: Responded At
         chosen_options:
           items:
             type: string
@@ -10908,12 +11068,25 @@ components:
           title: Params Input
       type: object
       required:
-      - responded_user_id
-      - responded_user_name
-      - response_at
+      - responded_by
+      - responded_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:

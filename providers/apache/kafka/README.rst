@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.10.2``
+Release: ``1.10.4``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Kafka  <https://kafka.apache.org/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.4/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-kafka``
 
@@ -79,5 +78,15 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 ========================================================================================================================  ====================
 
+Optional dependencies
+----------------------
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``google``            ``apache-airflow-providers-google``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.4/changelog.html>`_.

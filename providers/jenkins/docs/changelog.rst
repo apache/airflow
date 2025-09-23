@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+4.1.3
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Make Jenkins connection schema visible (#55444)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+   * ``fix failing jenkins tests after python-jenkins 1.8.3 release (#54068)``
+
 4.1.2
 .....
 

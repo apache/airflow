@@ -76,7 +76,7 @@ CREATE_PROCESSING_PARAMS: dict = {
     "ProcessingResources": {
         "ClusterConfig": {
             "InstanceCount": "2",
-            "InstanceType": "ml.p2.xlarge",
+            "InstanceType": "ml.p3.2xlarge",
             "VolumeSizeInGB": "30",
             "VolumeKmsKeyId": "kms_key",
         }

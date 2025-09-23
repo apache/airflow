@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
-from airflow._shared.secrets_masker import should_hide_value_for_key
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
@@ -139,6 +138,8 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
+    from airflow._shared.secrets_masker import _secrets_masker
+
     sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
     sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
@@ -147,7 +148,7 @@ def _build_metrics(func_name, namespace):
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
         key = full_command[-2] if len(full_command) > 3 else None
-        if key and should_hide_value_for_key(key):
+        if key and _secrets_masker().should_hide_value_for_key(key):
             # Mask the sensitive value since key contain sensitive keyword
             full_command[-1] = "*" * 8
     elif sub_command in sub_commands_to_check_for_sensitive_fields:
@@ -168,7 +169,7 @@ def _build_metrics(func_name, namespace):
         json_index = full_command.index("--conn-json") + 1
         conn_json = json.loads(full_command[json_index])
         for k in conn_json:
-            if k and should_hide_value_for_key(k):
+            if k and _secrets_masker().should_hide_value_for_key(k):
                 conn_json[k] = "*" * 8
         full_command[json_index] = json.dumps(conn_json)
 
@@ -299,7 +300,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     )
 
 
-def _get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
+def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
     """
     Return DAG of a given dag_id.
 
@@ -320,7 +321,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
 
     if not use_regex:
         if from_db:
-            return [_get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
+            return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
@@ -432,15 +433,26 @@ def suppress_logs_and_warning(f: T) -> T:
         if args[0].verbose:
             f(*args, **kwargs)
         else:
+            from airflow._shared.logging.structlog import respect_stdlib_disable
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 logging.disable(logging.CRITICAL)
+
+                def drop(*_, **__):
+                    from structlog import DropEvent
+
+                    raise DropEvent()
+
+                old_fn = respect_stdlib_disable.__code__
+                respect_stdlib_disable.__code__ = drop.__code__
                 try:
                     f(*args, **kwargs)
                 finally:
                     # logging output again depends on the effective
                     # levels of individual loggers
                     logging.disable(logging.NOTSET)
+                    respect_stdlib_disable.__code__ = old_fn
 
     return cast("T", _wrapper)
 

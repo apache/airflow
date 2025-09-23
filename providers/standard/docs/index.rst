@@ -66,9 +66,7 @@ apache-airflow-providers-standard package
 Airflow Standard Provider
 
 
-Release: 1.6.0
-
-Release Date: ``|PypiReleaseDate|``
+Release: 1.8.0
 
 Provider package
 ----------------
@@ -79,7 +77,7 @@ All classes for this package are included in the ``airflow.providers.standard`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-standard``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

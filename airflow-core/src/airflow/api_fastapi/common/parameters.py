@@ -53,6 +53,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
@@ -616,6 +617,17 @@ QueryPausedFilter = Annotated[
     FilterParam[bool | None],
     Depends(filter_param_factory(DagModel.is_paused, bool | None, filter_name="paused")),
 ]
+QueryHasImportErrorsFilter = Annotated[
+    FilterParam[bool | None],
+    Depends(
+        filter_param_factory(
+            DagModel.has_import_errors,
+            bool | None,
+            filter_name="has_import_errors",
+            description="Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.",
+        )
+    ),
+]
 QueryFavoriteFilter = Annotated[_FavoriteFilter, Depends(_FavoriteFilter.depends)]
 QueryExcludeStaleFilter = Annotated[_ExcludeStaleFilter, Depends(_ExcludeStaleFilter.depends)]
 QueryDagIdPatternSearch = Annotated[
@@ -707,7 +719,10 @@ class _PendingActionsFilter(BaseParam[bool]):
         pending_actions_count_subquery = (
             sql_select(func.count(HITLDetail.ti_id))
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(HITLDetail.response_at.is_(None))
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
         )
@@ -786,6 +801,10 @@ QueryDagRunRunTypesFilter = Annotated[
     ),
 ]
 
+QueryDagRunTriggeringUserSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user"))
+]
+
 # DagTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
@@ -853,6 +872,18 @@ QueryTIDagVersionFilter = Annotated[
         )
     ),
 ]
+QueryDagRunVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            filter_name="dag_version",
+        )
+    ),
+]
 QueryTITryNumberFilter = Annotated[
     FilterParam[list[int]],
     Depends(
@@ -867,6 +898,15 @@ QueryTIOperatorFilter = Annotated[
     Depends(
         filter_param_factory(
             TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
+QueryTIMapIndexFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
         )
     ),
 ]
@@ -957,14 +997,24 @@ QueryHITLDetailTaskIdPatternSearch = Annotated[
         )
     ),
 ]
-QueryHITLDetailDagRunIdFilter = Annotated[
-    FilterParam[str],
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
     Depends(
         filter_param_factory(
-            TaskInstance.run_id,
-            str,
-            filter_name="dag_run_id",
-        ),
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
+        )
+    ),
+]
+QueryHITLDetailMapIndexFilter = Annotated[
+    FilterParam[int | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index,
+            int | None,
+            filter_name="map_index",
+        )
     ),
 ]
 QueryHITLDetailSubjectSearch = Annotated[
@@ -999,11 +1049,11 @@ QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_user_id,
+            HITLDetail.responded_by_user_id,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="responded_user_id",
+            filter_name="responded_by_user_id",
         )
     ),
 ]
@@ -1011,31 +1061,16 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.responded_user_name,
+            HITLDetail.responded_by_user_name,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="responded_user_name",
+            filter_name="responded_by_user_name",
         )
     ),
 ]
-QueryHITLDetailDagIdFilter = Annotated[
-    FilterParam[str | None],
-    Depends(
-        filter_param_factory(
-            TaskInstance.dag_id,
-            str | None,
-            filter_name="dag_id",
-        )
-    ),
-]
-QueryHITLDetailTaskIdFilter = Annotated[
-    FilterParam[str | None],
-    Depends(
-        filter_param_factory(
-            TaskInstance.task_id,
-            str | None,
-            filter_name="task_id",
-        )
-    ),
+
+# Parse Import Errors
+QueryParseImportErrorFilenamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(ParseImportError.filename, "filename_pattern"))
 ]

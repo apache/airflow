@@ -29,13 +29,7 @@ from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
 from urllib.parse import urlsplit
 
 import attrs
@@ -72,10 +66,12 @@ if TYPE_CHECKING:
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.typing_compat import Self
 
     Operator: TypeAlias = BaseOperator | MappedOperator
@@ -188,6 +184,15 @@ def _convert_access_control(access_control):
         else:
             updated_access_control[role] = perms
     return updated_access_control
+
+
+def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
+    """Convert deadline parameter to a list of DeadlineAlert objects."""
+    if deadline is None:
+        return None
+    if isinstance(deadline, DeadlineAlert):
+        return [deadline]
+    return list(deadline)
 
 
 def _convert_doc_md(doc_md: str | None) -> str | None:
@@ -330,7 +335,8 @@ class DAG:
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
-    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
+    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with DeadlineAlerts in 3.1
+    :param deadline: An optional DeadlineAlert for the Dag.
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
@@ -443,9 +449,15 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    deadline: DeadlineAlert | None = attrs.field(
+    deadline: list[DeadlineAlert] | DeadlineAlert | None = attrs.field(
         default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(DeadlineAlert)),
+        converter=_convert_deadline,
+        validator=attrs.validators.optional(
+            attrs.validators.deep_iterable(
+                member_validator=attrs.validators.instance_of(DeadlineAlert),
+                iterable_validator=attrs.validators.instance_of(list),
+            )
+        ),
     )
 
     catchup: bool = attrs.field(
@@ -829,15 +841,9 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-        from typing import TypeGuard
-
-        from airflow.models.mappedoperator import MappedOperator as DbMappedOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         def is_task(obj) -> TypeGuard[Operator]:
-            if isinstance(obj, (DbMappedOperator, SerializedBaseOperator)):
-                return True  # TODO (GH-52141): Split DAG implementation to straight this up.
             return isinstance(obj, (BaseOperator, MappedOperator))
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
@@ -1084,7 +1090,6 @@ class DAG:
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
-        # Note - older serialized Dags may not have edge_info being a dict at all
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
@@ -1144,34 +1149,11 @@ class DAG:
         from airflow import settings
         from airflow.configuration import secrets_backend_list
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
-        from airflow.sdk import timezone
+        from airflow.sdk import DagRunState, TaskInstanceState, timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils.state import DagRunState, State, TaskInstanceState
+        from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
-
-        if TYPE_CHECKING:
-            from airflow.models.taskinstance import TaskInstance
-
-        def add_logger_if_needed(ti: TaskInstance):
-            """
-            Add a formatted logger to the task instance.
-
-            This allows all logs to surface to the command line, instead of into
-            a task file. Since this is a local test run, it is much better for
-            the user to see logs in the command line, rather than needing to
-            search for a log file.
-
-            :param ti: The task instance that will receive a logger.
-            """
-            format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
-            handler = logging.StreamHandler(sys.stdout)
-            handler.level = logging.INFO
-            handler.setFormatter(format)
-            # only add log handler once
-            if not any(isinstance(h, logging.StreamHandler) for h in ti.log.handlers):
-                log.debug("Adding Streamhandler to taskinstance %s", ti.task_id)
-                ti.log.addHandler(handler)
 
         exit_stack = ExitStack()
 
@@ -1212,8 +1194,10 @@ class DAG:
             #   -- dep check, scheduling tis
             # and need real dag to get and run callbacks without having to load the dag model
 
-            scheduler_dag.on_success_callback = self.on_success_callback
-            scheduler_dag.on_failure_callback = self.on_failure_callback
+            # Scheduler DAG shouldn't have these attributes, but assigning them
+            # here is an easy hack to get this test() thing working.
+            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined]
+            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined]
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
@@ -1303,7 +1287,6 @@ class DAG:
                     else:
                         # Run the task locally
                         try:
-                            add_logger_if_needed(ti)
                             if mark_success:
                                 ti.set_state(State.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
@@ -1324,7 +1307,12 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti, task, run_triggerer=False):
+def _run_task(
+    *,
+    ti: SchedulerTaskInstance,
+    task: Operator,
+    run_triggerer: bool = False,
+) -> TaskRunResult | None:
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1334,6 +1322,7 @@ def _run_task(*, ti, task, run_triggerer=False):
     from airflow.sdk.module_loading import import_string
     from airflow.utils.state import State
 
+    taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
     while True:
         try:
@@ -1342,27 +1331,25 @@ def _run_task(*, ti, task, run_triggerer=False):
             from airflow.sdk.api.datamodels._generated import TaskInstance as TaskInstanceSDK
             from airflow.sdk.execution_time.comms import DeferTask
             from airflow.sdk.execution_time.supervisor import run_task_in_process
+            from airflow.serialization.serialized_objects import create_scheduler_operator
 
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
             ti.set_state(State.QUEUED)
-
-            taskrun_result = run_task_in_process(
-                ti=TaskInstanceSDK(
-                    id=ti.id,
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                    try_number=ti.try_number,
-                    map_index=ti.map_index,
-                    dag_version_id=ti.dag_version_id,
-                ),
-                task=task,
+            task_sdk_ti = TaskInstanceSDK(
+                id=ti.id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                dag_version_id=ti.dag_version_id,
             )
 
+            taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)
             msg = taskrun_result.msg
             ti.set_state(taskrun_result.ti.state)
-            ti.task = taskrun_result.ti.task
+            ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 from airflow.utils.session import create_session
@@ -1373,7 +1360,7 @@ def _run_task(*, ti, task, run_triggerer=False):
 
                 log.info("[DAG TEST] running trigger in line")
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
-                event = _run_inline_trigger(trigger)
+                event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
@@ -1382,25 +1369,25 @@ def _run_task(*, ti, task, run_triggerer=False):
                 with create_session() as session:
                     ti.state = State.SCHEDULED
                     session.add(ti)
+                continue
 
-            return taskrun_result
+            break
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
             if ti.state not in State.finished:
                 ti.set_state(State.FAILED)
+                taskrun_result = None
                 break
             raise
 
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    return taskrun_result
 
 
-def _run_inline_trigger(trigger):
-    import asyncio
+def _run_inline_trigger(trigger, task_sdk_ti):
+    from airflow.sdk.execution_time.supervisor import InProcessTestSupervisor
 
-    async def _run_inline_trigger_main():
-        return await anext(trigger.run(), None)
-
-    return asyncio.run(_run_inline_trigger_main())
+    return InProcessTestSupervisor.run_trigger_in_process(trigger=trigger, ti=task_sdk_ti)
 
 
 # Since we define all the attributes of the class with attrs, we can compute this statically at parse time
@@ -1453,7 +1440,7 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-        deadline: DeadlineAlert | None = None,
+        deadline: list[DeadlineAlert] | DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
