@@ -2192,7 +2192,7 @@
 <polygon fill="none" stroke="black" points="1373,-2090 1373,-2115 1650,-2115 1650,-2090 1373,-2090"/>
 <text text-anchor="start" x="1378" y="-2099.8" font-family="Helvetica,sans-Serif" font-size="14.00">data</text>
 <text text-anchor="start" x="1409" y="-2099.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1414" y="-2099.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<text text-anchor="start" x="1414" y="-2099.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSONB]</text>
 <polygon fill="none" stroke="black" points="1373,-2065 1373,-2090 1650,-2090 1650,-2065 1373,-2065"/>
 <text text-anchor="start" x="1378" y="-2074.8" font-family="Helvetica,sans-Serif" font-size="14.00">data_compressed</text>
 <text text-anchor="start" x="1500" y="-2074.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
