@@ -336,7 +336,7 @@ class RuntimeTaskInstance(TaskInstance):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
-        key = quote(key,safe='')
+        key = quote(key, safe="")
         if dag_id is None:
             dag_id = self.dag_id
         if run_id is None:
@@ -410,8 +410,7 @@ class RuntimeTaskInstance(TaskInstance):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable values may be used.
         """
-        encoded_key = quote(key, safe="")
-        _xcom_push(self, encoded_key, value)
+        _xcom_push(self, key, value)
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
@@ -1368,8 +1367,8 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
                 )
 
         for k, v in result.items():
-            ti.xcom_push(k, v)
-
+            encoded_key = quote(k, safe="")
+            ti.xcom_push(encoded_key, v)
 
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 

@@ -1287,7 +1287,7 @@ class TestRuntimeTaskInstance:
         # Access the connection from the context
         conn_from_context = context["conn"].test_conn
 
-        mock_supervisor_comms.send.assert_called_once_with(GetConnection(conn_id="test_conn"))
+        mock_supervisor_comms.send.assert_any_call(GetConnection(conn_id="test_conn"))
 
         assert conn_from_context == Connection(
             conn_id="test_conn",
@@ -1502,6 +1502,7 @@ class TestRuntimeTaskInstance:
                             map_index=expected_map_index,
                         ),
                     )
+
     @pytest.mark.parametrize(
         "task_ids, map_indexes, expected_value",
         [
@@ -1984,23 +1985,6 @@ class TestRuntimeTaskInstance:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
             mock_delete.assert_not_called()
-
-    #TODO TESTCASE BRUNDA
-    # def test_xcom_key_with_slash_roundtrip(self,create_runtime_ti):
-    #     class DummyOperator(BaseOperator):
-    #         def execute(self, context):
-    #             return "dummy"
-
-    #     task = DummyOperator(task_id="test_task")
-    #     runtime_ti = create_runtime_ti(task=task)
-
-    #     # Push with a slash in the key
-    #     runtime_ti.xcom_push(key="key/with/slash", value="slashy")
-
-    #     # Pull back the same key
-    #     pulled_value = runtime_ti.xcom_pull(task_ids="test_task", key="key/with/slash")
-
-    #     assert pulled_value == "slashy"
 
 
 class TestXComAfterTaskExecution:

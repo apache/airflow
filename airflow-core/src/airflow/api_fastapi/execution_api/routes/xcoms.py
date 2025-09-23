@@ -79,7 +79,7 @@ async def xcom_query(
     key: str,
     map_index: Annotated[int | None, Query()] = None,
 ) -> Select:
-    key= unquote(key)
+    key = unquote(key)
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
