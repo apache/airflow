@@ -90,6 +90,14 @@ Tasks & Operators
 
 .. autoclass:: airflow.sdk.TriggerRule
 
+State Enums
+-----------
+.. autoclass:: airflow.sdk.TaskInstanceState
+
+.. autoclass:: airflow.sdk.DagRunState
+
+.. autoclass:: airflow.sdk.WeightRule
+
 Setting Dependencies
 ~~~~~~~~~~~~~~~~~~~~
 .. autoapifunction:: airflow.sdk.chain

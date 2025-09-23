@@ -243,6 +243,13 @@ PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
+def remove_code_blocks(text: str) -> str:
+    """Remove content within code blocks (```...``` and `...`) from text."""
+    text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+    text = re.sub(r"`[^`]+`", "", text)
+    return text
+
+
 class VersionedFile(NamedTuple):
     base: str
     version: str
@@ -253,11 +260,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.8.14"
+AIRFLOW_UV_VERSION = "0.8.20"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.1.0"
-PREK_VERSION = "0.1.4"
+PREK_VERSION = "0.2.1"
 HATCH_VERSION = "1.14.1"
 PYYAML_VERSION = "6.0.2"
 
@@ -538,6 +545,22 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
+def create_tarball_from_tag(
+    version_suffix: str,
+    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    tag: str | None,
+):
+    if tag is not None:
+        get_console().print(f"Tag Used for source tarball creation: {tag}")
+        create_tarball_release(
+            version=version_suffix,
+            distribution_name=distribution_name,
+            tag=tag,
+        )
+    else:
+        get_console().print("No tag provided, skipping source tarball creation.")
+
+
 @release_management.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
@@ -583,13 +606,13 @@ def prepare_airflow_distributions(
             version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
-    if tag is not None:
-        # Create the tarball
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="airflow",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="airflow",
+        tag=tag,
+    )
 
 
 def _prepare_non_core_distributions(
@@ -737,13 +760,13 @@ def prepare_task_sdk_distributions(
         distribution_name="task-sdk",
         distribution_pretty_name="Task SDK",
     )
-    if tag is not None:
-        # Create the tarball
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="task-sdk",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="task-sdk",
+        tag=tag,
+    )
 
 
 @release_management.command(
@@ -775,14 +798,13 @@ def prepare_airflow_ctl_distributions(
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
     )
-    print(f"tag passed: {tag}")
-    if tag is not None:
-        # Create the tarball
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="airflowctl",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="airflowctl",
+        tag=tag,
+    )
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -1176,13 +1198,13 @@ def prepare_provider_distributions(
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
-    # Create the tarball
-    if tag is not None:
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name="providers",
-            tag=tag,
-        )
+
+    # Create the tarball if tag is provided
+    create_tarball_from_tag(
+        version_suffix=version_suffix,
+        distribution_name="providers",
+        tag=tag,
+    )
 
 
 def run_generate_constraints(
@@ -2532,8 +2554,10 @@ def generate_issue_content_providers(
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
+                    body_without_code_blocks = remove_code_blocks(body)
                     linked_issue_numbers = {
-                        int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                        int(issue_match.group(1))
+                        for issue_match in ISSUE_MATCH_IN_BODY.finditer(body_without_code_blocks)
                     }
                     for linked_issue_number in linked_issue_numbers:
                         try:
@@ -3899,8 +3923,10 @@ def generate_issue_content(
             # Relate so we can find those from the body
             if pr.body:
                 body = " ".join(pr.body.splitlines())
+                body_without_code_blocks = remove_code_blocks(body)
                 linked_issue_numbers = {
-                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                    int(issue_match.group(1))
+                    for issue_match in ISSUE_MATCH_IN_BODY.finditer(body_without_code_blocks)
                 }
                 for linked_issue_number in linked_issue_numbers:
                     progress.console.print(

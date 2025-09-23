@@ -70,9 +70,7 @@ This package provides remote execution capabilities via the
 <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 3.1.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 3.1.3
 
 Provider package
 ----------------

@@ -1359,7 +1359,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         return self.columns
 
     def _process_rows(self, context: Context):
-        return self._rows_processor(context, self.rows)  # type: ignore
+        return self._rows_processor(self.rows, **context)  # type: ignore
 
     def execute(self, context: Context) -> Any:
         if not self.rows:

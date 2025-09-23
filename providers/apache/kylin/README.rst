@@ -25,7 +25,6 @@ Package ``apache-airflow-providers-apache-kylin``
 
 Release: ``3.9.2``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Kylin <https://kylin.apache.org/>`__
 

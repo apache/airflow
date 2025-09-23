@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
@@ -228,9 +228,7 @@ def set_dag_run_state_to_success(
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
-    # TODO (GH-52141): 'tasks' in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    tasks = cast("list[Operator]", dag.tasks)
+    tasks = dag.tasks
 
     # Mark all task instances of the dag run to success - except for unfinished teardown as they need to complete work.
     teardown_tasks = [task for task in tasks if task.is_teardown]
@@ -312,13 +310,7 @@ def set_dag_run_state_to_failed(
         task.dag = dag
         return task
 
-    # TODO (GH-52141): 'tasks' in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    running_tasks = [
-        _set_runing_task(task)
-        for task in cast("list[Operator]", dag.tasks)
-        if task.task_id in task_ids_of_running_tis
-    ]
+    running_tasks = [_set_runing_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = session.scalars(

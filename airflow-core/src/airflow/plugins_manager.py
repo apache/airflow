@@ -391,8 +391,23 @@ def initialize_ui_plugins():
     external_views = []
     react_apps = []
 
+    def _remove_list_item(lst, item):
+        # Mutate in place the plugin's external views and react apps list to remove the invalid items
+        # because some function still access these plugin's attribute and not the
+        # global variables `external_views` `react_apps`. (get_plugin_info, for example)
+        lst.remove(item)
+
     for plugin in plugins:
+        external_views_to_remove = []
+        react_apps_to_remove = []
         for external_view in plugin.external_views:
+            if not isinstance(external_view, dict):
+                log.warning(
+                    "Plugin '%s' has an external view that is not a dictionary. The view will not be loaded.",
+                    plugin.name,
+                )
+                external_views_to_remove.append(external_view)
+                continue
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
@@ -404,15 +419,19 @@ def initialize_ui_plugins():
                     url_route,
                     seen_url_route[url_route],
                 )
-                # Mutate in place the plugin's external views to remove the conflicting view
-                # because some function still access the plugin's external views and not the
-                # global `external_views` variable. (get_plugin_info, for example)
-                plugin.external_views.remove(external_view)
+                external_views_to_remove.append(external_view)
                 continue
             external_views.append(external_view)
             seen_url_route[url_route] = plugin.name
 
         for react_app in plugin.react_apps:
+            if not isinstance(react_app, dict):
+                log.warning(
+                    "Plugin '%s' has a React App that is not a dictionary. The React App will not be loaded.",
+                    plugin.name,
+                )
+                react_apps_to_remove.append(react_app)
+                continue
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue
@@ -424,13 +443,15 @@ def initialize_ui_plugins():
                     url_route,
                     seen_url_route[url_route],
                 )
-                # Mutate in place the plugin's React Apps to remove the conflicting app
-                # because some function still access the plugin's React Apps and not the
-                # global `react_apps` variable. (get_plugin_info, for example)
-                plugin.react_apps.remove(react_app)
+                react_apps_to_remove.append(react_app)
                 continue
             react_apps.append(react_app)
             seen_url_route[url_route] = plugin.name
+
+        for item in external_views_to_remove:
+            _remove_list_item(plugin.external_views, item)
+        for item in react_apps_to_remove:
+            _remove_list_item(plugin.react_apps, item)
 
 
 def initialize_flask_plugins():
