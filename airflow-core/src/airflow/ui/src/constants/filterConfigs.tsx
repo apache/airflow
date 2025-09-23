@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
@@ -29,9 +30,11 @@ import {
   MdCheckCircle,
 } from "react-icons/md";
 
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
+import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import { dagRunStateOptions, dagRunTypeOptions } from "src/constants/stateOptions";
 
@@ -173,7 +176,15 @@ export const useFilterConfigs = () => {
       icon: <MdPlayArrow />,
       label: translate("common:dagRun.runType"),
       options: dagRunTypeOptions.items.map((option) => ({
-        label: option.value === "all" ? translate(option.label) : translate(option.label),
+        label:
+          option.value === "all" ? (
+            translate(option.label)
+          ) : (
+            <Flex alignItems="center" gap={1}>
+              <RunTypeIcon runType={option.value as DagRunType} />
+              {translate(option.label)}
+            </Flex>
+          ),
         value: option.value,
       })),
       type: FilterTypes.SELECT,
@@ -187,7 +198,12 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
       options: dagRunStateOptions.items.map((option) => ({
-        label: option.value === "all" ? translate(option.label) : translate(option.label),
+        label:
+          option.value === "all" ? (
+            translate(option.label)
+          ) : (
+            <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
+          ),
         value: option.value,
       })),
       type: FilterTypes.SELECT,
