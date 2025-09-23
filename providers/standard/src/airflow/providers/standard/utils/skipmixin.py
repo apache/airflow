@@ -17,17 +17,26 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable, Sequence
 from types import GeneratorType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+log = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
-    from airflow.sdk.definitions._internal.node import DAGNode
-    from airflow.sdk.types import RuntimeTaskInstanceProtocol
+    from airflow.models.baseoperator import BaseOperator, MappedOperator
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as SDKTaskInstanceProtocol
+
+    DAGNode = BaseOperator
+    RuntimeTaskInstanceProtocol = SDKTaskInstanceProtocol
+
+    SkipMixinOperator = Union[BaseOperator, MappedOperator]
+else:
+    SkipMixinOperator = "BaseOperator | MappedOperator"
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -39,45 +48,52 @@ XCOM_SKIPMIXIN_SKIPPED = "skipped"
 XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 
-def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.mappedoperator import MappedOperator
+def _ensure_tasks(nodes: Iterable[DAGNode]) -> list[SkipMixinOperator]:
+    """Return a list of operators from the given nodes."""
+    from airflow.models.baseoperator import BaseOperator, MappedOperator
 
-    return [n for n in nodes if isinstance(n, (BaseOperator, MappedOperator))]
+    result: list[SkipMixinOperator] = []
+    for node in nodes:
+        if isinstance(node, (BaseOperator, MappedOperator)):
+            result.append(node)  # type: ignore[arg-type]
+    return result
 
 
-# This class should only be used in Airflow 3.0 and later.
+# This class should only be used in Airflow 3.0 and later
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances."""
 
     @staticmethod
-    def _set_state_to_skipped(
-        tasks: Sequence[str | tuple[str, int]],
-        map_index: int | None,
-    ) -> None:
+    def _set_state_to_skipped(tasks: Sequence[str | tuple[str, int]], map_index: int | None = None) -> None:
         """
-        Set state of task instances to skipped from the same dag run.
+        Set the state of the tasks to skipped.
 
-        Raises
-        ------
-        SkipDownstreamTaskInstances
-            If the task instances are not in the same dag run.
+        :param tasks: List of task IDs or (task_id, map_index) tuples to skip
+        :param map_index: Map index of the current task (deprecated, included for backward compatibility)
         """
-        # Import is internal for backward compatibility when importing PythonOperator
-        # from airflow.providers.common.compat.standard.operators
+        processed_tasks: list[str | tuple[str, int]] = []
+        for task in tasks:
+            if isinstance(task, str) and "[" in task and task.endswith("]"):
+                task_id, map_idx_str = task.rsplit("[", 1)
+                try:
+                    map_idx = int(map_idx_str.rstrip("]"))
+                    processed_tasks.append((task_id, map_idx))
+                    continue
+                except (ValueError, IndexError):
+                    processed_tasks.append(task)
+            else:
+                processed_tasks.append(task)
+
         from airflow.exceptions import DownstreamTasksSkipped
 
-        #  The following could be applied only for non-mapped tasks,
-        #  as future mapped tasks have not been expanded yet. Such tasks
-        #  have to be handled by NotPreviouslySkippedDep.
-        if tasks and map_index == -1:
-            raise DownstreamTasksSkipped(tasks=tasks)
+        raise DownstreamTasksSkipped(tasks=processed_tasks)
 
     def skip(
         self,
         ti: RuntimeTaskInstanceProtocol,
         tasks: Iterable[DAGNode],
-    ):
+        dag_run=None,
+    ) -> None:
         """
         Set tasks instances to skipped from the same dag run.
 
@@ -88,21 +104,56 @@ class SkipMixin(LoggingMixin):
         :param ti: the task instance for which to set the tasks to skipped
         :param tasks: tasks to skip (not task_ids)
         """
-        # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         task_id: str | None = getattr(self, "task_id", None)
-        task_list = _ensure_tasks(tasks)
+        task_list = list(_ensure_tasks(tasks))
+        log = self.log
+        tasks_list = list(tasks)
+        if len(tasks_list) != len(task_list):
+            dropped = [
+                str(getattr(t, "task_id", str(t)))
+                for t in tasks_list
+                if hasattr(t, "task_id") and t not in task_list
+            ]
+            if dropped:
+                log.info("Dropped %d non-operator tasks: %s", len(dropped), dropped)
+
         if not task_list:
             return
 
-        task_ids_list = [d.task_id for d in task_list]
+        expanded_task_ids: list[str] = []
+
+        dag_run = dag_run or getattr(ti, "dag_run", None)
+
+        for t in task_list:
+            task_id = getattr(t, "task_id", "unknown")
+            is_mapped = getattr(t, "is_mapped", False)
+
+            if is_mapped and dag_run is not None:
+                try:
+                    mapped_params = getattr(t, "mapped_params", {})
+                    num_instances = 1
+                    if hasattr(mapped_params, "get_total_map_length"):
+                        num_instances = mapped_params.get_total_map_length()
+                    elif hasattr(t, "get_parse_time_mapped_ti_count"):
+                        num_instances = t.get_parse_time_mapped_ti_count()
+
+                    for i in range(num_instances):
+                        mapped_id = f"{task_id}[{i}]"
+                        expanded_task_ids.append(mapped_id)
+
+                except Exception as e:
+                    log.warning("Failed to expand mapped task %s: %s", task_id, e, exc_info=True)
+                    expanded_task_ids.append(task_id)
+            else:
+                expanded_task_ids.append(task_id)
 
         if task_id is not None:
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY,
-                value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
+                value={XCOM_SKIPMIXIN_SKIPPED: expanded_task_ids},
             )
 
-        self._set_state_to_skipped(task_ids_list, ti.map_index)
+        self._set_state_to_skipped(expanded_task_ids, ti.map_index)
 
     def skip_all_except(
         self,
