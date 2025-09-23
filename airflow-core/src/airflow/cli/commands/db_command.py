@@ -108,7 +108,7 @@ def _reserialize_dags_after_downgrade(args):
         ser_version = _get_serializer_version_for_target_version(args.to_version)
     elif args.to_revision:
         config = db._get_alembic_config()
-
+        resolved_version = None
         for version, head in _REVISION_HEADS_MAP.items():
             if head == args.to_revision or db._revision_greater(config, head, args.to_revision):
                 resolved_version = version
