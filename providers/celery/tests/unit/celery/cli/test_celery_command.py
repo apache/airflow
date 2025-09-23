@@ -37,8 +37,14 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
+@pytest.fixture(autouse=False)
+def conf_stale_bundle_cleanup_disabled():
+    with conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "0"}):
+        yield
+
+
 @pytest.mark.backend("mysql", "postgres")
-@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestCeleryStopCommand:
     @classmethod
     def setup_class(cls):
@@ -120,7 +126,7 @@ class TestCeleryStopCommand:
 
 
 @pytest.mark.backend("mysql", "postgres")
-@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestWorkerStart:
     @classmethod
     def setup_class(cls):
@@ -181,7 +187,7 @@ class TestWorkerStart:
 
 
 @pytest.mark.backend("mysql", "postgres")
-@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestWorkerFailure:
     @classmethod
     def setup_class(cls):
@@ -201,7 +207,7 @@ class TestWorkerFailure:
 
 
 @pytest.mark.backend("mysql", "postgres")
-@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestFlowerCommand:
     @classmethod
     def setup_class(cls):

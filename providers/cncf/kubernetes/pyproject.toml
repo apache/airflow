@@ -69,9 +69,9 @@ dependencies = [
     # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
-    "kubernetes>=32.0.0,<33.0.0",
+    "kubernetes>=32.0.0,<34.0.0",
     # the version is limited to the next MAJOR version and should by synced with the kubernetes version
-    "kubernetes_asyncio>=32.0.0,<33.0.0",
+    "kubernetes_asyncio>=32.0.0,<34.0.0",
 ]
 
 [dependency-groups]

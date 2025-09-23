@@ -3270,18 +3270,20 @@ class SerializedDAG(BaseSerialization):
         if self.deadline:
             for deadline in cast("list", self.deadline):
                 if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                    session.add(
-                        Deadline(
-                            deadline_time=deadline.reference.evaluate_with(
-                                session=session,
-                                interval=deadline.interval,
-                                dag_id=self.dag_id,
-                                run_id=run_id,
-                            ),
-                            callback=deadline.callback,
-                            dagrun_id=orm_dagrun.id,
-                        )
+                    deadline_time = deadline.reference.evaluate_with(
+                        session=session,
+                        interval=deadline.interval,
+                        dag_id=self.dag_id,
+                        run_id=run_id,
                     )
+                    if deadline_time is not None:
+                        session.add(
+                            Deadline(
+                                deadline_time=deadline_time,
+                                callback=deadline.callback,
+                                dagrun_id=orm_dagrun.id,
+                            )
+                        )
 
         return orm_dagrun
 
