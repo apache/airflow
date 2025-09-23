@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Link, List, Table, Text } from "@chakra-ui/react";
+import { Box, Code, Input, Link, List, Table, Text } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
+import { useState, useEffect, useRef } from "react";
 import { LuExternalLink } from "react-icons/lu";
 import TimeAgo from "react-timeago";
 
@@ -28,108 +29,153 @@ import { ScrollToAnchor } from "src/components/ui";
 import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
-  const { data, error, refetch } = useUiServiceWorker(undefined, {
-    enabled: true,
-    refetchInterval: autoRefreshInterval,
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const { data, error, refetch } = useUiServiceWorker(
+    { workerNamePattern: debouncedSearchTerm || undefined },
+    undefined,
+    {
+      enabled: true,
+      refetchInterval: autoRefreshInterval,
+    },
+  );
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
   // Add sorting
-  // Add filtering
   // Add links with filter to see jobs on worker
   // Add time zone support for time display
   // Translation?
-  if (data?.workers && data.workers.length > 0)
-    return (
-      <Box p={2}>
-        <Table.Root size="sm" interactive stickyHeader striped>
-          <Table.Header>
-            <Table.Row>
-              <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
-              <Table.ColumnHeader>State</Table.ColumnHeader>
-              <Table.ColumnHeader>Queues</Table.ColumnHeader>
-              <Table.ColumnHeader>First Online</Table.ColumnHeader>
-              <Table.ColumnHeader>Last Heartbeat</Table.ColumnHeader>
-              <Table.ColumnHeader>Active Jobs</Table.ColumnHeader>
-              <Table.ColumnHeader>System Information</Table.ColumnHeader>
-              <Table.ColumnHeader>Operations</Table.ColumnHeader>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {data.workers.map((worker) => (
-              <Table.Row key={worker.worker_name} id={worker.worker_name}>
-                <Table.Cell>{worker.worker_name}</Table.Cell>
-                <Table.Cell>
-                  <WorkerStateBadge state={worker.state}>{worker.state}</WorkerStateBadge>
-                </Table.Cell>
-                <Table.Cell>
-                  {worker.queues ? (
-                    <List.Root>
-                      {worker.queues.map((queue) => (
-                        <List.Item key={queue}>{queue}</List.Item>
-                      ))}
-                    </List.Root>
-                  ) : (
-                    "(all queues)"
-                  )}
-                </Table.Cell>
-                <Table.Cell>
-                  {worker.first_online ? <TimeAgo date={worker.first_online} live={false} /> : undefined}
-                </Table.Cell>
-                <Table.Cell>
-                  {worker.last_heartbeat ? <TimeAgo date={worker.last_heartbeat} live={false} /> : undefined}
-                </Table.Cell>
-                <Table.Cell>{worker.jobs_active}</Table.Cell>
-                <Table.Cell>
-                  {worker.sysinfo ? (
-                    <List.Root>
-                      {Object.entries(worker.sysinfo).map(([key, value]) => (
-                        <List.Item key={key}>
-                          {key}: {value}
-                        </List.Item>
-                      ))}
-                    </List.Root>
-                  ) : (
-                    "N/A"
-                  )}
-                </Table.Cell>
-                <Table.Cell>
-                  <WorkerOperations worker={worker} onOperations={refetch} />
-                </Table.Cell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Root>
-        <ScrollToAnchor />
-      </Box>
-    );
+  const searchInput = (
+    <Box mb={4}>
+      <Input
+        ref={inputRef}
+        placeholder="Search Workers"
+        value={searchTerm}
+        onChange={handleSearchChange}
+        maxWidth="400px"
+        key="worker-search-input"
+      />
+    </Box>
+  );
+
   if (data) {
     return (
-      <Text as="div" pl={4} pt={1}>
-        No known workers. Start one via <Code>airflow edge worker [...]</Code>. See{" "}
-        <Link
-          target="_blank"
-          variant="underline"
-          color="fg.info"
-          href="https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/deployment.html"
-        >
-          Edge Worker Deployment docs <LuExternalLink />
-        </Link>{" "}
-        how to deploy a new worker.
-      </Text>
+      <Box p={2}>
+        {searchInput}
+        {data.workers && data.workers.length > 0 ? (
+          <Table.Root size="sm" interactive stickyHeader striped>
+            <Table.Header>
+              <Table.Row>
+                <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
+                <Table.ColumnHeader>State</Table.ColumnHeader>
+                <Table.ColumnHeader>Queues</Table.ColumnHeader>
+                <Table.ColumnHeader>First Online</Table.ColumnHeader>
+                <Table.ColumnHeader>Last Heartbeat</Table.ColumnHeader>
+                <Table.ColumnHeader>Active Jobs</Table.ColumnHeader>
+                <Table.ColumnHeader>System Information</Table.ColumnHeader>
+                <Table.ColumnHeader>Operations</Table.ColumnHeader>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {data.workers.map((worker) => (
+                <Table.Row key={worker.worker_name} id={worker.worker_name}>
+                  <Table.Cell>{worker.worker_name}</Table.Cell>
+                  <Table.Cell>
+                    <WorkerStateBadge state={worker.state}>{worker.state}</WorkerStateBadge>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {worker.queues ? (
+                      <List.Root>
+                        {worker.queues.map((queue) => (
+                          <List.Item key={queue}>{queue}</List.Item>
+                        ))}
+                      </List.Root>
+                    ) : (
+                      "(all queues)"
+                    )}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {worker.first_online ? <TimeAgo date={worker.first_online} live={false} /> : undefined}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {worker.last_heartbeat ? (
+                      <TimeAgo date={worker.last_heartbeat} live={false} />
+                    ) : undefined}
+                  </Table.Cell>
+                  <Table.Cell>{worker.jobs_active}</Table.Cell>
+                  <Table.Cell>
+                    {worker.sysinfo ? (
+                      <List.Root>
+                        {Object.entries(worker.sysinfo).map(([key, value]) => (
+                          <List.Item key={key}>
+                            {key}: {value}
+                          </List.Item>
+                        ))}
+                      </List.Root>
+                    ) : (
+                      "N/A"
+                    )}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <WorkerOperations worker={worker} onOperations={refetch} />
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Root>
+        ) : debouncedSearchTerm ? (
+          <Text pl={4} pt={1}>
+            No workers match the search term "{debouncedSearchTerm}".
+          </Text>
+        ) : (
+          <Text pl={4} pt={1}>
+            No known workers. Start one via <Code>airflow edge worker [...]</Code>. See{" "}
+            <Link
+              target="_blank"
+              variant="underline"
+              color="fg.info"
+              href="https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/deployment.html"
+            >
+              Edge Worker Deployment docs <LuExternalLink />
+            </Link>{" "}
+            how to deploy a new worker.
+          </Text>
+        )}
+        <ScrollToAnchor />
+      </Box>
     );
   }
   if (error) {
     return (
-      <Text as="div" pl={4} pt={1}>
-        <ErrorAlert error={error} />
-      </Text>
+      <Box p={2}>
+        {searchInput}
+        <Text pl={4} pt={1}>
+          <ErrorAlert error={error} />
+        </Text>
+      </Box>
     );
   }
   return (
-    <Text as="div" pl={4} pt={1}>
-      Loading...
-    </Text>
+    <Box p={2}>
+      {searchInput}
+      <Text pl={4} pt={1}>
+        Loading...
+      </Text>
+    </Box>
   );
 };

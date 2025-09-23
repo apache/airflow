@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerData, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -263,13 +263,21 @@ export class UiService {
     /**
      * Worker
      * Return Edge Workers.
+     * @param data The data for the request.
+     * @param data.workerNamePattern
      * @returns WorkerCollectionResponse Successful Response
      * @throws ApiError
      */
-    public static worker(): CancelablePromise<WorkerResponse> {
+    public static worker(data: WorkerData = {}): CancelablePromise<WorkerResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/edge_worker/ui/worker'
+            url: '/edge_worker/ui/worker',
+            query: {
+                worker_name_pattern: data.workerNamePattern
+            },
+            errors: {
+                422: 'Validation Error'
+            }
         });
     }
     
