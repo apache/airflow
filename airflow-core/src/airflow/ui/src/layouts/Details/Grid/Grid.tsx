@@ -29,6 +29,7 @@ import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -68,7 +69,13 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
-  const { data: dagStructure } = useGridStructure({ dagRunState, limit, runType, triggeringUser });
+  const { data: dagStructure } = useGridStructure({
+    dagRunState,
+    hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
+    limit,
+    runType,
+    triggeringUser,
+  });
 
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(

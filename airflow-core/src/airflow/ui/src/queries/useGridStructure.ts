@@ -24,11 +24,13 @@ import { useAutoRefresh } from "src/utils";
 
 export const useGridStructure = ({
   dagRunState,
+  hasActiveRun,
   limit,
   runType,
   triggeringUser,
 }: {
   dagRunState?: DagRunState | undefined;
+  hasActiveRun?: boolean;
   limit?: number;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
@@ -48,8 +50,7 @@ export const useGridStructure = ({
     },
     undefined,
     {
-      placeholderData: (prev) => prev,
-      refetchInterval,
+      refetchInterval: hasActiveRun ? refetchInterval : false,
     },
   );
 
