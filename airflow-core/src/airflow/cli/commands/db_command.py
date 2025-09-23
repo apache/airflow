@@ -110,7 +110,7 @@ def _reserialize_dags_after_downgrade(args):
         config = db._get_alembic_config()
 
         for version, head in _REVISION_HEADS_MAP.items():
-            if head == args.revision or db._revision_greater(config, head, args.revision):
+            if head == args.to_revision or db._revision_greater(config, head, args.to_revision):
                 resolved_version = version
                 break
         if resolved_version is not None:
