@@ -161,7 +161,7 @@ def get_dag_structure(
         return nodes
 
     serdags = session.scalars(
-            select(SerializedDagModel).where(
+        select(SerializedDagModel).where(
             SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
