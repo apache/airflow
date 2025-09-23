@@ -393,7 +393,6 @@ export type ClearTaskInstancesBody = {
      * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
      */
     run_on_latest_version?: boolean;
-    isRunning?: boolean;
 };
 
 /**
@@ -1277,7 +1276,6 @@ export type TaskInletAssetReference = {
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
     total_entries: number;
-    isRunning: boolean;
 };
 
 /**
@@ -1360,7 +1358,6 @@ export type TaskInstanceResponse = {
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
-    isRunning: boolean | false;
 };
 
 /**

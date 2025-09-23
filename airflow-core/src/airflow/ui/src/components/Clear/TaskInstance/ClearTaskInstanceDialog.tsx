@@ -177,7 +177,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               onCheckedChange={(event) => setIsRunningMessage(Boolean(event.checked))}
             >
               {/* Reverting to hard coded english. Will need approval for translation changes, please remember */}
-              Don't re-run while task is running 
+              Prevent rerun if task is running 
             </Checkbox>
             <Button
               colorPalette="brand"

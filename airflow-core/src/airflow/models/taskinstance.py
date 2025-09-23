@@ -222,12 +222,12 @@ def clear_task_instances(
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
 
-        if hasattr(ti, 'is_running_message') and ti.is_running_message == True:
+        if hasattr(ti, 'is_running_message') and ti.is_running_message:
             # If the task contains the message, prevent the task from running.
             task_confirmed_running = True
 
         if ti.state == TaskInstanceState.RUNNING:
-            if task_confirmed_running == True:
+            if task_confirmed_running:
                 raise ValueError(f"Error: Task {ti.task_id} is running, restarting")
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
