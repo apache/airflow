@@ -170,6 +170,7 @@ function initForm() {
           $(elementId).select2({
             placeholder: "Select Values",
             allowClear: true,
+            width: "100%",
           });
           elements[i].addEventListener("blur", updateJSONconf);
         } else if (elements[i].type === "checkbox") {

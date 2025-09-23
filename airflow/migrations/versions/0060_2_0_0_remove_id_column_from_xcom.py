@@ -31,6 +31,8 @@ from collections import defaultdict
 from alembic import op
 from sqlalchemy import Column, Integer, inspect, text
 
+from airflow.migrations.utils import _sqlite_guarded_drop_constraint
+
 # revision identifiers, used by Alembic.
 revision = "bbf4a7ad0465"
 down_revision = "cf5dc11e79ad"
@@ -121,7 +123,7 @@ def downgrade():
     conn = op.get_bind()
     with op.batch_alter_table("xcom") as bop:
         if conn.dialect.name != "mssql":
-            bop.drop_constraint("pk_xcom", type_="primary")
+            _sqlite_guarded_drop_constraint(table="xcom", key="pk_xcom", type_="primary", op=op)
         bop.add_column(Column("id", Integer, nullable=False))
         bop.create_primary_key("id", ["id"])
         bop.create_index("idx_xcom_dag_task_date", ["dag_id", "task_id", "key", "execution_date"])

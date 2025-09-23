@@ -24,7 +24,7 @@ from openai import OpenAI
 
 if TYPE_CHECKING:
     from openai.types import FileDeleted, FileObject
-    from openai.types.beta import (
+    from openai.types.beta import (  # type: ignore[attr-defined]
         Assistant,
         AssistantDeleted,
         Thread,
@@ -325,12 +325,12 @@ class OpenAIHook(BaseHook):
 
     def create_vector_store(self, **kwargs: Any) -> VectorStore:
         """Create a vector store."""
-        vector_store = self.conn.beta.vector_stores.create(**kwargs)
+        vector_store = self.conn.beta.vector_stores.create(**kwargs)  # type: ignore[attr-defined]
         return vector_store
 
     def get_vector_stores(self, **kwargs: Any) -> list[VectorStore]:
         """Return a list of vector stores."""
-        vector_stores = self.conn.beta.vector_stores.list(**kwargs)
+        vector_stores = self.conn.beta.vector_stores.list(**kwargs)  # type: ignore[attr-defined]
         return vector_stores.data
 
     def get_vector_store(self, vector_store_id: str) -> VectorStore:
@@ -339,7 +339,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to retrieve.
         """
-        vector_store = self.conn.beta.vector_stores.retrieve(vector_store_id=vector_store_id)
+        vector_store = self.conn.beta.vector_stores.retrieve(vector_store_id=vector_store_id)  # type: ignore[attr-defined]
         return vector_store
 
     def modify_vector_store(self, vector_store_id: str, **kwargs: Any) -> VectorStore:
@@ -348,7 +348,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to modify.
         """
-        vector_store = self.conn.beta.vector_stores.update(vector_store_id=vector_store_id, **kwargs)
+        vector_store = self.conn.beta.vector_stores.update(vector_store_id=vector_store_id, **kwargs)  # type: ignore[attr-defined]
         return vector_store
 
     def delete_vector_store(self, vector_store_id: str) -> VectorStoreDeleted:
@@ -357,7 +357,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to delete.
         """
-        response = self.conn.beta.vector_stores.delete(vector_store_id=vector_store_id)
+        response = self.conn.beta.vector_stores.delete(vector_store_id=vector_store_id)  # type: ignore[attr-defined]
         return response
 
     def upload_files_to_vector_store(
@@ -370,7 +370,7 @@ class OpenAIHook(BaseHook):
             to.
         :param files: A list of binary files to upload.
         """
-        file_batch = self.conn.beta.vector_stores.file_batches.upload_and_poll(
+        file_batch = self.conn.beta.vector_stores.file_batches.upload_and_poll(  # type: ignore[attr-defined]
             vector_store_id=vector_store_id, files=files
         )
         return file_batch
@@ -381,7 +381,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id:
         """
-        vector_store_files = self.conn.beta.vector_stores.files.list(vector_store_id=vector_store_id)
+        vector_store_files = self.conn.beta.vector_stores.files.list(vector_store_id=vector_store_id)  # type: ignore[attr-defined]
         return vector_store_files.data
 
     def delete_vector_store_file(self, vector_store_id: str, file_id: str) -> VectorStoreFileDeleted:
@@ -391,5 +391,5 @@ class OpenAIHook(BaseHook):
         :param vector_store_id: The ID of the vector store that the file belongs to.
         :param file_id: The ID of the file to delete.
         """
-        response = self.conn.beta.vector_stores.files.delete(vector_store_id=vector_store_id, file_id=file_id)
+        response = self.conn.beta.vector_stores.files.delete(vector_store_id=vector_store_id, file_id=file_id)  # type: ignore[attr-defined]
         return response
