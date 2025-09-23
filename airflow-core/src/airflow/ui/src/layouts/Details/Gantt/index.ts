@@ -18,3 +18,4 @@
  */
 
 export * from "./Gantt";
+export * from "./GanttTooltip";
