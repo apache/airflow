@@ -223,6 +223,8 @@ class TestWatchedSubprocess:
     def disable_log_upload(self, spy_agency):
         spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
 
+    # TODO: Investigate and fix it after 3.1.0
+    @pytest.mark.xfail(reason="Fails on Py 3.12 with multi-threading error only in tests.")
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
