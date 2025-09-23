@@ -282,14 +282,7 @@ export const Gantt = ({ limit, runType, triggeringUser }: Props) => {
   };
 
   return (
-    <Box
-      height={`${fixedHeight}px`}
-      minW="250px"
-      ml={-2}
-      mt={36}
-      onMouseLeave={handleChartMouseLeave}
-      w="100%"
-    >
+    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} onMouseLeave={handleChartMouseLeave} w="100%">
       <Bar
         data={chartData}
         options={chartOptions}
