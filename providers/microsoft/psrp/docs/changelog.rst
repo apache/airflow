@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.1.4
+.....
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow arguments and parameters when powershell is used in PsrpOperator (#55976)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.3
 .....
 
