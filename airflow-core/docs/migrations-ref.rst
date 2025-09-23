@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``15d84ca19038`` (head) | ``cc92b33c6709`` | ``3.2.0``         | replace asset_trigger table with asset_watcher.              |
+| ``ab6dc0c82d0e`` (head) | ``15d84ca19038`` | ``3.2.0``         | Change ``serialized_dag`` data column to JSONB for           |
+|                         |                  |                   | PostgreSQL.                                                  |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``15d84ca19038``        | ``cc92b33c6709`` | ``3.2.0``         | replace asset_trigger table with asset_watcher.              |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``cc92b33c6709``        | ``eaf332f43c7c`` | ``3.1.0``         | Add backward compatibility for serialized DAG format v3 to   |
 |                         |                  |                   | v2.                                                          |

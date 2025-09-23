@@ -1914,7 +1914,7 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
 * Request re-parsing a DAG file.
 * @param data The data for the request.
 * @param data.fileToken
-* @returns null Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const useDagParsingServiceReparseDagFile = <TData = Common.DagParsingServiceReparseDagFileMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
@@ -2380,7 +2380,7 @@ export const useDagServiceDeleteDag = <TData = Common.DagServiceDeleteDagMutatio
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
-* @returns null Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceDeleteTaskInstance = <TData = Common.TaskInstanceServiceDeleteTaskInstanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
