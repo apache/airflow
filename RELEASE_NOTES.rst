@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.1.0 (2025-09-24)
+Airflow 3.1.0 (2025-09-25)
 --------------------------
 
 Significant Changes
@@ -488,6 +488,14 @@ Bug Fixes
 - Fix XCom API responses failing when encountering non-serializable objects by falling back to string representation (#55880)
 - Fix asset queue display in UI showing incorrect timestamps for deleted queue events (#54652)
 - Fix SQLite database migrations failing due to foreign key constraint handling (#55883)
+- Fix DAG deserialization failure when using non-default weight_rule values like 'absolute' (#55906)
+- Fix async connection retrieval in triggerer context preventing event loop blocking (#55812)
+- Fix Airflow downgrade compatibility by handling serialized DAG format conversion from v3 to v2 (#55975)
+- Fix 'All Log Levels' filter not working in task log viewer (#55851)
+- Fix Grid view scrollbar overlapping issues on Firefox browser (#55960)
+- Fix Gantt chart misalignment with Grid view layout (#55995)
+- Fix Grid view task names being extremely collapsed and unreadable when displaying many DAG runs (#55997)
+- Fix ``LocalExecutor`` race condition where tasks could start before database state was committed (#56010)
 
 Miscellaneous
 ^^^^^^^^^^^^^
