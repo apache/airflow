@@ -20,7 +20,7 @@
 replace asset_trigger table with asset_watcher.
 
 Revision ID: 15d84ca19038
-Revises: eaf332f43c7c
+Revises: cc92b33c6709
 Create Date: 2025-09-14 01:34:40.423767
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "15d84ca19038"
-down_revision = "eaf332f43c7c"
+down_revision = "cc92b33c6709"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
