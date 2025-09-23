@@ -22,15 +22,15 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.44",
+    "GitPython==3.1.45",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
-    "packaging==24.2",
+    "packaging==25.0",
     "pathspec==0.12.1",
-    "pluggy==1.5.0",
+    "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.4.28.22",
+    "trove-classifiers==2025.9.9.12",
 ]
 build-backend = "hatchling.build"
 
@@ -484,7 +484,6 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
-    "error::pytest.PytestReturnNotNoneWarning",
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',

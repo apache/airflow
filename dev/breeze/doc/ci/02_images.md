@@ -443,7 +443,7 @@ can be used for CI images:
 | `ADDITIONAL_DEV_APT_DEPS`       |                            | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`        |                            | Additional env variables defined when installing dev deps                                                         |
 | `AIRFLOW_PIP_VERSION`           | `25.1.1`                   | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`            | `0.7.3`                    | `uv` version used.                                                                                                |
+| `AIRFLOW_UV_VERSION`            | `0.7.16`                   | `uv` version used.                                                                                                |
 | `AIRFLOW_PRE_COMMIT_VERSION`    | `3.5.0`                    | `pre-commit` version used.                                                                                        |
 | `AIRFLOW_USE_UV`                | `true`                     | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`              | `on`                       | Progress bar for PIP installation                                                                                 |

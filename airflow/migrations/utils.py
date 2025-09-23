@@ -58,3 +58,59 @@ def disable_sqlite_fkeys(op):
         op.execute("PRAGMA foreign_keys=on")
     else:
         yield op
+
+
+def mysql_drop_foreignkey_if_exists(constraint_name: str, table_name: str, op) -> None:
+    """Older Mysql versions do not support DROP FOREIGN KEY IF EXISTS."""
+    op.execute(f"""
+    CREATE PROCEDURE DropForeignKeyIfExists()
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE
+                CONSTRAINT_SCHEMA = DATABASE() AND
+                TABLE_NAME = '{table_name}' AND
+                CONSTRAINT_NAME = '{constraint_name}' AND
+                CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ) THEN
+            ALTER TABLE {table_name}
+            DROP CONSTRAINT {constraint_name};
+        ELSE
+            SELECT 1;
+        END IF;
+    END;
+    CALL DropForeignKeyIfExists();
+    DROP PROCEDURE DropForeignKeyIfExists;
+    """)
+
+
+def _drop_fkey_if_exists(table: str, constraint_name: str, op) -> None:
+    dialect = op.get_bind().dialect.name
+    if dialect == "sqlite":
+        try:
+            with op.batch_alter_table(table, schema=None) as batch_op:
+                batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
+        except ValueError:
+            pass
+    elif dialect == "mysql":
+        mysql_drop_foreignkey_if_exists(constraint_name, table, op)
+    else:
+        op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
+
+
+def _sqlite_guarded_drop_constraint(
+    *,
+    table: str,
+    key: str,
+    type_: str,
+    op,
+) -> None:
+    conn = op.get_bind()
+    dialect_name = conn.dialect.name
+    try:
+        with op.batch_alter_table(table, schema=None) as batch_op:
+            batch_op.drop_constraint(key, type_=type_)
+    except ValueError:
+        if dialect_name != "sqlite":
+            raise

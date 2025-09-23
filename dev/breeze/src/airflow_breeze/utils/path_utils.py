@@ -38,19 +38,21 @@ from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 PYPROJECT_TOML_FILE = "pyproject.toml"
 
 
-def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
+def search_upwards_for_airflow_root_path(start_from: Path) -> Path | None:
     root = Path(start_from.root)
-    d = start_from
-    while d != root:
-        airflow_candidate = d / "airflow"
-        airflow_candidate_init_py = airflow_candidate / "__init__.py"
+    directory = start_from
+    while directory != root:
+        airflow_candidate_init_py = directory / "airflow-core" / "src" / "airflow" / "__init__.py"
+        if airflow_candidate_init_py.exists() and "airflow" in airflow_candidate_init_py.read_text().lower():
+            return directory
+        airflow_2_candidate_init_py = directory / "airflow" / "__init__.py"
         if (
-            airflow_candidate.is_dir()
-            and airflow_candidate_init_py.is_file()
-            and "airflow" in airflow_candidate_init_py.read_text().lower()
+            airflow_2_candidate_init_py.exists()
+            and "airflow" in airflow_2_candidate_init_py.read_text().lower()
+            and directory.parent.name != "src"
         ):
-            return airflow_candidate.parent
-        d = d.parent
+            return directory
+        directory = directory.parent
     return None
 
 
@@ -208,7 +210,7 @@ def get_installation_airflow_sources() -> Path | None:
     Retrieves the Root of the Airflow Sources where Breeze was installed from.
     :return: the Path for Airflow sources.
     """
-    return search_upwards_for_airflow_sources_root(Path(__file__).resolve().parent)
+    return search_upwards_for_airflow_root_path(Path(__file__).resolve().parent)
 
 
 def get_used_airflow_sources() -> Path:
@@ -217,7 +219,7 @@ def get_used_airflow_sources() -> Path:
     upwards in directory tree or sources where Breeze was installed from.
     :return: the Path for Airflow sources we use.
     """
-    current_sources = search_upwards_for_airflow_sources_root(Path.cwd())
+    current_sources = search_upwards_for_airflow_root_path(Path.cwd())
     if current_sources is None:
         current_sources = get_installation_airflow_sources()
         if current_sources is None:
@@ -256,7 +258,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
         get_console().print(
-            "\n[error]Breeze should only be installed with -e flag[/]\n\n"
+            "\n[error]Breeze should only be installed with --editable flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
             '[warning]If during installation you see warning starting "Ignoring --editable install",[/]\n'

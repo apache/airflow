@@ -29,7 +29,7 @@ from __future__ import annotations
 from alembic import op
 from sqlalchemy import inspect
 
-from airflow.migrations.utils import get_mssql_table_constraints
+from airflow.migrations.utils import _drop_fkey_if_exists, get_mssql_table_constraints
 
 # revision identifiers, used by Alembic.
 revision = "3c94c427fdf6"
@@ -45,10 +45,10 @@ def upgrade():
     if conn.dialect.name in ["sqlite", "mysql"]:
         inspector = inspect(conn.engine)
         foreignkey = inspector.get_foreign_keys("dag_tag")
+        _drop_fkey_if_exists("dag_tag", foreignkey[0]["name"], op)
         with op.batch_alter_table(
             "dag_tag",
         ) as batch_op:
-            batch_op.drop_constraint(foreignkey[0]["name"], type_="foreignkey")
             batch_op.create_foreign_key(
                 "dag_tag_dag_id_fkey", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE"
             )

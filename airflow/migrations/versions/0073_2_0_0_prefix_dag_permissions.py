@@ -70,7 +70,8 @@ def remove_prefix_in_individual_dag_permissions(session):
         .all()
     )
     for permission in perms:
-        permission.resource.name = permission.resource.name[len(prefix) :]
+        if permission.resource.name.startswith(prefix):
+            permission.resource.name = permission.resource.name[len(prefix) :]
     session.commit()
 
 
