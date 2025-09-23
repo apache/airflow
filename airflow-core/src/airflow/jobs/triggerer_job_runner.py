@@ -1130,7 +1130,7 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger, context: Context | None):
+    async def run_trigger(self, trigger_id, trigger, context: Context | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
