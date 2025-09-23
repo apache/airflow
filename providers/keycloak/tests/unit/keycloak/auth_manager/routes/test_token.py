@@ -20,11 +20,18 @@ from unittest.mock import patch
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestTokenRouter:
     token = "token"
     token_body_dict = {"username": "username", "password": "password"}
 
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
     @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for")
     def test_create_token(self, mock_create_token_for, client):
         mock_create_token_for.return_value = self.token
@@ -36,6 +43,12 @@ class TestTokenRouter:
         assert response.status_code == 201
         assert response.json() == {"access_token": self.token}
 
+    @conf_vars(
+        {
+            ("api_auth", "jwt_cli_expiration_time"): "10",
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
     @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for")
     def test_create_token_cli(self, mock_create_token_for, client):
         mock_create_token_for.return_value = self.token

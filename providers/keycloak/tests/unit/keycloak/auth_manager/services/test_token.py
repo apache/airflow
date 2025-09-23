@@ -22,7 +22,10 @@ import fastapi
 import pytest
 from keycloak import KeycloakAuthenticationError
 
+from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.services.token import create_token_for
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestTokenService:
@@ -32,6 +35,11 @@ class TestTokenService:
     test_access_token = "access_token"
     test_refresh_token = "refresh_token"
 
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     def test_create_token(self, mock_get_keycloak_client, mock_get_auth_manager):
@@ -46,13 +54,16 @@ class TestTokenService:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.generate_jwt.return_value = self.token
 
-        assert (
-            create_token_for(username=self.test_username, password=self.test_password, token_type="API")
-            == self.token
-        )
+        assert create_token_for(username=self.test_username, password=self.test_password) == self.token
         mock_keycloak_client.token.assert_called_once_with(self.test_username, self.test_password)
         mock_keycloak_client.userinfo.assert_called_once_with(self.test_access_token)
 
+    @conf_vars(
+        {
+            ("api_auth", "jwt_cli_expiration_time"): "10",
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     def test_create_token_with_invalid_creds(self, mock_get_keycloak_client):
         mock_keycloak_client = Mock()
@@ -60,4 +71,8 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
 
         with pytest.raises(fastapi.exceptions.HTTPException):
-            create_token_for(username=self.test_username, password=self.test_password, token_type="API")
+            create_token_for(
+                username=self.test_username,
+                password=self.test_password,
+                expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
+            )

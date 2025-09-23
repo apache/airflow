@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import HTTPException
 from keycloak import KeycloakAuthenticationError
 from starlette import status
@@ -29,7 +27,11 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import Keyclo
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 
-def create_token_for(username: str, password: str, token_type: Literal["API", "CTL"]) -> str:
+def create_token_for(
+    username: str,
+    password: str,
+    expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
+) -> str:
     client = KeycloakAuthManager.get_keycloak_client()
 
     try:
@@ -48,8 +50,4 @@ def create_token_for(username: str, password: str, token_type: Literal["API", "C
         refresh_token=tokens["refresh_token"],
     )
 
-    if token_type == "API":
-        return get_auth_manager().generate_jwt(user)
-    return get_auth_manager().generate_jwt(
-        user, expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time")
-    )
+    return get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
