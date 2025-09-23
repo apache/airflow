@@ -249,20 +249,15 @@ class Deadline(Base):
             self.callback_state = status
             if status != DeadlineCallbackState.RUNNING:
                 self.trigger = None
+                metric_tags = {
+                    "dag_id": self.dagrun.dag_id,
+                    "callback": self._callback,
+                    "result": event.payload.get(PAYLOAD_BODY_KEY),
+                }
                 if status == DeadlineCallbackState.FAILED:
-                    Stats.incr(
-                        "deadline_alerts.deadline_callback_failure",
-                        tags={
-                            "dag_id": self.dagrun.dag_id,
-                            "callback": self._callback,
-                            "result": event.payload.get(PAYLOAD_BODY_KEY),
-                        },
-                    )
+                    Stats.incr("deadline_alerts.deadline_callback_failure", tags=metric_tags)
                 elif status == DeadlineCallbackState.SUCCESS:
-                    Stats.incr(
-                        "deadline_alerts.deadline_callback_success",
-                        tags={"dag_id": self.dagrun.dag_id},
-                    )
+                    Stats.incr("deadline_alerts.deadline_callback_success", tags=metric_tags)
             session.add(self)
         else:
             logger.error("Unexpected event received: %s", event.payload)
