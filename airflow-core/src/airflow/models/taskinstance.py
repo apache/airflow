@@ -1454,8 +1454,7 @@ class TaskInstance(Base, LoggingMixin):
 
         context = self.get_template_context()
 
-        if self.task and self.task.expand_start_from_trigger(context=context):
-            start_trigger_args = self.task.expand_start_trigger_args(context=context)
+        if self.task and self.task.expand_start_from_trigger(context=context) and (start_trigger_args := self.task.expand_start_trigger_args(context=context)):
             trigger_kwargs = start_trigger_args.trigger_kwargs or {}
             timeout = self.task.start_trigger_args.timeout
 
@@ -1465,7 +1464,6 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.trigger_timeout = None
 
-            print(">>> Creating trigger from context start_trigger_args: {}".format(trigger_kwargs))
             trigger_row = Trigger(
                 classpath=start_trigger_args.trigger_cls,
                 kwargs=trigger_kwargs,
