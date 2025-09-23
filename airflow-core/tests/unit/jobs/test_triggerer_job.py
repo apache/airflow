@@ -1134,3 +1134,92 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
     assert trigger_orm1.id in trigger_ids
     assert trigger_orm2.id in trigger_ids
+
+
+@pytest.mark.asyncio
+async def test_trigger_runner_uses_stall_monitor_start_stop(monkeypatch):
+    """Ensure the monitor is constructed, started, and stopped even when the loop exits immediately."""
+    created = []
+
+    class FakeMonitor:
+        def __init__(self, *, loop, threshold, heartbeat_interval, min_report_interval, max_frames):
+            self.loop = loop
+            self.threshold = threshold
+            self.heartbeat_interval = heartbeat_interval
+            self.min_report_interval = min_report_interval
+            self.max_frames = max_frames
+            self.started = False
+            self.stopped = False
+            created.append(self)
+
+        def start(self):
+            self.started = True
+
+        def stop(self):
+            self.stopped = True
+
+    # Patch the symbol used inside triggerer_job_runner
+    monkeypatch.setattr(
+        "airflow.jobs.triggerer_job_runner.AsyncioStallMonitor",
+        FakeMonitor,
+        raising=True,
+    )
+
+    # Avoid network I/O from init_comms
+    monkeypatch.setattr(TriggerRunner, "init_comms", lambda self: asyncio.sleep(0), raising=True)
+
+    runner = TriggerRunner()
+    runner.stop = True  # make the while-loop skip immediately
+
+    await runner.arun()
+
+    assert len(created) == 1
+    m = created[0]
+    assert m.started is True
+    assert m.stopped is True
+    # sanity-check the constructor args match what TriggerRunner passes
+    assert m.threshold == 0.30
+    assert m.heartbeat_interval == 0.10
+    assert m.min_report_interval == 0.70
+    assert m.max_frames == 30
+
+
+@pytest.mark.asyncio
+async def test_trigger_runner_stops_monitor_on_exception(monkeypatch):
+    """If an exception occurs inside the main loop, the monitor is still stopped in finally."""
+    created = []
+
+    class FakeMonitor:
+        def __init__(self, *, loop, threshold, heartbeat_interval, min_report_interval, max_frames):
+            self.started = False
+            self.stopped = False
+            created.append(self)
+
+        def start(self):
+            self.started = True
+
+        def stop(self):
+            self.stopped = True
+
+    monkeypatch.setattr(
+        "airflow.jobs.triggerer_job_runner.AsyncioStallMonitor",
+        FakeMonitor,
+        raising=True,
+    )
+    monkeypatch.setattr(TriggerRunner, "init_comms", lambda self: asyncio.sleep(0), raising=True)
+
+    # Force an exception on the first loop iteration
+    async def boom(self, *args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(TriggerRunner, "cleanup_finished_triggers", boom, raising=True)
+
+    runner = TriggerRunner()
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await runner.arun()
+
+    assert len(created) == 1
+    m = created[0]
+    assert m.started is True
+    assert m.stopped is True
