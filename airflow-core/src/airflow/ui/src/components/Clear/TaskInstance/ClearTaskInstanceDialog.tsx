@@ -59,7 +59,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-  const [isRunningMessage, setIsRunningMessage] = useState(false);
+  const [isRunningMessage, setIsRunningMessage] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
