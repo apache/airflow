@@ -30,7 +30,7 @@ from tenacity import Retrying, stop_after_attempt, wait_fixed
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.db import _REVISION_HEADS_MAP
+from airflow.utils.db import _REVISION_HEADS_MAP, _SER_DAG_VERSIONS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -83,6 +83,45 @@ def _get_version_revision(version: str, revision_heads_map: dict[str, str] | Non
             return head
     else:
         return None
+
+
+def _get_serializer_version_for_target_version(version: str) -> str | None:
+    """Return serialized DAG version for the highest Airflow version <= target."""
+    if not version:
+        return None
+    target = parse_version(version)
+
+    best_match: str | None = None
+    for v in _SER_DAG_VERSIONS_MAP.keys():
+        pv = parse_version(v)
+        if pv <= target and (best_match is None or pv > parse_version(best_match)):
+            best_match = v
+    return _SER_DAG_VERSIONS_MAP[best_match] if best_match is not None else None
+
+
+def _reserialize_dags_after_downgrade(args):
+    # After a successful downgrade, if a target Airflow version implies an older
+    # Serialized DAG format, reserialize all DAGs down to that serializer version.
+    # This is skipped for show-sql-only runs, and when no serializer version mapping exists.
+    ser_version = None
+    if args.to_version:
+        ser_version = _get_serializer_version_for_target_version(args.to_version)
+    elif args.to_revision:
+        config = db._get_alembic_config()
+
+        for version, head in _REVISION_HEADS_MAP.items():
+            if head == args.revision or db._revision_greater(config, head, args.revision):
+                resolved_version = version
+                break
+        if resolved_version is not None:
+            ser_version = _get_serializer_version_for_target_version(resolved_version)
+
+    if ser_version is not None:
+        try:
+            db.reserialize_all_dags_to_serializer_version(int(ser_version))
+        except Exception:
+            # Do not fail CLI on reserialization errors; warn instead.
+            log.exception("Reserializing DAGs to serializer version %s failed.", ser_version)
 
 
 def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
@@ -189,6 +228,7 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
         command(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
         if not args.show_sql_only:
             print("Downgrade complete")
+            _reserialize_dags_after_downgrade(args)
     else:
         raise SystemExit("Cancelled")
 

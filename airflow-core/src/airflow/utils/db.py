@@ -114,6 +114,11 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.2.0": "15d84ca19038",
 }
 
+_SER_DAG_VERSIONS_MAP: dict[str, str] = {
+    "3.0.0": "2",
+    "3.1.0": "3",
+}
+
 
 @contextlib.contextmanager
 def timeout_with_traceback(seconds, message="Operation timed out"):
@@ -1216,6 +1221,119 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations to Airflow database.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+
+@provide_session
+def reserialize_all_dags_to_serializer_version(
+    target_version: int, *, session: Session = NEW_SESSION
+) -> None:
+    """
+    Reserialize all Serialized DAG rows to the specified serializer version.
+
+    Only down-conversion to version 2 is currently supported (from version 3).
+
+    This function does not commit the transaction. Caller is responsible for committing.
+    """
+    from airflow.models.serialized_dag import SerializedDagModel as SDM
+
+    if target_version not in (2, 3):
+        log.info("Unsupported target serializer version %s; skipping.", target_version)
+        return
+
+    # Fast-path SQL update for uncompressed rows: remove client_defaults and set __version from 3 to 2
+    if target_version == 2:
+        dialect = session.bind.dialect.name
+        try:
+            if dialect == "postgresql":
+                session.execute(
+                    text(
+                        """
+                        UPDATE serialized_dag
+                        SET data = jsonb_set((data::jsonb - 'client_defaults'), '{__version}', to_jsonb(2))
+                        WHERE data_compressed IS NULL AND ((data ->> '__version')::int = 3)
+                        """
+                    )
+                )
+            elif dialect == "mysql":
+                session.execute(
+                    text(
+                        """
+                        UPDATE serialized_dag
+                        SET data = JSON_SET(JSON_REMOVE(data, '$.client_defaults'), '$.__version', CAST(2 AS JSON))
+                        WHERE data_compressed IS NULL
+                          AND CAST(JSON_UNQUOTE(JSON_EXTRACT(data, '$.__version')) AS UNSIGNED) = 3
+                        """
+                    )
+                )
+            elif dialect == "sqlite":
+                session.execute(
+                    text(
+                        """
+                        UPDATE serialized_dag
+                        SET data = json_set(json_remove(data, '$.client_defaults'), '$.__version', 2)
+                        WHERE data_compressed IS NULL AND CAST(json_extract(data, '$.__version') AS INTEGER) = 3
+                        """
+                    )
+                )
+            log.info("SQL-level serializer version update completed.")
+        except Exception:
+            # Non-fatal: fallback to per-row python updates below
+            log.exception("SQL-level serializer version update failed; falling back to row-wise updates.")
+
+    # Select compressed rows and convert any with __version > target_version
+    rows = session.scalars(select(SDM).where(SDM._data_compressed.isnot(None))).all()
+
+    if not rows:
+        log.debug("No compressed serialized DAGs found to reserialize.")
+        return
+
+    changed = 0
+    for row in rows:
+        try:
+            data = row.data
+            if isinstance(data, str):
+                data = settings.json.loads(data)
+            if not isinstance(data, dict):
+                continue
+            current_ver = data.get("__version")
+            if not isinstance(current_ver, int):
+                # Some very old rows or malformed; skip
+                continue
+            if current_ver <= target_version:
+                continue
+            # Only support 3 -> 2 down-conversion for now
+            if target_version == 2 and current_ver == 3:
+                new_data = dict(data)
+                # client_defaults were introduced in v3; remove for v2 compatibility
+                new_data.pop("client_defaults", None)
+                new_data["__version"] = 2
+
+                # Update storage columns
+                serialized_sorted_json_bytes = settings.json.dumps(new_data, sort_keys=True).encode("utf-8")
+                if settings.COMPRESS_SERIALIZED_DAGS:
+                    import zlib
+
+                    row._data = None
+                    row._data_compressed = zlib.compress(serialized_sorted_json_bytes)
+                else:
+                    row._data = new_data
+                    row._data_compressed = None
+                session.merge(row)
+                changed += 1
+            else:
+                log.info(
+                    "Skipping unsupported serializer down-conversion: current=%s target=%s for DAG %s",
+                    current_ver,
+                    target_version,
+                    row.dag_id,
+                )
+        except Exception:  # pragma: no cover - do not fail entire reserialization on single DAG
+            log.exception("Failed to reserialize DAG %s; continuing.", getattr(row, "dag_id", "<unknown>"))
+
+    if changed:
+        log.info("Reserialized %s DAG(s) to serializer version %s.", changed, target_version)
+    else:
+        log.info("No DAGs required reserialization for target serializer version %s.", target_version)
 
 
 def _get_fab_migration_version(*, session: Session) -> str | None:

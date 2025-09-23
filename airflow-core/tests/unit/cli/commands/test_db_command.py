@@ -680,6 +680,52 @@ class TestCliDb:
             always_fail.assert_has_calls([call()] * (retry + 1))
             sleep.assert_has_calls([call(retry_delay)] * retry)
 
+    @mock.patch("airflow.cli.commands.db_command.db.reserialize_all_dags_to_serializer_version")
+    @mock.patch("airflow.cli.commands.db_command.db.downgrade")
+    def test_cli_downgrade_triggers_reserialize_for_version(self, mock_dg, mock_reser):
+        """Downgrade with --to-version should trigger DAG reserialization to mapped serializer version."""
+        # 3.0.0 maps to serializer version 2 in _SER_DAG_VERSIONS_MAP
+        args = self.parser.parse_args(["db", "downgrade", "-y", "--to-version", "3.0.0"])
+        db_command.downgrade(args)
+        mock_dg.assert_called_once_with(to_revision="29ce7909c52b", from_revision=None, show_sql_only=False)
+        mock_reser.assert_called_once()
+        (called_version,), _ = mock_reser.call_args
+        assert called_version == 2
+
+    @mock.patch("airflow.cli.commands.db_command.db.reserialize_all_dags_to_serializer_version")
+    @mock.patch("airflow.cli.commands.db_command.db.downgrade")
+    def test_cli_downgrade_does_not_reserialize_with_show_sql_only(self, mock_dg, mock_reser):
+        args = self.parser.parse_args(["db", "downgrade", "-y", "--to-version", "3.0.0", "--show-sql-only"])
+        db_command.downgrade(args)
+        mock_dg.assert_called_once_with(to_revision="29ce7909c52b", from_revision=None, show_sql_only=True)
+        mock_reser.assert_not_called()
+
+    @mock.patch("airflow.cli.commands.db_command.db.reserialize_all_dags_to_serializer_version")
+    @mock.patch("airflow.cli.commands.db_command.db.downgrade")
+    def test_cli_downgrade_with_to_revision_triggers_reserialize(self, mock_dg, mock_reser, monkeypatch):
+        # Map heads so that revision "29ce7909c52b" corresponds to version 3.0.0
+        monkeypatch.setattr(
+            db_command,
+            "_REVISION_HEADS_MAP",
+            {
+                "2.10.0": "22ed7efa9da2",
+                "3.0.0": "29ce7909c52b",
+            },
+        )
+
+        # Simulate alembic config and revision ordering
+        class EmptyConfig: ...
+
+        monkeypatch.setattr(db_command.db, "_get_alembic_config", lambda: EmptyConfig())
+        monkeypatch.setattr(db_command.db, "_revision_greater", lambda cfg, head, rev: head >= rev)
+
+        args = self.parser.parse_args(["db", "downgrade", "-y", "--to-revision", "29ce7909c52b"])
+        db_command.downgrade(args)
+        mock_dg.assert_called_once_with(to_revision="29ce7909c52b", from_revision=None, show_sql_only=False)
+        mock_reser.assert_called_once()
+        (called_version,), _ = mock_reser.call_args
+        assert called_version == 2
+
 
 class TestCLIDBClean:
     @classmethod
