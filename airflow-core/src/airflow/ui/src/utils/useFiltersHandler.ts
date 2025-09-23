@@ -76,7 +76,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
           }
         });
 
-        newParams.delete("offset");
+        newParams.delete(SearchParamsKeys.OFFSET);
 
         return newParams;
       });
