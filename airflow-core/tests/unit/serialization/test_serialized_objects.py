@@ -33,7 +33,6 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
-    AirflowFailException,
     AirflowRescheduleException,
     SerializationError,
     TaskDeferred,
@@ -416,7 +415,7 @@ class MockLazySelectSequence(LazySelectSequence):
             equal_exception,
         ),
         (
-            AirflowFailException("uuups, failed :-("),
+            AirflowException("uuups, failed :-("),
             DAT.AIRFLOW_EXC_SER,
             equal_exception,
         ),
@@ -708,8 +707,8 @@ class TestSerializedBaseOperator:
         assert caplog.messages == ["test"]
 
     def test_resume_execution(self):
-        from airflow.exceptions import TaskDeferralTimeout
         from airflow.models.trigger import TriggerFailureReason
+        from airflow.sdk.exceptions import TaskDeferralTimeout
 
         op = BaseOperator(task_id="hi")
         with pytest.raises(TaskDeferralTimeout):
