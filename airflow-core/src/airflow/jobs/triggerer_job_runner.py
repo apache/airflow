@@ -89,6 +89,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
 
@@ -974,11 +975,13 @@ class TriggerRunner:
                 deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
 
                 if workload.ti:
-                    trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
                     runtime_ti = create_runtime_ti(workload.dag)
+                    context = runtime_ti.get_template_context()
+                    trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
                     trigger_instance = trigger_class(**deserialised_kwargs)
                     trigger_instance.task_instance = runtime_ti
                 else:
+                    context = None
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
@@ -992,7 +995,7 @@ class TriggerRunner:
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, context=context), name=trigger_name
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
@@ -1127,7 +1130,7 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger):
+    async def run_trigger(self, trigger_id, trigger, context: Context | None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
@@ -1139,8 +1142,7 @@ class TriggerRunner:
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
         try:
-            if trigger.task_instance:
-                context = trigger.task_instance.get_template_context()
+            if context:
                 trigger.render_template_fields(context=context)
 
             async for event in trigger.run():
