@@ -131,11 +131,18 @@ class TestCeleryExecutor:
         parallelism = 50
         team_name = "test_team"
 
-        executor = celery_executor.CeleryExecutor(parallelism, team_name=team_name)
+        if AIRFLOW_V_3_1_PLUS:
+            # team_name was added in Airflow 3.1
+            executor = celery_executor.CeleryExecutor(parallelism=parallelism, team_name=team_name)
+        else:
+            executor = celery_executor.CeleryExecutor(parallelism)
 
         assert executor.parallelism == parallelism
-        assert executor.team_name == team_name
-        assert executor.conf.team_name == team_name
+
+        if AIRFLOW_V_3_1_PLUS:
+            # team_name was added in Airflow 3.1
+            assert executor.team_name == team_name
+            assert executor.conf.team_name == team_name
 
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
