@@ -794,6 +794,36 @@ class TestBulkVariables(TestVariableEndpoint):
                 {
                     "actions": [
                         {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Updated description",
+                                }
+                            ],
+                            "update_mask": ["key", "value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "Update not allowed: the following fields are immutable and cannot be modified:{'key'}",
+                                "status_code": 400,
+                            }
+                        ],
+                    }
+                },
+                id="test_bulk_update_should_fail_on_restricted_key",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
                             "action": "delete",
                             "entities": ["test_variable_key"],
                             "action_on_non_existence": "skip",

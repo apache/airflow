@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
@@ -95,7 +96,16 @@ class BulkService(Generic[T], ABC):
         # Always dump without aliases for internal validation
         raw_data = patch_body.model_dump(by_alias=False)
         fields_to_update = set(patch_body.model_fields_set)
+
+        non_update_fields = non_update_fields or set()
+
         if update_mask:
+            restricted_in_mask = set(update_mask).intersection(non_update_fields)
+            if restricted_in_mask:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Update not allowed: the following fields are immutable and cannot be modified:{restricted_in_mask}",
+                )
             fields_to_update = fields_to_update.intersection(update_mask)
 
         if non_update_fields:
