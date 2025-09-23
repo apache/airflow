@@ -29,7 +29,6 @@ import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
-import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -52,7 +51,6 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const gridRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
-  const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
@@ -70,25 +68,9 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
-  useEffect(() => {
-    if (gridRuns) {
-      const run = gridRuns.some((dr: GridRunsResponse) => isStatePending(dr.state));
+  const { data: dagStructure } = useGridStructure({ dagRunState, limit, runType, triggeringUser });
 
-      if (!run) {
-        setHasActiveRun(false);
-      }
-    }
-  }, [gridRuns, setHasActiveRun]);
-
-  const { data: dagStructure } = useGridStructure({
-    dagRunState,
-    hasActiveRun,
-    limit,
-    runType,
-    triggeringUser,
-  });
   // calculate dag run bar heights relative to max
-
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
