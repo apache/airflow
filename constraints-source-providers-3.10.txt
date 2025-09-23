@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-20T02:13:57.981079
+# This constraints file was automatically generated on 2025-09-23T22:21:34.725620
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -60,7 +60,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.16.5
-alibabacloud-adb20211201==3.2.5
+alibabacloud-adb20211201==3.3.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.2
 alibabacloud-tea==0.4.3
@@ -75,14 +75,14 @@ aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.10.0
-apache-beam==2.67.0
-apispec==6.8.3
+anyio==4.11.0
+apache-beam==2.68.0
+apispec==6.8.4
 apprise==1.9.4
 argcomplete==3.6.2
 arro3-core==0.6.3
 asana==5.2.1
-asgiref==3.9.1
+asgiref==3.9.2
 asn1crypto==1.5.1
 astroid==3.3.11
 asttokens==3.0.0
@@ -112,7 +112,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==24.0.0
-azure-mgmt-storage==23.0.1
+azure-mgmt-storage==23.1.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
 azure-storage-blob==12.26.0
@@ -126,8 +126,9 @@ backports.asyncio.runner==1.2.0
 backports.strenum==1.3.1
 backports.tarfile==1.2.0
 bcrypt==4.3.0
+beartype==0.21.0
 beautifulsoup4==4.13.5
-billiard==4.2.1
+billiard==4.2.2
 bitarray==3.7.1
 black==25.9.0
 bleach==6.2.0
@@ -162,7 +163,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.11.1
 connexion==2.14.2
-coverage==7.10.6
+coverage==7.10.7
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
@@ -201,8 +202,8 @@ exceptiongroup==1.3.0
 execnet==2.1.1
 executing==2.2.1
 facebook_business==23.0.1
-fastapi-cli==0.0.12
-fastapi==0.116.2
+fastapi-cli==0.0.13
+fastapi==0.117.1
 fastavro==1.12.0
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -233,23 +234,23 @@ google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.4
-google-cloud-batch==0.17.36
+google-cloud-batch==0.17.37
 google-cloud-bigquery-datatransfer==3.19.2
 google-cloud-bigquery-storage==2.33.1
 google-cloud-bigquery==3.38.0
 google-cloud-bigtable==2.32.0
 google-cloud-build==3.32.0
-google-cloud-compute==1.37.0
+google-cloud-compute==1.38.0
 google-cloud-container==2.59.0
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.27.1
 google-cloud-dataflow-client==0.9.0
 google-cloud-dataform==0.6.2
-google-cloud-dataplex==2.11.0
+google-cloud-dataplex==2.12.0
 google-cloud-dataproc-metastore==1.19.0
 google-cloud-dataproc==5.21.0
 google-cloud-dlp==3.32.0
-google-cloud-kms==3.5.1
+google-cloud-kms==3.6.0
 google-cloud-language==2.17.2
 google-cloud-logging==3.12.1
 google-cloud-managedkafka==0.1.12
@@ -262,12 +263,12 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.11.0
 google-cloud-secret-manager==2.24.0
-google-cloud-spanner==3.57.0
+google-cloud-spanner==3.58.0
 google-cloud-speech==2.33.0
 google-cloud-storage-transfer==1.17.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.3
-google-cloud-texttospeech==2.29.0
+google-cloud-texttospeech==2.30.0
 google-cloud-translate==3.21.1
 google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
@@ -300,7 +301,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.35.0
+huggingface-hub==0.35.1
 humanize==4.13.0
 hvac==2.3.0
 hyperframe==6.1.0
@@ -334,7 +335,7 @@ jeepney==0.9.0
 jiter==0.11.0
 jmespath==0.10.0
 joblib==1.5.2
-joserfc==1.3.3
+joserfc==1.3.4
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -361,11 +362,12 @@ lazy-object-proxy==1.12.0
 libcst==1.8.4
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.77.1
+litellm==1.77.3
 lockfile==0.12.2
 looker-sdk==25.16.0
-lxml==6.0.1
+lxml==6.0.2
 lz4==4.4.4
+madoka==0.7.1
 markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
 marshmallow==3.26.1
@@ -378,14 +380,13 @@ microsoft-kiota-authentication-azure==1.9.7
 microsoft-kiota-http==1.9.7
 microsoft-kiota-serialization-json==1.9.7
 microsoft-kiota-serialization-text==1.9.7
-milvus-lite==2.5.1
 mistune==3.1.4
 mmh3==5.2.0
 more-itertools==10.8.0
-moto==5.1.12
+moto==5.1.13
 mpmath==1.3.0
 msal-extensions==1.3.1
-msal==1.33.0
+msal==1.34.0
 msgpack==1.1.1
 msgraph-core==1.3.8
 msgspec==0.19.0
@@ -413,7 +414,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==1.108.1
+openai==1.109.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -463,6 +464,7 @@ pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
 polars==1.33.1
+pondpond==1.4.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
@@ -503,12 +505,11 @@ pygraphviz==1.14
 pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
-pymilvus==2.5.16
 pymongo==4.15.1
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.5
-pyparsing==3.2.4
+pyparsing==3.2.5
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyroaring==1.0.2
@@ -568,7 +569,7 @@ rich-toolkit==0.15.1
 rich==13.9.4
 rpds-py==0.27.1
 rsa==4.9.1
-ruamel.yaml.clib==0.2.12
+ruamel.yaml.clib==0.2.14
 ruamel.yaml==0.18.15
 ruff==0.13.1
 s3fs==2025.9.0
@@ -593,7 +594,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.17.3
+snowflake-connector-python==3.17.4
 snowflake-snowpark-python==1.39.0
 snowflake-sqlalchemy==1.7.7
 sortedcontainers==2.4.0
@@ -654,7 +655,7 @@ traitlets==5.14.3
 trino==0.336.0
 trove-classifiers==2025.9.11.17
 twine==6.2.0
-typer==0.18.0
+typer==0.19.2
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.9.0.20250906
 types-PyMySQL==1.1.0.20250916
@@ -663,7 +664,7 @@ types-aiofiles==24.1.0.20250822
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
-types-docutils==0.22.0.20250919
+types-docutils==0.22.1.20250923
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20250918
 types-pyOpenSSL==24.1.0.20240722
@@ -681,14 +682,13 @@ typing_extensions==4.15.0
 tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3
-ujson==5.11.0
 universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.8.18
-uvicorn==0.36.0
+uv==0.8.20
+uvicorn==0.37.0
 uvloop==0.21.0
 validators==0.35.0
 vertica-python==1.4.0
@@ -696,7 +696,7 @@ vine==5.1.0
 virtualenv==20.34.0
 watchfiles==1.1.0
 watchtower==3.4.0
-wcwidth==0.2.13
+wcwidth==0.2.14
 weaviate-client==4.16.10
 webencodings==0.5.1
 websocket-client==1.8.0
@@ -710,7 +710,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.1
 ydb-dbapi==0.1.14
-ydb==3.21.11
+ydb==3.21.12
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
