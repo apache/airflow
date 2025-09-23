@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import json
+from datetime import datetime, timedelta
 from typing import Any, AsyncIterator
 from unittest.mock import patch
 
@@ -28,9 +28,12 @@ from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger, XCom
+from airflow.models.dag import DagModel
+from airflow.models.dagrun import DagRun, DagRunState
+from airflow.models.trigger import Trigger
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.empty import EmptyOperator
-from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.serialization.serialized_objects import BaseSerialization, TaskInstance
 from airflow.triggers.base import (
     BaseTrigger,
     TaskFailedEvent,
@@ -41,7 +44,6 @@ from airflow.triggers.base import (
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -184,14 +186,14 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     task_instance.trigger_id = trigger.id
     session.commit()
 
-    def get_xcoms(ti):
-        return XCom.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
-
     # now for the real test
     # first check initial state
     ti: TaskInstance = session.query(TaskInstance).one()
     assert ti.state == "deferred"
-    assert get_xcoms(ti) == []
+    assert (
+        XCom.get_many(task_ids=[ti.task_id], dag_ids=[ti.dag_id], run_id=ti.run_id, session=session).all()
+        == []
+    )
 
     session.flush()
     # now, for each type, submit event
@@ -207,7 +209,10 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert ti.next_kwargs is None
     assert ti.end_date == now
     assert ti.duration is not None
-    actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
+    actual_xcoms = {
+        x.key: x.value
+        for x in XCom.get_many(task_ids=[ti.task_id], dag_ids=[ti.dag_id], run_id=ti.run_id, session=session)
+    }
     assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": "d"}
 
 
@@ -215,31 +220,56 @@ def test_assign_unassigned(session, create_task_instance):
     """
     Tests that unassigned triggers of all appropriate states are assigned.
     """
+    # Create a test DAG and DAG run
+    dag_id = "test_dag"
+    dag = DagModel(
+        dag_id=dag_id,
+        is_active=True,
+        is_paused=False,
+    )
+    session.add(dag)
+
     time_now = timezone.utcnow()
     triggerer_heartrate = 10
+
+    # Create a DAG run in RUNNING state
+    dag_run = DagRun(
+        dag_id=dag_id,
+        run_id="test_run",
+        run_type="scheduled",
+        execution_date=time_now,
+        start_date=time_now,
+        state=DagRunState.RUNNING,
+    )
+    session.add(dag_run)
+
+    # Create triggerers
     finished_triggerer = Job(heartrate=triggerer_heartrate, state=State.SUCCESS)
     TriggererJobRunner(finished_triggerer)
-    finished_triggerer.end_date = time_now - datetime.timedelta(hours=1)
+    finished_triggerer.end_date = time_now - timedelta(hours=1)
     session.add(finished_triggerer)
     assert not finished_triggerer.is_alive()
+
     healthy_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
     TriggererJobRunner(healthy_triggerer)
     session.add(healthy_triggerer)
     assert healthy_triggerer.is_alive()
+
     new_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
     TriggererJobRunner(new_triggerer)
     session.add(new_triggerer)
     assert new_triggerer.is_alive()
+
     # This trigger's last heartbeat is older than the check threshold, expect
     # its triggers to be taken by other healthy triggerers below
     unhealthy_triggerer = Job(
         heartrate=triggerer_heartrate,
         state=State.RUNNING,
-        latest_heartbeat=time_now - datetime.timedelta(seconds=100),
+        latest_heartbeat=time_now - timedelta(seconds=100),
     )
     TriggererJobRunner(unhealthy_triggerer)
     session.add(unhealthy_triggerer)
-    # Triggerer is not healtht, its last heartbeat was too long ago
+    # Triggerer is not healthy, its last heartbeat was too long ago
     assert not unhealthy_triggerer.is_alive()
     session.commit()
     trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
@@ -259,7 +289,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_on_unhealthy_triggerer)
     ti_trigger_on_unhealthy_triggerer = create_task_instance(
         task_id="ti_trigger_on_unhealthy_triggerer",
-        execution_date=time_now + datetime.timedelta(hours=1),
+        execution_date=time_now + timedelta(hours=1),
         run_id="trigger_on_unhealthy_triggerer_run_id",
     )
     ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
@@ -270,7 +300,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_on_killed_triggerer)
     ti_trigger_on_killed_triggerer = create_task_instance(
         task_id="ti_trigger_on_killed_triggerer",
-        execution_date=time_now + datetime.timedelta(hours=2),
+        execution_date=time_now + timedelta(hours=2),
         run_id="trigger_on_killed_triggerer_run_id",
     )
     ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
@@ -280,7 +310,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_unassigned_to_triggerer)
     ti_trigger_unassigned_to_triggerer = create_task_instance(
         task_id="ti_trigger_unassigned_to_triggerer",
-        execution_date=time_now + datetime.timedelta(hours=3),
+        execution_date=time_now + timedelta(hours=3),
         run_id="trigger_unassigned_to_triggerer_run_id",
     )
     ti_trigger_unassigned_to_triggerer.trigger_id = trigger_unassigned_to_triggerer.id
@@ -316,13 +346,11 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
     """
-    old_execution_date = datetime.datetime(
-        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
+    old_execution_date = datetime(2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan"))
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=old_execution_date + datetime.timedelta(seconds=30),
+        created_date=old_execution_date + timedelta(seconds=30),
     )
     trigger_old.id = 1
     session.add(trigger_old)
@@ -335,13 +363,11 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     TI_old.trigger_id = trigger_old.id
     session.add(TI_old)
 
-    new_execution_date = datetime.datetime(
-        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
+    new_execution_date = datetime(2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan"))
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=new_execution_date + datetime.timedelta(seconds=30),
+        created_date=new_execution_date + timedelta(seconds=30),
     )
     trigger_new.id = 2
     session.add(trigger_new)
@@ -367,13 +393,11 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     """
     Tests that triggers are sorted by the priority_weight.
     """
-    old_execution_date = datetime.datetime(
-        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
+    old_execution_date = datetime(2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan"))
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=old_execution_date + datetime.timedelta(seconds=30),
+        created_date=old_execution_date + timedelta(seconds=30),
     )
     trigger_old.id = 1
     session.add(trigger_old)
@@ -386,13 +410,11 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     TI_old.trigger_id = trigger_old.id
     session.add(TI_old)
 
-    new_execution_date = datetime.datetime(
-        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
+    new_execution_date = datetime(2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan"))
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=new_execution_date + datetime.timedelta(seconds=30),
+        created_date=new_execution_date + timedelta(seconds=30),
     )
     trigger_new.id = 2
     session.add(trigger_new)
