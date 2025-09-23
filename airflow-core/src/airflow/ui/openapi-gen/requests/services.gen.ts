@@ -1995,7 +1995,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static deleteTaskInstance(data: DeleteTaskInstanceData): CancelablePromise<DeleteTaskInstanceResponse> {
@@ -3587,7 +3587,7 @@ export class DagParsingService {
      * Request re-parsing a DAG file.
      * @param data The data for the request.
      * @param data.fileToken
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static reparseDagFile(data: ReparseDagFileData): CancelablePromise<ReparseDagFileResponse> {

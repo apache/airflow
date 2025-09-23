@@ -142,9 +142,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response State
+              schema: {}
         '400':
           content:
             application/json:
@@ -319,9 +317,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Push Logs
+              schema: {}
         '400':
           content:
             application/json:
@@ -514,9 +510,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Update Queues
+              schema: {}
         '400':
           content:
             application/json:
@@ -614,9 +608,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Request Worker Maintenance
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -650,9 +642,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Update Worker Maintenance
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -680,9 +670,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Exit Worker Maintenance
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -711,9 +699,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Request Worker Shutdown
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -742,9 +728,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Delete Worker
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -779,9 +763,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Add Worker Queue
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -815,9 +797,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Remove Worker Queue
+              schema: {}
         '422':
           description: Validation Error
           content:

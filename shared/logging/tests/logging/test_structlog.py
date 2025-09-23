@@ -306,7 +306,7 @@ def test_logger_filtering(structlog_config, levels):
         colors=False,
         log_format="[%(name)s] %(message)s",
         log_level="DEBUG",
-        log_levels=levels,
+        namespace_log_levels=levels,
     ) as sio:
         structlog.get_logger("my").info("Hello", key1="value1")
         structlog.get_logger("my.logger").info("Hello", key1="value2")
