@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
@@ -41,6 +40,7 @@ from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
 from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
     BaseOperator,
     BaseOperatorLink,
     BaseSensorOperator,
@@ -50,6 +50,11 @@ from airflow.utils.state import State, TaskInstanceState
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.dag_processing.dagbag import DagBag
+else:
+    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
