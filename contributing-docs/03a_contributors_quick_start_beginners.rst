@@ -34,7 +34,7 @@ Prerequisites
 -------------
 * GitHub account
 * [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo?tool=webui) `apache/airflow <https://github.com/apache/airflow>`__
-* Basic Git installed **only** for the Breeze path below
+* [Basic Git installed **only** for the Breeze path below](https://docs.github.com/en/get-started/git-basics/set-up-git)
 
 For Breeze (local development):
 * [Docker Desktop](https://www.docker.com/products/docker-desktop/)
