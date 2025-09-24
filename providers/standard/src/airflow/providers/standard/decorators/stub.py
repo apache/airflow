@@ -89,7 +89,8 @@ def stub(
     """
     Define a stub task in the DAG.
 
-    Stub tasks must be defined
+    Stub tasks exist in the Dag graph only, but the execution must happen in an external
+    environment via the Task Execution Interface. 
 
     """
     return task_decorator_factory(
