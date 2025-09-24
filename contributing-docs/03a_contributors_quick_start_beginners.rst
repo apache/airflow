@@ -33,7 +33,7 @@ Everything else lives in the advanced guides.
 Prerequisites
 -------------
 * GitHub account
-* Fork `apache/airflow <https://github.com/apache/airflow>`__
+* [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo?tool=webui) `apache/airflow <https://github.com/apache/airflow>`__
 * Basic Git installed **only** for the Breeze path below
 
 For Breeze (local development):
