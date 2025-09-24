@@ -16,21 +16,42 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import contextlib
 
-from flask import Flask
+import pytest
 
-if TYPE_CHECKING:
-    from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
-
-    if AIRFLOW_V_3_1_PLUS:
-        from airflow.models.dagbag import DBDagBag as DagBag
-    else:
-        from airflow.models.dagbag import DagBag  # type: ignore[no-redef]
+from airflow.providers.standard.decorators.stub import stub
 
 
-class AirflowApp(Flask):
-    """Airflow Flask Application."""
+def fn_ellipsis(): ...
 
-    dag_bag: DagBag
-    api_auth: list[Any]
+
+def fn_pass(): ...
+
+
+def fn_doc():
+    """Some string"""
+
+
+def fn_doc_pass():
+    """Some string"""
+    pass
+
+
+def fn_code():
+    return None
+
+
+@pytest.mark.parametrize(
+    ("fn", "error"),
+    [
+        pytest.param(fn_ellipsis, contextlib.nullcontext(), id="ellipsis"),
+        pytest.param(fn_pass, contextlib.nullcontext(), id="pass"),
+        pytest.param(fn_doc, contextlib.nullcontext(), id="doc"),
+        pytest.param(fn_doc_pass, contextlib.nullcontext(), id="doc-and-pass"),
+        pytest.param(fn_code, pytest.raises(ValueError, match="must be an empty function"), id="not-empty"),
+    ],
+)
+def test_stub_signature(fn, error):
+    with error:
+        stub(fn)()

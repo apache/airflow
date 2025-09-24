@@ -285,7 +285,9 @@ class SortParam(BaseParam[list[str]]):
     def dynamic_depends(self, default: str | None = None) -> Callable:
         def inner(
             order_by: list[str] = Query(
-                default=[default] if default is not None else [self.get_primary_key_string()]
+                default=[default] if default is not None else [self.get_primary_key_string()],
+                description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
+                f"Supported attributes: `{', '.join(self.allowed_attrs) if self.allowed_attrs else self.get_primary_key_string()}`",
             ),
         ) -> SortParam:
             return self.set_value(order_by)

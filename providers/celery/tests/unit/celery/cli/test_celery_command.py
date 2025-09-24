@@ -21,6 +21,7 @@ import contextlib
 import importlib
 import json
 import os
+import sys
 from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -35,6 +36,8 @@ from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanu
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+PY313 = sys.version_info >= (3, 13)
 
 
 @pytest.fixture(autouse=False)
@@ -323,16 +326,31 @@ class TestFlowerCommand:
             )
         ]
         mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
-        assert mock_open.mock_calls == [
-            mock.call(mock_setup_locations.return_value[1], "a"),
-            mock.call().__enter__(),
-            mock.call(mock_setup_locations.return_value[2], "a"),
-            mock.call().__enter__(),
-            mock.call().truncate(0),
-            mock.call().truncate(0),
-            mock.call().__exit__(None, None, None),
-            mock.call().__exit__(None, None, None),
-        ]
+
+        if PY313:
+            assert mock_open.mock_calls == [
+                mock.call(mock_setup_locations.return_value[1], "a"),
+                mock.call().__enter__(),
+                mock.call(mock_setup_locations.return_value[2], "a"),
+                mock.call().__enter__(),
+                mock.call().truncate(0),
+                mock.call().truncate(0),
+                mock.call().__exit__(None, None, None),
+                mock.call().close(),
+                mock.call().__exit__(None, None, None),
+                mock.call().close(),
+            ]
+        else:
+            assert mock_open.mock_calls == [
+                mock.call(mock_setup_locations.return_value[1], "a"),
+                mock.call().__enter__(),
+                mock.call(mock_setup_locations.return_value[2], "a"),
+                mock.call().__enter__(),
+                mock.call().truncate(0),
+                mock.call().truncate(0),
+                mock.call().__exit__(None, None, None),
+                mock.call().__exit__(None, None, None),
+            ]
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0-")
     @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
