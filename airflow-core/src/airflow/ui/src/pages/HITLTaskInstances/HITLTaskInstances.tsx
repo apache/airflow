@@ -127,9 +127,7 @@ const taskInstanceColumns = ({
       ]),
   {
     accessorKey: "rendered_map_index",
-    cell: ({ row: { original } }) => (
-      <TruncatedText text={original.task_instance.rendered_map_index ?? ''} />
-    ),
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.rendered_map_index ?? ""} />,
     header: translate("common:mapIndex"),
   },
   {
@@ -140,27 +138,21 @@ const taskInstanceColumns = ({
   {
     accessorKey: "created_at",
     cell: ({ row: { original } }) => <Time datetime={original.created_at} />,
-    header: "create at",
+    header: translate("response.created"),
   },
   {
     accessorKey: "responded_by_user_id",
-    cell: ({ row: { original } }) => (
-      <TruncatedText text={original.responded_by_user?.id ?? ''} />
-    ),
-    header: "responded_by_user_id",
+    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.id ?? ""} />,
+    header: translate("response.responded_by_user_id"),
   },
   {
     accessorKey: "responded_by_user_name",
-    cell: ({ row: { original } }) => (
-      <TruncatedText text={original.responded_by_user?.name ?? ''} />
-    ),
-    header: "responded_by_user_name",
+    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.name ?? ""} />,
+    header: translate("response.responded_by_user_name"),
   },
   {
     accessorKey: "task_instance_operator",
-    cell: ({ row: { original } } ) => (
-      <TruncatedText text={original.task_instance.operator ?? ''} />
-    ),
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
     header: translate("common:task.operator"),
   },
 ];
