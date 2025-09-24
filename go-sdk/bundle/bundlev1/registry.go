@@ -123,7 +123,6 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 	r.RLock()
 	defer r.RUnlock()
 
-	fmt.Printf("tasksFuncMap: %#v\n", r.taskFuncMap)
 	dagTasks, exists := r.taskFuncMap[dagId]
 	if !exists {
 		return nil, false

@@ -168,7 +168,7 @@ func (g *server) executeTask(ctx context.Context, executeTask *proto.ExecuteTask
 
 	dagBundle, err := g.getBundle(ctx)
 	if err != nil {
-		return status.Errorf(codes.NotFound, "dag bundle found: %#v", workload.BundleInfo)
+		return status.Errorf(codes.NotFound, "dag bundle not found: %#v", workload.BundleInfo)
 	}
 
 	w := worker.NewWithBundle(dagBundle, slog.Default())

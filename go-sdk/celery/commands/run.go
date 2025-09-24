@@ -60,6 +60,6 @@ func init() {
 	runCmd.MarkFlagRequired("broker-address")
 	runCmd.MarkFlagRequired("bundles-folder")
 	runCmd.Flags().
-		SetAnnotation("bundles-folder", "viper-mapping", []string{"celery.broker-address"})
+		SetAnnotation("broker-address", "viper-mapping", []string{"celery.broker-address"})
 	runCmd.Flags().SetAnnotation("bundles-folder", "viper-mapping", []string{"bundles.folder"})
 }
