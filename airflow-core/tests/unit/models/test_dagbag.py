@@ -878,7 +878,7 @@ with airflow.DAG(
             textwrap.dedent(
                 """\
                 from airflow.sdk import DAG
-                from airflow.operators.empty import EmptyOperator
+                from airflow.providers.standard.operators.empty import EmptyOperator
 
                 import sys
                 import bundle_util
@@ -915,7 +915,7 @@ with airflow.DAG(
             textwrap.dedent(
                 """\
                 from airflow.sdk import DAG
-                from airflow.operators.empty import EmptyOperator
+                from airflow.providers.standard.operators.empty import EmptyOperator
 
                 import bundle_utils # typo
 
@@ -939,7 +939,7 @@ with airflow.DAG(
             textwrap.dedent(
                 """\
                 from airflow.sdk import DAG
-                from airflow.operators.empty import EmptyOperator
+                from airflow.providers.standard.operators.empty import EmptyOperator
 
                 import sys
 
