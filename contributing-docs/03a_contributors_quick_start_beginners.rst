@@ -78,10 +78,6 @@ of the tmux panes and hit Enter.
 
 3.  **Make a tiny change** – e.g. fix a typo in docs
 
-.. code-block:: bash
-
-    sed -i '' 's/Airflow/Airflow®/' contributing-docs/README.rst
-
 4.  **Run local checks**
 
 .. code-block:: bash
