@@ -20,12 +20,12 @@ from __future__ import annotations
 import contextlib
 import os
 
-from airflow import settings
-from airflow.configuration import conf
-
 
 @contextlib.contextmanager
 def conf_vars(overrides):
+    from airflow import settings
+    from airflow.configuration import conf
+
     original = {}
     original_env_vars = {}
     for (section, key), value in overrides.items():

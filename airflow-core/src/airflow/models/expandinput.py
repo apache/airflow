@@ -19,17 +19,10 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Sized
+from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
-
-if TYPE_CHECKING:
-    from typing import TypeGuard
-
-    from sqlalchemy.orm import Session
-
-    from airflow.models.xcom_arg import SchedulerXComArg
 
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -40,6 +33,18 @@ from airflow.sdk.definitions._internal.expandinput import (
     OperatorExpandKwargsArgument,
     is_mappable,
 )
+
+if TYPE_CHECKING:
+    from typing import TypeAlias, TypeGuard
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.xcom_arg import SchedulerXComArg
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+
 
 __all__ = [
     "DictOfListsExpandInput",
@@ -111,6 +116,26 @@ class SchedulerDictOfListsExpandInput:
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        from airflow.models.referencemixin import ReferenceMixin
+
+        for x in self.value.values():
+            if isinstance(x, ReferenceMixin):
+                yield from x.iter_references()
+
+
+# To replace tedious isinstance() checks.
+def _is_parse_time_mappable(v: OperatorExpandArgument) -> TypeGuard[Mapping | Sequence]:
+    from airflow.sdk.definitions.xcom_arg import XComArg
+
+    return not isinstance(v, (MappedArgument, XComArg))
+
+
+def _describe_type(value: Any) -> str:
+    if value is None:
+        return "None"
+    return type(value).__name__
+
 
 @attrs.define
 class SchedulerListOfDictsExpandInput:
@@ -132,6 +157,16 @@ class SchedulerListOfDictsExpandInput:
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        from airflow.models.referencemixin import ReferenceMixin
+
+        if isinstance(self.value, ReferenceMixin):
+            yield from self.value.iter_references()
+        else:
+            for x in self.value:
+                if isinstance(x, ReferenceMixin):
+                    yield from x.iter_references()
 
 
 _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {

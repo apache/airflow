@@ -33,6 +33,7 @@ __all__ = [
     "Connection",
     "Context",
     "DAG",
+    "DagRunState",
     "EdgeModifier",
     "Label",
     "Metadata",
@@ -40,7 +41,10 @@ __all__ = [
     "Param",
     "PokeReturnValue",
     "TaskGroup",
+    "TaskInstanceState",
+    "TriggerRule",
     "Variable",
+    "WeightRule",
     "XComArg",
     "asset",
     "chain",
@@ -56,9 +60,10 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 if TYPE_CHECKING:
+    from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
@@ -94,6 +99,7 @@ __lazy_imports: dict[str, str] = {
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",
+    "DagRunState": ".api.datamodels._generated",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
@@ -102,7 +108,10 @@ __lazy_imports: dict[str, str] = {
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
+    "TaskInstanceState": ".api.datamodels._generated",
+    "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
+    "WeightRule": ".api.datamodels._generated",
     "XComArg": ".definitions.xcom_arg",
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",

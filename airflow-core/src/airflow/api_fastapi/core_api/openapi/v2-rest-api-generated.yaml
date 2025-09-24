@@ -318,6 +318,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: timestamp_gte
         in: query
         required: false
@@ -327,6 +339,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Timestamp Gte
+      - name: timestamp_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Gt
       - name: timestamp_lte
         in: query
         required: false
@@ -336,6 +357,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Timestamp Lte
+      - name: timestamp_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp Lt
       responses:
         '200':
           description: Successful Response
@@ -1986,6 +2016,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -1995,6 +2034,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -2004,6 +2052,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -2013,6 +2070,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -2022,6 +2088,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -2031,6 +2106,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -2040,6 +2124,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -2049,6 +2142,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -2058,6 +2160,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -2067,6 +2178,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: run_type
         in: query
         required: false
@@ -2083,6 +2203,14 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
       - name: order_by
         in: query
         required: false
@@ -2115,6 +2243,18 @@ paths:
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
           title: Triggering User Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       responses:
@@ -2220,7 +2360,8 @@ paths:
       summary: 'Experimental: Wait for a dag run to complete, and return task results
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
-        \ be removed without notice."
+        \ be removed without notice.Successful response are streamed as newline-delimited\
+        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
@@ -2872,6 +3013,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -2896,6 +3049,26 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: has_asset_schedule
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags with asset-based scheduling
+          title: Has Asset Schedule
+        description: Filter Dags with asset-based scheduling
+      - name: asset_dependency
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter Dags by asset dependency (name or URI)
+          title: Asset Dependency
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -2905,6 +3078,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run Start Date Gte
+      - name: dag_run_start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Gt
       - name: dag_run_start_date_lte
         in: query
         required: false
@@ -2914,6 +3096,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run Start Date Lte
+      - name: dag_run_start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Lt
       - name: dag_run_end_date_gte
         in: query
         required: false
@@ -2923,6 +3114,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run End Date Gte
+      - name: dag_run_end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Gt
       - name: dag_run_end_date_lte
         in: query
         required: false
@@ -2932,6 +3132,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Dag Run End Date Lte
+      - name: dag_run_end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Lt
       - name: dag_run_state
         in: query
         required: false
@@ -3617,6 +3826,66 @@ paths:
             format: date-time
           - type: 'null'
           title: After
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: owner_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Owner Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: event_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Event Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -3795,6 +4064,18 @@ paths:
           default:
           - id
           title: Order By
+      - name: filename_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Filename Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -3848,6 +4129,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -3857,6 +4147,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -3866,6 +4165,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -3875,6 +4183,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: limit
         in: query
         required: false
@@ -4667,6 +4984,134 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: xcom_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Xcom Key Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: map_index_filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index Filter
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       responses:
         '200':
           description: Successful Response
@@ -4970,9 +5415,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Delete Task Instance
+              schema: {}
         '401':
           content:
             application/json:
@@ -5035,6 +5478,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -5044,6 +5496,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -5053,6 +5514,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -5062,6 +5532,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -5071,6 +5550,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -5080,6 +5568,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -5089,6 +5586,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -5098,6 +5604,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -5107,6 +5622,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -5116,6 +5640,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: duration_gte
         in: query
         required: false
@@ -5124,6 +5657,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
       - name: duration_lte
         in: query
         required: false
@@ -5132,6 +5673,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: state
         in: query
         required: false
@@ -5172,6 +5721,30 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -5701,6 +6274,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
       - name: run_after_lte
         in: query
         required: false
@@ -5710,6 +6292,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: logical_date_gte
         in: query
         required: false
@@ -5719,6 +6310,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
       - name: logical_date_lte
         in: query
         required: false
@@ -5728,6 +6328,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
       - name: start_date_gte
         in: query
         required: false
@@ -5737,6 +6346,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
       - name: start_date_lte
         in: query
         required: false
@@ -5746,6 +6364,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
       - name: end_date_gte
         in: query
         required: false
@@ -5755,6 +6382,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
       - name: end_date_lte
         in: query
         required: false
@@ -5764,6 +6400,15 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -5773,6 +6418,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Gte
+      - name: updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gt
       - name: updated_at_lte
         in: query
         required: false
@@ -5782,6 +6436,15 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lt
       - name: duration_gte
         in: query
         required: false
@@ -5790,6 +6453,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
       - name: duration_lte
         in: query
         required: false
@@ -5798,6 +6469,14 @@ paths:
           - type: number
           - type: 'null'
           title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: task_display_name_pattern
         in: query
         required: false
@@ -5808,6 +6487,18 @@ paths:
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
           title: Task Display Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: state
@@ -5850,6 +6541,30 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Try Number
+      - name: operator
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -7050,9 +7765,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Reparse Dag File
+              schema: {}
         '401':
           content:
             application/json:
@@ -7303,10 +8016,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Update Hitl Detail
       description: Update a Human-in-the-loop detail.
       operationId: update_hitl_detail
@@ -7332,6 +8045,12 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
       requestBody:
         required: true
         content:
@@ -7377,7 +8096,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
       operationId: get_hitl_detail
@@ -7403,143 +8122,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HITLDetail'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}:
-    patch:
-      tags:
-      - HumanInTheLoop
-      summary: Update Mapped Ti Hitl Detail
-      description: Update a Human-in-the-loop detail.
-      operationId: update_mapped_ti_hitl_detail
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Task Id
-      - name: map_index
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Map Index
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateHITLDetailPayload'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HITLDetailResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-    get:
-      tags:
-      - HumanInTheLoop
-      summary: Get Mapped Ti Hitl Detail
-      description: Get a Human-in-the-loop detail of a specific task instance.
-      operationId: get_mapped_ti_hitl_detail
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Task Id
       - name: map_index
         in: path
         required: true
@@ -7577,10 +8159,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails:
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Details
       description: Get Human-in-the-loop details.
       operationId: get_hitl_details
@@ -7588,6 +8170,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -7626,12 +8220,14 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: dag_run_id
+      - name: task_id
         in: query
         required: false
         schema:
-          type: string
-          title: Dag Run Id
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
       - name: task_id_pattern
         in: query
         required: false
@@ -7644,6 +8240,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
       - name: state
         in: query
         required: false
@@ -7660,14 +8264,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: user_id
+      - name: responded_by_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: User Id
+          title: Responded By User Id
+      - name: responded_by_user_name
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Responded By User Name
       - name: subject_search
         in: query
         required: false
@@ -7692,6 +8304,42 @@ paths:
           title: Body Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
       responses:
         '200':
           description: Successful Response
@@ -8073,6 +8721,11 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        watchers:
+          items:
+            $ref: '#/components/schemas/AssetWatcherResponse'
+          type: array
+          title: Watchers
         last_asset_event:
           anyOf:
           - $ref: '#/components/schemas/LastAssetEventResponse'
@@ -8089,8 +8742,28 @@ components:
       - producing_tasks
       - consuming_tasks
       - aliases
+      - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetWatcherResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        trigger_id:
+          type: integer
+          title: Trigger Id
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+      type: object
+      required:
+      - name
+      - trigger_id
+      - created_date
+      title: AssetWatcherResponse
+      description: Asset watcher serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -8420,10 +9093,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8442,10 +9117,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8464,10 +9141,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8486,10 +9165,12 @@ components:
           description: The action to be performed on the entities.
         entities:
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkTaskInstanceBody'
           type: array
           title: Entities
-          description: A list of entity id/key to be deleted.
+          description: A list of entity id/key or entity objects to be deleted.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -8978,6 +9659,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9153,7 +9839,11 @@ components:
         concurrency:
           type: integer
           title: Concurrency
-          description: Return max_active_tasks as concurrency.
+          description: 'Return max_active_tasks as concurrency.
+
+
+            Deprecated: Use max_active_tasks instead.'
+          deprecated: true
           readOnly: true
         latest_dag_version:
           anyOf:
@@ -9168,6 +9858,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -9236,6 +9927,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9338,6 +10034,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -9579,48 +10276,96 @@ components:
             format: date-time
           - type: 'null'
           title: Run After Gte
+        run_after_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
         run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Run After Lte
+        run_after_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
         logical_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+        logical_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
         logical_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+        logical_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
         start_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Gte
+        start_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
         start_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Lte
+        start_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
         end_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Gte
+        end_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
         end_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Lte
+        end_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody
@@ -9713,12 +10458,16 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_id
       - warning_type
       - message
       - timestamp
+      - dag_display_name
       title: DAGWarningResponse
       description: DAG Warning serializer for responses.
     DagProcessorInfoResponse:
@@ -9871,6 +10620,9 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         stats:
           items:
             $ref: '#/components/schemas/DagStatsStateResponse'
@@ -9879,6 +10631,7 @@ components:
       type: object
       required:
       - dag_id
+      - dag_display_name
       - stats
       title: DagStatsResponse
       description: DAG Stats serializer for responses.
@@ -9903,10 +10656,14 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - name
       - dag_id
+      - dag_display_name
       title: DagTagResponse
       description: DAG Tag serializer for responses.
     DagVersionResponse:
@@ -10069,6 +10826,11 @@ components:
           - type: string
           - type: 'null'
           title: Dag Display Name
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
       type: object
       required:
       - event_log_id
@@ -10199,6 +10961,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Options
         subject:
           type: string
@@ -10223,17 +10986,25 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        user_id:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: User Id
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -10254,6 +11025,7 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLDetailCollection:
@@ -10274,17 +11046,17 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        user_id:
-          type: string
-          title: User Id
-        response_at:
+        responded_by:
+          $ref: '#/components/schemas/HITLUser'
+        responded_at:
           type: string
           format: date-time
-          title: Response At
+          title: Responded At
         chosen_options:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true
@@ -10292,11 +11064,25 @@ components:
           title: Params Input
       type: object
       required:
-      - user_id
-      - response_at
+      - responded_by
+      - responded_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -11111,6 +11897,11 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
         queued_when:
           anyOf:
           - type: string
@@ -11161,6 +11952,7 @@ components:
       - queue
       - priority_weight
       - operator
+      - operator_name
       - queued_when
       - scheduled_when
       - pid
@@ -11180,8 +11972,6 @@ components:
         dag_id:
           type: string
           title: Dag Id
-        dag_version:
-          $ref: '#/components/schemas/DagVersionResponse'
         dag_run_id:
           type: string
           title: Dag Run Id
@@ -11262,6 +12052,11 @@ components:
           - type: string
           - type: 'null'
           title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
         queued_when:
           anyOf:
           - type: string
@@ -11309,12 +12104,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
       - task_id
       - dag_id
-      - dag_version
       - dag_run_id
       - map_index
       - logical_date
@@ -11334,6 +12132,7 @@ components:
       - queue
       - priority_weight
       - operator
+      - operator_name
       - queued_when
       - scheduled_when
       - pid
@@ -11343,6 +12142,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -11403,58 +12203,116 @@ components:
             format: date-time
           - type: 'null'
           title: Run After Gte
+        run_after_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
         run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Run After Lte
+        run_after_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
         logical_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Gte
+        logical_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
         logical_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date Lte
+        logical_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
         start_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Gte
+        start_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
         start_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Start Date Lte
+        start_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
         end_date_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Gte
+        end_date_gt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
         end_date_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: End Date Lte
+        end_date_lt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
         duration_gte:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration Gte
+        duration_gt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
         duration_lte:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration Lte
+        duration_lt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
         pool:
           anyOf:
           - items:
@@ -11835,6 +12693,7 @@ components:
           items:
             type: string
           type: array
+          minItems: 1
           title: Chosen Options
         params_input:
           additionalProperties: true
@@ -12006,6 +12865,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
       type: object
       required:
       - key
@@ -12016,6 +12878,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       title: XComResponse
       description: Serializer for a xcom item.
     XComResponseNative:
@@ -12048,6 +12911,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
         value:
           title: Value
       type: object
@@ -12060,6 +12926,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       - value
       title: XComResponseNative
       description: XCom response serializer with native return type.
@@ -12093,6 +12960,9 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        task_display_name:
+          type: string
+          title: Task Display Name
         value:
           anyOf:
           - type: string
@@ -12108,6 +12978,7 @@ components:
       - dag_id
       - run_id
       - dag_display_name
+      - task_display_name
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.

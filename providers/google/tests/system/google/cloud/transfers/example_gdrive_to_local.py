@@ -45,7 +45,12 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection

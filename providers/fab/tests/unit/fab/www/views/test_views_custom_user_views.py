@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from flask.sessions import SecureCookieSessionInterface
 from flask_appbuilder import SQLA
+from sqlalchemy import delete, func, select
 
 from airflow import settings
 from airflow.providers.fab.www import app as application
@@ -214,7 +215,7 @@ class TestResetUserSessions:
         self.model = self.interface.sql_session_model
         self.serializer = self.interface.serializer
         self.db = self.interface.db
-        self.db.session.query(self.model).delete()
+        self.db.session.execute(delete(self.model))
         self.db.session.commit()
         self.db.session.flush()
         self.user_1 = create_user(
@@ -256,7 +257,7 @@ class TestResetUserSessions:
         self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
         self.db.session.commit()
         self.db.session.flush()
-        assert self.db.session.query(self.model).count() == 2
+        assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
@@ -264,14 +265,14 @@ class TestResetUserSessions:
         self.db.session.commit()
         self.db.session.flush()
         if user_sessions_deleted:
-            assert self.db.session.query(self.model).count() == 1
+            assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 1
             assert self.get_session_by_id("session_id_1") is None
         else:
-            assert self.db.session.query(self.model).count() == 2
+            assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 2
             assert self.get_session_by_id("session_id_1") is not None
 
     def get_session_by_id(self, session_id: str):
-        return self.db.session.query(self.model).filter(self.model.session_id == session_id).scalar()
+        return self.db.session.scalar(select(self.model).where(self.model.session_id == session_id))
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
     @mock.patch(
@@ -285,7 +286,7 @@ class TestResetUserSessions:
         self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
         self.db.session.commit()
         self.db.session.flush()
-        assert self.db.session.query(self.model).count() == 2
+        assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
         self.security_manager.reset_password(self.user_1.id, "new_password")
@@ -294,7 +295,7 @@ class TestResetUserSessions:
             "The old sessions for user user_to_delete_1 have <b>NOT</b> been deleted!"
             in flash_mock.call_args[0][0]
         )
-        assert self.db.session.query(self.model).count() == 2
+        assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
@@ -320,7 +321,7 @@ class TestResetUserSessions:
         self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
         self.db.session.commit()
         self.db.session.flush()
-        assert self.db.session.query(self.model).count() == 2
+        assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
         self.security_manager.reset_password(self.user_1.id, "new_password")
@@ -329,7 +330,7 @@ class TestResetUserSessions:
             "The old sessions for user user_to_delete_1 have *NOT* been deleted!\n"
             in log_mock.warning.call_args[0][0]
         )
-        assert self.db.session.query(self.model).count() == 2
+        assert self.db.session.scalar(select(func.count()).select_from(self.model)) == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 

@@ -35,7 +35,12 @@ else:
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 

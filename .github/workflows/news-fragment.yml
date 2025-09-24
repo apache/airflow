@@ -60,4 +60,4 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: >
-          uv run scripts/ci/pre_commit/significant_newsfragments_checker.py
+          uv run scripts/ci/prek/significant_newsfragments_checker.py

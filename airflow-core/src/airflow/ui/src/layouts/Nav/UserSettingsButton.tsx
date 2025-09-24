@@ -18,7 +18,18 @@
  */
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
+import {
+  FiGrid,
+  FiLogOut,
+  FiMoon,
+  FiSun,
+  FiUser,
+  FiGlobe,
+  FiEye,
+  FiChevronRight,
+  FiChevronLeft,
+  FiMonitor,
+} from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -33,13 +44,25 @@ import { PluginMenuItem } from "./PluginMenuItem";
 import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
 
+const COLOR_MODES = {
+  DARK: "dark",
+  LIGHT: "light",
+  SYSTEM: "system",
+} as const;
+
+type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
+
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
-  const { t: translate } = useTranslation();
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { i18n, t: translate } = useTranslation();
+  const { selectedTheme, setColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
+
+  const theme = selectedTheme ?? COLOR_MODES.SYSTEM;
+
+  const isRTL = i18n.dir() === "rtl";
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
@@ -51,19 +74,39 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
           <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
           {translate("selectLanguage")}
         </Menu.Item>
-        <Menu.Item onClick={toggleColorMode} value="color-mode">
-          {colorMode === "light" ? (
-            <>
-              <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("switchToDarkMode")}
-            </>
-          ) : (
-            <>
-              <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("switchToLightMode")}
-            </>
-          )}
-        </Menu.Item>
+        <Menu.Root>
+          <Menu.TriggerItem>
+            <FiEye size="1.25rem" style={{ marginRight: "8px" }} />
+            {translate("appearance.appearance")}
+            {isRTL ? (
+              <FiChevronLeft size="1.25rem" style={{ marginRight: "auto" }} />
+            ) : (
+              <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
+            )}
+          </Menu.TriggerItem>
+          <Menu.Content>
+            <Menu.RadioItemGroup
+              onValueChange={(element) => setColorMode(element.value as ColorMode)}
+              value={theme}
+            >
+              <Menu.RadioItem value={COLOR_MODES.LIGHT}>
+                <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
+                {translate("appearance.lightMode")}
+                <Menu.ItemIndicator />
+              </Menu.RadioItem>
+              <Menu.RadioItem value={COLOR_MODES.DARK}>
+                <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
+                {translate("appearance.darkMode")}
+                <Menu.ItemIndicator />
+              </Menu.RadioItem>
+              <Menu.RadioItem value={COLOR_MODES.SYSTEM}>
+                <FiMonitor size="1.25rem" style={{ marginRight: "8px" }} />
+                {translate("appearance.systemMode")}
+                <Menu.ItemIndicator />
+              </Menu.RadioItem>
+            </Menu.RadioItemGroup>
+          </Menu.Content>
+        </Menu.Root>
         <Menu.Item
           onClick={() => (dagView === "grid" ? setDagView("graph") : setDagView("grid"))}
           value={dagView}
@@ -85,7 +128,10 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
           <PluginMenuItem {...view} key={view.name} />
         ))}
         <Menu.Item onClick={onOpenLogout} value="logout">
-          <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />
+          <FiLogOut
+            size="1.25rem"
+            style={{ marginRight: "8px", transform: isRTL ? "rotate(180deg)" : undefined }}
+          />
           {translate("logout")}
         </Menu.Item>
       </Menu.Content>

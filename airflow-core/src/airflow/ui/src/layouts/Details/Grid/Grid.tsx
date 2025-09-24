@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
+import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -39,34 +39,24 @@ import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
-const getArrowsForMode = (navigationMode: string) => {
-  switch (navigationMode) {
-    case "run":
-      return "←→";
-    case "task":
-      return "↑↓";
-    case "TI":
-      return "↑↓←→";
-    default:
-      return "↑↓←→";
-  }
-};
-
 type Props = {
+  readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runType?: DagRunType | undefined;
+  readonly showGantt?: boolean;
+  readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ limit }: Props) => {
+export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
-  const [isGridFocused, setIsGridFocused] = useState(false);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
-  const { data: gridRuns, isLoading } = useGridRuns({ limit });
+  const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -90,7 +80,13 @@ export const Grid = ({ limit }: Props) => {
     }
   }, [gridRuns, setHasActiveRun]);
 
-  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+  const { data: dagStructure } = useGridStructure({
+    dagRunState,
+    hasActiveRun,
+    limit,
+    runType,
+    triggeringUser,
+  });
   // calculate dag run bar heights relative to max
 
   const max = Math.max.apply(
@@ -104,18 +100,7 @@ export const Grid = ({ limit }: Props) => {
 
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
-  const setGridFocus = useCallback((focused: boolean) => {
-    setIsGridFocused(focused);
-    if (focused) {
-      gridRef.current?.focus();
-    } else {
-      gridRef.current?.blur();
-    }
-  }, []);
-
-  const { mode, setMode } = useNavigation({
-    enabled: isGridFocused,
-    onEscapePress: () => setGridFocus(false),
+  const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
     tasks: flatNodes,
@@ -123,29 +108,15 @@ export const Grid = ({ limit }: Props) => {
 
   return (
     <Flex
-      _focus={{
-        borderRadius: "4px",
-        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
-      }}
-      cursor="pointer"
       justifyContent="flex-start"
-      onBlur={() => setGridFocus(false)}
-      onFocus={() => setGridFocus(true)}
-      onMouseDown={() => setGridFocus(true)}
       outline="none"
       position="relative"
-      pt={50}
+      pt={20}
       ref={gridRef}
       tabIndex={0}
-      width="100%"
+      width={showGantt ? "1/2" : "full"}
     >
-      <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
-        <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
-        <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
-        {mode !== "run" && <Text>{translate("navigation.toggleGroup")}</Text>}
-      </Box>
-
-      <Box flexGrow={1} minWidth={7} position="relative" top="100px">
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="100px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
@@ -153,7 +124,7 @@ export const Grid = ({ limit }: Props) => {
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
+          <Flex flexDirection="column-reverse" height="100px" position="relative">
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />

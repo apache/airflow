@@ -83,7 +83,7 @@ need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 
-(Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
+(Modules only imported by Dag files on the other hand do not suffer this problem, as Dag files are not
 loaded/parsed in any long-running Airflow process.)
 
 .. _plugins-interface:
@@ -111,6 +111,8 @@ looks like:
         # A list of dictionaries containing external views and some metadata. See the example below.
         external_views = []
         # A list of dictionaries containing react apps and some metadata. See the example below.
+        # Note: React apps are only supported in Airflow 3.1 and later.
+        # Note: The React app integration is experimental and interfaces might change in future versions. Particularly, dependency and state interactions between the UI and plugins may need to be refactored for more complex plugin apps.
         react_apps = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
@@ -135,7 +137,7 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-        # A list of timetable classes to register so they can be used in dags.
+        # A list of timetable classes to register so they can be used in Dags.
         timetables = []
 
         # A list of Listeners that plugin provides. Listeners can register to
@@ -218,6 +220,7 @@ definitions in Airflow.
         "category": "browse",
     }
 
+    # Note: The React app integration is experimental and interfaces might change in future versions.
     react_app_with_metadata = {
         # Name of the React app, this will be displayed in the UI.
         "name": "Name of the React App",

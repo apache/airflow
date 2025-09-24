@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "Variablen"
   },
+  "allOperators": "Alle Operatoren",
+  "appearance": {
+    "appearance": "Darstellung",
+    "darkMode": "Dunkelmodus",
+    "lightMode": "Hellmodus",
+    "systemMode": "Systemeinstellung folgen"
+  },
   "asset_one": "Datenset (Asset)",
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
@@ -25,7 +32,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Nachgeholt",
-    "concurrency": "Parallelität",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
     "description": "Beschreibung",
@@ -33,6 +39,7 @@
     "fileLocation": "Ablagepfad",
     "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
     "lastExpired": "Letztmaliger Ablauf",
+    "lastParseDuration": "Letzte Dag Einlesedauer",
     "lastParsed": "Letztmalig Eingelesen",
     "latestDagVersion": "Letzte Dag Version",
     "latestRun": "Letzter Lauf",
@@ -92,6 +99,13 @@
     "any": "Jeder",
     "or": "ODER"
   },
+  "filter": "Filter",
+  "filters": {
+    "logicalDateFrom": "Logisches Datum Von",
+    "logicalDateTo": "Logisches Datum Bis",
+    "runAfterFrom": "Gelaufen-nach von filtern",
+    "runAfterTo": "Gelaufen-nach bis filtern"
+  },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -132,6 +146,7 @@
     "running": "Laufende",
     "scheduled": "Geplant"
   },
+  "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",
@@ -170,6 +185,7 @@
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
     "none": "Kein Status",
+    "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
     "restarting": "Im Neustart",
@@ -181,8 +197,6 @@
     "up_for_retry": "Wartet auf neuen Versuch",
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
-  "switchToDarkMode": "Zum Dunkelmodus wechseln",
-  "switchToLightMode": "Zum Hellmodus wechseln",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -208,6 +222,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Task Gruppe",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",

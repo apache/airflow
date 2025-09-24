@@ -175,6 +175,9 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
         secret_key=get_signing_key("api", "secret_key"),
         # Since we are using a secret key, we need to be explicit about the algorithm here too
         algorithm="HS512",
+        # We must set an empty private key here as otherwise it can be automatically loaded by JWTGenerator
+        # and secret_key and private_key cannot be set together
+        private_key=None,  #  type: ignore[arg-type]
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
@@ -738,7 +741,10 @@ class FileTaskHandler(logging.Handler):
         if try_number is None:
             try_number = task_instance.try_number
 
-        if try_number == 0 and task_instance.state == TaskInstanceState.SKIPPED:
+        if try_number == 0 and task_instance.state in (
+            TaskInstanceState.SKIPPED,
+            TaskInstanceState.UPSTREAM_FAILED,
+        ):
             logs = [StructuredLogMessage(event="Task was skipped, no logs available.")]
             return chain(logs), {"end_of_log": True}
 

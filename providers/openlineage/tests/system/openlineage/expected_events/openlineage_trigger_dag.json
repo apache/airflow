@@ -135,6 +135,9 @@
                     "tasksState": {
                         "do_nothing_task": "success"
                     },
+                    "tasksDuration": {
+                        "do_nothing_task": "{{ result is number }}"
+                    },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
                 },

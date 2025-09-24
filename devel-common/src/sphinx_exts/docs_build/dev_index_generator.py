@@ -23,11 +23,8 @@ from pathlib import Path
 
 import jinja2
 
-# isort:off (needed to workaround isort bug)
 from sphinx_exts.docs_build.code_utils import AIRFLOW_CONTENT_ROOT_PATH
 from sphinx_exts.provider_yaml_utils import load_package_data
-
-# isort:on (needed to workaround isort bug)
 
 CURRENT_DIR = Path(os.path.dirname(__file__)).resolve()
 GENERATED_BUILD_DOCS_PATH = AIRFLOW_CONTENT_ROOT_PATH / "generated" / "_build" / "docs"

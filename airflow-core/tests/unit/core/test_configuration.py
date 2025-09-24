@@ -158,6 +158,17 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
+    def test_env_team(self):
+        with patch(
+            "os.environ",
+            {
+                "AIRFLOW__CELERY__RESULT_BACKEND": "FOO",
+                "AIRFLOW__UNIT_TEST_TEAM___CELERY__RESULT_BACKEND": "BAR",
+            },
+        ):
+            assert conf.get("celery", "result_backend") == "FOO"
+            assert conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
+
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
@@ -1620,21 +1631,21 @@ sql_alchemy_conn=sqlite://test
     def test_as_dict_raw(self):
         test_conf = AirflowConfigParser()
         raw_dict = test_conf.as_dict(raw=True)
-        assert "%%" in raw_dict["logging"]["log_format"]
+        assert "%%" in raw_dict["logging"]["simple_log_format"]
 
     def test_as_dict_not_raw(self):
         test_conf = AirflowConfigParser()
         raw_dict = test_conf.as_dict(raw=False)
-        assert "%%" not in raw_dict["logging"]["log_format"]
+        assert "%%" not in raw_dict["logging"]["simple_log_format"]
 
     def test_default_value_raw(self):
         test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "log_format", raw=True)
+        log_format = test_conf.get_default_value("logging", "simple_log_format", raw=True)
         assert "%%" in log_format
 
     def test_default_value_not_raw(self):
         test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "log_format", raw=False)
+        log_format = test_conf.get_default_value("logging", "simple_log_format", raw=False)
         assert "%%" not in log_format
 
     def test_default_value_raw_with_fallback(self):
@@ -1891,21 +1902,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
     def test_mask_conf_values(self, mock_sensitive_config_values):
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-        target = (
-            "airflow.sdk.execution_time.secrets_masker.mask_secret"
-            if AIRFLOW_V_3_0_PLUS
-            else "airflow.utils.log.secrets_masker.mask_secret"
-        )
-
-        with patch(target) as mock_mask_secret:
+        with (
+            patch("airflow._shared.secrets_masker.mask_secret") as mock_mask_secret_core,
+            patch("airflow.sdk.log.mask_secret") as mock_mask_secret_sdk,
+        ):
             conf.mask_secrets()
 
-            mock_mask_secret.assert_any_call("supersecret1")
-            mock_mask_secret.assert_any_call("supersecret2")
+            mock_mask_secret_core.assert_any_call("supersecret1")
+            mock_mask_secret_core.assert_any_call("supersecret2")
+            assert mock_mask_secret_core.call_count == 2
 
-            assert mock_mask_secret.call_count == 2
+            mock_mask_secret_sdk.assert_any_call("supersecret1")
+            mock_mask_secret_sdk.assert_any_call("supersecret2")
+            assert mock_mask_secret_sdk.call_count == 2
 
 
 @conf_vars({("core", "unit_test_mode"): "False"})

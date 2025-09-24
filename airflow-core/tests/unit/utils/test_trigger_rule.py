@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 
 
 class TestTriggerRule:

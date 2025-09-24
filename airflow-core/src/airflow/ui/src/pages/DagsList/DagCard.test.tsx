@@ -42,6 +42,7 @@ const mockDag = {
   is_paused: false,
   is_stale: false,
   last_expired: null,
+  last_parse_duration: 0.23,
   last_parsed_time: "2024-08-22T13:50:10.372238+00:00",
   latest_dag_runs: [],
   max_active_runs: 16,
@@ -52,6 +53,7 @@ const mockDag = {
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
   next_dagrun_run_after: "2024-08-23T00:00:00+00:00",
   owners: ["airflow"],
+  pending_actions: [],
   relative_fileloc: "nested_task_groups.py",
   tags: [],
   timetable_description: "",
@@ -88,10 +90,10 @@ describe("DagCard", () => {
 
   it("DagCard should not show +X more text if there is only +1 over the limit", () => {
     const tags = [
-      { dag_id: "id", name: "tag1" },
-      { dag_id: "id", name: "tag2" },
-      { dag_id: "id", name: "tag3" },
-      { dag_id: "id", name: "tag4" },
+      { dag_display_name: "id", dag_id: "id", name: "tag1" },
+      { dag_display_name: "id", dag_id: "id", name: "tag2" },
+      { dag_display_name: "id", dag_id: "id", name: "tag3" },
+      { dag_display_name: "id", dag_id: "id", name: "tag4" },
     ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {
@@ -108,11 +110,11 @@ describe("DagCard", () => {
 
   it("DagCard should show +X more text if there are more than 3 tags", () => {
     const tags = [
-      { dag_id: "id", name: "tag1" },
-      { dag_id: "id", name: "tag2" },
-      { dag_id: "id", name: "tag3" },
-      { dag_id: "id", name: "tag4" },
-      { dag_id: "id", name: "tag5" },
+      { dag_display_name: "id", dag_id: "id", name: "tag1" },
+      { dag_display_name: "id", dag_id: "id", name: "tag2" },
+      { dag_display_name: "id", dag_id: "id", name: "tag3" },
+      { dag_display_name: "id", dag_id: "id", name: "tag4" },
+      { dag_display_name: "id", dag_id: "id", name: "tag5" },
     ] satisfies Array<DagTagResponse>;
 
     const expandedMockDag = {
