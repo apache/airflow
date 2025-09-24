@@ -578,7 +578,7 @@ sqliteShared:
     # Existing PVC name (optional, if you want to use an existing PVC)
     existingClaim: ""
 
-  # Node selector for pod scheduling (used when accessMode is ReadWriteOnce)
+  # Node selector for pod scheduling (used when access mode is ReadWriteOnce)
   # Ensures all pods are scheduled on the same node to share the volume
   nodeSelector: {}
 
