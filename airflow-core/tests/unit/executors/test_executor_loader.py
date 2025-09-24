@@ -235,7 +235,10 @@ class TestExecutorLoader:
     )
     def test_get_hybrid_executors_from_configs(self, executor_config, expected_executors_list):
         # Mock the blocking method for tests that involve actual team configurations
-        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+        ):
             with conf_vars({("core", "executor"): executor_config}):
                 executors = executor_loader.ExecutorLoader._get_executor_names()
                 assert executors == expected_executors_list
@@ -419,7 +422,10 @@ class TestExecutorLoader:
             assert executor_loader._module_to_executors_per_team == {}
             assert executor_loader._classname_to_executors_per_team == {}
             assert executor_loader._team_name_to_executors == {}
-            with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+            with (
+                mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+                mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+            ):
                 executor_loader.ExecutorLoader._get_executor_names()
             assert executor_loader._executor_names == [
                 celery_global,
@@ -519,7 +525,10 @@ class TestExecutorLoader:
             ("team2", ["LocalExecutor"]),
         ]
 
-        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+        ):
             with conf_vars({("core", "executor"): executor_config}):
                 configs = executor_loader.ExecutorLoader._get_team_executor_configs()
                 assert configs == expected_configs
@@ -567,3 +576,52 @@ class TestExecutorLoader:
                 AirflowConfigException, match=r"At least one global executor must be configured"
             ):
                 executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_validation_with_valid_teams_in_config(self):
+        """Test that executor config with valid teams loads successfully."""
+        mock_team_names = {"team_a", "team_b"}
+
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names),
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor"}
+            ):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+
+                assert len(configs) == 3
+                assert configs[0] == (None, ["CeleryExecutor"])
+                assert configs[1] == ("team_a", ["CeleryExecutor"])
+                assert configs[2] == ("team_b", ["LocalExecutor"])
+
+    def test_team_validation_with_invalid_teams_in_config(self):
+        """Test that executor config with invalid teams fails with clear error."""
+        mock_team_names = {"team_a"}  # team_b and team_c are missing
+
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names),
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor;team_c=KubernetesExecutor"
+                }
+            ):
+                with pytest.raises(AirflowConfigException):
+                    executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_validation_skips_global_teams(self):
+        """Test that team validation does not validate global teams."""
+        with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
+            with conf_vars({("core", "executor"): "CeleryExecutor,LocalExecutor"}):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+
+                assert len(configs) == 1
+                assert configs[0] == (None, ["CeleryExecutor", "LocalExecutor"])
+
+                # No team validation should occur since only global teams are configured
+                mock_get_team_names.assert_not_called()

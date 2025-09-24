@@ -28,13 +28,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.cli import cli_parser
+from airflow.providers.fab.auth_manager.cli_commands import permissions_command
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands import permissions_command
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
 pytestmark = pytest.mark.db_test
 

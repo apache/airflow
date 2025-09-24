@@ -255,7 +255,7 @@ export const PanelButtons = ({
             <MdOutlineAccountTree />
           </IconButton>
         </ButtonGroup>
-        <Flex gap={1} mr={3}>
+        <Flex gap={1}>
           <ToggleGroups />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
