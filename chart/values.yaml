@@ -1212,6 +1212,8 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Whether the create user job should be created
+  enabled: true
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
   # Command to use when running the create user job (templated).
