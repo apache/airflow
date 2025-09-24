@@ -26,9 +26,9 @@ from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 def version_info(arg, api_client=NEW_API_CLIENT):
     """Get version information."""
     version_dict = {"airflowctl_version": airflowctl_version}
-    try:
+    if arg.remote:
         version_response = api_client.version.get()
         version_dict.update(version_response.model_dump())
         rich.print(version_dict)
-    except Exception:
+    else:
         rich.print(version_dict)

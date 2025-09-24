@@ -48,16 +48,15 @@ class TestVersionCommand:
 
     parser = cli_parser.get_parser()
 
-    def test_ctl_version(self, mock_client):
+    def test_ctl_version_remote(self, mock_client):
         with redirect_stdout(StringIO()) as stdout:
-            version_info(self.parser.parse_args(["version"]), api_client=mock_client)
+            version_info(self.parser.parse_args(["version", "--remote"]), api_client=mock_client)
             assert "version" in stdout.getvalue()
             assert "git_version" in stdout.getvalue()
             assert "airflowctl_version" in stdout.getvalue()
 
-    def test_ctl_version_exception(self, mock_client):
+    def test_ctl_version_only_local_version(self, mock_client):
         """Test the version command with an exception."""
-        mock_client.version.get.side_effect = Exception("Test exception")
         with redirect_stdout(StringIO()) as stdout:
             version_info(self.parser.parse_args(["version"]), api_client=mock_client)
             output = stdout.getvalue()
