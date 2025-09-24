@@ -31,6 +31,7 @@ import uvicorn
 
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.typing_compat import ParamSpec
 from airflow.utils import cli as cli_utils
@@ -75,6 +76,11 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
 
         setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
 
+    # Get uvicorn logging configuration from Airflow settings
+    uvicorn_log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+    # Control access log based on uvicorn log level - disable for ERROR and above
+    access_log_enabled = uvicorn_log_level not in ("error", "critical", "fatal")
+
     uvicorn_kwargs = {
         "host": args.host,
         "port": args.port,
@@ -83,7 +89,8 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
         "timeout_graceful_shutdown": worker_timeout,
         "ssl_keyfile": ssl_key,
         "ssl_certfile": ssl_cert,
-        "access_log": True,
+        "access_log": access_log_enabled,
+        "log_level": uvicorn_log_level,
         "proxy_headers": proxy_headers,
     }
     # Only set the log_config if it is provided, otherwise use the default uvicorn logging configuration.
@@ -156,6 +163,10 @@ def api_server(args: Namespace):
 
         if args.log_config and args.log_config != "-":
             run_args.extend(["--log-config", args.log_config])
+        else:
+            # Apply Airflow uvicorn logging configuration in dev mode
+            uvicorn_log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+            run_args.extend(["--log-level", uvicorn_log_level])
 
         with subprocess.Popen(
             run_args,
