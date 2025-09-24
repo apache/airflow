@@ -680,12 +680,12 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG2_RUN2_ID],
             ),  # Test between 100 and 150 (inclusive)
             # Test conf_contains filter
-            ("~", {"conf_contains": '"env": "development"'}, [DAG1_RUN1_ID]),  # Test for "development" env
+            ("~", {"conf_contains": "development"}, [DAG1_RUN1_ID]),  # Test for "development" env
             (
                 "~",
-                {"conf_contains": '"debug": true'},
+                {"conf_contains": "debug"},
                 [DAG1_RUN2_ID],
-            ),  # Test for debug flag
+            ),  # Test for debug key
             ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
             ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
         ],
