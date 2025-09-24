@@ -1580,6 +1580,7 @@ repos:
           ^airflow-core/src/airflow/dag_processing/collection\.py$|
           ^airflow-core/src/airflow/dag_processing/manager\.py$|
           ^airflow-core/src/airflow/dag_processing/processor\.py$|
+          ^airflow-core/src/airflow/dag_processing/dagbag\.py$|
           ^airflow-core/src/airflow/datasets/metadata\.py$|
           ^airflow-core/src/airflow/exceptions\.py$|
           ^airflow-core/src/airflow/executors/local_executor\.py$|
@@ -1593,7 +1594,6 @@ repos:
           ^airflow-core/src/airflow/models/baseoperator\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
-          ^airflow-core/src/airflow/models/dagbag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
           ^airflow-core/src/airflow/models/deadline\.py$|
           ^airflow-core/src/airflow/models/expandinput\.py$|
