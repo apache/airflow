@@ -29,6 +29,7 @@ import {
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
+import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
 import { Button, ProgressBar } from "../ui";
@@ -48,8 +49,15 @@ const buttonProps = {
 
 const BackfillBanner = ({ dagId }: Props) => {
   const { t: translate } = useTranslation("components");
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
+  }, undefined, {
+    refetchInterval: (query: any) =>
+      query.state.data?.backfills?.some((bf: any) => bf.completed_at === null)
+        ? refetchInterval
+        : false,
   });
   const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
 
