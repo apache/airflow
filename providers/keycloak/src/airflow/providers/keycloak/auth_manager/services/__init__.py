@@ -14,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
-
-
-class TestFbSecurityManagerConstants:
-    def test_existing_roles(self):
-        assert {
-            "Admin",
-            "Viewer",
-            "User",
-            "Op",
-            "Public",
-        } == EXISTING_ROLES

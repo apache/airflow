@@ -335,7 +335,7 @@ class TestSalesforceHook:
         assert salesforce_objects == mock_make_query.return_value
 
     def test_write_object_to_file_invalid_format(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Format value is not recognized: test"):
             self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
 
     @patch(

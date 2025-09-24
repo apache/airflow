@@ -965,6 +965,55 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
         assert dag.timetable == expected_timetable
 
+    @pytest.mark.parametrize(
+        "serialized_timetable, expected_timetable_summary",
+        [
+            (
+                {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
+                "None",
+            ),
+            (
+                {
+                    "__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "__var": {"expression": "@weekly", "timezone": "UTC"},
+                },
+                "0 0 * * 0",
+            ),
+            (
+                {"__type": "airflow.timetables.simple.OnceTimetable", "__var": {}},
+                "@once",
+            ),
+            (
+                {
+                    "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+                    "__var": {"delta": 86400.0},
+                },
+                "1 day, 0:00:00",
+            ),
+            (CUSTOM_TIMETABLE_SERIALIZED, "CustomSerializationTimetable('foo')"),
+        ],
+    )
+    @pytest.mark.usefixtures("timetable_plugin")
+    def test_deserialization_timetable_summary(
+        self,
+        serialized_timetable,
+        expected_timetable_summary,
+    ):
+        serialized = {
+            "__version": 3,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "timetable": serialized_timetable,
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+        assert dag.timetable_summary == expected_timetable_summary
+
     def test_deserialization_timetable_unregistered(self):
         serialized = {
             "__version": 3,
