@@ -849,7 +849,7 @@ core_commands: list[CLICommand] = [
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
-        args=(),
+        args=(ARG_AUTH_ENVIRONMENT,),
     ),
     GroupCommand(
         name="variables",
