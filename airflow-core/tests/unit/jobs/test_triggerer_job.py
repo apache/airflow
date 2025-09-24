@@ -23,6 +23,7 @@ import itertools
 import os
 import selectors
 import time
+import typing
 from collections.abc import AsyncIterator
 from socket import socket
 from typing import TYPE_CHECKING, Any
@@ -37,6 +38,8 @@ from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    ToTriggerRunner,
+    ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
     TriggerRunner,
@@ -56,6 +59,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseHook, BaseOperator
+from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
@@ -1134,3 +1138,82 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
     assert trigger_orm1.id in trigger_ids
     assert trigger_orm2.id in trigger_ids
+
+
+class TestTriggererMessageTypes:
+    def test_message_types_in_triggerer(self):
+        """
+        Test that ToSupervisor is a superset of ToTriggerSupervisor and ToTask is a superset of ToTriggerRunner.
+
+        This test ensures that when new message types are added to ToSupervisor or ToTask,
+        they are also properly handled in ToTriggerSupervisor and ToTriggerSupervisor.
+        """
+
+        def get_type_names(union_type):
+            union_args = typing.get_args(union_type.__args__[0])
+            return {arg.__name__ for arg in union_args}
+
+        supervisor_types = get_type_names(ToSupervisor)
+        task_types = get_type_names(ToTask)
+
+        trigger_supervisor_types = get_type_names(ToTriggerSupervisor)
+        trigger_runner_types = get_type_names(ToTriggerRunner)
+
+        in_supervisor_but_not_in_trigger_supervisor = {
+            "DeferTask",
+            "GetAssetByName",
+            "GetAssetByUri",
+            "GetAssetEventByAsset",
+            "GetAssetEventByAssetAlias",
+            "GetPrevSuccessfulDagRun",
+            "GetPreviousDagRun",
+            "GetTaskRescheduleStartDate",
+            "GetXComCount",
+            "GetXComSequenceItem",
+            "GetXComSequenceSlice",
+            "RescheduleTask",
+            "RetryTask",
+            "SetRenderedFields",
+            "SkipDownstreamTasks",
+            "SucceedTask",
+            "ValidateInletsAndOutlets",
+            "TaskState",
+            "TriggerDagRun",
+            "ResendLoggingFD",
+            "CreateHITLDetailPayload",
+        }
+
+        in_task_but_not_in_trigger_runner = {
+            "AssetResult",
+            "AssetEventsResult",
+            "SentFDs",
+            "StartupDetails",
+            "TaskRescheduleStartDate",
+            "InactiveAssetsResult",
+            "CreateHITLDetailPayload",
+            "PrevSuccessfulDagRunResult",
+            "XComCountResponse",
+            "XComSequenceIndexResult",
+            "XComSequenceSliceResult",
+            "PreviousDagRunResult",
+            "HITLDetailRequestResult",
+        }
+
+        supervisor_diff = (
+            supervisor_types - trigger_supervisor_types - in_supervisor_but_not_in_trigger_supervisor
+        )
+        task_diff = task_types - trigger_runner_types - in_task_but_not_in_trigger_runner
+
+        assert not supervisor_diff, (
+            f"New message types in ToSupervisor not handled in ToTriggerSupervisor: "
+            f"{len(supervisor_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(supervisor_diff))
+            + "\n\nEither handle these types in ToTriggerSupervisor or update in_supervisor_but_not_in_trigger_supervisor list."
+        )
+
+        assert not task_diff, (
+            f"New message types in ToTask not handled in ToTriggerRunner: "
+            f"{len(task_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(task_diff))
+            + "\n\nEither handle these types in ToTriggerRunner or update in_task_but_not_in_trigger_runner list."
+        )

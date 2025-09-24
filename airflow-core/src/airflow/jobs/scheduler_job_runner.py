@@ -59,10 +59,10 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
-    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
@@ -2470,7 +2470,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(Trigger)
             .where(
-                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(AssetWatcherModel.trigger_id)),
                 Trigger.id.not_in(select(Deadline.trigger_id)),
                 Trigger.id.not_in(select(TaskInstance.trigger_id)),
             )
