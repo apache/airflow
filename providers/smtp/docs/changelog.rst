@@ -32,8 +32,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 
@@ -45,8 +43,6 @@ Features
 2.2.1
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~

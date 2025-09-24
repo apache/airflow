@@ -31,8 +31,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 
@@ -70,8 +68,6 @@ Doc-only
 
 1.2.0
 .....
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

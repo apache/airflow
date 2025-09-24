@@ -32,8 +32,6 @@ Changelog
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -55,8 +53,6 @@ Misc
 10.8.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

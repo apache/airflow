@@ -39,8 +39,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 
@@ -69,8 +67,6 @@ Misc
 1.7.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~
