@@ -330,13 +330,13 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
-        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraVolumes }}
           {{- tpl (toYaml .Values.scheduler.extraVolumes) . | nindent 8 }}
         {{- end }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
