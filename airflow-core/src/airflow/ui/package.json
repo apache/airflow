@@ -37,6 +37,7 @@
     "chart.js": "^4.4.9",
     "chartjs-adapter-dayjs-4": "^1.0.4",
     "chartjs-plugin-annotation": "^3.1.0",
+    "countup.js": "^2.9.0",
     "dayjs": "^1.11.13",
     "debounce-promise": "^3.1.2",
     "elkjs": "^0.10.0",
