@@ -71,6 +71,11 @@ Option A – Breeze on Your Laptop
 
     breeze start-airflow
 
+The command starts a shell and launches multiple terminals using tmux
+and launches all Airflow necessary components in those terminals. To know more about tmux commands,
+check out this cheat sheet: https://tmuxcheatsheet.com/. To exit breeze, type ``start-airflow`` in any
+of the tmux panes and hit Enter.
+
 3.  **Make a tiny change** – e.g. fix a typo in docs
 
 .. code-block:: bash
