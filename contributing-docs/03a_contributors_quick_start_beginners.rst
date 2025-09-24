@@ -37,14 +37,14 @@ Prerequisites
 * Basic Git installed **only** for the Breeze path below
 
 For Breeze (local development):
-* Docker Community Edition
-* Docker Compose
-* UV for Python tool management
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+* [Docker Compose](https://docs.docker.com/compose/install/)
+* [uv](https://github.com/astral-sh/uv), which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
 
 .. code-block:: bash
 
     curl -LsSf https://astral.sh/uv/install.sh | sh
-* Prek for code quality checks
+* [Prek](https://github.com/j178/prek), which runs Airflow's required code-quality checks (formatting, linting, and bug-spotting) before you commit, helping save contributors and committers time during the pull request process.
 
 .. code-block:: bash
 
