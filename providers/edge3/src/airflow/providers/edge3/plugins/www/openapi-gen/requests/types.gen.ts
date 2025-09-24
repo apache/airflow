@@ -127,6 +127,16 @@ export type JobCollectionResponse = {
 };
 
 /**
+ * Request body for maintenance operations.
+ */
+export type MaintenanceRequest = {
+    /**
+     * Comment describing the maintenance reason.
+     */
+    maintenance_comment: string;
+};
+
+/**
  * Incremental new log content from worker.
  */
 export type PushLogsBody = {
@@ -349,7 +359,7 @@ export type StateData = {
     tryNumber: number;
 };
 
-export type StateResponse = null;
+export type StateResponse = unknown;
 
 export type LogfilePathData = {
     /**
@@ -408,7 +418,7 @@ export type PushLogsData = {
     tryNumber: number;
 };
 
-export type PushLogsResponse = null;
+export type PushLogsResponse = unknown;
 
 export type RegisterData = {
     /**
@@ -450,7 +460,7 @@ export type UpdateQueuesData = {
     workerName: string;
 };
 
-export type UpdateQueuesResponse = null;
+export type UpdateQueuesResponse = unknown;
 
 export type HealthResponse = {
     [key: string]: (string);
@@ -459,6 +469,52 @@ export type HealthResponse = {
 export type WorkerResponse = WorkerCollectionResponse;
 
 export type JobsResponse = JobCollectionResponse;
+
+export type RequestWorkerMaintenanceData = {
+    requestBody: MaintenanceRequest;
+    workerName: string;
+};
+
+export type RequestWorkerMaintenanceResponse = unknown;
+
+export type UpdateWorkerMaintenanceData = {
+    requestBody: MaintenanceRequest;
+    workerName: string;
+};
+
+export type UpdateWorkerMaintenanceResponse = unknown;
+
+export type ExitWorkerMaintenanceData = {
+    workerName: string;
+};
+
+export type ExitWorkerMaintenanceResponse = unknown;
+
+export type RequestWorkerShutdownData = {
+    workerName: string;
+};
+
+export type RequestWorkerShutdownResponse = unknown;
+
+export type DeleteWorkerData = {
+    workerName: string;
+};
+
+export type DeleteWorkerResponse = unknown;
+
+export type AddWorkerQueueData = {
+    queueName: string;
+    workerName: string;
+};
+
+export type AddWorkerQueueResponse = unknown;
+
+export type RemoveWorkerQueueData = {
+    queueName: string;
+    workerName: string;
+};
+
+export type RemoveWorkerQueueResponse = unknown;
 
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
@@ -491,7 +547,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Bad Request
                  */
@@ -537,7 +593,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Bad Request
                  */
@@ -604,7 +660,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Bad Request
                  */
@@ -649,6 +705,105 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: JobCollectionResponse;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/maintenance': {
+        post: {
+            req: RequestWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        patch: {
+            req: UpdateWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: ExitWorkerMaintenanceData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/shutdown': {
+        post: {
+            req: RequestWorkerShutdownData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}': {
+        delete: {
+            req: DeleteWorkerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/edge_worker/ui/worker/{worker_name}/queues/{queue_name}': {
+        put: {
+            req: AddWorkerQueueData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: RemoveWorkerQueueData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

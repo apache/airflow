@@ -642,6 +642,8 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.indexing_error_max_attempts = 5
+        self.indexing_error_retry_delay = 5
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
@@ -654,9 +656,37 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         return validated_event["ingestion_job_id"]
 
     def execute(self, context: Context) -> str:
-        ingestion_job_id = self.hook.conn.start_ingestion_job(
-            knowledgeBaseId=self.knowledge_base_id, dataSourceId=self.data_source_id
-        )["ingestionJob"]["ingestionJobId"]
+        def start_ingestion_job():
+            try:
+                ingestion_job_id = self.hook.conn.start_ingestion_job(
+                    knowledgeBaseId=self.knowledge_base_id, dataSourceId=self.data_source_id
+                )["ingestionJob"]["ingestionJobId"]
+
+                return ingestion_job_id
+            except ClientError as error:
+                error_message = error.response["Error"]["Message"].lower()
+                is_known_retryable_message = (
+                    "dependency error document status code: 404" in error_message
+                    or "request failed: [http_exception] server returned 401" in error_message
+                )
+                if all(
+                    [
+                        error.response["Error"]["Code"] == "ValidationException",
+                        is_known_retryable_message,
+                        self.indexing_error_max_attempts > 0,
+                    ]
+                ):
+                    self.indexing_error_max_attempts -= 1
+                    self.log.warning(
+                        "Index is not ready for ingestion, retrying in %s seconds.",
+                        self.indexing_error_retry_delay,
+                    )
+                    self.log.info("%s retries remaining.", self.indexing_error_max_attempts)
+                    sleep(self.indexing_error_retry_delay)
+                    return start_ingestion_job()
+                raise
+
+        ingestion_job_id = start_ingestion_job()
 
         if self.deferrable:
             self.log.info("Deferring for ingestion job.")

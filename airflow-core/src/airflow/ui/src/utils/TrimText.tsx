@@ -90,7 +90,7 @@ export const TrimText = ({
                         {formattedKey}
                       </Text>
                       <Box
-                        bg="gray.subtle"
+                        bg="bg.subtle"
                         borderRadius="md"
                         maxHeight={200}
                         overflow="auto"

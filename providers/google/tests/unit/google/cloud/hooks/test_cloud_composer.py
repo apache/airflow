@@ -286,7 +286,7 @@ class TestCloudComposerHook:
 
 class TestCloudComposerAsyncHook:
     def setup_method(self, method):
-        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+        with mock.patch(BASE_STRING.format("GoogleBaseAsyncHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
 
     @pytest.mark.asyncio

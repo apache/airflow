@@ -33,6 +33,7 @@
     "approvalRequired": "تتطلب موافقة",
     "choiceReceived": "تم استلام الاختيار",
     "choiceRequired": "يتطلب اختيارًا",
+    "noResponseReceived": "لم يتم استلام أي رد",
     "rejectionReceived": "تم استلام الرفض",
     "responseReceived": "تم استلام الاستجابة",
     "responseRequired": "تتطلب استجابة"

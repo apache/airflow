@@ -23,8 +23,9 @@ import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useTaskServiceGetTask, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskServiceGetTask } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { getGroupTask } from "src/utils/groupTask";
@@ -33,7 +34,7 @@ import { GroupTaskHeader } from "./GroupTaskHeader";
 import { Header } from "./Header";
 
 export const Task = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", groupId, runId, taskId } = useParams();
 
   // Get external views with task destination
@@ -59,24 +60,20 @@ export const Task = () => {
 
   const groupTask = getGroupTask(dagStructure, groupId);
 
-  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+  // Handle required action tabs with shared utility
+  const { tabs: processedTabs } = useRequiredActionTabs(
     {
       dagId,
       dagRunId: runId,
       taskId: Boolean(groupId) ? undefined : taskId,
       taskIdPattern: groupId,
     },
-    undefined,
-    {
-      enabled: Boolean(dagId && (groupId !== undefined || taskId !== undefined)),
-    },
+    tabs,
   );
 
-  const hasHitlForTask = (hitlData?.total_entries ?? 0) > 0;
-
-  const displayTabs = (groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events")).filter(
-    (tab) => tab.value !== "required_actions" || hasHitlForTask,
-  );
+  // Filter out events tab for group tasks
+  const displayTabs =
+    groupId === undefined ? processedTabs : processedTabs.filter((tab) => tab.value !== "events");
 
   return (
     <ReactFlowProvider>

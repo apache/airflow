@@ -23,10 +23,14 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    QueryDagRunRunTypesFilter,
+    QueryDagRunStateFilter,
+    QueryDagRunTriggeringUserSearch,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -79,16 +83,23 @@ def _get_latest_serdag(dag_id, session):
 
 def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
     # this is a simplification - we account for structure based on the first task
-    version = session.scalar(select(DagVersion).where(DagVersion.id == dag_version_id))
+    version = session.scalar(
+        select(DagVersion)
+        .where(DagVersion.id == dag_version_id)
+        .options(joinedload(DagVersion.serialized_dag))
+    )
     if not version:
         version = session.scalar(
             select(DagVersion)
             .where(
                 DagVersion.dag_id == dag_id,
             )
+            .options(joinedload(DagVersion.serialized_dag))
             .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
             .limit(1)
         )
+    if not version:
+        return None
     if not (serdag := version.serialized_dag):
         log.error(
             "No serialized dag found",
@@ -118,6 +129,9 @@ def get_dag_structure(
         Depends(SortParam(["run_after", "logical_date", "start_date", "end_date"], DagRun).dynamic_depends()),
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
+    state: QueryDagRunStateFilter,
+    triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
@@ -136,7 +150,7 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after],
+        filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -148,6 +162,7 @@ def get_dag_structure(
 
     serdags = session.scalars(
         select(SerializedDagModel).where(
+            SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
                 .join(TaskInstance.dag_run)
@@ -155,7 +170,7 @@ def get_dag_structure(
                     DagRun.id.in_(run_ids),
                     SerializedDagModel.id != latest_serdag.id,
                 )
-            )
+            ),
         )
     )
     merged_nodes: list[GridNodeResponse] = []
@@ -214,6 +229,9 @@ def get_grid_runs(
         ),
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
+    state: QueryDagRunStateFilter,
+    triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous DAG Runs
@@ -241,7 +259,7 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after],
+        filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
     return session.execute(dag_runs_select_filter)

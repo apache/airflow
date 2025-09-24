@@ -36,7 +36,7 @@ from google.cloud.orchestration.airflow.service_v1 import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -473,15 +473,18 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         return response.json()
 
 
-class CloudComposerAsyncHook(GoogleBaseHook):
+class CloudComposerAsyncHook(GoogleBaseAsyncHook):
     """Hook for Google Cloud Composer async APIs."""
+
+    sync_hook_class = CloudComposerHook
 
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
-    def get_environment_client(self) -> EnvironmentsAsyncClient:
+    async def get_environment_client(self) -> EnvironmentsAsyncClient:
         """Retrieve client library object that allow access Environments service."""
+        sync_hook = await self.get_sync_hook()
         return EnvironmentsAsyncClient(
-            credentials=self.get_credentials(),
+            credentials=sync_hook.get_credentials(),
             client_info=CLIENT_INFO,
             client_options=self.client_options,
         )
@@ -493,9 +496,8 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         return f"projects/{project_id}/locations/{region}"
 
     async def get_operation(self, operation_name):
-        return await self.get_environment_client().transport.operations_client.get_operation(
-            name=operation_name
-        )
+        client = await self.get_environment_client()
+        return await client.transport.operations_client.get_operation(name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def create_environment(
@@ -518,7 +520,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        client = self.get_environment_client()
+        client = await self.get_environment_client()
         return await client.create_environment(
             request={"parent": self.get_parent(project_id, region), "environment": environment},
             retry=retry,
@@ -546,7 +548,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        client = self.get_environment_client()
+        client = await self.get_environment_client()
         name = self.get_environment_name(project_id, region, environment_id)
         return await client.delete_environment(
             request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
@@ -582,7 +584,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        client = self.get_environment_client()
+        client = await self.get_environment_client()
         name = self.get_environment_name(project_id, region, environment_id)
 
         return await client.update_environment(
@@ -620,7 +622,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        client = self.get_environment_client()
+        client = await self.get_environment_client()
 
         return await client.execute_airflow_command(
             request={
@@ -662,7 +664,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        client = self.get_environment_client()
+        client = await self.get_environment_client()
 
         return await client.poll_airflow_command(
             request={

@@ -28,6 +28,7 @@ import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 import { getPreloadTriggerFormData } from "src/utils/trigger";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -73,8 +74,9 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
     defaultValues: {
       conf: urlConf ?? (conf || "{}"),
       dagRunId: urlDagRunId,
-      logicalDate: urlLogicalDate,
-      note: urlNote,
+      // Default logical date to now, show it in the selected timezone
+      logicalDate: urlLogicalDate ?? dayjs().format(DEFAULT_DATETIME_FORMAT),
+      note: urlNote
     },
   });
 
@@ -162,7 +164,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
       {isPaused ? (
         <Checkbox
           checked={unpause}
-          colorPalette="blue"
+          colorPalette="brand"
           onChange={() => setUnpause(!unpause)}
           wordBreak="break-all"
         >
@@ -174,7 +176,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >

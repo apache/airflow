@@ -17,13 +17,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from contextlib import ExitStack, contextmanager
 from json import JSONDecodeError
 from typing import Any
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import Headers, Response
+from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion
 
 from airflow.providers.microsoft.azure.utils import (
@@ -35,6 +38,7 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
+from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 MODULE = "airflow.providers.microsoft.azure.utils"
 
@@ -237,3 +241,30 @@ def mock_response(status_code, content: Any = None, headers: dict | None = None)
     response.content = content
     response.json.side_effect = JSONDecodeError("", "", 0)
     return response
+
+
+@contextmanager
+def patch_hook(side_effect: Callable = get_airflow_connection):
+    from asgiref.sync import sync_to_async
+
+    with ExitStack() as stack:
+        patches = [
+            patch.object(BaseHook, "get_connection", side_effect=side_effect),
+            patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(side_effect))
+            if hasattr(BaseHook, "aget_connection")
+            else None,
+        ]
+        entered = [stack.enter_context(p) for p in patches if p is not None]
+        yield entered  # expose entered mocks to the caller
+
+
+@contextmanager
+def patch_hook_and_request_adapter(response):
+    with patch_hook() as hook_mocks:
+        with patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
+            if isinstance(response, Exception):
+                mock_get_http_response.side_effect = response
+            else:
+                mock_get_http_response.return_value = response
+
+            yield [*hook_mocks, mock_get_http_response]

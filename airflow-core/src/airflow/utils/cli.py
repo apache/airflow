@@ -300,7 +300,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     )
 
 
-def _get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
+def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
     """
     Return DAG of a given dag_id.
 
@@ -321,7 +321,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
 
     if not use_regex:
         if from_db:
-            return [_get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
+            return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
@@ -433,15 +433,26 @@ def suppress_logs_and_warning(f: T) -> T:
         if args[0].verbose:
             f(*args, **kwargs)
         else:
+            from airflow._shared.logging.structlog import respect_stdlib_disable
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 logging.disable(logging.CRITICAL)
+
+                def drop(*_, **__):
+                    from structlog import DropEvent
+
+                    raise DropEvent()
+
+                old_fn = respect_stdlib_disable.__code__
+                respect_stdlib_disable.__code__ = drop.__code__
                 try:
                     f(*args, **kwargs)
                 finally:
                     # logging output again depends on the effective
                     # levels of individual loggers
                     logging.disable(logging.NOTSET)
+                    respect_stdlib_disable.__code__ = old_fn
 
     return cast("T", _wrapper)
 

@@ -106,6 +106,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
+from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -561,7 +562,7 @@ class RuntimeTaskInstance(TaskInstance):
         try_number = (
             f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
         )
-        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
         return _log_uri
 
     @property
@@ -598,23 +599,6 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
-def get_log_url_from_ti(ti: RuntimeTaskInstance) -> str:
-    from urllib.parse import quote
-
-    from airflow.configuration import conf
-
-    run_id = quote(ti.run_id)
-    base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-    map_index_value = getattr(ti, "map_index", -1)
-    map_index = f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
-    try_number_value = getattr(ti, "try_number", 0)
-    try_number = (
-        f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-    )
-    _log_uri = f"{base_url}dags/{ti.dag_id}/runs/{run_id}/tasks/{ti.task_id}{map_index}{try_number}"
-    return _log_uri
-
-
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
@@ -649,7 +633,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
-        exit(1)
+        sys.exit(1)
 
     # install_loader()
 
@@ -663,7 +647,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
@@ -716,7 +700,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             from airflow.sdk.log import configure_logging
 
             log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+            configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
         else:
             print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
@@ -1025,6 +1009,16 @@ def _handle_current_task_success(
 ) -> tuple[SucceedTask, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance success metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_successes", tags=stats_tags)
+
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -1382,6 +1376,14 @@ def finalize(
     log: Logger,
     error: BaseException | None = None,
 ):
+    # Record task duration metrics for all terminal states
+    if ti.start_date and ti.end_date:
+        duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
+        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
+        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
