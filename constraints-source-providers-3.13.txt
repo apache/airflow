@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-24T13:58:07.073260
+# This constraints file was automatically generated on 2025-09-24T19:46:32.844544
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -210,7 +210,7 @@ google-api-python-client==2.183.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.40.3
-google-cloud-aiplatform==1.115.0
+google-cloud-aiplatform==1.116.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -342,12 +342,11 @@ lazy-object-proxy==1.12.0
 libcst==1.8.4
 limits==5.5.0
 linkify-it-py==2.0.3
-litellm==1.77.3
+litellm==1.76.3
 lockfile==0.12.2
 looker-sdk==25.16.0
 lxml==6.0.2
 lz4==4.4.4
-madoka==0.7.1
 markdown-it-py==4.0.0
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
@@ -439,7 +438,6 @@ pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
 polars==1.33.1
-pondpond==1.4.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
@@ -555,7 +553,7 @@ sendgrid==6.12.2
 sentry-sdk==2.38.0
 setproctitle==1.3.7
 setuptools==80.9.0
-shapely==2.1.1
+shapely==2.1.2
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
