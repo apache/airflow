@@ -47,6 +47,7 @@ from airflow.callbacks.callback_requests import (
     EmailNotificationRequest,
     TaskCallbackRequest,
 )
+from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import process_parse_results
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
@@ -58,7 +59,7 @@ from airflow.dag_processing.processor import (
     _parse_file,
     _pre_import_airflow_modules,
 )
-from airflow.models import DagBag, DagRun
+from airflow.models import DagRun
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import DagRunState
