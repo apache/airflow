@@ -553,6 +553,18 @@ paths:
       summary: Worker
       description: Return Edge Workers.
       operationId: worker
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Worker Name Pattern
       responses:
         '200':
           description: Successful Response
@@ -560,9 +572,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkerCollectionResponse'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /edge_worker/ui/jobs:
     get:
       tags:

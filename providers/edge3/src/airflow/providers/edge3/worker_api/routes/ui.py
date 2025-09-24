@@ -56,9 +56,15 @@ ui_router = AirflowRouter(tags=["UI"])
 )
 def worker(
     session: SessionDep,
+    worker_name_pattern: str | None = None,
 ) -> WorkerCollectionResponse:
     """Return Edge Workers."""
-    query = select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)
+    query = select(EdgeWorkerModel)
+
+    if worker_name_pattern:
+        query = query.where(EdgeWorkerModel.worker_name.ilike(f"%{worker_name_pattern}%"))
+
+    query = query.order_by(EdgeWorkerModel.worker_name)
     workers: list[EdgeWorkerModel] = session.scalars(query)
 
     result = [
