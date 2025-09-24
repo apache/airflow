@@ -1450,7 +1450,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.trigger import Trigger
 
         if TYPE_CHECKING:
-            assert self.task and isinstance(self.task, Operator)
+            assert isinstance(self.task, Operator)
 
         context = self.get_template_context()
 
