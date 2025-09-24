@@ -33,18 +33,18 @@ Everything else lives in the advanced guides.
 Prerequisites
 -------------
 * GitHub account
-* [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo?tool=webui) `apache/airflow <https://github.com/apache/airflow>`__
-* [Basic Git installed **only** for the Breeze path below](https://docs.github.com/en/get-started/git-basics/set-up-git)
+* `Fork <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo?tool=webui>`_ `apache/airflow <https://github.com/apache/airflow>`__
+* `Basic Git <https://docs.github.com/en/get-started/git-basics/set-up-git>`__ (**only** required for the Breeze path below)
 
 For Breeze (local development):
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-* [Docker Compose](https://docs.docker.com/compose/install/)
-* [uv](https://github.com/astral-sh/uv), which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
+* `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
+* `Docker Compose <https://docs.docker.com/compose/install/>`__
+* `uv <https://github.com/astral-sh/uv>`__, which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
 
 .. code-block:: bash
 
     curl -LsSf https://astral.sh/uv/install.sh | sh
-* [Prek](https://github.com/j178/prek), which runs Airflow's required code-quality checks (formatting, linting, and bug-spotting) before you commit, helping save contributors and committers time during the pull request process.
+* `Prek <https://github.com/j178/prek>`__, which runs Airflow's required code-quality checks (formatting, linting, and bug-spotting) before you commit, helping save contributors and committers time during the pull request process.
 
 .. code-block:: bash
 
