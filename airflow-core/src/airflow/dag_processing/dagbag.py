@@ -135,12 +135,44 @@ def timeout(seconds=1, error_message="Timeout"):
 
 
 def _validate_executor_fields(dag: DAG) -> None:
+    """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
+    import logging
+
+    log = logging.getLogger(__name__)
+    dag_team_name = None
+
+    # Get team name from bundle configuration if available
+    if hasattr(dag, "bundle_name") and dag.bundle_name:
+        try:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager._bundle_config[dag.bundle_name]
+            # TODO[multi-team] Raise exceptions below instead of logging once we have a multi-team feature flag configuration
+            dag_team_name = bundle_config.team_name
+            log.debug(
+                "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, dag.bundle_name
+            )
+        except Exception as e:
+            log.debug(
+                "Could not determine team from bundle configuration for DAG '%s': %s", dag.dag_id, str(e)
+            )
+
     for task in dag.tasks:
         if not task.executor:
             continue
         try:
-            ExecutorLoader.lookup_executor_name_by_str(task.executor)
+            # Validate that the executor exists and is available for the DAG's team
+            ExecutorLoader.lookup_executor_name_by_str(task.executor, team_name=dag_team_name)
         except UnknownExecutorException:
+            if dag_team_name:
+                raise UnknownExecutorException(
+                    f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available "
+                    f"for team '{dag_team_name}' (the team associated with DAG '{dag.dag_id}'). "
+                    f"Make sure '{task.executor}' is configured for team '{dag_team_name}' in your "
+                    "[core] executors configuration, or update the task's executor to use one of the "
+                    f"configured executors for team '{dag_team_name}'."
+                )
             raise UnknownExecutorException(
                 f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available. "
                 "Make sure it is listed in your [core] executors configuration, or update the task's "
