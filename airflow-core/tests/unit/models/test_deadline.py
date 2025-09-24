@@ -43,6 +43,7 @@ REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+    pytest.param(DeadlineReference.AVERAGE_RUNTIME(), id="average_runtime"),
 ]
 
 
@@ -356,6 +357,7 @@ class TestCalculatedDeadlineDatabaseCalls:
             pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, DagRun.logical_date, id="logical_date"),
             pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, DagRun.queued_at, id="queued_at"),
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), None, id="fixed_deadline"),
+            pytest.param(DeadlineReference.AVERAGE_RUNTIME(), None, id="average_runtime"),
         ],
     )
     def test_deadline_database_integration(self, reference, expected_column, session):
@@ -375,11 +377,142 @@ class TestCalculatedDeadlineDatabaseCalls:
             if expected_column is not None:
                 result = reference.evaluate_with(session=session, interval=interval, **conditions)
                 mock_fetch.assert_called_once_with(expected_column, session=session, **conditions)
+            elif reference == DeadlineReference.AVERAGE_RUNTIME():
+                with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+                    mock_utcnow.return_value = DEFAULT_DATE
+                    # No DAG runs exist, so it should use 24-hour default
+                    result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+                    mock_fetch.assert_not_called()
+                    # Should return None when no DAG runs exist
+                    assert result is None
             else:
                 result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
+                assert result == DEFAULT_DATE + interval
 
-            assert result == DEFAULT_DATE + interval
+    def test_average_runtime_with_sufficient_history(self, session, dag_maker):
+        """Test AverageRuntimeDeadline when enough historical data exists."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create 10 completed DAG runs with known durations
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800, 5400, 2700, 4500, 3300, 6000, 2400, 4200]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"test_run_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        # Test with default max_runs (10)
+        reference = DeadlineReference.AVERAGE_RUNTIME()
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            # Calculate expected average: sum(durations) / len(durations)
+            expected_avg_seconds = sum(durations) / len(durations)
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+
+            # Compare only up to minutes to avoid sub-second timing issues in CI
+            assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+    def test_average_runtime_with_insufficient_history(self, session, dag_maker):
+        """Test AverageRuntimeDeadline when insufficient historical data exists."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create only 5 completed DAG runs (less than default max_runs of 10)
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800, 5400, 2700]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"insufficient_run_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        reference = DeadlineReference.AVERAGE_RUNTIME()
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            # Should return None since insufficient runs
+            assert result is None
+
+    def test_average_runtime_with_min_runs(self, session, dag_maker):
+        """Test AverageRuntimeDeadline with min_runs parameter allowing calculation with fewer runs."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create only 3 completed DAG runs
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800]  # 1h, 2h, 30min
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"min_runs_test_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        # Test with min_runs=2, should work with 3 runs
+        reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=2)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            # Should calculate average from 3 runs
+            expected_avg_seconds = sum(durations) / len(durations)  # 4200 seconds
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+            # Compare only up to minutes to avoid sub-second timing issues in CI
+            assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+        # Test with min_runs=5, should return None with only 3 runs
+        reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=5)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+            assert result is None
+
+    def test_average_runtime_min_runs_validation(self):
+        """Test that min_runs must be at least 1."""
+        with pytest.raises(ValueError, match="min_runs must be at least 1"):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=0)
+
+        with pytest.raises(ValueError, match="min_runs must be at least 1"):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
 
 
 class TestDeadlineReference:
@@ -424,7 +557,7 @@ class TestDeadlineReference:
                 f"{reference.__class__.__name__} is missing required parameters: ",
                 *reference.required_kwargs,
             }
-            assert [substring in str(raised_exception) for substring in expected_substrings]
+            assert all(substring in str(raised_exception.value) for substring in expected_substrings)
         else:
             # Let the lack of an exception here effectively assert that no exception is raised.
             reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
@@ -440,3 +573,13 @@ class TestDeadlineReference:
 
         queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
         assert isinstance(queued_reference, ReferenceModels.DagRunQueuedAtDeadline)
+
+        average_runtime_reference = DeadlineReference.AVERAGE_RUNTIME()
+        assert isinstance(average_runtime_reference, ReferenceModels.AverageRuntimeDeadline)
+        assert average_runtime_reference.max_runs == 10
+        assert average_runtime_reference.min_runs == 10
+
+        # Test with custom parameters
+        custom_reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=3)
+        assert custom_reference.max_runs == 5
+        assert custom_reference.min_runs == 3

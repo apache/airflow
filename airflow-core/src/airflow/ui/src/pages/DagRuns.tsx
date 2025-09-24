@@ -180,7 +180,13 @@ export const DagRuns = () => {
   const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    columnVisibility: {
+      conf: false,
+      dag_version: false,
+      end_date: false,
+    },
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
