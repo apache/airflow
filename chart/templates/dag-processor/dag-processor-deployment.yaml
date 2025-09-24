@@ -270,7 +270,6 @@ spec:
         {{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
-        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
@@ -284,6 +283,7 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
 {{- end }}
 {{- end }}
 {{- end }}

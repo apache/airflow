@@ -1475,7 +1475,7 @@
                             "default": ""
                         },
                         "accessMode": {
-                            "description": "Access mode for the persistent volume. ReadWriteMany: Preferred for multi-node clusters with NFS/EFS/Azure Files. ReadWriteOnce: For single-node clusters (Docker Desktop, Kind, Minikube)",
+                            "description": "Access mode for the persistent volume",
                             "type": "string",
                             "enum": [
                                 "ReadWriteMany",
@@ -1504,7 +1504,7 @@
                     }
                 },
                 "nodeSelector": {
-                    "description": "Node selector for pod scheduling (used when accessMode is ReadWriteOnce). Ensures all pods are scheduled on the same node to share the volume",
+                    "description": "Node selector for pod scheduling (used when access mode is ReadWriteOnce). Ensures all pods are scheduled on the same node to share the volume",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {

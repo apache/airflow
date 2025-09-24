@@ -176,12 +176,12 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.flower.extraVolumes }}
           {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}
         {{- end }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
 {{- end }}
 {{- end }}

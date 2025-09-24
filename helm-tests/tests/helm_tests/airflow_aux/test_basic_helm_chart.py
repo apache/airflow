@@ -39,7 +39,6 @@ OBJECTS_STD_NAMING = {
     ("Secret", "test-basic-airflow-broker-url"),
     ("Secret", "test-basic-airflow-fernet-key"),
     ("Secret", "test-basic-airflow-redis-password"),
-    ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
     ("ConfigMap", "test-basic-airflow-statsd"),
     ("Role", "test-basic-airflow-pod-launcher-role"),
@@ -50,16 +49,14 @@ OBJECTS_STD_NAMING = {
     ("Service", "test-basic-airflow-statsd"),
     ("Service", "test-basic-airflow-triggerer"),
     ("Service", "test-basic-airflow-worker"),
-    ("Service", "test-basic-postgresql"),
-    ("Service", "test-basic-postgresql-hl"),
     ("Deployment", "test-basic-airflow-scheduler"),
     ("Deployment", "test-basic-airflow-statsd"),
     ("StatefulSet", "test-basic-airflow-redis"),
     ("StatefulSet", "test-basic-airflow-worker"),
     ("StatefulSet", "test-basic-airflow-triggerer"),
-    ("StatefulSet", "test-basic-postgresql"),
     ("Job", "test-basic-airflow-create-user"),
     ("Job", "test-basic-airflow-run-airflow-migrations"),
+    ("PersistentVolumeClaim", "test-basic-airflow-sqlite-shared"),
 }
 
 # Airflow 3.0.0+ has a new API server that replaces the webserver & mandatory dag processor
@@ -138,7 +135,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
@@ -146,19 +142,17 @@ class TestBaseChartTest:
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
             ("RoleBinding", "test-basic-pod-log-reader-rolebinding"),
-            ("Service", "test-basic-postgresql-hl"),
-            ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
-            ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
+            ("PersistentVolumeClaim", "test-basic-sqlite-shared"),
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-result-backend"))
@@ -240,7 +234,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
@@ -248,8 +241,6 @@ class TestBaseChartTest:
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
             ("RoleBinding", "test-basic-pod-log-reader-rolebinding"),
-            ("Service", "test-basic-postgresql-hl"),
-            ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
             ("Service", "test-basic-worker"),
@@ -257,11 +248,11 @@ class TestBaseChartTest:
             ("Deployment", "test-basic-statsd"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
-            ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
+            ("PersistentVolumeClaim", "test-basic-sqlite-shared"),
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-result-backend"))
@@ -683,6 +674,19 @@ class TestBaseChartTest:
         doc = render_chart(
             "my-release",
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={
+                "data": {
+                    "metadataConnection": {
+                        "user": "postgres",
+                        "pass": "postgres",
+                        "protocol": "postgresql",
+                        "host": "my-release-postgresql.default",
+                        "port": 5432,
+                        "db": "postgres",
+                        "sslmode": "disable",
+                    }
+                }
+            },
         )[0]
         assert (
             base64.b64decode(doc["data"]["connection"]).decode("utf-8")
@@ -694,7 +698,20 @@ class TestBaseChartTest:
         doc = render_chart(
             "my-release",
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
-            values={"pgbouncer": {"enabled": True}},
+            values={
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "user": "postgres",
+                        "pass": "postgres",
+                        "protocol": "postgresql",
+                        "host": "my-release-postgresql.default",
+                        "port": 5432,
+                        "db": "postgres",
+                        "sslmode": "disable",
+                    }
+                },
+            },
         )[0]
         assert (
             base64.b64decode(doc["data"]["connection"]).decode("utf-8")
@@ -707,7 +724,21 @@ class TestBaseChartTest:
         doc = render_chart(
             "my-release",
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
-            values={"useStandardNaming": True, "pgbouncer": {"enabled": True}},
+            values={
+                "useStandardNaming": True,
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "user": "postgres",
+                        "pass": "postgres",
+                        "protocol": "postgresql",
+                        "host": "my-release-postgresql.default",
+                        "port": 5432,
+                        "db": "postgres",
+                        "sslmode": "disable",
+                    }
+                },
+            },
         )[0]
         assert (
             base64.b64decode(doc["data"]["connection"]).decode("utf-8")
@@ -720,7 +751,19 @@ class TestBaseChartTest:
         doc = render_chart(
             "my-release",
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
-            values={"postgresql": {"nameOverride": "overrideName"}},
+            values={
+                "data": {
+                    "metadataConnection": {
+                        "user": "postgres",
+                        "pass": "postgres",
+                        "protocol": "postgresql",
+                        "host": "overrideName",
+                        "port": 5432,
+                        "db": "postgres",
+                        "sslmode": "disable",
+                    }
+                }
+            },
         )[0]
 
         assert (
