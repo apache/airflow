@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -291,14 +289,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   };
 
   return (
-    <Box
-      height={`${fixedHeight}px`}
-      minW="250px"
-      ml={-2}
-      mt={36}
-      onMouseLeave={handleChartMouseLeave}
-      w="100%"
-    >
+    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} onMouseLeave={handleChartMouseLeave} w="100%">
       <Bar
         data={chartData}
         options={chartOptions}
