@@ -900,10 +900,9 @@ def run(
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
             for x in keys_to_delete:
-                encoded_key = quote(x, safe="")
-                log.debug("Clearing XCom with key", key=encoded_key)
+                log.debug("Clearing XCom with key", key=x)
                 XCom.delete(
-                    key=encoded_key,
+                    key=x,
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
                     run_id=ti.run_id,
