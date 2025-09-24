@@ -114,7 +114,7 @@ def setup(request, dag_maker, session=None):
     dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
-    dag_run1.end_date = dag_run1.start_date + timedelta(seconds=100.5)
+    dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
     # Set conf for testing conf_contains filter (values ordered for predictable sorting)
     dag_run1.conf = {"env": "development", "version": "1.0"}
 
@@ -135,7 +135,7 @@ def setup(request, dag_maker, session=None):
     # Set triggering_user_name for testing
     dag_run2.triggering_user_name = "bob_service"
     # Set end_date for testing duration filter
-    dag_run2.end_date = dag_run2.start_date + timedelta(seconds=200.75)
+    dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
     # Set conf for testing conf_contains filter
     dag_run2.conf = {"env": "production", "debug": True}
 
@@ -160,7 +160,7 @@ def setup(request, dag_maker, session=None):
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
     # Set end_date for testing duration filter
-    dag_run3.end_date = dag_run3.start_date + timedelta(seconds=50.25)
+    dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
     # Set conf for testing conf_contains filter
     dag_run3.conf = {"env": "staging", "test_mode": True}
 
@@ -174,7 +174,7 @@ def setup(request, dag_maker, session=None):
     # Leave triggering_user_name as None for testing
     dag_run4.triggering_user_name = None
     # Set end_date for testing duration filter
-    dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150.0)
+    dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
 
@@ -194,45 +194,23 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
     ]
 
 
-def format_datetime_like_api(dt: datetime | None) -> str | None:
-    """
-    Format datetime to match API output behavior.
-
-    The API serializes datetimes with microseconds only when they are non-zero:
-    - 2024-01-15T00:00:00Z (for times with zero microseconds)
-    - 2024-01-15T00:01:40.500000Z (for times with non-zero microseconds)
-
-    This function ensures test expectations match the actual API behavior.
-    If API datetime serialization changes in the future, only this function needs updating.
-
-    Args:
-        dt: datetime object or None
-
-    Returns:
-        ISO 8601 formatted string with conditional microseconds, or None
-    """
-    if dt is None:
-        return None
-    if dt.microsecond == 0:
-        return from_datetime_to_zulu_without_ms(dt)
-    return from_datetime_to_zulu(dt)
-
-
 def get_dag_run_dict(run: DagRun):
     return {
         "bundle_version": None,
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
-        "logical_date": format_datetime_like_api(run.logical_date),
-        "queued_at": format_datetime_like_api(run.queued_at),
-        "run_after": format_datetime_like_api(run.run_after),
-        "start_date": format_datetime_like_api(run.start_date),
-        "end_date": format_datetime_like_api(run.end_date),
+        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
+        "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
+        "run_after": from_datetime_to_zulu_without_ms(run.run_after),
+        "start_date": from_datetime_to_zulu_without_ms(run.start_date),
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
         "duration": run.duration,
-        "data_interval_start": format_datetime_like_api(run.data_interval_start),
-        "data_interval_end": format_datetime_like_api(run.data_interval_end),
-        "last_scheduling_decision": format_datetime_like_api(run.last_scheduling_decision),
+        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
+        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
+        "last_scheduling_decision": (
+            from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
+        ),
         "run_type": run.run_type,
         "state": run.state,
         "triggered_by": run.triggered_by.value,
