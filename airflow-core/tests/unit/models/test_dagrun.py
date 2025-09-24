@@ -1953,7 +1953,7 @@ def test_schedule_tis_map_index(dag_maker, session):
     with dag_maker(session=session, dag_id="test"):
         task = BaseOperator(task_id="task_1")
 
-    dr = DagRun(dag_id="test", run_id="test", run_type=DagRunType.MANUAL)
+    dr = DagRun(dag_id="test", run_id="test", start_date=datetime.datetime.now(tz=timezone.utc), run_type=DagRunType.MANUAL)
     dag_version = DagVersion.get_latest_version(dag_id=dr.dag_id)
     ti0 = TI(
         task=task,
