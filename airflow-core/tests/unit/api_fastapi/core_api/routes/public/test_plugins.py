@@ -119,6 +119,35 @@ class TestGetPlugins:
         response = unauthorized_test_client.get("/plugins")
         assert response.status_code == 403
 
+    def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
+        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+
+        caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")
+
+        response = test_client.get("/plugins")
+        assert response.status_code == 200
+
+        body = response.json()
+        plugin_names = [plugin["name"] for plugin in body["plugins"]]
+
+        # Ensure our invalid plugin is skipped from the valid list
+        assert "test_plugin_invalid" not in plugin_names
+
+        # Verify warning was logged
+        assert any("Skipping invalid plugin due to error" in rec.message for rec in caplog.records)
+
+        response = test_client.get("/plugins", params={"limit": 5, "offset": 9})
+        assert response.status_code == 200
+
+        body = response.json()
+        plugins_page = body["plugins"]
+
+        # Even though limit=5, only 4 valid plugins should come back
+        assert len(plugins_page) == 4
+        assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
+
+        assert body["total_entries"] == 13
+
 
 @skip_if_force_lowest_dependencies_marker
 class TestGetPluginImportErrors:
