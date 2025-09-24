@@ -310,13 +310,13 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1].name", docs[0]) == "test-volume-airflow"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume-airflow"
         assert (
-            jmespath.search("spec.template.spec.containers[0].volumeMounts[-1].name", docs[0])
+            jmespath.search("spec.template.spec.containers[0].volumeMounts[4].name", docs[0])
             == "test-volume-airflow"
         )
         assert (
-            jmespath.search("spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0])
+            jmespath.search("spec.template.spec.initContainers[0].volumeMounts[3].name", docs[0])
             == "test-volume-airflow"
         )
 
@@ -330,7 +330,7 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1].name", docs[0]) == "test-volume"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume"
         assert (
             jmespath.search("spec.template.spec.containers[0].volumeMounts[-1].name", docs[0])
             == "test-volume"
