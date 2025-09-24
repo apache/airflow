@@ -174,11 +174,8 @@ class BaseOperations:
         params: dict | None = None,
     ) -> T | ServerResponseError:
         limit_flag = True if limit is not None else False
-        if limit is None:
-            limit = 50
-        if params is None:
-            params = {"limit": limit}
-        shared_params = {**(params or {})}
+        limit = limit or 50
+        shared_params = {**(params or {}), **{"limit": limit}}
         self.response = self.client.get(path, params=shared_params)
 
         first_pass = data_model.model_validate_json(self.response.content)
