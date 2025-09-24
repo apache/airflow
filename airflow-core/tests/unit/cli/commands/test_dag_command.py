@@ -34,9 +34,10 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
+from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagModel, DagRun
-from airflow.models.dagbag import DBDagBag, sync_bag_to_db
+from airflow.models import DagModel, DagRun
+from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseOperator, task
@@ -759,7 +760,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("airflow.models.dagbag.DagBag")
+    @mock.patch("airflow.utils.cli.DagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -786,7 +787,7 @@ class TestCliDags:
             include_examples=False,
         )
 
-    @mock.patch("airflow.models.dagbag.DagBag")
+    @mock.patch("airflow.utils.cli.DagBag")
     def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -807,7 +808,7 @@ class TestCliDags:
             include_examples=False,
         )
 
-    @mock.patch("airflow.models.dagbag.DagBag")
+    @mock.patch("airflow.utils.cli.DagBag")
     def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(

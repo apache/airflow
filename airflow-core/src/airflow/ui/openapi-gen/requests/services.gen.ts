@@ -16,7 +16,7 @@ export class AssetService {
      * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagIds
      * @param data.onlyActive
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
      * @returns AssetCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -49,7 +49,7 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
      * @returns AssetAliasCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -102,7 +102,7 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
      * @param data.assetId
      * @param data.sourceDagId
      * @param data.sourceTaskId
@@ -418,7 +418,7 @@ export class BackfillService {
      * @param data.dagId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @returns BackfillCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -586,7 +586,7 @@ export class BackfillService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @param data.dagId
      * @param data.active
      * @returns BackfillCollectionResponse Successful Response
@@ -699,7 +699,7 @@ export class ConnectionService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id`
      * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns ConnectionCollectionResponse Successful Response
      * @throws ApiError
@@ -999,7 +999,7 @@ export class DagRunService {
      * @param data.runType
      * @param data.state
      * @param data.dagVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration`
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1356,7 +1356,7 @@ export class DagWarningService {
      * @param data.warningType
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      * @returns DAGWarningCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1410,7 +1410,7 @@ export class DagService {
      * @param data.dagRunEndDateLte
      * @param data.dagRunEndDateLt
      * @param data.dagRunState
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
      * @param data.isFavorite
      * @returns DAGCollectionResponse Successful Response
      * @throws ApiError
@@ -1661,7 +1661,7 @@ export class DagService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGTagCollectionResponse Successful Response
      * @throws ApiError
@@ -1703,7 +1703,7 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -1797,7 +1797,7 @@ export class EventLogService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra`
      * @param data.dagId
      * @param data.taskId
      * @param data.runId
@@ -2060,7 +2060,7 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2357,7 +2357,7 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2792,7 +2792,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name`
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.taskId
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2878,7 +2878,7 @@ export class ImportErrorService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace`
      * @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns ImportErrorCollectionResponse Successful Response
      * @throws ApiError
@@ -2919,7 +2919,7 @@ export class JobService {
      * @param data.endDateLt
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
      * @param data.jobState
      * @param data.jobType
      * @param data.hostname
@@ -3091,7 +3091,7 @@ export class PoolService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool`
      * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns PoolCollectionResponse Successful Response
      * @throws ApiError
@@ -3511,7 +3511,7 @@ export class VariableService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted`
      * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns VariableCollectionResponse Successful Response
      * @throws ApiError
@@ -3647,7 +3647,7 @@ export class DagVersionService {
      * @param data.versionNumber
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
      * @returns DAGVersionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3900,7 +3900,7 @@ export class GridService {
      * @param data.dagId
      * @param data.offset
      * @param data.limit
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      * @param data.runAfterGte
      * @param data.runAfterGt
      * @param data.runAfterLte
@@ -3945,7 +3945,7 @@ export class GridService {
      * @param data.dagId
      * @param data.offset
      * @param data.limit
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      * @param data.runAfterGte
      * @param data.runAfterGt
      * @param data.runAfterLte

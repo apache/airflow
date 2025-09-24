@@ -727,7 +727,7 @@ Unit tests ensure that there is no incorrect code in your Dag. You can write uni
 
     import pytest
 
-    from airflow.models import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
 
     @pytest.fixture()
