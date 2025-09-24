@@ -42,12 +42,10 @@ export const PoolBar = ({
         const slotValue = pool[key];
         const flexValue = slotValue / totalSlots || 0;
 
-        // Hide empty segments
         if (flexValue === 0) {
           return undefined;
         }
 
-        // NEW: If this segment represents "deferred_slots" and the current pool
         // is configured NOT to include deferred in occupied slots, hide this chip.
         // (We only have the flag on real pools; aggregated "Slots" objects don't carry it)
         const isDeferredKey = key === "deferred_slots";
@@ -84,7 +82,6 @@ export const PoolBar = ({
           </Tooltip>
         );
 
-        // Keep existing behavior: make non-"success" segments clickable to Task Instances
         return color !== "success" && "name" in pool ? (
           <Link asChild display="flex" flex={flexValue} key={key}>
             <RouterLink
