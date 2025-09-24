@@ -40,6 +40,7 @@ import httpx
 import msgspec
 import psutil
 import pytest
+import structlog
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
@@ -126,6 +127,7 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessSupervisorComms,
     InProcessTestSupervisor,
     _remote_logging_conn,
+    process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise,
 )
@@ -2435,9 +2437,8 @@ class TestSignalRetryLogic:
         [
             (signal.SIGKILL, TaskInstanceState.UP_FOR_RETRY),
             (signal.SIGTERM, TaskInstanceState.UP_FOR_RETRY),
-            # SIGABRT and SIGSEGV should not retry
+            (signal.SIGSEGV, TaskInstanceState.UP_FOR_RETRY),
             (signal.SIGABRT, TaskInstanceState.FAILED),
-            (signal.SIGSEGV, TaskInstanceState.FAILED),
         ],
     )
     def test_signals_with_retry(self, mocker, signal, expected_state):
@@ -2496,3 +2497,27 @@ class TestSignalRetryLogic:
         mock_watched_subprocess._should_retry = True
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
+
+
+def test_process_log_messages_from_subprocess(monkeypatch, caplog):
+    from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
+
+    read_end, write_end = socket.socketpair()
+
+    # Set global level at warning
+    monkeypatch.setitem(PER_LOGGER_LEVELS, "", logging.WARNING)
+    output_log = structlog.get_logger()
+
+    gen = process_log_messages_from_subprocess(loggers=(output_log,))
+
+    # We need to start up the generator to get it to the point it's at waiting on the yield
+    next(gen)
+
+    # Now we can send in messages to it.
+    gen.send(b'{"level": "debug", "event": "A debug"}\n')
+    gen.send(b'{"level": "error", "event": "An error"}\n')
+
+    assert caplog.record_tuples == [
+        (None, logging.DEBUG, "A debug"),
+        (None, logging.ERROR, "An error"),
+    ]

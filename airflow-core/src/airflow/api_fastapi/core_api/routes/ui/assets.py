@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -53,6 +53,12 @@ def next_run_assets(
                 AssetModel.uri,
                 AssetModel.name,
                 func.max(AssetEvent.timestamp).label("lastUpdate"),
+                func.max(
+                    case(
+                        (AssetDagRunQueue.asset_id.is_not(None), 1),
+                        else_=0,
+                    )
+                ).label("queued"),
             )
             .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
             .join(
@@ -80,6 +86,10 @@ def next_run_assets(
             .order_by(AssetModel.uri)
         )
     ]
+
+    for event in events:
+        if not event.pop("queued", None):
+            event["lastUpdate"] = None
 
     data = {"asset_expression": dag_model.asset_expression, "events": events}
     return data

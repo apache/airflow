@@ -273,3 +273,127 @@ class TestConnectionsFromSecrets:
         # mock_env is only called when LocalFilesystemBackend doesn't have it
         mock_env_get.assert_called()
         assert conn == Connection(conn_id="something", conn_type="some-type")
+
+
+class TestConnectionFromUri:
+    """Test the Connection.from_uri() classmethod."""
+
+    def test_from_uri_basic(self):
+        """Test basic URI parsing."""
+        uri = "postgres://user:pass@host:5432/db"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "postgres"
+        assert conn.host == "host"
+        assert conn.login == "user"
+        assert conn.password == "pass"
+        assert conn.port == 5432
+        assert conn.schema == "db"
+        assert conn.extra is None
+
+    def test_from_uri_with_query_params(self):
+        """Test URI parsing with query parameters."""
+        uri = "mysql://user:pass@host:3306/db?charset=utf8&timeout=30"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "mysql"
+        assert conn.host == "host"
+        assert conn.login == "user"
+        assert conn.password == "pass"
+        assert conn.port == 3306
+        assert conn.schema == "db"
+        # Extra should be JSON string with query params
+        extra_dict = json.loads(conn.extra)
+        assert extra_dict == {"charset": "utf8", "timeout": "30"}
+
+    def test_from_uri_with_extra_key(self):
+        """Test URI parsing with __extra__ query parameter."""
+        extra_value = json.dumps({"ssl_mode": "require", "connect_timeout": 10})
+        uri = f"postgres://user:pass@host:5432/db?__extra__={extra_value}"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "postgres"
+        assert conn.extra == extra_value
+
+    def test_from_uri_with_protocol_in_host(self):
+        """Test URI parsing with protocol in host (double ://)."""
+        uri = "http://https://example.com:8080/path"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "http"
+        assert conn.host == "https://example.com"
+        assert conn.port == 8080
+        assert conn.schema == "path"
+
+    def test_from_uri_encoded_credentials(self):
+        """Test URI parsing with URL-encoded credentials."""
+        uri = "postgres://user%40domain:pass%21word@host:5432/db"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "postgres"
+        assert conn.login == "user@domain"
+        assert conn.password == "pass!word"
+
+    def test_from_uri_minimal(self):
+        """Test URI parsing with minimal information."""
+        uri = "redis://"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+
+        assert conn.conn_id == "test_conn"
+        assert conn.conn_type == "redis"
+        assert conn.host == ""  # urlsplit returns empty string, not None for minimal URI
+        assert conn.login is None
+        assert conn.password is None
+        assert conn.port is None
+        assert conn.schema == ""
+
+    def test_from_uri_conn_type_normalization(self):
+        """Test that connection types are normalized."""
+        # postgresql -> postgres
+        uri = "postgresql://user:pass@host:5432/db"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+        assert conn.conn_type == "postgres"
+
+        # hyphen to underscore
+        uri = "google-cloud-platform://user:pass@host/db"
+        conn = Connection.from_uri(uri, conn_id="test_conn")
+        assert conn.conn_type == "google_cloud_platform"
+
+    def test_from_uri_too_many_schemes_error(self):
+        """Test that too many schemes in URI raises an error."""
+        uri = "http://https://ftp://example.com"
+        with pytest.raises(AirflowException, match="Invalid connection string"):
+            Connection.from_uri(uri, conn_id="test_conn")
+
+    def test_from_uri_invalid_protocol_host_error(self):
+        """Test that invalid protocol host raises an error."""
+        uri = "http://user@host://example.com"
+        with pytest.raises(AirflowException, match="Invalid connection string"):
+            Connection.from_uri(uri, conn_id="test_conn")
+
+    def test_from_uri_roundtrip(self):
+        """Test that from_uri and get_uri are inverse operations."""
+        original_uri = "postgres://user:pass@host:5432/db?param1=value1&param2=value2"
+        conn = Connection.from_uri(original_uri, conn_id="test_conn")
+        roundtrip_uri = conn.get_uri()
+
+        # Parse both URIs to compare (order of query params might differ)
+        conn_from_original = Connection.from_uri(original_uri, conn_id="test")
+        conn_from_roundtrip = Connection.from_uri(roundtrip_uri, conn_id="test")
+
+        assert conn_from_original.conn_type == conn_from_roundtrip.conn_type
+        assert conn_from_original.host == conn_from_roundtrip.host
+        assert conn_from_original.login == conn_from_roundtrip.login
+        assert conn_from_original.password == conn_from_roundtrip.password
+        assert conn_from_original.port == conn_from_roundtrip.port
+        assert conn_from_original.schema == conn_from_roundtrip.schema
+        # Check extra content is equivalent (JSON order might differ)
+        if conn_from_original.extra:
+            original_extra = json.loads(conn_from_original.extra)
+            roundtrip_extra = json.loads(conn_from_roundtrip.extra)
+            assert original_extra == roundtrip_extra

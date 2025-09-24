@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/apache/airflow/go-sdk/pkg/logging"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 type TaskSuite struct {
@@ -73,14 +74,33 @@ func (s *TaskSuite) TestArgumentBinding() {
 		},
 		"context": {
 			func(ctx context.Context) error {
-				s.Assert().Equal("def", ctx.Value("abc"))
+				s.Equal("def", ctx.Value("abc"))
 				return nil
 			},
 		},
 		"context-and-logger": {
 			func(ctx context.Context, logger *slog.Logger) error {
-				s.Assert().Equal("def", ctx.Value("abc"))
-				s.Assert().NotNil(logger)
+				s.Equal("def", ctx.Value("abc"))
+				s.NotNil(logger)
+				return nil
+			},
+		},
+		"client": {
+			func(client sdk.Client) error {
+				s.NotNil(client)
+				return nil
+			},
+		},
+		"var-client": {
+			func(client sdk.VariableClient) error {
+				s.NotNil(client)
+				return nil
+			},
+		},
+		"conn-client": {
+			func(client sdk.ConnectionClient) error {
+				s.NotNil(client)
+
 				return nil
 			},
 		},

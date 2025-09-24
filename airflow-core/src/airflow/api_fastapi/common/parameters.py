@@ -53,6 +53,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
@@ -1006,6 +1007,16 @@ QueryHITLDetailTaskIdFilter = Annotated[
         )
     ),
 ]
+QueryHITLDetailMapIndexFilter = Annotated[
+    FilterParam[int | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index,
+            int | None,
+            filter_name="map_index",
+        )
+    ),
+]
 QueryHITLDetailSubjectSearch = Annotated[
     _SearchParam,
     Depends(
@@ -1057,4 +1068,9 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
             filter_name="responded_by_user_name",
         )
     ),
+]
+
+# Parse Import Errors
+QueryParseImportErrorFilenamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(ParseImportError.filename, "filename_pattern"))
 ]

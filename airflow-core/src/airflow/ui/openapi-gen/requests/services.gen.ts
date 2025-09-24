@@ -1002,6 +1002,7 @@ export class DagRunService {
      * @param data.orderBy
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1040,7 +1041,8 @@ export class DagRunService {
                 dag_version: data.dagVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
-                triggering_user_name_pattern: data.triggeringUserNamePattern
+                triggering_user_name_pattern: data.triggeringUserNamePattern,
+                dag_id_pattern: data.dagIdPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1993,7 +1995,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static deleteTaskInstance(data: DeleteTaskInstanceData): CancelablePromise<DeleteTaskInstanceResponse> {
@@ -2344,6 +2346,7 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
      * @param data.queue
@@ -2393,6 +2396,7 @@ export class TaskInstanceService {
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                dag_id_pattern: data.dagIdPattern,
                 state: data.state,
                 pool: data.pool,
                 queue: data.queue,
@@ -2792,12 +2796,17 @@ export class TaskInstanceService {
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.taskId
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.mapIndex
      * @param data.state
      * @param data.responseReceived
      * @param data.respondedByUserId
      * @param data.respondedByUserName
      * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.createdAtGte
+     * @param data.createdAtGt
+     * @param data.createdAtLte
+     * @param data.createdAtLt
      * @returns HITLDetailCollection Successful Response
      * @throws ApiError
      */
@@ -2816,12 +2825,17 @@ export class TaskInstanceService {
                 dag_id_pattern: data.dagIdPattern,
                 task_id: data.taskId,
                 task_id_pattern: data.taskIdPattern,
+                map_index: data.mapIndex,
                 state: data.state,
                 response_received: data.responseReceived,
                 responded_by_user_id: data.respondedByUserId,
                 responded_by_user_name: data.respondedByUserName,
                 subject_search: data.subjectSearch,
-                body_search: data.bodySearch
+                body_search: data.bodySearch,
+                created_at_gte: data.createdAtGte,
+                created_at_gt: data.createdAtGt,
+                created_at_lte: data.createdAtLte,
+                created_at_lt: data.createdAtLt
             },
             errors: {
                 401: 'Unauthorized',
@@ -2865,6 +2879,7 @@ export class ImportErrorService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy
+     * @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns ImportErrorCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2875,7 +2890,8 @@ export class ImportErrorService {
             query: {
                 limit: data.limit,
                 offset: data.offset,
-                order_by: data.orderBy
+                order_by: data.orderBy,
+                filename_pattern: data.filenamePattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -3571,7 +3587,7 @@ export class DagParsingService {
      * Request re-parsing a DAG file.
      * @param data The data for the request.
      * @param data.fileToken
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static reparseDagFile(data: ReparseDagFileData): CancelablePromise<ReparseDagFileResponse> {
@@ -3890,6 +3906,7 @@ export class GridService {
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.runType
+     * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
@@ -3910,6 +3927,7 @@ export class GridService {
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
+                state: data.state,
                 triggering_user: data.triggeringUser
             },
             errors: {
@@ -3933,6 +3951,7 @@ export class GridService {
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.runType
+     * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
@@ -3953,6 +3972,7 @@ export class GridService {
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
+                state: data.state,
                 triggering_user: data.triggeringUser
             },
             errors: {
