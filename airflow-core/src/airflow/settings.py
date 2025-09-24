@@ -370,35 +370,24 @@ def _configure_async_session() -> None:
     )
 
 
-def configure_orm(disable_connection_pool=False, pool_class=None):
-    """Configure ORM using SQLAlchemy."""
+def _configure_session(disable_connection_pool: bool, pool_class):
+    """(Re)create engine, NonScopedSession, Session using SQLAlchemy."""
     from airflow._shared.secrets_masker import mask_secret
 
-    if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
-        from airflow.exceptions import AirflowConfigException
+    global NonScopedSession, Session, engine
 
-        raise AirflowConfigException(
-            f"Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. "
-            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
-        )
-
-    global NonScopedSession
-    global Session
-    global engine
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
         return
-    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
+
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
     connect_args = _get_connect_args("sync")
     if SQL_ALCHEMY_CONN.startswith("sqlite"):
-        # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
-        # to use objects created in another threads by default. Allowing that in test
-        # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
     engine = create_engine(
@@ -407,7 +396,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         **engine_args,
         future=True,
     )
-    _configure_async_session()
+
     mask_secret(engine.url.password)
     setup_event_handlers(engine)
 
@@ -420,17 +409,32 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             autoflush=False,
             expire_on_commit=False,
         )
+
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
+
+
+def configure_orm(disable_connection_pool=False, pool_class=None):
+    """Configure ORM using SQLAlchemy."""
+    if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
+        from airflow.exceptions import AirflowConfigException
+
+        raise AirflowConfigException(
+            f"Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. "
+            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
+        )
+
+    _configure_session(disable_connection_pool, pool_class)
+    _configure_async_session()
 
     if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
         def clean_in_fork():
             _globals = globals()
-            if engine := _globals.get("engine"):
-                engine.dispose(close=False)
-            if async_engine := _globals.get("async_engine"):
-                async_engine.sync_engine.dispose(close=False)
+            if _globals.get("engine"):
+                _configure_session(disable_connection_pool, pool_class)
+            if _globals.get("async_engine"):
+                _configure_async_session()
 
         # Won't work on Windows
         register_at_fork(after_in_child=clean_in_fork)
