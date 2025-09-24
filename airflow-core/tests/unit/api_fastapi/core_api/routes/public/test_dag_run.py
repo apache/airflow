@@ -112,11 +112,11 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
-    dag_run1.note = DAG1_RUN1_NOTE
+    dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=100.5)
-    # Set conf for testing conf_contains filter
-    dag_run1.conf = {"env": "production", "version": "1.0"}
+    # Set conf for testing conf_contains filter (values ordered for predictable sorting)
+    dag_run1.conf = {"env": "development", "version": "1.0"}
 
     for i, task in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -137,7 +137,7 @@ def setup(request, dag_maker, session=None):
     # Set end_date for testing duration filter
     dag_run2.end_date = dag_run2.start_date + timedelta(seconds=200.75)
     # Set conf for testing conf_contains filter
-    dag_run2.conf = {"env": "staging", "debug": True}
+    dag_run2.conf = {"env": "production", "debug": True}
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -162,7 +162,7 @@ def setup(request, dag_maker, session=None):
     # Set end_date for testing duration filter
     dag_run3.end_date = dag_run3.start_date + timedelta(seconds=50.25)
     # Set conf for testing conf_contains filter
-    dag_run3.conf = {"env": "development", "test_mode": True}
+    dag_run3.conf = {"env": "staging", "test_mode": True}
 
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
@@ -176,7 +176,7 @@ def setup(request, dag_maker, session=None):
     # Set end_date for testing duration filter
     dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150.0)
     # Set conf for testing conf_contains filter
-    dag_run4.conf = None
+    dag_run4.conf = {"env": "testing", "mode": "ci"}
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -194,23 +194,45 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
     ]
 
 
+def format_datetime_like_api(dt: datetime | None) -> str | None:
+    """
+    Format datetime to match API output behavior.
+
+    The API serializes datetimes with microseconds only when they are non-zero:
+    - 2024-01-15T00:00:00Z (for times with zero microseconds)
+    - 2024-01-15T00:01:40.500000Z (for times with non-zero microseconds)
+
+    This function ensures test expectations match the actual API behavior.
+    If API datetime serialization changes in the future, only this function needs updating.
+
+    Args:
+        dt: datetime object or None
+
+    Returns:
+        ISO 8601 formatted string with conditional microseconds, or None
+    """
+    if dt is None:
+        return None
+    if dt.microsecond == 0:
+        return from_datetime_to_zulu_without_ms(dt)
+    return from_datetime_to_zulu(dt)
+
+
 def get_dag_run_dict(run: DagRun):
     return {
         "bundle_version": None,
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
-        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
-        "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
-        "run_after": from_datetime_to_zulu_without_ms(run.run_after),
-        "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
+        "logical_date": format_datetime_like_api(run.logical_date),
+        "queued_at": format_datetime_like_api(run.queued_at),
+        "run_after": format_datetime_like_api(run.run_after),
+        "start_date": format_datetime_like_api(run.start_date),
+        "end_date": format_datetime_like_api(run.end_date),
         "duration": run.duration,
-        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
-        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
-        "last_scheduling_decision": (
-            from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
-        ),
+        "data_interval_start": format_datetime_like_api(run.data_interval_start),
+        "data_interval_end": format_datetime_like_api(run.data_interval_end),
+        "last_scheduling_decision": format_datetime_like_api(run.last_scheduling_decision),
         "run_type": run.run_type,
         "state": run.state,
         "triggered_by": run.triggered_by.value,
@@ -466,26 +488,30 @@ class TestGetDagRuns:
             (
                 DAG1_ID,
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
             ),
             (
                 DAG1_ID,
                 {
-                    "end_date_gt": START_DATE2.isoformat(),
+                    "end_date_gt": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
             ),
             (
                 DAG1_ID,
                 {
-                    "end_date_gt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                    "end_date_gt": (
+                        START_DATE1 + timedelta(seconds=50)
+                    ).isoformat(),  # Between the two end dates
                     "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],  # Both should match as their end_date > start + 50s
             ),
             (
                 DAG1_ID,
@@ -654,12 +680,12 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG2_RUN2_ID],
             ),  # Test between 100 and 150 (inclusive)
             # Test conf_contains filter
-            ("~", {"conf_contains": '"env": "production"'}, [DAG1_RUN1_ID]),  # Test for "production" env
+            ("~", {"conf_contains": '"env": "development"'}, [DAG1_RUN1_ID]),  # Test for "development" env
             (
                 "~",
                 {"conf_contains": '"debug": true'},
                 [DAG1_RUN2_ID],
-            ),  # Test for debug flag (note JSON true is lowercase)
+            ),  # Test for debug flag
             ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
             ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
         ],
@@ -940,10 +966,12 @@ class TestListDagRunsBatch:
             ),
             (
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                DAG_RUNS_LIST,
+                # Only DAG2 runs match: their start_date is 2024-04-15, so end_date >= 2024-04-15
+                # DAG1 runs have start_date 2024-01-15, so end_date < 2024-04-15
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
             (
                 {
