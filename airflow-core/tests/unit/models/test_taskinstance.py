@@ -39,7 +39,6 @@ from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowSkipException,
-    TaskDeferralError,
 )
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.connection import Connection
@@ -2735,25 +2734,23 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     assert ti.max_tries == expected_max_tries
 
 
-def test_defer_task_raises_when_no_start_from_trigger(create_task_instance):
+def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
     session = mock.MagicMock()
     ti = create_task_instance(
-        dag_id="test_defer_task_raises_when_no_start_from_trigger",
-        task_id="test_defer_task_raises_when_no_start_from_trigger_op",
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
     )
-    with pytest.raises(TaskDeferralError):
-        ti.defer_task(session=session)
+    assert not ti.defer_task(session=session)
 
 
-def test_defer_task_raises_when_no_start_trigger_args(create_task_instance):
+def st_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
     session = mock.MagicMock()
     ti = create_task_instance(
-        dag_id="test_defer_task_raises_when_no_start_trigger_args",
-        task_id="test_defer_task_raises_when_no_start_trigger_args_op",
+        dag_id="test_defer_task",
+        task_id="test_defer_task",
         start_from_trigger=True,
     )
-    with pytest.raises(TaskDeferralError):
-        ti.defer_task(session=session)
+    assert not ti.defer_task(session=session)
 
 
 def test_defer_task(create_task_instance):
@@ -2771,7 +2768,7 @@ def test_defer_task(create_task_instance):
             trigger_kwargs={"key": "value"},
         ),
     )
-    ti.defer_task(session=session)
+    assert ti.defer_task(session=session)
 
     # Check that session.add was called with a Trigger
     assert session.add.call_count == 1
