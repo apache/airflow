@@ -85,9 +85,22 @@ const taskInstanceColumns = ({
     ? []
     : [
         {
-          accessorKey: "task_instance.dag_id",
-          enableSorting: false,
+          accessorKey: "dag_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <TruncatedText text={original.task_instance.dag_display_name} />
+          ),
           header: translate("common:dagId"),
+        },
+      ]),
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <TruncatedText text={original.task_instance.dag_run_id} />
+          ),
+          header: translate("common:dagRunId"),
         },
       ]),
   ...(Boolean(runId)
@@ -105,22 +118,50 @@ const taskInstanceColumns = ({
     ? []
     : [
         {
-          accessorKey: "task_display_name",
+          accessorKey: "task_id",
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <TruncatedText text={original.task_instance.task_display_name} />
           ),
-          enableSorting: false,
           header: translate("common:taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
+    cell: ({ row: { original } }) => (
+      <TruncatedText text={original.task_instance.rendered_map_index ?? ''} />
+    ),
     header: translate("common:mapIndex"),
   },
   {
     accessorKey: "responded_at",
     cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
+  },
+  {
+    accessorKey: "created_at",
+    cell: ({ row: { original } }) => <Time datetime={original.created_at} />,
+    header: "create at",
+  },
+  {
+    accessorKey: "responded_by_user_id",
+    cell: ({ row: { original } }) => (
+      <TruncatedText text={original.responded_by_user?.id ?? ''} />
+    ),
+    header: "responded_by_user_id",
+  },
+  {
+    accessorKey: "responded_by_user_name",
+    cell: ({ row: { original } }) => (
+      <TruncatedText text={original.responded_by_user?.name ?? ''} />
+    ),
+    header: "responded_by_user_name",
+  },
+  {
+    accessorKey: "task_instance_operator",
+    cell: ({ row: { original } } ) => (
+      <TruncatedText text={original.task_instance.operator ?? ''} />
+    ),
+    header: translate("common:task.operator"),
   },
 ];
 
