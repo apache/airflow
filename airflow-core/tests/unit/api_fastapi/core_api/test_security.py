@@ -154,10 +154,33 @@ class TestFastApiSecurity:
             ("/some_other_page/", False),
             # traversal, escaping the `prefix` folder
             ("/../../../../some_page?with_param=3", False),
+            # encoded url
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", True),
+            ("https%3A%2F%2Fsome_netlock.com%2Fprefix%2Fsome_page%3Fwith_param%3D3", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2%2Fsub_path", True),
+            ("%2F..%2F..%2F..%2F..%2Fsome_page%3Fwith_param%3D3", False),
         ],
     )
     @conf_vars({("api", "base_url"): "https://server_base_url.com/prefix"})
     def test_is_safe_url(self, url, expected_is_safe):
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/prefix2"
+        assert is_safe_url(url, request=request) == expected_is_safe
+
+    @pytest.mark.parametrize(
+        "url, expected_is_safe",
+        [
+            ("https://server_base_url.com/prefix", False),
+            ("https://requesting_server_base_url.com/prefix2", True),
+            ("prefix/some_other", False),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2%2Fsub_path", True),
+            ("%2F..%2F..%2F..%2F..%2Fsome_page%3Fwith_param%3D3", False),
+        ],
+    )
+    def test_is_safe_url_with_base_url_unset(self, url, expected_is_safe):
         request = Mock()
         request.base_url = "https://requesting_server_base_url.com/prefix2"
         assert is_safe_url(url, request=request) == expected_is_safe

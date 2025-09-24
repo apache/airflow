@@ -41,6 +41,7 @@ REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+    pytest.param(DeadlineReference.AVERAGE_RUNTIME, id="average_runtime"),
 ]
 
 

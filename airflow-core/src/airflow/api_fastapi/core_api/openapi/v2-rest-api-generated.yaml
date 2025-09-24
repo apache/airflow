@@ -2245,6 +2245,18 @@ paths:
           title: Triggering User Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -4052,6 +4064,18 @@ paths:
           default:
           - id
           title: Order By
+      - name: filename_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Filename Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -5391,9 +5415,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Delete Task Instance
+              schema: {}
         '401':
           content:
             application/json:
@@ -5715,6 +5737,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -6459,6 +6489,18 @@ paths:
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: state
         in: query
         required: false
@@ -6515,6 +6557,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -7715,9 +7765,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Reparse Dag File
+              schema: {}
         '401':
           content:
             application/json:
@@ -7968,10 +8016,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Update Hitl Detail
       description: Update a Human-in-the-loop detail.
       operationId: update_hitl_detail
@@ -7998,11 +8046,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       requestBody:
         required: true
@@ -8049,7 +8096,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
       operationId: get_hitl_detail
@@ -8076,11 +8123,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       responses:
         '200':
@@ -8113,10 +8159,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails:
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Details
       description: Get Human-in-the-loop details.
       operationId: get_hitl_details
@@ -8124,6 +8170,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -8150,14 +8208,6 @@ paths:
           default:
           - ti_id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: dag_id_pattern
         in: query
         required: false
@@ -8170,12 +8220,6 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: dag_run_id
-        in: query
-        required: false
-        schema:
-          type: string
-          title: Dag Run Id
       - name: task_id
         in: query
         required: false
@@ -8196,6 +8240,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
       - name: state
         in: query
         required: false
@@ -8252,6 +8304,42 @@ paths:
           title: Body Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
       responses:
         '200':
           description: Successful Response
@@ -8633,6 +8721,11 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        watchers:
+          items:
+            $ref: '#/components/schemas/AssetWatcherResponse'
+          type: array
+          title: Watchers
         last_asset_event:
           anyOf:
           - $ref: '#/components/schemas/LastAssetEventResponse'
@@ -8649,8 +8742,28 @@ components:
       - producing_tasks
       - consuming_tasks
       - aliases
+      - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetWatcherResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        trigger_id:
+          type: integer
+          title: Trigger Id
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+      type: object
+      required:
+      - name
+      - trigger_id
+      - created_date
+      title: AssetWatcherResponse
+      description: Asset watcher serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -10713,6 +10826,11 @@ components:
           - type: string
           - type: 'null'
           title: Dag Display Name
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
       type: object
       required:
       - event_log_id
@@ -10873,6 +10991,10 @@ components:
             $ref: '#/components/schemas/HITLUser'
           type: array
           title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
         responded_by_user:
           anyOf:
           - $ref: '#/components/schemas/HITLUser'
@@ -10903,6 +11025,7 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLDetailCollection:

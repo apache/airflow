@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+1.10.4
+......
+
+
+Release Date: ``|PypiReleaseDate|``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'apply_function' optional in 'AwaitMessageTrigger' (#55437)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.3
 ......
 
