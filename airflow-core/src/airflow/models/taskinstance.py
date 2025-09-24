@@ -86,6 +86,7 @@ from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -1434,6 +1435,16 @@ class TaskInstance(Base, LoggingMixin):
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
+    def start_trigger_args(self) -> StartTriggerArgs | None:
+        if self.task:
+            if self.task.is_mapped:
+                context = self.get_template_context()
+                if self.task.expand_start_from_trigger(context=context):
+                    return self.task.expand_start_trigger_args(context=context)
+            elif self.task.start_from_trigger:
+                return self.task.start_trigger_args
+        return None
+
     # TODO: We have some code duplication here and in the _create_ti_state_update_query_and_update_state
     #       method of the task_instances module in the execution api when a TIDeferredStatePayload is being
     #       processed.  This is because of a TaskInstance being updated differently using SQLAlchemy.
@@ -1452,13 +1463,7 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, Operator)
 
-        context = self.get_template_context()
-
-        if (
-            self.task
-            and self.task.expand_start_from_trigger(context=context)
-            and (start_trigger_args := self.task.expand_start_trigger_args(context=context))
-        ):
+        if start_trigger_args := self.start_trigger_args():
             trigger_kwargs = start_trigger_args.trigger_kwargs or {}
             timeout = start_trigger_args.timeout
 
