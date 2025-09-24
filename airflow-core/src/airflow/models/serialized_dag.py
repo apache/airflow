@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
@@ -285,7 +286,9 @@ class SerializedDagModel(Base):
     __tablename__ = "serialized_dag"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     dag_id = Column(String(ID_LEN), nullable=False)
-    _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data = Column(
+        "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
+    )
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
     last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
@@ -654,6 +657,11 @@ class SerializedDagModel(Base):
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
+            elif session.bind.dialect.name == "postgresql":
+                # Use #> operator which works for both JSON and JSONB types
+                # Returns the JSON sub-object at the specified path
+                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                load_json = None
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
                 load_json = None

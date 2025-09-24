@@ -47,7 +47,7 @@ export class JobsService {
      * @param data.mapIndex For dynamically mapped tasks the mapping number, -1 if the task is not mapped.
      * @param data.state State of the assigned task under execution.
      * @param data.authorization JWT Authorization Token
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static state(data: StateData): CancelablePromise<StateResponse> {
@@ -122,7 +122,7 @@ export class LogsService {
      * @param data.mapIndex For dynamically mapped tasks the mapping number, -1 if the task is not mapped.
      * @param data.authorization JWT Authorization Token
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static pushLogs(data: PushLogsData): CancelablePromise<PushLogsResponse> {
@@ -218,7 +218,7 @@ export class WorkerService {
      * @param data.workerName Hostname or instance name of the worker
      * @param data.authorization JWT Authorization Token
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static updateQueues(data: UpdateQueuesData): CancelablePromise<UpdateQueuesResponse> {
@@ -292,7 +292,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static requestWorkerMaintenance(data: RequestWorkerMaintenanceData): CancelablePromise<RequestWorkerMaintenanceResponse> {
@@ -316,7 +316,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static updateWorkerMaintenance(data: UpdateWorkerMaintenanceData): CancelablePromise<UpdateWorkerMaintenanceResponse> {
@@ -339,7 +339,7 @@ export class UiService {
      * Exit a worker from maintenance mode.
      * @param data The data for the request.
      * @param data.workerName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static exitWorkerMaintenance(data: ExitWorkerMaintenanceData): CancelablePromise<ExitWorkerMaintenanceResponse> {
@@ -360,7 +360,7 @@ export class UiService {
      * Request shutdown of a worker.
      * @param data The data for the request.
      * @param data.workerName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static requestWorkerShutdown(data: RequestWorkerShutdownData): CancelablePromise<RequestWorkerShutdownResponse> {
@@ -381,7 +381,7 @@ export class UiService {
      * Delete a worker record from the system.
      * @param data The data for the request.
      * @param data.workerName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static deleteWorker(data: DeleteWorkerData): CancelablePromise<DeleteWorkerResponse> {
@@ -403,7 +403,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.queueName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static addWorkerQueue(data: AddWorkerQueueData): CancelablePromise<AddWorkerQueueResponse> {
@@ -426,7 +426,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.queueName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static removeWorkerQueue(data: RemoveWorkerQueueData): CancelablePromise<RemoveWorkerQueueResponse> {

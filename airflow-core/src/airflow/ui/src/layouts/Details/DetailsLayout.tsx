@@ -133,7 +133,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
               order={1}
             >
-              <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
+              <Box height="100%" marginInlineEnd={2} overflowY="auto" paddingRight={4} position="relative">
                 <PanelButtons
                   dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
@@ -152,7 +152,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 {dagView === "graph" ? (
                   <Graph />
                 ) : (
-                  <HStack gap={0}>
+                  <HStack alignItems="flex-end" gap={0}>
                     <Grid
                       dagRunState={dagRunStateFilter}
                       limit={limit}
