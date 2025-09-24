@@ -170,7 +170,9 @@ class GenericTransfer(BaseOperator):
                 results = self.source_hook.get_records(sql)
 
                 self.log.info("Inserting rows into %s", self.destination_conn_id)
-                self.destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+                self.destination_hook.insert_rows(
+                    table=self.destination_table, rows=results, **self.insert_args
+                )
 
     def execute_complete(
         self,
