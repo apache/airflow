@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package celery
-
-type Config struct {
-	BrokerAddr    string   `mapstructure:"broker_address"`
-	Port          int      `mapstructure:"port"`
-	Queues        []string `mapstructure:"queues"`
-	BundlesFolder string   `mapstructure:"bundles-folder"`
-}
+// Package bundlev1server implements a server implementation to run bundlev1
+// as gRPC servers, making it accessible to the Airflow Go Workers.
+//
+// This "serving" is to local process only, and is not exposed over any network
+//
+// Bundle will likely be calling [Serve] from their main function to
+// start the server so Airflow's go worker can connect to it.
+package bundlev1server

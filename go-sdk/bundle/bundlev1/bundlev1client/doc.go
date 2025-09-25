@@ -15,11 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package celery
-
-type Config struct {
-	BrokerAddr    string   `mapstructure:"broker_address"`
-	Port          int      `mapstructure:"port"`
-	Queues        []string `mapstructure:"queues"`
-	BundlesFolder string   `mapstructure:"bundles-folder"`
-}
+// Package bundlev1client implements the worker-side Client to speak to Dag bundles compiled with the
+// [github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server] package.
+//
+// Unless you are writing a custom worker, you are unlikely to need to use anything in this package.
+package bundlev1client

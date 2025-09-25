@@ -21,10 +21,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -35,28 +37,23 @@ import (
 )
 
 type (
-	Registry interface {
-		// RegisterTask registers a new task with this task registry
-		// A task takes a [context.Context] and input and returns a (result, error) or just error.
-		//
-		// This method panics if taskFunc doesn't comply with the expected format or tries to register a duplicate task
-		RegisterTask(dagid string, fn any)
-
-		RegisterTaskWithName(dagId, taskId string, fn any)
-
-		LookupTask(dagId, taskId string) (task Task, exists bool)
+	// Bundle interface defines a type that is used "at execution time" to lookup a Task to execute
+	Bundle interface {
+		LookupTask(dagId, taskId string) (Task, bool)
 	}
 
 	Worker interface {
-		Registry
+		Bundle
 
 		ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTaskWorkload) error
 
 		WithServer(server string) (Worker, error)
+		WithClient(client api.ClientInterface) Worker
+		WithHeartbeatInterval(interval time.Duration) Worker
 	}
 
 	worker struct {
-		Registry
+		Bundle
 		client            api.ClientInterface
 		logger            *slog.Logger
 		heartbeatInterval time.Duration
@@ -66,12 +63,20 @@ type (
 
 var ErrTaskCancelledAfterFailedHeartbeat = errors.New("task cancelled after failed heartbeat")
 
+func NewWithBundle(bundle Bundle, logger *slog.Logger) Worker {
+	return &worker{
+		logger:            logger,
+		heartbeatInterval: HeartbeatInterval,
+		reportTimeout:     ReportTimeout,
+		Bundle:            bundle,
+	}
+}
+
 func New(logger *slog.Logger) Worker {
 	return &worker{
 		logger:            logger,
 		heartbeatInterval: HeartbeatInterval,
 		reportTimeout:     ReportTimeout,
-		Registry:          newRegistry(),
 	}
 }
 
@@ -80,18 +85,26 @@ const (
 	ReportTimeout     = 10 * time.Second
 )
 
+func (w *worker) WithHeartbeatInterval(interval time.Duration) Worker {
+	newWorker := *w
+	newWorker.heartbeatInterval = interval
+	return &newWorker
+}
+
+func (w *worker) WithClient(client api.ClientInterface) Worker {
+	newWorker := *w
+	newWorker.client = client
+	return &newWorker
+}
+
 func (w *worker) WithServer(server string) (Worker, error) {
-	client, err := api.NewDefaultClient(server)
+	var err error
+	newWorker := *w
+	newWorker.client, err = api.NewDefaultClient(server)
 	if err != nil {
 		return nil, err
 	}
-	return &worker{
-		Registry:          w.Registry,
-		client:            client,
-		logger:            w.logger,
-		heartbeatInterval: w.heartbeatInterval,
-		reportTimeout:     w.reportTimeout,
-	}, nil
+	return &newWorker, nil
 }
 
 type heartbeater struct {
@@ -212,7 +225,12 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 		return err
 	}
 
-	task, exists := w.LookupTask(workload.TI.DagId, workload.TI.TaskId)
+	var task Task
+	var exists bool = w.Bundle != nil
+	if exists {
+		// Only try looking up the task if we actually have a bundle
+		task, exists = w.LookupTask(workload.TI.DagId, workload.TI.TaskId)
+	}
 	if !exists {
 		taskLogger.ErrorContext(
 			taskContext,
@@ -331,7 +349,10 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			EndDate: time.Now().UTC(),
 		})
 	} else {
-		logger.InfoContext(ctx, "Task succeeded")
+		if logger != taskLogger {
+			// If we are sending task logs to stdout, don't log this here else we'll get it twice
+			logger.InfoContext(ctx, "Task succeeded")
+		}
 
 		taskLogger.InfoContext(
 			taskContext,
@@ -362,6 +383,54 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	return err
 }
 
+type taskJSONHandler struct {
+	*slog.JSONHandler
+}
+
+var _ slog.Handler = (*taskJSONHandler)(nil)
+
+// Make the keys and predefined values (log level) in the same form that Airflow expects.
+func jsonAttrKeyReplacer(groups []string, a slog.Attr) slog.Attr {
+	if len(groups) == 0 {
+		if a.Key == slog.MessageKey {
+			a.Key = "event"
+		}
+		if a.Key == slog.LevelKey {
+			a.Value = slog.StringValue(strings.ToLower(a.Value.String()))
+		}
+	}
+	// TODO: mask secrets here
+	return a
+}
+
+func newTaskJSONHandler(w io.Writer) slog.Handler {
+	return &taskJSONHandler{slog.NewJSONHandler(
+		w,
+		&slog.HandlerOptions{
+			AddSource:   false,
+			ReplaceAttr: jsonAttrKeyReplacer,
+		},
+	)}
+}
+
+func (t *taskJSONHandler) Handle(ctx context.Context, r slog.Record) error {
+	// We want to change the "time" key to "timestamp". While we could achieve that with a ReplaceAttr hook in
+	// the opts, we can only do that based on attry name, so if something else tries to log an attr of "time",
+	// that would get replaced too. So we do it the slower way, by wrapping this handler
+	//
+	// TODO: This isn't perfect, as it places "timestamp" after "level" etc. But it'll do for now
+
+	r2 := slog.NewRecord(time.Time{}, r.Level, r.Message, r.PC)
+	if !r.Time.IsZero() {
+		r2.AddAttrs(slog.String("timestamp", r.Time.Format(time.RFC3339Nano)))
+	}
+	r.Attrs(func(a slog.Attr) bool {
+		r2.AddAttrs(a)
+		return true
+	})
+	return t.JSONHandler.Handle(ctx, r2)
+}
+
 func (w *worker) setupTaskLogger(
 	_ context.Context,
 	supervisorLogger *slog.Logger,
@@ -372,7 +441,7 @@ func (w *worker) setupTaskLogger(
 	// - Writes JSON to a file
 	// - And streams output to stdout in a nice format too
 
-	if viper.GetBool("logging.task.stdout_only") {
+	if viper.GetBool("logging.task.stdout_only") || workload.LogPath == nil {
 		return supervisorLogger, nil
 	}
 
@@ -391,13 +460,7 @@ func (w *worker) setupTaskLogger(
 		return nil, err
 	}
 
-	var h slog.Handler = slog.NewJSONHandler(
-		fh,
-		&slog.HandlerOptions{
-			AddSource:   false,
-			ReplaceAttr: nil, // TODO: mask secrets here
-		},
-	)
+	var h slog.Handler = newTaskJSONHandler(fh)
 
 	if viper.GetBool("logging.task.to_stdout") {
 		h = logging.NewTeeLogger(h, supervisorLogger.Handler())

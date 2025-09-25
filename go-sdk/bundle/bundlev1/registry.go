@@ -15,30 +15,56 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package worker
+package bundlev1
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/apache/airflow/go-sdk/pkg/worker"
 )
 
 type (
 	// task is an interface of an task implementation.
-	Task interface {
-		Execute(ctx context.Context, logger *slog.Logger) error
+	Task   = worker.Task
+	Bundle = worker.Bundle
+
+	Dag interface {
+		AddTask(fn any)
+		AddTaskWithName(taskId string, fn any)
 	}
+
+	// Registry defines the interface that lets user code add dags and tasks, and extends Bundle for execution
+	// time
+	Registry interface {
+		Bundle
+		AddDag(dagId string) Dag
+	}
+
 	registry struct {
 		sync.RWMutex
 		taskFuncMap map[string]map[string]Task
 	}
 )
 
-func newRegistry() *registry {
+type dagShim struct {
+	dagId    string
+	registry *registry
+}
+
+func (d dagShim) AddTask(fn any) {
+	d.registry.registerTask(d.dagId, fn)
+}
+
+func (d dagShim) AddTaskWithName(taskId string, fn any) {
+	d.registry.registerTaskWithName(d.dagId, taskId, fn)
+}
+
+// Function New creates a new bundle on which Dag and Tasks can be registered
+func New() Registry {
 	return &registry{taskFuncMap: make(map[string]map[string]Task)}
 }
 
@@ -50,7 +76,15 @@ func getFnName(fn reflect.Value) string {
 	return strings.TrimSuffix(fnName, "-fm")
 }
 
-func (r *registry) RegisterTask(dagId string, fn any) {
+func (r *registry) AddDag(dagId string) Dag {
+	if _, exists := r.taskFuncMap[dagId]; exists {
+		panic(fmt.Errorf("Dag %q already exists in bundle", dagId))
+	}
+	r.taskFuncMap[dagId] = make(map[string]Task)
+	return dagShim{dagId, r}
+}
+
+func (r *registry) registerTask(dagId string, fn any) {
 	val := reflect.ValueOf(fn)
 
 	if val.Kind() != reflect.Func {
@@ -59,10 +93,10 @@ func (r *registry) RegisterTask(dagId string, fn any) {
 
 	fnName := getFnName(val)
 
-	r.RegisterTaskWithName(dagId, fnName, fn)
+	r.registerTaskWithName(dagId, fnName, fn)
 }
 
-func (r *registry) RegisterTaskWithName(dagId, taskId string, fn any) {
+func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 	task, err := NewTaskFunction(fn)
 	if err != nil {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))

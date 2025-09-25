@@ -21,21 +21,39 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
-	"github.com/MatusOllah/slogcolor"
-
-	airflow "github.com/apache/airflow/go-sdk/celery/cmd"
+	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
 	"github.com/apache/airflow/go-sdk/sdk"
-	"github.com/apache/airflow/go-sdk/worker"
 )
 
-// Ensure the worker knows how to execute the tasks
-func registerTasks(worker worker.Worker) {
-	worker.RegisterTask("tutorial_dag", extract)
-	worker.RegisterTask("tutorial_dag", transform)
-	worker.RegisterTask("tutorial_dag", load)
+// Set by `-ldflags` at build time
+var (
+	bundleName    = "example_dags"
+	bundleVersion = "0.0"
+)
+
+type myBundle struct{}
+
+// myBundle must implement v1.BundleProvider
+var _ v1.BundleProvider = (*myBundle)(nil)
+
+func (m *myBundle) GetBundleVersion() v1.BundleInfo {
+	return v1.BundleInfo{Name: bundleName, Version: &bundleVersion}
+}
+
+func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
+	tutorial_dag := dagbag.AddDag("tutorial_dag")
+	tutorial_dag.AddTask(extract)
+	tutorial_dag.AddTask(transform)
+	tutorial_dag.AddTask(load)
+
+	return nil
+}
+
+func main() {
+	bundlev1server.Serve(&myBundle{})
 }
 
 func extract(ctx context.Context, client sdk.Client, log *slog.Logger) error {
@@ -79,23 +97,4 @@ func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger)
 
 func load() error {
 	return fmt.Errorf("Please fail")
-}
-
-func main() {
-	logger := makeLogger()
-	slog.SetDefault(logger)
-	logger.Debug("Starting up")
-	worker := worker.New(logger)
-	registerTasks(worker)
-
-	airflow.Execute(worker)
-}
-
-func makeLogger() *slog.Logger {
-	opts := *slogcolor.DefaultOptions
-	leveler := &slog.LevelVar{}
-	leveler.Set(slog.LevelDebug)
-	opts.Level = leveler
-	log := slog.New(slogcolor.NewHandler(os.Stderr, &opts))
-	return log
 }
