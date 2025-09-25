@@ -32,6 +32,7 @@ class StateVariable(Base, LoggingMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(ID_LEN), unique=True)
     value = Column("value", Text().with_variant(MEDIUMTEXT, "mysql"))
+    description = Column(Text)
 
     def __init__(self, key=None, value=None):
         super().__init__()
