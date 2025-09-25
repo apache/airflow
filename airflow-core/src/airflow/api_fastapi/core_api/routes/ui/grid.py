@@ -29,6 +29,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
+    QueryDagRunStateFilter,
     QueryDagRunTriggeringUserSearch,
     QueryLimit,
     QueryOffset,
@@ -129,6 +130,7 @@ def get_dag_structure(
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     run_type: QueryDagRunRunTypesFilter,
+    state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
@@ -148,7 +150,7 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, triggering_user],
+        filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -160,6 +162,7 @@ def get_dag_structure(
 
     serdags = session.scalars(
         select(SerializedDagModel).where(
+            SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
                 .join(TaskInstance.dag_run)
@@ -167,7 +170,7 @@ def get_dag_structure(
                     DagRun.id.in_(run_ids),
                     SerializedDagModel.id != latest_serdag.id,
                 )
-            )
+            ),
         )
     )
     merged_nodes: list[GridNodeResponse] = []
@@ -227,6 +230,7 @@ def get_grid_runs(
     ],
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     run_type: QueryDagRunRunTypesFilter,
+    state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
@@ -255,7 +259,7 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, triggering_user],
+        filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
     return session.execute(dag_runs_select_filter)

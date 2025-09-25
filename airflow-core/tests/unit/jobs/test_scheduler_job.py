@@ -44,6 +44,7 @@ from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
+from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -55,7 +56,6 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetDagRunQueue,
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
