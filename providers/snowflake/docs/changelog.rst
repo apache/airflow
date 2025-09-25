@@ -31,8 +31,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Misc
 ~~~~
 
@@ -44,8 +42,6 @@ Misc
 6.5.3
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
