@@ -23,15 +23,15 @@ from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMa
 from airflow.api_fastapi.execution_api.versions.v2025_05_20 import DowngradeUpstreamMapIndexes
 from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
     AddDagRunStateFieldAndPreviousEndpoint,
-    AddDagVersionIdField,
     AddIncludePriorDatesToGetXComSlice,
 )
+from airflow.api_fastapi.execution_api.versions.v2025_09_23 import AddDagVersionIdField
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2025-09-23", AddDagVersionIdField),
     Version(
         "2025-08-10",
-        AddDagVersionIdField,
         AddDagRunStateFieldAndPreviousEndpoint,
         AddIncludePriorDatesToGetXComSlice,
     ),

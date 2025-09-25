@@ -22,7 +22,11 @@ import pytest
 
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -80,13 +84,6 @@ class TestSqlToSlackApiFileOperator:
             ),
         ],
     )
-    @pytest.mark.parametrize(
-        "method_version, method_name",
-        [
-            pytest.param("v1", "send_file", id="v1"),
-            pytest.param("v2", "send_file_v1_to_v2", id="v2"),
-        ],
-    )
     def test_send_file(
         self,
         mock_slack_hook_cls,
@@ -99,12 +96,10 @@ class TestSqlToSlackApiFileOperator:
         title,
         slack_op_kwargs: dict,
         hook_extra_kwargs: dict,
-        method_version,
-        method_name: str,
     ):
         # Mock Hook
         mock_send_file = mock.MagicMock()
-        setattr(mock_slack_hook_cls.return_value, method_name, mock_send_file)
+        setattr(mock_slack_hook_cls.return_value, "send_file_v1_to_v2", mock_send_file)
 
         # Mock returns pandas.DataFrame and expected method
         mock_df = mock.MagicMock()
@@ -119,7 +114,6 @@ class TestSqlToSlackApiFileOperator:
             "slack_channels": channels,
             "slack_initial_comment": initial_comment,
             "slack_title": title,
-            "slack_method_version": method_version,
             "df_kwargs": df_kwargs,
             **slack_op_kwargs,
         }
@@ -154,7 +148,7 @@ class TestSqlToSlackApiFileOperator:
         op = SqlToSlackApiFileOperator(
             task_id="test_send_file", slack_filename=filename, **self.default_op_kwargs
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unsupported file format"):
             op.execute(mock.MagicMock())
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")

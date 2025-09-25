@@ -37,20 +37,16 @@ import json
 import os
 from datetime import datetime
 
-from google.cloud.exceptions import NotFound
-
 try:
     from airflow.sdk import task
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.hooks.secret_manager import (
-    GoogleCloudSecretManagerHook,
-)
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
@@ -59,7 +55,12 @@ from airflow.providers.google.marketing_platform.operators.display_video import 
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
@@ -95,15 +96,9 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
 # [END howto_display_video_env_variables]
 
 
-def get_secret(secret_id: str) -> str:
-    hook = GoogleCloudSecretManagerHook()
-    if hook.secret_exists(secret_id=secret_id):
-        return hook.access_secret(secret_id=secret_id).payload.data.decode()
-    raise NotFound("The secret '%s' not found", secret_id)
-
-
 with DAG(
     "display_video_sdf",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "display_video_sdf"],

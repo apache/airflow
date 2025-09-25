@@ -17,19 +17,16 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
+from airflow.providers.fab.auth_manager.models import User
+from airflow.providers.fab.auth_manager.schemas.user_schema import (
+    user_collection_item_schema,
+    user_schema,
+)
 from airflow.utils import timezone
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.models import User
-    from airflow.providers.fab.auth_manager.schemas.user_schema import (
-        user_collection_item_schema,
-        user_schema,
-    )
-
 
 TEST_EMAIL = "test@example.org"
 
@@ -60,7 +57,7 @@ class TestUserBase:
         self.session = self.app.appbuilder.get_session
 
     def teardown_method(self):
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()
         if user:
             self.session.delete(user)
             self.session.commit()
@@ -80,7 +77,7 @@ class TestUserCollectionItemSchema(TestUserBase):
         self.session.add(user_model)
         user_model.roles = [self.role]
         self.session.commit()
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()
         deserialized_user = user_collection_item_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {
@@ -111,7 +108,7 @@ class TestUserSchema(TestUserBase):
         )
         self.session.add(user_model)
         self.session.commit()
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalars(select(User).where(User.email == TEST_EMAIL)).first()
         deserialized_user = user_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {

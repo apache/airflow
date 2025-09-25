@@ -44,6 +44,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     DagRunType,
     HITLDetailResponse,
+    HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstanceState,
@@ -78,6 +79,7 @@ from airflow.sdk.execution_time.comms import (
     TaskRescheduleStartDate,
     TICount,
     UpdateHITLDetail,
+    XComCountResponse,
 )
 
 if TYPE_CHECKING:
@@ -414,7 +416,7 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> int:
+    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> XComCountResponse:
         """Get the number of mapped XCom values."""
         resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
 
@@ -423,7 +425,7 @@ class XComOperations:
             "map_indexes "
         ):
             raise RuntimeError(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
-        return int(content_range[len("map_indexes ") :])
+        return XComCountResponse(len=int(content_range[len("map_indexes ") :]))
 
     def get(
         self,
@@ -631,7 +633,7 @@ class DagRunOperations:
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
     ) -> OKResponse | ErrorResponse:
-        """Trigger a DAG run via the API server."""
+        """Trigger a Dag run via the API server."""
         body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
 
         try:
@@ -641,23 +643,23 @@ class DagRunOperations:
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
-                    log.info("DAG Run already exists; Resetting DAG Run.", dag_id=dag_id, run_id=run_id)
+                    log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
                     return self.clear(run_id=run_id, dag_id=dag_id)
 
-                log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                log.info("Dag Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
             raise
 
         return OKResponse(ok=True)
 
     def clear(self, dag_id: str, run_id: str) -> OKResponse:
-        """Clear a DAG run via the API server."""
+        """Clear a Dag run via the API server."""
         self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
         # TODO: Error handling
         return OKResponse(ok=True)
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
-        """Get the state of a DAG run via the API server."""
+        """Get the state of a Dag run via the API server."""
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
@@ -668,7 +670,7 @@ class DagRunOperations:
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
     ) -> DRCount:
-        """Get count of DAG runs matching the given criteria."""
+        """Get count of Dag runs matching the given criteria."""
         params = {
             "dag_id": dag_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
@@ -722,6 +724,7 @@ class HITLOperations:
         defaults: list[str] | None = None,
         multiple: bool = False,
         params: dict[str, Any] | None = None,
+        assigned_users: list[HITLUser] | None = None,
     ) -> HITLDetailRequestResult:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
         payload = CreateHITLDetailPayload(
@@ -732,6 +735,7 @@ class HITLOperations:
             defaults=defaults,
             multiple=multiple,
             params=params,
+            assigned_users=assigned_users,
         )
         resp = self.client.post(
             f"/hitlDetails/{ti_id}",

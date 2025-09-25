@@ -323,6 +323,12 @@ If release name contains chart name it will be used as a full name.
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
+  {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
+  livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
+  {{- end }}
   volumeMounts:
   - name: dags
     mountPath: /git
@@ -407,11 +413,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "fernet_key_secret" -}}
-  {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+  {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
 {{- end }}
 
 {{- define "jwt_secret" -}}
-  {{- default (printf "%s-jwt-secret" .Release.Name) .Values.jwtSecretName }}
+  {{- default (printf "%s-jwt-secret" (include "airflow.fullname" .)) .Values.jwtSecretName }}
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}
@@ -423,7 +429,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "redis_password_secret" -}}
-  {{- default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
+  {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
@@ -594,7 +600,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_webserver_config_configmap_name" -}}
-  {{- default (printf "%s-webserver-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-webserver-config" (include "airflow.fullname" .)) .Values.webserver.webserverConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_webserver_config_mount" -}}
@@ -605,7 +611,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-api-server-config" (include "airflow.fullname" .)) .Values.apiServer.apiServerConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}

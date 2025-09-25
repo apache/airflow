@@ -17,18 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import os
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
+from collections.abc import MutableMapping
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
 
 if TYPE_CHECKING:
+    import jinja2
     from pendulum import DateTime
 
-    from airflow.models.operator import Operator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
         DagRunProtocol,
+        Operator,
         OutletEventAccessorsProtocol,
         RuntimeTaskInstanceProtocol,
     )
@@ -80,6 +83,28 @@ class Context(TypedDict, total=False):
     var: Any
 
 
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
+
+
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
+    """
+    Merge parameters into an existing context.
+
+    Like ``dict.update()`` , this take the same parameters, and updates
+    ``context`` in-place.
+
+    This is implemented as a free function because the ``Context`` type is
+    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
+    functions.
+
+    :meta private:
+    """
+    if not context:
+        context = Context()
+
+    context.update(*args, **kwargs)
+
+
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
@@ -114,10 +139,10 @@ def get_current_context() -> Context:
 
 class AirflowParsingContext(NamedTuple):
     """
-    Context of parsing for the DAG.
+    Context of parsing for the Dag.
 
-    If these values are not None, they will contain the specific DAG and Task ID that Airflow is requesting to
-    execute. You can use these for optimizing dynamically generated DAG files.
+    If these values are not None, they will contain the specific Dag and Task ID that Airflow is requesting to
+    execute. You can use these for optimizing dynamically generated Dag files.
 
     You can obtain the current values via :py:func:`.get_parsing_context`.
     """
@@ -131,8 +156,50 @@ _AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
 
 
 def get_parsing_context() -> AirflowParsingContext:
-    """Return the current (DAG) parsing context info."""
+    """Return the current (Dag) parsing context info."""
     return AirflowParsingContext(
         dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
         task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),
     )
+
+
+# The 'template' argument is typed as Any because the jinja2.Template is too
+# dynamic to be effectively type-checked.
+def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
+    """
+    Render a Jinja2 template with given Airflow context.
+
+    The default implementation of ``jinja2.Template.render()`` converts the
+    input context into dict eagerly many times, which triggers deprecation
+    messages in our custom context class. This takes the implementation apart
+    and retain the context mapping without resolving instead.
+
+    :param template: A Jinja2 template to render.
+    :param context: The Airflow task context to render the template with.
+    :param native: If set to *True*, render the template into a native type. A
+        Dag can enable this with ``render_template_as_native_obj=True``.
+    :returns: The render result.
+    """
+    context = copy.copy(context)
+    env = template.environment
+    if template.globals:
+        context.update((k, v) for k, v in template.globals.items() if k not in context)
+    try:
+        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+    except Exception:
+        env.handle_exception()  # Rewrite traceback to point to the template.
+    if native:
+        import jinja2.nativetypes
+
+        return jinja2.nativetypes.native_concat(nodes)
+    return "".join(nodes)
+
+
+def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
+    """Shorthand to ``render_template(native=True)`` with better typing support."""
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=True)
+
+
+def render_template_to_string(template: jinja2.Template, context: Context) -> str:
+    """Shorthand to ``render_template(native=False)`` with better typing support."""
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)

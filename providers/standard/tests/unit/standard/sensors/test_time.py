@@ -124,3 +124,17 @@ class TestTimeSensor:
         assert exc_info.value.trigger.moment == pendulum.datetime(2020, 7, 7, 10)
         assert exc_info.value.kwargs is None
         assert exc_info.value.method_name == "execute_complete"
+
+    def test_execute_complete_accepts_event(self):
+        """Ensure execute_complete supports the 'event' kwarg when deferrable=True."""
+        with DAG(
+            dag_id="test_execute_complete_accepts_event",
+            schedule=None,
+            start_date=datetime(2020, 1, 1),  # Matches above
+        ):
+            op = TimeSensor(task_id="test", target_time=time(10, 0), deferrable=True)
+
+        try:
+            op.execute_complete(context={}, event={"status": "success"})
+        except TypeError as e:
+            pytest.fail(f"TypeError raised: {e}")

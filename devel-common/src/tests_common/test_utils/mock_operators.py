@@ -21,17 +21,17 @@ from typing import TYPE_CHECKING
 
 import attr
 
-from airflow.models.baseoperator import BaseOperator
-
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
-if AIRFLOW_V_3_0_PLUS:
+try:
     from airflow.models.xcom import XComModel as XCom
-else:
+    from airflow.sdk import BaseOperator
+except ImportError:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 

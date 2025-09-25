@@ -182,14 +182,13 @@ def test_get_airflow_dag_run_facet():
         "fileloc": pathlib.Path(__file__).resolve().as_posix(),
         "owner": "airflow",
         "timetable": {},
+        "timetable_summary": "@once",
         "start_date": "2024-06-01T00:00:00+00:00",
         "tags": "['test']",
         "owner_links": {},
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
-    else:  # Airflow 3 and up.
-        expected_dag_info["timetable_summary"] = "@once"
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
             dag=expected_dag_info,
@@ -274,7 +273,7 @@ def test_get_fully_qualified_class_name_serialized_operator():
     op_path_after_deserialization = get_fully_qualified_class_name(deserialized)
     assert op_path_after_deserialization == f"{op_module_path}.{op_name}"
     assert deserialized._task_module == op_module_path
-    assert deserialized._task_type == op_name
+    assert deserialized.task_type == op_name
 
 
 def test_get_fully_qualified_class_name_mapped_operator():
@@ -1055,7 +1054,21 @@ def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     assert result == {}
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2.9+ tests")
+def test_daginfo_timetable_summary():
+    from airflow.timetables.simple import NullTimetable
+
+    dag = MagicMock()
+    # timetable is enough to get summary
+    dag.timetable = NullTimetable()
+    dag.timetable_summary = None
+    assert DagInfo(dag).timetable_summary == "None"
+
+    # but if summary is present, it's preferred
+    dag.timetable_summary = "explicit_summary"
+    assert DagInfo(dag).timetable_summary == "explicit_summary"
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
 class TestDagInfoAirflow2:
     def test_dag_info(self):
         with DAG(
@@ -1080,6 +1093,7 @@ class TestDagInfoAirflow2:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "['test']",
             "timetable": {},
+            "timetable_summary": "@once",
             "owner_links": {"some_owner": "https://airflow.apache.org"},
         }
 
@@ -1100,6 +1114,7 @@ class TestDagInfoAirflow2:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "timetable": {"expression": "*/4 3 * * *", "timezone": "UTC"},
+            "timetable_summary": "*/4 3 * * *",
             "owner_links": {},
         }
 
@@ -1124,6 +1139,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "My Team's Baseball Games",
+            "timetable_summary": "My Team's Baseball Games",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1151,6 +1167,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1176,6 +1193,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1204,6 +1222,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1250,6 +1269,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset or */4 3 * * *",
+            "timetable_summary": "Dataset or */4 3 * * *",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1301,6 +1321,7 @@ class TestDagInfoAirflow210:
             "owner_links": {},
             "timetable": {"dataset_condition": {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}}},
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
         }
 
 
@@ -1763,7 +1784,7 @@ def test_taskinstance_info_af3():
     runtime_ti.bundle_instance = bundle_instance
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
-        "log_url": None,
+        "log_url": runtime_ti.log_url,
         "map_index": 2,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",

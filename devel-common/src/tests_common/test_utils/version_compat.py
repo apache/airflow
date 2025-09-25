@@ -36,13 +36,18 @@ AIRFLOW_V_3_0_1 = get_base_airflow_version_tuple() == (3, 0, 1)
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_0_3_PLUS = get_base_airflow_version_tuple() >= (3, 0, 3)
 AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+AIRFLOW_V_3_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 0)
+
 
 if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import PokeReturnValue, timezone
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 
     XCOM_RETURN_KEY = BaseXCom.XCOM_RETURN_KEY
 else:
+    from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.decorators import remove_task_decorator  # type: ignore[no-redef]
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]
 
@@ -63,8 +68,11 @@ __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_0_1",
     "AIRFLOW_V_3_1_PLUS",
+    "AIRFLOW_V_3_2_PLUS",
     "SQLALCHEMY_V_1_4",
     "SQLALCHEMY_V_2_0",
     "XCOM_RETURN_KEY",
+    "PokeReturnValue",
     "remove_task_decorator",
+    "timezone",
 ]

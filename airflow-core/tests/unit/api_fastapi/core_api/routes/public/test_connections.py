@@ -232,6 +232,20 @@ class TestGetConnections(TestConnectionEndpoint):
         response = unauthorized_test_client.get("/connections", params={})
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_connections"
+    )
+    def test_should_call_get_authorized_connections(self, mock_get_authorized_connections, test_client):
+        self.create_connections()
+        mock_get_authorized_connections.return_value = {TEST_CONN_ID}
+        response = test_client.get("/connections")
+        mock_get_authorized_connections.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 1
+        assert [connection["connection_id"] for connection in body["connections"]] == [TEST_CONN_ID]
+
 
 class TestPostConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
@@ -464,6 +478,27 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "host": TEST_CONN_HOST,
                     "login": "test_login_patch",
                     "password": "test_password_patch",
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
+                # Sensitive "***" should be ignored.
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "port": 80,
+                    "login": "test_login_patch",
+                    "password": "***",
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "password": None,
                     "port": 80,
                     "schema": None,
                 },
@@ -1223,5 +1258,62 @@ class TestBulkConnections(TestConnectionEndpoint):
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/connections", json={})
+        response = unauthorized_test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"connection_id": "test1", "conn_type": "test1"},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403
+
+
+class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
+    def test_post_should_accept_empty_string_as_extra(self, test_client, session):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": ""}
+
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 201
+
+        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        assert connection is not None
+        assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
+
+    @pytest.mark.parametrize(
+        "extra, expected_error_message",
+        [
+            ("[1,2,3]", "Expected JSON object in `extra` field, got non-dict JSON"),
+            ("some_string", "Encountered non-JSON in `extra` field"),
+        ],
+    )
+    def test_post_should_fail_with_non_json_object_as_extra(
+        self, test_client, extra, expected_error_message, session
+    ):
+        """JSON primitives are a valid JSON and should raise 422 validation error."""
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": extra}
+
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+        assert (
+            "Value error, The `extra` field must be a valid JSON object (e.g., {'key': 'value'})"
+            in response.json()["detail"][0]["msg"]
+        )
+
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="post_connection",
+            logical_date=None,
+            expected_extra={
+                "connection_id": "test_connection_id",
+                "conn_type": "test_type",
+                "extra": expected_error_message,
+                "method": "POST",
+            },
+        )

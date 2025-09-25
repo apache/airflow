@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.models.pool import Pool
@@ -37,11 +39,23 @@ POOL2_INCLUDE_DEFERRED = False
 POOL2_DESCRIPTION = "Some Description"
 
 
+POOL3_NAME = "pool3/with_slashes"
+POOL3_SLOT = 5
+POOL3_INCLUDE_DEFERRED = False
+POOL3_DESCRIPTION = "Some Description"
+
+
 @provide_session
 def _create_pools(session) -> None:
     pool1 = Pool(pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED)
     pool2 = Pool(pool=POOL2_NAME, slots=POOL2_SLOT, include_deferred=POOL2_INCLUDE_DEFERRED)
-    session.add_all([pool1, pool2])
+    pool3 = Pool(
+        pool=POOL3_NAME,
+        slots=POOL3_SLOT,
+        include_deferred=POOL3_INCLUDE_DEFERRED,
+        description=POOL3_DESCRIPTION,
+    )
+    session.add_all([pool1, pool2, pool3])
 
 
 class TestPoolsEndpoint:
@@ -60,11 +74,11 @@ class TestDeletePool(TestPoolsEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_pools()
         pools = session.query(Pool).all()
-        assert len(pools) == 3
+        assert len(pools) == 4
         response = test_client.delete(f"/pools/{POOL1_NAME}")
         assert response.status_code == 204
         pools = session.query(Pool).all()
-        assert len(pools) == 2
+        assert len(pools) == 3
         check_last_log(session, dag_id=None, event="delete_pool", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
@@ -86,6 +100,17 @@ class TestDeletePool(TestPoolsEndpoint):
         assert response.status_code == 404
         body = response.json()
         assert f"The Pool with name: `{POOL1_NAME}` was not found" == body["detail"]
+
+    def test_delete_pool3_should_respond_204(self, test_client, session):
+        """Test deleting POOL3 with forward slash in name"""
+        self.create_pools()
+        pools = session.query(Pool).all()
+        assert len(pools) == 4
+        response = test_client.delete(f"/pools/{POOL3_NAME}")
+        assert response.status_code == 204
+        pools = session.query(Pool).all()
+        assert len(pools) == 3
+        check_last_log(session, dag_id=None, event="delete_pool", logical_date=None)
 
 
 class TestGetPool(TestPoolsEndpoint):
@@ -120,24 +145,42 @@ class TestGetPool(TestPoolsEndpoint):
         body = response.json()
         assert f"The Pool with name: `{POOL1_NAME}` was not found" == body["detail"]
 
+    def test_get_pool3_should_respond_200(self, test_client, session):
+        """Test getting POOL3 with forward slash in name"""
+        self.create_pools()
+        response = test_client.get(f"/pools/{POOL3_NAME}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "deferred_slots": 0,
+            "description": "Some Description",
+            "include_deferred": False,
+            "name": "pool3/with_slashes",
+            "occupied_slots": 0,
+            "open_slots": 5,
+            "queued_slots": 0,
+            "running_slots": 0,
+            "scheduled_slots": 0,
+            "slots": 5,
+        }
+
 
 class TestGetPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
         "query_params, expected_total_entries, expected_ids",
         [
             # Filters
-            ({}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
-            ({"limit": 1}, 3, [Pool.DEFAULT_POOL_NAME]),
-            ({"limit": 1, "offset": 1}, 3, [POOL1_NAME]),
+            ({}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
+            ({"limit": 1}, 4, [Pool.DEFAULT_POOL_NAME]),
+            ({"limit": 1, "offset": 1}, 4, [POOL1_NAME]),
             # Sort
-            ({"order_by": "-id"}, 3, [POOL2_NAME, POOL1_NAME, Pool.DEFAULT_POOL_NAME]),
-            ({"order_by": "id"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
-            ({"order_by": "name"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
+            ({"order_by": "-id"}, 4, [POOL3_NAME, POOL2_NAME, POOL1_NAME, Pool.DEFAULT_POOL_NAME]),
+            ({"order_by": "id"}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
+            ({"order_by": "name"}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
             # Search
             (
                 {"pool_name_pattern": "~"},
-                3,
-                [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME],
+                4,
+                [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME],
             ),
             ({"pool_name_pattern": "default"}, 1, [Pool.DEFAULT_POOL_NAME]),
         ],
@@ -160,6 +203,18 @@ class TestGetPools(TestPoolsEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/pools", params={"pool_name_pattern": "~"})
         assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_pools")
+    def test_should_call_get_authorized_pools(self, mock_get_authorized_pools, test_client):
+        self.create_pools()
+        mock_get_authorized_pools.return_value = {Pool.DEFAULT_POOL_NAME, POOL1_NAME}
+        response = test_client.get("/pools")
+        mock_get_authorized_pools.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [pool["name"] for pool in body["pools"]] == [Pool.DEFAULT_POOL_NAME, POOL1_NAME]
 
 
 class TestPatchPool(TestPoolsEndpoint):
@@ -313,6 +368,32 @@ class TestPatchPool(TestPoolsEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(f"/pools/{POOL1_NAME}", params={}, json={})
         assert response.status_code == 403
+
+    def test_patch_pool3_should_respond_200(self, test_client, session):
+        """Test patching POOL3 with forward slash in name"""
+        self.create_pools()
+        body = {
+            "slots": 10,
+            "description": "Updated Description",
+            "name": POOL3_NAME,
+            "include_deferred": True,
+        }
+        response = test_client.patch(f"/pools/{POOL3_NAME}", json=body)
+        assert response.status_code == 200
+        expected_response = {
+            "deferred_slots": 0,
+            "description": "Updated Description",
+            "include_deferred": True,
+            "name": "pool3/with_slashes",
+            "occupied_slots": 0,
+            "open_slots": 10,
+            "queued_slots": 0,
+            "running_slots": 0,
+            "scheduled_slots": 0,
+            "slots": 10,
+        }
+        assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
 
 class TestPostPool(TestPoolsEndpoint):
@@ -764,5 +845,17 @@ class TestBulkPools(TestPoolsEndpoint):
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/pools", json={})
+        response = unauthorized_test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"pool": "pool1", "slots": 1},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403

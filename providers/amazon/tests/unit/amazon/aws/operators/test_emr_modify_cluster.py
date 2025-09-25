@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -24,7 +23,11 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import EmrModifyClusterOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

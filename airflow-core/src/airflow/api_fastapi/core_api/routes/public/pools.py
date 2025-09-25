@@ -40,7 +40,11 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_pool
+from airflow.api_fastapi.core_api.security import (
+    ReadablePoolsFilterDep,
+    requires_access_pool,
+    requires_access_pool_bulk,
+)
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
@@ -49,7 +53,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
 
 
 @pools_router.delete(
-    "/{pool_name}",
+    "/{pool_name:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
@@ -74,7 +78,7 @@ def delete_pool(
 
 
 @pools_router.get(
-    "/{pool_name}",
+    "/{pool_name:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_pool(method="GET"))],
 )
@@ -103,12 +107,13 @@ def get_pools(
         Depends(SortParam(["id", "pool"], Pool, to_replace={"name": "pool"}).dynamic_depends()),
     ],
     pool_name_pattern: QueryPoolNamePatternSearch,
+    readable_pools_filter: ReadablePoolsFilterDep,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
-        filters=[pool_name_pattern],
+        filters=[pool_name_pattern, readable_pools_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -124,7 +129,7 @@ def get_pools(
 
 
 @pools_router.patch(
-    "/{pool_name}",
+    "/{pool_name:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -197,7 +202,7 @@ def post_pool(
 
 @pools_router.patch(
     "",
-    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
+    dependencies=[Depends(requires_access_pool_bulk()), Depends(action_logging())],
 )
 def bulk_pools(
     request: BulkBody[PoolBody],

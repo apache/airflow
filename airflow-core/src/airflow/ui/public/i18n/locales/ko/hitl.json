@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "전체",
+      "pending": "대기 중",
+      "received": "검토됨"
+    }
+  },
+  "requiredAction_one": "필수 작업",
+  "requiredAction_other": "필수 작업들",
+  "requiredActionCount_one": "필수 작업 ({{count}})",
+  "requiredActionCount_other": "필수 작업들 ({{count}})",
+  "requiredActionState": "필수 작업 상태",
+  "response": {
+    "error": "응답 실패",
+    "optionsDescription": "이 작업 인스턴스에 대한 옵션을 선택하세요",
+    "optionsLabel": "옵션",
+    "received": "응답 수신 시간: ",
+    "respond": "응답하기",
+    "success": "{{taskId}} 응답 성공",
+    "title": "휴먼 태스크 인스턴스 - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "승인 수신됨",
+    "approvalRequired": "승인 필요",
+    "choiceReceived": "선택 수신됨",
+    "choiceRequired": "선택 필요",
+    "noResponseReceived": "응답 없음",
+    "rejectionReceived": "거절 수신됨",
+    "responseReceived": "응답 수신됨",
+    "responseRequired": "응답 필요"
+  },
+  "subject": "제목"
+}

@@ -142,7 +142,17 @@ with DAG(
         waiter_delay=5,  # optional
         deferrable=False,  # optional
         executor_config={  # optional
-            "overrides": {"containerOverrides": {"environment": mock_mwaa_environment_params}}
+            "overrides": {
+                "containerOverrides": [
+                    {
+                        "environment": [
+                            {"name": key, "value": value}
+                            for key, value in mock_mwaa_environment_params.items()
+                        ],
+                        "name": "ECSExecutorContainer",  # Necessary parameter
+                    }
+                ]
+            }
         },
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]

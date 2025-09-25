@@ -102,7 +102,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             "retry": retry_if_exception(self._should_retry_on_error),
             "wait": wait_exponential(multiplier=1, min=1, max=60),
             "stop": stop_after_attempt(5),
-            "before_sleep": before_sleep_log(self.log, log_level=20),  # INFO level
+            "before_sleep": before_sleep_log(self.log, log_level=20),  # type: ignore[arg-type]
             "reraise": True,
         }
         if api_retry_args:
@@ -288,7 +288,21 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
         if status_code == 422:
-            return {"status": "error", "message": resp["message"]}
+            error_message = resp.get("message", "Unknown error occurred")
+            error_details = []
+            if code := resp.get("code"):
+                error_details.append(f"Code: {code}")
+            if sql_state := resp.get("sqlState"):
+                error_details.append(f"SQL State: {sql_state}")
+            if statement_handle := resp.get("statementHandle"):
+                error_details.append(f"Statement Handle: {statement_handle}")
+
+            if error_details:
+                enhanced_message = f"{error_message} ({', '.join(error_details)})"
+            else:
+                enhanced_message = error_message
+
+            return {"status": "error", "message": enhanced_message}
         if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles

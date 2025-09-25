@@ -98,7 +98,9 @@ export const DataTable = <TData,>({
     },
     [onStateChange],
   );
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+    initialState?.columnVisibility ?? {},
+  );
 
   const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
 
@@ -145,7 +147,7 @@ export const DataTable = <TData,>({
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && (
-        <Text pl={4} pt={1}>
+        <Text as="div" pl={4} pt={1}>
           {noRowsMessage ?? translate("noItemsFound", { modelName })}
         </Text>
       )}

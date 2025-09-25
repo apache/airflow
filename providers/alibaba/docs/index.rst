@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-alibaba/|version|/alibaba/tests/system/alibaba>
+    Example Dags <https://github.com/apache/airflow/tree/providers-alibaba/|version|/alibaba/tests/system/alibaba>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-alibaba/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,9 +77,7 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 3.2.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 3.2.3
 
 Provider package
 ----------------
@@ -90,7 +88,7 @@ All classes for this package are included in the ``airflow.providers.alibaba`` p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-alibaba``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

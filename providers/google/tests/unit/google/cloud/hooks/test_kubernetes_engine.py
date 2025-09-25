@@ -24,6 +24,7 @@ from unittest import mock
 
 import kubernetes.client
 import pytest
+import pytest_asyncio
 from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
@@ -543,8 +544,8 @@ class TestGKEKubernetesAsyncHook:
         assert "Test string #2" in caplog.text
 
 
-@pytest.fixture
-def async_gke_hook():
+@pytest_asyncio.fixture
+async def async_gke_hook():
     return GKEAsyncHook(
         gcp_conn_id=GCP_CONN_ID,
         location=GKE_ZONE,
@@ -552,8 +553,8 @@ def async_gke_hook():
     )
 
 
-@pytest.fixture
-def mock_async_gke_cluster_client():
+@pytest_asyncio.fixture
+async def mock_async_gke_cluster_client():
     f = Future()
     f.set_result(None)
     client = mock.MagicMock(spec=ClusterManagerAsyncClient)

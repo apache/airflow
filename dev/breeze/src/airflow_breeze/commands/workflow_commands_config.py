@@ -29,6 +29,7 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--ref",
                 "--skip-tag-validation",
                 "--apply-commits",
+                "--workflow-branch",
             ],
         },
         {

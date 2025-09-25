@@ -34,7 +34,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select
+from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -53,10 +53,12 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -113,9 +115,11 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
 
 
 class _FavoriteFilter(BaseParam[bool]):
-    """Filter DAGs by favorite status."""
+    """Filter Dags by favorite status."""
 
-    user_id: str
+    def __init__(self, user_id: str, value: T | None = None, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.user_id = user_id
 
     def to_orm(self, select_stmt: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -128,7 +132,7 @@ class _FavoriteFilter(BaseParam[bool]):
         else:
             select_stmt = select_stmt.where(
                 not_(
-                    select(DagFavorite)
+                    sql_select(DagFavorite)
                     .where(and_(DagFavorite.dag_id == DagModel.dag_id, DagFavorite.user_id == self.user_id))
                     .exists()
                 )
@@ -138,8 +142,7 @@ class _FavoriteFilter(BaseParam[bool]):
 
     @classmethod
     def depends(cls, user: GetUserDep, is_favorite: bool | None = Query(None)) -> _FavoriteFilter:
-        instance = cls().set_value(is_favorite)
-        instance.user_id = str(user.get_id())
+        instance = cls(user_id=str(user.get_id())).set_value(is_favorite)
         return instance
 
 
@@ -282,7 +285,9 @@ class SortParam(BaseParam[list[str]]):
     def dynamic_depends(self, default: str | None = None) -> Callable:
         def inner(
             order_by: list[str] = Query(
-                default=[default] if default is not None else [self.get_primary_key_string()]
+                default=[default] if default is not None else [self.get_primary_key_string()],
+                description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
+                f"Supported attributes: `{', '.join(self.allowed_attrs) if self.allowed_attrs else self.get_primary_key_string()}`",
             ),
         ) -> SortParam:
             return self.set_value(order_by)
@@ -377,14 +382,16 @@ def filter_param_factory(
     default_factory: Callable[[], T | None] | None = None,
     skip_none: bool = True,
     transform_callable: Callable[[T | None], Any] | None = None,
+    *,
+    description: str | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
     # can only set either default_value or default_factory
     query = (
-        Query(alias=filter_name, default_factory=default_factory)
+        Query(alias=filter_name, default_factory=default_factory, description=description)
         if default_factory is not None
-        else Query(alias=filter_name, default=default_value)
+        else Query(alias=filter_name, default=default_value, description=description)
     )
 
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
@@ -509,8 +516,10 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
-    lower_bound: T | None
-    upper_bound: T | None
+    lower_bound_gte: T | None
+    lower_bound_gt: T | None
+    upper_bound_lte: T | None
+    upper_bound_lt: T | None
 
 
 class RangeFilter(BaseParam[Range]):
@@ -524,10 +533,18 @@ class RangeFilter(BaseParam[Range]):
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
-        if self.value and self.value.lower_bound:
-            select = select.where(self.attribute >= self.value.lower_bound)
-        if self.value and self.value.upper_bound:
-            select = select.where(self.attribute <= self.value.upper_bound)
+        if self.value is None:
+            return select
+
+        if self.value.lower_bound_gte:
+            select = select.where(self.attribute >= self.value.lower_bound_gte)
+        if self.value.lower_bound_gt:
+            select = select.where(self.attribute > self.value.lower_bound_gt)
+        if self.value.upper_bound_lte:
+            select = select.where(self.attribute <= self.value.upper_bound_lte)
+        if self.value.upper_bound_lt:
+            select = select.where(self.attribute < self.value.upper_bound_lt)
+
         return select
 
     @classmethod
@@ -537,7 +554,10 @@ class RangeFilter(BaseParam[Range]):
     def is_active(self) -> bool:
         """Check if the range filter has any active bounds."""
         return self.value is not None and (
-            self.value.lower_bound is not None or self.value.upper_bound is not None
+            self.value.lower_bound_gte is not None
+            or self.value.lower_bound_gt is not None
+            or self.value.upper_bound_lte is not None
+            or self.value.upper_bound_lt is not None
         )
 
 
@@ -545,14 +565,21 @@ def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
 ) -> Callable[[datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
-        lower_bound: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
-        upper_bound: datetime | None = Query(alias=f"{filter_name}_lte", default=None),
+        lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
+        lower_bound_gt: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
+        upper_bound_lte: datetime | None = Query(alias=f"{filter_name}_lte", default=None),
+        upper_bound_lt: datetime | None = Query(alias=f"{filter_name}_lt", default=None),
     ) -> RangeFilter:
         attr = getattr(model, attribute_name or filter_name)
         if filter_name in ("start_date", "end_date"):
             attr = func.coalesce(attr, func.now())
         return RangeFilter(
-            Range(lower_bound=lower_bound, upper_bound=upper_bound),
+            Range(
+                lower_bound_gte=lower_bound_gte,
+                lower_bound_gt=lower_bound_gt,
+                upper_bound_lte=upper_bound_lte,
+                upper_bound_lt=upper_bound_lt,
+            ),
             attr,
         )
 
@@ -563,11 +590,19 @@ def float_range_filter_factory(
     filter_name: str, model: Base
 ) -> Callable[[float | None, float | None], RangeFilter]:
     def depends_float(
-        lower_bound: float | None = Query(alias=f"{filter_name}_gte", default=None),
-        upper_bound: float | None = Query(alias=f"{filter_name}_lte", default=None),
+        lower_bound_gte: float | None = Query(alias=f"{filter_name}_gte", default=None),
+        lower_bound_gt: float | None = Query(alias=f"{filter_name}_gt", default=None),
+        upper_bound_lte: float | None = Query(alias=f"{filter_name}_lte", default=None),
+        upper_bound_lt: float | None = Query(alias=f"{filter_name}_lt", default=None),
     ) -> RangeFilter:
         return RangeFilter(
-            Range(lower_bound=lower_bound, upper_bound=upper_bound), getattr(model, filter_name)
+            Range(
+                lower_bound_gte=lower_bound_gte,
+                lower_bound_gt=lower_bound_gt,
+                upper_bound_lte=upper_bound_lte,
+                upper_bound_lt=upper_bound_lt,
+            ),
+            getattr(model, filter_name),
         )
 
     return depends_float
@@ -577,12 +612,23 @@ def float_range_filter_factory(
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[str | None, AfterValidator(_safe_parse_datetime_optional)]
 
-# DAG
+# Dag
 QueryLimit = Annotated[LimitFilter, Depends(LimitFilter.depends)]
 QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter.depends)]
 QueryPausedFilter = Annotated[
     FilterParam[bool | None],
     Depends(filter_param_factory(DagModel.is_paused, bool | None, filter_name="paused")),
+]
+QueryHasImportErrorsFilter = Annotated[
+    FilterParam[bool | None],
+    Depends(
+        filter_param_factory(
+            DagModel.has_import_errors,
+            bool | None,
+            filter_name="has_import_errors",
+            description="Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.",
+        )
+    ),
 ]
 QueryFavoriteFilter = Annotated[_FavoriteFilter, Depends(_FavoriteFilter.depends)]
 QueryExcludeStaleFilter = Annotated[_ExcludeStaleFilter, Depends(_ExcludeStaleFilter.depends)]
@@ -592,11 +638,112 @@ QueryDagIdPatternSearch = Annotated[
 QueryDagDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
 ]
+QueryBundleNameFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(DagModel.bundle_name, str | None, filter_name="bundle_name")),
+]
+QueryBundleVersionFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(DagModel.bundle_version, str | None, filter_name="bundle_version")),
+]
 QueryDagIdPatternSearchWithNone = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern", False))
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+
+
+class _HasAssetScheduleFilter(BaseParam[bool]):
+    """Filter Dags that have asset-based scheduling."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        asset_ref_subquery = sql_select(DagScheduleAssetReference.dag_id).distinct()
+
+        if self.value:
+            # Filter Dags that have asset-based scheduling
+            return select.where(DagModel.dag_id.in_(asset_ref_subquery))
+
+        # Filter Dags that do NOT have asset-based scheduling
+        return select.where(DagModel.dag_id.notin_(asset_ref_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        has_asset_schedule: bool | None = Query(None, description="Filter Dags with asset-based scheduling"),
+    ) -> _HasAssetScheduleFilter:
+        return cls().set_value(has_asset_schedule)
+
+
+class _AssetDependencyFilter(BaseParam[str]):
+    """Filter Dags by specific asset dependencies."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        asset_dag_subquery = (
+            sql_select(DagScheduleAssetReference.dag_id)
+            .join(AssetModel, DagScheduleAssetReference.asset_id == AssetModel.id)
+            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+            .distinct()
+        )
+
+        return select.where(DagModel.dag_id.in_(asset_dag_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        asset_dependency: str | None = Query(
+            None, description="Filter Dags by asset dependency (name or URI)"
+        ),
+    ) -> _AssetDependencyFilter:
+        return cls().set_value(asset_dependency)
+
+
+QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
+QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
+
+
+class _PendingActionsFilter(BaseParam[bool]):
+    """Filter Dags by having pending HITL actions (more than 1)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        from airflow.models.hitl import HITLDetail
+        from airflow.models.taskinstance import TaskInstance
+
+        # Join with HITLDetail and TaskInstance to find Dags
+        pending_actions_count_subquery = (
+            sql_select(func.count(HITLDetail.ti_id))
+            .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .where(
+                HITLDetail.responded_at.is_(None),
+                TaskInstance.state == TaskInstanceState.DEFERRED,
+            )
+            .where(TaskInstance.dag_id == DagModel.dag_id)
+            .scalar_subquery()
+        )
+
+        if self.value is True:
+            # Filter to show only Dags with pending actions
+            where_clause = pending_actions_count_subquery >= 1
+        else:
+            # Filter to show only Dags without pending actions
+            where_clause = pending_actions_count_subquery == 0
+
+        return select.where(where_clause)
+
+    @classmethod
+    def depends(cls, has_pending_actions: bool | None = Query(None)) -> _PendingActionsFilter:
+        return cls().set_value(has_pending_actions)
+
+
+QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
@@ -656,7 +803,11 @@ QueryDagRunRunTypesFilter = Annotated[
     ),
 ]
 
-# DAGTags
+QueryDagRunTriggeringUserSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user"))
+]
+
+# DagTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
 ]
@@ -723,6 +874,59 @@ QueryTIDagVersionFilter = Annotated[
         )
     ),
 ]
+QueryDagRunVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            filter_name="dag_version",
+        )
+    ),
+]
+QueryTITryNumberFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.try_number, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
+QueryTIOperatorFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
+QueryTIMapIndexFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+
+# XCom
+QueryXComKeyPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.key, "xcom_key_pattern"))
+]
+
+QueryXComDagDisplayNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
+]
+QueryXComRunIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.run_id, "run_id_pattern"))
+]
+QueryXComTaskIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(XComModel.task_id, "task_id_pattern"))
+]
 
 # Assets
 QueryAssetNamePatternSearch = Annotated[
@@ -786,14 +990,33 @@ QueryHITLDetailDagIdPatternSearch = Annotated[
         )
     ),
 ]
-QueryHITLDetailDagRunIdFilter = Annotated[
-    FilterParam[str],
+QueryHITLDetailTaskIdPatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            TaskInstance.task_id,
+            "task_id_pattern",
+        )
+    ),
+]
+QueryHITLDetailTaskIdFilter = Annotated[
+    FilterParam[str | None],
     Depends(
         filter_param_factory(
-            TaskInstance.run_id,
-            str,
-            filter_name="dag_run_id",
-        ),
+            TaskInstance.task_id,
+            str | None,
+            filter_name="task_id",
+        )
+    ),
+]
+QueryHITLDetailMapIndexFilter = Annotated[
+    FilterParam[int | None],
+    Depends(
+        filter_param_factory(
+            TaskInstance.map_index,
+            int | None,
+            filter_name="map_index",
+        )
     ),
 ]
 QueryHITLDetailSubjectSearch = Annotated[
@@ -824,15 +1047,32 @@ QueryHITLDetailResponseReceivedFilter = Annotated[
         )
     ),
 ]
-QueryHITLDetailUserIdFilter = Annotated[
+QueryHITLDetailRespondedUserIdFilter = Annotated[
     FilterParam[list[str]],
     Depends(
         filter_param_factory(
-            HITLDetail.user_id,
+            HITLDetail.responded_by_user_id,
             list[str],
             FilterOptionEnum.ANY_EQUAL,
             default_factory=list,
-            filter_name="user_id",
+            filter_name="responded_by_user_id",
         )
     ),
+]
+QueryHITLDetailRespondedUserNameFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            HITLDetail.responded_by_user_name,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            filter_name="responded_by_user_name",
+        )
+    ),
+]
+
+# Parse Import Errors
+QueryParseImportErrorFilenamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(ParseImportError.filename, "filename_pattern"))
 ]

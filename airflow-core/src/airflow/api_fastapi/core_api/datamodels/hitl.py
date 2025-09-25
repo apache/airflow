@@ -30,17 +30,24 @@ from airflow.sdk import Param
 class UpdateHITLDetailPayload(BaseModel):
     """Schema for updating the content of a Human-in-the-loop detail."""
 
-    chosen_options: list[str]
+    chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
 
 
 class HITLDetailResponse(BaseModel):
     """Response of updating a Human-in-the-loop detail."""
 
-    user_id: str
-    response_at: datetime
-    chosen_options: list[str]
+    responded_by: HITLUser
+    responded_at: datetime
+    chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
+
+
+class HITLUser(BaseModel):
+    """Schema for a Human-in-the-loop users."""
+
+    id: str
+    name: str
 
 
 class HITLDetail(BaseModel):
@@ -49,16 +56,18 @@ class HITLDetail(BaseModel):
     task_instance: TaskInstanceResponse
 
     # User Request Detail
-    options: list[str]
+    options: list[str] = Field(min_length=1)
     subject: str
     body: str | None = None
     defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
+    assigned_users: list[HITLUser] = Field(default_factory=list)
+    created_at: datetime
 
     # Response Content Detail
-    user_id: str | None = None
-    response_at: datetime | None = None
+    responded_by_user: HITLUser | None = None
+    responded_at: datetime | None = None
     chosen_options: list[str] | None = None
     params_input: dict[str, Any] = Field(default_factory=dict)
 

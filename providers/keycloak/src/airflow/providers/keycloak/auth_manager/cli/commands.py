@@ -114,7 +114,7 @@ def _get_client_uuid(args):
 
 def _create_scopes(client: KeycloakAdmin, client_uuid: str):
     scopes = [{"name": method} for method in get_args(ResourceMethod)]
-    scopes.append({"name": "MENU"})
+    scopes.extend([{"name": "MENU"}, {"name": "LIST"}])
     for scope in scopes:
         client.create_client_authz_scopes(client_id=client_uuid, payload=scope)
 
@@ -126,7 +126,7 @@ def _create_resources(client: KeycloakAdmin, client_uuid: str):
     scopes = [
         {"id": scope["id"], "name": scope["name"]}
         for scope in all_scopes
-        if scope["name"] in ["GET", "POST", "PUT", "DELETE"]
+        if scope["name"] in ["GET", "POST", "PUT", "DELETE", "LIST"]
     ]
 
     for resource in KeycloakResource:
@@ -166,7 +166,7 @@ def _create_permissions(client: KeycloakAdmin, client_uuid: str):
 
 def _create_read_only_permission(client: KeycloakAdmin, client_uuid: str):
     all_scopes = client.get_client_authz_scopes(client_uuid)
-    scopes = [scope["id"] for scope in all_scopes if scope["name"] in ["GET", "MENU"]]
+    scopes = [scope["id"] for scope in all_scopes if scope["name"] in ["GET", "MENU", "LIST"]]
     payload = {
         "name": "ReadOnly",
         "type": "scope",

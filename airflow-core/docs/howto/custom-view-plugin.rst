@@ -54,6 +54,13 @@ available in :doc:`plugin </administration-and-deployment/plugins>`.
 Developing React Applications with the Bootstrap Tool
 =====================================================
 
+.. warning::
+  React applications are new in Airflow 3.1 and should be considered experimental. The feature may be
+  subject to changes in future versions without warning based on user feedback and errors reported.
+  Dependency and state interactions between the UI and plugins may need to be refactored, which will also change the bootstrapped example project provided.
+
+|experimental|
+
 Airflow provides a React plugin bootstrap tool to help developers quickly create, develop, and integrate external React applications into the core UI. This is the most flexible
 and recommended way to customize the Airflow UI.
 This tool generates a complete React project structure that builds as a library compatible with dynamic imports and shares React instances with the host Airflow application.
@@ -75,6 +82,11 @@ The bootstrap tool is located in ``dev/react-plugin-tools/`` and provides a simp
     python bootstrap.py my-awesome-plugin --dir /path/to/my-projects/my-awesome-plugin
 
 This generates a complete React project with Vite, TypeScript, Chakra UI integration, and proper configuration for building as a library that integrates with Airflow's UI.
+
+.. warning:: It is highly recommended to use the bootstrap tool to create a new React Plugin project. There are specific bundling configurations required
+   to ensure compatibility with Airflow's Core UI and manually setting up a project may lead to integration issues. If you already have an existing React project that
+   you want to integrate, you can take a look at the bootstrap tool code and the generated build configuration files for reference.
+   React and React-DOM are shared dependencies with the host application and need to have compatible versions.
 
 React Development Workflow
 ---------------------------
@@ -143,7 +155,7 @@ Create an Airflow plugin that serves your React application:
             {
                 "name": "My Awesome React App",
                 "url_route": "my-awesome-app",
-                "bundle_url": "http://localhost:28080/my-plugin/my-react-app/main.umd.cjs",
+                "bundle_url": "https://airflow-domain/my-plugin/my-react-app/main.umd.cjs",
                 "destination": "nav",
             }
         ]

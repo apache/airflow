@@ -95,8 +95,6 @@ function startairflow_if_requested() {
         echo
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
-        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
-
         if airflow db migrate
         then
             if [[ ${LOAD_DEFAULT_CONNECTIONS=} == "true" || ${LOAD_DEFAULT_CONNECTIONS=} == "True" ]]; then
@@ -119,9 +117,6 @@ function startairflow_if_requested() {
         else
             echo "Skipping user creation as auth manager different from Fab is used"
         fi
-
-        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
-
     fi
     return $?
 }

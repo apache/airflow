@@ -25,7 +25,7 @@
 # lib.)  This is required by some IDEs to resolve the import paths.
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 
 
 import os
@@ -80,21 +80,20 @@ if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
 
 # Things to lazy import in form {local_name: ('target_module', 'target_name', 'deprecated')}
 __lazy_imports: dict[str, tuple[str, str, bool]] = {
-    "DAG": (".models.dag", "DAG", False),
-    "Asset": (".assets", "Asset", False),
+    "DAG": (".sdk", "DAG", False),
+    "Asset": (".sdk", "Asset", False),
     "XComArg": (".models.xcom_arg", "XComArg", False),
     "version": (".version", "", False),
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
-    "Dataset": (".sdk.definitions.asset", "Asset", True),
+    "Dataset": (".sdk", "Asset", True),
 }
 if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
-    from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg
-    from airflow.sdk.definitions.asset import Asset, Dataset
+    from airflow.sdk import DAG, Asset, Asset as Dataset
 
 
 def __getattr__(name: str):

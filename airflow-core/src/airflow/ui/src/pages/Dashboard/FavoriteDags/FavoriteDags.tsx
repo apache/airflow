@@ -43,7 +43,7 @@ export const FavoriteDags = () => {
       </Flex>
 
       {favorites.dags.length === 0 ? (
-        <Text color="gray.500" fontSize="sm" ml={1}>
+        <Text color="fg.muted" fontSize="sm" ml={1}>
           {translate("favorite.noFavoriteDags")}
         </Text>
       ) : (

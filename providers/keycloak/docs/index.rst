@@ -32,10 +32,19 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Keycloak auth manager <auth-manager/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/keycloak/index>
     Configuration <configurations-ref>
+    Keycloak auth manager token API <api-ref/token-api-ref>
+    CLI <cli-refs>
 
 .. toctree::
     :hidden:
@@ -69,7 +78,7 @@ apache-airflow-providers-keycloak package
 ``Keycloak Provider``
 
 
-Release: 1.0.0
+Release: 0.1.0
 
 Provider package
 ----------------
@@ -80,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.keycloak`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-keycloak``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -89,8 +98,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=3.0.0``
-==================  ==================
+===================  ==================
+PIP package          Version required
+===================  ==================
+``apache-airflow``   ``>=3.0.0``
+``python-keycloak``  ``>=5.0.0``
+===================  ==================

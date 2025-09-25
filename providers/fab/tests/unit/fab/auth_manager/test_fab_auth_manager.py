@@ -42,17 +42,13 @@ with suppress(ImportError):
         DagDetails,
     )
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
-
 from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET,
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -73,6 +69,63 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
+
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
+
+    HITL_ENDPOINT_TESTS = [
+        # With global permissions on Dags, but no permission on HITL Detail
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG)],
+            False,
+        ),
+        # With global permissions on Dags, but no permission on HITL Detail
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG)],
+            False,
+        ),
+        # With global permissions on Dags, with read permission on HITL Detail
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+            True,
+        ),
+        # With global permissions on Dags, with read permission on HITL Detail, but wrong method
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_HITL_DETAIL)],
+            False,
+        ),
+        # With global permissions on Dags, with write permission on HITL Detail, but wrong method
+        (
+            "GET",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+            False,
+        ),
+        # With global permissions on Dags, with edit permission on HITL Detail
+        (
+            "PUT",
+            DagAccessEntity.HITL_DETAIL,
+            None,
+            [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_EDIT, RESOURCE_HITL_DETAIL)],
+            True,
+        ),
+    ]
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -238,6 +291,95 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
                 True,
             ),
+            # Without permission on DAGs
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "resource_test")],
+                False,
+            ),
+            # With specific DAG permissions but no specific DAG requested
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # With multiple specific DAG permissions, no specific DAG requested
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
+                True,
+            ),
+            # With specific DAG permissions and wrong method
+            (
+                "POST",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # With correct POST permissions
+            (
+                "POST",
+                None,
+                None,
+                [(ACTION_CAN_CREATE, RESOURCE_DAG)],
+                True,
+            ),
+            # Mixed permissions - some DAG, some non-DAG
+            (
+                "GET",
+                None,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "resource_test")],
+                True,
+            ),
+            # DAG sub-entity with specific DAG permissions but no specific DAG requested
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                True,
+            ),
+            # DAG sub-entity access with no DAG permissions, no specific DAG requested
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                False,
+            ),
+            # DAG sub-entity with specific DAG permissions but missing sub-entity permission
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # Multiple DAG access entities with proper permissions
+            (
+                "DELETE",
+                DagAccessEntity.TASK,
+                None,
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
+                True,
+            ),
+            # User with specific DAG permissions but wrong method for sub-entity
+            (
+                "POST",
+                DagAccessEntity.RUN,
+                None,
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                False,
+            ),
+            # Scenario 2 #
             # On specific DAG with global permissions on Dags
             (
                 "GET",
@@ -270,71 +412,7 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "DAG:test_dag_id")],
                 False,
             ),
-            # Without permission on DAGs
-            (
-                "GET",
-                None,
-                None,
-                [(ACTION_CAN_READ, "resource_test")],
-                False,
-            ),
-            # With specific DAG permissions but no specific DAG requested
-            (
-                "GET",
-                None,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id")],
-                True,
-            ),
-            # With multiple specific DAG permissions, no specific DAG requested
-            (
-                "GET",
-                None,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
-                True,
-            ),
-            # With specific DAG permissions but wrong method
-            (
-                "POST",
-                None,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id")],
-                True,
-            ),
-            # With correct method permissions for specific DAG
-            (
-                "POST",
-                None,
-                None,
-                [(ACTION_CAN_CREATE, "DAG:test_dag_id")],
-                True,
-            ),
-            # With EDIT permission on specific DAG, no specific DAG requested
-            (
-                "PUT",
-                None,
-                None,
-                [(ACTION_CAN_EDIT, "DAG:test_dag_id")],
-                True,
-            ),
-            # With DELETE permission on specific DAG, no specific DAG requested
-            (
-                "DELETE",
-                None,
-                None,
-                [(ACTION_CAN_DELETE, "DAG:test_dag_id")],
-                True,
-            ),
-            # Mixed permissions - some DAG, some non-DAG
-            (
-                "GET",
-                None,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "resource_test")],
-                True,
-            ),
-            # Scenario 2 #
+            # Scenario 3 #
             # With global permissions on DAGs
             (
                 "GET",
@@ -359,7 +437,7 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
                 False,
             ),
-            # With read permissions on a specific DAG but not on the DAG run
+            # With read permissions on a specific DAG and on the DAG run
             (
                 "GET",
                 DagAccessEntity.TASK_INSTANCE,
@@ -371,7 +449,7 @@ class TestFabAuthManager:
                 ],
                 True,
             ),
-            # With edit permissions on a specific DAG and read on the DAG access entity
+            # With edit permissions on a specific DAG and delete on the DAG access entity
             (
                 "DELETE",
                 DagAccessEntity.TASK,
@@ -379,7 +457,7 @@ class TestFabAuthManager:
                 [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
                 True,
             ),
-            # With edit permissions on a specific DAG and read on the DAG access entity
+            # With edit permissions on a specific DAG and create on the DAG access entity
             (
                 "POST",
                 DagAccessEntity.RUN,
@@ -403,50 +481,42 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
                 False,
             ),
-            # DAG sub-entity with specific DAG permissions but no specific DAG requested
+            # Use deprecated prefix "DAG Run" to assign permissions specifically on dag runs
             (
                 "GET",
                 DagAccessEntity.RUN,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
-                True,
-            ),
-            # DAG sub-entity access with no DAG permissions, no specific DAG requested
-            (
-                "GET",
-                DagAccessEntity.RUN,
-                None,
-                [(ACTION_CAN_READ, RESOURCE_DAG_RUN)],
-                True,
-            ),
-            # DAG sub-entity with specific DAG permissions but missing sub-entity permission
-            (
-                "GET",
-                DagAccessEntity.TASK_INSTANCE,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id")],
-                False,
-            ),
-            # Multiple DAG access entities with proper permissions
-            (
-                "DELETE",
-                DagAccessEntity.TASK,
-                None,
-                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
-                True,
-            ),
-            # User with specific DAG permissions but wrong method for sub-entity
-            (
-                "POST",
-                DagAccessEntity.RUN,
-                None,
-                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG Run:test_dag_id")],
                 True,
             ),
         ],
     )
-    @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
     def test_is_authorized_dag(
+        self,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager_with_appbuilder,
+    ):
+        user = Mock()
+        user.perms = user_permissions
+        user.id = 1
+        result = auth_manager_with_appbuilder.is_authorized_dag(
+            method=method, access_entity=dag_access_entity, details=dag_details, user=user
+        )
+        assert result == expected_result
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_1_PLUS is not True, reason="HITL test will be skipped if Airflow version < 3.1.0"
+    )
+    @pytest.mark.parametrize(
+        "method, dag_access_entity, dag_details, user_permissions, expected_result",
+        HITL_ENDPOINT_TESTS if AIRFLOW_V_3_1_PLUS else [],
+    )
+    @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
+    def test_is_authorized_dag_hitl_detail(
         self,
         mock_get_authorized_dag_ids,
         method,
@@ -612,6 +682,12 @@ class TestFabAuthManager:
         result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
         assert result == expected_result
 
+    def test_get_authorized_connections(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["conn1", "conn2"]
+        result = auth_manager.get_authorized_connections(user=Mock(), method="GET", session=session)
+        assert result == {"conn1", "conn2"}
+
     @pytest.mark.parametrize(
         "method, user_permissions, expected_results",
         [
@@ -620,14 +696,14 @@ class TestFabAuthManager:
             (
                 "GET",
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
-                {"test_dag1", "test_dag2"},
+                {"test_dag1", "test_dag2", "Connections"},
             ),
             # Scenario 2
             # With global edit permissions on Dags
             (
                 "PUT",
                 [(ACTION_CAN_EDIT, RESOURCE_DAG)],
-                {"test_dag1", "test_dag2"},
+                {"test_dag1", "test_dag2", "Connections"},
             ),
             # Scenario 3
             # With DAG-specific permissions
@@ -664,6 +740,13 @@ class TestFabAuthManager:
                 [(ACTION_CAN_EDIT, "DAG:test_dag1"), (ACTION_CAN_EDIT, "DAG:test_dag2")],
                 {"test_dag1", "test_dag2"},
             ),
+            # Scenario 9
+            # With non-DAG related permissions
+            (
+                "GET",
+                [(ACTION_CAN_READ, "DAG:test_dag1"), (ACTION_CAN_READ, RESOURCE_CONNECTION)],
+                {"test_dag1"},
+            ),
         ],
     )
     def test_get_authorized_dag_ids(
@@ -671,8 +754,16 @@ class TestFabAuthManager:
     ):
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
         with dag_maker("test_dag2"):
             EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
+        with dag_maker("Connections"):
+            EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
 
         auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
         auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
@@ -688,6 +779,18 @@ class TestFabAuthManager:
         assert results == expected_results
 
         delete_user(flask_app, "username")
+
+    def test_get_authorized_pools(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["pool1", "pool2"]
+        result = auth_manager.get_authorized_pools(user=Mock(), method="GET", session=session)
+        assert result == {"pool1", "pool2"}
+
+    def test_get_authorized_variables(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = ["var1", "var2"]
+        result = auth_manager.get_authorized_variables(user=Mock(), method="GET", session=session)
+        assert result == {"var1", "var2"}
 
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
         assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)

@@ -41,10 +41,10 @@ export const useEditConnection = (
     });
 
     toaster.create({
-      description: translate("toaster.edit.success.description", {
+      description: translate("toaster.update.success.description", {
         resourceName: translate("admin:connections.connection_one"),
       }),
-      title: translate("toaster.edit.success.title", {
+      title: translate("toaster.update.success.title", {
         resourceName: translate("admin:connections.connection_one"),
       }),
       type: "success",

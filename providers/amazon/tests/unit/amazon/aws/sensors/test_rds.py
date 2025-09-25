@@ -31,7 +31,11 @@ from airflow.providers.amazon.aws.sensors.rds import (
     RdsSnapshotExistenceSensor,
 )
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

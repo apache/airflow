@@ -36,6 +36,7 @@
     "activeDags": "활성 Dags",
     "failedDags": "실패한 Dags",
     "queuedDags": "대기 중인 Dags",
+    "requiredActions": "필수 작업",
     "runningDags": "실행 중인 Dags",
     "stats": "통계"
   },

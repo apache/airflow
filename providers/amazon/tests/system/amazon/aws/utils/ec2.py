@@ -26,7 +26,11 @@ try:
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 
 def _get_next_available_cidr(vpc_id: str) -> str:
@@ -66,7 +70,7 @@ def get_latest_ami_id():
             {"Name": "description", "Values": [image_prefix]},
             {
                 "Name": "architecture",
-                "Values": ["x86_64"],
+                "Values": ["arm64"],
             },  # t3 instances are only compatible with x86 architecture
             {
                 "Name": "root-device-type",

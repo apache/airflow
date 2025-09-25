@@ -35,12 +35,33 @@ class XComResponse(BaseModel):
     dag_id: str
     run_id: str
     dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
+    task_display_name: str = Field(validation_alias=AliasPath("task", "task_display_name"))
+
+
+def _stringify_if_needed(value):
+    """
+    Check whether value is JSON-encodable (recursively if needed); stringify it if not.
+
+    The list of JSON-ecodable types are taken from Python documentation:
+    https://docs.python.org/3/library/json.html#json.JSONEncoder
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): _stringify_if_needed(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_stringify_if_needed(v) for v in value]
+    return str(value)
 
 
 class XComResponseNative(XComResponse):
     """XCom response serializer with native return type."""
 
     value: Any
+
+    @field_validator("value", mode="before")
+    def value_to_json_serializable(cls, v):
+        return _stringify_if_needed(v)
 
 
 class XComResponseString(XComResponse):

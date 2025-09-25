@@ -25,5 +25,6 @@
   "lastAssetEvent": "Dernier événement d'Asset",
   "name": "Nom",
   "producingTasks": "Tasks productrices",
+  "scheduledDags": "Dags planifiés",
   "searchPlaceholder": "Rechercher des Assets"
 }

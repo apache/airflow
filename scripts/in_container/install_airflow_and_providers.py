@@ -220,7 +220,7 @@ class InstallationSpec(NamedTuple):
     pre_release: bool = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
 
 
-ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
+GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
 
 
 def find_installation_spec(
@@ -321,14 +321,16 @@ def find_installation_spec(
         airflow_task_sdk_distribution = None
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
-    elif use_airflow_version.startswith(ALLOWED_VCS_PROTOCOLS):
-        console.print(f"\nInstalling airflow from remote spec {use_airflow_version}\n")
+    elif repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version):
+        owner, repo, branch = repo_match.groups()
+        console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
+        vcs_url = f"git+https://github.com/{owner}/{repo}.git@{branch}"
         if airflow_extras:
-            airflow_distribution_spec = f"apache-airflow{airflow_extras} @ {use_airflow_version}"
-            airflow_core_distribution_spec = f"apache-airflow-core @ {use_airflow_version}"
+            airflow_distribution_spec = f"apache-airflow{airflow_extras} @ {vcs_url}"
+            airflow_core_distribution_spec = f"apache-airflow-core @ {vcs_url}#subdirectory=airflow-core"
         else:
-            airflow_distribution_spec = use_airflow_version
-            airflow_core_distribution_spec = use_airflow_version
+            airflow_distribution_spec = f"apache-airflow @ {vcs_url}"
+            airflow_core_distribution_spec = f"apache-airflow-core @ {vcs_url}#subdirectory=airflow-core"
         airflow_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
@@ -339,8 +341,8 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
-        console.print(f"\nInstalling airflow task-sdk from remote spec {use_airflow_version}\n")
-        airflow_task_sdk_distribution = f"apache-airflow-task-sdk @ {use_airflow_version}"
+        console.print(f"\nInstalling airflow task-sdk from GitHub {use_airflow_version}\n")
+        airflow_task_sdk_distribution = f"apache-airflow-task-sdk @ {vcs_url}#subdirectory=task-sdk"
         airflow_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
@@ -352,7 +354,7 @@ def find_installation_spec(
             python_version=python_version,
         )
         console.print(f"\nInstalling airflow ctl from remote spec {use_airflow_version}\n")
-        airflow_ctl_distribution = f"apache-airflow-ctl @ {use_airflow_version}"
+        airflow_ctl_distribution = f"apache-airflow-ctl @ {vcs_url}#subdirectory=airflow-ctl"
         airflow_ctl_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
@@ -362,6 +364,10 @@ def find_installation_spec(
             default_constraints_branch=default_constraints_branch,
             github_repository=github_repository,
             python_version=python_version,
+        )
+        console.print(
+            "[yellow]Note that installing airflow from branch has no assets compiled, so you will"
+            "not be able to run UI (we might add asset compilation for this case later if needed)."
         )
     elif use_airflow_version in ["wheel", "sdist"] and not use_distributions_from_dist:
         console.print(
@@ -597,6 +603,17 @@ def install_airflow_and_providers(
     use_distributions_from_dist: bool,
     install_airflow_with_constraints: bool,
 ):
+    if mount_sources in ["tests", "remove"]:
+        console.print("[bright_blue]Uninstall editable packages installed in CI image")
+        command = [
+            "uv pip freeze | grep -v '@ file://' | grep '-e file' | sed s'/-e //' | xargs -r uv pip uninstall"
+        ]
+        run_command(
+            command,
+            github_actions=github_actions,
+            shell=True,
+            check=False,
+        )
     console.print("[bright_blue]Installing Airflow and Providers")
     installation_spec = find_installation_spec(
         airflow_constraints_mode=airflow_constraints_mode,
@@ -623,17 +640,6 @@ def install_airflow_and_providers(
             _install_airflow_ctl_with_constraints(installation_spec, github_actions)
     if installation_spec.provider_distributions or not install_airflow_with_constraints:
         _install_airflow_and_optionally_providers_together(installation_spec, github_actions)
-    if mount_sources in ["tests", "remove"]:
-        console.print("[bright_blue]Uninstall editable packages installed in CI image")
-        command = [
-            "uv pip freeze | grep -v '@ file://' | grep '-e file' | sed s'/-e //' | xargs -r uv pip uninstall"
-        ]
-        run_command(
-            command,
-            github_actions=github_actions,
-            shell=True,
-            check=False,
-        )
     if mount_sources == "providers-and-tests":
         if (
             use_airflow_version
@@ -710,7 +716,7 @@ def _install_airflow_and_optionally_providers_together(
 ):
     console.print("[bright_blue]Installing airflow and optionally providers together")
     base_install_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
     ]
@@ -766,7 +772,7 @@ def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, g
         f"{installation_spec.airflow_ctl_distribution} with constraints"
     )
     base_install_airflow_ctl_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
     ]
@@ -806,7 +812,7 @@ def _install_only_airflow_airflow_core_task_sdk_with_constraints(
         installation_spec.airflow_ctl_constraints_location,
     )
     base_install_airflow_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
     ]

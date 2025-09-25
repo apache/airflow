@@ -36,6 +36,7 @@
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
     "queuedDags": "Queued Dags",
+    "requiredActions": "Required Actions",
     "runningDags": "Running Dags",
     "stats": "Stats"
   },

@@ -23,7 +23,7 @@ from typing import cast
 from fastapi import Depends, HTTPException, status
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.tasks import TaskCollectionResponse, TaskResponse
@@ -51,9 +51,7 @@ def get_tasks(
     order_by: str = "task_id",
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     try:
         tasks = sorted(dag.tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
     except AttributeError as err:
@@ -76,9 +74,7 @@ def get_tasks(
 )
 def get_task(dag_id: str, task_id, session: SessionDep, dag_bag: DagBagDep) -> TaskResponse:
     """Get simplified representation of a task."""
-    dag = dag_bag.get_latest_version_of_dag(dag_id, session)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     try:
         task = dag.get_task(task_id=task_id)
     except TaskNotFound:
