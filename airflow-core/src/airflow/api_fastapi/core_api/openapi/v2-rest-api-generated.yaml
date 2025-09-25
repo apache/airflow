@@ -2177,6 +2177,38 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lt
+      - name: duration_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+      - name: duration_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -2213,38 +2245,6 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lt
-      - name: duration_gte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Duration Gte
-      - name: duration_gt
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Duration Gt
-      - name: duration_lte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Duration Lte
-      - name: duration_lt
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Duration Lt
       - name: conf_contains
         in: query
         required: false
