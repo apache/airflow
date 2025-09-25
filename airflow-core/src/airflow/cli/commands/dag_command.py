@@ -37,11 +37,11 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
-from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
@@ -248,6 +248,7 @@ def _get_dagbag_dag_details(dag: DAG, session: Session) -> dict:
         "is_paused": dag_model.is_paused if dag_model else None,
         "is_stale": dag_model.is_stale if dag_model else None,
         "last_parsed_time": None,
+        "last_parse_duration": None,
         "last_expired": None,
         "relative_fileloc": dag.relative_fileloc,
         "fileloc": dag.fileloc,
@@ -363,7 +364,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag_import_errors = 0
     dags_list = []
     if args.local:
-        from airflow.models.dagbag import DagBag
+        from airflow.dag_processing.dagbag import DagBag
 
         # Get import errors from the local area
         if args.bundle_name:
@@ -462,6 +463,7 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
     if args.local:
         # Get import errors from local areas
+
         if args.bundle_name:
             manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)

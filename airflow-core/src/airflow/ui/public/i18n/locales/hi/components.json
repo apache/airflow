@@ -6,8 +6,6 @@
     "allRuns": "सभी रन्स",
     "backwards": "पीछे की ओर चलाएं",
     "dateRange": "तिथि रेंज",
-    "dateRangeFrom": "से",
-    "dateRangeTo": "तक",
     "errorStartDateBeforeEndDate": "प्रारंभ तिथि समाप्ति तिथि से पहले होनी चाहिए",
     "maxRuns": "अधिकतम सक्रिय रन्स",
     "missingAndErroredRuns": "गुम और त्रुटि वाले रन्स",

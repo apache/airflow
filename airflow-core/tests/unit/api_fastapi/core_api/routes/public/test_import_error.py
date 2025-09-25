@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
@@ -343,10 +344,19 @@ class TestGetImportErrors:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "batch_is_authorized_dag_return_value, expected_stack_trace",
+        "team, batch_is_authorized_dag_return_value, expected_stack_trace",
         [
-            pytest.param(True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file"),
             pytest.param(
+                "test_team",
+                True,
+                STACKTRACE1,
+                id="user_has_read_access_to_all_dags_in_current_file_with_team",
+            ),
+            pytest.param(
+                None, True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file_without_team"
+            ),
+            pytest.param(
+                None,
                 False,
                 "REDACTED - you do not have read permission on all DAGs in the file",
                 id="user_does_not_have_read_access_to_all_dags_in_current_file",
@@ -354,21 +364,25 @@ class TestGetImportErrors:
         ],
     )
     @pytest.mark.usefixtures("permitted_dag_model")
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_user_can_not_read_all_dags_in_file(
         self,
         mock_get_auth_manager,
+        mock_get_dag_id_to_team_name_mapping,
         test_client,
+        team,
         batch_is_authorized_dag_return_value,
         expected_stack_trace,
         permitted_dag_model,
         import_errors,
     ):
+        mock_get_dag_id_to_team_name_mapping.return_value = {permitted_dag_model.dag_id: team}
         set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
             mock_get_auth_manager, {permitted_dag_model.dag_id}
         )
-        set_mock_auth_manager__batch_is_authorized_dag(
+        mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
         # Act
@@ -389,6 +403,15 @@ class TestGetImportErrors:
                 }
             ],
         }
+        mock_batch_is_authorized_dag.assert_called_once_with(
+            [
+                {
+                    "method": "GET",
+                    "details": DagDetails(id=permitted_dag_model.dag_id, team_name=team),
+                }
+            ],
+            user=mock.ANY,
+        )
 
     @pytest.mark.usefixtures("permitted_dag_model")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")

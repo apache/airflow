@@ -251,9 +251,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+            next_dagrun, state, start_date`'
           default:
           - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+          next_dagrun, state, start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -547,9 +553,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id`'
       - name: dag_id
         in: query
         required: false
@@ -625,9 +635,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `run_after,
+            logical_date, start_date, end_date`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `run_after, logical_date,
+          start_date, end_date`'
       - name: run_after_gte
         in: query
         required: false
@@ -664,6 +680,34 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: triggering_user
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Triggering User
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -732,9 +776,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `run_after,
+            logical_date, start_date, end_date`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `run_after, logical_date,
+          start_date, end_date`'
       - name: run_after_gte
         in: query
         required: false
@@ -771,6 +821,34 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: triggering_user
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Triggering User
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -1497,6 +1575,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -1615,6 +1698,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -1874,7 +1958,7 @@ components:
           title: Run After
         state:
           anyOf:
-          - $ref: '#/components/schemas/TaskInstanceState'
+          - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
@@ -1948,29 +2032,25 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        respondents:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
           anyOf:
-          - items:
-              type: string
-            type: array
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: Respondents
-        responded_user_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Id
-        responded_user_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responded User Name
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -1991,8 +2071,23 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:

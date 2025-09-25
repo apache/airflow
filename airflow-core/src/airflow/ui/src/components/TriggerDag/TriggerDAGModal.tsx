@@ -91,7 +91,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             </Center>
           ) : isError ? (
             <Center py={6}>
-              <Text color="red.500">{translate("triggerDag.loadingFailed")}</Text>
+              <Text color="fg.error">{translate("triggerDag.loadingFailed")}</Text>
             </Center>
           ) : (
             <>

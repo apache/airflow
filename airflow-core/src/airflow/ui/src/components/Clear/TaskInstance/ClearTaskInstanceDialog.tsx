@@ -171,7 +171,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {

@@ -189,7 +189,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 		c.Client.SetDebug(viper.GetBool("api_client.debug"))
 	}
 
-	reportStateFailed := func() error {
+	reportStateFailed := func(ctx context.Context) error {
 		body := &api.TIUpdateStatePayload{}
 		body.FromTITerminalStatePayload(api.TITerminalStatePayload{
 			State:   api.TerminalStateNonSuccess(api.TerminalTIStateFailed),
@@ -208,7 +208,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	taskLogger, err := w.setupTaskLogger(ctx, logger, workload)
 	if err != nil {
 		logger.ErrorContext(taskContext, "Could not create logger", slog.Any("error", err))
-		_ = reportStateFailed()
+		_ = reportStateFailed(ctx)
 		return err
 	}
 
@@ -222,7 +222,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			"task_id",
 			workload.TI.TaskId,
 		)
-		return reportStateFailed()
+		return reportStateFailed(ctx)
 	}
 
 	// TODO: Timeout etc on the context
@@ -287,7 +287,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 				"stack",
 				string(debug.Stack()),
 			)
-			_ = reportStateFailed()
+			_ = reportStateFailed(ctx)
 		}
 	}()
 

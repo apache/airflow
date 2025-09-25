@@ -28,7 +28,6 @@ import textwrap
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from logging.config import dictConfig
 from pathlib import Path
 from socket import socket, socketpair
 from unittest import mock
@@ -42,20 +41,21 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, DbCallbackRequest
+from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.team import Team
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -70,6 +70,7 @@ from tests_common.test_utils.db import (
     clear_db_import_errors,
     clear_db_runs,
     clear_db_serialized_dags,
+    clear_db_teams,
 )
 from unit.models import TEST_DAGS_FOLDER
 
@@ -116,7 +117,7 @@ class TestDagFileProcessorManager:
             yield
 
     def setup_method(self):
-        dictConfig(DEFAULT_LOGGING_CONFIG)
+        clear_db_teams()
         clear_db_assets()
         clear_db_runs()
         clear_db_serialized_dags()
@@ -126,6 +127,7 @@ class TestDagFileProcessorManager:
         clear_db_dag_bundles()
 
     def teardown_class(self):
+        clear_db_teams()
         clear_db_assets()
         clear_db_runs()
         clear_db_serialized_dags()
@@ -743,6 +745,8 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
+        """Test _fetch_callbacks returns callbacks ordered by priority_weight desc."""
+
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
         callback1 = DagCallbackRequest(
@@ -770,7 +774,12 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
-                manager.run()
+                callbacks = manager._fetch_callbacks(session=session)
+
+                # Should return callbacks ordered by priority_weight desc (highest first)
+                assert callbacks[0].run_id == "123"
+                assert callbacks[1].run_id == "456"
+
                 assert session.query(DbCallbackRequest).count() == 0
 
     @conf_vars(
@@ -1181,3 +1190,65 @@ class TestDagFileProcessorManager:
         manager._emit_running_dags_metric()
 
         assert recorded == [("executor.running_dags", 2)]
+
+    def test_bundles_with_team(self, session):
+        team1_name = "test_team1"
+        team2_name = "test_team2"
+
+        # Create two teams
+        session.add(Team(name=team1_name))
+        session.add(Team(name=team2_name))
+        session.commit()
+
+        # Associate a dag bundle to a team
+        config = [
+            {
+                "name": "bundle_team",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+                "team_name": team1_name,
+            },
+        ]
+
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+
+        team = session.scalars(select(Team).where(Team.name == team1_name)).one()
+        assert len(team.dag_bundles) == 1
+        assert team.dag_bundles[0].name == "bundle_team"
+
+        # Change the team ownership
+        config = [
+            {
+                "name": "bundle_team",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+                "team_name": team2_name,
+            },
+        ]
+
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+
+        team1 = session.scalars(select(Team).where(Team.name == team1_name)).one()
+        assert len(team1.dag_bundles) == 0
+        team2 = session.scalars(select(Team).where(Team.name == team2_name)).one()
+        assert len(team2.dag_bundles) == 1
+        assert team2.dag_bundles[0].name == "bundle_team"
+
+        # Delete the team ownership
+        config = [
+            {
+                "name": "bundle_team",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+            },
+        ]
+
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+
+        team1 = session.scalars(select(Team).where(Team.name == team1_name)).one()
+        assert len(team1.dag_bundles) == 0
+        team2 = session.scalars(select(Team).where(Team.name == team2_name)).one()
+        assert len(team2.dag_bundles) == 0

@@ -27,13 +27,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
+from sqlalchemy import Column, ForeignKey, LargeBinary, String, select, tuple_
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
@@ -52,11 +52,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session
 
-    from airflow.models import Operator
 
 log = logging.getLogger(__name__)
 
@@ -285,7 +282,9 @@ class SerializedDagModel(Base):
     __tablename__ = "serialized_dag"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     dag_id = Column(String(ID_LEN), nullable=False)
-    _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data = Column(
+        "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
+    )
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
     last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
@@ -582,65 +581,6 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
-        """
-        Get the date when the Serialized DAG associated to DAG was last updated in serialized_dag table.
-
-        :param dag_id: DAG ID
-        :param session: ORM Session
-        """
-        return session.scalar(
-            select(cls.created_at).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
-        )
-
-    @classmethod
-    @provide_session
-    def get_max_last_updated_datetime(cls, session: Session = NEW_SESSION) -> datetime | None:
-        """
-        Get the maximum date when any DAG was last updated in serialized_dag table.
-
-        :param session: ORM Session
-        """
-        return session.scalar(select(func.max(cls.created_at)))
-
-    @classmethod
-    @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = NEW_SESSION) -> str | None:
-        """
-        Get the latest DAG version for a given DAG ID.
-
-        :param dag_id: DAG ID
-        :param session: ORM Session
-        :return: DAG Hash, or None if the DAG is not found
-        """
-        return session.scalar(
-            select(cls.dag_hash).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
-        )
-
-    @classmethod
-    def get_latest_version_hash_and_updated_datetime(
-        cls,
-        dag_id: str,
-        *,
-        session: Session,
-    ) -> tuple[str, datetime] | None:
-        """
-        Get the latest version for a DAG ID and the date it was last updated in serialized_dag table.
-
-        :meta private:
-        :param dag_id: DAG ID
-        :param session: ORM Session
-        :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
-        """
-        return session.execute(
-            select(cls.dag_hash, cls.created_at)
-            .where(cls.dag_id == dag_id)
-            .order_by(cls.created_at.desc())
-            .limit(1)
-        ).one_or_none()
-
-    @classmethod
-    @provide_session
     def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs.
@@ -654,6 +594,11 @@ class SerializedDagModel(Base):
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
+            elif session.bind.dialect.name == "postgresql":
+                # Use #> operator which works for both JSON and JSONB types
+                # Returns the JSON sub-object at the specified path
+                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                load_json = None
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
                 load_json = None
@@ -684,16 +629,3 @@ class SerializedDagModel(Base):
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag
-
-    @staticmethod
-    @provide_session
-    def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
-        try:
-            # get the latest version of the DAG
-            model = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
-            if model:
-                return model.dag.get_task(task_id)
-        except (exc.NoResultFound, TaskNotFound):
-            return None
-
-        return None

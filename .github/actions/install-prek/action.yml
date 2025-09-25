@@ -24,13 +24,16 @@ inputs:
     default: "3.10"
   uv-version:
     description: 'uv version to use'
-    default: "0.8.14"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.8.22"  # Keep this comment to allow automatic replacement of uv version
   prek-version:
     description: 'prek version to use'
-    default: "0.1.4"  # Keep this comment to allow automatic replacement of prek version
+    default: "0.2.1"  # Keep this comment to allow automatic replacement of prek version
   skip-prek-hooks:
     description: "Skip some prek hooks from installation"
     default: ""
+  save-cache:
+    description: "Whether to save prek cache"
+    required: true
   platform:
     description: 'Platform for the build - linux/amd64 or linux/arm64'
     required: true
@@ -61,7 +64,7 @@ runs:
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         # yamllint disable rule:line-length
-        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{inputs.skip-prek-hooks}}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/
       id: restore-prek-cache
     - name: "Check if prek cache tarball exists"
@@ -91,3 +94,17 @@ runs:
       working-directory: ${{ github.workspace }}
       env:
         SKIP: ${{ inputs.skip-prek-hooks }}
+    - name: "Prepare .tar file from prek cache"
+      run: |
+        tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
+      shell: bash
+      if: inputs.save-cache == 'true'
+    - name: "Save prek cache"
+      uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      with:
+        # yamllint disable rule:line-length
+        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{ inputs.skip-prek-hooks }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        path: /tmp/cache-prek.tar.gz
+        if-no-files-found: 'error'
+        retention-days: '2'
+      if: inputs.save-cache == 'true'

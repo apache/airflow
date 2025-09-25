@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
+    "parseDuration": "解析時長：",
     "parsedAt": "解析時間："
   },
   "extraLinks": "額外連結",
@@ -84,6 +85,8 @@
       "assetEvent_other": "已建立資源事件"
     },
     "failedLogs": {
+      "hideLogs": "隱藏日誌",
+      "showLogs": "顯示日誌",
       "title": "最近失敗任務的日誌",
       "viewFullLogs": "檢視完整日誌"
     }

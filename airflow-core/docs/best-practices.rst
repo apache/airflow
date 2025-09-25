@@ -310,13 +310,13 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.11.6"
+      pip install "ruff>=0.13.1"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
    .. code-block:: bash
 
-      ruff check dags/ --select AIR3 --preview
+      ruff check dags/ --select AIR3
 
    This command will analyze your Dags located in the ``dags/`` directory and report any issues related to the specified rules.
 
@@ -727,7 +727,7 @@ Unit tests ensure that there is no incorrect code in your Dag. You can write uni
 
     import pytest
 
-    from airflow.models import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
 
     @pytest.fixture()

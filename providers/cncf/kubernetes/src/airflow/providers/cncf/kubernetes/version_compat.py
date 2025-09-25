@@ -37,16 +37,14 @@ AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XCOM_RETURN_KEY
-    from airflow.sdk import BaseHook, BaseOperator
+    from airflow.sdk import BaseHook
     from airflow.sdk.definitions.context import context_merge
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-    from airflow.models import BaseOperator
     from airflow.utils.context import context_merge  # type: ignore[attr-defined, no-redef]
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
     from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
 else:
     from airflow.decorators.base import (  # type: ignore[no-redef]
@@ -54,14 +52,14 @@ else:
         TaskDecorator,
         task_decorator_factory,
     )
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+
+# BaseOperator and BaseSensorOperator removed from version_compat to avoid circular imports
+# Import them directly in files that need them instead
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_1_PLUS",
     "BaseHook",
-    "BaseOperator",
-    "BaseSensorOperator",
     "DecoratedOperator",
     "TaskDecorator",
     "task_decorator_factory",
