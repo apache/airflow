@@ -56,7 +56,13 @@ def add_xcom_sidecar(
 ) -> k8s.V1Pod:
     """Add sidecar."""
     pod_cp = copy.deepcopy(pod)
-    pod_cp.spec.volumes = pod.spec.volumes or []
+    
+    # Handle both V1Pod object and dict cases
+    if isinstance(pod_cp, dict):
+        # Convert dict to V1Pod object if needed
+        pod_cp = k8s.V1Pod(**pod_cp)
+    
+    pod_cp.spec.volumes = pod_cp.spec.volumes or []
     pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
     pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
     pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
