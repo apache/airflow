@@ -175,6 +175,10 @@ func (h *heartbeater) Run(
 }
 
 func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTaskWorkload) error {
+	if hostname := viper.GetString("hostname"); hostname != "" {
+		Hostname = hostname
+	}
+
 	// Store the workload in the context so we can get at task id, etc, variables
 	taskContext, cancelTaskCtx := context.WithCancelCause(
 		context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload),

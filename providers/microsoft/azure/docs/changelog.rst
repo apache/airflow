@@ -31,8 +31,6 @@ Changelog
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -47,8 +45,6 @@ Bug Fixes
 12.7.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

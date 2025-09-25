@@ -1622,16 +1622,14 @@ def session():
 def get_test_dag():
     def _get(dag_id: str):
         from airflow import settings
+        from airflow.models.serialized_dag import SerializedDagModel
 
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.dag_processing.dagbag import DagBag
         else:
             from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
         dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
