@@ -46,10 +46,10 @@ type BundleGRPCPlugin struct {
 	Factory func() bundlev1.BundleProvider
 }
 
-// Type assetion -- it must be a grpc plugin
+// Type assertion -- it must be a grpc plugin
 var _ plugin.GRPCPlugin = (*BundleGRPCPlugin)(nil)
 
-// Type assetion -- it must be a rpc plugin (even if it just returns errors)
+// Type assertion -- it must be a rpc plugin (even if it just returns errors)
 var _ plugin.Plugin = (*BundleGRPCPlugin)(nil)
 
 func (p *BundleGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
@@ -177,7 +177,7 @@ func (g *server) executeTask(ctx context.Context, executeTask *proto.ExecuteTask
 		Warn("Does viper work", "url", viper.GetString("execution-api-url"), "env", os.Getenv("AIRFLOW__EXECUTION_API_URL"))
 	w, err = w.WithServer(viper.GetString("execution-api-url"))
 	if err != nil {
-		slog.ErrorContext(ctx, "Error setting ExecutionAPI sxerver for worker", "err", err)
+		slog.ErrorContext(ctx, "Error setting ExecutionAPI server for worker", "err", err)
 		return err
 	}
 

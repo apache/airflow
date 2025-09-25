@@ -73,7 +73,6 @@ func Run(ctx context.Context, config Config) error {
 	)
 
 	tasks := &celeryTasksRunner{d}
-	fmt.Printf("%#v\n", viper.AllKeys())
 
 	for _, queue := range config.Queues {
 		app.Register(

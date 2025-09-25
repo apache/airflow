@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package shared contains shared data between the host and plugins.
+// Package shared contains shared data between the worker and plugins.
 package shared
 
 import (
 	"github.com/hashicorp/go-plugin"
 )
 
-// Handshake is a common handshake that is shared by plugin and host.
+// Handshake is a common handshake that is shared by plugin and worker.
 var Handshake = plugin.HandshakeConfig{
 	ProtocolVersion: 1,
 	MagicCookieKey:  "AIRFLOW_BUNDLE_MAGIC_COOKIE",
