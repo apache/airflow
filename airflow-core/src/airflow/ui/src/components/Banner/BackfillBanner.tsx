@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
+import type { BackfillResponse } from "openapi/requests/types.gen";
 import {
   useBackfillServiceCancelBackfill,
   useBackfillServiceListBackfillsUi,
@@ -55,11 +56,11 @@ const BackfillBanner = ({ dagId }: Props) => {
     dagId,
   }, undefined, {
     refetchInterval: (query: any) =>
-      query.state.data?.backfills?.some((bf: any) => bf.completed_at === null)
+      query.state.data?.backfills?.some((bf: BackfillResponse) => bf.completed_at === null)
         ? refetchInterval
         : false,
   });
-  const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
+  const [backfill] = data?.backfills.filter((bf: BackfillResponse) => bf.completed_at === null) ?? [];
 
   const queryClient = useQueryClient();
   const onSuccess = async () => {
