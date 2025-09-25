@@ -49,6 +49,17 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetSummary(BaseModel):
+    """
+    Asset summary for DAG Run responses.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    name: Annotated[str | None, Field(title="Name")] = None
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    group: Annotated[str | None, Field(title="Group")] = None
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -1389,6 +1400,8 @@ class DAGRunResponse(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    consumed_assets: Annotated[list[AssetSummary] | None, Field(title="Consumed Assets")] = None
+    produced_assets: Annotated[list[AssetSummary] | None, Field(title="Produced Assets")] = None
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 

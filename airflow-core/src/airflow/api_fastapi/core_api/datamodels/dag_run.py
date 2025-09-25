@@ -21,7 +21,14 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import (
+    AliasPath,
+    AwareDatetime,
+    BaseModel as PydanticBaseModel,
+    Field,
+    NonNegativeInt,
+    model_validator,
+)
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -61,6 +68,15 @@ class DAGRunClearBody(StrictBaseModel):
     )
 
 
+class AssetSummary(PydanticBaseModel):
+    """Asset summary for DAG Run responses."""
+
+    id: int
+    name: str | None
+    uri: str | None
+    group: str | None
+
+
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
@@ -83,6 +99,8 @@ class DAGRunResponse(BaseModel):
     note: str | None
     dag_versions: list[DagVersionResponse]
     bundle_version: str | None
+    consumed_assets: list[AssetSummary] | None = None
+    produced_assets: list[AssetSummary] | None = None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 

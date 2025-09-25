@@ -96,6 +96,16 @@ export type AssetResponse = {
 };
 
 /**
+ * Asset summary for DAG Run responses.
+ */
+export type AssetSummary = {
+    id: number;
+    name: string | null;
+    uri: string | null;
+    group: string | null;
+};
+
+/**
  * Asset watcher serializer for responses.
  */
 export type AssetWatcherResponse = {
@@ -680,6 +690,8 @@ export type DAGRunResponse = {
     note: string | null;
     dag_versions: Array<DagVersionResponse>;
     bundle_version: string | null;
+    consumed_assets?: Array<AssetSummary> | null;
+    produced_assets?: Array<AssetSummary> | null;
     dag_display_name: string;
 };
 
@@ -2296,6 +2308,10 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     confContains?: string;
+    /**
+     * Filter DagRuns that consumed an asset (match by asset name or URI)
+     */
+    consumingAsset?: string | null;
     dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2320,6 +2336,10 @@ export type GetDagRunsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Filter DagRuns that produced an asset (match by asset name or URI)
+     */
+    producingAsset?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
