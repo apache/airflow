@@ -153,7 +153,12 @@ Dynamic alerts are particularly useful for:
 Creating Dynamic Alerts
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-To create dynamic alerts, define ``DASHBOARD_UIALERTS`` as an instance of a class that subclasses ``list`` and implements the ``__iter__`` method:
+To create dynamic alerts, define ``DASHBOARD_UIALERTS`` as an instance of a class that subclasses ``list``
+and implements the ``__iter__`` method. The UI will iterate over any number ``UIAlert`` instances yielded by
+this method and expose them as alerts on the dashboard page.
+
+The example below demonstrates how logic can be applied to yield alerts dynamically. More practical use
+cases might include alerts yielded from APIs, database queries or files. 
 
 .. code-block:: python
 
@@ -173,3 +178,4 @@ To create dynamic alerts, define ``DASHBOARD_UIALERTS`` as an instance of a clas
 
     # Create an instance of the class
     DASHBOARD_UIALERTS = DynamicAlerts()
+
