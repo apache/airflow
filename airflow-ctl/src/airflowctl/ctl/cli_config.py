@@ -289,6 +289,14 @@ ARG_CONFIG_VERBOSE = Arg(
     action="store_true",
 )
 
+# Version Command Args
+ARG_REMOTE = Arg(
+    flags=("--remote",),
+    help="Fetch the Airflow version in remote server, otherwise only shows the local airflowctl version",
+    default=False,
+    action="store_true",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -849,7 +857,10 @@ core_commands: list[CLICommand] = [
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
-        args=(),
+        args=(
+            ARG_AUTH_ENVIRONMENT,
+            ARG_REMOTE,
+        ),
     ),
     GroupCommand(
         name="variables",
