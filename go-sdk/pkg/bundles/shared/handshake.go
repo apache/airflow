@@ -15,11 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package celery
+// Package shared contains shared data between the worker and plugins.
+package shared
 
-type Config struct {
-	BrokerAddr    string   `mapstructure:"broker_address"`
-	Port          int      `mapstructure:"port"`
-	Queues        []string `mapstructure:"queues"`
-	BundlesFolder string   `mapstructure:"bundles-folder"`
+import (
+	"github.com/hashicorp/go-plugin"
+)
+
+// Handshake is a common handshake that is shared by plugin and worker.
+var Handshake = plugin.HandshakeConfig{
+	ProtocolVersion: 1,
+	MagicCookieKey:  "AIRFLOW_BUNDLE_MAGIC_COOKIE",
+	// This value has no particular meaning, it was just a random uuid
+	MagicCookieValue: "23C6AB18-91F9-4760-B3E8-328EF3C861AB",
 }

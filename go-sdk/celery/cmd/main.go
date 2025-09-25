@@ -15,11 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package celery
+package main
 
-type Config struct {
-	BrokerAddr    string   `mapstructure:"broker_address"`
-	Port          int      `mapstructure:"port"`
-	Queues        []string `mapstructure:"queues"`
-	BundlesFolder string   `mapstructure:"bundles-folder"`
+import "github.com/apache/airflow/go-sdk/celery/commands"
+
+func main() {
+	commands.Execute()
 }
