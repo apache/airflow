@@ -86,7 +86,6 @@ from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -122,6 +121,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
