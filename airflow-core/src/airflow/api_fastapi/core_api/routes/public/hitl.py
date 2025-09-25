@@ -105,13 +105,8 @@ def _get_task_instance_with_hitl_detail(
     return task_instance
 
 
-<<<<<<< HEAD
 @task_instances_hitl_router.patch(
     task_instance_hitl_path,
-=======
-@hitl_router.patch(
-    "/{dag_id}/{dag_run_id}/{task_id}",
->>>>>>> af1ac5b921 (HTIL Changes Reverted Asper suggestion)
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_403_FORBIDDEN,

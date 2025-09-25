@@ -42,7 +42,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_pool,
     requires_access_pool_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService,update_orm_from_pydantic
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService, update_orm_from_pydantic
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
 
