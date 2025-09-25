@@ -238,7 +238,7 @@ class CustomObjectLauncher(LoggingMixin):
 
     def get_body(self):
         self.body: dict = SparkJobSpec(**self.template_body["spark"])
-        if not isinstance(self.body.metadata, dict):
+        if not hasattr(self.body, "metadata") or not isinstance(self.body.metadata, dict):
             self.body.metadata = {}
         self.body.metadata.update({"name": self.name, "namespace": self.namespace})
         if self.template_body.get("kubernetes"):
