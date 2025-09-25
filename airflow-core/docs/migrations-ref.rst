@@ -39,7 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``fdbf36fc61f3`` (head) | ``ab6dc0c82d0e`` | ``3.2.0``         | Add StateVariable model to DB.                               |
+| ``cf099100567e`` (head) | ``ab6dc0c82d0e`` | ``3.2.0``         | Adding StateVariable to DB.                                  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``ab6dc0c82d0e``        | ``15d84ca19038`` | ``3.2.0``         | Change ``serialized_dag`` data column to JSONB for           |
 |                         |                  |                   | PostgreSQL.                                                  |
