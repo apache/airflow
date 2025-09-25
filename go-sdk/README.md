@@ -110,3 +110,4 @@ A non-exhaustive list of features we have yet to implement
 This is more of an "it would be nice to have" than any plan or commitment, and a place to record ideas.
 
 - The ability to run Airflow tasks "in" an existing code base - i.e. being able to define an Airflow task function that runs (in a goroutine) inside an existing code base an app.
+- Do the task function reflection ahead of time, not for each Execute call.
