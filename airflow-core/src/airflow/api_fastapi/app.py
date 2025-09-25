@@ -49,6 +49,9 @@ API_ROOT_PATH = urlsplit(API_BASE_URL).path
 # Define the full path on which the potential auth manager fastapi is mounted
 AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
 
+# Fast API apps mounted under these prefixes are not allowed
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
+
 log = logging.getLogger(__name__)
 
 app: FastAPI | None = None
@@ -184,6 +187,12 @@ def init_plugins(app: FastAPI) -> None:
         url_prefix = subapp_dict.get("url_prefix")
         if url_prefix is None:
             log.error("'url_prefix' key is missing for the fastapi app: %s", name)
+            continue
+        if url_prefix == "":
+            log.error("'url_prefix' key is empty string for the fastapi app: %s", name)
+            continue
+        if any(url_prefix.startswith(prefix) for prefix in RESERVED_URL_PREFIXES):
+            log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
             continue
 
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
