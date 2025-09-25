@@ -181,7 +181,7 @@ go.sum
 mocks/*
 
 # Generated protobuf files
-*.proto
+.*proto
 .*pb.go
 .*_grpc.pb.go
 
