@@ -70,9 +70,9 @@ class FooBarModel(BaseModel):
 
 @skip_if_force_lowest_dependencies_marker
 class TestSerializers:
-    def test_datetime(self):
-        """Test serialization and deserialization of various datetime-related objects."""
-        test_cases = [
+    @pytest.mark.parametrize(
+        "input_obj",
+        [
             datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC),
             DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC),
             datetime.date(2022, 7, 10),
@@ -84,25 +84,20 @@ class TestSerializers:
             DateTime(2022, 7, 10, tzinfo=tzutc()),
             DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris")),
             datetime.datetime.now(),
-        ]
+        ],
+    )
+    def test_datetime(self, input_obj):
+        """Test serialization and deserialization of various datetime-related objects."""
+        serialized_obj = serialize(input_obj)
+        deserialized_obj = deserialize(serialized_obj)
+        if isinstance(input_obj, (datetime.date, datetime.timedelta)):
+            assert input_obj == deserialized_obj
+        else:
+            assert input_obj.timestamp() == deserialized_obj.timestamp()
 
-        for input_obj in test_cases:
-            serialized_obj = serialize(input_obj)
-            deserialized_obj = deserialize(serialized_obj)
-            if isinstance(input_obj, (datetime.date, datetime.timedelta)):
-                assert input_obj == deserialized_obj
-            else:
-                assert input_obj.timestamp() == deserialized_obj.timestamp()
-
-    def test_deserialize_datetime_v1(self):
-        """Test deserialization of datetime objects from version 1 format."""
-        serialized_data = {
-            "__classname__": "pendulum.datetime.DateTime",
-            "__version__": 1,
-            "__data__": {"timestamp": 1657505443.0, "tz": "UTC"},
-        }
-
-        test_cases = [
+    @pytest.mark.parametrize(
+        "tz_input, expected_tz_name",
+        [
             ("UTC", "UTC"),
             ("Europe/Paris", "Europe/Paris"),
             ("America/New_York", "America/New_York"),
@@ -110,16 +105,23 @@ class TestSerializers:
             ("CDT", "-05:00"),
             ("MDT", "-06:00"),
             ("PDT", "-07:00"),
-        ]
+        ],
+    )
+    def test_deserialize_datetime_v1(self, tz_input, expected_tz_name):
+        """Test deserialization of datetime objects from version 1 format."""
+        serialized_data = {
+            "__classname__": "pendulum.datetime.DateTime",
+            "__version__": 1,
+            "__data__": {"timestamp": 1657505443.0, "tz": "UTC"},
+        }
 
-        for tz_input, expected_tz_name in test_cases:
-            serialized_data["__data__"]["tz"] = tz_input
-            deserialized_dt = deserialize(serialized_data)
-            assert deserialized_dt.timestamp() == 1657505443.0
-            assert deserialized_dt.tzinfo.name == expected_tz_name
-            # Assert that it's serializable with the new format for ambiguous timezones
-            if tz_input in ["EDT", "CDT", "MDT", "PDT"]:
-                assert deserialize(serialize(deserialized_dt)) == deserialized_dt
+        serialized_data["__data__"]["tz"] = tz_input
+        deserialized_dt = deserialize(serialized_data)
+        assert deserialized_dt.timestamp() == 1657505443.0
+        assert deserialized_dt.tzinfo.name == expected_tz_name
+        # Assert that it's serializable with the new format for ambiguous timezones
+        if tz_input in ["EDT", "CDT", "MDT", "PDT"]:
+            assert deserialize(serialize(deserialized_dt)) == deserialized_dt
 
     @pytest.mark.parametrize(
         "expr, expected",
