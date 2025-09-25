@@ -34,7 +34,7 @@ repos:
       - id: insert-license
         name: Add license for all Go files
         types: [go]
-        exclude: mocks/.*\.go$
+        exclude: mocks/.*\.go$|\.pb\.go$
         args:
           - --comment-style
           - "|//|"
@@ -71,3 +71,15 @@ repos:
         types: [go]
         pass_filenames: false
         language: docker_image
+      - id: protoc
+        name: Compile protobuff
+        language: docker_image
+        types: [file, proto]
+        entry: >-
+          rvolosatovs/protoc
+          --go_out=.
+          --go_opt=paths=source_relative
+          --go-grpc_out=.
+          --go-grpc_opt=paths=source_relative
+          -I.
+        require_serial: true

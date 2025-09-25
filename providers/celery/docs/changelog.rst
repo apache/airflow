@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+3.12.4
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Only send hostname to celery worker if passed in cli (#55913)``
+* ``Don't check db migration needlessly for 'airflow celery' cli commands. (#55878)``
+* ``Fix: Use get instead of hasattr for task_result in BulkStateFetcher (#52839)``
+
+Misc
+~~~~
+
+* ``AIP-67 - Multi Team: Pass args/kwargs to super in CeleryExecutor (#56006)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix pytest collection failure for classes decorated with context managers (#55915)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Switch all airflow logging to structlog (#52651)``
+   * ``Fix celery tests with Python 3.13 after 5.5.3 (#56017)``
+
 3.12.3
 ......
 
