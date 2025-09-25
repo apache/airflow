@@ -195,6 +195,11 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
 
 
+class StateVariableResponse(BaseModel):
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str | None, Field(title="Value")] = None
+
+
 class TIDeferredStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a deferred state.

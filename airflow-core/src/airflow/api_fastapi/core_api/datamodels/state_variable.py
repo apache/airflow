@@ -17,23 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Text
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
-
-from airflow.models.base import ID_LEN, Base
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class StateVariable(Base, LoggingMixin):
-    """A generic way to store and receive state in places like a Trigger, Sensor, or Operator."""
+class StateVariableResponse(BaseModel):
+    """StateVariable serializer for responses."""
 
-    __tablename__ = "state_variable"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    key = Column(String(ID_LEN), unique=True)
-    value = Column("value", Text().with_variant(MEDIUMTEXT, "mysql"))
-
-    def __init__(self, key=None, value=None):
-        super().__init__()
-        self.key = key
-        self.value = value
+    key: str
+    value: str | None

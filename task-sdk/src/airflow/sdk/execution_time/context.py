@@ -234,6 +234,28 @@ async def _async_get_connection(conn_id: str) -> Connection:
     return conn
 
 
+def _get_state_variable(key: str) -> Any:
+    from airflow.sdk.execution_time.comms import GetStateVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    msg = SUPERVISOR_COMMS.send(GetStateVariable(key=key))
+    return msg
+
+
+def _set_state_variable(key: str, value: Any) -> None:
+    from airflow.sdk.execution_time.comms import PutStateVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    SUPERVISOR_COMMS.send(PutStateVariable(key=key, value=value))
+
+
+def _delete_state_variable(key: str) -> Any:
+    from airflow.sdk.execution_time.comms import DeleteStateVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    SUPERVISOR_COMMS.send(DeleteStateVariable(key=key))
+
+
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded

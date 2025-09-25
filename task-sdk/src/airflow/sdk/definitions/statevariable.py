@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Text
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
+import logging
+from typing import Any
 
-from airflow.models.base import ID_LEN, Base
-from airflow.utils.log.logging_mixin import LoggingMixin
+import attrs
+
+log = logging.getLogger(__name__)
 
 
-class StateVariable(Base, LoggingMixin):
-    """A generic way to store and receive state in places like a Trigger, Sensor, or Operator."""
+@attrs.define
+class StateVariable:
+    """
+    A generic way to store and retrieve arbitrary state as a simple key/value store.
 
-    __tablename__ = "state_variable"
+    :param key: The variable key.
+    :param value: The variable value.
+    """
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    key = Column(String(ID_LEN), unique=True)
-    value = Column("value", Text().with_variant(MEDIUMTEXT, "mysql"))
-
-    def __init__(self, key=None, value=None):
-        super().__init__()
-        self.key = key
-        self.value = value
+    key: str
+    value: Any | None = None

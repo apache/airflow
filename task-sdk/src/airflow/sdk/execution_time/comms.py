@@ -75,6 +75,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    StateVariableResponse,
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
@@ -469,6 +470,16 @@ class ConnectionResult(ConnectionResponse):
         )
 
 
+class StateVariableResult(StateVariableResponse):
+    type: Literal["StateVariableResult"] = "StateVariableResult"
+
+    @classmethod
+    def from_state_variable_response(
+        cls, state_variable_response: StateVariableResponse
+    ) -> StateVariableResult:
+        return cls(**state_variable_response.model_dump(exclude_defaults=True), type="StateVariableResult")
+
+
 class VariableResult(VariableResponse):
     type: Literal["VariableResult"] = "VariableResult"
 
@@ -761,6 +772,22 @@ class GetConnection(BaseModel):
     type: Literal["GetConnection"] = "GetConnection"
 
 
+class GetStateVariable(BaseModel):
+    key: str
+    type: Literal["GetStateVariable"] = "GetStateVariable"
+
+
+class PutStateVariable(BaseModel):
+    key: str
+    value: str
+    type: Literal["PutStateVariable"] = "PutStateVariable"
+
+
+class DeleteStateVariable(BaseModel):
+    key: str
+    type: Literal["DeleteStateVariable"] = "DeleteStateVariable"
+
+
 class GetVariable(BaseModel):
     key: str
     type: Literal["GetVariable"] = "GetVariable"
@@ -914,6 +941,7 @@ ToSupervisor = Annotated[
     | GetDRCount
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetStateVariable
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates
@@ -922,6 +950,7 @@ ToSupervisor = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
+    | PutStateVariable
     | PutVariable
     | RescheduleTask
     | RetryTask
@@ -932,6 +961,7 @@ ToSupervisor = Annotated[
     | ValidateInletsAndOutlets
     | TaskState
     | TriggerDagRun
+    | DeleteStateVariable
     | DeleteVariable
     | ResendLoggingFD
     | CreateHITLDetailPayload
