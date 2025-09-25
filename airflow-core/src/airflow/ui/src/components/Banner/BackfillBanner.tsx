@@ -55,8 +55,8 @@ const BackfillBanner = ({ dagId }: Props) => {
   const { data, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
   }, undefined, {
-    refetchInterval: (query: any) =>
-      query.state.data?.backfills?.some((bf: BackfillResponse) => bf.completed_at === null)
+    refetchInterval: (query) =>
+      Boolean(query.state.data?.backfills.some((bf: BackfillResponse) => bf.completed_at === null))
         ? refetchInterval
         : false,
   });
