@@ -29,6 +29,7 @@ import (
 	flag "github.com/spf13/pflag"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server/impl"
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
 )
 
@@ -88,7 +89,7 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 	pluginConfig := &plugin.ServeConfig{
 		HandshakeConfig: shared.Handshake,
 		Plugins: plugin.PluginSet{
-			"dag-bundle": &BundleGRPCPlugin{
+			"dag-bundle": &impl.BundleGRPCPlugin{
 				Factory: func() bundlev1.BundleProvider { return bundle },
 			},
 		},

@@ -31,7 +31,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/pkg/bundles/bundleclientv1"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
 	"github.com/apache/airflow/go-sdk/pkg/logging/shclog"
 )
 
@@ -209,7 +209,7 @@ func (d *Discovery) makeClient(binaryPath string) *plugin.Client {
 		Cmd:              exec.Command(binaryPath),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		VersionedPlugins: map[int]plugin.PluginSet{
-			1: {"dag-bundle": &bundleclientv1.BundleGRPCPlugin{}},
+			1: {"dag-bundle": &bundlev1client.BundleGRPCPlugin{}},
 		},
 		Logger: d.hcLogger,
 	},
@@ -231,7 +231,7 @@ func (d *Discovery) getBundleVersionInfo(binaryPath string) (*bundlev1.BundleInf
 		return nil, err
 	}
 
-	bundle := raw.(bundleclientv1.BundleClient)
+	bundle := raw.(bundlev1client.BundleClient)
 
 	metadata, err := bundle.GetMetadata(context.Background())
 	if err != nil {
@@ -248,5 +248,5 @@ func isExecutable(file string) bool {
 	}
 
 	// Check if file is regular and has execute permission
-	return !info.IsDir() && (info.Mode()&0111) != 0
+	return !info.IsDir() && (info.Mode()&0o111) != 0
 }

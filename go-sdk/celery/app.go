@@ -31,7 +31,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/pkg/bundles/bundleclientv1"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
 )
 
@@ -122,7 +122,7 @@ func (state *celeryTasksRunner) ExecuteWorkloadTask(
 		return err
 	}
 
-	bundleClient := raw.(bundleclientv1.BundleClient)
+	bundleClient := raw.(bundlev1client.BundleClient)
 
 	return bundleClient.ExecuteTaskWorkload(ctx, workload)
 }

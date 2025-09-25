@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundleclientv1
+package bundlev1client
 
 import (
 	"context"
@@ -41,7 +41,7 @@ type BundleGRPCPlugin struct {
 	Impl bundlev1.BundleProvider
 }
 
-// Type assetion -- it must be a gprc plugin
+// Type assertion -- it must be a gprc plugin
 var _ plugin.GRPCPlugin = (*BundleGRPCPlugin)(nil)
 
 func ptr[T any](val T) *T {

@@ -20,6 +20,6 @@
 //
 // This "serving" is to local process only, and is not exposed over any network
 //
-// Bundle will likely be calling bundlev1server.Serve from their main function to
+// Bundle will likely be calling [Serve] from their main function to
 // start the server so Airflow's go worker can connect to it.
 package bundlev1server

@@ -15,7 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundlev1server
+// Package impl contains internal GPRC implementation types.
+package impl
+
+// This is in a separate package, so that it doesn't show up to people viewing the docs of bundlev1server, as
+// these types and classes aren't relevant to them
 
 import (
 	"context"
