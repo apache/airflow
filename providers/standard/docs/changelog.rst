@@ -35,6 +35,24 @@
 Changelog
 ---------
 
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a '@task.stub' to allow tasks in other languages to be defined in dags (#56055)``
+
+Misc
+~~~~
+
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bash_decorator' DAG (#56020)``
+   * ``Enable pt011 rule 2 (#55749)``
+
 1.8.0
 .....
 

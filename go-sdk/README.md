@@ -38,7 +38,7 @@ The Go SDK currently works with Airflow's Celery Executor setup. Here's how to g
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24 or later
 - Docker and Docker Compose (for Breeze)
 - Redis (for Celery broker)
 
@@ -98,7 +98,6 @@ This SDK currently will:
 
 A non-exhaustive list of features we have yet to implement
 
-- Reading of Airflow Connections
 - Support for putting tasks into state other than success or failed/up-for-retry (deferred, failed-without-retries etc.)
 - HTTP Log server to view logs from in-progress tasks
 - Remote task logs (i.e. S3/GCS etc)
@@ -110,6 +109,5 @@ A non-exhaustive list of features we have yet to implement
 
 This is more of an "it would be nice to have" than any plan or commitment, and a place to record ideas.
 
-- Support multiple versions by compiling tasks/bundles into plugins and make use of [go-plugin](https://github.com/hashicorp/go-plugin) (This is how Terraform providers work)
-
-  This would enable use to have executor code and task code in separate processes, and to be able to have a single worker execute different bundles/versions of tasks (i.e. we'd have a go executor process that launches versioned plugin bundles to actually execute the task)
+- The ability to run Airflow tasks "in" an existing code base - i.e. being able to define an Airflow task function that runs (in a goroutine) inside an existing code base an app.
+- Do the task function reflection ahead of time, not for each Execute call.

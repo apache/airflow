@@ -15,9 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package cmd
+package commands
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -27,6 +30,7 @@ import (
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Connect to Celery broker and run Airflow workloads",
+	Long:  "Connect to Celery broker and run Airflow workloads",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var config celery.Config
@@ -36,7 +40,12 @@ var runCmd = &cobra.Command{
 		err := viper.Unmarshal(&config)
 		cobra.CheckErr(err)
 
-		return celery.Run(cmd.Context(), config)
+		err = celery.Run(cmd.Context(), config)
+		if err != nil {
+			slog.Error("program stopped", "error", err)
+			os.Exit(1)
+		}
+		return nil
 	},
 }
 
@@ -45,5 +54,12 @@ func init() {
 	runCmd.Flags().
 		StringP("execution-api-url", "e", "http://localhost:8080/execution/", "Execution API to connect to")
 	runCmd.Flags().StringSliceP("queues", "q", []string{"default"}, "Celery queues to listen on")
+	runCmd.Flags().
+		StringP("bundles-folder", "", "", "Folder containing the compiled dag bundle executables")
+
 	runCmd.MarkFlagRequired("broker-address")
+	runCmd.MarkFlagRequired("bundles-folder")
+	runCmd.Flags().
+		SetAnnotation("broker-address", "viper-mapping", []string{"celery.broker-address"})
+	runCmd.Flags().SetAnnotation("bundles-folder", "viper-mapping", []string{"bundles.folder"})
 }
