@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import getpass
 import inspect
 import os
@@ -36,7 +37,6 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl._shared.timezones.timezone import parse as parsedate
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -467,7 +467,7 @@ class CommandFactory:
             "dict": dict,
             "tuple": tuple,
             "set": set,
-            "datetime.datetime": parsedate,
+            "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": dict,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
