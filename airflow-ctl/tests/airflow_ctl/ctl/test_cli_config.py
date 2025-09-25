@@ -225,7 +225,7 @@ class TestCommandFactory:
                 class BackfillsOperations(BaseOperations):
                     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
                         try:
-                            self.response = self.client.post("backfills", json=_date_safe_dict_from_pydantic(backfill))
+                            self.response = self.client.post("backfills", json=backfill.model_dump(mode="json"))
                             return BackfillResponse.model_validate_json(self.response.content)
                         except ServerResponseError as e:
                             raise e

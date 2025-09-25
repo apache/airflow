@@ -18,7 +18,8 @@
 package celery
 
 type Config struct {
-	BrokerAddr string   `mapstructure:"broker_address"`
-	Port       int      `mapstructure:"port"`
-	Queues     []string `mapstructure:"queues"`
+	BrokerAddr    string   `mapstructure:"broker_address"`
+	Port          int      `mapstructure:"port"`
+	Queues        []string `mapstructure:"queues"`
+	BundlesFolder string   `mapstructure:"bundles-folder"`
 }

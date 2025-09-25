@@ -30,29 +30,21 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
-	"github.com/apache/airflow/go-sdk/worker"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
+	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
 )
 
+type celeryTasksRunner struct {
+	*shared.Discovery
+}
+
 func Run(ctx context.Context, config Config) error {
-	worker, ok := ctx.Value(sdkcontext.WorkerContextKey).(worker.Worker)
-	if !ok {
-		slog.ErrorContext(ctx, "Worker missing in context")
-		return fmt.Errorf("worker value missing in context")
-	}
-
-	worker, err := worker.WithServer(viper.GetString("execution-api-url"))
-	if err != nil {
-		slog.ErrorContext(ctx, "Error setting ExecutionAPI sxerver for worker", "err", err)
-		return err
-	}
-
-	// Store the updated worker in context
-	ctx = context.WithValue(ctx, sdkcontext.WorkerContextKey, worker)
-
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
+
+	d := shared.NewDiscovery(viper.GetString("bundles.folder"), nil)
+	d.DiscoverBundles(ctx)
 
 	c := redis.NewClient(&redis.Options{
 		Addr: config.BrokerAddr,
@@ -80,27 +72,57 @@ func Run(ctx context.Context, config Config) error {
 		celery.WithBroker(broker),
 	)
 
+	tasks := &celeryTasksRunner{d}
+
 	for _, queue := range config.Queues {
 		app.Register(
 			"execute_workload",
 			queue,
 			func(ctx context.Context, p *celery.TaskParam) error {
-				p.NameArgs("payload")
-				payload := p.MustString("payload")
-
-				var workload api.ExecuteTaskWorkload
-				if err := json.Unmarshal([]byte(payload), &workload); err != nil {
-					return err
+				err := tasks.ExecuteWorkloadTask(ctx, p)
+				if err != nil {
+					slog.ErrorContext(ctx, "Celery Task failed", "err", err)
 				}
-				return worker.ExecuteTaskWorkload(ctx, workload)
+				return err
 			},
 		)
 	}
 
 	slog.Info("waiting for tasks", "queues", config.Queues)
-	err = app.Run(ctx)
-	if err != nil {
-		slog.Error("program stopped", "error", err)
+	return app.Run(ctx)
+}
+
+func (state *celeryTasksRunner) ExecuteWorkloadTask(
+	ctx context.Context,
+	p *celery.TaskParam,
+) error {
+	p.NameArgs("payload")
+	payload := p.MustString("payload")
+
+	var workload bundlev1.ExecuteTaskWorkload
+	if err := json.Unmarshal([]byte(payload), &workload); err != nil {
+		return err
 	}
-	return err
+
+	client, err := state.ClientForBundle(workload.BundleInfo.Name, workload.BundleInfo.Version)
+	if err != nil {
+		// TODO: This Should write something to the log file
+		return err
+	}
+	// TODO: Don't kill the backend process here, but instead kill it after a bit of idleness. See if we can
+	// reuse the process for multiple tasks too
+	defer client.Kill()
+	rpcClient, err := client.Client()
+	if err != nil {
+		return err
+	}
+
+	raw, err := rpcClient.Dispense("dag-bundle")
+	if err != nil {
+		return err
+	}
+
+	bundleClient := raw.(bundlev1client.BundleClient)
+
+	return bundleClient.ExecuteTaskWorkload(ctx, workload)
 }

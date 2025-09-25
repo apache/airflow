@@ -1,0 +1,16 @@
+# Justfile for example DAG bundle
+
+# Default recipe to show help
+default:
+    @just --list
+
+# Build the example bundle
+build:
+    @echo "Building example DAG bundle..."
+    go build -o ../../bin/example-dag-bundle .
+
+
+# Build with specific name and version
+build-with name="data_processing_example" version="1.0.0":
+    @echo "Building example DAG bundle with name={{name}} version={{version}}..."
+    go build -ldflags="-X 'main.bundleName={{name}}' -X 'main.bundleVersion={{version}}'" -o ../../bin/{{name}}-{{version}} .
