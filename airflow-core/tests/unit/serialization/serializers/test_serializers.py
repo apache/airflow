@@ -73,17 +73,26 @@ class TestSerializers:
     @pytest.mark.parametrize(
         "input_obj",
         [
-            datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC),
-            DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC),
-            datetime.date(2022, 7, 10),
-            datetime.timedelta(days=320),
-            datetime.datetime(
-                2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.timezone("America/New_York")
+            pytest.param(
+                datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC),
+                id="datetime_utc",
             ),
-            DateTime(2022, 7, 10, tzinfo=pendulum.timezone("America/New_York")),
-            DateTime(2022, 7, 10, tzinfo=tzutc()),
-            DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris")),
-            datetime.datetime.now(),
+            pytest.param(DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC), id="pendulum_datetime_utc"),
+            pytest.param(datetime.date(2022, 7, 10), id="date"),
+            pytest.param(datetime.timedelta(days=320), id="timedelta"),
+            pytest.param(
+                datetime.datetime(
+                    2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.timezone("America/New_York")
+                ),
+                id="datetime_ny_tz",
+            ),
+            pytest.param(
+                DateTime(2022, 7, 10, tzinfo=pendulum.timezone("America/New_York")),
+                id="pendulum_datetime_ny_tz",
+            ),
+            pytest.param(DateTime(2022, 7, 10, tzinfo=tzutc()), id="datetime_tzutc"),
+            pytest.param(DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris")), id="datetime_zoneinfo"),
+            pytest.param(datetime.datetime.now(), id="datetime_now"),
         ],
     )
     def test_datetime(self, input_obj):
@@ -98,13 +107,13 @@ class TestSerializers:
     @pytest.mark.parametrize(
         "tz_input, expected_tz_name",
         [
-            ("UTC", "UTC"),
-            ("Europe/Paris", "Europe/Paris"),
-            ("America/New_York", "America/New_York"),
-            ("EDT", "-04:00"),
-            ("CDT", "-05:00"),
-            ("MDT", "-06:00"),
-            ("PDT", "-07:00"),
+            pytest.param("UTC", "UTC", id="utc"),
+            pytest.param("Europe/Paris", "Europe/Paris", id="europe_paris"),
+            pytest.param("America/New_York", "America/New_York", id="america_new_york"),
+            pytest.param("EDT", "-04:00", id="edt_ambiguous"),
+            pytest.param("CDT", "-05:00", id="cdt_ambiguous"),
+            pytest.param("MDT", "-06:00", id="mdt_ambiguous"),
+            pytest.param("PDT", "-07:00", id="pdt_ambiguous"),
         ],
     )
     def test_deserialize_datetime_v1(self, tz_input, expected_tz_name):
