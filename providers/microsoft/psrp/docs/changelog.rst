@@ -43,8 +43,6 @@ Bug Fixes
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Misc
 ~~~~
 
