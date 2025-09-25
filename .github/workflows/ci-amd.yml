@@ -829,13 +829,13 @@ jobs:
       - name: Setup Gotestsum
         shell: bash
         run: |
-          go install gotest.tools/gotestsum@ddd0b05a6878e2e8257a2abe6e7df66cebc53d0e  # v1.12.3
+          go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f  # v1.13.0
           gotestsum --version
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: Run Go tests
         working-directory: ./go-sdk
-        run: gotestsum --format testname ./...
+        run: gotestsum --format github-actions ./...
 
   tests-airflow-ctl:
     name: "Airflow CTL tests"

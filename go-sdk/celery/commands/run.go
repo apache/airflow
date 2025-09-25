@@ -50,16 +50,20 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	runCmd.Flags().StringP("broker-address", "b", "", "Celery Broker host:port to connect to")
-	runCmd.Flags().
-		StringP("execution-api-url", "e", "http://localhost:8080/execution/", "Execution API to connect to")
-	runCmd.Flags().StringSliceP("queues", "q", []string{"default"}, "Celery queues to listen on")
-	runCmd.Flags().
-		StringP("bundles-folder", "", "", "Folder containing the compiled dag bundle executables")
+	flags := runCmd.Flags()
+	flags.StringP("broker-address", "b", "", "Celery Broker host:port to connect to")
+	flags.StringP(
+		"execution-api-url",
+		"e",
+		"http://localhost:8080/execution/",
+		"Execution API to connect to",
+	)
+	flags.StringSliceP("queues", "q", []string{"default"}, "Celery queues to listen on")
+	flags.StringP("bundles-folder", "", "", "Folder containing the compiled dag bundle executables")
 
 	runCmd.MarkFlagRequired("broker-address")
 	runCmd.MarkFlagRequired("bundles-folder")
-	runCmd.Flags().
-		SetAnnotation("broker-address", "viper-mapping", []string{"celery.broker-address"})
-	runCmd.Flags().SetAnnotation("bundles-folder", "viper-mapping", []string{"bundles.folder"})
+	flags.SetAnnotation("broker-address", "viper-mapping", []string{"broker_address"})
+	flags.SetAnnotation("queues", "viper-mapping", []string{"queues"})
+	flags.SetAnnotation("bundles-folder", "viper-mapping", []string{"bundles.folder"})
 }
