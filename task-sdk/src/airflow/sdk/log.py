@@ -91,6 +91,8 @@ def configure_logging(
     if colored_console_log is None:
         colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
+    namespace_log_levels = conf.get("logging", "namespace_levels", fallback=None)
+
     from airflow.sdk._shared.logging import configure_logging, translate_config_values
 
     log_fmt, callsite_params = translate_config_values(
@@ -110,6 +112,7 @@ def configure_logging(
     configure_logging(
         json_output=json_output,
         log_level=log_level,
+        namespace_log_levels=namespace_log_levels,
         log_format=log_fmt,
         output=output,
         cache_logger_on_first_use=cache_logger_on_first_use,
@@ -278,9 +281,9 @@ def _showwarning(
         if _warnings_showwarning is not None:
             _warnings_showwarning(message, category, filename, lineno, file, line)
     else:
-        from airflow.sdk._shared.logging.structlog import logger_without_processor_of_type
+        from airflow.sdk._shared.logging.structlog import reconfigure_logger
 
-        log = logger_without_processor_of_type(
+        log = reconfigure_logger(
             structlog.get_logger("py.warnings").bind(), structlog.processors.CallsiteParameterAdder
         )
 
