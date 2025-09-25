@@ -40,7 +40,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-icons": "^5.5.0",
-    "react-router-dom": "^7.9.1",
+    "react-router-dom": "^7.9.2",
     "react-timeago": "^8.3.0"
   },
   "devDependencies": {
@@ -68,7 +68,7 @@
     "globals": "^16.4.0",
     "happy-dom": "^18.0.1",
     "prettier": "^3.5.3",
-    "typescript": "~5.8.3",
+    "typescript": "~5.9.2",
     "typescript-eslint": "^8.44.1",
     "vite": "^7.1.7",
     "vite-plugin-css-injected-by-js": "^3.5.2",
