@@ -68,6 +68,7 @@ def import_all_models():
     import airflow.models.dagwarning
     import airflow.models.errors
     import airflow.models.serialized_dag
+    import airflow.models.state_variable
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
     import airflow.models.team
@@ -112,6 +113,7 @@ __lazy_imports = {
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
     "SkipMixin": "airflow.models.skipmixin",
+    "StateVariable": "airflow.models.state_variable",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
     "Team": "airflow.models.team",
@@ -137,6 +139,7 @@ if TYPE_CHECKING:
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.skipmixin import SkipMixin
+    # from airflow.models.state_variable import StateVariable
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
     from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
