@@ -60,6 +60,7 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
+    StateVariableResponse,
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
@@ -75,6 +76,7 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DagRunStateResult,
     DeferTask,
+    DeleteStateVariable,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -87,6 +89,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetStateVariable,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -98,6 +101,7 @@ from airflow.sdk.execution_time.comms import (
     InactiveAssetsResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
+    PutStateVariable,
     PutVariable,
     RescheduleTask,
     ResendLoggingFD,
@@ -107,6 +111,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
+    StateVariableResult,
     SucceedTask,
     TaskState,
     TaskStatesResult,
@@ -1196,6 +1201,23 @@ class ActivitySubprocess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
                 resp = conn
+
+        elif isinstance(msg, GetStateVariable):
+            state_variable = self.client.state_variables.get(msg.key)
+            if isinstance(state_variable, StateVariableResponse):
+                if state_variable.value:
+                    mask_secret(state_variable.value, state_variable.key)
+                state_var_result = StateVariableResult.from_state_variable_response(state_variable)
+                resp = state_var_result
+            else:
+                resp = state_variable
+
+        elif isinstance(msg, PutStateVariable):
+            self.client.state_variables.set(msg.key, msg.value)
+
+        elif isinstance(msg, DeleteStateVariable):
+            self.client.state_variables.delete(msg.key)
+
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):

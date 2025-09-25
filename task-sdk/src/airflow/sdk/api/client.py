@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    StateVariableResponse,
     TaskInstanceState,
     TaskStatesResponse,
     TerminalStateNonSuccess,
@@ -365,6 +366,35 @@ class ConnectionOperations:
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
             raise
         return ConnectionResponse.model_validate_json(resp.read())
+
+
+class StateVariableOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, key: str) -> StateVariableResponse | ErrorResponse:
+        # TODO: This is copy-and-paste, and need to be updated
+        try:
+            resp = self.client.get(f"state_variables/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "StateVariable not found",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.STATE_VARIABLE_NOT_FOUND, detail={"key": key})
+            raise
+        return StateVariableResponse.model_validate_json(resp.read())
+
+    def set(self, key: str, value: str) -> OKResponse:
+        return OKResponse(ok=True)
+
+    def delete(self, key: str) -> OKResponse:
+        return OKResponse(ok=True)
 
 
 class VariableOperations:
@@ -881,6 +911,12 @@ class Client(httpx.Client):
     def connections(self) -> ConnectionOperations:
         """Operations related to Connections."""
         return ConnectionOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def state_variables(self) -> StateVariableOperations:
+        """Operations related to StateVariables."""
+        return StateVariableOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
