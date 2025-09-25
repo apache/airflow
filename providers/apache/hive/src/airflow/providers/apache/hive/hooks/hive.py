@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     import polars as pl
 
 
-
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
 
@@ -577,8 +576,13 @@ class HiveMetastoreHook(BaseHook):
         if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
             from thrift_sasl import TSaslClientTransport
             from pyhive.hive import get_installed_sasl
-            sasl_auth = 'GSSAPI'
-            transport = TSaslClientTransport(lambda: get_installed_sasl(host=host, sasl_auth=sasl_auth, service=kerberos_service_name), sasl_auth, conn_socket)
+
+            sasl_auth = "GSSAPI"
+            transport = TSaslClientTransport(
+                lambda: get_installed_sasl(host=host, sasl_auth=sasl_auth, service=kerberos_service_name),
+                sasl_auth,
+                conn_socket,
+            )
         else:
             transport = TTransport.TBufferedTransport(conn_socket)
 
