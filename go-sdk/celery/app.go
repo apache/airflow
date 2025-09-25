@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 
 	celery "github.com/marselester/gopher-celery"
 	celeryredis "github.com/marselester/gopher-celery/goredis"
@@ -33,6 +34,7 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
+	"github.com/apache/airflow/go-sdk/pkg/logging/server"
 )
 
 type celeryTasksRunner struct {
@@ -40,8 +42,23 @@ type celeryTasksRunner struct {
 }
 
 func Run(ctx context.Context, config Config) error {
+	if len(config.Queues) == 0 {
+		return fmt.Errorf("no queues defined")
+	}
+
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
+
+	log := slog.Default().With("logger", "celery.app")
+
+	// TODO: use a config struct in the config, rather than error prone strings!
+
+	logServer, err := server.NewFromConfig(viper.GetViper())
+	if err != nil {
+		return err
+	}
+
+	go logServer.ListenAndServe(ctx, time.Duration(0))
 
 	d := shared.NewDiscovery(viper.GetString("bundles.folder"), nil)
 	d.DiscoverBundles(ctx)
@@ -51,21 +68,18 @@ func Run(ctx context.Context, config Config) error {
 	})
 	defer func() {
 		if err := c.Close(); err != nil {
-			slog.ErrorContext(ctx, "failed to close Redis client", "err", err)
+			log.ErrorContext(ctx, "failed to close Redis client", "err", err)
 		}
 	}()
 
 	if _, err := c.Ping(ctx).Result(); err != nil {
-		slog.ErrorContext(ctx, "Redis connection failed", "err", err)
+		log.ErrorContext(ctx, "Redis connection failed", "err", err)
 		return err
 	}
 	broker := celeryredis.NewBroker(
 		celeryredis.WithClient(c),
 	)
 
-	if len(config.Queues) == 0 {
-		return fmt.Errorf("no queues defined")
-	}
 	broker.Observe(config.Queues)
 
 	app := celery.NewApp(
@@ -81,14 +95,14 @@ func Run(ctx context.Context, config Config) error {
 			func(ctx context.Context, p *celery.TaskParam) error {
 				err := tasks.ExecuteWorkloadTask(ctx, p)
 				if err != nil {
-					slog.ErrorContext(ctx, "Celery Task failed", "err", err)
+					log.ErrorContext(ctx, "Celery Task failed", "err", err)
 				}
 				return err
 			},
 		)
 	}
 
-	slog.Info("waiting for tasks", "queues", config.Queues)
+	log.Info("waiting for tasks", "queues", config.Queues)
 	return app.Run(ctx)
 }
 
