@@ -812,7 +812,7 @@ logging:
         The logger names are viewable in task logs (as the "source" attribute), or in server components by
         including ``%(name)s`` in your format string, or in the between ``[]`` after the message in the
         default format.
-      version_added: 3.1.0
+      version_added: 3.2.0
       type: string
       example: "sqlalchemy=INFO sqlalchemy.engine=DEBUG, botocor"
       default: ~
