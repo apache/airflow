@@ -935,6 +935,7 @@ jobs:
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
+    needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
