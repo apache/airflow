@@ -90,9 +90,9 @@ def _deactivate_unknown_dags(active_dag_ids, session):
 
 
 def _bootstrap_dagbag():
-    if AIRFLOW_V_3_1_PLUS:
+    if AIRFLOW_V_3_2_PLUS:
         from airflow.dag_processing.dagbag import DagBag
-    else:  # back-compat for Airflow <3.1
+    else:  # back-compat for Airflow <3.2
         from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
@@ -105,7 +105,7 @@ def _bootstrap_dagbag():
 
         dagbag = DagBag()
         # Save DAGs in the ORM
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.dag_processing.dagbag import sync_bag_to_db
 
             sync_bag_to_db(dagbag, bundle_name="dags-folder", bundle_version=None, session=session)
@@ -166,7 +166,7 @@ def initial_db_init():
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
-    if AIRFLOW_V_3_1_PLUS:
+    if AIRFLOW_V_3_2_PLUS:
         from airflow.dag_processing.dagbag import DagBag
     else:
         from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
@@ -180,7 +180,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             session.flush()
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.dag_processing.dagbag import sync_bag_to_db
 
             sync_bag_to_db(dagbag, "dags-folder", None, session=session)
