@@ -22,7 +22,7 @@ from typing import Any
 
 from airflow.providers.amazon.aws.hooks.ses import SesHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.sdk import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.utils.helpers import prune_dict
 
 
