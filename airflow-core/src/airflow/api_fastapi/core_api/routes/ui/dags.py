@@ -104,7 +104,12 @@ def get_dags(
             SortParam(
                 ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
                 DagModel,
-                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
+                {
+                    "last_run_state": DagRun.state,
+                    "start_date": func.coalesce(DagRun.run_after, DagRun.start_date),
+                    "last_run_start_date": func.coalesce(DagRun.run_after, DagRun.start_date),
+                    "last_run_after": DagRun.run_after,
+                },
             ).dynamic_depends()
         ),
     ],
