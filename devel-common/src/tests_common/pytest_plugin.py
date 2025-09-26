@@ -1175,7 +1175,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
         def sync_dagbag_to_db(self):
             if AIRFLOW_V_3_1_PLUS:
-                from airflow.dag_processing.dagbag import sync_bag_to_db
+                try:
+                    from airflow.dag_processing.dagbag import sync_bag_to_db
+                except ImportError:
+                    from airflow.models.dagbag import sync_bag_to_db
 
                 sync_bag_to_db(self.dagbag, self.bundle_name, None)
             elif AIRFLOW_V_3_0_PLUS:
@@ -1622,16 +1625,14 @@ def session():
 def get_test_dag():
     def _get(dag_id: str):
         from airflow import settings
+        from airflow.models.serialized_dag import SerializedDagModel
 
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
             from airflow.dag_processing.dagbag import DagBag
         else:
             from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
         dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
