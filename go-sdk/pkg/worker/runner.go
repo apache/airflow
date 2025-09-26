@@ -449,7 +449,7 @@ func (w *worker) setupTaskLogger(
 		return supervisorLogger, nil
 	}
 
-	base := viper.GetString("logging.base_log_path")
+	base := viper.GetString("logging.base_log_folder")
 	filename := path.Join(base, *workload.LogPath)
 	dir := path.Dir(filename)
 
