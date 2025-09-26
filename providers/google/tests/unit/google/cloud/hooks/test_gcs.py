@@ -39,7 +39,11 @@ from airflow.providers.common.compat.assets import Asset
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.sdk import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.version import version
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
