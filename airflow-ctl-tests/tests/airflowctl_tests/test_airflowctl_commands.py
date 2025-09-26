@@ -20,7 +20,6 @@ import os
 from pathlib import Path
 from shutil import copyfile
 from subprocess import PIPE, STDOUT, Popen
-from time import sleep
 
 from python_on_whales import DockerClient, docker
 from rich.console import Console
@@ -29,7 +28,6 @@ from airflowctl_tests.constants import (
     DOCKER_COMPOSE_FILE_PATH,
     DOCKER_IMAGE,
 )
-from airflowctl_tests.test_airflowctl_commands_config import TEST_COMMANDS
 
 console = Console(width=400, color_system="standard")
 
@@ -94,7 +92,7 @@ def debug_environment():
     console.print("[yellow]================================")
 
 
-def test_airflowctl_commands(tmp_path_factory, monkeypatch):
+def test_airflowctl_commands(tmp_path_factory, monkeypatch, login_command, login_output, test_commands):
     """Test airflowctl commands using docker-compose environment."""
     tmp_dir = tmp_path_factory.mktemp("airflow-ctl-test")
     console.print(f"[yellow]Tests are run in {tmp_dir}")
@@ -110,47 +108,55 @@ def test_airflowctl_commands(tmp_path_factory, monkeypatch):
     # Initialize Docker client
     compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
+    # Testing commands of airflowctl
     try:
         compose.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for airflowctl test\n")
-
-        for command, config in TEST_COMMANDS.items():
+        for command in test_commands:
+            command_from_config = f"airflowctl {command}"
+            # We need to run auth login first for all commands except login itself
+            if command != login_command:
+                run_command = f"airflowctl {login_command} && {command_from_config}"
+            else:
+                run_command = command_from_config
             console.print(f"[yellow]Running command: {command}")
-            full_command = f"airflowctl {command}"
-            proc = Popen(full_command, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
 
-            if "stdin" in config:
-                stdin = config["stdin"]
-                console.print(f"[yellow]Giving stdin input to command '{stdin}'")
-                sleep(5)
-                print(stdin.encode(), file=proc.stdin, flush=True)
-            outs, errs = proc.communicate(timeout=10)
+            # Give some time for the command to execute and output to be ready
+            proc = Popen(run_command.encode(), stdout=PIPE, stderr=STDOUT, stdin=PIPE, shell=True)
+            stdout_result, stderr_result = proc.communicate(timeout=60)
 
             # CLI command gave errors
-            if errs:
-                console.print(f"[red]Errors while executing command '{full_command}':\n{errs.decode()}")
-
-            if "output" in config:
-                expected_output = config["output"]
-                if expected_output not in outs.decode():
-                    console.print(f"[red]❌ Output did not match expected for command '{full_command}'")
-                    console.print(f"[red]Expected to find:\n{expected_output}\n")
-                    console.print(f"[red]But got:\n{outs.decode()}\n")
-                    raise AssertionError(
-                        f"Output did not match expected\nExpected: {expected_output}\nGot: {outs.decode()}"
-                    )
-                console.print(f"[green]✅ Output matched expected for command '{full_command}'")
-            else:
-                not_expected_output = "Server error"
-                if not_expected_output in outs.decode():
-                    console.print(f"[red]❌ Output contained unexpected text for command '{full_command}'")
-                    console.print(f"[red]Did not expect to find:\n{not_expected_output}\n")
-                    console.print(f"[red]But got:\n{outs.decode()}\n")
-                    raise AssertionError(f"Output contained unexpected text\nOutput:\n{outs.decode()}")
+            if stderr_result:
                 console.print(
-                    f"[green]✅ Output did not contain unexpected text for command '{full_command}'"
+                    f"[red]Errors while executing command '{command_from_config}':\n{stderr_result.decode()}"
                 )
-            console.print(f"[cyan]Result:\n{outs}\n")
+
+            # Decode the output
+            stdout_result = stdout_result.decode()
+            # We need to trim auth login output if the command is not login itself and clean backspaces
+            if command != login_command:
+                if login_output not in stdout_result:
+                    console.print(
+                        f"[red]❌ Login output not found before command output for '{command_from_config}'"
+                    )
+                    console.print(f"[red]Full output:\n{stdout_result}\n")
+                    raise AssertionError("Login output not found before command output")
+                stdout_result = stdout_result.split(f"{login_output}\n")[1].strip()
+            else:
+                stdout_result = stdout_result.strip()
+
+            # This is a common error message that is thrown by client when something is wrong
+            # Please ensure it is aligning with airflowctl.api.client.get_json_error
+            airflowctl_client_server_response_error = "Server error"
+            if airflowctl_client_server_response_error in stdout_result:
+                console.print(f"[red]❌ Output contained unexpected text for command '{command_from_config}'")
+                console.print(f"[red]Did not expect to find:\n{airflowctl_client_server_response_error}\n")
+                console.print(f"[red]But got:\n{stdout_result}\n")
+                raise AssertionError(f"Output contained unexpected text\nOutput:\n{stdout_result}")
+            console.print(
+                f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'"
+            )
+            console.print(f"[cyan]Result:\n{stdout_result}\n")
             proc.kill()
     except Exception:
         print_diagnostics(compose, compose.version(), docker.version())
