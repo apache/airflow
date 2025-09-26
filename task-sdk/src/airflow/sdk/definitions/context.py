@@ -82,7 +82,7 @@ class Context(TypedDict, total=False):
     ti: RuntimeTaskInstanceProtocol
     # triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     triggering_asset_events: Any
-    try_number: NotRequired[int | None]
+    try_number: int
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
