@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
@@ -2440,6 +2441,7 @@ def test_mypy_matches(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
+@patch("airflow_breeze.utils.selective_checks.FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED", True)
 def test_ui_english_translation_changed_fail_on_change():
     translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
     with pytest.raises(SystemExit):
