@@ -187,7 +187,8 @@ class Password(argparse.Action):
     """Custom action to prompt for password input."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        values = getpass.getpass()
+        if values is None:
+            values = getpass.getpass()
         setattr(namespace, self.dest, values)
 
 
