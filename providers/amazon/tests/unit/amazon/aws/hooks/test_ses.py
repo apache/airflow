@@ -104,36 +104,34 @@ class TestAsyncSesHook:
             mocked_conn.return_value.__aenter__.return_value = mock_async_client
             yield mocked_conn
 
-    @pytest.mark.asyncio
-    class TestAsyncSesHook:
-        async def test_get_async_conn(self, mock_get_async_conn, mock_async_client):
-            hook = SesHook()
-            async with await hook.get_async_conn() as async_conn:
-                assert async_conn is mock_async_client
+    async def test_get_async_conn(self, mock_get_async_conn, mock_async_client):
+        hook = SesHook()
+        async with await hook.get_async_conn() as async_conn:
+            assert async_conn is mock_async_client
 
-        @pytest.mark.parametrize("to", TEST_TO_ADDRESSES)
-        @pytest.mark.parametrize("cc", TEST_CC_ADDRESSES)
-        @pytest.mark.parametrize("bcc", TEST_BCC_ADDRESSES)
-        async def test_asend_email(self, mock_get_async_conn, mock_async_client, to, cc, bcc):
-            _verify_address(TEST_FROM_ADDRESS)
-            hook = SesHook()
+    @pytest.mark.parametrize("to", TEST_TO_ADDRESSES)
+    @pytest.mark.parametrize("cc", TEST_CC_ADDRESSES)
+    @pytest.mark.parametrize("bcc", TEST_BCC_ADDRESSES)
+    async def test_asend_email(self, mock_get_async_conn, mock_async_client, to, cc, bcc):
+        _verify_address(TEST_FROM_ADDRESS)
+        hook = SesHook()
 
-            mock_async_client.send_raw_email.return_value = {"MessageId": "test_message_id"}
+        mock_async_client.send_raw_email.return_value = {"MessageId": "test_message_id"}
 
-            response = await hook.asend_email(
-                mail_from=TEST_FROM_ADDRESS,
-                to=to,
-                subject=TEST_SUBJECT,
-                html_content=TEST_HTML_CONTENT,
-                cc=cc,
-                bcc=bcc,
-                reply_to=TEST_REPLY_TO,
-                return_path=TEST_RETURN_PATH,
-            )
+        response = await hook.asend_email(
+            mail_from=TEST_FROM_ADDRESS,
+            to=to,
+            subject=TEST_SUBJECT,
+            html_content=TEST_HTML_CONTENT,
+            cc=cc,
+            bcc=bcc,
+            reply_to=TEST_REPLY_TO,
+            return_path=TEST_RETURN_PATH,
+        )
 
-            assert response is not None
-            assert isinstance(response, dict)
-            assert "MessageId" in response
-            assert response["MessageId"] == "test_message_id"
+        assert response is not None
+        assert isinstance(response, dict)
+        assert "MessageId" in response
+        assert response["MessageId"] == "test_message_id"
 
-            mock_async_client.send_raw_email.assert_called_once()
+        mock_async_client.send_raw_email.assert_called_once()
