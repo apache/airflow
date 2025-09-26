@@ -1186,8 +1186,9 @@ class TestDagFileProcessorManager:
 
         monkeypatch.setattr("airflow.dag_processing.manager.Stats.gauge", _fake_gauge, raising=True)
 
-        manager = DagFileProcessorManager(max_runs=1)
-        manager._emit_running_dags_metric()
+        with conf_vars({("metrics", "statsd_on"): "True"}):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._emit_running_dags_metric()
 
         assert recorded == [("executor.running_dags", 2)]
 
