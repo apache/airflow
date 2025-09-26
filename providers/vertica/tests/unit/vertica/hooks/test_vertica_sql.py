@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import json
 from collections import namedtuple
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from unittest import mock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from sqlalchemy.engine import Engine
@@ -160,7 +161,7 @@ def test_vertica_run_queries(
         return_last=return_last,
     )
 
-    expected_mock_calls = [call(sql_call) for sql_call in expected_calls]
+    expected_mock_calls = [mock.call(sql_call) for sql_call in expected_calls]
     mock_cursor.execute.assert_has_calls(expected_mock_calls)
     assert [SerializableRow(*row) for row in result] == expected_result
 
@@ -176,8 +177,8 @@ def test_run_with_multiple_statements(vertica_hook, mock_cursor):
 
     mock_cursor.execute.assert_has_calls(
         [
-            call("SELECT 1;"),
-            call("SELECT 2;"),
+            mock.call("SELECT 1;"),
+            mock.call("SELECT 2;"),
         ]
     )
 
@@ -188,12 +189,6 @@ def test_get_uri(vertica_hook):
     """
     Test that the get_uri() method returns the correct connection string.
     """
-
-    expected_uri = "vertica-python://user:pass@vertica.cloud.com:5433/test_db"
-
-    actual_uri = vertica_hook.get_uri()
-
-    assert actual_uri == expected_uri
     assert vertica_hook.get_uri() == "vertica-python://user:pass@vertica.cloud.com:5433/test_db"
 
 
