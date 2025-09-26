@@ -748,7 +748,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 job_flow_id=self._job_flow_id,
                 log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
-        if self.wait_policy:      # Only wait (sync or async) if user explicitly requested a wait policy.
+        if self.wait_policy:
             waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy]
 
             if self.deferrable:
@@ -764,7 +764,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                     # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
                 )
-            else:                
+            else:
                 self.hook.get_waiter(waiter_name).wait(
                     ClusterId=self._job_flow_id,
                     WaiterConfig=prune_dict(
