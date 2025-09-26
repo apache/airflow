@@ -84,7 +84,7 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
         <HStack gap={4} justify="center" wrap="wrap">
           <HStack gap={2}>
             <Box
-              bg={{ _dark: "scheduled.600", _light: "scheduled.200" }}
+              bg={{ _dark: "stone.600", _light: "stone.200" }}
               borderRadius="2px"
               boxShadow="sm"
               height="14px"

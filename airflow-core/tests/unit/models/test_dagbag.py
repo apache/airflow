@@ -35,10 +35,10 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.dag_processing.dagbag import DagBag, _capture_with_reraise, _validate_executor_fields
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag, _capture_with_reraise, _validate_executor_fields
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
@@ -101,8 +101,8 @@ class TestDagBag:
         """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
         import time
 
+        from airflow.dag_processing.dagbag import timeout
         from airflow.exceptions import AirflowTaskTimeout
-        from airflow.models.dagbag import timeout
 
         with pytest.raises(AirflowTaskTimeout):
             with timeout(1, "Test timeout"):
@@ -249,8 +249,8 @@ class TestDagBag:
         assert sys.path == syspath_before  # sys.path doesn't change
         assert not dagbag.import_errors
 
-    @patch("airflow.models.dagbag.timeout")
-    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    @patch("airflow.dag_processing.dagbag.timeout")
+    @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_without_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
     ):
@@ -268,8 +268,8 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
-    @patch("airflow.models.dagbag.timeout")
-    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    @patch("airflow.dag_processing.dagbag.timeout")
+    @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_with_non_default_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
     ):
@@ -287,7 +287,7 @@ class TestDagBag:
 
         mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
 
-    @patch("airflow.models.dagbag.settings.get_dagbag_import_timeout")
+    @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_check_value_type_from_get_dagbag_import_timeout(
         self, mocked_get_dagbag_import_timeout, tmp_path
     ):
@@ -861,7 +861,7 @@ with airflow.DAG(
                 """
             )
         )
-        with mock.patch("airflow.models.dagbag.signal.signal") as mock_signal:
+        with mock.patch("airflow.dag_processing.dagbag.signal.signal") as mock_signal:
             mock_signal.side_effect = ValueError("Invalid signal setting")
             DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
             assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text

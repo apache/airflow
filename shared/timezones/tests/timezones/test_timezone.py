@@ -63,14 +63,16 @@ class TestTimezone:
             datetime.datetime(2011, 9, 1, 17, 20, 30, tzinfo=ICT), EAT
         ) == datetime.datetime(2011, 9, 1, 13, 20, 30)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"make_naive\(\) cannot be applied to a naive datetime"):
             timezone.make_naive(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT)
 
     def test_make_aware(self):
         assert timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT) == datetime.datetime(
             2011, 9, 1, 13, 20, 30, tzinfo=EAT
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match=r"make_aware expects a naive datetime, got 2011-09-01 13:20:30\+03:00"
+        ):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
 
     def test_td_format(self):

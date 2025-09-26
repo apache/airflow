@@ -346,7 +346,7 @@ command takes care about it. This is needed when you want to run API server insi
 
 Note
 
-This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-prek>`__.
+This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst#configuring-prek>`__.
 
 
 Starting Airflow

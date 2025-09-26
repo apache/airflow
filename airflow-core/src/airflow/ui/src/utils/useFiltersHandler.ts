@@ -22,7 +22,7 @@ import { useSearchParams } from "react-router-dom";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import type { FilterValue } from "src/components/FilterBar";
 import { useFilterConfigs } from "src/constants/filterConfigs";
-import type { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
@@ -56,26 +56,32 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
-      filterConfigs.forEach((config) => {
-        const value = filters[config.key];
-
-        if (value === null || value === undefined || value === "") {
-          searchParams.delete(config.key);
-        } else {
-          searchParams.set(config.key, String(value));
-        }
-      });
-
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      setSearchParams(searchParams);
+
+      setSearchParams((prevParams) => {
+        const newParams = new URLSearchParams(prevParams);
+
+        filterConfigs.forEach((config) => {
+          const value = filters[config.key];
+
+          if (value === null || value === undefined || value === "") {
+            newParams.delete(config.key);
+          } else {
+            newParams.set(config.key, String(value));
+          }
+        });
+
+        newParams.delete(SearchParamsKeys.OFFSET);
+
+        return newParams;
+      });
     },
-    [filterConfigs, pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [filterConfigs, pagination, setSearchParams, setTableURLState, sorting],
   );
 
   return {

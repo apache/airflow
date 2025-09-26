@@ -72,7 +72,10 @@ def test_execute_with_invalid_input(invalid_input):
         task_id=TASK_ID, conn_id=CONN_ID, model="test_model", input_text=invalid_input
     )
     context = Context()
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers.",
+    ):
         operator.execute(context)
 
 

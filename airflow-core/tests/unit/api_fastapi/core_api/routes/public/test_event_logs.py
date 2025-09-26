@@ -32,6 +32,7 @@ DAG_ID = "TEST_DAG_ID"
 DAG_DISPLAY_NAME = "TEST_DAG_ID"
 DAG_RUN_ID = "TEST_DAG_RUN_ID"
 TASK_ID = "TEST_TASK_ID"
+TASK_DISPLAY_NAME = "TEST_TASK_ID"
 DAG_EXECUTION_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
 OWNER = "TEST_OWNER"
 OWNER_DISPLAY_NAME = "Test Owner"
@@ -135,6 +136,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "owner": OWNER_AIRFLOW,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
+                    "task_display_name": TASK_DISPLAY_NAME,
                 },
             ),
             (
@@ -148,6 +150,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "owner": OWNER,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
+                    "task_display_name": TASK_DISPLAY_NAME,
                     "try_number": 0,
                 },
             ),
@@ -168,6 +171,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "dag_display_name": expected_body.get("dag_display_name"),
             "dag_id": expected_body.get("dag_id"),
             "task_id": expected_body.get("task_id"),
+            "task_display_name": expected_body.get("task_display_name"),
             "run_id": expected_body.get("run_id"),
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,

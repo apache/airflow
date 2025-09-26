@@ -748,30 +748,32 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 job_flow_id=self._job_flow_id,
                 log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
-        if self.deferrable:
-            self.defer(
-                trigger=EmrCreateJobFlowTrigger(
-                    job_flow_id=self._job_flow_id,
-                    aws_conn_id=self.aws_conn_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                ),
-                method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-            )
         if self.wait_policy:
             waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy]
-            self.hook.get_waiter(waiter_name).wait(
-                ClusterId=self._job_flow_id,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
-            )
+
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrCreateJobFlowTrigger(
+                        job_flow_id=self._job_flow_id,
+                        aws_conn_id=self.aws_conn_id,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                    ),
+                    method_name="execute_complete",
+                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                )
+            else:
+                self.hook.get_waiter(waiter_name).wait(
+                    ClusterId=self._job_flow_id,
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": self.waiter_delay,
+                            "MaxAttempts": self.waiter_max_attempts,
+                        }
+                    ),
+                )
         return self._job_flow_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:

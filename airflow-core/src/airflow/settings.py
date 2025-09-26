@@ -633,6 +633,21 @@ def prepare_syspath_for_config_and_plugins():
         sys.path.append(PLUGINS_FOLDER)
 
 
+def __getattr__(name: str):
+    """Handle deprecated module attributes."""
+    if name == "MASK_SECRETS_IN_LOGS":
+        import warnings
+
+        warnings.warn(
+            "settings.MASK_SECRETS_IN_LOGS has been removed. This shim returns default value of False. "
+            "Use SecretsMasker.enable_log_masking(), disable_log_masking(), or is_log_masking_enabled() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return False
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:

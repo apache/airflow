@@ -115,10 +115,8 @@ class TestAssetDecorator:
             def asset_func():
                 pass
 
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="nested function not supported"):
             root_func()
-
-        assert err.value.args[0] == "nested function not supported"
 
     @pytest.mark.parametrize("func_fixer", ("self", "context"), indirect=True)
     def test_with_invalid_asset_name(self, func_fixer):
@@ -126,9 +124,8 @@ class TestAssetDecorator:
         def example_asset_func():
             pass
 
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match=f"prohibited name for asset: {func_fixer.fixed_name}"):
             asset(schedule=None)(example_asset_func)
-        assert err.value.args[0] == f"prohibited name for asset: {func_fixer.fixed_name}"
 
     def test_with_star(self, func_fixer):
         @func_fixer

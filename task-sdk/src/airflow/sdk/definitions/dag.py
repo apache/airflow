@@ -335,7 +335,8 @@ class DAG:
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
-    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
+    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with DeadlineAlerts in 3.1
+    :param deadline: An optional DeadlineAlert for the Dag.
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
@@ -459,6 +460,7 @@ class DAG:
         ),
     )
 
+    sla_miss_callback: None = attrs.field(default=None)
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -612,6 +614,15 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @sla_miss_callback.validator
+    def _validate_sla_miss_callback(self, _, value):
+        if value is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, and replaced with a Deadline Alerts in >=3.1",
+                stacklevel=2,
+            )
+        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"

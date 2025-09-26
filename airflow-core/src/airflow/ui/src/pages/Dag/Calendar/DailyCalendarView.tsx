@@ -43,15 +43,16 @@ import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateDailyCalendarData } from "./calendarUtils";
-import type { CalendarScale } from "./types";
+import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly scale: CalendarScale;
   readonly selectedYear: number;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
+export const DailyCalendarView = ({ data, scale, selectedYear, viewMode = "total" }: Props) => {
   const { t: translate } = useTranslation("dag");
   const dailyData = generateDailyCalendarData(data, selectedYear);
 
@@ -107,19 +108,23 @@ export const DailyCalendarView = ({ data, scale, selectedYear }: Props) => {
                 const isInSelectedYear = dayDate.year() === selectedYear;
 
                 if (!isInSelectedYear) {
-                  const emptyCellData = {
-                    counts: { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 },
-                    date: day.date,
-                    runs: [],
-                  };
-
                   return (
-                    <CalendarCell backgroundColor="transparent" cellData={emptyCellData} key={day.date} />
+                    <CalendarCell
+                      backgroundColor="transparent"
+                      cellData={undefined}
+                      key={day.date}
+                      viewMode={viewMode}
+                    />
                   );
                 }
 
                 return (
-                  <CalendarCell backgroundColor={scale.getColor(day.counts)} cellData={day} key={day.date} />
+                  <CalendarCell
+                    backgroundColor={scale.getColor(day.counts)}
+                    cellData={day}
+                    key={day.date}
+                    viewMode={viewMode}
+                  />
                 );
               })}
             </Box>

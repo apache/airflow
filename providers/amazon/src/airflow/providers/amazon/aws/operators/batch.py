@@ -256,8 +256,14 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info("Job completed.")
-        return validated_event["job_id"]
+        self.job_id = validated_event["job_id"]
+
+        # Fetch logs if awslogs_enabled
+        if self.awslogs_enabled:
+            self.monitor_job(context)  # fetch logs, no need to return
+
+        self.log.info("Job completed successfully for job_id: %s", self.job_id)
+        return self.job_id
 
     def on_kill(self):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")

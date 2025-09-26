@@ -423,6 +423,66 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         )
 
     @provide_session
+    def get_authorized_connections(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        """
+        Get connection ids (``conn_id``) the user has access to.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        stmt = select(Connection.conn_id, Team.name).join(Team, Connection.team_id == Team.id, isouter=True)
+        rows = session.execute(stmt).all()
+        connections_by_team: dict[str | None, set[str]] = defaultdict(set)
+        for conn_id, team_name in rows:
+            connections_by_team[team_name].add(conn_id)
+
+        conn_ids: set[str] = set()
+        for team_name, team_conn_ids in connections_by_team.items():
+            conn_ids.update(
+                self.filter_authorized_connections(
+                    conn_ids=team_conn_ids, user=user, method=method, team_name=team_name
+                )
+            )
+
+        return conn_ids
+
+    def filter_authorized_connections(
+        self,
+        *,
+        conn_ids: set[str],
+        user: T,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        """
+        Filter connections the user has access to.
+
+        By default, check individually if the user has permissions to access the connection.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param conn_ids: the set of connection ids (``conn_id``)
+        :param user: the user
+        :param method: the method to filter on
+        :param team_name: the name of the team associated to the connections if Airflow environment runs in
+            multi-team mode
+        """
+
+        def _is_authorized_connection(conn_id: str):
+            return self.is_authorized_connection(
+                method=method, details=ConnectionDetails(conn_id=conn_id, team_name=team_name), user=user
+            )
+
+        return {conn_id for conn_id in conn_ids if _is_authorized_connection(conn_id)}
+
+    @provide_session
     def get_authorized_dag_ids(
         self,
         *,
@@ -490,66 +550,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
 
         return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(dag_id)}
-
-    @provide_session
-    def get_authorized_connections(
-        self,
-        *,
-        user: T,
-        method: ResourceMethod = "GET",
-        session: Session = NEW_SESSION,
-    ) -> set[str]:
-        """
-        Get connection ids (``conn_id``) the user has access to.
-
-        :param user: the user
-        :param method: the method to filter on
-        :param session: the session
-        """
-        stmt = select(Connection.conn_id, Team.name).join(Team, Connection.team_id == Team.id, isouter=True)
-        rows = session.execute(stmt).all()
-        connections_by_team: dict[str | None, set[str]] = defaultdict(set)
-        for conn_id, team_name in rows:
-            connections_by_team[team_name].add(conn_id)
-
-        conn_ids: set[str] = set()
-        for team_name, team_conn_ids in connections_by_team.items():
-            conn_ids.update(
-                self.filter_authorized_connections(
-                    conn_ids=team_conn_ids, user=user, method=method, team_name=team_name
-                )
-            )
-
-        return conn_ids
-
-    def filter_authorized_connections(
-        self,
-        *,
-        conn_ids: set[str],
-        user: T,
-        method: ResourceMethod = "GET",
-        team_name: str | None = None,
-    ) -> set[str]:
-        """
-        Filter connections the user has access to.
-
-        By default, check individually if the user has permissions to access the connection.
-        Can lead to some poor performance. It is recommended to override this method in the auth manager
-        implementation to provide a more efficient implementation.
-
-        :param conn_ids: the set of connection ids (``conn_id``)
-        :param user: the user
-        :param method: the method to filter on
-        :param team_name: the name of the team associated to the connections if Airflow environment runs in
-            multi-team mode
-        """
-
-        def _is_authorized_connection(conn_id: str):
-            return self.is_authorized_connection(
-                method=method, details=ConnectionDetails(conn_id=conn_id, team_name=team_name), user=user
-            )
-
-        return {conn_id for conn_id in conn_ids if _is_authorized_connection(conn_id)}
 
     @provide_session
     def get_authorized_variables(

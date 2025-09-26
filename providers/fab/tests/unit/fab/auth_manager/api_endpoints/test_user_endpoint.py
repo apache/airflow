@@ -25,7 +25,6 @@ from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_M
 from airflow.providers.fab.www.security import permissions
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     assert_401,
@@ -40,9 +39,7 @@ except AttributeError:
     from airflow.sdk import timezone
 
 
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.models import User
-
+from airflow.providers.fab.auth_manager.models import User
 
 pytestmark = pytest.mark.db_test
 

@@ -27,7 +27,8 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.models import Connection, DagBag
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import Connection
 from airflow.sdk import BaseHook
 from airflow.utils import yaml
 

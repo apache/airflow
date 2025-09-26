@@ -244,6 +244,6 @@ User interface
 
 Airflow comes with a user interface that lets you see what Dags and their tasks are doing, trigger runs of Dags, view logs, and do some limited debugging and resolution of problems with your Dags.
 
-.. image:: ../img/ui-dark/dags.png
+.. image:: ../img/ui-light/dags.png
 
 It's generally the best way to see the status of your Airflow installation as a whole, as well as diving into individual Dags to see their layout, the status of each task, and the logs from each task.
