@@ -1,0 +1,65 @@
+edition = "2023";
+
+package bundle.v1;
+
+import "google/protobuf/go_features.proto";
+option features.(pb.go).api_level = API_OPAQUE;
+
+option go_package = "github.com/apache/airflow/go-sdk/internal/protov1";
+
+service DagBundle {
+    //////// Information about what a bundle supports/expects
+
+    // GetMetadata returns upfront information about server capabilities and
+    // supported resource types without requiring the server to instantiate all
+    // bundle and task information, which could be memory intensive.
+    rpc GetMetadata(GetMetadata.Request) returns (GetMetadata.Response);
+
+    rpc Execute(Execute.Request) returns (Execute.Response);
+}
+
+message BundleInfo {
+  string  name = 1;
+  string version = 2;
+}
+
+message UUID { string value = 1; }
+
+message GetMetadata {
+    message Request {
+    }
+
+    message Response {
+        BundleInfo bundle = 1;
+    }
+};
+
+message ExecuteTaskWorkload {
+      string token = 1;
+      TaskInstance ti = 2;
+      BundleInfo bundle_info = 3;
+      string log_path = 4;
+}
+
+message TaskInstance {
+  UUID id = 1;
+  string dag_id = 2;
+  string run_id = 3;
+  string task_id = 4;
+  int32 map_index = 5;
+  int32 try_number = 6;
+  string hostname = 7;
+  map<string, string> otel_context = 8;
+}
+
+message Execute {
+    message Request {
+      // There is only one workload for now, but set it up to have multiple
+      oneof workload {
+        ExecuteTaskWorkload task = 1;
+      }
+    }
+
+    message Response {
+    }
+};

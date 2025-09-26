@@ -19,11 +19,21 @@
 Changelog
 ---------
 
-0.0.7
+0.0.8
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix https access token repo url (#54643)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.0.7
+.....
+
 
 Bug Fixes
 ~~~~~~~~~

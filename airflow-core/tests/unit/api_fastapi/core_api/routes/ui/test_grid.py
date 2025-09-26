@@ -531,6 +531,22 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert response.json() == [GRID_RUN_2]
 
+    @pytest.mark.parametrize(
+        "endpoint,state,expected",
+        [
+            ("runs", "success", [GRID_RUN_1]),
+            ("runs", "failed", [GRID_RUN_2]),
+            ("runs", "running", []),
+            ("structure", "success", GRID_NODES),
+            ("structure", "failed", GRID_NODES),
+        ],
+    )
+    def test_filter_by_state(self, session, test_client, endpoint, state, expected):
+        session.commit()
+        response = test_client.get(f"/grid/{endpoint}/{DAG_ID}?state={state}")
+        assert response.status_code == 200
+        assert response.json() == expected
+
     def test_grid_ti_summaries_group(self, session, test_client):
         run_id = "run_4-1"
         session.commit()

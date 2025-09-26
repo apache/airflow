@@ -72,8 +72,6 @@ apache-airflow-providers-apache-pinot package
 
 Release: 4.8.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

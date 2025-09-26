@@ -148,7 +148,9 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
         if not logger_name and isinstance(logger, (NamedWriteLogger, NamedBytesLogger)):
             logger_name = logger.name
 
-        if logger_name:
+        if (level_override := kwargs.get("context", {}).pop("__level_override", None)) is not None:
+            level = level_override
+        elif logger_name:
             level = PER_LOGGER_LEVELS.longest_prefix(logger_name).get(PER_LOGGER_LEVELS[""])
         else:
             level = PER_LOGGER_LEVELS[""]
@@ -384,9 +386,9 @@ def configure_logging(
     stdlib_config: dict | None = None,
     extra_processors: Sequence[Processor] | None = None,
     callsite_parameters: Iterable[CallsiteParameter] | None = None,
-    colors: bool | None = None,
+    colors: bool = True,
     output: LogOutputType | None = None,
-    log_levels: str | dict[str, str] | None = None,
+    namespace_log_levels: str | dict[str, str] | None = None,
     cache_logger_on_first_use: bool = True,
 ):
     """
@@ -399,21 +401,23 @@ def configure_logging(
     :param log_level: The default log level to use for most logs
     :param log_format: A percent-style log format to write non JSON logs with.
     :param output: Where to write the logs too. If ``json_output`` is true this must be a binary stream
-    :param colors: Whether to use colors for non-JSON logs. If `None` is passed, then colors are used
-        if standard out is a TTY (that is, an interactive session).
+    :param colors: Whether to use colors for non-JSON logs. This only works if standard out is a TTY (that is,
+        an interactive session), unless overridden by environment variables described below.
+        Please note that disabling colors also disables all styling, including bold and italics.
+        The following environment variables control color behavior (set to any non-empty value to activate):
 
-        It's possible to override this behavior by setting two standard environment variables to any value
-        except an empty string:
+        * ``NO_COLOR`` - Disables colors completely. This takes precedence over all other settings,
+        including ``FORCE_COLOR``.
 
-        * ``FORCE_COLOR`` activates colors, regardless of where output is going.
-        * ``NO_COLOR`` disables colors, regardless of where the output is going and regardless the value of
-          ``FORCE_COLOR``. Please note that ``NO_COLOR`` disables all styling, including bold and italics.
+        * ``FORCE_COLOR`` - Forces colors to be enabled, even when output is not going to a TTY. This only
+        takes effect if ``NO_COLOR`` is not set.
+
     :param callsite_parameters: A list parameters about the callsite (line number, function name etc) to
         include in the logs.
 
         If ``log_format`` is specified, then anything required to populate that (such as ``%(lineno)d``) will
         be automatically included.
-    :param log_levels: Levels of extra loggers to configure.
+    :param namespace_log_levels: Levels of extra loggers to configure.
 
         To make this easier to use, this can be a string consisting of pairs of ``<logger>=<level>`` (either
         string, or space delimited) which will set the level for that specific logger.
@@ -425,11 +429,12 @@ def configure_logging(
     if "fatal" not in NAME_TO_LEVEL:
         NAME_TO_LEVEL["fatal"] = NAME_TO_LEVEL["critical"]
 
-    if colors is None:
-        colors = os.environ.get("NO_COLOR", "") == "" and (
-            os.environ.get("FORCE_COLOR", "") != ""
-            or (sys.stdout is not None and hasattr(sys.stdout, "isatty") and sys.stdout.isatty())
-        )
+    def is_atty():
+        return sys.stdout is not None and hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+    colors = os.environ.get("NO_COLOR", "") == "" and (
+        os.environ.get("FORCE_COLOR", "") != "" or (colors and is_atty())
+    )
 
     stdlib_config = stdlib_config or {}
     extra_processors = extra_processors or ()
@@ -437,11 +442,13 @@ def configure_logging(
     PER_LOGGER_LEVELS[""] = NAME_TO_LEVEL[log_level.lower()]
 
     # Extract per-logger-tree levels and set them
-    if isinstance(log_levels, str):
+    if isinstance(namespace_log_levels, str):
         log_from_level = partial(re.compile(r"\s*=\s*").split, maxsplit=2)
-        log_levels = {log: level for log, level in map(log_from_level, re.split(r"[\s,]+", log_levels))}
-    if log_levels:
-        for log, level in log_levels.items():
+        namespace_log_levels = {
+            log: level for log, level in map(log_from_level, re.split(r"[\s,]+", namespace_log_levels))
+        }
+    if namespace_log_levels:
+        for log, level in namespace_log_levels.items():
             try:
                 loglevel = NAME_TO_LEVEL[level.lower()]
             except KeyError:
@@ -603,14 +610,19 @@ def init_log_file(
     return full_path
 
 
-def logger_without_processor_of_type(logger: WrappedLogger, processor_type: type):
+def reconfigure_logger(
+    logger: WrappedLogger, without_processor_type: type, level_override: int | None = None
+):
     procs = getattr(logger, "_processors", None)
     if procs is None:
         procs = structlog.get_config()["processors"]
-    procs = [proc for proc in procs if not isinstance(proc, processor_type)]
+    procs = [proc for proc in procs if not isinstance(proc, without_processor_type)]
 
     return structlog.wrap_logger(
-        getattr(logger, "_logger", None), processors=procs, **getattr(logger, "_context", {})
+        getattr(logger, "_logger", None),
+        processors=procs,
+        **getattr(logger, "_context", {}),
+        __level_override=level_override,
     )
 
 

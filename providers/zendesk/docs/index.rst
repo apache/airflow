@@ -78,8 +78,6 @@ apache-airflow-providers-zendesk package
 
 Release: 4.10.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

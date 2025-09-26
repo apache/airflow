@@ -1093,6 +1093,11 @@ class TriggerRunner:
 
     async def run_trigger(self, trigger_id, trigger):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
+        if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
+            import greenback
+
+            await greenback.ensure_portal()
+
         bind_log_contextvars(trigger_id=trigger_id)
 
         name = self.triggers[trigger_id]["name"]

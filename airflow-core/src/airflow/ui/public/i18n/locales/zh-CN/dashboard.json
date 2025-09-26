@@ -33,10 +33,10 @@
   },
   "source": "来源",
   "stats": {
-    "activeDags": "启用中的 Dags",
+    "activeDags": "已启用的 Dags",
     "failedDags": "失败的 Dags",
     "queuedDags": "排队的 Dags",
-    "requiredActions": "待响应的任务实例",
+    "requiredActions": "待操作的任务实例",
     "runningDags": "执行中的 Dags",
     "stats": "统计"
   },

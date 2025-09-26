@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-/*
-Package sdk provides access to the Airflow objects (Variables, Connection, XCom etc) during run time for tasks.
-*/
 package sdk
 
 import (
@@ -72,4 +69,22 @@ func (c *client) UnmarshalJSONVariable(ctx context.Context, key string, pointer 
 	}
 
 	return json.Unmarshal([]byte(val), pointer)
+}
+
+func (*client) GetConnection(ctx context.Context, connID string) (Connection, error) {
+	// TODO: Lookup connection from env var (and handle JSON + URI forms)
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+
+	resp, err := httpClient.Connections().Get(ctx, connID)
+	if err != nil {
+		var httpError *api.GeneralHTTPError
+		errors.As(err, &httpError)
+		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
+			err = fmt.Errorf("%w: %q", ConnectionNotFound, connID)
+		}
+		return Connection{}, err
+	}
+
+	return connFromAPIResponse(resp)
 }

@@ -21,6 +21,7 @@ import gzip as gz
 import inspect
 import os
 import re
+from collections.abc import Iterator
 from datetime import datetime as std_datetime, timezone
 from pathlib import Path
 from unittest import mock, mock as async_mock
@@ -389,22 +390,26 @@ class TestAwsS3Hook:
 
         assert sorted(keys) == sorted(hook.list_keys(s3_bucket, delimiter="/", page_size=1))
 
-    def test_get_file_metadata(self, s3_bucket):
+    def test_iter_file_metadata(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key="test", Body=b"a")
 
-        assert len(hook.get_file_metadata("t", s3_bucket)) == 1
-        assert hook.get_file_metadata("t", s3_bucket)[0]["Size"] is not None
-        assert len(hook.get_file_metadata("test", s3_bucket)) == 1
-        assert len(hook.get_file_metadata("a", s3_bucket)) == 0
+        assert isinstance(hook.iter_file_metadata("t", s3_bucket), Iterator)
 
-    def test_get_file_metadata_when_requester_pays(self, s3_bucket):
+        # Since iter_file_metadata now returns an Iterator, it will first be cast to a `list` before being
+        # able to determine its length
+        assert len(list(hook.iter_file_metadata("t", s3_bucket))) == 1
+        assert next(hook.iter_file_metadata("t", s3_bucket))["Size"] is not None
+        assert len(list(hook.iter_file_metadata("test", s3_bucket))) == 1
+        assert len(list(hook.iter_file_metadata("a", s3_bucket))) == 0
+
+    def test_iter_file_metadata_when_requester_pays(self, s3_bucket):
         hook = S3Hook(requester_pays=True)
         hook.get_conn = MagicMock()
         hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
 
-        assert hook.get_file_metadata("test", s3_bucket) == []
+        assert not any(hook.iter_file_metadata("test", s3_bucket))  # Empty Iterator
 
         hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
             Bucket="airflow-test-s3-bucket",

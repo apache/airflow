@@ -81,8 +81,6 @@ apache-airflow-providers-apache-hive package
 
 Release: 9.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

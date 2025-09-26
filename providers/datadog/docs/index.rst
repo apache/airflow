@@ -70,8 +70,6 @@ apache-airflow-providers-datadog package
 
 Release: 3.9.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

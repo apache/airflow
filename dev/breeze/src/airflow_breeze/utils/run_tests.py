@@ -103,11 +103,13 @@ def run_docker_compose_tests(
     skip_docker_compose_deletion: bool,
     include_success_outputs: bool,
     test_type: str = "docker-compose",
+    skip_image_check: bool = False,
 ) -> tuple[int, str]:
-    command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
-    if command_result.returncode != 0:
-        get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
-        return command_result.returncode, f"Testing {test_type} python with {image_name}"
+    if not skip_image_check:
+        command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
+        if command_result.returncode != 0:
+            get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
+            return command_result.returncode, f"Testing {test_type} python with {image_name}"
     pytest_args = ("--color=yes",)
 
     if test_type == "task-sdk-integration":

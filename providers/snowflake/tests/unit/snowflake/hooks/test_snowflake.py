@@ -879,9 +879,8 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook()
 
         for empty_statement in ([], "", "\n"):
-            with pytest.raises(ValueError) as err:
+            with pytest.raises(ValueError, match="List of SQL statements is empty"):
                 hook.run(sql=empty_statement)
-            assert err.value.args[0] == "List of SQL statements is empty"
 
     def test_get_openlineage_default_schema_with_no_schema_set(self):
         connection_kwargs = {

@@ -680,13 +680,11 @@ def test_mapped_decorator_shadow_context() -> None:
     def print_info(message: str, run_id: str = "") -> None:
         print(f"{run_id}: {message}")
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call partial\(\) on task context variable 'run_id'"):
         print_info.partial(run_id="hi")
-    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call expand\(\) on task context variable 'run_id'"):
         print_info.expand(run_id=["hi", "there"])
-    assert str(ctx.value) == "cannot call expand() on task context variable 'run_id'"
 
 
 def test_mapped_decorator_wrong_argument() -> None:
@@ -702,9 +700,10 @@ def test_mapped_decorator_wrong_argument() -> None:
         print_info.expand(wrong_name=["hi", "there"])
     assert str(ct.value) == "expand() got an unexpected keyword argument 'wrong_name'"
 
-    with pytest.raises(ValueError) as cv:
+    with pytest.raises(
+        ValueError, match=r"expand\(\) got an unexpected type 'str' for keyword argument 'message'"
+    ):
         print_info.expand(message="hi")
-    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
 
 
 def test_mapped_decorator():
