@@ -27,7 +27,7 @@ from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from airflow.configuration import conf
 from airflow.metrics.protocols import Timer
@@ -38,7 +38,7 @@ from airflow.metrics.validators import (
     get_validator,
     stat_name_otel_handler,
 )
-from airflow.utils.net import get_hostname
+from airflow.utils.otel_config import load_metrics_config
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
@@ -371,25 +371,22 @@ class MetricsMap:
 
 
 def get_otel_logger(cls) -> SafeOtelLogger:
-    host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
-    port = conf.getint("metrics", "otel_port")  # ex: 4318
+    otel_config = load_metrics_config()
+
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
-    ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
-    debug = conf.getboolean("metrics", "otel_debugging_on")
-    service_name = conf.get("metrics", "otel_service")
+    interval_ms = otel_config.interval_ms
+    debug = otel_config.exporter == "console"
+    service_name = otel_config.service_name
+    endpoint = otel_config.endpoint
 
-    resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
-
-    protocol = "https" if ssl_active else "http"
-    endpoint = f"{protocol}://{host}:{port}/v1/metrics"
+    resource = Resource.create(attributes={SERVICE_NAME: service_name})
 
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
             OTLPMetricExporter(endpoint=endpoint),
-            export_interval_millis=interval,
+            export_interval_millis=interval_ms,
         )
     ]
 

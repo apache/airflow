@@ -25,7 +25,6 @@ import pytest
 from opentelemetry.sdk import util
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from airflow.configuration import conf
 from airflow.traces import otel_tracer
 from airflow.traces.otel_tracer import OtelTrace
 from airflow.traces.tracer import DebugTrace, EmptyTrace, Trace
@@ -42,61 +41,67 @@ def name():
 class TestOtelTrace:
     def test_get_otel_tracer_from_trace_metaclass(self):
         """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
-        conf.set("traces", "otel_on", "True")
-        conf.set("traces", "otel_debugging_on", "True")
+        with env_vars(
+            {
+                "AIRFLOW__TRACES__OTEL_ON": "True",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
+                "OTEL_TRACES_EXPORTER": "console",
+            }
+        ):
+            tracer = otel_tracer.get_otel_tracer(Trace)
+            assert tracer.use_simple_processor is False
 
-        tracer = otel_tracer.get_otel_tracer(Trace)
-        assert tracer.use_simple_processor is False
+            assert isinstance(Trace.factory(), EmptyTrace)
 
-        assert isinstance(Trace.factory(), EmptyTrace)
+            Trace.configure_factory()
+            assert isinstance(Trace.factory(), OtelTrace)
 
-        Trace.configure_factory()
-        assert isinstance(Trace.factory(), OtelTrace)
+            task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
+            assert task_tracer.use_simple_processor is True
 
-        task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
-        assert task_tracer.use_simple_processor is True
-
-        task_tracer.get_otel_tracer_provider()
-        assert task_tracer.use_simple_processor is True
+            task_tracer.get_otel_tracer_provider()
+            assert task_tracer.use_simple_processor is True
 
     def test_debug_trace_metaclass(self):
         """Test that `DebugTrace.some_method()`, uses the correct instance when the debug_traces flag is configured."""
-        conf.set("traces", "otel_on", "True")
-        conf.set("traces", "otel_debug_traces_on", "False")
+        with env_vars(
+            {
+                "AIRFLOW__TRACES__OTEL_ON": "True",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
+                "OTEL_TRACES_EXPORTER": "otlp",
+            }
+        ):
+            assert DebugTrace.check_debug_traces_flag is True
 
-        assert DebugTrace.check_debug_traces_flag is True
+            # Factory hasn't been configured, it defaults to EmptyTrace.
+            assert not isinstance(DebugTrace.factory(), OtelTrace)
+            assert isinstance(DebugTrace.factory(), EmptyTrace)
 
-        # Factory hasn't been configured, it defaults to EmptyTrace.
-        assert not isinstance(DebugTrace.factory(), OtelTrace)
-        assert isinstance(DebugTrace.factory(), EmptyTrace)
-
-        DebugTrace.configure_factory()
-        # Factory has been configured, it should still be EmptyTrace.
-        assert not isinstance(DebugTrace.factory(), OtelTrace)
-        assert isinstance(DebugTrace.factory(), EmptyTrace)
+            DebugTrace.configure_factory()
+            # Factory has been configured, it should still be EmptyTrace.
+            assert not isinstance(DebugTrace.factory(), OtelTrace)
+            assert isinstance(DebugTrace.factory(), EmptyTrace)
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow.traces.otel_tracer.conf")
-    def test_tracer(self, conf_a, exporter):
-        # necessary to speed up the span to be emitted
-        with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
+    @patch("airflow.utils.otel_config.OtelConfig")
+    def test_tracer(self, otel_conf, exporter):
+        with env_vars(
+            {
+                "OTEL_SERVICE_NAME": "my_test_service",
+                # necessary to speed up the span to be emitted
+                "OTEL_BSP_SCHEDULE_DELAY": "1",
+            }
+        ):
             log = logging.getLogger("TestOtelTrace.test_tracer")
             log.setLevel(logging.DEBUG)
-            # hijacking airflow conf with pre-defined
-            # values
-            conf_a.get.return_value = "abc"
-            conf_a.getint.return_value = 123
-            # this will enable debug to set - which outputs the result to console
-            conf_a.getboolean.return_value = True
 
             # mocking console exporter with in mem exporter for better assertion
             in_mem_exporter = InMemorySpanExporter()
             exporter.return_value = in_mem_exporter
 
             tracer = otel_tracer.get_otel_tracer(Trace)
-            assert conf_a.get.called
-            assert conf_a.getint.called
-            assert conf_a.getboolean.called
+            assert otel_conf.called
+            otel_conf.assert_called_once()
             with tracer.start_span(span_name="span1") as s1:
                 with tracer.start_span(span_name="span2") as s2:
                     s2.set_attribute("attr2", "val2")
@@ -110,19 +115,19 @@ class TestOtelTrace:
             assert span2["context"]["trace_id"] == trace_id
             assert span2["parent_id"] == s1_span_id
             assert span2["attributes"]["attr2"] == "val2"
-            assert span2["resource"]["attributes"]["service.name"] == "abc"
+            assert span2["resource"]["attributes"]["service.name"] == "my_test_service"
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow.traces.otel_tracer.conf")
-    def test_dag_tracer(self, conf_a, exporter):
-        # necessary to speed up the span to be emitted
-        with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
+    def test_dag_tracer(self, exporter):
+        with env_vars(
+            {
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
+                # necessary to speed up the span to be emitted
+                "OTEL_BSP_SCHEDULE_DELAY": "1",
+            }
+        ):
             log = logging.getLogger("TestOtelTrace.test_dag_tracer")
             log.setLevel(logging.DEBUG)
-            conf_a.get.return_value = "abc"
-            conf_a.getint.return_value = 123
-            # this will enable debug to set - which outputs the result to console
-            conf_a.getboolean.return_value = True
 
             # mocking console exporter with in mem exporter for better assertion
             in_mem_exporter = InMemorySpanExporter()
@@ -146,16 +151,16 @@ class TestOtelTrace:
             assert span1["context"]["span_id"] == span2["parent_id"]
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow.traces.otel_tracer.conf")
-    def test_context_propagation(self, conf_a, exporter):
-        # necessary to speed up the span to be emitted
-        with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
+    def test_context_propagation(self, exporter):
+        with env_vars(
+            {
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
+                # necessary to speed up the span to be emitted
+                "OTEL_BSP_SCHEDULE_DELAY": "1",
+            }
+        ):
             log = logging.getLogger("TestOtelTrace.test_context_propagation")
             log.setLevel(logging.DEBUG)
-            conf_a.get.return_value = "abc"
-            conf_a.getint.return_value = 123
-            # this will enable debug to set - which outputs the result to console
-            conf_a.getboolean.return_value = True
 
             # mocking console exporter with in mem exporter for better assertion
             in_mem_exporter = InMemorySpanExporter()
