@@ -30,8 +30,6 @@ Changelog
 4.2.0
 .....
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 
