@@ -509,6 +509,15 @@ core:
       type: string
       example: ~
       default: ~
+    multi_team:
+      description: |
+        Whether to run the Airflow environment in multi-team mode.
+        In this mode, different teams can have scoped access to their own resources while still sharing the
+        same underlying deployment.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 database:
   description: ~
   options:

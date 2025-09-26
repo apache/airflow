@@ -56,7 +56,7 @@ const BackfillBanner = ({ dagId }: Props) => {
     dagId,
   }, undefined, {
     refetchInterval: (query) =>
-      Boolean(query.state.data?.backfills.some((bf: BackfillResponse) => bf.completed_at === null))
+      Boolean(query.state.data?.backfills?.some((bf: BackfillResponse) => bf.completed_at === null && bf.is_paused === false))
         ? refetchInterval
         : false,
   });

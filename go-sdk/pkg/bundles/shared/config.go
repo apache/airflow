@@ -15,68 +15,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package cmd
+package shared
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 
-	cc "github.com/ivanpirog/coloredcobra"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
-	"github.com/apache/airflow/go-sdk/worker"
 )
 
-var cfgFile string
-
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "airflow-go-worker",
-	Short: "Airflow worker for running Go tasks.",
-	Long: `Airflow worker for running Go tasks.
-
-All options (other than ` + "`--config`" + `) can be specified in the config file using
-the same name as the CLI argument but without the ` + "`--`" + ` prefix.`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return initializeConfig(cmd)
-	},
-}
-
-// Execute is the main entrypoint, and runs the Celery broker for the given worker
-func Execute(worker worker.Worker) {
-	// TODO: This should possibly just take a task Registry, not a worker object
-	cc.Init(&cc.Config{
-		RootCmd:       rootCmd,
-		Headings:      cc.Bold,
-		Commands:      cc.Yellow + cc.Bold,
-		Example:       cc.Italic,
-		ExecName:      cc.HiMagenta + cc.Bold,
-		Flags:         cc.Green,
-		FlagsDataType: cc.Italic + cc.White,
-	})
-	// Store the worker in the context so we can pull it out later
-	ctx := context.WithValue(context.Background(), sdkcontext.WorkerContextKey, worker)
-	err := rootCmd.ExecuteContext(ctx)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
-		"config file (default is $HOME/airflow/go-sdk.yaml)")
-	rootCmd.AddCommand(runCmd)
+type BundleConfig struct {
+	BundlesFolder string `mapstructure:"bundles_folder"`
 }
 
 var envKeyReplacer *strings.Replacer = strings.NewReplacer(".", "__", "-", "_")
 
-func setupViper() error {
+func SetupViper(cfgFile string) error {
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -84,7 +42,9 @@ func setupViper() error {
 		airflowHome := os.Getenv("AIRFLOW_HOME")
 		if airflowHome == "" {
 			home, err := os.UserHomeDir()
-			cobra.CheckErr(err)
+			if err != nil {
+				return err
+			}
 			airflowHome = path.Join(home, "airflow")
 		}
 
@@ -116,25 +76,20 @@ func setupViper() error {
 	return nil
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initializeConfig(cmd *cobra.Command) error {
-	if err := setupViper(); err != nil {
-		return err
-	}
-	// Bind the current command's flags to viper
-	bindFlags(cmd, envKeyReplacer)
-
-	return nil
-}
-
 // Bind each cobra flag to its associated viper configuration (config file and environment variable)
 // This approach cribbed from https://github.com/carolynvs/stingoftheviper/blob/19bd73117f0285436505ca17616cbc394d22e63d/main.go
-func bindFlags(cmd *cobra.Command, replacer *strings.Replacer) {
+func BindFlagsToViper(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		// Determine the naming convention of the flags when represented in the config file
 
-		// Since viper does case-insensitive comparisons, we don't need to bother fixing the case, and only need to remove the hyphens.
-		configName := replacer.Replace(f.Name)
+		var configName string
+
+		if ann, ok := f.Annotations["viper-mapping"]; ok {
+			configName = ann[0]
+		} else {
+			// Since viper does case-insensitive comparisons, we don't need to bother fixing the case, and only need to remove the hyphens.
+			configName = envKeyReplacer.Replace(f.Name)
+		}
 
 		// Use cli flags for preference over env or config file!
 		if f.Changed {
