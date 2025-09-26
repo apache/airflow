@@ -228,7 +228,7 @@ def clear_task_instances(
 
         if ti.state == TaskInstanceState.RUNNING:
             if task_confirmed_running:
-                raise ValueError(f"Error: Task {ti.task_id} is running, restarting")
+                raise ValueError(f"Error: Task {ti.task_id} is running, stopping attempt to run.")
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
             else:
