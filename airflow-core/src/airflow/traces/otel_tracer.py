@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import random
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
@@ -26,7 +25,7 @@ from typing import TYPE_CHECKING
 from opentelemetry import trace
 from opentelemetry.context import attach, create_key
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, SpanProcessor, Tracer as OpenTelemetryTracer, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
 from opentelemetry.sdk.trace.id_generator import IdGenerator
@@ -35,13 +34,12 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
 from airflow._shared.timezones import timezone
-from airflow.configuration import conf
 from airflow.traces.utils import (
     parse_traceparent,
     parse_tracestate,
 )
 from airflow.utils.dates import datetime_to_nano
-from airflow.utils.net import get_hostname
+from airflow.utils.otel_config import load_traces_config
 
 if TYPE_CHECKING:
     from opentelemetry.context.context import Context
@@ -64,6 +62,8 @@ class OtelTrace:
         use_simple_processor: bool,
         tag_string: str | None = None,
     ):
+        self.otel_config = load_traces_config()
+
         self.span_exporter = span_exporter
         self.use_simple_processor = use_simple_processor
         if self.use_simple_processor:
@@ -77,10 +77,9 @@ class OtelTrace:
             log.info("(otel_tracer.__init__) - [BatchSpanProcessor] is being used")
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
-        self.otel_service = conf.get("traces", "otel_service")
-        self.resource = Resource.create(
-            attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service}
-        )
+
+        service = self.otel_config.service_name
+        self.resource = Resource.create(attributes={SERVICE_NAME: service})
 
     def get_otel_tracer_provider(
         self, trace_id: int | None = None, span_id: int | None = None
@@ -98,7 +97,7 @@ class OtelTrace:
             )
         else:
             tracer_provider = TracerProvider(resource=self.resource)
-        debug = conf.getboolean("traces", "otel_debugging_on")
+        debug = self.otel_config.exporter == "console"
         if debug is True:
             log.info("[ConsoleSpanExporter] is being used")
             if self.use_simple_processor:
@@ -139,9 +138,10 @@ class OtelTrace:
         links=None,
         start_time=None,
     ):
-        """Start a span; if service_name is not given, otel_service is used."""
+        """Start a span."""
         if component is None:
-            component = self.otel_service
+            # Common practice is to use the module name.
+            component = __name__
 
         trace_id = self.get_current_span().get_span_context().trace_id
         tracer = self.get_tracer(component=component, trace_id=trace_id, span_id=span_id)
@@ -251,7 +251,8 @@ class OtelTrace:
         start_as_current: bool = True,
     ) -> AbstractContextManager[trace.span.Span] | trace.span.Span:
         if component is None:
-            component = self.otel_service
+            # Common practice is to use the module name.
+            component = __name__
 
         tracer = self.get_tracer(component=component)
 
@@ -328,15 +329,10 @@ def gen_link_from_traceparent(traceparent: str):
 
 def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     """Get OTEL tracer from airflow configuration."""
-    host = conf.get("traces", "otel_host")
-    port = conf.getint("traces", "otel_port")
-    ssl_active = conf.getboolean("traces", "otel_ssl_active")
     tag_string = cls.get_constant_tags()
 
-    protocol = "https" if ssl_active else "http"
-    # Allow transparent support for standard OpenTelemetry SDK environment variables.
-    # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", f"{protocol}://{host}:{port}/v1/traces")
+    otel_config = load_traces_config()
+    endpoint = otel_config.endpoint
 
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     log.info("Should use simple processor: %s", use_simple_processor)

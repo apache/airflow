@@ -69,11 +69,48 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
     [metrics]
     otel_on = True
-    otel_host = localhost
-    otel_port = 8889
     otel_prefix = airflow
-    otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
-    otel_ssl_active = False
+
+Configure the SDK, by exporting the regular OTel variables to your environment
+
+.. code-block:: ini
+
+    - exporter
+      |_ values: 'otlp', 'console'
+      |_ default: 'otlp'
+    OTEL_METRICS_EXPORTER
+
+    - export protocol
+      |_ values: 'grpc', 'http/protobuf'
+      |_ default: 'grpc'
+    OTEL_EXPORTER_OTLP_PROTOCOL
+
+    - endpoint
+      |_ example for grpc protocol: 'http://localhost:4317'
+      |_ example for http protocol: 'http://localhost:4318/v1/metrics'
+      |_ if SSL is enabled, use 'https' instead of 'http'
+    OTEL_EXPORTER_OTLP_ENDPOINT
+      or
+    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+
+    - service name
+      |_ default: 'Airflow'
+    OTEL_SERVICE_NAME
+
+    - resource attributes
+      |_ values: 'key1=value1,key2=value2,...'
+      |_ example: 'service.name=my-service,service.version=1.0.0'
+    OTEL_RESOURCE_ATTRIBUTES
+
+    - list of headers to apply to all outgoing metrics
+      |_ values: 'key1=value1,key2=value2,...'
+      |_ example: 'api-key=key,other-config-value=value'
+    OTEL_EXPORTER_OTLP_HEADERS
+
+    - export interval
+      |_ values: integer or float
+      |_ default: 60000
+    OTEL_METRIC_EXPORT_INTERVAL
 
 .. note::
 
