@@ -18,7 +18,7 @@
  */
 import { Box, VStack, Editable, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 
 import ReactMarkdown from "./ReactMarkdown";
 
@@ -34,11 +34,13 @@ const EditableMarkdownArea = ({
   readonly setMdContent: (value: string) => void;
 }) => {
   const [currentValue, setCurrentValue] = useState(mdContent ?? "");
+  const prevMdContentRef = useRef(mdContent);
 
   // Sync local state with prop changes
-  useEffect(() => {
+  if (mdContent !== prevMdContentRef.current) {
     setCurrentValue(mdContent ?? "");
-  }, [mdContent]);
+    prevMdContentRef.current = mdContent;
+  }
 
   return (
     <Box mt={4} px={4} width="100%">
