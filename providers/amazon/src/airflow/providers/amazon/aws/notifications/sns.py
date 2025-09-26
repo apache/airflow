@@ -83,5 +83,14 @@ class SnsNotifier(BaseNotifier):
             message_attributes=self.message_attributes,
         )
 
+    async def async_notify(self, context):
+        """Publish the notification message to Amazon SNS (async)."""
+        await self.hook.apublish_to_target(
+            target_arn=self.target_arn,
+            message=self.message,
+            subject=self.subject,
+            message_attributes=self.message_attributes,
+        )
+
 
 send_sns_notification = SnsNotifier
