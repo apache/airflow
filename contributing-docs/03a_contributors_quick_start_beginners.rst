@@ -66,7 +66,17 @@ Option A – Breeze on Your Laptop
     cd airflow
     uv tool install -e ./dev/breeze
 
-2.  **Start the development container** (first run builds the image)
+2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
+
+.. code-block:: text
+
+    # For IntelliJ IDEA and PyCharm
+    uv run setup_idea.py
+
+    # For VS Code
+    uv run setup_vscode.py
+
+3.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
@@ -77,15 +87,15 @@ and launches all Airflow necessary components in those terminals. To know more a
 check out this cheat sheet: https://tmuxcheatsheet.com/. To exit breeze, type ``start-airflow`` in any
 of the tmux panes and hit Enter.
 
-3.  **Make a tiny change** – e.g. fix a typo in docs
+4.  **Make a tiny change** – e.g. fix a typo in docs
 
-4.  **Run local checks**
+5.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-5.  **Commit & push**
+6.  **Commit & push**
 
 .. code-block:: bash
 
@@ -93,7 +103,7 @@ of the tmux panes and hit Enter.
     git commit -am "fix typo in README"
     git push -u origin docs-typo
 
-6.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+7.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 
@@ -113,6 +123,7 @@ Option B – One-Click GitHub Codespaces
     uv tool install prek
     prek install -f
     uv tool install -e ./dev/breeze
+    uv run setup_vscode.py
     breeze start-airflow
 
 4. Edit a file in the editor, save, and commit via the Source Control

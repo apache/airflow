@@ -30,8 +30,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Misc
 ~~~~
 

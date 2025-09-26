@@ -232,6 +232,9 @@ jobs:
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Checkout current version to run SBOM generation"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
