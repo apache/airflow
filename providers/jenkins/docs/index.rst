@@ -76,9 +76,7 @@ apache-airflow-providers-jenkins package
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 4.1.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 4.1.3
 
 Provider package
 ----------------

@@ -464,13 +464,24 @@ class DagInfo(InfoJsonEncodable):
         "fileloc",
         "owner",
         "owner_links",
-        "schedule_interval",  # For Airflow 2.
-        "timetable_summary",  # For Airflow 3.
+        "schedule_interval",  # For Airflow 2 only -> AF3 has timetable_summary
         "start_date",
         "tags",
     ]
-    casts = {"timetable": lambda dag: DagInfo.serialize_timetable(dag)}
+    casts = {
+        "timetable": lambda dag: DagInfo.serialize_timetable(dag),
+        "timetable_summary": lambda dag: DagInfo.timetable_summary(dag),
+    }
     renames = {"_dag_id": "dag_id"}
+
+    @classmethod
+    def timetable_summary(cls, dag: DAG) -> str | None:
+        """Extract summary from timetable if missing a ``timetable_summary`` property."""
+        if getattr(dag, "timetable_summary", None):
+            return dag.timetable_summary
+        if getattr(dag, "timetable", None):
+            return dag.timetable.summary
+        return None
 
     @classmethod
     def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
@@ -797,6 +808,14 @@ def _emits_ol_events(task: AnyOperator) -> bool:
             not getattr(task, "on_success_callback", None),
             not task.outlets,
             not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
+            not (
+                getattr(task, "has_on_execute_callback", None)  # Added in 3.1.0 #54569
+                and get_base_airflow_version_tuple() >= (3, 1, 0)
+            ),
+            not (
+                getattr(task, "has_on_success_callback", None)  # Added in 3.1.0 #54569
+                and get_base_airflow_version_tuple() >= (3, 1, 0)
+            ),
         )
     )
 

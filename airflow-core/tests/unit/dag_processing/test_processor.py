@@ -21,6 +21,7 @@ import inspect
 import pathlib
 import sys
 import textwrap
+import typing
 import uuid
 from collections.abc import Callable
 from socket import socketpair
@@ -47,18 +48,21 @@ from airflow.callbacks.callback_requests import (
     EmailNotificationRequest,
     TaskCallbackRequest,
 )
+from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import process_parse_results
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    ToDagProcessor,
+    ToManager,
     _execute_dag_callbacks,
     _execute_email_callbacks,
     _execute_task_callbacks,
     _parse_file,
     _pre_import_airflow_modules,
 )
-from airflow.models import DagBag, DagRun
+from airflow.models import DagRun
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import DagRunState
@@ -66,6 +70,8 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceSlice,
+    ToSupervisor,
+    ToTask,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -1510,3 +1516,82 @@ class TestExecuteEmailCallbacks:
         log.info.assert_called_once()
         info_call = log.info.call_args[0][0]
         assert "Email not sent - task configured with email_on_" in info_call
+
+
+class TestDagProcessingMessageTypes:
+    def test_message_types_in_dag_processor(self):
+        """
+        Test that ToSupervisor is a superset of ToManager and ToTask is a superset of ToDagProcessor.
+
+        This test ensures that when new message types are added to ToSupervisor or ToTask,
+        they are also properly handled in ToManager and ToDagProcessor.
+        """
+
+        def get_type_names(union_type):
+            union_args = typing.get_args(union_type.__args__[0])
+            return {arg.__name__ for arg in union_args}
+
+        supervisor_types = get_type_names(ToSupervisor)
+        task_types = get_type_names(ToTask)
+
+        manager_types = get_type_names(ToManager)
+        dag_processor_types = get_type_names(ToDagProcessor)
+
+        in_supervisor_but_not_in_manager = {
+            "DeferTask",
+            "DeleteXCom",
+            "GetAssetByName",
+            "GetAssetByUri",
+            "GetAssetEventByAsset",
+            "GetAssetEventByAssetAlias",
+            "GetDagRunState",
+            "GetDRCount",
+            "GetTaskRescheduleStartDate",
+            "GetTICount",
+            "GetTaskStates",
+            "RescheduleTask",
+            "RetryTask",
+            "SetRenderedFields",
+            "SetXCom",
+            "SkipDownstreamTasks",
+            "SucceedTask",
+            "ValidateInletsAndOutlets",
+            "TaskState",
+            "TriggerDagRun",
+            "ResendLoggingFD",
+            "CreateHITLDetailPayload",
+            "UpdateHITLDetail",
+            "GetHITLDetailResponse",
+        }
+
+        in_task_runner_but_not_in_dag_processing_process = {
+            "AssetResult",
+            "AssetEventsResult",
+            "DagRunStateResult",
+            "DRCount",
+            "SentFDs",
+            "StartupDetails",
+            "TaskRescheduleStartDate",
+            "TICount",
+            "TaskStatesResult",
+            "InactiveAssetsResult",
+            "CreateHITLDetailPayload",
+            "HITLDetailRequestResult",
+        }
+
+        supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager
+        task_diff = task_types - dag_processor_types - in_task_runner_but_not_in_dag_processing_process
+
+        assert not supervisor_diff, (
+            f"New message types in ToSupervisor not handled in ToManager: "
+            f"{len(supervisor_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(supervisor_diff))
+            + "\n\nEither handle these types in ToManager or update in_supervisor_but_not_in_manager list."
+        )
+
+        assert not task_diff, (
+            f"New message types in ToTask not handled in ToDagProcessor: "
+            f"{len(task_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(task_diff))
+            + "\n\nEither handle these types in ToDagProcessor or update in_task_runner_but_not_in_dag_processing_process list."
+        )

@@ -65,8 +65,6 @@ apache-airflow-providers-imap package
 
 Release: 3.9.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

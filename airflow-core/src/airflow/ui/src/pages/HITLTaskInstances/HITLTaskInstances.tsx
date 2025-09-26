@@ -58,7 +58,7 @@ const taskInstanceColumns = ({
   translate: TFunction;
 }): Array<ColumnDef<HITLDetail>> => [
   {
-    accessorKey: "task_instance.operator",
+    accessorKey: "task_instance_state",
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),

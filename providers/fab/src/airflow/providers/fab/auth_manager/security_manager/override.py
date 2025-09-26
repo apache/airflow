@@ -127,7 +127,7 @@ if AIRFLOW_V_3_1_PLUS:
         with create_session() as session:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
-    from airflow.models.dagbag import DagBag
+    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
         dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]

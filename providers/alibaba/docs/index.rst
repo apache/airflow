@@ -77,9 +77,7 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 3.2.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 3.2.3
 
 Provider package
 ----------------

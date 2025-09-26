@@ -81,9 +81,16 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
     (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
 ]
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
+
+PREK_DIR_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek"
+for file in PREK_DIR_PATH.rglob("*"):
+    if file.is_file() and file.name != "upgrade_important_versions.py" and not file.suffix == ".pyc":
+        FILES_TO_UPDATE.append((file, False))
 
 
 def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
@@ -415,6 +422,16 @@ if __name__ == "__main__":
             new_content = re.sub(
                 r"(PYYAML_VERSION=)(\"[0-9.abrc]+\")",
                 f'PYYAML_VERSION="{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(pyyaml>=)(\"[0-9.abrc]+\")",
+                f'pyyaml>="{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(pyyaml>=)([0-9.abrc]+)",
+                f"pyyaml>={pyyaml_version}",
                 new_content,
             )
         if UPGRADE_GITPYTHON:
