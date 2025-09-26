@@ -94,13 +94,13 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.DURATION_GTE]: {
       icon: <MdHourglassEmpty />,
-      label: translate("common:filters.durationFrom", "Duration From"), // To do: add translation key and remove default value
+      label: translate("common:filters.durationFrom"),
       min: 0,
       type: FilterTypes.NUMBER,
     },
     [SearchParamsKeys.DURATION_LTE]: {
       icon: <MdHourglassEmpty />,
-      label: translate("common:filters.durationTo", "Duration To"), // To do: add translation key and remove default value
+      label: translate("common:filters.durationTo"),
       min: 0,
       type: FilterTypes.NUMBER,
     },
