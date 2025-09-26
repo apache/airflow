@@ -61,6 +61,8 @@ const SegmentedControl = ({ defaultValues, multiple = false, onChange, options }
         <Button
           _hover={{ backgroundColor: "bg.emphasized" }}
           bg={selectedOptions.includes(value) ? "bg.panel" : undefined}
+          borderColor={selectedOptions.includes(value) ? "border.emphasized" : "transparent"}
+          borderWidth={selectedOptions.includes(value) ? 1 : 0}
           disabled={disabled}
           key={value}
           onClick={() => onClick(value)}

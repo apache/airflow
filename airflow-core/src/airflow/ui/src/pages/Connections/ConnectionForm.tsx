@@ -96,6 +96,19 @@ const ConnectionForm = ({
     mutateConnection(data);
   };
 
+  // Check if extra fields have changed by comparing with initial connection
+  const isExtraFieldsDirty = (() => {
+    try {
+      const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+
+      return JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+    } catch {
+      // If parsing fails, fall back to string comparison
+      return extra !== initialConnection.extra;
+    }
+  })();
+
   const validateAndPrettifyJson = (value: string) => {
     try {
       if (value.trim() === "") {
@@ -251,7 +264,9 @@ const ConnectionForm = ({
           <Spacer />
           <Button
             colorPalette="brand"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid || !isDirty}
+            disabled={
+              Boolean(errors.conf) || formErrors || isPending || !isValid || (!isDirty && !isExtraFieldsDirty)
+            }
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

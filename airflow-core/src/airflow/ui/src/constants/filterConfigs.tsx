@@ -24,17 +24,19 @@ import { MdDateRange, MdSearch } from "react-icons/md";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
+import { StateBadge } from "src/components/StateBadge";
 
 import { SearchParamsKeys } from "./searchParams";
 
 export enum FilterTypes {
   DATE = "date",
   NUMBER = "number",
+  SELECT = "select",
   TEXT = "text",
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin"]);
+  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.AFTER]: {
@@ -58,6 +60,11 @@ export const useFilterConfigs = () => {
       icon: <DagIcon />,
       label: translate("common:dagId"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.END_DATE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.to"),
+      type: FilterTypes.DATE,
     },
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
@@ -84,6 +91,22 @@ export const useFilterConfigs = () => {
       min: -1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.RESPONSE_RECEIVED]: {
+      icon: <FiUser />,
+      label: translate("hitl:requiredActionState"),
+      options: [
+        { label: translate("hitl:filters.response.all"), value: "all" },
+        {
+          label: <StateBadge state="deferred">{translate("hitl:filters.response.pending")}</StateBadge>,
+          value: "false",
+        },
+        {
+          label: <StateBadge state="success">{translate("hitl:filters.response.received")}</StateBadge>,
+          value: "true",
+        },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.RUN_AFTER_GTE]: {
       icon: <MdDateRange />,
       label: translate("common:filters.runAfterFrom"),
@@ -105,6 +128,11 @@ export const useFilterConfigs = () => {
       icon: <FiBarChart />,
       label: translate("common:runId"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.START_DATE]: {
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      type: FilterTypes.DATE,
     },
     [SearchParamsKeys.TASK_ID]: {
       hotkeyDisabled: true,

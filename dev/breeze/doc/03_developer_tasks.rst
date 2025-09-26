@@ -346,7 +346,7 @@ command takes care about it. This is needed when you want to run API server insi
 
 Note
 
-This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-prek>`__.
+This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst#configuring-prek>`__.
 
 
 Starting Airflow
@@ -391,6 +391,29 @@ These are all available flags of ``start-airflow`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_start-airflow.svg
   :width: 100%
   :alt: Breeze start-airflow
+
+Running External System Integrations with Breeze
+------------------------------------------------
+
+You can run Airflow alongside external systems in Breeze, such as Kafka, Cassandra, MongoDB, and more.
+
+To start Airflow with an integration, use the following command:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration <integration_name>
+
+For example, to run Airflow with Kafka:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration kafka
+
+Check the available integrations by running:
+
+.. code-block:: bash
+
+    breeze --integration --help
 
 Launching multiple terminals in the same environment
 ----------------------------------------------------

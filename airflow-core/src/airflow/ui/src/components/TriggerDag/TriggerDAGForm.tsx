@@ -27,6 +27,7 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -65,7 +66,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
       conf,
       dagRunId: "",
       // Default logical date to now, show it in the selected timezone
-      logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
     },
   });

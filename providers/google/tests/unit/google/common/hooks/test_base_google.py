@@ -121,9 +121,9 @@ class TestRefreshCredentialsRetry:
     def test_raise_non_refresh_error(self):
         @hook.GoogleBaseHook.refresh_credentials_retry()
         def func():
-            raise ValueError()
+            raise ValueError("This is a test ValueError.")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="This is a test ValueError."):
             func()
 
     @mock.patch("tenacity.nap.time.sleep", mock.MagicMock())

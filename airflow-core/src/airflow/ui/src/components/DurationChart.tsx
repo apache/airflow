@@ -36,6 +36,7 @@ import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { getComputedCSSVariableValue } from "src/theme";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 ChartJS.register(
   CategoryScale,
@@ -160,7 +161,7 @@ export const DurationChart = ({
               label: translate("durationChart.runDuration"),
             },
           ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm:ss")),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT)),
         }}
         datasetIdKey="id"
         options={{

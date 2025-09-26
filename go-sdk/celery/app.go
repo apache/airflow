@@ -24,83 +24,119 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 
 	celery "github.com/marselester/gopher-celery"
 	celeryredis "github.com/marselester/gopher-celery/goredis"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
-	"github.com/apache/airflow/go-sdk/worker"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
+	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
+	"github.com/apache/airflow/go-sdk/pkg/logging/server"
 )
 
+type celeryTasksRunner struct {
+	*shared.Discovery
+}
+
 func Run(ctx context.Context, config Config) error {
-	worker, ok := ctx.Value(sdkcontext.WorkerContextKey).(worker.Worker)
-	if !ok {
-		slog.ErrorContext(ctx, "Worker missing in context")
-		return fmt.Errorf("worker value missing in context")
+	if len(config.Queues) == 0 {
+		return fmt.Errorf("no queues defined")
 	}
-
-	worker, err := worker.WithServer(viper.GetString("execution-api-url"))
-	if err != nil {
-		slog.ErrorContext(ctx, "Error setting ExecutionAPI sxerver for worker", "err", err)
-		return err
-	}
-
-	// Store the updated worker in context
-	ctx = context.WithValue(ctx, sdkcontext.WorkerContextKey, worker)
 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
+
+	log := slog.Default().With("logger", "celery.app")
+
+	// TODO: use a config struct in the config, rather than error prone strings!
+
+	logServer, err := server.NewFromConfig(viper.GetViper())
+	if err != nil {
+		return err
+	}
+
+	go logServer.ListenAndServe(ctx, time.Duration(0))
+
+	d := shared.NewDiscovery(viper.GetString("bundles.folder"), nil)
+	d.DiscoverBundles(ctx)
 
 	c := redis.NewClient(&redis.Options{
 		Addr: config.BrokerAddr,
 	})
 	defer func() {
 		if err := c.Close(); err != nil {
-			slog.ErrorContext(ctx, "failed to close Redis client", "err", err)
+			log.ErrorContext(ctx, "failed to close Redis client", "err", err)
 		}
 	}()
 
 	if _, err := c.Ping(ctx).Result(); err != nil {
-		slog.ErrorContext(ctx, "Redis connection failed", "err", err)
+		log.ErrorContext(ctx, "Redis connection failed", "err", err)
 		return err
 	}
 	broker := celeryredis.NewBroker(
 		celeryredis.WithClient(c),
 	)
 
-	if len(config.Queues) == 0 {
-		return fmt.Errorf("no queues defined")
-	}
 	broker.Observe(config.Queues)
 
 	app := celery.NewApp(
 		celery.WithBroker(broker),
 	)
 
+	tasks := &celeryTasksRunner{d}
+
 	for _, queue := range config.Queues {
 		app.Register(
 			"execute_workload",
 			queue,
 			func(ctx context.Context, p *celery.TaskParam) error {
-				p.NameArgs("payload")
-				payload := p.MustString("payload")
-
-				var workload api.ExecuteTaskWorkload
-				if err := json.Unmarshal([]byte(payload), &workload); err != nil {
-					return err
+				err := tasks.ExecuteWorkloadTask(ctx, p)
+				if err != nil {
+					log.ErrorContext(ctx, "Celery Task failed", "err", err)
 				}
-				return worker.ExecuteTaskWorkload(ctx, workload)
+				return err
 			},
 		)
 	}
 
-	slog.Info("waiting for tasks", "queues", config.Queues)
-	err = app.Run(ctx)
-	if err != nil {
-		slog.Error("program stopped", "error", err)
+	log.Info("waiting for tasks", "queues", config.Queues)
+	return app.Run(ctx)
+}
+
+func (state *celeryTasksRunner) ExecuteWorkloadTask(
+	ctx context.Context,
+	p *celery.TaskParam,
+) error {
+	p.NameArgs("payload")
+	payload := p.MustString("payload")
+
+	var workload bundlev1.ExecuteTaskWorkload
+	if err := json.Unmarshal([]byte(payload), &workload); err != nil {
+		return err
 	}
-	return err
+
+	client, err := state.ClientForBundle(workload.BundleInfo.Name, workload.BundleInfo.Version)
+	if err != nil {
+		// TODO: This Should write something to the log file
+		return err
+	}
+	// TODO: Don't kill the backend process here, but instead kill it after a bit of idleness. See if we can
+	// reuse the process for multiple tasks too
+	defer client.Kill()
+	rpcClient, err := client.Client()
+	if err != nil {
+		return err
+	}
+
+	raw, err := rpcClient.Dispense("dag-bundle")
+	if err != nil {
+		return err
+	}
+
+	bundleClient := raw.(bundlev1client.BundleClient)
+
+	return bundleClient.ExecuteTaskWorkload(ctx, workload)
 }

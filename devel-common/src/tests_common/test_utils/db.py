@@ -60,7 +60,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -90,7 +90,10 @@ def _deactivate_unknown_dags(active_dag_ids, session):
 
 
 def _bootstrap_dagbag():
-    from airflow.models.dagbag import DagBag
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.dag_processing.dagbag import DagBag
+    else:  # back-compat for Airflow <3.2
+        from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -103,7 +106,10 @@ def _bootstrap_dagbag():
         dagbag = DagBag()
         # Save DAGs in the ORM
         if AIRFLOW_V_3_1_PLUS:
-            from airflow.models.dagbag import sync_bag_to_db
+            try:
+                from airflow.dag_processing.dagbag import sync_bag_to_db
+            except ImportError:
+                from airflow.models.dagbag import sync_bag_to_db
 
             sync_bag_to_db(dagbag, bundle_name="dags-folder", bundle_version=None, session=session)
         elif AIRFLOW_V_3_0_PLUS:
@@ -163,7 +169,10 @@ def initial_db_init():
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
-    from airflow.models.dagbag import DagBag
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.dag_processing.dagbag import DagBag
+    else:
+        from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -175,7 +184,10 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
         if AIRFLOW_V_3_1_PLUS:
-            from airflow.models.dagbag import sync_bag_to_db
+            try:
+                from airflow.dag_processing.dagbag import sync_bag_to_db
+            except ImportError:
+                from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
 
             sync_bag_to_db(dagbag, "dags-folder", None, session=session)
         elif AIRFLOW_V_3_0_PLUS:
@@ -224,21 +236,23 @@ def clear_db_assets():
                 AssetActive,
                 DagScheduleAssetNameReference,
                 DagScheduleAssetUriReference,
-                asset_trigger_association_table,
             )
 
-            session.query(asset_trigger_association_table).delete()
             session.query(AssetActive).delete()
             session.query(DagScheduleAssetNameReference).delete()
             session.query(DagScheduleAssetUriReference).delete()
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.asset import AssetWatcherModel
+
+            session.query(AssetWatcherModel).delete()
 
 
 def clear_db_triggers():
     with create_session() as session:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.asset import asset_trigger_association_table
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.asset import AssetWatcherModel
 
-            session.query(asset_trigger_association_table).delete()
+            session.query(AssetWatcherModel).delete()
         session.query(Trigger).delete()
 
 

@@ -78,8 +78,6 @@ apache-airflow-providers-airbyte package
 
 Release: 5.2.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

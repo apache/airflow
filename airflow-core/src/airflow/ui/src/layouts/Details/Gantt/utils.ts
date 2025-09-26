@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
+import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -46,6 +47,9 @@ type ChartOptionsParams = {
   data: Array<GanttDataItem>;
   gridColor?: string;
   handleBarClick: (event: ChartEvent, elements: Array<ActiveElement>) => void;
+  handleBarHover: (event: ChartEvent, elements: Array<ActiveElement>) => void;
+  hoveredId?: string | null;
+  hoveredItemColor?: string;
   selectedId?: string;
   selectedItemColor?: string;
   selectedRun?: GridRunsResponse;
@@ -82,102 +86,186 @@ export const createHandleBarClick =
     }
   };
 
+export const createHandleBarHover = (
+  data: Array<GanttDataItem>,
+  setHoveredTaskId: (taskId: string | undefined) => void,
+) => {
+  let lastHoveredTaskId: string | undefined = undefined;
+
+  return (_: ChartEvent, elements: Array<ActiveElement>) => {
+    // Clear previous hover styles
+    if (lastHoveredTaskId !== undefined) {
+      const previousTasks = document.querySelectorAll<HTMLDivElement>(
+        `#${lastHoveredTaskId.replaceAll(".", "-")}`,
+      );
+
+      previousTasks.forEach((task) => {
+        task.style.backgroundColor = "";
+      });
+    }
+
+    if (elements.length > 0 && elements[0] && elements[0].index < data.length) {
+      const hoveredData = data[elements[0].index];
+
+      if (hoveredData?.taskId !== undefined) {
+        lastHoveredTaskId = hoveredData.taskId;
+        setHoveredTaskId(hoveredData.taskId);
+
+        // Apply new hover styles
+        const tasks = document.querySelectorAll<HTMLDivElement>(
+          `#${hoveredData.taskId.replaceAll(".", "-")}`,
+        );
+
+        tasks.forEach((task) => {
+          task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+        });
+      }
+    } else {
+      lastHoveredTaskId = undefined;
+      setHoveredTaskId(undefined);
+    }
+  };
+};
+
 export const createChartOptions = ({
   data,
   gridColor,
   handleBarClick,
+  handleBarHover,
+  hoveredId,
+  hoveredItemColor,
   selectedId,
   selectedItemColor,
   selectedRun,
   selectedTimezone,
   translate,
-}: ChartOptionsParams) => ({
-  animation: {
-    duration: 100,
-  },
-  indexAxis: "y" as const,
-  maintainAspectRatio: false,
-  onClick: handleBarClick,
-  onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
-    const target = event.native?.target as HTMLElement | undefined;
+}: ChartOptionsParams) => {
+  const isActivePending = isStatePending(selectedRun?.state);
+  const effectiveEndDate = isActivePending
+    ? dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss")
+    : selectedRun?.end_date;
 
-    if (target) {
-      target.style.cursor = elements.length > 0 ? "pointer" : "default";
-    }
-  },
-  plugins: {
-    annotation: {
-      annotations:
-        selectedId === undefined
-          ? []
-          : [
-              {
-                backgroundColor: selectedItemColor,
-                borderWidth: 0,
-                drawTime: "beforeDatasetsDraw" as const,
-                type: "box" as const,
-                xMax: "max" as const,
-                xMin: "min" as const,
-                yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
-                yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
-              },
-            ],
+  return {
+    animation: {
+      duration: 150,
+      easing: "linear" as const,
     },
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      callbacks: {
-        afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
-          const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
-          const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
-          const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
+    indexAxis: "y" as const,
+    maintainAspectRatio: false,
+    onClick: handleBarClick,
+    onHover: (event: ChartEvent, elements: Array<ActiveElement>) => {
+      const target = event.native?.target as HTMLElement | undefined;
 
-          return [
-            `${translate("startDate")}: ${startDate}`,
-            `${translate("endDate")}: ${endDate}`,
-            `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
-          ];
-        },
-        label(tooltipItem: TooltipItem<"bar">) {
-          const { label } = tooltipItem;
-          const taskInstance = data.find((dataItem) => dataItem.y === label);
+      if (target) {
+        target.style.cursor = elements.length > 0 ? "pointer" : "default";
+      }
 
-          return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
-        },
-      },
+      handleBarHover(event, elements);
     },
-  },
-  resizeDelay: 100,
-  responsive: true,
-  scales: {
-    x: {
-      grid: {
-        color: gridColor,
-        display: true,
+    plugins: {
+      annotation: {
+        annotations: [
+          // Selected task annotation
+          ...(selectedId === undefined || selectedId === "" || hoveredId === selectedId
+            ? []
+            : [
+                {
+                  backgroundColor: selectedItemColor,
+                  borderWidth: 0,
+                  drawTime: "beforeDatasetsDraw" as const,
+                  type: "box" as const,
+                  xMax: "max" as const,
+                  xMin: "min" as const,
+                  yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
+                  yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
+                },
+              ]),
+          // Hovered task annotation
+          ...(hoveredId === null || hoveredId === undefined
+            ? []
+            : [
+                {
+                  backgroundColor: hoveredItemColor,
+                  borderWidth: 0,
+                  drawTime: "beforeDatasetsDraw" as const,
+                  type: "box" as const,
+                  xMax: "max" as const,
+                  xMin: "min" as const,
+                  yMax: data.findIndex((dataItem) => dataItem.y === hoveredId) + 0.5,
+                  yMin: data.findIndex((dataItem) => dataItem.y === hoveredId) - 0.5,
+                },
+              ]),
+        ],
       },
-      max: formatDate(selectedRun?.end_date, selectedTimezone),
-      min: formatDate(selectedRun?.start_date, selectedTimezone),
-      position: "top" as const,
-      stacked: true,
-      ticks: {
-        align: "start" as const,
-        callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
-        maxRotation: 8,
-        maxTicksLimit: 8,
-        minRotation: 8,
-      },
-      type: "time" as const,
-    },
-    y: {
-      grid: {
-        color: gridColor,
-        display: true,
-      },
-      stacked: true,
-      ticks: {
+      legend: {
         display: false,
       },
+      tooltip: {
+        callbacks: {
+          afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
+            const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
+            const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
+            const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
+
+            return [
+              `${translate("startDate")}: ${startDate}`,
+              `${translate("endDate")}: ${endDate}`,
+              `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
+            ];
+          },
+          label(tooltipItem: TooltipItem<"bar">) {
+            const { label } = tooltipItem;
+            const taskInstance = data.find((dataItem) => dataItem.y === label);
+
+            return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
+          },
+        },
+      },
     },
-  },
-});
+    resizeDelay: 100,
+    responsive: true,
+    scales: {
+      x: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        max:
+          data.length > 0
+            ? (() => {
+                const maxTime = Math.max(...data.map((item) => new Date(item.x[1] ?? "").getTime()));
+                const minTime = Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()));
+                const totalDuration = maxTime - minTime;
+
+                // add 5% to the max time to avoid the last tick being cut off
+                return maxTime + totalDuration * 0.05;
+              })()
+            : formatDate(effectiveEndDate, selectedTimezone),
+        min:
+          data.length > 0
+            ? Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()))
+            : formatDate(selectedRun?.start_date, selectedTimezone),
+        position: "top" as const,
+        stacked: true,
+        ticks: {
+          align: "start" as const,
+          callback: (value: number | string) => formatDate(value, selectedTimezone, "HH:mm:ss"),
+          maxRotation: 8,
+          maxTicksLimit: 8,
+          minRotation: 8,
+        },
+        type: "time" as const,
+      },
+      y: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        stacked: true,
+        ticks: {
+          display: false,
+        },
+      },
+    },
+  };
+};

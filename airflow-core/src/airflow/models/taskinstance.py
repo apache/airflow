@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import attrs
@@ -70,9 +70,6 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowInactiveAssetInInletOrOutletException,
-)
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -120,7 +117,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+    from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -237,8 +234,7 @@ def clear_task_instances(
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
-                # TODO (GH-52141): Make dag a db-backed object so it only returns db-backed tasks.
-                task = cast("Operator", ti_dag.get_task(task_id))
+                task = ti_dag.get_task(task_id)
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
@@ -623,7 +619,7 @@ class TaskInstance(Base, LoggingMixin):
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
         map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
 
         return _log_uri
 
@@ -1076,8 +1072,6 @@ class TaskInstance(Base, LoggingMixin):
 
         ti: TaskInstance = task_instance
         task = task_instance.task
-        if TYPE_CHECKING:
-            assert isinstance(task, Operator)  # TODO (GH-52141): This shouldn't be needed.
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -1277,9 +1271,16 @@ class TaskInstance(Base, LoggingMixin):
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self, task=self.task)
-        if taskrun_result is not None and taskrun_result.error:
+        # TODO (TaskSDK): This is the old ti execution path. The only usage is
+        # in TI.run(...), someone needs to analyse if it's still actually used
+        # somewhere and fix it, likely by rewriting TI.run(...) to use the same
+        # mechanism as Operator.test().
+        taskrun_result = _run_task(ti=self, task=self.task)  # type: ignore[arg-type]
+        if taskrun_result is None:
+            return None
+        if taskrun_result.error:
             raise taskrun_result.error
+        self.task = taskrun_result.ti.task  # type: ignore[assignment]
         return None
 
     @staticmethod
@@ -1324,13 +1325,15 @@ class TaskInstance(Base, LoggingMixin):
             if "source_alias_name" not in event
         }
 
-        bad_asset_keys: set[AssetUniqueKey | AssetNameRef | AssetUriRef] = set()
-
         for key in asset_keys:
             try:
                 am = asset_models[key]
             except KeyError:
-                bad_asset_keys.add(key)
+                ti.log.warning(
+                    'Task has inactive assets "Asset(name=%s, uri=%s)" in inlets or outlets',
+                    key.name,
+                    key.uri,
+                )
                 continue
             ti.log.debug("register event for asset %s", am)
             asset_manager.register_asset_change(
@@ -1347,7 +1350,9 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     am = asset_models_by_name[nref.name]
                 except KeyError:
-                    bad_asset_keys.add(nref)
+                    ti.log.warning(
+                        'Task has inactive assets "Asset.ref(name=%s)" in inlets or outlets', nref.name
+                    )
                     continue
                 ti.log.debug("register event for asset name ref %s", am)
                 asset_manager.register_asset_change(
@@ -1363,7 +1368,9 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     am = asset_models_by_uri[uref.uri]
                 except KeyError:
-                    bad_asset_keys.add(uref)
+                    ti.log.warning(
+                        'Task has inactive assets "Asset.ref(uri=%s)" in inlets or outlets', uref.uri
+                    )
                     continue
                 ti.log.debug("register event for asset uri ref %s", am)
                 asset_manager.register_asset_change(
@@ -1410,9 +1417,6 @@ class TaskInstance(Base, LoggingMixin):
                         session=session,
                     )
 
-        if bad_asset_keys:
-            raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)
-
     @provide_session
     def update_rtif(self, rendered_fields, session: Session = NEW_SESSION):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -1455,9 +1459,11 @@ class TaskInstance(Base, LoggingMixin):
             assert original_task is not None
             assert original_task.dag is not None
 
-        self.task = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag)).task_dict[
-            original_task.task_id
-        ]
+        # We don't set up all tests well...
+        if not isinstance(original_task.dag, SerializedDAG):
+            serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
+            self.task = serialized_dag.get_task(original_task.task_id)
+
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,

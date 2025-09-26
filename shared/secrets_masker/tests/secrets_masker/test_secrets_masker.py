@@ -42,7 +42,7 @@ from airflow_shared.secrets_masker.secrets_masker import (
 from tests_common.test_utils.config import env_vars
 
 pytestmark = pytest.mark.enable_redact
-p = "password"
+PASSWORD = "password"
 
 
 def configure_secrets_masker_for_test(
@@ -194,7 +194,7 @@ class TestSecretsMasker:
         try:
             try:
                 try:
-                    raise RuntimeError(f"Cannot connect to user:{p}")
+                    raise RuntimeError(f"Cannot connect to user:{PASSWORD}")
                 except RuntimeError as ex1:
                     raise RuntimeError(f"Exception: {ex1}")
             except RuntimeError as ex2:
@@ -211,7 +211,7 @@ class TestSecretsMasker:
         """
         exception = None
         try:
-            raise RuntimeError(f"Cannot connect to user:{p}")
+            raise RuntimeError(f"Cannot connect to user:{PASSWORD}")
         except RuntimeError as ex:
             exception = ex
         try:
@@ -226,7 +226,7 @@ class TestSecretsMasker:
             ERROR Err
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line}, in test_masking_in_explicit_context_exceptions
-                raise RuntimeError(f"Cannot connect to user:{{p}}")
+                raise RuntimeError(f"Cannot connect to user:{{PASSWORD}}")
             RuntimeError: Cannot connect to user:***
 
             The above exception was the direct cause of the following exception:
@@ -492,24 +492,24 @@ class TestRedactedIO:
             "airflow_shared.secrets_masker.secrets_masker._secrets_masker",
             return_value=self.secrets_masker,
         ):
-            mask_secret(p)
+            mask_secret(PASSWORD)
             yield
 
     def test_redacts_from_print(self, capsys):
         # Without redacting, password is printed.
-        print(p)
+        print(PASSWORD)
         stdout = capsys.readouterr().out
-        assert stdout == f"{p}\n"
+        assert stdout == f"{PASSWORD}\n"
         assert "***" not in stdout
 
         # With context manager, password is redacted.
         with contextlib.redirect_stdout(RedactedIO()):
-            print(p)
+            print(PASSWORD)
         stdout = capsys.readouterr().out
         assert stdout == "***\n"
 
     def test_write(self, capsys):
-        RedactedIO().write(p)
+        RedactedIO().write(PASSWORD)
         stdout = capsys.readouterr().out
         assert stdout == "***"
 

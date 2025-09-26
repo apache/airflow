@@ -509,6 +509,15 @@ core:
       type: string
       example: ~
       default: ~
+    multi_team:
+      description: |
+        Whether to run the Airflow environment in multi-team mode.
+        In this mode, different teams can have scoped access to their own resources while still sharing the
+        same underlying deployment.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 database:
   description: ~
   options:
@@ -788,11 +797,34 @@ logging:
       description: |
         Logging level.
 
+        Individual loggers can be set at a different level with the :ref:`config:logging__namespace_levels`
+        option.
+
         Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: 2.0.0
       type: string
       example: ~
       default: "INFO"
+    namespace_levels:
+      description: |
+        Set the log level for individual named loggers.
+
+        A very common convention in Python is to use the module name as the name of the logger from which log
+        messages originate. This config option gives us the ability to set log levels for those loggers
+        easily.
+
+        The format of this variable is a series of ``<logger>=<level>`` pairs, separated by whitespace or
+        commas.
+
+        Each level is one of the possible values to ``logging_level``.
+
+        The logger names are viewable in task logs (as the "source" attribute), or in server components by
+        including ``%(name)s`` in your format string, or in the between ``[]`` after the message in the
+        default format.
+      version_added: 3.2.0
+      type: string
+      example: "sqlalchemy=INFO sqlalchemy.engine=DEBUG, botocor"
+      default: ~
     celery_logging_level:
       description: |
         Logging level for celery. If not set, it uses the value of logging_level
@@ -828,29 +860,32 @@ logging:
       type: string
       example: ~
       default: "True"
-    colored_log_format:
-      description: |
-        Log format for when Colored logs is enabled
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: >-
-        [%%(blue)s%%(asctime)s%%(reset)s] {{%%(blue)s%%(filename)s:%%(reset)s%%(lineno)d}}
-        %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
-    colored_formatter_class:
-      description: |
-        Specifies the class utilized by Airflow to implement colored logging
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "airflow.utils.log.colored_log.CustomTTYColoredFormatter"
     log_format:
       description: |
         Format of Log line
+
+        *Changed in 3.1.0*: This can now contain color escape sequences ``%(blue)s`` etc which will only
+        result in colours if :ref:`config:logging__colored_console_log` is true.
+
       version_added: 2.0.0
       type: string
+      example: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+      default: ""
+    callsite_parameters:
+      description: |
+        A comma separated list of information about the callsite (such as line number of filename etc) of
+        logger calls to include in each message.
+
+        See :class:`structlog.processors.CallsiteParameter` for the possible values.The values should be the
+        constant names (``FUNC_NAME``) or the values (``func_name``)
+
+        Including these in a log message adds a lot to the usability to the logs, but collecting these has a
+        (tiny) cost -- if you are super concerned with eking out every last ounce of performance you could
+        turn these off (by setting this value to an empty string)
+      version_added: 3.1.0
+      type: string
+      default: "filename,lineno"
       example: ~
-      default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration
@@ -1386,11 +1421,13 @@ api:
       default: "8080"
     workers:
       description: |
-        Number of workers to run on the API server
+        Number of workers to run on the API server. Should be roughly equal to the number of
+        cpu cores available. If you need to scale the API server, consider deploying multiple API
+        servers instead of increasing the number of workers.
       version_added: ~
       type: integer
       example: ~
-      default: "4"
+      default: "1"
     worker_timeout:
       description: |
         Number of seconds the API server waits before timing out on a worker
@@ -2158,13 +2195,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    dag_stale_not_seen_duration:
-      description: |
-        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
-      version_added: 2.4.0
-      type: integer
-      example: ~
-      default: "600"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.

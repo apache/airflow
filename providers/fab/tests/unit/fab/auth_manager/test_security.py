@@ -30,28 +30,23 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String, delete, func, select
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
-from airflow.providers.fab.www.utils import CustomSQLAInterface
-
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import assoc_permission_role
-    from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
-
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.models import assoc_permission_role
+from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
+from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.mock_security_manager import MockSecurityManager
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
@@ -84,6 +79,14 @@ READ_ONLY = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ}}
 logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 logging.getLogger().setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
+
+
+class MockSecurityManager(FabAirflowSecurityManagerOverride):
+    """Mock Security Manager for testing purposes."""
+
+    VIEWER_VMS = {
+        "Airflow",
+    }
 
 
 class SomeModel(Model):

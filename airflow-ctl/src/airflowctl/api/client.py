@@ -36,11 +36,11 @@ from uuid6 import uuid7
 from airflowctl import __version__ as version
 from airflowctl.api.operations import (
     AssetsOperations,
-    BackfillsOperations,
+    BackfillOperations,
     ConfigOperations,
     ConnectionsOperations,
-    DagOperations,
     DagRunOperations,
+    DagsOperations,
     JobsOperations,
     LoginOperations,
     PoolsOperations,
@@ -227,7 +227,7 @@ class Client(httpx.Client):
     @property
     def backfills(self):
         """Operations related to backfills."""
-        return BackfillsOperations(self)
+        return BackfillOperations(self)
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property
@@ -245,7 +245,7 @@ class Client(httpx.Client):
     @property
     def dags(self):
         """Operations related to DAGs."""
-        return DagOperations(self)
+        return DagsOperations(self)
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property

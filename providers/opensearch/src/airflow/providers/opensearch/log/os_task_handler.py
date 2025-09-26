@@ -165,11 +165,17 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         index_patterns: str = conf.get("opensearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("opensearch", "index_patterns_callable", fallback=""),
         os_kwargs: dict | None | Literal["default_os_kwargs"] = "default_os_kwargs",
-    ):
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ) -> None:
         os_kwargs = os_kwargs or {}
         if os_kwargs == "default_os_kwargs":
             os_kwargs = get_os_kwargs_from_config()
-        super().__init__(base_log_folder)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.closed = False
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
