@@ -1175,7 +1175,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
         def sync_dagbag_to_db(self):
             if AIRFLOW_V_3_1_PLUS:
-                from airflow.dag_processing.dagbag import sync_bag_to_db
+                try:
+                    from airflow.dag_processing.dagbag import sync_bag_to_db
+                except ImportError:
+                    from airflow.models.dagbag import sync_bag_to_db
 
                 sync_bag_to_db(self.dagbag, self.bundle_name, None)
             elif AIRFLOW_V_3_0_PLUS:
