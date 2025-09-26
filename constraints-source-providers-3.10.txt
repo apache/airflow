@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-26T07:45:57.619396
+# This constraints file was automatically generated on 2025-09-26T13:51:28.241506
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -208,7 +208,7 @@ fastapi==0.117.1
 fastavro==1.12.0
 fasteners==0.20
 fastjsonschema==2.21.2
-fastuuid==0.13.3
+fastuuid==0.13.5
 filelock==3.19.1
 flit==3.12.0
 flit_core==3.12.0
@@ -696,7 +696,7 @@ virtualenv==20.34.0
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.16.10
+weaviate-client==4.17.0
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
