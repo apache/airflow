@@ -30,6 +30,7 @@ import {
 import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
+import minMax from "dayjs/plugin/minMax";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +38,8 @@ import { useNavigate } from "react-router-dom";
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { getComputedCSSVariableValue } from "src/theme";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
+
+dayjs.extend(minMax);
 
 ChartJS.register(
   CategoryScale,
@@ -59,10 +62,30 @@ type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
 const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
 
+const getLabelFormat = (entries: Array<RunResponse>) => {
+  const timestamps = entries.map(entry => dayjs(entry.run_after));
+  const minTime = dayjs.min(timestamps);
+  const maxTime = dayjs.max(timestamps);
+
+  // satisfy null typecheck for dayjs.min/max
+  if (minTime === null || maxTime === null) {
+    return "MM-DD";
+  }
+  const diffInDays = maxTime.diff(minTime, 'days');
+
+  if (diffInDays < 1) {
+    return "hh:mm:ss"
+  } else {
+    return "MM-DD"
+  }
+};
+
 export const DurationChart = ({
+  autoRefreshEnabled,
   entries,
   kind,
 }: {
+  readonly autoRefreshEnabled?: boolean;
   readonly entries: Array<RunResponse> | undefined;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
@@ -165,6 +188,12 @@ export const DurationChart = ({
         }}
         datasetIdKey="id"
         options={{
+          animation: {
+            delay: 0,
+            duration: autoRefreshEnabled ? 0 : 1000,
+            easing: "easeOutQuart",
+            loop: false,
+          },
           onClick: (_event, elements) => {
             const [element] = elements;
 
@@ -207,6 +236,9 @@ export const DurationChart = ({
               stacked: true,
               ticks: {
                 maxTicksLimit: 3,
+                callback: (value) => {
+                  return(dayjs(value).format(getLabelFormat(entries)))
+                }
               },
               title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
             },
