@@ -29,7 +29,7 @@ import { DAGImportErrors } from "./DAGImportErrors";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats(undefined, {
     refetchInterval,
   });

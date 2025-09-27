@@ -43,7 +43,7 @@ export const DagCard = ({ dag }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
 
-  const refetchInterval = useAutoRefresh({ isPaused: dag.is_paused });
+  const refetchInterval = useAutoRefresh({});
 
   return (
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
@@ -95,7 +95,9 @@ export const DagCard = ({ dag }: Props) => {
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
-                {isStatePending(latestRun.state) && Boolean(refetchInterval) ? <Spinner /> : undefined}
+                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
+                  <Spinner />
+                ) : undefined}
               </RouterLink>
             </Link>
           ) : undefined}
