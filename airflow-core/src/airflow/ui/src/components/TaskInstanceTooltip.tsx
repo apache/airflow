@@ -28,55 +28,109 @@ import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
 import { getDuration } from "src/utils";
 
+type TIUnion = LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+
 type Props = {
-  readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly taskInstance?: TIUnion;
 } & Omit<TooltipProps, "content">;
+
+/** Full TI shapes carry start/end; grid light shape carries min/max. */
+const hasStartEnd = (
+  ti: TIUnion,
+): ti is Extract<TIUnion, TaskInstanceHistoryResponse | TaskInstanceResponse> => "start_date" in ti;
+
+const hasMinMax = (
+  ti: TIUnion,
+): ti is { max_end_date: string | null; min_start_date: string | null } & LightGridTaskInstanceSummary =>
+  "min_start_date" in ti && "max_end_date" in ti;
+
+const normalize = (value: string | null | undefined): string | undefined => value ?? undefined;
 
 const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) => {
   const { t: translate } = useTranslation("common");
 
-  return taskInstance === undefined ? (
-    children
-  ) : (
+  if (taskInstance === undefined) {
+    return children;
+  }
+
+  const taskId =
+    "task_id" in taskInstance && typeof taskInstance.task_id === "string" ? taskInstance.task_id : undefined;
+  const state = "state" in taskInstance ? taskInstance.state : undefined;
+  const triggerRule =
+    "trigger_rule" in taskInstance && typeof taskInstance.trigger_rule === "string"
+      ? taskInstance.trigger_rule
+      : undefined;
+
+  // Computing timing + duration with correct fallbacks
+  let startedIso: string | undefined;
+  let endedIso: string | undefined;
+
+  if (hasStartEnd(taskInstance)) {
+    startedIso = normalize(taskInstance.start_date);
+    endedIso = normalize(taskInstance.end_date);
+  } else if (hasMinMax(taskInstance)) {
+    startedIso = normalize(taskInstance.min_start_date);
+    endedIso = normalize(taskInstance.max_end_date);
+  } else {
+    startedIso = undefined;
+    endedIso = undefined;
+  }
+
+  const hasStarted = typeof startedIso === "string" && startedIso.length > 0;
+  const hasEnded = typeof endedIso === "string" && endedIso.length > 0;
+
+  return (
     <Tooltip
       {...rest}
       content={
         <Box>
-          <Text>
-            {translate("state")}: {taskInstance.state}
-          </Text>
-          {"dag_run_id" in taskInstance ? (
+          {taskId === undefined ? undefined : (
             <Text>
-              {translate("runId")}: {taskInstance.dag_run_id}
+              {translate("taskId")}: {taskId}
+            </Text>
+          )}
+
+          {state === undefined ? undefined : (
+            <Text>
+              {translate("state")}: {state}
+            </Text>
+          )}
+
+          {hasStartEnd(taskInstance) && taskInstance.try_number > 1 ? (
+            <Text>
+              {translate("tryNumber")}: {taskInstance.try_number}
             </Text>
           ) : undefined}
-          {"start_date" in taskInstance ? (
-            <>
-              {taskInstance.try_number > 1 && (
-                <Text>
-                  {translate("tryNumber")}: {taskInstance.try_number}
-                </Text>
-              )}
-              <Text>
-                {translate("startDate")}: <Time datetime={taskInstance.start_date} />
-              </Text>
-              <Text>
-                {translate("endDate")}: <Time datetime={taskInstance.end_date} />
-              </Text>
-              <Text>
-                {translate("duration")}: {getDuration(taskInstance.start_date, taskInstance.end_date)}
-              </Text>
-            </>
+
+          {hasStarted ? (
+            <Text>
+              {translate("startDate")}: <Time datetime={startedIso} />
+            </Text>
           ) : undefined}
+
+          {hasEnded ? (
+            <Text>
+              {translate("endDate")}: <Time datetime={endedIso} />
+            </Text>
+          ) : undefined}
+
+          {hasStarted && hasEnded ? (
+            <Text>
+              {translate("duration")}: {getDuration(startedIso, endedIso)}
+            </Text>
+          ) : undefined}
+
+          {triggerRule === undefined ? undefined : (
+            <Text>
+              {translate("task.triggerRule")}: {triggerRule}
+            </Text>
+          )}
         </Box>
       }
-      key={taskInstance.task_id}
+      key={taskId ?? "ti"}
       portalled
       positioning={{
-        offset: {
-          crossAxis: 5,
-          mainAxis: 5,
-        },
+        offset: { crossAxis: 5, mainAxis: 5 },
         placement: "bottom-start",
         ...positioning,
       }}

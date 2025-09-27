@@ -18,14 +18,13 @@
  */
 import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React, { useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useCallback, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
-import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries/queries.ts";
+import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
-import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -36,7 +35,6 @@ const handleMouseEnter =
     tasks.forEach((task) => {
       task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
     });
-
     setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
   };
 
@@ -46,12 +44,12 @@ const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["se
   tasks.forEach((task) => {
     task.style.backgroundColor = "";
   });
-
   setHoveredTaskId(undefined);
 };
 
 type Props = {
   readonly dagId: string;
+  readonly fullInstance?: TaskInstanceResponse; // optional richer data from parent
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
@@ -62,14 +60,48 @@ type Props = {
   readonly taskId: string;
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
+const Instance = ({
+  dagId,
+  fullInstance,
+  instance,
+  isGroup,
+  isMapped,
+  onClick,
+  runId,
+  search,
+  taskId,
+}: Props) => {
   const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
-  const { t: translate } = useTranslation();
   const location = useLocation();
+
+  const [open, setOpen] = useState(false);
 
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
+
+  // include the map index for mapped tasks so API returns the specific TI
+  const mapIndexArray =
+    "map_index" in instance && typeof instance.map_index === "number" ? [instance.map_index] : undefined;
+
+  // Hydrate the tooltip with a full TaskInstance when opened (skip if parent already provided one)
+  const { data: tiPage } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId,
+      dagRunId: runId,
+      taskId,
+      ...(mapIndexArray === undefined ? {} : { mapIndex: mapIndexArray }),
+      limit: 1, // don't use orderBy here — it 400's this endpoint
+    },
+    undefined,
+    {
+      enabled: open && !fullInstance,
+      staleTime: 15_000,
+    },
+  );
+
+  // eslint fix: no unnecessary optional chain on array indexing
+  const hydrated = fullInstance ?? tiPage?.task_instances[0] ?? instance;
 
   const getTaskUrl = useCallback(
     () =>
@@ -108,27 +140,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
           search,
         }}
       >
-        <Tooltip
-          content={
-            <>
-              {translate("taskId")}: {taskId}
-              <br />
-              {translate("state")}: {instance.state}
-              {instance.min_start_date !== null && (
-                <>
-                  <br />
-                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
-                </>
-              )}
-              {instance.max_end_date !== null && (
-                <>
-                  <br />
-                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
-                </>
-              )}
-            </>
-          }
-        >
+        <TaskInstanceTooltip onOpenChange={(details) => setOpen(details.open)} taskInstance={hydrated}>
           <Badge
             alignItems="center"
             borderRadius={4}
@@ -143,7 +155,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
           >
             <StateIcon size={10} state={instance.state} />
           </Badge>
-        </Tooltip>
+        </TaskInstanceTooltip>
       </Link>
     </Flex>
   );
