@@ -106,12 +106,12 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     note: str | None = None
 
     @model_validator(mode="after")
-    def check_data_intervals(cls, values):
-        if (values.data_interval_start is None) != (values.data_interval_end is None):
+    def check_data_intervals(self):
+        if (self.data_interval_start is None) != (self.data_interval_end is None):
             raise ValueError(
                 "Either both data_interval_start and data_interval_end must be provided or both must be None"
             )
-        return values
+        return self
 
     def validate_context(self, dag: SerializedDAG) -> dict:
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
