@@ -44,6 +44,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import DAG, BaseOperator, setup, task, task_group, teardown
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
@@ -1947,6 +1948,43 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     session.flush()
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["consumer"]
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"inlets": [Asset(uri="file://some.txt")]},
+        {"outlets": [Asset(uri="file://some.txt")]},
+        {"on_success_callback": lambda *args, **kwargs: None},
+        {"on_execute_callback": lambda *args, **kwargs: None},
+    ],
+)
+def test_is_schedulable_task_empty_operator_evaluates_true(kwargs):
+    task = EmptyOperator(task_id="empty_task", **kwargs)
+    will_be_scheduled = DagRun.is_schedulable_task(task)
+    assert will_be_scheduled is True
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"on_failure_callback": lambda *args, **kwargs: None},
+        {"on_skipped_callback": lambda *args, **kwargs: None},
+        {"on_retry_callback": lambda *args, **kwargs: None},
+    ],
+)
+def test_is_schedulable_task_empty_operator_evaluates_false(kwargs):
+    task = EmptyOperator(task_id="empty_task", **kwargs)
+    will_be_scheduled = DagRun.is_schedulable_task(task)
+    assert will_be_scheduled is False
+
+
+def test_is_schedulable_task_base_operator():
+    """A non-empty operator should be scheduled."""
+    task = BaseOperator(task_id="task_1")
+    will_be_scheduled = DagRun.is_schedulable_task(task)
+    assert will_be_scheduled is True
 
 
 def test_schedule_tis_map_index(dag_maker, session):
