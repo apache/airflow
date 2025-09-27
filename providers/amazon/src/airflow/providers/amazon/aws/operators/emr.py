@@ -701,7 +701,6 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         self.waiter_max_attempts = waiter_max_attempts or 60
         self.waiter_delay = waiter_delay or 60
         self.deferrable = deferrable
-        self.wait_policy = wait_policy
 
         if wait_policy is not None:
             warnings.warn(
@@ -709,12 +708,11 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            if wait_policy == WaitPolicy.WAIT_FOR_COMPLETION:
-                self.wait_for_completion = True
-            elif wait_policy == WaitPolicy.WAIT_FOR_STEPS_COMPLETION:
-                self.wait_for_completion = "steps"
-            else:
-                self.wait_for_completion = False
+            self.wait_policy = wait_policy
+            self.wait_for_completion = wait_policy in (
+                WaitPolicy.WAIT_FOR_COMPLETION,
+                WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+            )
 
     @property
     def _hook_parameters(self):
