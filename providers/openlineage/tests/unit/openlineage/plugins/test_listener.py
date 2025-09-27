@@ -130,8 +130,7 @@ class TestOpenLineageListenerAirflow2:
             state=DagRunState.RUNNING,
         )
         ti = TaskInstance(t, run_id=run_id)
-        ti.check_and_change_state_before_execution()  # make listener hook on running event
-        ti._run_raw_task()
+        ti.run()
 
         # check if task returns the same DataFrame
         pd.testing.assert_frame_equal(xcom_push_mock.call_args.kwargs["value"], render_df())

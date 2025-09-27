@@ -21,17 +21,17 @@ from unittest import mock
 
 import pytest
 
+from airflow.models import Connection
+from airflow.utils import timezone
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.models import Connection
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
-
 
 pytestmark = pytest.mark.need_serialized_dag
 
@@ -110,9 +110,7 @@ class TestPysparkDecorator:
         with dag_maker():
             f()
 
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
         assert len(ti.xcom_pull()) == 100
         assert config.get("spark.master") == "spark://none"
         assert config.get("spark.executor.memory") == "2g"
@@ -137,9 +135,7 @@ class TestPysparkDecorator:
         with dag_maker():
             f()
 
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
         assert ti.xcom_pull() == e
         assert config.get("spark.master") == "local[*]"
         spark_mock.builder.config.assert_called_once_with(conf=conf_mock())
@@ -161,9 +157,7 @@ class TestPysparkDecorator:
         with dag_maker():
             f()
 
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
         assert ti.xcom_pull()
         assert config.get("spark.remote") == "sc://localhost"
         assert config.get("spark.master") is None
@@ -187,9 +181,7 @@ class TestPysparkDecorator:
         with dag_maker():
             f()
 
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        ti = dag_maker.run_ti("f")
         assert ti.xcom_pull()
         assert config.get("spark.remote") == "sc://localhost/;user_id=connect;token=1234;use_ssl=True"
         assert config.get("spark.master") is None
