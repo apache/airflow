@@ -28,10 +28,10 @@ class TestStatsd:
     def test_should_create_statsd_default(self):
         docs = render_chart(
             show_only=[
-                'templates/statsd/statsd-deployment.yaml',
-                '--statsd.cache-size=1000',                                  
-                '--statsd.cache-type=lru',                                   
-                '--ttl=0s'
+                "templates/statsd/statsd-deployment.yaml",
+                "--statsd.cache-size=1000",                                  
+                "--statsd.cache-type=lru",                                   
+                "--ttl=0s"
             ]
         )
 
@@ -301,7 +301,7 @@ class TestStatsd:
         assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
-        args = ["--some-arg=foo", "--statsd.cache-size=", "--statsd.cache-type=", "--ttl="]
+        args = ["--some-arg=foo", "--statsd.cache-size=1000", "--statsd.cache-type=lru", "--ttl=0s"]
         docs = render_chart(
             values={"statsd": {"enabled": True, "args": args}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
