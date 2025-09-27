@@ -271,6 +271,10 @@ def get_provider_info():
                 "integration-name": "Microsoft Power BI",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.powerbi"],
             },
+            {
+                "integration-name": "Microsoft Azure Service Bus",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.message_bus"],
+            },
         ],
         "transfers": [
             {
