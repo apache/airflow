@@ -422,7 +422,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
         tis = self.create_task_instances(session)
         session.query()
-        rendered_fields = RTIF(tis[0], render_templates=False)
+        rendered_fields = RTIF(tis[0])
         session.add(rendered_fields)
         session.commit()
         response = test_client.get(
@@ -527,7 +527,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.rendered_task_instance_fields = RTIF(ti)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
@@ -1953,7 +1953,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.rendered_task_instance_fields = RTIF(ti)
             ti.try_number = 1
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
@@ -3630,7 +3630,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         ti = TaskInstance(
             task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
         )
-        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        ti.rendered_task_instance_fields = RTIF(ti)
         session.add(ti)
         session.commit()
 
@@ -3656,7 +3656,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 map_index=map_index,
                 dag_version_id=tis[0].dag_version_id,
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.rendered_task_instance_fields = RTIF(ti)
             session.add(ti)
         tis[0].map_index = 0
         session.commit()
@@ -4030,7 +4030,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.rendered_task_instance_fields = RTIF(ti)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
@@ -4103,7 +4103,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.rendered_task_instance_fields = RTIF(ti)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
@@ -4334,7 +4334,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         ti = TaskInstance(
             task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
         )
-        ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        ti.rendered_task_instance_fields = RTIF(ti)
         session.add(ti)
         session.commit()
 
@@ -4366,7 +4366,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 state="running",
                 dag_version_id=tis[0].dag_version_id,
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.rendered_task_instance_fields = RTIF(ti)
             session.add(ti)
 
         session.delete(tis[0])
