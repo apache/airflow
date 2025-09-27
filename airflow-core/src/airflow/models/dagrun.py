@@ -1547,7 +1547,8 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
-                ready_tis.append(schedulable)
+                if schedulable.state in SCHEDULEABLE_STATES:
+                    ready_tis.append(schedulable)
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
