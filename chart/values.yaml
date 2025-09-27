@@ -2140,6 +2140,8 @@ dagProcessor:
 
   podAnnotations: {}
 
+  labels: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow dag processor log groomer sidecar.
     enabled: true
