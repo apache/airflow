@@ -914,6 +914,9 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
+    _should_retry: bool = attrs.field(default=False, init=False)
+    """Whether the task should retry or not as decided by the API server."""
+
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
@@ -953,6 +956,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -1151,7 +1155,15 @@ class ActivitySubprocess(WatchedSubprocess):
             return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
+
+        if self._is_signal_retryable() and self._should_retry:
+            return TaskInstanceState.UP_FOR_RETRY
+
         return TaskInstanceState.FAILED
+
+    def _is_signal_retryable(self) -> bool:
+        """Check if the exit code signal can be retried."""
+        return self._exit_code in (-signal.SIGKILL, -signal.SIGTERM, -signal.SIGSEGV)
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
         if isinstance(msg, MaskSecret):
