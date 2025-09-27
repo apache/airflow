@@ -708,8 +708,12 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+            self.wait_policy = wait_policy
             # preserve previous behaviour
-            self.wait_for_completion = wait_policy == WaitPolicy.WAIT_FOR_COMPLETION
+            self.wait_for_completion = wait_policy in (
+                WaitPolicy.WAIT_FOR_COMPLETION,
+                WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+            )
 
     @property
     def _hook_parameters(self):
@@ -748,7 +752,10 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
         if self.wait_for_completion:
-            waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
+            if hasattr(self, "wait_policy") and self.wait_policy:
+                waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy]
+            else:
+                waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
 
             if self.deferrable:
                 self.defer(
