@@ -87,6 +87,7 @@
   },
   "limitedList": "+{{count}} more",
   "logs": {
+    "endGroup": "End of {{group}}",
     "file": "File",
     "location": "line {{line}} in {{name}}"
   },
