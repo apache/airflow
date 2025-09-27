@@ -112,7 +112,7 @@ def test_commands(login_command, date_param):
         login_command,
         "backfill list",
         "config get --section core --option executor",
-        "connections --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
+        "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
         "connections list",
         "connections list -o yaml",
         "connections list -o tabledags list",
@@ -122,7 +122,7 @@ def test_commands(login_command, date_param):
         "pools create --name=test_pool --slots=5",
         "pools list",
         "providers list",
-        "variables list",
         "variables create --key=test_key --value=test_value",
+        "variables list",
         "version --remote",
     ]
