@@ -71,7 +71,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_on = True
     otel_prefix = airflow
 
-Configure the SDK, by exporting the regular OTel variables to your environment
+Configure the SDK, by exporting the regular OpenTelemetry variables to your environment
 
 .. code-block:: ini
 
