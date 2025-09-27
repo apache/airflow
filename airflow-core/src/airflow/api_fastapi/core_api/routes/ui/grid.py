@@ -376,7 +376,6 @@ def get_grid_ti_summaries(
                 "state": ti.state,
                 "start_date": ti.start_date,
                 "end_date": ti.end_date,
-                "dag_version_id": str(ti.dag_version_id) if ti.dag_version_id else None,
                 "dag_version_number": ti.version_number,
             }
         )
