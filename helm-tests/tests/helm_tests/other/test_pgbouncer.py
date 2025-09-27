@@ -446,14 +446,28 @@ class TestPgbouncerConfig:
         return base64.b64decode(encoded_ini).decode()
 
     def test_databases_default(self):
-        ini = self._get_pgbouncer_ini({"pgbouncer": {"enabled": True}})
+        ini = self._get_pgbouncer_ini(
+            {
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "protocol": "postgresql",
+                        "host": "release-name-postgresql",
+                        "port": 5432,
+                        "db": "postgres",
+                        "user": "postgres",
+                        "pass": "postgres",
+                    }
+                },
+            }
+        )
 
         assert (
-            "release-name-metadata = host=release-name-postgresql.default dbname=postgres port=5432"
+            "release-name-metadata = host=release-name-postgresql dbname=postgres port=5432"
             " pool_size=10" in ini
         )
         assert (
-            "release-name-result-backend = host=release-name-postgresql.default dbname=postgres port=5432"
+            "release-name-result-backend = host=release-name-postgresql dbname=postgres port=5432"
             " pool_size=5" in ini
         )
 
@@ -467,7 +481,14 @@ class TestPgbouncerConfig:
                 "extraIniResultBackend": "reserve_pool = 3",
             },
             "data": {
-                "metadataConnection": {"host": "meta_host", "db": "meta_db", "port": 1111},
+                "metadataConnection": {
+                    "protocol": "postgresql",
+                    "host": "meta_host",
+                    "db": "meta_db",
+                    "port": 1111,
+                    "user": "postgres",
+                    "pass": "postgres",
+                },
                 "resultBackendConnection": {
                     "protocol": "postgresql",
                     "host": "rb_host",
@@ -491,7 +512,21 @@ class TestPgbouncerConfig:
         )
 
     def test_config_defaults(self):
-        ini = self._get_pgbouncer_ini({"pgbouncer": {"enabled": True}})
+        ini = self._get_pgbouncer_ini(
+            {
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "protocol": "postgresql",
+                        "host": "release-name-postgresql",
+                        "port": 5432,
+                        "db": "postgres",
+                        "user": "postgres",
+                        "pass": "postgres",
+                    }
+                },
+            }
+        )
 
         assert "listen_port = 6543" in ini
         assert "stats_users = postgres" in ini
@@ -501,7 +536,6 @@ class TestPgbouncerConfig:
         assert "log_connections = 0" in ini
         assert "server_tls_sslmode = prefer" in ini
         assert "server_tls_ciphers = normal" in ini
-
         assert "server_tls_ca_file = " not in ini
         assert "server_tls_cert_file = " not in ini
         assert "server_tls_key_file = " not in ini
@@ -518,7 +552,16 @@ class TestPgbouncerConfig:
                 "ciphers": "secure",
             },
             "ports": {"pgbouncer": 7777},
-            "data": {"metadataConnection": {"user": "someuser"}},
+            "data": {
+                "metadataConnection": {
+                    "protocol": "postgresql",
+                    "user": "someuser",
+                    "host": "release-name-postgresql",
+                    "port": 5432,
+                    "db": "postgres",
+                    "pass": "postgres",
+                }
+            },
         }
         ini = self._get_pgbouncer_ini(values)
 
@@ -535,7 +578,16 @@ class TestPgbouncerConfig:
         values = {
             "pgbouncer": {"enabled": True},
             "ports": {"pgbouncer": 7777},
-            "data": {"metadataConnection": {"user": "someuser"}},
+            "data": {
+                "metadataConnection": {
+                    "protocol": "postgresql",
+                    "user": "someuser",
+                    "host": "release-name-postgresql",
+                    "port": 5432,
+                    "db": "postgres",
+                    "pass": "postgres",
+                }
+            },
         }
         ini = self._get_pgbouncer_ini(values)
 
@@ -546,7 +598,16 @@ class TestPgbouncerConfig:
         values = {
             "pgbouncer": {"enabled": True, "auth_type": "any", "auth_file": "/home/auth.txt"},
             "ports": {"pgbouncer": 7777},
-            "data": {"metadataConnection": {"user": "someuser"}},
+            "data": {
+                "metadataConnection": {
+                    "protocol": "postgresql",
+                    "user": "someuser",
+                    "host": "release-name-postgresql",
+                    "port": 5432,
+                    "db": "postgres",
+                    "pass": "postgres",
+                }
+            },
         }
         ini = self._get_pgbouncer_ini(values)
 
@@ -686,7 +747,21 @@ class TestPgbouncerExporter:
         return base64.b64decode(encoded_connection).decode()
 
     def test_default_exporter_secret(self):
-        connection = self._get_connection({"pgbouncer": {"enabled": True}})
+        connection = self._get_connection(
+            {
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "protocol": "postgresql",
+                        "host": "release-name-postgresql",
+                        "port": 5432,
+                        "db": "postgres",
+                        "user": "postgres",
+                        "pass": "postgres",
+                    }
+                },
+            }
+        )
         assert connection == "postgresql://postgres:postgres@127.0.0.1:6543/pgbouncer?sslmode=disable"
 
     def test_exporter_secret_with_overrides(self):
