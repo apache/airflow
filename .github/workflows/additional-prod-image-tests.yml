@@ -241,5 +241,5 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
         id: breeze
-      - name: "Run Task SDK integration tests"
+      - name: "Run airflowctl integration tests"
         run: breeze testing airflow-ctl-integration-tests
