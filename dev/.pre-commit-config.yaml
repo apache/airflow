@@ -21,7 +21,7 @@ default_language_version:
 minimum_prek_version: '0.0.26'
 repos:
   - repo: https://github.com/eclipse-csi/octopin
-    rev: 21360742e352e87450f99e180fdfc2cf774a72a3
+    rev: 88826108188acef07eefab3bd6f04d9acd4b2cc2  # frozen: v0.1.3
     hooks:
       - id: pin-versions
         name: Pin versions of dependencies in CI workflows (manual)

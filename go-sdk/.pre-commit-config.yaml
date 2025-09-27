@@ -29,7 +29,7 @@ repos:
         name: Check if all hooks apply to the repository
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     # replace hash with version once PR #103 merged comes in a release
-    rev: abdd8b62891099da34162217ecb3872d22184a51
+    rev: a30f0d816e5062a67d87c8de753cfe499672b959  # frozen: v1.5.5
     hooks:
       - id: insert-license
         name: Add license for all Go files

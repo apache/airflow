@@ -49,7 +49,7 @@ repos:
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     # replace hash with version once PR #103 merged comes in a release
-    rev: abdd8b62891099da34162217ecb3872d22184a51
+    rev: a30f0d816e5062a67d87c8de753cfe499672b959  # frozen: v1.5.5
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -341,7 +341,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 9baeaa387a1df56d3baa6b66227f5de12a8ff94a  # frozen: v1.14.0
+    rev: 8f753a0c7419954e6ec3923d0a3cd2ddf5523e5b  # frozen: v1.14.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
