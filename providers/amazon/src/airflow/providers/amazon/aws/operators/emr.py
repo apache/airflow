@@ -654,11 +654,10 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :param wait_for_completion: Deprecated - use `wait_policy` instead.
-        Whether to finish task immediately after creation (False) or wait for jobflow
+    :param wait_for_completion: Whether to finish task immediately after creation (False) or wait for jobflow
         completion (True)
         (default: None)
-    :param wait_policy: Whether to finish the task immediately after creation (None) or:
+    :param wait_policy: Deprecated. Use `wait_for_completion` instead. Whether to finish the task immediately after creation (None) or:
         - wait for the jobflow completion (WaitPolicy.WAIT_FOR_COMPLETION)
         - wait for the jobflow completion and cluster to terminate (WaitPolicy.WAIT_FOR_STEPS_COMPLETION)
         (default: None)
