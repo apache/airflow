@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
+import type { ChartEvent, ActiveElement } from "chart.js";
 import dayjs from "dayjs";
-import type { TFunction } from "i18next";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
-import { getDuration, isStatePending } from "src/utils";
+import { isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -54,7 +53,6 @@ type ChartOptionsParams = {
   selectedItemColor?: string;
   selectedRun?: GridRunsResponse;
   selectedTimezone: string;
-  translate: TFunction;
 };
 
 export const createHandleBarClick =
@@ -138,7 +136,6 @@ export const createChartOptions = ({
   selectedItemColor,
   selectedRun,
   selectedTimezone,
-  translate,
 }: ChartOptionsParams) => {
   const isActivePending = isStatePending(selectedRun?.state);
   const effectiveEndDate = isActivePending
@@ -201,25 +198,7 @@ export const createChartOptions = ({
         display: false,
       },
       tooltip: {
-        callbacks: {
-          afterBody(tooltipItems: Array<TooltipItem<"bar">>) {
-            const taskInstance = data.find((dataItem) => dataItem.y === tooltipItems[0]?.label);
-            const startDate = formatDate(taskInstance?.x[0], selectedTimezone);
-            const endDate = formatDate(taskInstance?.x[1], selectedTimezone);
-
-            return [
-              `${translate("startDate")}: ${startDate}`,
-              `${translate("endDate")}: ${endDate}`,
-              `${translate("duration")}: ${getDuration(taskInstance?.x[0], taskInstance?.x[1])}`,
-            ];
-          },
-          label(tooltipItem: TooltipItem<"bar">) {
-            const { label } = tooltipItem;
-            const taskInstance = data.find((dataItem) => dataItem.y === label);
-
-            return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
-          },
-        },
+        enabled: false,
       },
     },
     resizeDelay: 100,

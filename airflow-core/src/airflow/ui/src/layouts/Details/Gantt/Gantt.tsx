@@ -29,14 +29,15 @@ import {
   Tooltip,
   Legend,
   TimeScale,
+  type ChartEvent,
+  type ActiveElement,
 } from "chart.js";
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
-import { useMemo, useDeferredValue } from "react";
+import { useMemo, useDeferredValue, useState } from "react";
 import { Bar } from "react-chartjs-2";
-import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -53,6 +54,7 @@ import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
+import { GanttTooltip } from "./GanttTooltip";
 import { createHandleBarClick, createHandleBarHover, createChartOptions } from "./utils";
 
 ChartJS.register(
@@ -84,12 +86,21 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
-  const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
   const { colorMode } = useColorMode();
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [tooltipData, setTooltipData] = useState<{
+    taskId: string | undefined;
+    x: number;
+    y: number;
+  }>({
+    taskId: undefined,
+    x: 0,
+    y: 0,
+  });
 
   const [
     lightGridColor,
@@ -243,20 +254,40 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     [data, setHoveredTaskId],
   );
 
+  const handleCustomBarHover = useMemo(
+    () => (event: ChartEvent, elements: Array<ActiveElement>) => {
+      handleBarHover(event, elements);
+
+      if (elements.length > 0 && elements[0] && event.native) {
+        const hoveredData = data[elements[0].index];
+
+        if (hoveredData?.taskId !== undefined) {
+          setTooltipData({
+            taskId: hoveredData.taskId,
+            x: (event.native as MouseEvent).clientX + 10,
+            y: (event.native as MouseEvent).clientY - 10,
+          });
+        }
+      } else {
+        setTooltipData((prev) => ({ ...prev, taskId: undefined }));
+      }
+    },
+    [data, handleBarHover],
+  );
+
   const chartOptions = useMemo(
     () =>
       createChartOptions({
         data,
         gridColor,
         handleBarClick,
-        handleBarHover,
+        handleBarHover: handleCustomBarHover,
         hoveredId: hoveredTaskId,
         hoveredItemColor,
         selectedId,
         selectedItemColor,
         selectedRun,
         selectedTimezone,
-        translate,
       }),
     [
       data,
@@ -267,9 +298,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
       gridColor,
       selectedRun,
       selectedTimezone,
-      translate,
       handleBarClick,
-      handleBarHover,
+      handleCustomBarHover,
     ],
   );
 
@@ -279,6 +309,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
 
   const handleChartMouseLeave = () => {
     setHoveredTaskId(undefined);
+    setTooltipData((prev) => ({ ...prev, taskId: undefined }));
 
     // Clear all hover styles when mouse leaves the chart area
     const allTasks = document.querySelectorAll<HTMLDivElement>('[id*="-"]');
@@ -296,6 +327,13 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
         style={{
           paddingTop: flatNodes.length === 1 ? 15 : 1.5,
         }}
+      />
+      <GanttTooltip
+        data={data}
+        selectedTimezone={selectedTimezone}
+        taskId={tooltipData.taskId}
+        x={tooltipData.x}
+        y={tooltipData.y}
       />
     </Box>
   );
