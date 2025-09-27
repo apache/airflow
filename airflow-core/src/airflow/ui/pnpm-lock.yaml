@@ -62,6 +62,9 @@ importers:
       chartjs-plugin-annotation:
         specifier: ^3.1.0
         version: 3.1.0(chart.js@4.4.9)
+      countup.js:
+        specifier: ^2.9.0
+        version: 2.9.0
       dayjs:
         specifier: ^1.11.13
         version: 1.11.13
@@ -2161,6 +2164,9 @@ packages:
   cosmiconfig@7.1.0:
     resolution: {integrity: sha512-AdmX6xUzdNASswsFtmwSt7Vj8po9IuqXm0UXz7QKPuEUmPB4XyjGfaAr2PSuELMwkRMVH1EpIkX5bTZGRB3eCA==}
     engines: {node: '>=10'}
+
+  countup.js@2.9.0:
+    resolution: {integrity: sha512-llqrvyXztRFPp6+i8jx25phHWcVWhrHO4Nlt0uAOSKHB8778zzQswa4MU3qKBvkXfJKftRYFJuVHez67lyKdHg==}
 
   crelt@1.0.6:
     resolution: {integrity: sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g==}
@@ -7299,6 +7305,8 @@ snapshots:
       parse-json: 5.2.0
       path-type: 4.0.0
       yaml: 1.10.2
+
+  countup.js@2.9.0: {}
 
   crelt@1.0.6: {}
 

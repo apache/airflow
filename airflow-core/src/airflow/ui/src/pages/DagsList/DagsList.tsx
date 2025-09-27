@@ -28,7 +28,8 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
+import { CountUp } from "countup.js";
+import { useCallback, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -191,11 +192,13 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 };
 
 const DAGS_LIST_DISPLAY = "dags_list_display";
+const TOTAL_DAGS_COUNT = "total_dags_count";
 
 export const DagsList = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
+  const [cachedTotalDags, setCachedTotalDags] = useLocalStorage<number>(TOTAL_DAGS_COUNT, 0);
   const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -272,6 +275,35 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
+  const countUpRef = useRef<HTMLSpanElement>(null);
+  const countUpAnimRef = useRef<CountUp | null>(null);
+
+  useEffect(() => {
+    if (!countUpRef.current || data?.total_entries === undefined) {
+      return;
+    }
+
+    const dgSeparator = new Intl.NumberFormat(i18n.language)
+      .formatToParts(11_111.0)
+      .find((part) => part.type === "group")?.value;
+
+    const lastCachedTotalDags = cachedTotalDags;
+
+    setCachedTotalDags(data.total_entries);
+
+    const duration = countUpAnimRef.current ? 0 : 0.5;
+
+    countUpAnimRef.current = new CountUp(countUpRef.current, data.total_entries, {
+      duration,
+      separator: dgSeparator,
+      startVal: lastCachedTotalDags,
+    });
+
+    if (!countUpAnimRef.current.error) {
+      countUpAnimRef.current.start();
+    }
+  }, [data?.total_entries, i18n.language, cachedTotalDags, setCachedTotalDags]);
+
   const handleSortChange = useCallback(
     ({ value }: SelectValueChangeDetails<Array<string>>) => {
       setTableURLState({
@@ -298,7 +330,8 @@ export const DagsList = () => {
         <HStack justifyContent="space-between">
           <HStack>
             <Heading py={3} size="md">
-              {`${data?.total_entries ?? 0} ${translate("dag", { count: data?.total_entries ?? 0 })}`}
+              <span ref={countUpRef}>{new Intl.NumberFormat(i18n.language).format(cachedTotalDags)}</span>{" "}
+              {translate("dag", { count: cachedTotalDags })}
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
