@@ -21,11 +21,12 @@ from typing import TYPE_CHECKING
 
 import uuid6
 from sqlalchemy import Column, ForeignKey, Index, String, Table, select
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -54,8 +55,8 @@ class Team(Base):
 
     __tablename__ = "team"
 
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    name = Column(String(50), unique=True, nullable=False)
+    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     dag_bundles = relationship(
         "DagBundleModel", secondary=dag_bundle_team_association_table, back_populates="teams"
     )

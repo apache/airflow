@@ -20,13 +20,15 @@ from __future__ import annotations
 from importlib import import_module
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Integer, String
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Mapped
+
     from airflow.callbacks.callback_requests import CallbackRequest
 
 
@@ -35,11 +37,11 @@ class DbCallbackRequest(Base):
 
     __tablename__ = "callback_request"
 
-    id = Column(Integer(), nullable=False, primary_key=True)
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    priority_weight = Column(Integer(), nullable=False)
-    callback_data = Column(ExtendedJSON, nullable=False)
-    callback_type = Column(String(20), nullable=False)
+    id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
+    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    priority_weight: Mapped[int] = mapped_column(Integer(), nullable=False)
+    callback_data: Mapped[dict] = mapped_column(ExtendedJSON, nullable=False)
+    callback_type: Mapped[str] = mapped_column(String(20), nullable=False)
 
     def __init__(self, priority_weight: int, callback: CallbackRequest):
         self.created_at = timezone.utcnow()
