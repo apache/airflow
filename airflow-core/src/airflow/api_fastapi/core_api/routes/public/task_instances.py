@@ -689,7 +689,7 @@ def get_mapped_task_instance_try_details(
 
 @task_instances_router.post(
     "/clearTaskInstances",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -774,12 +774,19 @@ def post_clear_task_instances(
         )
 
     if not dry_run:
-        clear_task_instances(
-            task_instances,
-            session,
-            DagRunState.QUEUED if reset_dag_runs else False,
-            run_on_latest_version=body.run_on_latest_version,
-        )
+        if body.is_running_message:
+            for ti in task_instances:
+                ti.is_running_message = body.is_running_message
+        
+        try:
+            clear_task_instances(
+                task_instances,
+                session,
+                DagRunState.QUEUED if reset_dag_runs else False,
+                run_on_latest_version=body.run_on_latest_version,
+            )
+        except ValueError as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,

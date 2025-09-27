@@ -217,13 +217,22 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
+    task_confirmed_running = False
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
+
+        if hasattr(ti, 'is_running_message') and ti.is_running_message:
+            # If the task contains the message, prevent the task from running.
+            task_confirmed_running = True
+
         if ti.state == TaskInstanceState.RUNNING:
+            if task_confirmed_running:
+                raise ValueError(f"Error: Task {ti.task_id} is running, stopping attempt to run.")
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
-            ti.state = TaskInstanceState.RESTARTING
+            else:
+                ti.state = TaskInstanceState.RESTARTING
         else:
             dr = ti.dag_run
             if run_on_latest_version:
