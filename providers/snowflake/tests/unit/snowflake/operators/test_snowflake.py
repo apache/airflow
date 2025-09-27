@@ -579,3 +579,42 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
         mock_check_query_output.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests.Session.request")
+    def test_snowflake_sql_api_on_kill(self, mock_request):
+        """Tests that the on_kill method cancels the queries."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+            deferrable=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+
+        # Mock the response from the API
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"status": "success"}
+        mock_request.return_value = mock_response
+
+        operator.on_kill()
+
+        # Assert that the cancel endpoint was called for each query ID
+        assert mock_request.call_count == 2
+        call1 = call(
+            method="post",
+            url=f"https://{operator._hook.account_identifier}.snowflakecomputing.com/api/v2/statements/uuid1/cancel",
+            headers=mock.ANY,
+            params=mock.ANY,
+            json=None,
+        )
+        call2 = call(
+            method="post",
+            url=f"https://{operator._hook.account_identifier}.snowflakecomputing.com/api/v2/statements/uuid2/cancel",
+            headers=mock.ANY,
+            params=mock.ANY,
+            json=None,
+        )
+        mock_request.assert_has_calls([call1, call2], any_order=True)
