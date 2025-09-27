@@ -559,9 +559,17 @@ class DAG:
             raise ValueError("start_date is required when catchup=True")
 
     @tags.validator
-    def _validate_tags(self, _, tags: Collection[str]):
-        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
-            raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+    def _validate_tags(self, _, tags: Collection[str]) -> None:
+        if tags:
+            for tag in tags:
+                if len(tag) > TAG_MAX_LEN:
+                    from airflow.exceptions import AirflowException
+                    # Trim very long tag previews to keep error messages manageable
+                    tag_preview = tag[:30] + "..." if len(tag) > 30 else tag
+                    raise AirflowException(
+                        f"DAG tag '{tag_preview}' is {len(tag)} characters long, "
+                        f"exceeding the maximum limit of {TAG_MAX_LEN} characters"
+                    )
 
     @max_active_runs.validator
     def _validate_max_active_runs(self, _, max_active_runs):
