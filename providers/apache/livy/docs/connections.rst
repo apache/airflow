@@ -56,4 +56,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_LIVY_DEFAULT='http://username:password@livy-server.com:80?headers=header'
+   export AIRFLOW_CONN_LIVY_DEFAULT='livy://username:password@livy-server.com:80/http?headers=header'
