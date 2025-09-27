@@ -35,6 +35,7 @@
 
     Connection types <connections/postgres>
     Operators <operators>
+    Triggers <triggers>
 
 .. toctree::
     :hidden:
