@@ -134,7 +134,6 @@ def render_chart(
     chart_dir=None,
     kubernetes_version=DEFAULT_KUBERNETES_VERSION,
     namespace=None,
-    skip_validation=False,
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
@@ -167,9 +166,8 @@ def render_chart(
         templates = result.stdout
         k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
-        if not skip_validation:
-            for k8s_object in k8s_objects:
-                validate_k8s_object(k8s_object, kubernetes_version)
+        for k8s_object in k8s_objects:
+            validate_k8s_object(k8s_object, kubernetes_version)
         return k8s_objects
 
 
