@@ -108,6 +108,8 @@ def test_airflowctl_commands(tmp_path_factory, monkeypatch, login_command, login
     # Initialize Docker client
     compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
+    host_envs = os.environ.copy()
+    host_envs["AIRFLOW_CLI_DEBUG_MODE"] = "true"
     # Testing commands of airflowctl
     try:
         compose.compose.up(detach=True, wait=True)
@@ -122,7 +124,9 @@ def test_airflowctl_commands(tmp_path_factory, monkeypatch, login_command, login
             console.print(f"[yellow]Running command: {command}")
 
             # Give some time for the command to execute and output to be ready
-            proc = Popen(run_command.encode(), stdout=PIPE, stderr=STDOUT, stdin=PIPE, shell=True)
+            proc = Popen(
+                run_command.encode(), stdout=PIPE, stderr=STDOUT, stdin=PIPE, shell=True, env=host_envs
+            )
             stdout_result, stderr_result = proc.communicate(timeout=60)
 
             # CLI command gave errors
