@@ -315,8 +315,12 @@ class _VaultClient(LoggingMixin):
         import json
         import time
 
-        service_account = getattr(credentials, "service_account_email", None)
-        if not service_account:
+        type = getattr(credentials, "type", None)
+        if type != "service_account":
+            raise VaultError("Credentials are not of type service_account")
+
+        service_account_email = getattr(credentials, "client_email", None)
+        if not service_account_email:
             raise VaultError("Could not determine service account email from credentials")
 
         # Generate a payload for subsequent "signJwt()" call
@@ -325,7 +329,7 @@ class _VaultClient(LoggingMixin):
         expires = now + 900  # 15 mins in seconds, can't be longer.
         payload = {"iat": now, "exp": expires, "sub": credentials, "aud": f"vault/{self.role_id}"}
         body = {"payload": json.dumps(payload)}
-        name = f"projects/{project_id}/serviceAccounts/{service_account}"
+        name = f"projects/{project_id}/serviceAccounts/{service_account_email}"
 
         # Perform the GCP API call
         import googleapiclient
