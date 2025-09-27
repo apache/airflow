@@ -22,8 +22,9 @@
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
-import typescript from "@typescript-eslint/eslint-plugin";
-import typescriptParser from "@typescript-eslint/parser";
+import tseslint from "typescript-eslint";
+
+const { parser: typescriptParser, plugin: typescript } = tseslint;
 
 import { ERROR, OFF, WARN } from "./levels.js";
 import { off } from "./off.js";

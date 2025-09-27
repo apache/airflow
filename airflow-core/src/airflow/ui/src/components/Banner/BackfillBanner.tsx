@@ -29,6 +29,8 @@ import {
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
+import type { BackfillResponse } from "openapi/requests/types.gen";
+import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
 import { Button, ProgressBar } from "../ui";
@@ -48,10 +50,25 @@ const buttonProps = {
 
 const BackfillBanner = ({ dagId }: Props) => {
   const { t: translate } = useTranslation("components");
-  const { data, isLoading } = useBackfillServiceListBackfillsUi({
-    dagId,
-  });
-  const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, isLoading } = useBackfillServiceListBackfillsUi(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        Boolean(
+          query.state.data?.backfills.some(
+            (bf: BackfillResponse) => bf.completed_at === null && !bf.is_paused,
+          ),
+        )
+          ? refetchInterval
+          : false,
+    },
+  );
+  const [backfill] = data?.backfills.filter((bf: BackfillResponse) => bf.completed_at === null) ?? [];
 
   const queryClient = useQueryClient();
   const onSuccess = async () => {
@@ -60,12 +77,16 @@ const BackfillBanner = ({ dagId }: Props) => {
     });
   };
 
-  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({
+    onSuccess,
+  });
   const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
     onSuccess,
   });
 
-  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
+  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({
+    onSuccess,
+  });
 
   const togglePause = () => {
     if (backfill === undefined) {
