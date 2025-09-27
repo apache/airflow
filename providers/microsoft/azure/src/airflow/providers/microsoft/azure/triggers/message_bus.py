@@ -19,12 +19,15 @@ from __future__ import annotations
 import asyncio
 from abc import abstractmethod
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 
 from airflow.providers.microsoft.azure.hooks.asb import MessageHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from azure.servicebus import ServiceBusReceivedMessage
 
 
 class BaseAzureServiceBusTrigger(BaseTrigger):
@@ -70,6 +73,16 @@ class BaseAzureServiceBusTrigger(BaseTrigger):
     @abstractmethod
     def run(self) -> AsyncIterator[TriggerEvent]:
         """Run the trigger logic."""
+
+    @classmethod
+    def _get_message_body(cls, message: ServiceBusReceivedMessage) -> str:
+        message_body = message.body
+        if isinstance(message_body, bytes):
+            return message_body.decode("utf-8")
+        try:
+            return "".join(chunk.decode("utf-8") for chunk in message_body)
+        except Exception:
+            raise TypeError(f"Expected bytes or an iterator of bytes, but got {type(message_body).__name__}")
 
 
 class AzureServiceBusQueueTrigger(BaseAzureServiceBusTrigger):
@@ -123,7 +136,12 @@ class AzureServiceBusQueueTrigger(BaseAzureServiceBusTrigger):
                     queue_name=queue_name, max_wait_time=self.max_wait_time
                 )
                 if message:
-                    yield TriggerEvent({"message": next(message.body).decode("utf-8"), "queue": queue_name})
+                    yield TriggerEvent(
+                        {
+                            "message": BaseAzureServiceBusTrigger._get_message_body(message),
+                            "queue": queue_name,
+                        }
+                    )
                     break
             await asyncio.sleep(self.poll_interval)
 
@@ -187,7 +205,7 @@ class AzureServiceBusSubscriptionTrigger(BaseAzureServiceBusTrigger):
                 if message:
                     yield TriggerEvent(
                         {
-                            "message": next(message.body).decode("utf-8"),
+                            "message": BaseAzureServiceBusTrigger._get_message_body(message),
                             "topic": topic_name,
                             "subscription": self.subscription_name,
                         }

@@ -85,14 +85,14 @@ class TestAzureServiceBusQueueTrigger:
 
     @pytest.mark.asyncio
     async def test_run_with_message(self):
-        """Test the main run method with a mock message."""
+        """Test the main run method with a mock message as bytes."""
         with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
             trigger = AzureServiceBusQueueTrigger(
                 queues=["test_queue"],
                 poll_interval=0.01,  # Very short for testing
             )
 
-            mock_message = Mock(body="test message")
+            mock_message = Mock(body=b"test message")
             trigger.message_hook.read_message = Mock(return_value=mock_message)
 
             # Get one event from the generator
@@ -105,6 +105,30 @@ class TestAzureServiceBusQueueTrigger:
             assert len(events) == 1
             assert isinstance(events[0], TriggerEvent)
             assert events[0].payload["message"] == "test message"
+            assert events[0].payload["queue"] == "test_queue"
+
+    @pytest.mark.asyncio
+    async def test_run_with_iterator_message(self):
+        """Test the main run method with a mock message as an iterator."""
+        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
+            trigger = AzureServiceBusQueueTrigger(
+                queues=["test_queue"],
+                poll_interval=0.01,  # Very short for testing
+            )
+
+            mock_message = Mock(body=iter([b"test", b" ", b"iterator", b" ", b"message"]))
+            trigger.message_hook.read_message = Mock(return_value=mock_message)
+
+            # Get one event from the generator
+            events = []
+            async for event in trigger.run():
+                events.append(event)
+                if len(events) >= 1:
+                    break
+
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["message"] == "test iterator message"
             assert events[0].payload["queue"] == "test_queue"
 
 
@@ -144,7 +168,7 @@ class TestAzureServiceBusSubscriptionTrigger:
 
     @pytest.mark.asyncio
     async def test_run_subscription_with_message(self):
-        """Test the main run method with a mock message."""
+        """Test the main run method with a mock message as bytes."""
         with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
             trigger = AzureServiceBusSubscriptionTrigger(
                 topics=["test_topic"],
@@ -153,7 +177,7 @@ class TestAzureServiceBusSubscriptionTrigger:
                 azure_service_bus_conn_id="test_conn",
             )
 
-            mock_message = Mock(body="subscription test message")
+            mock_message = Mock(body=b"subscription test message")
             trigger.message_hook.read_subscription_message = Mock(return_value=mock_message)
 
             # Get one event from the generator
@@ -166,6 +190,33 @@ class TestAzureServiceBusSubscriptionTrigger:
             assert len(events) == 1
             assert isinstance(events[0], TriggerEvent)
             assert events[0].payload["message"] == "subscription test message"
+            assert events[0].payload["topic"] == "test_topic"
+            assert events[0].payload["subscription"] == "test-sub"
+
+    @pytest.mark.asyncio
+    async def test_run_subscription_with_iterator_message(self):
+        """Test the main run method with a mock message as an iterator."""
+        with patch("airflow.providers.microsoft.azure.triggers.message_bus.MessageHook"):
+            trigger = AzureServiceBusSubscriptionTrigger(
+                topics=["test_topic"],
+                subscription_name="test-sub",
+                poll_interval=0.01,  # Very short for testing
+                azure_service_bus_conn_id="test_conn",
+            )
+
+            mock_message = Mock(body=iter([b"iterator", b" ", b"subscription"]))
+            trigger.message_hook.read_subscription_message = Mock(return_value=mock_message)
+
+            # Get one event from the generator
+            events = []
+            async for event in trigger.run():
+                events.append(event)
+                if len(events) >= 1:
+                    break
+
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["message"] == "iterator subscription"
             assert events[0].payload["topic"] == "test_topic"
             assert events[0].payload["subscription"] == "test-sub"
 
@@ -182,8 +233,8 @@ class TestIntegrationScenarios:
                 poll_interval=0.01,  # Very short for testing
             )
 
-            messages = ["msg1", "msg2", "msg3"]
-            mock_messages = [Mock(body=msg) for msg in messages]
+            messages_as_str = ["msg1", "msg2", "msg3"]
+            mock_messages = [Mock(body=msg.encode("utf-8")) for msg in messages_as_str]
             trigger.message_hook.read_message = Mock(side_effect=mock_messages + [None])
 
             # Collect events
@@ -195,7 +246,7 @@ class TestIntegrationScenarios:
 
             assert len(events) == 3
             received_messages = [event.payload["message"] for event in events]
-            assert received_messages == messages
+            assert received_messages == messages_as_str
 
     def test_queue_trigger_with_empty_queues_list(self):
         """Test queue trigger with empty queues list."""

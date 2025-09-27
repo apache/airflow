@@ -609,28 +609,21 @@ class MessageHook(BaseAzureServiceBusHook):
     def read_message(
         self,
         queue_name: str,
-        max_message_count: int | None = 1,
         max_wait_time: float | None = None,
     ) -> ServiceBusReceivedMessage | None:
         """
         Read a single message from a Service Bus queue without callback processing.
 
         :param queue_name: The name of the queue to read from.
-        :param max_message_count: Maximum number of messages to retrieve (defaults to 1).
         :param max_wait_time: Maximum time to wait for messages (seconds).
         :return: The received message or None if no message is available.
         """
-        if queue_name is None:
-            raise TypeError("Queue name cannot be None.")
-
         with (
             self.get_conn() as service_bus_client,
             service_bus_client.get_queue_receiver(queue_name=queue_name) as receiver,
             receiver,
         ):
-            received_msgs = receiver.receive_messages(
-                max_message_count=max_message_count or 1, max_wait_time=max_wait_time
-            )
+            received_msgs = receiver.receive_messages(max_message_count=1, max_wait_time=max_wait_time)
             if received_msgs:
                 msg = received_msgs[0]
                 receiver.complete_message(msg)
@@ -641,7 +634,6 @@ class MessageHook(BaseAzureServiceBusHook):
         self,
         topic_name: str,
         subscription_name: str,
-        max_message_count: int | None = 1,
         max_wait_time: float | None = None,
     ) -> ServiceBusReceivedMessage | None:
         """
@@ -649,15 +641,9 @@ class MessageHook(BaseAzureServiceBusHook):
 
         :param topic_name: The name of the topic.
         :param subscription_name: The name of the subscription.
-        :param max_message_count: Maximum number of messages to retrieve (defaults to 1).
         :param max_wait_time: Maximum time to wait for messages (seconds).
         :return: The received message or None if no message is available.
         """
-        if subscription_name is None:
-            raise TypeError("Subscription name cannot be None.")
-        if topic_name is None:
-            raise TypeError("Topic name cannot be None.")
-
         with (
             self.get_conn() as service_bus_client,
             service_bus_client.get_subscription_receiver(
@@ -666,7 +652,7 @@ class MessageHook(BaseAzureServiceBusHook):
             subscription_receiver,
         ):
             received_msgs = subscription_receiver.receive_messages(
-                max_message_count=max_message_count or 1, max_wait_time=max_wait_time
+                max_message_count=1, max_wait_time=max_wait_time
             )
             if received_msgs:
                 msg = received_msgs[0]
