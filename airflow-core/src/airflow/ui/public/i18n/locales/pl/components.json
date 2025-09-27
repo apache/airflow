@@ -1,4 +1,8 @@
 {
+  "allTags_few": "Wszystkie tagi ({{count}})",
+  "allTags_many": "Wszystkie tagi ({{count}})",
+  "allTags_one": "Wszystkie tagi ({{count}})",
+  "allTags_other": "Wszystkie tagi ({{count}})",
   "backfill": {
     "affected_few": "{{count}} wykonania zostaną uruchomione.",
     "affected_many": "{{count}} wykonań zostanie uruchomionych.",
@@ -102,11 +106,20 @@
     "taskGroup": "Grupa zadań"
   },
   "limitedList": "+{{count}} więcej",
+  "limitedList.allItems": "Wszystkie {{count}} elementy:",
+  "limitedList.clickToInteract": "Kliknij etykietę, aby przefiltrować Dagi",
+  "limitedList.clickToOpenFull": "Kliknij \"+{{count}} więcej\", aby zobaczyć pełną listę",
+  "limitedList.copyPasteText": "Możesz skopiować i wkleić powyższy tekst",
+  "limitedList.showingItems": "Wyświetlanie {{count}} elementów",
   "logs": {
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
   },
   "reparseDag": "Ponowne przetworznie Daga",
+  "showingItems_few": "Wyświetlanie {{count}} elementy",
+  "showingItems_many": "Wyświetlanie {{count}} elementów",
+  "showingItems_one": "Wyświetlanie {{count}} elementu",
+  "showingItems_other": "Wyświetlanie {{count}} elementów",
   "sortedAscending": "posortowane rosnąco",
   "sortedDescending": "posortowane malejąco",
   "sortedUnsorted": "nieposortowane",
