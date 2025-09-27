@@ -164,7 +164,7 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[3].name", docs[0]) == "test-volume-airflow"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume-airflow"
         assert (
             jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
             == "test-volume-airflow"
