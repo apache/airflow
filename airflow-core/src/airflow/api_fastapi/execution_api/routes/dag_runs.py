@@ -27,7 +27,11 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
+from airflow.api_fastapi.execution_api.datamodels.dagrun import (
+    DAGRunClearPayload,
+    DagRunStateResponse,
+    TriggerDAGRunPayload,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
@@ -106,6 +110,7 @@ def trigger_dag_run(
 def clear_dag_run(
     dag_id: str,
     run_id: str,
+    payload: DAGRunClearPayload | None,
     session: SessionDep,
     dag_bag: DagBagDep,
 ):
@@ -131,7 +136,9 @@ def clear_dag_run(
     )
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
-    dag.clear(run_id=run_id)
+    only_failed = payload.only_failed if payload else False
+
+    dag.clear(run_id=run_id, only_failed=only_failed)
 
 
 @router.get(
