@@ -20,6 +20,7 @@ import os
 import traceback
 from contextlib import ExitStack
 from typing import TYPE_CHECKING, Literal
+from uuid import UUID
 
 import yaml
 from openlineage.client import OpenLineageClient, set_producer
@@ -138,7 +139,10 @@ class OpenLineageAdapter(LoggingMixin):
         try_number: int,
         logical_date: datetime,
         map_index: int,
+        task_instance_id: UUID | None = None,
     ):
+        if task_instance_id:
+            return str(task_instance_id)
         return str(
             generate_static_uuid(
                 instant=logical_date,
