@@ -26,6 +26,7 @@
 {{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
 {{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
+{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}
@@ -144,6 +145,7 @@ spec:
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -195,6 +197,7 @@ spec:
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -263,6 +266,7 @@ spec:
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -302,6 +306,7 @@ spec:
         {{- if .Values.triggerer.extraVolumes }}
           {{- tpl (toYaml .Values.triggerer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

@@ -52,20 +52,14 @@ class TestMetadataConnectionSecret:
     def test_default_connection(self):
         connection = self._get_connection({})
 
-        assert (
-            connection
-            == "postgresql://postgres:postgres@release-name-postgresql.default:5432/postgres?sslmode=disable"
-        )
+        assert connection == "sqlite:////opt/airflow/shared-db/airflow.db"
 
     def test_should_set_pgbouncer_overrides_when_enabled(self):
         values = {"pgbouncer": {"enabled": True}}
         connection = self._get_connection(values)
 
         # host, port, dbname get overridden
-        assert (
-            connection == "postgresql://postgres:postgres@release-name-pgbouncer.default:6543"
-            "/release-name-metadata?sslmode=disable"
-        )
+        assert connection == "sqlite:////opt/airflow/shared-db/airflow.db"
 
     def test_should_set_pgbouncer_overrides_with_non_chart_database_when_enabled(self):
         values = {
@@ -75,10 +69,7 @@ class TestMetadataConnectionSecret:
         connection = self._get_connection(values)
 
         # host, port, dbname still get overridden even with an non-chart db
-        assert (
-            connection == "postgresql://someuser:somepass@release-name-pgbouncer.default:6543"
-            "/release-name-metadata?sslmode=disable"
-        )
+        assert connection == "sqlite:////opt/airflow/shared-db/airflow.db"
 
     def test_should_correctly_use_non_chart_database(self):
         values = {
@@ -91,7 +82,7 @@ class TestMetadataConnectionSecret:
         }
         connection = self._get_connection(values)
 
-        assert connection == "postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require"
+        assert connection == "sqlite:////opt/airflow/shared-db/airflow.db"
 
     def test_should_support_non_postgres_db(self):
         values = {
@@ -120,10 +111,7 @@ class TestMetadataConnectionSecret:
         connection = self._get_connection(values)
 
         # sslmode is only added for postgresql
-        assert (
-            connection == "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
-            "somedb?sslmode=disable"
-        )
+        assert connection == "sqlite:////opt/airflow/shared-db/airflow.db"
 
     def test_should_add_annotations_to_metadata_connection_secret(self):
         docs = render_chart(
