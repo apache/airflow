@@ -1188,7 +1188,7 @@ class TestKubernetesExecutor:
             ],
             any_order=True,
         )
-        assert executor.running == expected_running_ti_keys
+        assert {k8s_res.key for k8s_res in executor.completed} == expected_running_ti_keys
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
