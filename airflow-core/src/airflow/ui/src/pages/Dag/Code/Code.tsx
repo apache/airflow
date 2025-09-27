@@ -153,6 +153,11 @@ export const Code = () => {
       {/* We want to show an empty state on 404 instead of an error */}
       <ErrorAlert error={error ?? (codeError?.status === 404 ? undefined : codeError)} />
       <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
+      {typeof code?.file_display_name === "string" && code.file_display_name !== "" && (
+        <Heading as="h4" fontSize="14px" mb={2} size="md">
+          {translate("code.sourceFile")} {code.file_display_name}
+        </Heading>
+      )}
       <Box
         css={{
           "& *::selection": {
