@@ -2370,20 +2370,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         if self.project_id is None:
             self.project_id = hook.project_id
 
-        # Handle missing logical_date. Example: asset-triggered DAGs (Airflow 3)
-        logical_date = context.get("logical_date")
-        if logical_date is None:
-            # Use dag_run.run_after as fallback when logical_date is not available
-            dag_run = context.get("dag_run")
-            if dag_run and hasattr(dag_run, "run_after"):
-                logical_date = dag_run.run_after
-
         self.job_id = hook.generate_job_id(
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            logical_date=logical_date,
+            logical_date=None,
             configuration=self.configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
             force_rerun=self.force_rerun,
         )
 

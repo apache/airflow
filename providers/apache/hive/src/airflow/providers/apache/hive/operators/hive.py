@@ -143,9 +143,15 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context["ti"]
-            logical_date = context["logical_date"]
+            logical_date = context.get("logical_date", None)
             if logical_date is None:
-                raise RuntimeError("logical_date is None")
+                raise RuntimeError(
+                    "logical_date is None. Please make sure the task is not used in an asset-triggered DAG. "
+                    "HiveOperator was designed to work with timetable scheduled DAGs, "
+                    "and asset-triggered DAGs do not have logical_date. "
+                    "if asset-triggered HiveOperator is a required use case, "
+                    "please open an issue on the airflow project."
+                )
             hostname = ti.hostname or ""
             self.hook.mapred_job_name = self.mapred_job_name_template.format(
                 dag_id=ti.dag_id,
