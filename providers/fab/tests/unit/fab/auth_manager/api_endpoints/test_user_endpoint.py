@@ -19,6 +19,7 @@ from __future__ import annotations
 import unittest.mock
 
 import pytest
+from flask_login import logout_user
 from sqlalchemy import delete, func, select
 
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -57,33 +58,41 @@ def configured_app(minimal_app_for_auth_api):
             ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
         }
     ):
-        app = minimal_app_for_auth_api
-    create_user(
-        app,
-        username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
-        ],
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+        with minimal_app_for_auth_api.app_context():
+            create_user(
+                minimal_app_for_auth_api,
+                username="test",
+                role_name="Test",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+                ],
+            )
+            create_user(
+                minimal_app_for_auth_api, username="test_no_permissions", role_name="TestNoPermissions"
+            )
 
-    yield app
+            yield minimal_app_for_auth_api
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
-    delete_role(app, name="TestNoPermissions")
+            delete_user(minimal_app_for_auth_api, username="test")
+            delete_user(minimal_app_for_auth_api, username="test_no_permissions")
+            delete_role(minimal_app_for_auth_api, name="TestNoPermissions")
 
 
 class TestUserEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app, request) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
-        self.session = self.app.appbuilder.get_session
+        self.session = self.app.appbuilder.session
+
+        # Logout the user after each request
+        @request.addfinalizer
+        def logout():
+            with configured_app.test_request_context():
+                logout_user()
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time

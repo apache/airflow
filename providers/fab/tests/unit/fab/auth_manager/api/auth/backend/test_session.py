@@ -38,6 +38,7 @@ def function_decorated():
     mock_call()
 
 
+@pytest.mark.db_test
 class TestSessionAuth:
     def setup_method(self) -> None:
         mock_call.reset_mock()
