@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import copy
 from typing import Annotated
+from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
@@ -80,6 +81,7 @@ def get_xcom_entry(
     stringify: Annotated[bool, Query()] = False,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
+    xcom_key = unquote(xcom_key)
     xcom_query = XComModel.get_many(
         run_id=dag_run_id,
         key=xcom_key,
@@ -156,6 +158,7 @@ def get_xcom_entries(
 
     This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
     """
+    xcom_key = unquote(xcom_key) if xcom_key else None
     query = select(XComModel)
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
@@ -242,6 +245,7 @@ def create_xcom_entry(
             )
 
     # Check existing XCom
+    request_body.key = unquote(request_body.key)
     already_existing_query = XComModel.get_many(
         key=request_body.key,
         task_ids=task_id,
@@ -315,6 +319,7 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
+    xcom_key = unquote(xcom_key)
     xcom_new_value = XComModel.serialize_value(patch_body.value)
     xcom_entry = session.scalar(
         select(XComModel)
