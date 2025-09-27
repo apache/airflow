@@ -88,6 +88,9 @@ dependencies = [
 "vertica" = [
     "apache-airflow-providers-vertica"
 ]
+"kerberos" = [
+    "Kerberos>=1.3.0"
+]
 "common.compat" = [
     "apache-airflow-providers-common-compat"
 ]
