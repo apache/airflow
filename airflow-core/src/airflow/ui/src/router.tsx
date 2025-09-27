@@ -23,6 +23,7 @@ import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+import { Playground } from "src/pages/Playground";
 import { Asset } from "src/pages/Asset";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
@@ -155,6 +156,10 @@ export const routerConfig = [
       {
         element: <Connections />,
         path: "connections",
+      },
+      {
+        element: <Playground />,
+        path: "playground",
       },
       pluginRoute,
       {
