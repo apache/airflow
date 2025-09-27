@@ -117,8 +117,7 @@ class TestResultBackendConnectionSecret:
         self._assert_for_old_version(
             version,
             value=connection,
-            expected_value="db+postgresql://postgres:postgres@release-name"
-            "-postgresql:5432/postgres?sslmode=disable",
+            expected_value="db+sqlite://:@release-name-postgresql:0//opt/airflow/airflow.db",
         )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
@@ -146,8 +145,7 @@ class TestResultBackendConnectionSecret:
         self._assert_for_old_version(
             version,
             value=connection,
-            expected_value="db+postgresql://postgres:postgres@release-name-pgbouncer"
-            ":6543/release-name-result-backend?sslmode=disable",
+            expected_value="db+sqlite://:@release-name-pgbouncer:6543/release-name-result-backend",
         )
 
     def test_should_set_pgbouncer_overrides_with_non_chart_database_when_enabled(self):
