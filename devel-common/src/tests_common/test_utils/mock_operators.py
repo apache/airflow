@@ -198,3 +198,22 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         return "https://github.com/apache/airflow"
+
+
+class InitCustomLink(BaseOperatorLink):
+    name = "Google"
+
+    def get_link(self, operator, ti_key):
+        return "https://www.google.com"
+
+
+class InitExtraLinksOperator(BaseOperator):
+    """Custom operator to test operator_extra_links defined in __init__."""
+
+    def __init__(self, value=None, **kwargs):
+        super().__init__(**kwargs)
+        self.value = value
+        self.operator_extra_links = (InitCustomLink(),)
+
+    def execute(self, context):
+        pass
