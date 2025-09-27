@@ -1422,6 +1422,10 @@ apiServer:
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
   env: []
+
+  # Grace period for Airflow API server to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
+
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
