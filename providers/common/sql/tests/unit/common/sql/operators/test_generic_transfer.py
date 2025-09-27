@@ -273,7 +273,7 @@ class TestGenericTransfer:
                     task_id="transfer_table",
                     source_conn_id="my_source_conn_id",
                     destination_conn_id="my_destination_conn_id",
-                    sql="SELECT * FROM HR.EMPLOYEES",
+                    sql=["SELECT * FROM HR.EMPLOYEES"],
                     destination_table="NEW_HR.EMPLOYEES",
                     insert_args=INSERT_ARGS,
                     execution_timeout=timedelta(hours=1),
