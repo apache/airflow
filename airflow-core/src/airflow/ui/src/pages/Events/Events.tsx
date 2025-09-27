@@ -208,18 +208,18 @@ export const Events = () => {
   );
 
   return (
-    <VStack alignItems="stretch" gap={4}>
+    <VStack alignItems="stretch">
+      {dagId === undefined && runId === undefined && taskId === undefined ? (
+        <Heading size="md">{translate("auditLog.title")}</Heading>
+      ) : undefined}
       <Flex alignItems="center" justifyContent="space-between">
-        {dagId === undefined && runId === undefined && taskId === undefined ? (
-          <Heading size="md">{translate("auditLog.title")}</Heading>
-        ) : undefined}
+        <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
         <ButtonGroup attached mt="1" size="sm" variant="surface">
           <IconButton
             aria-label={translate("auditLog.actions.expandAllExtra")}
             onClick={onOpen}
             size="sm"
             title={translate("auditLog.actions.expandAllExtra")}
-            variant="surface"
           >
             <MdExpand />
           </IconButton>
@@ -228,14 +228,11 @@ export const Events = () => {
             onClick={onClose}
             size="sm"
             title={translate("auditLog.actions.collapseAllExtra")}
-            variant="surface"
           >
             <MdCompress />
           </IconButton>
         </ButtonGroup>
       </Flex>
-
-      <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
 
       <ErrorAlert error={error} />
       <DataTable

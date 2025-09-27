@@ -1,0 +1,38 @@
+{
+  "filters": {
+    "response": {
+      "all": "Tutte",
+      "pending": "In attesa",
+      "received": "Ricevute"
+    }
+  },
+  "requiredAction_many": "Azioni richieste",
+  "requiredAction_one": "Azione richiesta",
+  "requiredAction_other": "Azioni richieste",
+  "requiredAction_zero": "Nessuna azione richiesta",
+  "requiredActionCount_many": "Azioni richieste ({{count}})",
+  "requiredActionCount_one": "Azione richiesta ({{count}})",
+  "requiredActionCount_other": "Azioni richieste ({{count}})",
+  "requiredActionCount_zero": "Nessuna azione richiesta",
+  "requiredActionState": "Stato dell'Azione richiesta",
+  "response": {
+    "error": "Errore nella Risposta",
+    "optionsDescription": "Scegli le tue opzioni per questa istanza di task",
+    "optionsLabel": "Opzioni",
+    "received": "Risposta ricevuta il ",
+    "respond": "Rispondi",
+    "success": "Risposta di {{taskId}} riuscita",
+    "title": "Istanza di Task Umana - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Approvazione ricevuta",
+    "approvalRequired": "Approvazione richiesta",
+    "choiceReceived": "Scelta ricevuta",
+    "choiceRequired": "Scelta richiesta",
+    "noResponseReceived": "Nessuna risposta ricevuta",
+    "rejectionReceived": "Rifiuto ricevuto",
+    "responseReceived": "Risposta ricevuta",
+    "responseRequired": "Risposta richiesta"
+  },
+  "subject": "Oggetto"
+}

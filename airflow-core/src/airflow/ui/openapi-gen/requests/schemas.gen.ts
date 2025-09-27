@@ -342,6 +342,13 @@ export const $AssetResponse = {
             type: 'array',
             title: 'Aliases'
         },
+        watchers: {
+            items: {
+                '$ref': '#/components/schemas/AssetWatcherResponse'
+            },
+            type: 'array',
+            title: 'Watchers'
+        },
         last_asset_event: {
             anyOf: [
                 {
@@ -354,9 +361,31 @@ export const $AssetResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'name', 'uri', 'group', 'created_at', 'updated_at', 'scheduled_dags', 'producing_tasks', 'consuming_tasks', 'aliases'],
+    required: ['id', 'name', 'uri', 'group', 'created_at', 'updated_at', 'scheduled_dags', 'producing_tasks', 'consuming_tasks', 'aliases', 'watchers'],
     title: 'AssetResponse',
     description: 'Asset serializer for responses.'
+} as const;
+
+export const $AssetWatcherResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        trigger_id: {
+            type: 'integer',
+            title: 'Trigger Id'
+        },
+        created_date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created Date'
+        }
+    },
+    type: 'object',
+    required: ['name', 'trigger_id', 'created_date'],
+    title: 'AssetWatcherResponse',
+    description: 'Asset watcher serializer for responses.'
 } as const;
 
 export const $BackfillCollectionResponse = {
@@ -3363,6 +3392,17 @@ export const $EventLogResponse = {
                 }
             ],
             title: 'Dag Display Name'
+        },
+        task_display_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Display Name'
         }
     },
     type: 'object',
@@ -3571,43 +3611,29 @@ export const $HITLDetail = {
             type: 'object',
             title: 'Params'
         },
-        respondents: {
+        assigned_users: {
+            items: {
+                '$ref': '#/components/schemas/HITLUser'
+            },
+            type: 'array',
+            title: 'Assigned Users'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        responded_by_user: {
             anyOf: [
                 {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
+                    '$ref': '#/components/schemas/HITLUser'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Respondents'
+            ]
         },
-        responded_user_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Responded User Id'
-        },
-        responded_user_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Responded User Name'
-        },
-        response_at: {
+        responded_at: {
             anyOf: [
                 {
                     type: 'string',
@@ -3617,7 +3643,7 @@ export const $HITLDetail = {
                     type: 'null'
                 }
             ],
-            title: 'Response At'
+            title: 'Responded At'
         },
         chosen_options: {
             anyOf: [
@@ -3645,7 +3671,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject', 'created_at'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;
@@ -3672,18 +3698,13 @@ export const $HITLDetailCollection = {
 
 export const $HITLDetailResponse = {
     properties: {
-        responded_user_id: {
-            type: 'string',
-            title: 'Responded User Id'
+        responded_by: {
+            '$ref': '#/components/schemas/HITLUser'
         },
-        responded_user_name: {
-            type: 'string',
-            title: 'Responded User Name'
-        },
-        response_at: {
+        responded_at: {
             type: 'string',
             format: 'date-time',
-            title: 'Response At'
+            title: 'Responded At'
         },
         chosen_options: {
             items: {
@@ -3700,9 +3721,26 @@ export const $HITLDetailResponse = {
         }
     },
     type: 'object',
-    required: ['responded_user_id', 'responded_user_name', 'response_at', 'chosen_options'],
+    required: ['responded_by', 'responded_at', 'chosen_options'],
     title: 'HITLDetailResponse',
     description: 'Response of updating a Human-in-the-loop detail.'
+} as const;
+
+export const $HITLUser = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name'],
+    title: 'HITLUser',
+    description: 'Schema for a Human-in-the-loop users.'
 } as const;
 
 export const $HTTPExceptionResponse = {
@@ -7402,7 +7440,7 @@ export const $GridRunsResponse = {
         state: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/TaskInstanceState'
+                    '$ref': '#/components/schemas/DagRunState'
                 },
                 {
                     type: 'null'

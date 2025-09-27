@@ -25,6 +25,8 @@ Install Edge Worker on Windows
     Windows-based setup is intended solely for testing at your own risk. It is technically limited
     due to Python OS restrictions and if currently of Proof-of-Concept quality.
 
+    It is known that due to changes in Task SDK running in Windows is not possible.
+
 
 The setup was tested on Windows 10 with Python 3.12.8, 64-bit. Backend for tests was Airflow 2.10.5.
 To setup a instance of Edge Worker on Windows, you need to follow the steps below:

@@ -70,7 +70,7 @@ const EditableMarkdownButton = ({
         />
         {Boolean(mdContent?.trim()) && (
           <Box
-            bg="blue.500"
+            bg="brand.500"
             borderRadius="full"
             height={2.5}
             position="absolute"
@@ -89,7 +89,7 @@ const EditableMarkdownButton = ({
         unmountOnExit={true}
       >
         <Dialog.Content backdrop>
-          <Dialog.Header bg="blue.muted">
+          <Dialog.Header bg="brand.muted">
             <Heading size="xl">{header}</Heading>
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>
@@ -101,7 +101,7 @@ const EditableMarkdownButton = ({
             />
             <Flex justifyContent="end" mt={3} width="100%">
               <Button
-                colorPalette="blue"
+                colorPalette="brand"
                 loading={isPending}
                 onClick={() => {
                   onConfirm();

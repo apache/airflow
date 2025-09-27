@@ -79,8 +79,6 @@ apache-airflow-providers-odbc package
 
 Release: 4.10.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

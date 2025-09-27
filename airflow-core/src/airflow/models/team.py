@@ -17,17 +17,29 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Index, String, Table
+from typing import TYPE_CHECKING
+
+import uuid6
+from sqlalchemy import Column, ForeignKey, Index, String, Table, select
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
+from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 dag_bundle_team_association_table = Table(
     "dag_bundle_team",
     Base.metadata,
-    Column("dag_bundle_name", ForeignKey("dag_bundle.name", ondelete="CASCADE"), primary_key=True),
-    Column("team_id", ForeignKey("team.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "dag_bundle_name",
+        StringID(length=250),
+        ForeignKey("dag_bundle.name", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("team_id", UUIDType(binary=False), ForeignKey("team.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_dag_bundle_team_dag_bundle_name", "dag_bundle_name", unique=True),
     Index("idx_dag_bundle_team_team_id", "team_id"),
 )
@@ -42,7 +54,7 @@ class Team(Base):
 
     __tablename__ = "team"
 
-    id = Column(UUIDType(binary=False), primary_key=True, nullable=False)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     name = Column(String(50), unique=True, nullable=False)
     dag_bundles = relationship(
         "DagBundleModel", secondary=dag_bundle_team_association_table, back_populates="teams"
@@ -50,3 +62,32 @@ class Team(Base):
 
     def __repr__(self):
         return f"Team(id={self.id},name={self.name})"
+
+    @classmethod
+    @provide_session
+    def get_all_teams_id_to_name_mapping(cls, session: Session = NEW_SESSION) -> dict[str, str]:
+        """
+        Return a mapping of all team IDs to team names from the database.
+
+        This method provides a reusable way to get team information that can be used
+        across the codebase for validation and lookups.
+
+        :param session: Database session
+        :return: Dictionary mapping team UUIDs to team names
+        """
+        stmt = select(cls.id, cls.name)
+        teams = session.execute(stmt).all()
+        return {str(team_id): team_name for team_id, team_name in teams}
+
+    @classmethod
+    def get_all_team_names(cls) -> set[str]:
+        """
+        Return a set of all team names from the database.
+
+        This method provides a convenient way to get just the team names for validation
+        purposes, such as verifying team names in executor configurations.
+
+        :return: Set of all team names
+        """
+        team_mapping = cls.get_all_teams_id_to_name_mapping()
+        return set(team_mapping.values())

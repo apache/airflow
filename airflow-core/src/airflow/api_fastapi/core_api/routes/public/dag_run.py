@@ -21,7 +21,7 @@ import textwrap
 from typing import Annotated, Literal, cast
 
 import structlog
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
@@ -351,6 +351,7 @@ def get_dag_runs(
         _SearchParam,
         Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
     ],
+    dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -381,6 +382,7 @@ def get_dag_runs(
             readable_dag_runs_filter,
             run_id_pattern,
             triggering_user_name_pattern,
+            dag_id_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -415,6 +417,7 @@ def trigger_dag_run(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
+    request: Request,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
@@ -427,6 +430,12 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
+    referer = request.headers.get("referer")
+    if referer:
+        triggered_by = DagRunTriggeredByType.UI
+    else:
+        triggered_by = DagRunTriggeredByType.REST_API
+
     try:
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
@@ -438,7 +447,7 @@ def trigger_dag_run(
             run_after=params["run_after"],
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.REST_API,
+            triggered_by=triggered_by,
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             session=session,
@@ -459,7 +468,7 @@ def trigger_dag_run(
     "/{dag_run_id}/wait",
     tags=["experimental"],
     summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
-    description="🚧 This is an experimental endpoint and may change or be removed without notice.",
+    description="🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.",
     responses={
         **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {

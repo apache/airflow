@@ -15,7 +15,7 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
-FROM apache/airflow:3.1.0
+FROM apache/airflow:3.2.0
 
 # The `uv` tools is Rust packaging tool that is much faster than `pip` and other installer
 # Support for uv as installation tool is experimental
