@@ -34,6 +34,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
+import { useAutoRefresh } from "src/utils";
 
 import { HITLFilters } from "./HITLFilters";
 
@@ -134,6 +135,8 @@ export const HITLTaskInstances = () => {
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
     dagId: dagId ?? "~",
     dagIdPattern,
@@ -148,6 +151,11 @@ export const HITLTaskInstances = () => {
     state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
     taskId,
     taskIdPattern,
+  }, undefined, {
+    refetchInterval: (query: any) =>
+      query.state.data?.hitl_details?.some((hitl: HITLDetail) => hitl.responded_at === null)
+        ? refetchInterval
+        : false,
   });
 
   const handleResponseChange = useCallback(() => {
