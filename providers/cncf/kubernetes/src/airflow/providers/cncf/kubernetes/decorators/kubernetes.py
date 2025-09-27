@@ -62,7 +62,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     # `cmds` and `arguments` are used internally by the operator
     template_fields: Sequence[str] = tuple(
-        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
+        sorted({"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"})
     )
 
     # Since we won't mutate the arguments, we should just do the shallow copy
