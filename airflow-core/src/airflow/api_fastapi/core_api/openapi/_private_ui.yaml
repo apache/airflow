@@ -251,9 +251,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+            next_dagrun, state, start_date`'
           default:
           - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+          next_dagrun, state, start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -547,9 +553,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id`'
       - name: dag_id
         in: query
         required: false
@@ -625,9 +635,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `run_after,
+            logical_date, start_date, end_date`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `run_after, logical_date,
+          start_date, end_date`'
       - name: run_after_gte
         in: query
         required: false
@@ -760,9 +776,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `run_after,
+            logical_date, start_date, end_date`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `run_after, logical_date,
+          start_date, end_date`'
       - name: run_after_gte
         in: query
         required: false

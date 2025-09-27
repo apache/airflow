@@ -19,10 +19,11 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
+from airflow.providers.fab.auth_manager.models import Role
+from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.providers.fab.www.security import permissions
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     assert_401,
     create_role,
@@ -30,10 +31,6 @@ from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_role,
     delete_user,
 )
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.models import Role
-    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
 
 pytestmark = pytest.mark.db_test
 

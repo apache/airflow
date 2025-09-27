@@ -1117,6 +1117,16 @@ that the Airflow works as you expected.
 
 # Publish release
 
+Replace the DAYS_BACK with how many days ago you prepared the release.
+Normally it's 3 but in case it's longer change it. The output should match the prepare date.
+
+```
+export DAYS_BACK=3
+export RELEASE_DATE=$(LANG=en_US.UTF-8 date -u -v-${DAYS_BACK}d "+%B %d, %Y")
+export RELEASE_MANAGER_NAME="Elad Kalif"
+echo "prepare release date is ${RELEASE_DATE}"
+```
+
 ## Summarize the voting for the Apache Airflow release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
@@ -1137,7 +1147,7 @@ the next RC candidates:
 Email subject:
 
 ```
-[RESULT][VOTE] Airflow Providers - release of DATE OF RELEASE
+[RESULT][VOTE] Airflow Providers - release of ${PREPARE_RELEASE_DATE}
 ```
 
 Email content:
@@ -1145,7 +1155,7 @@ Email content:
 ```
 Hello,
 
-Apache Airflow Providers prepared on DATE OF RELEASE have been accepted.
+Apache Airflow Providers prepared on ${PREPARE_RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
 - FIRST LAST NAME (binding)
@@ -1425,15 +1435,20 @@ the artifacts have been published.
 
 Subject:
 
-[ANNOUNCE] Apache Airflow Providers prepared on DATE OF RELEASE are released
+```
+cat <<EOF
+[ANNOUNCE] Apache Airflow Providers prepared on ${RELEASE_DATE} are released
+EOF
+```
 
 Body:
 
 ```
+cat <<EOF
 Dear Airflow community,
 
-I'm happy to announce that new versions of Airflow Providers packages prepared on DATE OF RELEASE
-were just released. Full list of PyPI packages released is added at the end of the message.
+I'm happy to announce that new versions of Airflow Providers packages prepared on ${RELEASE_DATE} were just released.
+Full list of PyPI packages released is added at the end of the message.
 
 The source release, as well as the binary releases, are available here:
 
@@ -1450,7 +1465,8 @@ Full list of released PyPI packages:
 TODO: Paste the list of packages here that you put on the side. Sort them alphabetically.
 
 Cheers,
-<your name>
+${RELEASE_MANAGER_NAME}
+EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
