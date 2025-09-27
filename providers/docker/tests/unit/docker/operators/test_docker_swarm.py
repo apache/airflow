@@ -138,9 +138,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"ServiceID": "some_id", "Status": {"State": "complete"}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -194,9 +192,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"ServiceID": "some_id", "Status": {"State": "complete"}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -272,9 +268,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"ServiceID": "some_id", "Status": {"State": "complete"}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -322,9 +316,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"ServiceID": "some_id", "Status": {"State": "complete"}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -362,9 +354,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"ServiceID": "some_id", "Status": {"State": "complete"}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -456,9 +446,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"ServiceID": "some_id", "Status": {"State": "complete"}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
