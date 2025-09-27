@@ -64,8 +64,6 @@ apache-airflow-providers-discord package
 
 Release: 3.10.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

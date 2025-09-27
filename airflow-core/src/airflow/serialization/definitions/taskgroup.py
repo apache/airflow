@@ -62,6 +62,9 @@ class SerializedTaskGroup(DAGNode):
 
     is_mapped: ClassVar[bool] = False
 
+    def __repr__(self) -> str:
+        return f"<SerializedTaskGroup: {self.group_id}>"
+
     @staticmethod
     def _iter_child(child):
         """Iterate over the children of this TaskGroup."""
@@ -257,6 +260,9 @@ class SerializedMappedTaskGroup(SerializedTaskGroup):
     _expand_input: SchedulerExpandInput = attrs.field(alias="expand_input")
 
     is_mapped: ClassVar[bool] = True
+
+    def __repr__(self) -> str:
+        return f"<SerializedMappedTaskGroup: {self.group_id}>"
 
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:

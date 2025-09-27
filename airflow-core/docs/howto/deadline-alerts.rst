@@ -29,6 +29,11 @@ Deadline Alerts allow you to set time thresholds for your Dag runs and automatic
 thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
 an interval, and defining a response using either Airflow's Notifiers or a custom callback function.
 
+Migrating from SLA
+------------------
+
+For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/sla-to-deadlines>`
+
 Creating a Deadline Alert
 -------------------------
 
@@ -80,6 +85,8 @@ The timeline for this example would look like this:
         Scheduled    Queued    Started    Deadline
          00:00       00:03      00:05      00:18
 
+.. _built-in-deadline-references:
+
 Using Built-in References
 -------------------------
 
@@ -96,6 +103,58 @@ Airflow provides several built-in reference points that you can use with Deadlin
 
 ``DeadlineReference.FIXED_DATETIME``
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
+
+``DeadlineReference.AVERAGE_RUNTIME``
+    Calculates deadlines based on the average runtime of previous DAG runs. This reference
+    analyzes historical execution data to predict when the current run should complete.
+    The deadline is set to the current time plus the calculated average runtime plus the interval.
+    If insufficient historical data exists, no deadline is created.
+
+    Parameters:
+        * ``max_runs`` (int, optional): Maximum number of recent DAG runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        # Use default settings (analyze up to 10 runs, require 10 runs)
+        DeadlineReference.AVERAGE_RUNTIME()
+
+        # Analyze up to 20 runs but calculate with minimum 5 runs
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=20, min_runs=5)
+
+        # Strict: require exactly 15 runs to calculate
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=15)
+
+Here's an example using average runtime:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="average_runtime_deadline",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=5),
+            interval=timedelta(minutes=30),  # Alert if 30 minutes past average runtime
+            callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={"text": "🚨 DAG {{ dag_run.dag_id }} is running longer than expected!"},
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="data_processing")
+
+If the calculated historical average was 30 minutes, the timeline for this example would look like this:
+
+::
+
+    |------|----------|--------------|--------------|--------|
+         Queued     Start            |           Deadline
+         09:00      09:05          09:35          10:05
+                      |              |              |
+                      |--- Average --|-- Interval --|
+                           (30 min)      (30 min)
+
 
 Here's an example using a fixed datetime:
 
@@ -159,6 +218,7 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
     ):
         EmptyOperator(task_id="example_task")
 
+
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -219,8 +279,8 @@ Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
-:ref:`concepts:jinja-templating` on the kwargs. However, ``Notifier``s already run templating with the
-provided context as part of their execution. This means that templating can be used when using a ``Notifier``
+:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
+provided context as part of their execution. This means that templating can be used when using a Notifier
 as long as the variables being templated are included in the simplified context. This currently includes the
 ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
 response for Dag Run. Support for more comprehensive context and templating will be added in future versions.

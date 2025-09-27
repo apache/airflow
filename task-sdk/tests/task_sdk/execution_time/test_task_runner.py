@@ -1287,7 +1287,7 @@ class TestRuntimeTaskInstance:
         # Access the connection from the context
         conn_from_context = context["conn"].test_conn
 
-        mock_supervisor_comms.send.assert_called_once_with(GetConnection(conn_id="test_conn"))
+        mock_supervisor_comms.send.assert_any_call(GetConnection(conn_id="test_conn"))
 
         assert conn_from_context == Connection(
             conn_id="test_conn",

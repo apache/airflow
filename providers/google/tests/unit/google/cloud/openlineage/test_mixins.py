@@ -609,7 +609,7 @@ class TestBigQueryOpenLineageMixin:
         output_result = self.operator._get_dataset(table_ref, "output")
         assert output_result == OutputDataset("bigquery", "p.d.t", facets={"some": "facets"})
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid dataset_type. Must be 'input' or 'output'"):
             self.operator._get_dataset(table_ref, "wrong")
 
     @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")

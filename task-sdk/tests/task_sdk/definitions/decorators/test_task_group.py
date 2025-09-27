@@ -174,13 +174,11 @@ def test_expand_invalid_xcomarg_return_value():
 
         tg.partial(a=1).expand(b=t()["values"])
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(
+        ValueError,
+        match=r"cannot map over XCom with custom key 'values' from <Task\(_PythonDecoratedOperator\): t>",
+    ):
         pipeline()
-
-    assert (
-        str(ctx.value)
-        == "cannot map over XCom with custom key 'values' from <Task(_PythonDecoratedOperator): t>"
-    )
 
 
 def test_expand_kwargs_no_wildcard():
@@ -235,13 +233,11 @@ def test_expand_kwargs_invalid_xcomarg_return_value():
 
         tg.partial(a=1).expand_kwargs(t()["values"])
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(
+        ValueError,
+        match=r"cannot map over XCom with custom key 'values' from <Task\(_PythonDecoratedOperator\): t>",
+    ):
         pipeline()
-
-    assert (
-        str(ctx.value)
-        == "cannot map over XCom with custom key 'values' from <Task(_PythonDecoratedOperator): t>"
-    )
 
 
 def test_override_dag_default_args():

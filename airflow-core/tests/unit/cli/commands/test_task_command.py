@@ -35,8 +35,9 @@ from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import DagRunNotFound
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel

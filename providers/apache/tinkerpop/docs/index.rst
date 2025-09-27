@@ -80,8 +80,6 @@ systems (OLAP) and Gremlin is its graph traversal language.
 
 Release: 1.0.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

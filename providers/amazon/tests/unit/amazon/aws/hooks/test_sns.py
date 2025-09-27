@@ -17,95 +17,75 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
+DEDUPE_ID = "test-dedupe-id"
+GROUP_ID = "test-group-id"
 MESSAGE = "Hello world"
-TOPIC_NAME = "test-topic"
 SUBJECT = "test-subject"
+INVALID_ATTRIBUTES_MSG = r"Values in MessageAttributes must be one of bytes, str, int, float, or iterable"
+
+TOPIC_NAME = "test-topic"
+TOPIC_ARN = f"arn:aws:sns:us-east-1:123456789012:{TOPIC_NAME}"
+
+INVALID_ATTRIBUTES = {"test-non-iterable": object()}
+VALID_ATTRIBUTES = {
+    "test-string": "string-value",
+    "test-number": 123456,
+    "test-array": ["first", "second", "third"],
+    "test-binary": b"binary-value",
+}
+
+MESSAGE_ID_KEY = "MessageId"
+TOPIC_ARN_KEY = "TopicArn"
 
 
-@mock_aws
 class TestSnsHook:
-    def test_get_conn_returns_a_boto3_connection(self):
-        hook = SnsHook(aws_conn_id="aws_default")
+    @pytest.fixture(autouse=True)
+    def setup_moto(self):
+        with mock_aws():
+            yield
+
+    @pytest.fixture
+    def hook(self):
+        return SnsHook(aws_conn_id="aws_default")
+
+    @pytest.fixture
+    def target(self, hook):
+        return hook.get_conn().create_topic(Name=TOPIC_NAME).get(TOPIC_ARN_KEY)
+
+    def test_get_conn_returns_a_boto3_connection(self, hook):
         assert hook.get_conn() is not None
 
-    def test_publish_to_target_with_subject(self):
-        hook = SnsHook(aws_conn_id="aws_default")
+    def test_publish_to_target_with_subject(self, hook, target):
+        response = hook.publish_to_target(target, MESSAGE, SUBJECT)
 
-        message = MESSAGE
-        topic_name = TOPIC_NAME
-        subject = SUBJECT
-        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
+        assert MESSAGE_ID_KEY in response
 
-        response = hook.publish_to_target(target, message, subject)
+    def test_publish_to_target_with_attributes(self, hook, target):
+        response = hook.publish_to_target(target, MESSAGE, message_attributes=VALID_ATTRIBUTES)
 
-        assert "MessageId" in response
+        assert MESSAGE_ID_KEY in response
 
-    def test_publish_to_target_with_attributes(self):
-        hook = SnsHook(aws_conn_id="aws_default")
+    def test_publish_to_target_plain(self, hook, target):
+        response = hook.publish_to_target(target, MESSAGE)
 
-        message = MESSAGE
-        topic_name = TOPIC_NAME
-        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
+        assert MESSAGE_ID_KEY in response
 
-        response = hook.publish_to_target(
-            target,
-            message,
-            message_attributes={
-                "test-string": "string-value",
-                "test-number": 123456,
-                "test-array": ["first", "second", "third"],
-                "test-binary": b"binary-value",
-            },
-        )
+    def test_publish_to_target_error(self, hook, target):
+        with pytest.raises(TypeError, match=INVALID_ATTRIBUTES_MSG):
+            hook.publish_to_target(target, MESSAGE, message_attributes=INVALID_ATTRIBUTES)
 
-        assert "MessageId" in response
-
-    def test_publish_to_target_plain(self):
-        hook = SnsHook(aws_conn_id="aws_default")
-
-        message = MESSAGE
-        topic_name = "test-topic"
-        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
-
-        response = hook.publish_to_target(target, message)
-
-        assert "MessageId" in response
-
-    def test_publish_to_target_error(self):
-        hook = SnsHook(aws_conn_id="aws_default")
-
-        message = "Hello world"
-        topic_name = "test-topic"
-        target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
-
-        error_message = (
-            r"Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got .*"
-        )
-        with pytest.raises(TypeError, match=error_message):
-            hook.publish_to_target(
-                target,
-                message,
-                message_attributes={
-                    "test-non-iterable": object(),
-                },
-            )
-
-    def test_publish_to_target_with_deduplication(self):
-        hook = SnsHook(aws_conn_id="aws_default")
-
-        message = MESSAGE
-        topic_name = TOPIC_NAME + ".fifo"
-        deduplication_id = "abc"
-        group_id = "a"
-        target = (
+    def test_publish_to_target_with_deduplication(self, hook):
+        fifo_target = (
             hook.get_conn()
             .create_topic(
-                Name=topic_name,
+                Name=f"{TOPIC_NAME}.fifo",
                 Attributes={
                     "FifoTopic": "true",
                     "ContentBasedDeduplication": "false",
@@ -115,7 +95,63 @@ class TestSnsHook:
         )
 
         response = hook.publish_to_target(
-            target, message, message_deduplication_id=deduplication_id, message_group_id=group_id
+            fifo_target, MESSAGE, message_deduplication_id=DEDUPE_ID, message_group_id=GROUP_ID
+        )
+        assert MESSAGE_ID_KEY in response
+
+
+@pytest.mark.asyncio
+class TestAsyncSnsHook:
+    """The mock_aws decorator uses `moto` which does not currently support async SNS so we mock it manually."""
+
+    @pytest.fixture
+    def hook(self):
+        return SnsHook(aws_conn_id="aws_default")
+
+    @pytest.fixture
+    def mock_async_client(self):
+        mock_client = mock.AsyncMock()
+        mock_client.publish.return_value = {MESSAGE_ID_KEY: "test-message-id"}
+        return mock_client
+
+    @pytest.fixture
+    def mock_get_async_conn(self, mock_async_client):
+        with mock.patch.object(SnsHook, "get_async_conn") as mocked_conn:
+            mocked_conn.return_value = mock_async_client
+            mocked_conn.return_value.__aenter__.return_value = mock_async_client
+            yield mocked_conn
+
+    async def test_get_async_conn(self, hook, mock_get_async_conn, mock_async_client):
+        # Test context manager access
+        async with await hook.get_async_conn() as async_conn:
+            assert async_conn is mock_async_client
+
+        # Test direct access
+        async_conn = await hook.get_async_conn()
+        assert async_conn is mock_async_client
+
+    async def test_apublish_to_target_with_subject(self, hook, mock_get_async_conn, mock_async_client):
+        response = await hook.apublish_to_target(TOPIC_ARN, MESSAGE, SUBJECT)
+
+        assert MESSAGE_ID_KEY in response
+
+    async def test_apublish_to_target_with_attributes(self, hook, mock_get_async_conn, mock_async_client):
+        response = await hook.apublish_to_target(TOPIC_ARN, MESSAGE, message_attributes=VALID_ATTRIBUTES)
+
+        assert MESSAGE_ID_KEY in response
+
+    async def test_publish_to_target_plain(self, hook, mock_get_async_conn, mock_async_client):
+        response = await hook.apublish_to_target(TOPIC_ARN, MESSAGE)
+
+        assert MESSAGE_ID_KEY in response
+
+    async def test_publish_to_target_error(self, hook, mock_get_async_conn, mock_async_client):
+        with pytest.raises(TypeError, match=INVALID_ATTRIBUTES_MSG):
+            await hook.apublish_to_target(TOPIC_ARN, MESSAGE, message_attributes=INVALID_ATTRIBUTES)
+
+    async def test_apublish_to_target_with_deduplication(self, hook, mock_get_async_conn, mock_async_client):
+        response = await hook.apublish_to_target(
+            TOPIC_ARN, MESSAGE, message_deduplication_id=DEDUPE_ID, message_group_id=GROUP_ID
         )
 
-        assert "MessageId" in response
+        assert MESSAGE_ID_KEY in response

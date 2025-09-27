@@ -72,8 +72,6 @@ apache-airflow-providers-arangodb package
 
 Release: 2.8.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

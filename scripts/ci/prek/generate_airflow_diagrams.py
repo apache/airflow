@@ -55,7 +55,7 @@ def main():
                 if sys.platform == "darwin":
                     console.print(
                         "[red]Likely you have no graphviz installed[/]"
-                        "Please install eralchemy2 package to run this script. "
+                        "Please install eralchemy package to run this script. "
                         "This will require to install graphviz, "
                         "and installing graphviz might be difficult for MacOS. Please follow: "
                         "https://pygraphviz.github.io/documentation/stable/install.html#macos ."

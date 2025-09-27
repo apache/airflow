@@ -78,7 +78,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
         </div>
 
 Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
+`Contributors Quick Start Guide </contributing-docs/03b_contributors_quick_start_seasoned_developers.rst>`__
 
 Docker Compose
 --------------

@@ -140,6 +140,9 @@ class MappedOperator(DAGNode):
 
     is_mapped: ClassVar[bool] = True
 
+    def __repr__(self) -> str:
+        return f"<SerializedMappedTask({self.task_type}): {self.task_id}>"
+
     @property
     def node_id(self) -> str:
         return self.task_id

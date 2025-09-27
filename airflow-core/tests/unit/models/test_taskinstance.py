@@ -38,7 +38,6 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowInactiveAssetInInletOrOutletException,
     AirflowSkipException,
 )
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
@@ -2687,41 +2686,6 @@ class TestTaskInstance:
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert str(tih[0].task_instance_id) == try_id
-
-    @pytest.mark.skip(
-        reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."
-    )
-    def test_run_with_inactive_assets(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
-
-        with dag_maker(schedule=None, serialized=True, session=session):
-
-            @task(outlets=Asset("asset_first"))
-            def first_asset_task(*, outlet_events):
-                outlet_events[Asset("asset_first")].extra = {"foo": "bar"}
-
-            first_asset_task()
-
-        with dag_maker(schedule=None, serialized=True, session=session):
-
-            @task(inlets=Asset("asset_second"))
-            def asset_task_in_inlet():
-                pass
-
-            @task(outlets=Asset(name="asset_first", uri="test://asset"), inlets=Asset("asset_second"))
-            def duplicate_asset_task_in_outlet(*, outlet_events):
-                outlet_events[Asset(name="asset_first", uri="test://asset")].extra = {"foo": "bar"}
-
-            duplicate_asset_task_in_outlet() >> asset_task_in_inlet()
-
-        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
-
-        tis["asset_task_in_inlet"].run(session=session)
-        with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
-            tis["duplicate_asset_task_in_outlet"].run(session=session)
-
-        assert "Asset(name='asset_second', uri='asset_second')" in str(exc.value)
-        assert "Asset(name='asset_first', uri='test://asset/')" in str(exc.value)
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

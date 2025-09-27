@@ -89,7 +89,7 @@ Step 3: Dag authors - Check your Airflow Dags for compatibility
 To minimize friction for users upgrading from prior versions of Airflow, we have created a Dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
 The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
 
-The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.13.0``. The below example demonstrates how to check
+The latest available ``ruff`` version will have the most up-to-date rules, but be sure to use at least version ``0.13.1``. The below example demonstrates how to check
 for Dag incompatibilities that will need to be fixed before they will work as expected on Airflow 3.
 
 .. code-block:: bash
@@ -259,7 +259,7 @@ These include:
 - **SubDAGs**: Replaced by TaskGroups, Assets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
 - **CeleryKubernetesExecutor and LocalKubernetesExecutor**: Replaced by `Multiple Executor Configuration <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_
-- **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
+- **SLAs**: Deprecated and removed; replaced with :doc:`Deadline Alerts </howto/deadline-alerts>`.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`Dag bundles </administration-and-deployment/dag-bundles>`.
 - **REST API** (``/api/v1``) replaced: Use the modern FastAPI-based stable ``/api/v2`` instead; see :doc:`Airflow API v2 </stable-rest-api-ref>` for details.
 - **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause Dag errors:

@@ -290,8 +290,8 @@ class CeleryExecutor(BaseExecutor):
         # TODO: TaskSDK: move this type change into BaseExecutor
         queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.

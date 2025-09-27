@@ -218,9 +218,8 @@ class DockerSwarmOperator(DockerOperator):
         if self.service and self._service_status() == "complete":
             self.tasks = self.cli.tasks(filters={"service": self.service["ID"]})
             for task in self.tasks:
-                container_id = task["Status"]["ContainerStatus"]["ContainerID"]
-                container = self.cli.inspect_container(container_id)
-                self.containers.append(container)
+                docker_service = self.cli.inspect_service(task["ServiceID"])
+                self.containers.append(docker_service)
 
         if self.retrieve_output:
             return self._attempt_to_retrieve_results()
