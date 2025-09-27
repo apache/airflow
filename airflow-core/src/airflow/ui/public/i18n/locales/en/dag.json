@@ -10,6 +10,7 @@
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
+      "mixed": "Mixed",
       "more": "More"
     },
     "navigation": {
