@@ -103,15 +103,15 @@ class AirbyteHook(BaseHook):
                 "extra",
                 "port",
             ],
-            "relabeling":  {
-            "host": "Server URL",
-            "login": "Client ID", 
-            "password": "Client Secret", 
-            "schema": "Token URL"
-        },
+            "relabeling": {
+                "host": "Server URL",
+                "login": "Client ID", 
+                "password": "Client Secret", 
+                "schema": "Token URL",
+            },
             "placeholders": {},
         }
-
+    
     def get_job_details(self, job_id: int) -> Any:
         """
         Use Http async call to retrieve metadata for a specific job of an Airbyte Sync.
