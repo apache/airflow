@@ -650,7 +650,7 @@ def remove_extra_translations(
             continue
 
         # Helper to recursively remove extra keys
-        def remove_keys(data, prefix=""):
+        def remove_keys(data: dict[str, Any], prefix: str=""):
             keys_to_remove = []
             for k, v in data.items():
                 full_key = f"{prefix}.{k}" if prefix else k
