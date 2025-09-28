@@ -30,8 +30,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -48,8 +46,6 @@ Misc
 7.7.2
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
