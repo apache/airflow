@@ -681,7 +681,7 @@ def remove_extra_translations(
             console.print(f"[blue][DRY RUN] Would remove extra translations from {lang_path}[/blue]")
             return
 
-        def natural_key_sort(obj):
+        def natural_key_sort(obj: Any | dict[str: Any]) -> Any | dict[str: Any]:
             if isinstance(obj, dict):
                 return {k: natural_key_sort(obj[k]) for k in sorted(obj, key=lambda x: (x.lower(), x))}
             return obj
