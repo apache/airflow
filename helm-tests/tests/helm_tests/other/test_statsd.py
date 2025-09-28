@@ -27,11 +27,18 @@ class TestStatsd:
 
     def test_should_create_statsd_default(self):
         docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "args": [
+                        "--statsd.cache-size=1000",
+                        "--statsd.cache-type=lru",
+                        "--ttl=0s",
+                    ]
+                }
+            },
             show_only=[
-                "templates/statsd/statsd-deployment.yaml",
-                "--statsd.cache-size=1000",                                  
-                "--statsd.cache-type=lru",                                   
-                "--ttl=0s"
+                "templates/statsd/statsd-deployment.yaml"
             ]
         )
 
@@ -418,6 +425,16 @@ class TestStatsdIngress:
         )
 
         assert jmespath.search("spec.rules[0].http.paths[0].backend.service", docs[0]) == {
+            "name": "release-name-statsd",
+            "port": {"name": "statsd-scrape"},
+        }
+        assert jmespath.search("spec.rules[0].http.paths[0].path", docs[0]) == "/metrics"
+        assert jmespath.search("spec.rules[0].host", docs[0]) == "some-host"
+        assert jmespath.search("spec.tls[0]", docs[0]) == {
+            "hosts": ["some-host"],
+            "secretName": "some-secret",
+        }
+        assert jmespath.search("spec.ingressClassName", docs[0]) == "ingress-class"
             "name": "release-name-statsd",
             "port": {"name": "statsd-scrape"},
         }
