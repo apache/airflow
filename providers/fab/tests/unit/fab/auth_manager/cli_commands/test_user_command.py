@@ -71,7 +71,7 @@ class TestCliUsers:
                 self.clear_users()
 
     def clear_users(self):
-        session = self.appbuilder.get_session
+        session = self.appbuilder.session
         for user in self.appbuilder.sm.get_all_users():
             session.delete(user)
         session.commit()

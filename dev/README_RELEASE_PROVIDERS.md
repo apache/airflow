@@ -1147,12 +1147,15 @@ the next RC candidates:
 Email subject:
 
 ```
+cat <<EOF
 [RESULT][VOTE] Airflow Providers - release of ${PREPARE_RELEASE_DATE}
+EOF
 ```
 
 Email content:
 
 ```
+cat <<EOF
 Hello,
 
 Apache Airflow Providers prepared on ${PREPARE_RELEASE_DATE} have been accepted.
@@ -1177,6 +1180,7 @@ I'll continue with the release process, and the release announcement will follow
 
 Cheers,
 <your name>
+EOF
 ```
 
 ## Publish release to SVN
