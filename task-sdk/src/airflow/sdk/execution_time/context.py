@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 import attrs
 import structlog
 
+from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -44,7 +45,9 @@ from airflow.sdk.log import mask_secret
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk import Variable
+    from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
@@ -53,7 +56,6 @@ if TYPE_CHECKING:
         AssetEventResult,
         AssetEventsResult,
         AssetResult,
-        ConnectionResult,
         OKResponse,
         PrevSuccessfulDagRunResponse,
         ReceiveMsgType,
@@ -102,12 +104,15 @@ log = structlog.get_logger(logger_name="task")
 T = TypeVar("T")
 
 
-def _process_connection_result_conn(conn_result: ReceiveMsgType | None) -> Connection:
+def _process_connection_result_conn(conn_result: ReceiveMsgType | ConnectionResponse | None) -> Connection:
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.execution_time.comms import ErrorResponse
+    from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 
     if isinstance(conn_result, ErrorResponse):
         raise AirflowRuntimeError(conn_result)
+
+    if isinstance(conn_result, ConnectionResponse):
+        conn_result = ConnectionResult.from_conn_response(conn_result)
 
     if TYPE_CHECKING:
         assert isinstance(conn_result, ConnectionResult)
@@ -132,6 +137,27 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
         var_result.value = json.loads(var_result.value)  # type: ignore
     return Variable(**var_result.model_dump(exclude={"type"}))
+
+
+@cache
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+
+    return api
+
+
+def _client() -> Client:
+    from airflow.sdk.api.client import Client
+
+    try:
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        client.base_url = "http://in-process.invalid./"
+        return client
+    except Exception as e:
+        log.error("Failed to create in-process API client", error=str(e))
+        raise
 
 
 def _get_connection(conn_id: str) -> Connection:
@@ -177,10 +203,13 @@ def _get_connection(conn_id: str) -> Connection:
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
     #   Also applies to _async_get_connection.
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import GetConnection
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
+    if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+        msg = comms.send(GetConnection(conn_id=conn_id))
+    else:
+        msg = _client().connections.get(conn_id)
 
     conn = _process_connection_result_conn(msg)
     SecretCache.save_connection_uri(conn_id, conn.get_uri())
