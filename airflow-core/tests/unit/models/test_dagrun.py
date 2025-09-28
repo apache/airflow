@@ -2288,11 +2288,12 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     session.merge(ti)
     dag_maker.run_ti("generate_mapping_args", dr)
 
-    # Check if the correct number of new mapped task instances are created/scheduled.
+    # Check if the new mapped task instances are correctly scheduled
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == rerun_length
     assert all([ti.task_id == "mapped_print_value" for ti in decision.schedulable_tis])
 
+    # Check if mapped task rerun successfully
     for ti in decision.schedulable_tis:
         dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
     query = select(TI).filter_by(
