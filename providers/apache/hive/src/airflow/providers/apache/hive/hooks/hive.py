@@ -16,16 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from collections.abc import Iterable, Mapping
+
 import contextlib
 import csv
 import os
 import re
 import socket
 import subprocess
-from tempfile import NamedTemporaryFile, TemporaryDirectory
 import time
-from typing import Any, Literal, TYPE_CHECKING
+from collections.abc import Iterable, Mapping
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import TYPE_CHECKING, Any, Literal
+
+from deprecated import deprecated
+from typing_extensions import overload
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -36,8 +40,6 @@ from airflow.providers.apache.hive.version_compat import (
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
-from deprecated import deprecated
-from typing_extensions import overload
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -574,8 +576,8 @@ class HiveMetastoreHook(BaseHook):
         conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
-            from thrift_sasl import TSaslClientTransport
             from pyhive.hive import get_installed_sasl
+            from thrift_sasl import TSaslClientTransport
 
             sasl_auth = "GSSAPI"
             transport = TSaslClientTransport(
