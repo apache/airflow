@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-28T13:51:01.803954
+# This constraints file was automatically generated on 2025-09-28T19:49:57.916695
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -186,7 +186,7 @@ asttokens==3.0.0
 async-property==0.2.2
 async-timeout==4.0.3
 asyncpg==0.30.0
-asyncssh==2.21.0
+asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.3.0
