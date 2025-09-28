@@ -29,6 +29,7 @@ from openlineage.client.serde import Serde
 from airflow import settings
 from airflow.listeners import hookimpl
 from airflow.models import DagRun, TaskInstance
+from airflow.observability.stats import Stats
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
@@ -50,7 +51,6 @@ from airflow.providers.openlineage.utils.utils import (
 )
 from airflow.providers.openlineage.version_compat import timeout, timezone
 from airflow.settings import configure_orm
-from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:

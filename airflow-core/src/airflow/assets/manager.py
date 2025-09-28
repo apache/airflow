@@ -36,7 +36,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
 )
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
