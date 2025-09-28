@@ -36,7 +36,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
 from airflow.observability.stats import Stats
-from airflow.observability.traces.tracer import DebugTrace, add_debug_span
+from airflow.observability.traces.base_tracer import DebugTrace, add_debug_span
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
