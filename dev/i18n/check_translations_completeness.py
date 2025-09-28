@@ -617,12 +617,13 @@ def add_missing_translations(
 
         if dry_run:
             console.print(f"[blue][DRY RUN] Would add missing translations to {lang_path}[/blue]")
-        else:
-            lang_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(lang_path, "w", encoding="utf-8") as f:
-                json.dump(lang_data, f, ensure_ascii=False, indent=2)
-                f.write("\n")  # Ensure newline at the end of the file
-            console.print(f"[green]Added missing translations to {lang_path}[/green]")
+            return
+
+        lang_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lang_path, "w", encoding="utf-8") as f:
+            json.dump(lang_data, f, ensure_ascii=False, indent=2)
+            f.write("\n")  # Ensure newline at the end of the file
+        console.print(f"[green]Added missing translations to {lang_path}[/green]")
 
 
 def remove_extra_translations(
@@ -676,25 +677,20 @@ def remove_extra_translations(
                     del data[k]
 
         remove_keys(lang_data)
+        if dry_run:
+            console.print(f"[blue][DRY RUN] Would remove extra translations from {lang_path}[/blue]")
+            return
 
-        # Only write if there were changes
-        if extra_keys:
-            if dry_run:
-                console.print(f"[blue][DRY RUN] Would remove extra translations from {lang_path}[/blue]")
-            else:
+        def natural_key_sort(obj):
+            if isinstance(obj, dict):
+                return {k: natural_key_sort(obj[k]) for k in sorted(obj, key=lambda x: (x.lower(), x))}
+            return obj
 
-                def natural_key_sort(obj):
-                    if isinstance(obj, dict):
-                        return {
-                            k: natural_key_sort(obj[k]) for k in sorted(obj, key=lambda x: (x.lower(), x))
-                        }
-                    return obj
-
-                lang_data = natural_key_sort(lang_data)
-                with open(lang_path, "w", encoding="utf-8") as f:
-                    json.dump(lang_data, f, ensure_ascii=False, indent=2)
-                    f.write("\n")  # Ensure newline at the end of the file
-                console.print(f"[green]Removed extra translations from {lang_path}[/green]")
+        lang_data = natural_key_sort(lang_data)
+        with open(lang_path, "w", encoding="utf-8") as f:
+            json.dump(lang_data, f, ensure_ascii=False, indent=2)
+            f.write("\n")  # Ensure newline at the end of the file
+        console.print(f"[green]Removed extra translations from {lang_path}[/green]")
 
 
 if __name__ == "__main__":
