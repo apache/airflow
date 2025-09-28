@@ -704,11 +704,19 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
 
         if wait_policy is not None:
             warnings.warn(
-                "`wait_policy` parameter is deprecated, please use `wait_for_completion` instead.",
+                "`wait_policy` parameter is deprecated and will be removed in a future release; "
+                "please use `wait_for_completion` (bool) instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             self.wait_policy = wait_policy
+
+            if wait_for_completion is not None:
+                raise ValueError(
+                    "Cannot specify both `wait_for_completion` and deprecated `wait_policy`. "
+                    "Please use `wait_for_completion` (bool)."
+                )
+
             self.wait_for_completion = wait_policy in (
                 WaitPolicy.WAIT_FOR_COMPLETION,
                 WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
