@@ -210,6 +210,23 @@ else:
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
+
+IS_MOCK_PLUGINS_MANAGER = bool(
+    os.environ.get("_AIRFLOW_SKIP_DB_TESTS", "false") == "true" and importlib.util.find_spec("airflow")
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_plugins_manager_for_all_non_db_tests():
+    if not IS_MOCK_PLUGINS_MANAGER:
+        yield None
+        return
+    from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+    with mock_plugin_manager() as _fixture:
+        yield _fixture
+
+
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
