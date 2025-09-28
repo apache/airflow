@@ -564,7 +564,7 @@ class TestDagRun:
         active_spans = ThreadSafeDict()
         dag_run.set_active_spans(active_spans)
 
-        from airflow.observability.traces.tracer import Trace
+        from airflow.observability.traces.base_tracer import Trace
 
         dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
 

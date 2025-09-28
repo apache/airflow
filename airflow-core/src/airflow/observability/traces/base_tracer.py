@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import socket
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Protocol
+
+import structlog
 
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 
 def gen_context(trace_id, span_id):

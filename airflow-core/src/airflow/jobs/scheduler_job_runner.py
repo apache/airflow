@@ -80,7 +80,7 @@ from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureRea
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.observability.stats import Stats
 from airflow.observability.traces import utils as trace_utils
-from airflow.observability.traces.tracer import DebugTrace, Trace, add_debug_span
+from airflow.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.dates import datetime_to_nano

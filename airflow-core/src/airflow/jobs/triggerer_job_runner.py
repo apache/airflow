@@ -45,7 +45,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.observability.stats import Stats
-from airflow.observability.traces.tracer import DebugTrace, Trace, add_debug_span
+from airflow.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
