@@ -636,11 +636,8 @@ def remove_extra_translations(
     """
     for filename, diff in summary.items():
         extra_keys = set(diff.extra_keys.get(language, []))
-        if not extra_keys:
-            continue
-
         lang_path = LOCALES_DIR / language / filename
-        if not lang_path.exists():
+        if not extra_keys or not lang_path.exists():
             continue
 
         try:
@@ -650,7 +647,7 @@ def remove_extra_translations(
             continue
 
         # Helper to recursively remove extra keys
-        def remove_keys(data: dict[str, Any], prefix: str=""):
+        def remove_keys(data: dict[str, Any], prefix: str = ""):
             keys_to_remove = []
             for k, v in data.items():
                 full_key = f"{prefix}.{k}" if prefix else k
@@ -681,7 +678,7 @@ def remove_extra_translations(
             console.print(f"[blue][DRY RUN] Would remove extra translations from {lang_path}[/blue]")
             return
 
-        def natural_key_sort(obj: Any | dict[str: Any]) -> Any | dict[str: Any]:
+        def natural_key_sort(obj: Any | dict[str, Any]) -> Any | dict[str, Any]:
             if isinstance(obj, dict):
                 return {k: natural_key_sort(obj[k]) for k in sorted(obj, key=lambda x: (x.lower(), x))}
             return obj
