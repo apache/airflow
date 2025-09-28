@@ -36,7 +36,7 @@ from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.traces.utils import (
+from airflow.observability.traces.utils import (
     parse_traceparent,
     parse_tracestate,
 )

@@ -28,7 +28,7 @@ from sqlalchemy import Column, Integer, String, delete, select
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
 from airflow.providers.edge3.version_compat import timezone
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session

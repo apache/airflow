@@ -86,7 +86,7 @@ class TestEdgeExecutor:
         assert jobs[0].task_id == "test_task"
         assert jobs[0].concurrency_slots == expected_concurrency
 
-    @patch("airflow.stats.Stats.incr")
+    @patch("airflow.observability.stats.Stats.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 

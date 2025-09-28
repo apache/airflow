@@ -44,7 +44,7 @@ class TestJobsApiRoutes:
         session.query(EdgeJobModel).delete()
         session.commit()
 
-    @patch("airflow.stats.Stats.incr")
+    @patch("airflow.observability.stats.Stats.incr")
     def test_state(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(
