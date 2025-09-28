@@ -30,8 +30,6 @@ Changelog
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 
@@ -71,8 +69,6 @@ Doc-only
 9.13.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 .. note::
   * ``The experimental BatchExecutor added in 8.20.0 is now stable``

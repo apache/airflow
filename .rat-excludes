@@ -180,5 +180,10 @@ go.mod
 go.sum
 mocks/*
 
+# Generated protobuf files
+.*proto
+.*pb.go
+.*_grpc.pb.go
+
 # Kubernetes env
 .env

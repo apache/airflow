@@ -54,8 +54,6 @@ Misc
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 

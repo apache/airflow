@@ -35,9 +35,9 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, timezone
 
-if AIRFLOW_V_3_1_PLUS:
+if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
     from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]

@@ -79,8 +79,6 @@ apache-airflow-providers-influxdb package
 
 Release: 2.9.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
