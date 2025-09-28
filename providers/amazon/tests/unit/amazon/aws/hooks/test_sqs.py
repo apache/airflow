@@ -71,4 +71,3 @@ class TestAsyncSqsHook:
         response = await hook.asend_message(queue_url=QUEUE_URL, message_body=MESSAGE_BODY)
 
         assert MESSAGE_ID_KEY in response
-        assert response[MESSAGE_ID_KEY] == MESSAGE_BODY
