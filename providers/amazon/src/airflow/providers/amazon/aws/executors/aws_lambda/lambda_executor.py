@@ -29,6 +29,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.observability.stats import Stats
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
     CONFIG_GROUP_NAME,
     INVALID_CREDENTIALS_EXCEPTIONS,
@@ -42,7 +43,6 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.stats import Stats
 
 try:
     from airflow.sdk import timezone

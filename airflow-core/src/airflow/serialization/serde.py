@@ -32,8 +32,8 @@ import attr
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
+from airflow.observability.stats import Stats
 from airflow.serialization.typing import is_pydantic_model
-from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
 if TYPE_CHECKING:

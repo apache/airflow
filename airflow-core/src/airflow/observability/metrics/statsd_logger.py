@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.metrics.protocols import Timer
-from airflow.metrics.validators import (
+from airflow.observability.metrics.protocols import Timer
+from airflow.observability.metrics.validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
@@ -35,8 +35,8 @@ from airflow.metrics.validators import (
 if TYPE_CHECKING:
     from statsd import StatsClient
 
-    from airflow.metrics.protocols import DeltaType
-    from airflow.metrics.validators import (
+    from airflow.observability.metrics.protocols import DeltaType
+    from airflow.observability.metrics.validators import (
         ListValidator,
     )
 
