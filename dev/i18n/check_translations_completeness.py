@@ -456,10 +456,39 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     default=False,
     help="Add missing translations for the selected language, prefixed with 'TODO: translate:'.",
 )
-def cli(language: str | None = None, add_missing: bool = False):
-    if add_missing:
+@click.option(
+    "--remove-extra",
+    is_flag=True,
+    default=False,
+    help="Remove extra translations that are not present in English.",
+)
+@click.option(
+    "--sync",
+    is_flag=True,
+    default=False,
+    help="Sync translations: add missing and remove extra translations (combines --add-missing and --remove-extra).",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be changed without actually modifying files.",
+)
+def cli(
+    language: str | None = None,
+    add_missing: bool = False,
+    remove_extra: bool = False,
+    sync: bool = False,
+    dry_run: bool = False,
+):
+    # Handle sync flag
+    if sync:
+        add_missing = True
+        remove_extra = True
+
+    if add_missing or remove_extra:
         if not language:
-            raise ValueError("--language is required when passing --add_missing")
+            raise ValueError("--language is required when using --add-missing, --remove-extra, or --sync")
         locale_path = LOCALES_DIR / language
         locale_path.mkdir(exist_ok=True)
     locale_files = get_locale_files()
@@ -488,7 +517,9 @@ def cli(language: str | None = None, add_missing: bool = False):
             )
             found_difference = found_difference or lang_diff
             if add_missing:
-                add_missing_translations(language, filtered_summary, console)
+                add_missing_translations(language, filtered_summary, console, dry_run)
+            if remove_extra:
+                remove_extra_translations(language, filtered_summary, console, dry_run)
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
@@ -519,7 +550,9 @@ def cli(language: str | None = None, add_missing: bool = False):
             console.print(summary_table)
 
 
-def add_missing_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
+def add_missing_translations(
+    language: str, summary: dict[str, LocaleSummary], console: Console, dry_run: bool = False
+):
     """
     Add missing translations for the selected language.
 
@@ -581,11 +614,87 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
             return obj
 
         lang_data = natural_key_sort(lang_data)
-        lang_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(lang_path, "w", encoding="utf-8") as f:
-            json.dump(lang_data, f, ensure_ascii=False, indent=2)
-            f.write("\n")  # Ensure newline at the end of the file
-        console.print(f"[green]Added missing translations to {lang_path}[/green]")
+
+        if dry_run:
+            console.print(f"[blue][DRY RUN] Would add missing translations to {lang_path}[/blue]")
+        else:
+            lang_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(lang_path, "w", encoding="utf-8") as f:
+                json.dump(lang_data, f, ensure_ascii=False, indent=2)
+                f.write("\n")  # Ensure newline at the end of the file
+            console.print(f"[green]Added missing translations to {lang_path}[/green]")
+
+
+def remove_extra_translations(
+    language: str, summary: dict[str, LocaleSummary], console: Console, dry_run: bool = False
+):
+    """
+    Remove extra translations that are not present in English.
+
+    This removes keys that exist in the target language but not in English.
+    """
+    for filename, diff in summary.items():
+        extra_keys = set(diff.extra_keys.get(language, []))
+        if not extra_keys:
+            continue
+
+        lang_path = LOCALES_DIR / language / filename
+        if not lang_path.exists():
+            continue
+
+        try:
+            lang_data = load_json(lang_path)
+        except Exception as e:
+            console.print(f"[red]Failed to load {language} file {lang_path}: {e}[/red]")
+            continue
+
+        # Helper to recursively remove extra keys
+        def remove_keys(data, prefix=""):
+            keys_to_remove = []
+            for k, v in data.items():
+                full_key = f"{prefix}.{k}" if prefix else k
+                if full_key in extra_keys:
+                    keys_to_remove.append(k)
+                    if dry_run:
+                        console.print(f"[blue][DRY RUN] Would remove extra key: {full_key}[/blue]")
+                    else:
+                        console.print(f"[yellow]Removed extra key: {full_key}[/yellow]")
+                elif isinstance(v, dict):
+                    remove_keys(v, full_key)
+                    # Remove empty nested dicts after recursive cleanup
+                    if not v:
+                        keys_to_remove.append(k)
+                        if dry_run:
+                            console.print(
+                                f"[blue][DRY RUN] Would remove empty nested dict: {full_key}[/blue]"
+                            )
+                        else:
+                            console.print(f"[yellow]Removed empty nested dict: {full_key}[/yellow]")
+
+            if not dry_run:
+                for k in keys_to_remove:
+                    del data[k]
+
+        remove_keys(lang_data)
+
+        # Only write if there were changes
+        if extra_keys:
+            if dry_run:
+                console.print(f"[blue][DRY RUN] Would remove extra translations from {lang_path}[/blue]")
+            else:
+
+                def natural_key_sort(obj):
+                    if isinstance(obj, dict):
+                        return {
+                            k: natural_key_sort(obj[k]) for k in sorted(obj, key=lambda x: (x.lower(), x))
+                        }
+                    return obj
+
+                lang_data = natural_key_sort(lang_data)
+                with open(lang_path, "w", encoding="utf-8") as f:
+                    json.dump(lang_data, f, ensure_ascii=False, indent=2)
+                    f.write("\n")  # Ensure newline at the end of the file
+                console.print(f"[green]Removed extra translations from {lang_path}[/green]")
 
 
 if __name__ == "__main__":
