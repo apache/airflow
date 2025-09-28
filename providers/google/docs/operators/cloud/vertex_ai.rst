@@ -239,7 +239,7 @@ How to run AutoML Image Training Job
 Before start running this Job you must prepare and create ``Image`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
