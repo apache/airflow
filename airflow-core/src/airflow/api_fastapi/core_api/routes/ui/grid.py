@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -234,25 +234,17 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    ti_version_cte = (
+    dag_version_summary = (
         select(
             TaskInstance.run_id,
-            func.max(DagVersion.version_number).label("max_version_number"),
             func.count(func.distinct(TaskInstance.dag_version_id)).label("version_count"),
+            func.max(DagVersion.version_number).label("latest_version_number"),
         )
-        .select_from(TaskInstance)
         .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-        .where(TaskInstance.dag_id == dag_id)
+        .join(DagRun, TaskInstance.run_id == DagRun.run_id)
+        .where(TaskInstance.dag_id == dag_id, DagRun.bundle_version.is_(None))
         .group_by(TaskInstance.run_id)
-        .cte("ti_version_info")
-    )
-
-    created_version_cte = (
-        select(DagRun.run_id, DagVersion.version_number.label("created_version_number"))
-        .select_from(DagRun)
-        .outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
-        .where(DagRun.dag_id == dag_id)
-        .cte("created_version_info")
+        .subquery("dag_version_summary")
     )
 
     base_query = (
@@ -266,18 +258,15 @@ def get_grid_runs(
             DagRun.state,
             DagRun.run_type,
             DagRun.bundle_version,
-            case(
-                (DagRun.bundle_version.is_not(None), created_version_cte.c.created_version_number),
-                else_=ti_version_cte.c.max_version_number,
-            ).label("dag_version_number"),
-            case(
-                (DagRun.bundle_version.is_not(None), False), else_=(ti_version_cte.c.version_count > 1)
-            ).label("has_mixed_versions"),
+            func.coalesce(dag_version_summary.c.latest_version_number, DagVersion.version_number).label(
+                "dag_version_number"
+            ),
+            func.coalesce(dag_version_summary.c.version_count > 1, False).label("has_mixed_versions"),
         )
         .select_from(
-            DagRun.__table__.outerjoin(ti_version_cte, DagRun.run_id == ti_version_cte.c.run_id).outerjoin(
-                created_version_cte, DagRun.run_id == created_version_cte.c.run_id
-            )
+            DagRun.__table__.outerjoin(
+                dag_version_summary, DagRun.run_id == dag_version_summary.c.run_id
+            ).outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
         )
         .where(DagRun.dag_id == dag_id)
     )
@@ -298,6 +287,7 @@ def get_grid_runs(
         filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
+
     return session.execute(dag_runs_select_filter)
 
 
