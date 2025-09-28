@@ -107,7 +107,7 @@ packages = []
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.arrow" = [
-    "apache-airflow-providers-apache-arrow>=1.0.0"
+    "apache-airflow-providers-apache-arrow"
 ]
 "apache.beam" = [
     "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\""
@@ -397,7 +397,7 @@ packages = []
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-arrow>=1.0.0",
+    "apache-airflow-providers-apache-arrow",
     "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.13\"",
     "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
