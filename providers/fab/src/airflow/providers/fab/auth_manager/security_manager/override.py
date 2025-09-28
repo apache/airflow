@@ -836,7 +836,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             current_app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
 
             # Nested groups options
-            app.config.setdefault("AUTH_LDAP_USE_NESTED_GROUPS_FOR_ROLES", False)
+            current_app.config.setdefault("AUTH_LDAP_USE_NESTED_GROUPS_FOR_ROLES", False)
 
         if self.auth_type == AUTH_REMOTE_USER:
             current_app.config.setdefault("AUTH_REMOTE_USER_ENV_VAR", "REMOTE_USER")
