@@ -435,13 +435,3 @@ class TestStatsdIngress:
             "secretName": "some-secret",
         }
         assert jmespath.search("spec.ingressClassName", docs[0]) == "ingress-class"
-            "name": "release-name-statsd",
-            "port": {"name": "statsd-scrape"},
-        }
-        assert jmespath.search("spec.rules[0].http.paths[0].path", docs[0]) == "/metrics"
-        assert jmespath.search("spec.rules[0].host", docs[0]) == "some-host"
-        assert jmespath.search("spec.tls[0]", docs[0]) == {
-            "hosts": ["some-host"],
-            "secretName": "some-secret",
-        }
-        assert jmespath.search("spec.ingressClassName", docs[0]) == "ingress-class"
