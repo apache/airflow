@@ -25,6 +25,7 @@ from sqlalchemy.orm import relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
+from airflow.models.hitl import HITLDetailPropertyMixin
 from airflow.settings import json
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.models.hitl import HITLDetail
 
 
-class HITLDetailHistory(Base):
+class HITLDetailHistory(Base, HITLDetailPropertyMixin):
     """
     Store HITLDetail for old tries of TaskInstances.
 
