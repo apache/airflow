@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-26T13:51:30.167212
+# This constraints file was automatically generated on 2025-09-28T02:24:07.462609
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -27,7 +27,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.10
 Markdown==3.9
-MarkupSafe==3.0.2
+MarkupSafe==3.0.3
 PyAthena==3.18.0
 PyGithub==2.8.1
 PyHive==0.7.0
@@ -125,7 +125,7 @@ babel==2.17.0
 backoff==2.2.1
 bcrypt==5.0.0
 beartype==0.21.0
-beautifulsoup4==4.13.5
+beautifulsoup4==4.14.0
 billiard==4.2.2
 bitarray==3.7.1
 black==25.9.0
@@ -192,7 +192,7 @@ elastic-transport==8.17.1
 elasticsearch==8.19.1
 email-validator==2.3.0
 entrypoints==0.4
-eralchemy2==1.4.1
+eralchemy==1.6.0
 et_xmlfile==2.0.0
 eventlet==0.40.3
 execnet==2.1.1
@@ -270,7 +270,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.39.0
+google-genai==1.39.1
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
@@ -438,7 +438,7 @@ outcome==1.3.0.post0
 packaging==25.0
 pagerduty==5.0.0
 pandas-gbq==0.29.2
-pandas-stubs==2.3.2.250827
+pandas-stubs==2.3.2.250926
 pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.6.0
@@ -463,7 +463,7 @@ polars==1.33.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.2.1
+prek==0.2.2
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
@@ -496,7 +496,6 @@ pydot==1.4.2
 pydruid==0.6.9
 pyenchant==3.3.0
 pyexasol==1.1.0
-pygraphviz==1.14
 pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
@@ -532,7 +531,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-on-whales==0.78.0
 python-slugify==8.0.4
-python-telegram-bot==22.4
+python-telegram-bot==22.5
 python3-saml==1.16.0
 pytokens==0.1.10
 pytz==2025.2

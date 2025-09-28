@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-26T13:51:47.302578
+# This constraints file was automatically generated on 2025-09-28T02:24:42.794152
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -11,7 +11,7 @@
 Deprecated==1.2.18
 Jinja2==3.1.6
 Mako==1.3.10
-MarkupSafe==3.0.2
+MarkupSafe==3.0.3
 PyJWT==2.10.1
 PyYAML-ft==8.0.0
 PyYAML==6.0.3
