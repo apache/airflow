@@ -24,7 +24,7 @@ import pytest
 from opentelemetry.metrics import MeterProvider
 
 from airflow.exceptions import InvalidStatsNameException
-from airflow.metrics.otel_logger import (
+from airflow.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     MetricsMap,
@@ -33,7 +33,10 @@ from airflow.metrics.otel_logger import (
     _is_up_down_counter,
     full_name,
 )
-from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
+from airflow.observability.metrics.validators import (
+    BACK_COMPAT_METRIC_NAMES,
+    MetricNameLengthExemptionWarning,
+)
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),

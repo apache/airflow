@@ -53,9 +53,9 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
+from airflow.observability.stats import Stats
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout
-from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
