@@ -17,22 +17,27 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Text
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Integer, String, Text
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Mapped
 
 
 class ParseImportError(Base):
     """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
 
     __tablename__ = "import_error"
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(UtcDateTime)
-    filename = Column(String(1024))
-    bundle_name = Column(StringID())
-    stacktrace = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    timestamp: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    filename: Mapped[str] = mapped_column(String(1024))
+    bundle_name: Mapped[str] = mapped_column(StringID())
+    stacktrace: Mapped[str] = mapped_column(Text)
 
     def full_file_path(self) -> str:
         """Return the full file path of the dag."""

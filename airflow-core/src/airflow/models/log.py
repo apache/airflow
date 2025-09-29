@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Index, Integer, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -36,18 +36,18 @@ class Log(Base):
 
     __tablename__ = "log"
 
-    id = Column(Integer, primary_key=True)
-    dttm = Column(UtcDateTime)
-    dag_id = Column(StringID())
-    task_id = Column(StringID())
-    map_index = Column(Integer)
-    event = Column(String(60))
-    logical_date = Column(UtcDateTime)
-    run_id = Column(StringID())
-    owner = Column(String(500))
-    owner_display_name = Column(String(500))
-    extra = Column(Text)
-    try_number = Column(Integer)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    dag_id: Mapped[str] = mapped_column(StringID())
+    task_id: Mapped[str] = mapped_column(StringID())
+    map_index: Mapped[int] = mapped_column(Integer)
+    event: Mapped[str] = mapped_column(String(60))
+    logical_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    run_id: Mapped[str] = mapped_column(StringID())
+    owner: Mapped[str] = mapped_column(String(500))
+    owner_display_name: Mapped[str] = mapped_column(String(500))
+    extra: Mapped[str] = mapped_column(Text)
+    try_number: Mapped[int] = mapped_column(Integer)
 
     dag_model = relationship(
         "DagModel",
