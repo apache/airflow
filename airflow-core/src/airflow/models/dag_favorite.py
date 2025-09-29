@@ -17,9 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey
+from typing import TYPE_CHECKING
+
+from sqlalchemy import ForeignKey
 
 from airflow.models.base import Base, StringID
+from airflow.utils.sqlalchemy import mapped_column
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Mapped
 
 
 class DagFavorite(Base):
@@ -27,5 +33,7 @@ class DagFavorite(Base):
 
     __tablename__ = "dag_favorite"
 
-    user_id = Column(StringID(), primary_key=True)
-    dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    dag_id: Mapped[str] = mapped_column(
+        StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True
+    )

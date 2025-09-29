@@ -116,6 +116,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Login to ghcr.io
@@ -183,6 +185,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Cleanup dist and context file"
