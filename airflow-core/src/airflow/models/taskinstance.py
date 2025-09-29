@@ -195,6 +195,7 @@ def clear_task_instances(
     session: Session,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
+    prevent_running_task: bool = False,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -222,7 +223,7 @@ def clear_task_instances(
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
 
-        if hasattr(ti, 'is_running_message') and ti.is_running_message:
+        if prevent_running_task:
             # If the task contains the message, prevent the task from running.
             task_confirmed_running = True
 

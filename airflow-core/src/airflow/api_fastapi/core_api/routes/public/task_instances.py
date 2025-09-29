@@ -86,6 +86,8 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
 from airflow.utils.state import DagRunState, TaskInstanceState
+from flask import jsonify
+from airflow.configuration import conf
 
 log = structlog.get_logger(__name__)
 
@@ -770,16 +772,13 @@ def post_clear_task_instances(
         )
 
     if not dry_run:
-        if body.is_running_message:
-            for ti in task_instances:
-                ti.is_running_message = body.is_running_message
-        
         try:
             clear_task_instances(
                 task_instances,
                 session,
                 DagRunState.QUEUED if reset_dag_runs else False,
                 run_on_latest_version=body.run_on_latest_version,
+                prevent_running_task=body.prevent_running_task,
             )
         except ValueError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
