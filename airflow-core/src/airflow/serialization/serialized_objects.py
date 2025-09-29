@@ -1291,7 +1291,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     resources: dict[str, Any] | None = None
     retries: int = 0
-    retry_delay: datetime.timedelta
+    retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
     retry_exponential_backoff: bool = False
     run_as_user: str | None = None
 
