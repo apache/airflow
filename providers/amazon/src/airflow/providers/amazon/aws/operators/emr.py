@@ -709,7 +709,6 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.wait_policy = wait_policy
 
             if wait_for_completion is not None:
                 raise ValueError(
