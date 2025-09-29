@@ -26,6 +26,10 @@ from fastapi.routing import APIRoute
 from fastapi.types import DecoratedCallable
 from starlette.responses import Response
 
+from airflow.api_fastapi.common.db.common import (
+    _get_async_session as _ASYNC_SESSION_DEP_FN,
+    _get_session as _SYNC_SESSION_DEP_FN,
+)
 from airflow.utils.session import create_session, create_session_async
 
 
@@ -69,11 +73,21 @@ def _route_uses_dep(route: APIRoute, *, module: str, name: str) -> bool:
 
 
 class _AirflowRoute(APIRoute):
+    """
+    Custom route that finalizes DB transactions before sending the response.
+
+    This restores pre-FastAPI 0.118 behavior for DB session lifecycle so that
+    commits/rollbacks happen before the response body has started.
+    Only applies to routes that declare the sync/async session dependency.
+    """
+
     def get_route_handler(self) -> Callable[[Request], Coroutine[None, None, Response]]:
         default_handler = super().get_route_handler()
-        uses_sync = _route_uses_dep(self, module="airflow.api_fastapi.common.db.common", name="_get_session")
+        uses_sync = _route_uses_dep(
+            self, module=_SYNC_SESSION_DEP_FN.__module__, name=_SYNC_SESSION_DEP_FN.__name__
+        )
         uses_async = _route_uses_dep(
-            self, module="airflow.api_fastapi.common.db.common", name="_get_async_session"
+            self, module=_ASYNC_SESSION_DEP_FN.__module__, name=_ASYNC_SESSION_DEP_FN.__name__
         )
 
         async def handler(request: Request) -> Response:
