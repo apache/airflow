@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "變數"
   },
+  "allOperators": "所有任務操作器",
+  "appearance": {
+    "appearance": "外觀",
+    "darkMode": "深色模式",
+    "lightMode": "淺色模式",
+    "systemMode": "跟隨系統設定"
+  },
   "asset_one": "資源",
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
@@ -32,6 +39,7 @@
     "fileLocation": "檔案位置",
     "hasTaskConcurrencyLimits": "有任務並行數限制",
     "lastExpired": "最後過期時間",
+    "lastParseDuration": "最後解析時長",
     "lastParsed": "最後解析時間",
     "latestDagVersion": "最新 Dag 版本",
     "latestRun": "上次 Dag 執行",
@@ -91,16 +99,12 @@
     "any": "任何",
     "or": "或"
   },
+  "filter": "篩選",
   "filters": {
-    "dagDisplayNamePlaceholder": "依 Dag 名稱篩選",
-    "keyPlaceholder": "依 XCom 鍵篩選",
-    "logicalDateFromPlaceholder": "邏輯日期起始",
-    "logicalDateToPlaceholder": "邏輯日期結束",
-    "mapIndexPlaceholder": "依映射索引篩選",
-    "runAfterFromPlaceholder": "執行時間起始",
-    "runAfterToPlaceholder": "執行時間結束",
-    "runIdPlaceholder": "依執行 ID 篩選",
-    "taskIdPlaceholder": "依任務 ID 篩選"
+    "logicalDateFrom": "從邏輯日期",
+    "logicalDateTo": "到邏輯日期",
+    "runAfterFrom": "從最早可執行時間",
+    "runAfterTo": "到最早可執行時間"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",
@@ -142,6 +146,7 @@
     "running": "執行中",
     "scheduled": "已排程"
   },
+  "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
     "asset_triggered": "資源觸發",
@@ -192,8 +197,6 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
-  "switchToDarkMode": "切換到深色模式",
-  "switchToLightMode": "切換到淺色模式",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",

@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -40,11 +40,14 @@ import { flattenNodes } from "./utils";
 dayjs.extend(dayjsDuration);
 
 type Props = {
+  readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
+  readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ limit, showGantt }: Props) => {
+export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +56,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
-  const { data: gridRuns, isLoading } = useGridRuns({ limit });
+  const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -77,7 +80,13 @@ export const Grid = ({ limit, showGantt }: Props) => {
     }
   }, [gridRuns, setHasActiveRun]);
 
-  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+  const { data: dagStructure } = useGridStructure({
+    dagRunState,
+    hasActiveRun,
+    limit,
+    runType,
+    triggeringUser,
+  });
   // calculate dag run bar heights relative to max
 
   const max = Math.max.apply(
@@ -105,9 +114,9 @@ export const Grid = ({ limit, showGantt }: Props) => {
       pt={20}
       ref={gridRef}
       tabIndex={0}
-      width={showGantt ? undefined : "100%"}
+      width={showGantt ? "1/2" : "full"}
     >
-      <Box flexGrow={1} minWidth={7} position="relative" top="100px">
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="100px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
@@ -115,12 +124,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex
-            flexDirection="column-reverse"
-            height="100px"
-            position="relative"
-            width={showGantt ? undefined : "100%"}
-          >
+          <Flex flexDirection="column-reverse" height="100px" position="relative">
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />

@@ -25,7 +25,6 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
-from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.time_delta import (
     TimeDeltaSensor,
@@ -36,7 +35,12 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, timezone
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.dag_processing.dagbag import DagBag
+else:
+    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -82,15 +86,15 @@ def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_mak
     if interval_end:
         context["data_interval_end"] = interval_end
     delta = timedelta(seconds=1)
-    with dag_maker() as dag:
-        op = TimeDeltaSensor(task_id="wait_sensor_check", delta=delta, dag=dag, mode="reschedule")
+    with dag_maker():
+        op = TimeDeltaSensor(task_id="wait_sensor_check", delta=delta, mode="reschedule")
 
     kwargs = {}
     if AIRFLOW_V_3_0_PLUS:
         from airflow.utils.types import DagRunTriggeredByType
 
         kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
-    dr = dag.create_dagrun(
+    dr = dag_maker.create_dagrun(
         run_id="abcrhroceuh",
         run_type=DagRunType.MANUAL,
         state=None,
@@ -120,7 +124,7 @@ def test_timedelta_sensor_deferrable_run_after_vs_interval(run_after, interval_e
     if interval_end:
         context["data_interval_end"] = interval_end
 
-    with dag_maker() as dag:
+    with dag_maker():
         kwargs = {}
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.types import DagRunTriggeredByType
@@ -131,11 +135,10 @@ def test_timedelta_sensor_deferrable_run_after_vs_interval(run_after, interval_e
         sensor = TimeDeltaSensor(
             task_id="timedelta_sensor_deferrable",
             delta=delta,
-            dag=dag,
             deferrable=True,  # <-- the feature under test
         )
 
-    dr = dag.create_dagrun(
+    dr = dag_maker.create_dagrun(
         run_id="abcrhroceuh",
         run_type=DagRunType.MANUAL,
         state=None,
@@ -222,7 +225,7 @@ class TestTimeDeltaSensorAsync:
 
             kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
 
-        dr = dag.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_id="abcrhroceuh",
             run_type=DagRunType.MANUAL,
             state=None,

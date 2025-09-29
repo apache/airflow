@@ -19,9 +19,20 @@
 import { useParams } from "react-router-dom";
 
 import { useGridServiceGetGridRuns } from "openapi/queries";
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const useGridRuns = ({ limit }: { limit: number }) => {
+export const useGridRuns = ({
+  dagRunState,
+  limit,
+  runType,
+  triggeringUser,
+}: {
+  dagRunState?: DagRunState | undefined;
+  limit: number;
+  runType?: DagRunType | undefined;
+  triggeringUser?: string | undefined;
+}) => {
   const { dagId = "" } = useParams();
 
   const defaultRefetchInterval = useAutoRefresh({ dagId });
@@ -31,6 +42,9 @@ export const useGridRuns = ({ limit }: { limit: number }) => {
       dagId,
       limit,
       orderBy: ["-run_after"],
+      runType: runType ? [runType] : undefined,
+      state: dagRunState ? [dagRunState] : undefined,
+      triggeringUser: triggeringUser ?? undefined,
     },
     undefined,
     {

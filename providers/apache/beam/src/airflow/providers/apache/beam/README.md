@@ -39,7 +39,7 @@ are in `airflow.providers.apache.beam` python package.
 
 ## Installation
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing Airflow.* installation via
 `pip install apache-airflow-providers-apache-beam`
 
 ## Cross provider package dependencies

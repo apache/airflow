@@ -43,6 +43,8 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
+GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
+
 try:
     from rich.console import Console
 
@@ -394,3 +396,27 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
                 imports.append(fullname)
 
     return imports
+
+
+def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
+    if token:
+        return token
+    if GITHUB_TOKEN:
+        return GITHUB_TOKEN
+    output = subprocess.check_output(["gh", "auth", "token"])
+    token = output.decode().strip()
+    if not token:
+        if not console:
+            raise RuntimeError("Please add rich to your script dependencies and run it again")
+        console.print(
+            "[red]GITHUB_TOKEN environment variable is not set. "
+            "This might lead to failures on rate limits.[/]\n"
+            "You can fix that by installing `gh` and running `gh auth login` or "
+            f"set it to a valid GitHub token with {scopes} scope. "
+            f"You can create one by clicking the URL:\n\n"
+            f"https://github.com/settings/tokens/new?scopes={scopes}&description={description}\n\n"
+            "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
+            "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
+        )
+        sys.exit(1)
+    return token

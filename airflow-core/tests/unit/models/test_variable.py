@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -30,6 +31,10 @@ from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -310,6 +315,22 @@ class TestVariable:
         c = Variable.get("key")  # cache should not be used
 
         assert c != b
+
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        var = Variable(key="key", val="value", team_id=testing_team.id)
+        session.add(var)
+        session.flush()
+
+        assert Variable.get_team_name("key", session=session) == "testing"
+
+    def test_get_key_to_team_name_mapping(self, testing_team: Team, session: Session):
+        var1 = Variable(key="key1", val="value1", team_id=testing_team.id)
+        var2 = Variable(key="key2", val="value2")
+        session.add(var1)
+        session.add(var2)
+        session.flush()
+
+        assert Variable.get_key_to_team_name_mapping(["key1", "key2"], session=session) == {"key1": "testing"}
 
 
 @pytest.mark.parametrize(

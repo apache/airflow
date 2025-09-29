@@ -80,9 +80,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name,
+            uri, created_at, updated_at`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name, uri, created_at,
+          updated_at`'
       responses:
         '200':
           description: Successful Response
@@ -160,9 +166,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name`'
       responses:
         '200':
           description: Successful Response
@@ -275,9 +285,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `source_task_id,
+            source_dag_id, source_run_id, source_map_index, timestamp`'
           default:
           - timestamp
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `source_task_id, source_dag_id,
+          source_run_id, source_map_index, timestamp`'
       - name: asset_id
         in: query
         required: false
@@ -318,6 +334,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: timestamp_gte
         in: query
         required: false
@@ -916,9 +944,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id`'
       responses:
         '200':
           description: Successful Response
@@ -1451,9 +1483,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `conn_id,
+            conn_type, description, host, port, id`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `conn_id, conn_type,
+          description, host, port, id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -2191,6 +2229,14 @@ paths:
           items:
             type: string
           title: State
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Dag Version
       - name: order_by
         in: query
         required: false
@@ -2198,9 +2244,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
+            conf, duration`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, dag_id,
+          run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
+          duration`'
       - name: run_id_pattern
         in: query
         required: false
@@ -2223,6 +2277,18 @@ paths:
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
           title: Triggering User Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       responses:
@@ -2328,7 +2394,8 @@ paths:
       summary: 'Experimental: Wait for a dag run to complete, and return task results
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
-        \ be removed without notice."
+        \ be removed without notice.Successful response are streamed as newline-delimited\
+        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
@@ -2859,9 +2926,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type,
+            message, timestamp`'
           default:
           - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, warning_type,
+          message, timestamp`'
       responses:
         '200':
           description: Successful Response
@@ -2980,6 +3053,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -3011,9 +3096,9 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          description: Filter DAGs with asset-based scheduling
+          description: Filter Dags with asset-based scheduling
           title: Has Asset Schedule
-        description: Filter DAGs with asset-based scheduling
+        description: Filter Dags with asset-based scheduling
       - name: asset_dependency
         in: query
         required: false
@@ -3021,9 +3106,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter DAGs by asset dependency (name or URI)
+          description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
-        description: Filter DAGs by asset dependency (name or URI)
+        description: Filter Dags by asset dependency (name or URI)
       - name: dag_run_start_date_gte
         in: query
         required: false
@@ -3111,9 +3196,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+            next_dagrun, state, start_date`'
           default:
           - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+          next_dagrun, state, start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -3684,9 +3775,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, dttm,
+            dag_id, task_id, run_id, event, logical_date, owner, extra`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, dttm, dag_id,
+          task_id, run_id, event, logical_date, owner, extra`'
       - name: dag_id
         in: query
         required: false
@@ -3781,6 +3878,66 @@ paths:
             format: date-time
           - type: 'null'
           title: After
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: task_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Task Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: owner_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Owner Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: event_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Event Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -3956,9 +4113,27 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, timestamp,
+            filename, bundle_name, stacktrace`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, timestamp, filename,
+          bundle_name, stacktrace`'
+      - name: filename_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Filename Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
@@ -4098,9 +4273,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, dag_id,
+            state, job_type, start_date, end_date, latest_heartbeat, executor_class,
+            hostname, unixname`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, dag_id, state,
+          job_type, start_date, end_date, latest_heartbeat, executor_class, hostname,
+          unixname`'
       - name: job_state
         in: query
         required: false
@@ -4443,9 +4626,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, pool`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, pool`'
       - name: pool_name_pattern
         in: query
         required: false
@@ -5298,9 +5485,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Delete Task Instance
+              schema: {}
         '401':
           content:
             application/json:
@@ -5622,6 +5807,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -5645,9 +5838,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            duration, start_date, end_date, map_index, try_number, logical_date, run_after,
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, duration,
+          start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -6366,6 +6567,18 @@ paths:
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: state
         in: query
         required: false
@@ -6422,6 +6635,14 @@ paths:
           items:
             type: string
           title: Operator
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Map Index
       - name: limit
         in: query
         required: false
@@ -6445,9 +6666,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            duration, start_date, end_date, map_index, try_number, logical_date, run_after,
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, duration,
+          start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -7286,9 +7515,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, id,
+            _val, description, is_encrypted`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, id, _val, description,
+          is_encrypted`'
       - name: variable_key_pattern
         in: query
         required: false
@@ -7622,9 +7857,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Reparse Dag File
+              schema: {}
         '401':
           content:
             application/json:
@@ -7683,9 +7916,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `name`'
           default:
           - name
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `name`'
       - name: tag_name_pattern
         in: query
         required: false
@@ -7841,9 +8078,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, version_number,
+            bundle_name, bundle_version`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, version_number,
+          bundle_name, bundle_version`'
       responses:
         '200':
           description: Successful Response
@@ -7875,10 +8118,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Update Hitl Detail
       description: Update a Human-in-the-loop detail.
       operationId: update_hitl_detail
@@ -7905,11 +8148,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       requestBody:
         required: true
@@ -7956,7 +8198,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
       operationId: get_hitl_detail
@@ -7983,11 +8225,10 @@ paths:
           type: string
           title: Task Id
       - name: map_index
-        in: query
-        required: false
+        in: path
+        required: true
         schema:
           type: integer
-          default: -1
           title: Map Index
       responses:
         '200':
@@ -8020,10 +8261,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/hitlDetails/:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails:
     get:
       tags:
-      - HumanInTheLoop
+      - Task Instance
       summary: Get Hitl Details
       description: Get Human-in-the-loop details.
       operationId: get_hitl_details
@@ -8031,6 +8272,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -8054,17 +8307,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `ti_id, subject,
+            responded_at, created_at, responded_by_user_id, responded_by_user_name`'
           default:
           - ti_id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `ti_id, subject, responded_at,
+          created_at, responded_by_user_id, responded_by_user_name`'
       - name: dag_id_pattern
         in: query
         required: false
@@ -8077,12 +8328,6 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
-      - name: dag_run_id
-        in: query
-        required: false
-        schema:
-          type: string
-          title: Dag Run Id
       - name: task_id
         in: query
         required: false
@@ -8103,6 +8348,14 @@ paths:
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
       - name: state
         in: query
         required: false
@@ -8119,14 +8372,22 @@ paths:
           - type: boolean
           - type: 'null'
           title: Response Received
-      - name: user_id
+      - name: responded_by_user_id
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: User Id
+          title: Responded By User Id
+      - name: responded_by_user_name
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Responded By User Name
       - name: subject_search
         in: query
         required: false
@@ -8151,6 +8412,42 @@ paths:
           title: Body Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
       responses:
         '200':
           description: Successful Response
@@ -8532,6 +8829,11 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+        watchers:
+          items:
+            $ref: '#/components/schemas/AssetWatcherResponse'
+          type: array
+          title: Watchers
         last_asset_event:
           anyOf:
           - $ref: '#/components/schemas/LastAssetEventResponse'
@@ -8548,8 +8850,28 @@ components:
       - producing_tasks
       - consuming_tasks
       - aliases
+      - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetWatcherResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        trigger_id:
+          type: integer
+          title: Trigger Id
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+      type: object
+      required:
+      - name
+      - trigger_id
+      - created_date
+      title: AssetWatcherResponse
+      description: Asset watcher serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -9445,6 +9767,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9624,6 +9951,7 @@ components:
 
 
             Deprecated: Use max_active_tasks instead.'
+          deprecated: true
           readOnly: true
         latest_dag_version:
           anyOf:
@@ -9638,6 +9966,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -9706,6 +10035,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -9808,6 +10142,7 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
@@ -10599,6 +10934,11 @@ components:
           - type: string
           - type: 'null'
           title: Dag Display Name
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
       type: object
       required:
       - event_log_id
@@ -10754,24 +11094,25 @@ components:
           additionalProperties: true
           type: object
           title: Params
-        respondents:
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
           anyOf:
-          - items:
-              type: string
-            type: array
+          - $ref: '#/components/schemas/HITLUser'
           - type: 'null'
-          title: Respondents
-        user_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: User Id
-        response_at:
+        responded_at:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Response At
+          title: Responded At
         chosen_options:
           anyOf:
           - items:
@@ -10792,6 +11133,7 @@ components:
       - task_instance
       - options
       - subject
+      - created_at
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLDetailCollection:
@@ -10812,13 +11154,12 @@ components:
       description: Schema for a collection of Human-in-the-loop details.
     HITLDetailResponse:
       properties:
-        user_id:
-          type: string
-          title: User Id
-        response_at:
+        responded_by:
+          $ref: '#/components/schemas/HITLUser'
+        responded_at:
           type: string
           format: date-time
-          title: Response At
+          title: Responded At
         chosen_options:
           items:
             type: string
@@ -10831,11 +11172,25 @@ components:
           title: Params Input
       type: object
       required:
-      - user_id
-      - response_at
+      - responded_by
+      - responded_at
       - chosen_options
       title: HITLDetailResponse
       description: Response of updating a Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:

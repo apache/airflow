@@ -29,11 +29,12 @@ import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
 export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation("dashboard");
+  const { i18n, t: translate } = useTranslation("dashboard");
+
+  const isRTL = i18n.dir() === "rtl";
 
   const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
-  const importErrors = data?.import_errors ?? [];
 
   if (isLoading) {
     return <Skeleton height="9" width="225px" />;
@@ -63,11 +64,12 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           count={importErrorsCount}
           icon={<LuFileWarning />}
           isLoading={isLoading}
+          isRTL={isRTL}
           label={translate("importErrors.dagImportError", { count: importErrorsCount })}
           onClick={onOpen}
         />
       )}
-      <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
+      <DAGImportErrorsModal onClose={onClose} open={open} />
     </Box>
   );
 };

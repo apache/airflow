@@ -17,11 +17,11 @@
  * under the License.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { getTaskInstanceLinkFromObj } from "src/utils/links";
+import { getTaskInstanceAdditionalPath } from "src/utils/links";
 
 import type {
   NavigationDirection,
@@ -66,11 +66,13 @@ const buildPath = (params: {
   dagId: string;
   mapIndex?: string;
   mode: NavigationMode;
+  pathname: string;
   run: GridRunsResponse;
   task: GridTask;
 }): string => {
-  const { dagId, mapIndex = "-1", mode, run, task } = params;
+  const { dagId, mapIndex = "-1", mode, pathname, run, task } = params;
   const groupPath = task.isGroup ? "group/" : "";
+  const additionalPath = getTaskInstanceAdditionalPath(pathname);
 
   switch (mode) {
     case "run":
@@ -80,18 +82,14 @@ const buildPath = (params: {
     case "TI":
       if (task.is_mapped ?? false) {
         if (mapIndex !== "-1") {
-          return getTaskInstanceLinkFromObj({
-            dagId,
-            dagRunId: run.run_id,
-            mapIndex: parseInt(mapIndex, 10),
-            taskId: `${groupPath}${task.id}`,
-          });
+          // For mapped tasks with specific map index, we need to construct the path manually
+          return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped/${mapIndex}${additionalPath}`;
         }
 
-        return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped`;
+        return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped${additionalPath}`;
       }
 
-      return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}`;
+      return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}${additionalPath}`;
     default:
       return `/dags/${dagId}`;
   }
@@ -101,6 +99,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState<NavigationMode>("TI");
 
   useEffect(() => {
@@ -173,7 +172,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
       const task = tasks[newTaskIndex];
 
       if (run && task) {
-        const path = buildPath({ dagId, mapIndex, mode, run, task });
+        const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
 
         navigate(path, { replace: true });
 
@@ -185,7 +184,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
         }
       }
     },
-    [currentIndices, dagId, enabled, mapIndex, mode, runs, tasks, navigate],
+    [currentIndices, dagId, enabled, location.pathname, mapIndex, mode, runs, tasks, navigate],
   );
 
   useKeyboardNavigation({

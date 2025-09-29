@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""A collection of closely related tasks on the same DAG that should be grouped together visually."""
+"""A collection of closely related tasks on the same Dag that should be grouped together visually."""
 
 from __future__ import annotations
 
@@ -40,8 +40,6 @@ from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
-    from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
@@ -50,7 +48,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
 def _default_parent_group() -> TaskGroup | None:
@@ -90,17 +87,17 @@ class TaskGroup(DAGNode):
     all tasks within the group if necessary.
 
     :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
-        with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
+        with group_id of TaskGroup or task_id of tasks in the Dag. Root TaskGroup has group_id
         set to None.
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
-    :param dag: The DAG that this TaskGroup belongs to.
+    :param dag: The Dag that this TaskGroup belongs to.
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators,
-        will override default_args defined in the DAG level.
+        will override default_args defined in the Dag level.
         Note that operators have the same hook, and precede those defined
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
@@ -245,13 +242,13 @@ class TaskGroup(DAGNode):
 
         if key in self.children:
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
-            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
+            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the Dag")
 
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
                     raise RuntimeError(
-                        "Cannot mix TaskGroups from different DAGs: %s and %s",
+                        "Cannot mix TaskGroups from different Dags: %s and %s",
                         self.dag,
                         task.dag,
                     )
@@ -274,10 +271,14 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group._group_id:
+        if (
+            self._group_id
+            and self.parent_group
+            and self.parent_group.prefix_group_id
+            and self.parent_group._group_id
+        ):
             # defer to parent whether it adds a prefix
             return self.parent_group.child_id(self._group_id)
-
         return self._group_id
 
     @property
@@ -495,7 +496,7 @@ class TaskGroup(DAGNode):
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Serialize task group; required by DAGNode."""
+        """Serialize task group; required by DagNode."""
         from airflow.serialization.enums import DagAttributeTypes
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
@@ -585,12 +586,9 @@ class TaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    # TODO (GH-52141): This should only return SDK operators. Have a db representation for db operators.
-    def iter_tasks(self) -> Iterator[AbstractOperator | MappedOperator | SerializedBaseOperator]:
+    def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Return an iterator of the child tasks."""
-        from airflow.models.mappedoperator import MappedOperator
         from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         groups_to_visit = [self]
 
@@ -598,16 +596,18 @@ class TaskGroup(DAGNode):
             visiting = groups_to_visit.pop(0)
 
             for child in visiting.children.values():
-                if isinstance(child, (AbstractOperator, MappedOperator, SerializedBaseOperator)):
+                if isinstance(child, AbstractOperator):
                     yield child
                 elif isinstance(child, TaskGroup):
                     groups_to_visit.append(child)
                 else:
                     raise ValueError(
-                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child).__module__}.{type(child)}"
+                        f"Encountered a DAGNode that is not a TaskGroup or an "
+                        f"AbstractOperator: {type(child).__module__}.{type(child)}"
                     )
 
 
+@attrs.define(kw_only=True, repr=False)
 class MappedTaskGroup(TaskGroup):
     """
     A mapped task group.
@@ -619,29 +619,21 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(
-        self,
-        *,
-        expand_input: SchedulerExpandInput | DictOfListsExpandInput | ListOfDictsExpandInput,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        self._expand_input = expand_input
+    _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
 
     def __iter__(self):
-        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-
         for child in self.children.values():
-            if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:
+            if getattr(child, "trigger_rule", None) == TriggerRule.ALWAYS:
                 raise ValueError(
-                    "Task-generated mapping within a mapped task group is not allowed with trigger rule 'always'"
+                    "Task-generated mapping within a mapped task group is not "
+                    "allowed with trigger rule 'always'"
                 )
             yield from self._iter_child(child)
 
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
-        Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
+        Return the Number of instances a task in this group should be mapped to, when a Dag run is created.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.

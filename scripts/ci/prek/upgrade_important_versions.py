@@ -24,6 +24,13 @@
 #   "rich>=13.6.0",
 # ]
 # ///
+#
+# DEBUGGING
+# * You can set UPGRADE_ALL_BY_DEFAULT to "false" to only upgrade those versions that
+#   are set by UPGRADE_NNNNNNN (NNNNNN > thing to upgrade version)
+# * You can set VERBOSE="true" to see requests being made
+# * You can set UPGRADE_NNNNNNN_INCLUDE_PRE_RELEASES="true"
+
 from __future__ import annotations
 
 import os
@@ -37,12 +44,17 @@ import requests
 from packaging.version import Version
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
-from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
+from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
+
+DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
+
 
 # List of files to update and whether to keep total length of the original value when replacing.
 FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "Dockerfile", False),
     (AIRFLOW_ROOT_PATH / "Dockerfile.ci", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "check_imports_in_providers.py", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "ruff_format.py", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
@@ -62,53 +74,101 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
+    (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
+    (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
 ]
+for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
+    FILES_TO_UPDATE.append((file, False))
+
+PREK_DIR_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek"
+for file in PREK_DIR_PATH.rglob("*"):
+    if file.is_file() and file.name != "upgrade_important_versions.py" and not file.suffix == ".pyc":
+        FILES_TO_UPDATE.append((file, False))
 
 
-def get_latest_pypi_version(package_name: str) -> str:
+def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
+    if not should_upgrade:
+        return ""
+    if VERBOSE:
+        console.print(f"[bright_blue]Fetching latest version for {package_name} from PyPI")
     response = requests.get(
         f"https://pypi.org/pypi/{package_name}/json", headers={"User-Agent": "Python requests"}
     )
     response.raise_for_status()  # Ensure we got a successful response
     data = response.json()
-    latest_version = data["info"]["version"]  # The version info is under the 'info' key
+    if os.environ.get(f"UPGRADE_{package_name.upper()}_INCLUDE_PRE_RELEASES", ""):
+        latest_version = str(sorted([Version(version) for version in data["releases"].keys()])[-1])
+    else:
+        latest_version = data["info"]["version"]  # The version info is under the 'info' key
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
     return latest_version
 
 
-def get_latest_python_version(python_major_minor: str, github_token: str | None) -> str | None:
-    latest_version = None
-    # Matches versions of vA.B.C and vA.B where C can only be numeric and v is optional
-    version_match = re.compile(rf"^v?{python_major_minor}\.?\d*$")
+def get_all_python_versions() -> list[Version]:
+    if VERBOSE:
+        console.print("[bright_blue]Fetching all released Python versions from python.org")
+    url = "https://www.python.org/api/v2/downloads/release/?is_published=true"
     headers = {"User-Agent": "Python requests"}
-    if github_token:
-        headers["Authorization"] = f"Bearer {github_token}"
-    for i in range(5):
-        response = requests.get(
-            f"https://api.github.com/repos/python/cpython/tags?per_page=100&page={i + 1}",
-            headers=headers,
-        )
-        response.raise_for_status()  # Ensure we got a successful response
-        data = response.json()
-        versions = [str(tag["name"]) for tag in data if version_match.match(tag.get("name", ""))]
-        if versions:
-            latest_version = sorted(versions, key=Version, reverse=True)[0]
-            break
-    return latest_version
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    versions = []
+    matcher = re.compile(r"^Python ([\d.]+$)")
+    for release in data:
+        release_name = release["name"]
+        match = matcher.match(release_name)
+        if match:
+            versions.append(Version(match.group(1)))
+    return versions
+
+
+def get_latest_python_version(python_major_minor: str, all_versions: list[Version]) -> str:
+    """
+    Fetch the latest released Python version for a given major.minor (e.g. '3.12') using python.org API.
+    Much faster than paginating through all GitHub tags.
+    """
+    # Only consider releases matching the major.minor.patch pattern
+    matching = [
+        version for version in all_versions if python_major_minor == f"{version.major}.{version.minor}"
+    ]
+    if not matching:
+        console.print(f"[bright_red]No released Python versions found for {python_major_minor}")
+        sys.exit(1)
+    # Sort and return the latest version
+    latest_version = sorted(matching)[-1]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for {python_major_minor}: {latest_version}")
+    return str(latest_version)
 
 
 def get_latest_golang_version() -> str:
+    if not UPGRADE_GOLANG:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest Go version from go.dev")
     response = requests.get("https://go.dev/dl/?mode=json")
     response.raise_for_status()  # Ensure we got a successful response
     versions = response.json()
     stable_versions = [release["version"].replace("go", "") for release in versions if release["stable"]]
-    return sorted(stable_versions, key=Version, reverse=True)[0]
+    latest_version = sorted(stable_versions, key=Version, reverse=True)[0]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for Go: {latest_version}")
+    return latest_version
 
 
 def get_latest_lts_node_version() -> str:
+    if not UPGRADE_NODE_LTS:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest LTS Node version from nodejs.org")
     response = requests.get("https://nodejs.org/dist/index.json")
     response.raise_for_status()  # Ensure we got a successful response
     versions = response.json()
@@ -116,7 +176,10 @@ def get_latest_lts_node_version() -> str:
     lts_versions = [version["version"] for version in versions if version["version"].startswith(lts_prefix)]
     # The json array is sorted from newest to oldest, so the first element is the latest LTS version
     # Skip leading v in version
-    return lts_versions[0][1:]
+    latest_version = lts_versions[0][1:]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for LTS Node: {latest_version}")
+    return latest_version
 
 
 class Quoting(Enum):
@@ -124,59 +187,67 @@ class Quoting(Enum):
     SINGLE_QUOTED = 1
     DOUBLE_QUOTED = 2
     REVERSE_SINGLE_QUOTED = 3
+    REVERSE_DOUBLE_QUOTED = 4
 
 
 PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_PIP_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(python -m pip install --upgrade pip==)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(AIRFLOW_PIP_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(PIP_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(PIP_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    (re.compile(r"(AIRFLOW_PIP_VERSION=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(python -m pip install --upgrade pip==)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_PIP_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PIP_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PIP_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.abrc]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
 ]
 
 PYTHON_PATTERNS: list[tuple[str, Quoting]] = [
-    (r"(\"{python_major_minor}\": \")(v[0-9.]+)(\")", Quoting.UNQUOTED),
+    (r"(\"{python_major_minor}\": \")([0-9.abrc]+)(\")", Quoting.UNQUOTED),
 ]
 
 GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (
+        re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.abrc]+`)( *\|)"),
+        Quoting.REVERSE_SINGLE_QUOTED,
+    ),
+]
+
+AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (
+        re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.abrc]+``)( *\|)"),
+        Quoting.REVERSE_DOUBLE_QUOTED,
+    ),
 ]
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(uv>=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(uv>=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.abrd]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
     (
         re.compile(
-            r"(\")([0-9.]+)(\"  # Keep this comment to "
+            r"(\")([0-9.abrc]+)(\"  # Keep this comment to "
             r"allow automatic replacement of uv version)"
         ),
         Quoting.UNQUOTED,
     ),
 ]
 
-SETUPTOOLS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_SETUPTOOLS_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-]
-
 PREK_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"(AIRFLOW_PREK_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(AIRFLOW_PREK_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(prek>=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(PREK_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
-    (re.compile(r"(PREK_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(AIRFLOW_PREK_VERSION=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_PREK_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(prek>=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(PREK_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PREK_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
     (
-        re.compile(r"(\| *`AIRFLOW_PREK_VERSION` *\| *)(`[0-9.]+`)( *\|)"),
+        re.compile(r"(\| *`AIRFLOW_PREK_VERSION` *\| *)(`[0-9.abrc]+`)( *\|)"),
         Quoting.REVERSE_SINGLE_QUOTED,
     ),
     (
         re.compile(
-            r"(\")([0-9.]+)(\"  # Keep this comment to allow automatic "
+            r"(\")([0-9.abrc]+)(\"  # Keep this comment to allow automatic "
             r"replacement of prek version)"
         ),
         Quoting.UNQUOTED,
@@ -184,7 +255,7 @@ PREK_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 ]
 
 NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
-    (re.compile(r"( *node: )([0-9.]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(^  node: )([0-9.abrc]+)^"), Quoting.UNQUOTED),
 ]
 
 
@@ -195,24 +266,33 @@ def get_replacement(value: str, quoting: Quoting) -> str:
         return f"'{value}'"
     if quoting == Quoting.REVERSE_SINGLE_QUOTED:
         return f"`{value}`"
+    if quoting == Quoting.REVERSE_DOUBLE_QUOTED:
+        return f"``{value}``"
     return value
 
 
-UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
-UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
-UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", "true").lower() == "true"
-UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", "true").lower() == "true"
-UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
-UPGRADE_PREK: bool = os.environ.get("UPGRADE_PREK", "true").lower() == "true"
-UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
-UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", "true").lower() == "true"
-UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", "true").lower() == "true"
-UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", "true").lower() == "true"
-UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", "true").lower() == "true"
+VERBOSE: bool = os.environ.get("VERBOSE", "false") == "true"
+UPGRADE_ALL_BY_DEFAULT: bool = os.environ.get("UPGRADE_ALL_BY_DEFAULT", "true") == "true"
+UPGRADE_ALL_BY_DEFAULT_STR: str = str(UPGRADE_ALL_BY_DEFAULT).lower()
+if UPGRADE_ALL_BY_DEFAULT:
+    if VERBOSE == "true":
+        console.print("[bright_blue]Upgrading all important versions")
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+UPGRADE_GITPYTHON: bool = os.environ.get("UPGRADE_GITPYTHON", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_GOLANG: bool = os.environ.get("UPGRADE_GOLANG", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_HATCH: bool = os.environ.get("UPGRADE_HATCH", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_PREK: bool = os.environ.get("UPGRADE_PREK", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_PYTHON: bool = os.environ.get("UPGRADE_PYTHON", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_PYYAML: bool = os.environ.get("UPGRADE_PYYAML", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_RUFF: bool = os.environ.get("UPGRADE_RUFF", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_MYPY: bool = os.environ.get("UPGRADE_MYPY", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
 
-GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
@@ -243,47 +323,56 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 
 if __name__ == "__main__":
-    if not GITHUB_TOKEN:
-        console.print(
-            "[red]GITHUB_TOKEN environment variable is not set. This will lead to failures on rate limits.[/]\n"
-            "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
-            "the URL:\n\n"
-            "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-upgrade-important-versions\n\n"
-            "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
-            "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
-        )
-        sys.exit(1)
+    gh_token = retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
     changed = False
     golang_version = get_latest_golang_version()
-    pip_version = get_latest_pypi_version("pip")
-    uv_version = get_latest_pypi_version("uv")
-    setuptools_version = get_latest_pypi_version("setuptools")
-    prek_version = get_latest_pypi_version("prek")
-    hatch_version = get_latest_pypi_version("hatch")
-    pyyaml_version = get_latest_pypi_version("PyYAML")
-    gitpython_version = get_latest_pypi_version("GitPython")
-    rich_version = get_latest_pypi_version("rich")
+    pip_version = get_latest_pypi_version("pip", UPGRADE_PIP)
+    uv_version = get_latest_pypi_version("uv", UPGRADE_UV)
+    prek_version = get_latest_pypi_version("prek", UPGRADE_PREK)
+    hatch_version = get_latest_pypi_version("hatch", UPGRADE_HATCH)
+    pyyaml_version = get_latest_pypi_version("PyYAML", UPGRADE_PYYAML)
+    gitpython_version = get_latest_pypi_version("GitPython", UPGRADE_GITPYTHON)
+    ruff_version = get_latest_pypi_version("ruff", UPGRADE_RUFF)
+    rich_version = get_latest_pypi_version("rich", UPGRADE_RICH)
+    mypy_version = get_latest_pypi_version("mypy", UPGRADE_MYPY)
     node_lts_version = get_latest_lts_node_version()
+    latest_python_versions: dict[str, str] = {}
+    latest_image_python_version = ""
+    if UPGRADE_PYTHON:
+        all_python_versions = get_all_python_versions() if UPGRADE_PYTHON else None
+        for python_major_minor_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
+            latest_python_versions[python_major_minor_version] = get_latest_python_version(
+                python_major_minor_version, all_python_versions
+            )
+            if python_major_minor_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
+                latest_image_python_version = latest_python_versions[python_major_minor_version]
+                console.print(
+                    f"[bright_blue]Latest image python {python_major_minor_version} version: {latest_image_python_version}"
+                )
     for file, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file}")
         file_content = file.read_text()
         new_content = file_content
         if UPGRADE_PIP:
-            console.print(f"[bright_blue]Latest pip version: {pip_version}")
             for line_pattern, quoting in PIP_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
                 )
         if UPGRADE_PYTHON:
-            for python_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
-                latest_python_version = get_latest_python_version(python_version, GITHUB_TOKEN)
-                if latest_python_version:
-                    console.print(
-                        f"[bright_blue]Latest python {python_version} version: {latest_python_version}"
+            for python_major_minor_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
+                latest_python_version = latest_python_versions[python_major_minor_version]
+                for line_format, quoting in PYTHON_PATTERNS:
+                    line_pattern = re.compile(
+                        line_format.format(python_major_minor=python_major_minor_version)
                     )
-                    for line_format, quoting in PYTHON_PATTERNS:
-                        line_pattern = re.compile(line_format.format(python_major_minor=python_version))
-                        console.print(line_pattern)
+                    new_content = replace_version(
+                        line_pattern,
+                        get_replacement(latest_python_version, quoting),
+                        new_content,
+                        keep_length,
+                    )
+                if python_major_minor_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
+                    for line_pattern, quoting in AIRFLOW_IMAGE_PYTHON_PATTERNS:
                         new_content = replace_version(
                             line_pattern,
                             get_replacement(latest_python_version, quoting),
@@ -291,31 +380,21 @@ if __name__ == "__main__":
                             keep_length,
                         )
         if UPGRADE_GOLANG:
-            console.print(f"[bright_blue]Latest golang version: {golang_version}")
             for line_pattern, quoting in GOLANG_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(golang_version, quoting), new_content, keep_length
                 )
-        if UPGRADE_SETUPTOOLS:
-            console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
-            for line_pattern, quoting in SETUPTOOLS_PATTERNS:
-                new_content = replace_version(
-                    line_pattern, get_replacement(setuptools_version, quoting), new_content, keep_length
-                )
         if UPGRADE_UV:
-            console.print(f"[bright_blue]Latest uv version: {uv_version}")
             for line_pattern, quoting in UV_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(uv_version, quoting), new_content, keep_length
                 )
         if UPGRADE_PREK:
-            console.print(f"[bright_blue]Latest prek version: {prek_version}")
             for line_pattern, quoting in PREK_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(prek_version, quoting), new_content, keep_length
                 )
         if UPGRADE_NODE_LTS:
-            console.print(f"[bright_blue]Latest Node LTS version: {node_lts_version}")
             for line_pattern, quoting in NODE_LTS_PATTERNS:
                 new_content = replace_version(
                     line_pattern,
@@ -324,53 +403,79 @@ if __name__ == "__main__":
                     keep_length,
                 )
         if UPGRADE_HATCH:
-            console.print(f"[bright_blue]Latest hatch version: {hatch_version}")
             new_content = re.sub(
-                r"(HATCH_VERSION = )(\"[0-9.]+\")",
+                r"(HATCH_VERSION = )(\"[0-9.abrc]+\")",
                 f'HATCH_VERSION = "{hatch_version}"',
                 new_content,
             )
             new_content = re.sub(
-                r"(HATCH_VERSION=)(\"[0-9.]+\")",
+                r"(HATCH_VERSION=)(\"[0-9.abrc]+\")",
                 f'HATCH_VERSION="{hatch_version}"',
                 new_content,
             )
         if UPGRADE_PYYAML:
-            console.print(f"[bright_blue]Latest PyYAML version: {pyyaml_version}")
             new_content = re.sub(
-                r"(PYYAML_VERSION = )(\"[0-9.]+\")",
+                r"(PYYAML_VERSION = )(\"[0-9.abrc]+\")",
                 f'PYYAML_VERSION = "{pyyaml_version}"',
                 new_content,
             )
             new_content = re.sub(
-                r"(PYYAML_VERSION=)(\"[0-9.]+\")",
+                r"(PYYAML_VERSION=)(\"[0-9.abrc]+\")",
                 f'PYYAML_VERSION="{pyyaml_version}"',
                 new_content,
             )
-        if UPGRADE_GITPYTHON:
-            console.print(f"[bright_blue]Latest GitPython version: {gitpython_version}")
             new_content = re.sub(
-                r"(GITPYTHON_VERSION = )(\"[0-9.]+\")",
+                r"(pyyaml>=)(\"[0-9.abrc]+\")",
+                f'pyyaml>="{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(pyyaml>=)([0-9.abrc]+)",
+                f"pyyaml>={pyyaml_version}",
+                new_content,
+            )
+        if UPGRADE_GITPYTHON:
+            new_content = re.sub(
+                r"(GITPYTHON_VERSION = )(\"[0-9.abrc]+\")",
                 f'GITPYTHON_VERSION = "{gitpython_version}"',
                 new_content,
             )
             new_content = re.sub(
-                r"(GITPYTHON_VERSION=)(\"[0-9.]+\")",
+                r"(GITPYTHON_VERSION=)(\"[0-9.abrc]+\")",
                 f'GITPYTHON_VERSION="{gitpython_version}"',
                 new_content,
             )
         if UPGRADE_RICH:
-            console.print(f"[bright_blue]Latest rich version: {rich_version}")
             new_content = re.sub(
-                r"(RICH_VERSION = )(\"[0-9.]+\")",
+                r"(RICH_VERSION = )(\"[0-9.abrc]+\")",
                 f'RICH_VERSION = "{rich_version}"',
                 new_content,
             )
             new_content = re.sub(
-                r"(RICH_VERSION=)(\"[0-9.]+\")",
+                r"(RICH_VERSION=)(\"[0-9.abrc]+\")",
                 f'RICH_VERSION="{rich_version}"',
                 new_content,
             )
+        if UPGRADE_RUFF:
+            new_content = re.sub(
+                r"(ruff==)([0-9.abrc]+)",
+                f"ruff=={ruff_version}",
+                new_content,
+            )
+            new_content = re.sub(
+                r"(ruff>=)([0-9.abrc]+)",
+                f"ruff>={ruff_version}",
+                new_content,
+            )
+        if UPGRADE_MYPY:
+            console.print(f"[bright_blue]Latest mypy version: {mypy_version}")
+
+            new_content = re.sub(
+                r"(mypy==)([0-9.]+)",
+                f"mypy=={mypy_version}",
+                new_content,
+            )
+
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")

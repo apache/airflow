@@ -21,7 +21,6 @@ import contextlib
 import io
 import json
 import logging
-import logging.config
 import os
 import shutil
 from argparse import ArgumentParser
@@ -35,20 +34,21 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import DagRunNotFound
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
 
 if TYPE_CHECKING:
@@ -88,7 +88,6 @@ class TestCliTasks:
 
     @classmethod
     def setup_class(cls):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
@@ -319,8 +318,8 @@ class TestCliTasks:
             {% endfor %}
             """
             commands = [templated_command, "echo 1"]
-
             BashOperator.partial(task_id="some_command").expand(bash_command=commands)
+        sync_dag_to_db(dag)
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
@@ -351,11 +350,12 @@ class TestCliTasks:
 
     def test_task_states_for_dag_run(self):
         dag2 = DagBag().dags["example_python_operator"]
+        lazy_deserialized_dag2 = LazyDeserializedDAG.from_dag(dag2)
 
-        SerializedDagModel.write_dag(dag2, bundle_name="testing")
+        SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")
+
         task2 = dag2.get_task(task_id="print_the_context")
-
-        dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))
+        dag2 = SerializedDAG.from_dict(lazy_deserialized_dag2.data)
 
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()

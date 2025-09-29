@@ -72,6 +72,11 @@ class TestDag:
     def test_dag_naive_start_date_string(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01"})
 
+    def test_dag_naive_start_date_constructor_default_args_string(self):
+        dag = DAG("DAG", start_date=DEFAULT_DATE, schedule=None, default_args={"start_date": "2019-06-01"})
+
+        assert dag.start_date == DEFAULT_DATE
+
     def test_dag_naive_start_end_dates_strings(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01", "end_date": "2019-06-05"})
 
@@ -207,11 +212,15 @@ class TestDag:
         """
         params = {"param1": Param(type="string")}
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="Dag 'my-dag' is not allowed to define a Schedule, "
+            "as there are required params without default values, or the default values are not valid.",
+        ):
             DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
 
     def test_roots(self):
-        """Verify if dag.roots returns the root tasks of a DAG."""
+        """Verify if dag.roots returns the root tasks of a Dag."""
         with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
             op1 = BaseOperator(task_id="t1")
             op2 = BaseOperator(task_id="t2")
@@ -223,7 +232,7 @@ class TestDag:
             assert set(dag.roots) == {op1, op2}
 
     def test_leaves(self):
-        """Verify if dag.leaves returns the leaf tasks of a DAG."""
+        """Verify if dag.leaves returns the leaf tasks of a Dag."""
         with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
             op1 = BaseOperator(task_id="t1")
             op2 = BaseOperator(task_id="t2")
@@ -238,7 +247,7 @@ class TestDag:
         """Verify tasks with Duplicate task_id raises error"""
         with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
             op1 = BaseOperator(task_id="t1")
-            with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
+            with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the Dag"):
                 BaseOperator(task_id="t1")
 
         assert dag.task_dict == {op1.task_id: op1}
@@ -247,7 +256,7 @@ class TestDag:
         """Verify tasks with Duplicate task_id raises error"""
         dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
         op1 = BaseOperator(task_id="t1", dag=dag)
-        with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
+        with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the Dag"):
             BaseOperator(task_id="t1", dag=dag)
 
         assert dag.task_dict == {op1.task_id: op1}
@@ -414,7 +423,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         DAG("test-dag", schedule=None, tags=tags)
     else:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="tag cannot be longer than 100 characters"):
             DAG("test-dag", schedule=None, tags=tags)
 
 
@@ -455,7 +464,7 @@ def test__tags_mutable():
 
 
 def test_create_dag_while_active_context():
-    """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
+    """Test that we can safely create a Dag whilst a Dag is activated via ``with dag1:``."""
     with DAG(dag_id="simple_dag"):
         DAG(dag_id="dag2")
         # No asserts needed, it just needs to not fail
@@ -513,15 +522,15 @@ class TestDagDecorator:
         argnames=["dag_doc_md", "expected_doc_md"],
         argvalues=[
             pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
-            pytest.param(None, "Regular DAG documentation", id="use_dag_docstring"),
+            pytest.param(None, "Regular Dag documentation", id="use_dag_docstring"),
         ],
     )
     def test_documentation_added(self, dag_doc_md, expected_doc_md):
-        """Test that @dag uses function docs as doc_md for DAG object if doc_md is not explicitly set."""
+        """Test that @dag uses function docs as doc_md for Dag object if doc_md is not explicitly set."""
 
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS, doc_md=dag_doc_md)
         def noop_pipeline():
-            """Regular DAG documentation"""
+            """Regular Dag documentation"""
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -539,26 +548,26 @@ class TestDagDecorator:
             noop_pipeline()
 
     def test_documentation_template_rendered(self):
-        """Test that @dag uses function docs as doc_md for DAG object"""
+        """Test that @dag uses function docs as doc_md for Dag object"""
 
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
             """
             {% if True %}
-               Regular DAG documentation
+               Regular Dag documentation
             {% endif %}
             """
 
         dag = noop_pipeline()
         assert dag.dag_id == "noop_pipeline"
-        assert "Regular DAG documentation" in dag.doc_md
+        assert "Regular Dag documentation" in dag.doc_md
 
     def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
-        """Test that @dag uses function docs as doc_md for DAG object"""
+        """Test that @dag uses function docs as doc_md for Dag object"""
 
         raw_content = """
         {% if True %}
-            External Markdown DAG documentation
+            External Markdown Dag documentation
         {% endif %}
         """
 
@@ -595,7 +604,7 @@ class TestDagDecorator:
 class DoNothingOperator(BaseOperator):
     """
     An operator that does nothing.
-    Used to test DAG cycle detection.
+    Used to test Dag cycle detection.
     """
 
     def execute(self, context: Context) -> None:

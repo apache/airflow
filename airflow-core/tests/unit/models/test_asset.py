@@ -31,9 +31,11 @@ from airflow.models.asset import (
     expand_alias_to_assets,
     remove_references_to_deleted_dags,
 )
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk import Asset, AssetAlias
+
+from tests_common.test_utils.dag import sync_dags_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -145,13 +147,9 @@ def test_remove_reference_for_inactive_dag(
         EmptyOperator(task_id="t2", outlets=Asset(name="a", uri="b://b/"))
     with dag_maker(dag_id="test2", schedule=schedule, session=session) as dag2:
         EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
-    DAG.bulk_write_to_db(
-        bundle_name="testing",
-        bundle_version=None,
-        dags=[dag1, dag2],
-        session=session,
-    )
     assert set(session.execute(select_stmt)) == expected_before_clear_1
+
+    sync_dags_to_db([dag1, dag2])
 
     def _simulate_soft_dag_deletion(dag_id):
         session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_stale=True))

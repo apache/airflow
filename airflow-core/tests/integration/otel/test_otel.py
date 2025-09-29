@@ -24,14 +24,17 @@ import subprocess
 import time
 
 import pytest
+from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
-from airflow.models import DAG, DagBag, DagRun
+from airflow.models import DAG, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
@@ -45,7 +48,7 @@ from tests_common.test_utils.otel_utils import (
     extract_spans_from_output,
     get_parent_child_dict,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 log = logging.getLogger("integration.otel.test_otel")
 
@@ -545,14 +548,14 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
         for filename in files:
             if filename.endswith(".log"):
                 full_path = os.path.join(root, filename)
-                log.info("\n===== LOG FILE: %s - START =====\n", full_path)
+                print("\n===== LOG FILE: %s - START =====\n", full_path)
                 try:
                     with open(full_path) as f:
-                        log.info(f.read())
+                        print(f.read())
                 except Exception as e:
                     log.error("Could not read %s: %s", full_path, e)
 
-                log.info("\n===== END =====\n")
+                print("\n===== END =====\n")
 
 
 @pytest.mark.integration("redis")
@@ -646,7 +649,7 @@ class TestOtelIntegration:
         cls.dags = cls.serialize_and_get_dags()
 
     @classmethod
-    def serialize_and_get_dags(cls) -> dict[str, DAG]:
+    def serialize_and_get_dags(cls) -> dict[str, SerializedDAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
         # Load DAGs from the dag directory.
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
@@ -654,14 +657,11 @@ class TestOtelIntegration:
         dag_ids = dag_bag.dag_ids
         assert len(dag_ids) == 3
 
-        dag_dict: dict[str, DAG] = {}
+        dag_dict: dict[str, SerializedDAG] = {}
         with create_session() as session:
             for dag_id in dag_ids:
                 dag = dag_bag.get_dag(dag_id)
-                dag_dict[dag_id] = dag
-
                 assert dag is not None, f"DAG with ID {dag_id} not found."
-
                 # Sync the DAG to the database.
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.models.dagbundle import DagBundleModel
@@ -669,13 +669,22 @@ class TestOtelIntegration:
                     if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                         session.add(DagBundleModel(name="testing"))
                         session.commit()
-                    dag.bulk_write_to_db(
+                    SerializedDAG.bulk_write_to_db(
                         bundle_name="testing", bundle_version=None, dags=[dag], session=session
                     )
+                    dag_dict[dag_id] = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
                 else:
                     dag.sync_to_db(session=session)
+                    dag_dict[dag_id] = dag
                 # Manually serialize the dag and write it to the db to avoid a db error.
-                SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+                if AIRFLOW_V_3_1_PLUS:
+                    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+                    SerializedDagModel.write_dag(
+                        LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
+                    )
+                else:
+                    SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
             session.commit()
 
@@ -701,7 +710,9 @@ class TestOtelIntegration:
             module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
             alias="CeleryExecutor",
         )
-        monkeypatch.setattr(executor_loader, "_alias_to_executors", {"CeleryExecutor": executor_name})
+        monkeypatch.setattr(
+            executor_loader, "_alias_to_executors_per_team", {None: {"CeleryExecutor": executor_name}}
+        )
 
     @pytest.fixture(autouse=True)
     def cleanup_control_file_if_needed(self):
@@ -744,13 +755,12 @@ class TestOtelIntegration:
             time.sleep(10)
 
             with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
-
-            for ti in tis:
-                # Skip the span_status check.
-                check_ti_state_and_span_status(
-                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=None
-                )
+                task_ids = session.scalars(select(TaskInstance.task_id).where(TaskInstance.dag_id == dag_id))
+                for task_id in task_ids:
+                    # Skip the span_status check.
+                    check_ti_state_and_span_status(
+                        task_id=task_id, run_id=run_id, state=State.SUCCESS, span_status=None
+                    )
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
@@ -818,12 +828,10 @@ class TestOtelIntegration:
             time.sleep(10)
 
             with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
-
-            for ti in tis:
-                check_ti_state_and_span_status(
-                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
-                )
+                for ti in session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag.dag_id)):
+                    check_ti_state_and_span_status(
+                        task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
+                    )
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:

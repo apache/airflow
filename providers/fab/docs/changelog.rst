@@ -20,6 +20,92 @@
 Changelog
 ---------
 
+main
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* Migrated to Flask-appbuilder 5 which removed the authentication type ``AUTH_OID``.
+  Using the authentication type ``AUTH_OID`` in fab provider is no longer possible.
+  Applications using ``AUTH_TYPE = AUTH_OID`` must migrate to ``AUTH_OAUTH``.
+
+2.4.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Override 'get_authorized_connections', 'get_authorized_pools' and 'get_authorized_variables' in Fab auth manager (#55682)``
+
+Misc
+~~~~
+
+* ``Bump eslint from 9.35.0 to 9.36.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#55895)``
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add SSO integration guide for Apache Airflow (#55281)``
+* ``Remove useless Airflow version compatibility checks (#55852)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.4.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Clean up FAB permissions when deleting DAGs (#54528)``
+
+Misc
+~~~~
+
+* ``Bump stylelint from 16.23.1 to 16.24.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#55382)``
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Set flask_limiter>3,<4,!=3.13 (#55592)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#55302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.4.2
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove query obj from providers fab (#53953)``
+* ``fix: Add cookies options into FAB provider.yaml (#54995)``
+* ``To fix Fab auth manager returns get_id of integer type where str is expected  (#54384)``
+* ``Potential fix for code scanning alert no. 519: Clear-text logging of sensitive information (#54742)``
+* ``Create FAB's user/role tables on migration, not only on initdb (#54227)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 8 updates (#54517)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+* ``Update 'is_authorized_dag' method in 'FabAuthManager' (#54926)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Move secrets_masker over to airflow_shared distribution (#54449)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+
 2.4.1
 .....
 

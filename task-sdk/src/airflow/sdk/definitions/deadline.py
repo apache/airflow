@@ -55,6 +55,9 @@ class DeadlineAlert:
     ):
         self.reference = reference
         self.interval = interval
+
+        if not isinstance(callback, AsyncCallback):
+            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
         self.callback = callback
 
     def __eq__(self, other: object) -> bool:
@@ -120,8 +123,10 @@ class Callback(ABC):
     path: str
     kwargs: dict | None
 
-    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+    def __init__(self, callback_callable: Callable | str, kwargs: dict[str, Any] | None = None):
         self.path = self.get_callback_path(callback_callable)
+        if kwargs and "context" in kwargs:
+            raise ValueError("context is a reserved kwarg for this class")
         self.kwargs = kwargs
 
     @classmethod
@@ -281,6 +286,7 @@ class DeadlineReference:
         DAGRUN_CREATED = (
             ReferenceModels.DagRunLogicalDateDeadline,
             ReferenceModels.FixedDatetimeDeadline,
+            ReferenceModels.AverageRuntimeDeadline,
         )
 
         # Deadlines that should be created when the DagRun is queued.
@@ -293,6 +299,14 @@ class DeadlineReference:
 
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
     DAGRUN_QUEUED_AT: DeadlineReferenceType = ReferenceModels.DagRunQueuedAtDeadline()
+
+    @classmethod
+    def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
+        if max_runs == 0:
+            max_runs = cls.ReferenceModels.AverageRuntimeDeadline.DEFAULT_LIMIT
+        if min_runs is None:
+            min_runs = max_runs
+        return cls.ReferenceModels.AverageRuntimeDeadline(max_runs, min_runs)
 
     @classmethod
     def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:

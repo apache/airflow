@@ -677,7 +677,7 @@ subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
+$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "[VOTE]" || echo "[ACCELERATED VOTE]") Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
 EOF
 ```
 
@@ -766,19 +766,23 @@ The following files should be present (6 files):
 As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
 Or update it if you already checked it out:
 
 ```shell script
+cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+Set an environment variable: PATH_TO_SVN to the root of folder where you have providers
 
 ``` shell
-export PATH_TO_SVN=<set your path to svn here>
+cd asf-dist/dev/airflow
+export PATH_TO_SVN=${pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -844,7 +848,7 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 
 ```shell
 cd ${PATH_TO_SVN}
-cd airflow/providers
+cd providers
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -909,10 +913,40 @@ This can be done with the Apache RAT tool.
 * Enter the sources folder run the check
 
 ```shell script
-java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
+# Get rat if you do not have it
+if command -v wget >/dev/null 2>&1; then
+    echo "Using wget to download Apache RAT..."
+    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+else
+    echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
+    exit 1
+fi
+# Cleanup old folders (if needed)
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+cat /tmp/files.txt | xargs rm -rf
+# Unpack all providers
+for i in *.tar.gz
+do
+   tar -xvzf $i
+done
+# Generate list of unpacked providers
+find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
+# Check licences
+for d in $(cat /tmp/files.txt)
+do
+  pushd $d
+  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
+  popd >/dev/null
+done
 ```
 
-where `.rat-excludes` is the file in the root of Airflow source code.
+You should see only '0 Unknown licences"
+
+Cleanup:
+
+```shell script
+cat /tmp/files.txt | xargs rm -rf
+```
 
 ### Signature check
 
@@ -1083,6 +1117,16 @@ that the Airflow works as you expected.
 
 # Publish release
 
+Replace the DAYS_BACK with how many days ago you prepared the release.
+Normally it's 3 but in case it's longer change it. The output should match the prepare date.
+
+```
+export DAYS_BACK=3
+export RELEASE_DATE=$(LANG=en_US.UTF-8 date -u -v-${DAYS_BACK}d "+%B %d, %Y")
+export RELEASE_MANAGER_NAME="Elad Kalif"
+echo "prepare release date is ${RELEASE_DATE}"
+```
+
 ## Summarize the voting for the Apache Airflow release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
@@ -1103,15 +1147,18 @@ the next RC candidates:
 Email subject:
 
 ```
-[RESULT][VOTE] Airflow Providers - release of DATE OF RELEASE
+cat <<EOF
+[RESULT][VOTE] Airflow Providers - release of ${PREPARE_RELEASE_DATE}
+EOF
 ```
 
 Email content:
 
 ```
+cat <<EOF
 Hello,
 
-Apache Airflow Providers prepared on DATE OF RELEASE have been accepted.
+Apache Airflow Providers prepared on ${PREPARE_RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
 - FIRST LAST NAME (binding)
@@ -1133,6 +1180,7 @@ I'll continue with the release process, and the release announcement will follow
 
 Cheers,
 <your name>
+EOF
 ```
 
 ## Publish release to SVN
@@ -1391,15 +1439,20 @@ the artifacts have been published.
 
 Subject:
 
-[ANNOUNCE] Apache Airflow Providers prepared on DATE OF RELEASE are released
+```
+cat <<EOF
+[ANNOUNCE] Apache Airflow Providers prepared on ${RELEASE_DATE} are released
+EOF
+```
 
 Body:
 
 ```
+cat <<EOF
 Dear Airflow community,
 
-I'm happy to announce that new versions of Airflow Providers packages prepared on DATE OF RELEASE
-were just released. Full list of PyPI packages released is added at the end of the message.
+I'm happy to announce that new versions of Airflow Providers packages prepared on ${RELEASE_DATE} were just released.
+Full list of PyPI packages released is added at the end of the message.
 
 The source release, as well as the binary releases, are available here:
 
@@ -1416,7 +1469,8 @@ Full list of released PyPI packages:
 TODO: Paste the list of packages here that you put on the side. Sort them alphabetically.
 
 Cheers,
-<your name>
+${RELEASE_MANAGER_NAME}
+EOF
 ```
 
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.

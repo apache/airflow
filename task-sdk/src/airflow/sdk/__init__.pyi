@@ -15,7 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.sdk.api.datamodels._generated import TriggerRule as TriggerRule, WeightRule as WeightRule
+from airflow.sdk.api.datamodels._generated import (
+    DagRunState as DagRunState,
+    TaskInstanceState as TaskInstanceState,
+    TriggerRule as TriggerRule,
+    WeightRule as WeightRule,
+)
 from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
@@ -29,7 +34,6 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
-from airflow.sdk.bases.trigger import StartTriggerArgs as StartTriggerArgs
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
     AssetAlias as AssetAlias,
@@ -72,6 +76,7 @@ __all__ = [
     "Connection",
     "Context",
     "DAG",
+    "DagRunState",
     "EdgeModifier",
     "Label",
     "Metadata",
@@ -79,8 +84,8 @@ __all__ = [
     "Param",
     "PokeReturnValue",
     "SecretCache",
-    "StartTriggerArgs",
     "TaskGroup",
+    "TaskInstanceState",
     "TriggerRule",
     "Variable",
     "XComArg",

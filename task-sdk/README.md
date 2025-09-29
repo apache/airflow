@@ -27,7 +27,7 @@
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
 
-The Apache Airflow Task SDK includes interfaces for DAG authors and Task execution logic for Python.
+The Apache Airflow Task SDK includes interfaces for Dag authors and Task execution logic for Python.
 
 ## Installation
 
