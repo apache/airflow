@@ -19,4 +19,3 @@
 
 export { XCom } from "./XCom";
 export { XComEntry } from "./XComEntry";
-export type { XComEntryProps } from "./XComEntry";
