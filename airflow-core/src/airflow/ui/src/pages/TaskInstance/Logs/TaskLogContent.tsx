@@ -116,7 +116,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       <Code
         css={{
           "& *::selection": {
-            bg: "brand.subtle",
+            bg: "gray.emphasized",
           },
         }}
         data-testid="virtualized-list"
