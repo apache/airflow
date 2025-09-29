@@ -158,7 +158,7 @@ and implements the ``__iter__`` method. The UI will iterate over any number ``UI
 this method and expose them as alerts on the dashboard page.
 
 The example below demonstrates how logic can be applied to yield alerts dynamically. More practical use
-cases might include alerts yielded from APIs, database queries or files. 
+cases might include alerts yielded from APIs, database queries or files.
 
 .. code-block:: python
 
