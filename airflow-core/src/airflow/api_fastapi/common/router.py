@@ -26,14 +26,13 @@ from fastapi.routing import APIRoute
 from fastapi.types import DecoratedCallable
 from starlette.responses import Response
 
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, create_session_async
 
 
 class AirflowRouter(APIRouter):
     """Extends the FastAPI default router."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        # Ensure our custom route commits/rolls back DB session before sending the response
         super().__init__(*args, **kwargs)
         self.route_class = _AirflowRoute
 
@@ -55,48 +54,50 @@ class AirflowRouter(APIRouter):
         return decorator
 
 
-def _route_uses_session(route: APIRoute) -> bool:
-    """
-    Detect if the route depends on the synchronous DB session dependency.
-
-    We look for the internal dependency function `_get_session` from
-    `airflow.api_fastapi.common.db.common` in the dependency tree.
-    """
+def _route_uses_dep(route: APIRoute, *, module: str, name: str) -> bool:
     stack = list(route.dependant.dependencies)
     while stack:
         dep = stack.pop()
         call = getattr(dep, "call", None)
         if call is not None:
             mod = getattr(call, "__module__", "")
-            name = getattr(call, "__name__", "")
-            if mod == "airflow.api_fastapi.common.db.common" and name == "_get_session":
+            func_name = getattr(call, "__name__", "")
+            if mod == module and func_name == name:
                 return True
         stack.extend(getattr(dep, "dependencies", []) or [])
     return False
 
 
 class _AirflowRoute(APIRoute):
-    """
-    Custom route that finalizes DB transactions before sending the response.
-
-    This restores pre-FastAPI 0.118 behavior for DB session lifecycle so that
-    commits/rollbacks happen before the response body has started.
-    Only applies to routes that declare the sync session dependency.
-    """
-
     def get_route_handler(self) -> Callable[[Request], Coroutine[None, None, Response]]:
         default_handler = super().get_route_handler()
-        needs_db = _route_uses_session(self)
+        uses_sync = _route_uses_dep(self, module="airflow.api_fastapi.common.db.common", name="_get_session")
+        uses_async = _route_uses_dep(
+            self, module="airflow.api_fastapi.common.db.common", name="_get_async_session"
+        )
 
         async def handler(request: Request) -> Response:
-            if not needs_db:
+            if not (uses_sync or uses_async):
                 return await default_handler(request)
-
-            with create_session(scoped=False) as session:
-                setattr(request.state, "__airflow_db_session", session)
-                response = await default_handler(request)
-
-            delattr(request.state, "__airflow_db_session")
-            return response
+            if uses_async:
+                async with create_session_async() as async_session:
+                    setattr(request.state, "__airflow_async_db_session", async_session)
+                    response = await default_handler(request)
+                    await async_session.commit()
+                    try:
+                        delattr(request.state, "__airflow_async_db_session")
+                    except Exception:
+                        pass
+                    return response
+            else:
+                with create_session(scoped=False) as session:
+                    setattr(request.state, "__airflow_db_session", session)
+                    response = await default_handler(request)
+                    session.commit()
+                    try:
+                        delattr(request.state, "__airflow_db_session")
+                    except Exception:
+                        pass
+                    return response
 
         return handler

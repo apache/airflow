@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from airflow.utils.db import get_query_count, get_query_count_async
-from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -43,7 +43,7 @@ def _get_session(request: Request) -> Session:
     if session is not None:
         yield session
         return
-    raise RuntimeError("Session not set in request.state")
+    raise RuntimeError("No session found in request state")
 
 
 SessionDep = Annotated[Session, Depends(_get_session)]
@@ -62,9 +62,12 @@ def apply_filters_to_select(
     return statement
 
 
-async def _get_async_session() -> AsyncSession:
-    async with create_session_async() as session:
-        yield session
+async def _get_async_session(request: Request) -> AsyncSession:
+    async_session: AsyncSession | None = getattr(request.state, "__airflow_async_db_session", None)
+    if async_session is not None:
+        yield async_session
+        return
+    raise RuntimeError("No async session found in request state")
 
 
 AsyncSessionDep = Annotated[AsyncSession, Depends(_get_async_session)]
