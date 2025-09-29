@@ -36,7 +36,8 @@
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
     "parseDuration": "Parse Duration:",
-    "parsedAt": "Parsed at:"
+    "parsedAt": "Parsed at:",
+    "sourceFile": "Source File:"
   },
   "extraLinks": "Extra Links",
   "grid": {

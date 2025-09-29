@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import Depends, HTTPException, Response, status
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -69,11 +71,14 @@ def get_dag_source(
             status.HTTP_404_NOT_FOUND,
             detail=f"Code not found. dag_id='{dag_id}' version_number='{version_number}'",
         )
+    file_location = dag_version.dag_code.fileloc
+    file_name = Path(file_location).name if file_location else None
     dag_source_model = DAGSourceResponse(
         dag_id=dag_id,
         content=dag_version.dag_code.source_code,
         version_number=dag_version.version_number,
         dag_display_name=dag_version.dag_model.dag_display_name,
+        file_display_name=file_name,
     )
 
     if accept == Mimetype.TEXT:
