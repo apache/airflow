@@ -24,16 +24,16 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
-from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Mapped, Session
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
@@ -63,13 +63,13 @@ class TaskMap(TaskInstanceDependencies):
     __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    map_index = Column(Integer, primary_key=True)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    length: Mapped[int] = mapped_column(Integer, nullable=False)
+    keys: Mapped[list | None] = mapped_column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),

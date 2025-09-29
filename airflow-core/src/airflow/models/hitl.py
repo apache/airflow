@@ -19,17 +19,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, String, Text, func, literal
+from sqlalchemy import Boolean, ForeignKeyConstraint, String, Text, func, literal
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.settings import json
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement
@@ -84,31 +84,37 @@ class HITLDetail(Base):
     """Human-in-the-loop request and corresponding response."""
 
     __tablename__ = "hitl_detail"
-    ti_id = Column(
+    ti_id: Mapped[str] = mapped_column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         primary_key=True,
         nullable=False,
     )
 
     # User Request Detail
-    options = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    subject = Column(Text, nullable=False)
-    body = Column(Text, nullable=True)
-    defaults = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    multiple = Column(Boolean, unique=False, default=False)
-    params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
-    assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    options: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    defaults: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    multiple: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    params: Mapped[dict] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
+    )
+    assignees: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
-    responded_at = Column(UtcDateTime, nullable=True)
-    responded_by = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    chosen_options = Column(
+    responded_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    responded_by: Mapped[dict | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
+    chosen_options: Mapped[dict | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json),
         nullable=True,
         default=None,
     )
-    params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    params_input: Mapped[dict] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
+    )
     task_instance = relationship(
         "TaskInstance",
         lazy="joined",
