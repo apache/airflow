@@ -38,7 +38,6 @@ from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
-from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -49,19 +48,6 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-
-def get_serialized_template_fields(task: SerializedBaseOperator):
-    """
-    Get and serialize the template fields for a task.
-
-    Used in preparing to store them in RTIF table.
-
-    :param task: Operator instance with rendered template fields
-
-    :meta private:
-    """
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
@@ -115,14 +101,12 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     logical_date = association_proxy("dag_run", "logical_date")
 
-    def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
+    def __init__(self, ti: TaskInstance, rendered_fields=None):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.run_id = ti.run_id
         self.map_index = ti.map_index
         self.ti = ti
-        if render_templates:
-            ti.render_templates()
 
         if TYPE_CHECKING:
             assert isinstance(ti.task, SerializedBaseOperator)
@@ -134,7 +118,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
+        self.rendered_fields = rendered_fields
 
         self._redact()
 
