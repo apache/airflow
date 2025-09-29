@@ -28,6 +28,7 @@ import zipfile
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
+from pathlib import Path
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
