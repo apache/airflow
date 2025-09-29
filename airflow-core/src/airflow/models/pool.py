@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy.orm import Mapped
 from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -32,7 +33,6 @@ from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
     from sqlalchemy.orm.session import Session
 
 
@@ -56,7 +56,7 @@ class Pool(Base):
     pool: Mapped[str] = mapped_column(String(256), unique=True)
     # -1 for infinite
     slots: Mapped[int] = mapped_column(Integer, default=0)
-    description: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     include_deferred: Mapped[bool] = mapped_column(Boolean, nullable=False)
     team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 

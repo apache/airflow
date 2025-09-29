@@ -322,29 +322,29 @@ class DagModel(Base):
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
     # Last time the scheduler started
-    last_parsed_time: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    last_parsed_time: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
-    last_parse_duration: Mapped[float] = mapped_column(Float)
+    last_parse_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    last_expired: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc: Mapped[str] = mapped_column(String(2000))
-    relative_fileloc: Mapped[str] = mapped_column(String(2000))
+    fileloc: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    relative_fileloc: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     bundle_name: Mapped[str] = mapped_column(StringID(), ForeignKey("dag_bundle.name"), nullable=False)
     # The version of the bundle the last time the DAG was processed
     bundle_version: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # String representing the owners
-    owners: Mapped[str] = mapped_column(String(2000))
+    owners: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     # Display name of the dag
     _dag_display_property_value: Mapped[str | None] = mapped_column(
         "dag_display_name", String(2000), nullable=True
     )
     # Description of the dag
-    description: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Timetable summary
     timetable_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Timetable description
@@ -374,14 +374,14 @@ class DagModel(Base):
     has_import_errors: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="0")
 
     # The logical date of the next dag run.
-    next_dagrun: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    next_dagrun: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Must be either both NULL or both datetime.
-    next_dagrun_data_interval_start: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    next_dagrun_data_interval_end: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    next_dagrun_data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Earliest time at which this ``next_dagrun`` can be created.
-    next_dagrun_create_after: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    next_dagrun_create_after: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 

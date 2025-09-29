@@ -17,16 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import Integer, String, Text
+from sqlalchemy.orm import Mapped
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
 
 
 class ParseImportError(Base):
@@ -34,10 +30,10 @@ class ParseImportError(Base):
 
     __tablename__ = "import_error"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    timestamp: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    filename: Mapped[str] = mapped_column(String(1024))
-    bundle_name: Mapped[str] = mapped_column(StringID())
-    stacktrace: Mapped[str] = mapped_column(Text)
+    timestamp: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def full_file_path(self) -> str:
         """Return the full file path of the dag."""

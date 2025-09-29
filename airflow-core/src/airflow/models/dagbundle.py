@@ -43,7 +43,7 @@ class DagBundleModel(Base, LoggingMixin):
 
     __tablename__ = "dag_bundle"
     name: Mapped[str] = mapped_column(StringID(length=250), primary_key=True, nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    active: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
     version: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_refreshed: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     signed_url_template: Mapped[str | None] = mapped_column(String(200), nullable=True)
