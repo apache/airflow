@@ -51,7 +51,9 @@ export const DagCard = ({ dag }: Props) => {
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
             <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink data-testid="dag-id" to={`/dags/${dag.dag_id}`}>{dag.dag_display_name}</RouterLink>
+              <RouterLink data-testid="dag-id" to={`/dags/${dag.dag_id}`}>
+                {dag.dag_display_name}
+              </RouterLink>
             </Link>
           </Tooltip>
           <DagTags tags={dag.tags} />

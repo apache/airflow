@@ -18,6 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
@@ -211,11 +212,17 @@ describe("DagCard", () => {
   });
 
   it("DagCard should render StateBadge as failed", () => {
+    const [firstDagRun] = mockDag.latest_dag_runs;
+
+    if (!firstDagRun) {
+      throw new Error("Mock data should have at least one dag run");
+    }
+
     const mockDagWithFailedRun = {
       ...mockDag,
       latest_dag_runs: [
         {
-          ...mockDag.latest_dag_runs[0]!,
+          ...firstDagRun,
           state: "failed" as const,
         },
       ],
