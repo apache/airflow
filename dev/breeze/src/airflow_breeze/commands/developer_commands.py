@@ -1153,6 +1153,8 @@ def run(
             shell_params=shell_params,
             project_name=unique_project_name,
             command=full_command,
+            # Always preserve the backend specified by user (or resolved from default)
+            preserve_backend=True,
         )
 
     # Clean up ownership

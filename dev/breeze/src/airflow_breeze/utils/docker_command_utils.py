@@ -730,13 +730,14 @@ def execute_command_in_shell(
     command: str | None = None,
     output: Output | None = None,
     signal_error: bool = True,
+    preserve_backend: bool = False,
 ) -> RunCommandResult:
     """Executes command in shell.
 
     When you want to execute a script/bash command inside the CI container and want to use `enter_shell`
     for this purpose, the helper methods sets the following parameters of shell_params:
 
-    * backend - to force sqlite backend
+    * backend - to force sqlite backend (unless preserve_backend=True)
     * clean_sql_db=True - to clean the sqlite DB
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
@@ -751,16 +752,23 @@ def execute_command_in_shell(
     :param project_name: Name of the project to use. This avoids name clashes with default 'breeze"
         project name used - this way you will be able to run the command in parallel to regular
         "breeze" shell opened in parallel
-    :param command:
+    :param command: command to execute in the shell
+    :param output: output configuration
+    :param signal_error: whether to signal error
+    :param preserve_backend: if True, preserve the backend specified in shell_params instead of forcing sqlite
     """
-    shell_params.backend = "sqlite"
+    if not preserve_backend:
+        shell_params.backend = "sqlite"
     shell_params.forward_ports = False
     shell_params.project_name = project_name
     shell_params.quiet = True
     shell_params.skip_environment_initialization = True
     shell_params.skip_image_upgrade_check = True
     if get_verbose():
-        get_console().print("[warning]Sqlite DB is cleaned[/]")
+        if not preserve_backend:
+            get_console().print("[warning]Sqlite DB is cleaned[/]")
+        else:
+            get_console().print(f"[info]Using backend: {shell_params.backend}[/]")
         get_console().print("[warning]Disabled port forwarding[/]")
         get_console().print(f"[warning]Project name set to: {project_name}[/]")
         get_console().print("[warning]Forced quiet mode[/]")
