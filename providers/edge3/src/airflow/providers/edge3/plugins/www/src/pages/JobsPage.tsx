@@ -93,7 +93,7 @@ export const JobsPage = () => {
                   {job.queued_dttm ? <TimeAgo date={job.queued_dttm} live={false} /> : undefined}
                 </Table.Cell>
                 <Table.Cell>
-                  <Link to={`/plugin/edge_worker#${job.edge_worker}`}>{job.edge_worker}</Link>
+                  <Link to={`../edge_worker#${job.edge_worker}`}>{job.edge_worker}</Link>
                 </Table.Cell>
                 <Table.Cell>
                   {job.last_update ? <TimeAgo date={job.last_update} live={false} /> : undefined}
