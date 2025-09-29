@@ -24,9 +24,9 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
@@ -38,6 +38,7 @@ from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -51,12 +52,12 @@ class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(ID_LEN), unique=True)
-    _val = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
-    description = Column(Text)
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(ID_LEN), unique=True)
+    _val: Mapped[str] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
+    description: Mapped[str] = mapped_column(Text)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
     def __init__(self, key=None, val=None, description=None, team_id=None):
         super().__init__()
