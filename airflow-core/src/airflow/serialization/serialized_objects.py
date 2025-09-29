@@ -98,6 +98,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
+from airflow.stats import Stats
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -2901,6 +2902,10 @@ class SerializedDAG(BaseSerialization):
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 
@@ -3284,6 +3289,7 @@ class SerializedDAG(BaseSerialization):
                                 dagrun_id=orm_dagrun.id,
                             )
                         )
+                        Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
         return orm_dagrun
 

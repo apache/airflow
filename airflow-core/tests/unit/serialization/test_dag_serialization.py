@@ -46,6 +46,7 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow._shared.timezones import timezone
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -53,7 +54,6 @@ from airflow.exceptions import (
 )
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
-from airflow.models.dagbag import DagBag
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -964,6 +964,55 @@ class TestStringifiedDAGs:
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
         assert dag.timetable == expected_timetable
+
+    @pytest.mark.parametrize(
+        "serialized_timetable, expected_timetable_summary",
+        [
+            (
+                {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
+                "None",
+            ),
+            (
+                {
+                    "__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "__var": {"expression": "@weekly", "timezone": "UTC"},
+                },
+                "0 0 * * 0",
+            ),
+            (
+                {"__type": "airflow.timetables.simple.OnceTimetable", "__var": {}},
+                "@once",
+            ),
+            (
+                {
+                    "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+                    "__var": {"delta": 86400.0},
+                },
+                "1 day, 0:00:00",
+            ),
+            (CUSTOM_TIMETABLE_SERIALIZED, "CustomSerializationTimetable('foo')"),
+        ],
+    )
+    @pytest.mark.usefixtures("timetable_plugin")
+    def test_deserialization_timetable_summary(
+        self,
+        serialized_timetable,
+        expected_timetable_summary,
+    ):
+        serialized = {
+            "__version": 3,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "timetable": serialized_timetable,
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+        assert dag.timetable_summary == expected_timetable_summary
 
     def test_deserialization_timetable_unregistered(self):
         serialized = {
