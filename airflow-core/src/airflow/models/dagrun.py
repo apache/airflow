@@ -1547,6 +1547,10 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
+
+                # _revise_map_indexes_if_mapped might mark the current task as REMOVED
+                # after calculating mapped task length, so we need to re-check
+                # the task state to ensure it's still schedulable
                 if schedulable.state in SCHEDULEABLE_STATES:
                     ready_tis.append(schedulable)
 
