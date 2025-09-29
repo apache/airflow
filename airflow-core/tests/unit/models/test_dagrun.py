@@ -2296,8 +2296,11 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     # Check if mapped task rerun successfully
     for ti in decision.schedulable_tis:
         dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
-    query = select(TI).filter_by(
-        dag_id=dr.dag_id, run_id=dr.run_id, task_id="mapped_print_value", state=TaskInstanceState.SUCCESS
+    query = select(TI).where(
+        TI.dag_id == dr.dag_id,
+        TI.run_id == dr.run_id,
+        TI.task_id == "mapped_print_value",
+        TI.state == TaskInstanceState.SUCCESS,
     )
     success_tis = session.execute(query).all()
     assert len(success_tis) == rerun_length
