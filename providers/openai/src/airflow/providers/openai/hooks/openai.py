@@ -462,23 +462,24 @@ class OpenAIHook(BaseHook):
                 raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
             batch = self.get_batch(batch_id=batch_id)
 
-            if BatchStatus.is_in_progress(batch.status):
+            status = batch.status
+            if BatchStatus.is_in_progress(status):
                 time.sleep(wait_seconds)
                 continue
-            if batch.status == BatchStatus.COMPLETED:
+            elif status == BatchStatus.COMPLETED:
                 return
-            if batch.status == BatchStatus.FAILED:
+            elif status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
-            if batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
+            elif status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
                 raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
-            if batch.status == BatchStatus.EXPIRED:
+            elif status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
                     f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
                 )
-
-            raise OpenAIBatchJobException(
-                f"Batch failed - encountered unexpected status `{batch.status}` for batch_id `{batch_id}`"
-            )
+            else:
+                raise OpenAIBatchJobException(
+                    f"Batch failed - encountered unexpected status `{status}` for batch_id `{batch_id}`"
+                )
 
     def cancel_batch(self, batch_id: str) -> Batch:
         """
