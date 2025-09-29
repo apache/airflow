@@ -149,29 +149,31 @@ class DagRun(Base, LoggingMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    queued_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    queued_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     logical_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    start_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    end_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     _state: Mapped[str] = mapped_column("state", String(50), default=DagRunState.QUEUED)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    creating_job_id: Mapped[int] = mapped_column(Integer)
+    creating_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     run_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    triggered_by: Mapped[DagRunTriggeredByType] = mapped_column(
-        Enum(DagRunTriggeredByType, native_enum=False, length=50)
+    triggered_by: Mapped[DagRunTriggeredByType | None] = mapped_column(
+        Enum(DagRunTriggeredByType, native_enum=False, length=50), nullable=True
     )  # Airflow component that triggered the run.
     triggering_user_name: Mapped[str | None] = mapped_column(
         String(512),
         nullable=True,
     )  # The user that triggered the DagRun, if applicable
-    conf: Mapped[dict[str, Any]] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"))
+    conf: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True
+    )
     # These two must be either both NULL or both datetime.
-    data_interval_start: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    data_interval_end: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     # Earliest time when this DagRun can start running.
     run_after: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
     # When a scheduler last attempted to schedule TIs for this DagRun
-    last_scheduling_decision: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    last_scheduling_decision: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -193,11 +195,13 @@ class DagRun(Base, LoggingMixin):
 
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
     """
-    bundle_version: Mapped[str] = mapped_column(StringID())
+    bundle_version: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
-    scheduled_by_job_id: Mapped[int] = mapped_column(Integer)
+    scheduled_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Span context carrier, used for context propagation.
-    context_carrier: Mapped[dict[str, Any]] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
+    context_carrier: Mapped[dict[str, Any] | None] = mapped_column(
+        MutableDict.as_mutable(ExtendedJSON), nullable=True
+    )
     span_status: Mapped[str] = mapped_column(
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
@@ -2120,7 +2124,7 @@ class DagRunNote(Base):
 
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     dag_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    content: Mapped[str] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
+    content: Mapped[str | None] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
     created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[UtcDateTime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False

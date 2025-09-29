@@ -49,7 +49,7 @@ class DagVersion(Base):
     )
     dag_model = relationship("DagModel", back_populates="dag_versions")
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    bundle_version: Mapped[str] = mapped_column(StringID())
+    bundle_version: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     dag_code = relationship(
         "DagCode",
         back_populates="dag_version",

@@ -130,18 +130,18 @@ class Connection(Base, LoggingMixin):
     id: Mapped[int] = mapped_column(Integer(), primary_key=True)
     conn_id: Mapped[str] = mapped_column(String(ID_LEN), unique=True, nullable=False)
     conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
-    description: Mapped[str] = mapped_column(
-        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite")
+    description: Mapped[str | None] = mapped_column(
+        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"), nullable=True
     )
-    host: Mapped[str] = mapped_column(String(500))
-    schema: Mapped[str] = mapped_column(String(500))
-    login: Mapped[str] = mapped_column(Text())
-    _password: Mapped[str] = mapped_column("password", Text())
-    port: Mapped[int] = mapped_column(Integer())
+    host: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    login: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
+    port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
-    _extra: Mapped[str] = mapped_column("extra", Text())
+    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
         self,

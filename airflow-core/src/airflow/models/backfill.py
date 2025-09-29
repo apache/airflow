@@ -120,7 +120,7 @@ class Backfill(Base):
     from_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
     to_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
     dag_run_conf: Mapped[JSONField] = mapped_column(JSONField(json=json), nullable=False, default={})
-    is_paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_paused: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     """
     Controls whether new dag runs will be created for this backfill.
 
@@ -172,7 +172,7 @@ class BackfillDagRun(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    exception_reason: Mapped[str] = mapped_column(StringID())
+    exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     logical_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 

@@ -384,10 +384,10 @@ class TaskInstance(Base, LoggingMixin):
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
 
-    start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    duration: Mapped[float] = mapped_column(Float)
-    state: Mapped[str] = mapped_column(String(20))
+    start_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    end_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     try_number: Mapped[int] = mapped_column(Integer, default=0)
     max_tries: Mapped[int] = mapped_column(Integer, server_default=text("-1"))
     hostname: Mapped[str] = mapped_column(String(1000))
@@ -396,44 +396,45 @@ class TaskInstance(Base, LoggingMixin):
     pool_slots: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     queue: Mapped[str] = mapped_column(String(256))
     priority_weight: Mapped[int] = mapped_column(Integer)
-    operator: Mapped[str] = mapped_column(String(1000))
+    operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str] = mapped_column(String(1000))
-    queued_dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    scheduled_dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    queued_by_job_id: Mapped[int] = mapped_column(Integer)
+    queued_dttm: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    scheduled_dttm: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    last_heartbeat_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    pid: Mapped[int] = mapped_column(Integer)
-    executor: Mapped[str] = mapped_column(String(1000))
+    last_heartbeat_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    executor: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     executor_config: Mapped[dict] = mapped_column(ExecutorConfigType(pickler=dill))
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
+    updated_at: Mapped[UtcDateTime | None] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
-    _rendered_map_index: Mapped[str] = mapped_column("rendered_map_index", String(250))
-    context_carrier: Mapped[dict] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
+    _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
+    context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
     span_status: Mapped[str] = mapped_column(
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
 
-    external_executor_id: Mapped[str] = mapped_column(StringID())
+    external_executor_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id: Mapped[int] = mapped_column(Integer)
+    trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Optional timeout utcdatetime for the trigger (past this, we'll fail)
-    trigger_timeout: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    trigger_timeout: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
-    next_method: Mapped[str] = mapped_column(String(1000))
-    next_kwargs: Mapped[dict] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
+    next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    next_kwargs: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
 
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True
     )
-    dag_version_id: Mapped[str] = mapped_column(
+    dag_version_id: Mapped[str | None] = mapped_column(
         UUIDType(binary=False),
         ForeignKey("dag_version.id", ondelete="RESTRICT"),
+        nullable=True,
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
@@ -2213,7 +2214,7 @@ class TaskInstanceNote(Base):
         nullable=False,
     )
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    content: Mapped[str] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
+    content: Mapped[str | None] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
     created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[UtcDateTime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
