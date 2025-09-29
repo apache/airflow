@@ -178,4 +178,3 @@ cases might include alerts yielded from APIs, database queries or files.
 
     # Create an instance of the class
     DASHBOARD_UIALERTS = DynamicAlerts()
-
