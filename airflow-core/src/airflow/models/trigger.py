@@ -24,9 +24,9 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, relationship, selectinload
+from sqlalchemy.orm import Mapped, Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -37,7 +37,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -90,11 +90,11 @@ class Trigger(Base):
 
     __tablename__ = "trigger"
 
-    id = Column(Integer, primary_key=True)
-    classpath = Column(String(1000), nullable=False)
-    encrypted_kwargs = Column("kwargs", Text, nullable=False)
-    created_date = Column(UtcDateTime, nullable=False)
-    triggerer_id = Column(Integer, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
+    encrypted_kwargs: Mapped[str] = mapped_column("kwargs", Text, nullable=False)
+    created_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     triggerer_job = relationship(
         "Job",
